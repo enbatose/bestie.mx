@@ -10,3 +10,12 @@
     @apply outline-2 outline-offset-2 outline-accent;
   }
 }
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.bestie-selected-pin {
+  background: transparent !important;
+  border: none !important;
+}
