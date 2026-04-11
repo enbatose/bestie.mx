@@ -1,0 +1,33 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Left Figure (Forest) -->
+  <circle cx="47" cy="26" r="7" stroke="#143D30" stroke-width="3" fill="none"/>
+  <path d="M 42 33 C 38 35, 35 40, 35 46 L 35 62 C 35 67, 38 70, 42 70 L 52 70 C 56 70, 59 67, 59 62 L 59 46 C 59 40, 56 35, 52 33"
+        stroke="#143D30" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 42 38 L 36 58" stroke="#143D30" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 52 38 C 58 28, 64 20, 71 14" stroke="#143D30" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 44 70 L 40 86" stroke="#143D30" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 50 70 L 54 86" stroke="#143D30" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Right Figure (Lime) -->
+  <circle cx="95" cy="26" r="7" stroke="#84CC16" stroke-width="3" fill="none"/>
+  <path d="M 90 33 C 86 35, 83 40, 83 46 L 83 62 C 83 67, 86 70, 90 70 L 100 70 C 104 70, 107 67, 107 62 L 107 46 C 107 40, 104 35, 100 33"
+        stroke="#84CC16" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 90 38 C 84 28, 78 20, 71 14" stroke="#84CC16" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 100 38 L 106 58" stroke="#84CC16" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 92 70 L 88 86" stroke="#84CC16" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M 98 70 L 102 86" stroke="#84CC16" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Sparks (Lime) -->
+  <line x1="63" y1="10" x2="67" y2="3" stroke="#84CC16" stroke-width="3" stroke-linecap="round"/>
+  <line x1="71" y1="10" x2="71" y2="2" stroke="#84CC16" stroke-width="3" stroke-linecap="round"/>
+  <line x1="79" y1="10" x2="75" y2="3" stroke="#84CC16" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Text: bestie.mx -->
+  <g font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700">
+    <text x="80" y="122" text-anchor="middle" fill="#143D30">best</text>
+    <circle cx="107" cy="103" r="3" fill="#84CC16"/>
+    <rect x="105.5" y="109" width="3" height="13" fill="#143D30"/>
+    <text x="112" y="122" fill="#143D30">e.</text>
+    <text x="138" y="122" fill="#84CC16">mx</text>
+  </g>
+</svg>

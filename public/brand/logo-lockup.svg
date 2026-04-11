@@ -1,0 +1,33 @@
+<svg width="250" height="80" viewBox="0 0 250 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Left Figure (Forest) -->
+  <circle cx="20" cy="18" r="5" stroke="#143D30" stroke-width="2.5" fill="none"/>
+  <path d="M 16 23 C 13 25, 11 28, 11 33 L 11 46 C 11 50, 13 52, 16 52 L 24 52 C 27 52, 29 50, 29 46 L 29 33 C 29 28, 27 25, 24 23"
+        stroke="#143D30" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 16 27 L 12 43" stroke="#143D30" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 24 27 C 28 21, 32 14, 37 10" stroke="#143D30" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 17 52 L 14 64" stroke="#143D30" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 23 52 L 26 64" stroke="#143D30" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Right Figure (Lime) -->
+  <circle cx="54" cy="18" r="5" stroke="#84CC16" stroke-width="2.5" fill="none"/>
+  <path d="M 50 23 C 47 25, 45 28, 45 33 L 45 46 C 45 50, 47 52, 50 52 L 58 52 C 61 52, 63 50, 63 46 L 63 33 C 63 28, 61 25, 58 23"
+        stroke="#84CC16" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 50 27 C 46 21, 42 14, 37 10" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 58 27 L 62 43" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 51 52 L 48 64" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M 57 52 L 60 64" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Sparks (Lime) -->
+  <line x1="30" y1="6" x2="33" y2="1" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="37" y1="6" x2="37" y2="0" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="44" y1="6" x2="41" y2="1" stroke="#84CC16" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Text: bestie.mx -->
+  <g font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="700">
+    <text x="86" y="50" fill="#143D30">best</text>
+    <circle cx="164" cy="30" r="3.5" fill="#84CC16"/>
+    <rect x="162" y="36" width="4" height="14" fill="#143D30"/>
+    <text x="170" y="50" fill="#143D30">e.</text>
+    <text x="202" y="50" fill="#84CC16">mx</text>
+  </g>
+</svg>
