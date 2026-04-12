@@ -11,6 +11,38 @@
   }
 }
 
+/* Dark mode (toggle sets `class="dark"` on `<html>`). */
+.dark {
+  color-scheme: dark;
+}
+.dark body {
+  @apply bg-bg-dark text-slate-100;
+}
+.dark .text-body {
+  @apply text-slate-100;
+}
+.dark .text-muted {
+  @apply text-slate-400;
+}
+.dark .text-primary {
+  @apply text-accent;
+}
+.dark .bg-surface {
+  @apply bg-slate-900;
+}
+.dark .bg-surface-elevated {
+  @apply bg-slate-800;
+}
+.dark .bg-bg-light {
+  @apply bg-slate-800/80;
+}
+.dark .border-border {
+  @apply border-slate-600;
+}
+.dark .ring-border {
+  @apply ring-slate-600;
+}
+
 .leaflet-container {
   font-family: inherit;
   height: 100%;

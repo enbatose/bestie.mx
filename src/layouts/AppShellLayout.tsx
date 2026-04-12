@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { analyticsHeartbeat, authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -25,11 +26,12 @@ export function AppShellLayout() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col dark:bg-bg-dark">
       <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <BrandLogo />
-          <nav className="flex items-center gap-1 sm:gap-2">
+          <nav className="flex flex-wrap items-center justify-end gap-1 sm:gap-2">
+            <ThemeToggle />
             <NavLink to="/buscar" className={navClass}>
               Buscar
             </NavLink>

@@ -6,6 +6,8 @@ import { sendWhatsAppOtpTemplate } from "./whatsappMeta.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.js";
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
+import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
+import { createEmailVerificationToken, verifyEmailWithToken } from "./emailVerification.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
 
@@ -40,6 +42,21 @@ function jsonMw() {
 export function authRouter(db: DatabaseSync) {
   const r = express.Router();
 
+  r.get("/verify-email", (req: Request, res: Response) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    if (!token) {
+      res.status(400).type("text/plain").send("Missing token");
+      return;
+    }
+    const result = verifyEmailWithToken(db, token);
+    if (!result.ok) {
+      res.status(400).type("text/plain").send("Invalid or expired verification link");
+      return;
+    }
+    const base = publicWebOrigin();
+    res.redirect(302, `${base}/entrar?verified=1`);
+  });
+
   r.post("/register", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -64,7 +81,17 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     issueAuthCookie(res, id);
-    res.status(201).json({ id, email, displayName: displayName || email.split("@")[0] });
+    const rawVerify = createEmailVerificationToken(db, id);
+    const devVerificationUrl =
+      process.env.NODE_ENV !== "production"
+        ? `${publicWebOrigin()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`
+        : undefined;
+    res.status(201).json({
+      id,
+      email,
+      displayName: displayName || email.split("@")[0],
+      ...(devVerificationUrl ? { devVerificationUrl } : {}),
+    });
   });
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
@@ -94,7 +121,9 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     const u = db
-      .prepare("SELECT id, email, phone_e164, display_name, created_at FROM users WHERE id = ?")
+      .prepare(
+        "SELECT id, email, phone_e164, display_name, created_at, email_verified_at FROM users WHERE id = ?",
+      )
       .get(uid) as
       | {
           id: string;
@@ -102,6 +131,7 @@ export function authRouter(db: DatabaseSync) {
           phone_e164: string | null;
           display_name: string;
           created_at: string;
+          email_verified_at: string | null;
         }
       | undefined;
     if (!u) {
@@ -120,6 +150,7 @@ export function authRouter(db: DatabaseSync) {
       createdAt: u.created_at,
       linkedPublisherIds: pubs.map((p) => p.publisher_id),
       isAdmin: isAdminUser(db, uid),
+      emailVerified: u.email_verified_at != null && String(u.email_verified_at).trim() !== "",
     });
   });
 
@@ -237,13 +268,8 @@ export function authRouter(db: DatabaseSync) {
     const body = req.body as { draftPropertyId?: unknown };
     const draftPropertyId =
       typeof body.draftPropertyId === "string" && body.draftPropertyId.length < 200 ? body.draftPropertyId : null;
-    const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "").slice(0, 8);
-    const exp = Date.now() + 24 * 60 * 60 * 1000;
-    db.prepare(
-      `INSERT INTO messenger_handoff_tokens (token, publisher_id, draft_property_id, expires_at, used_at, created_at) VALUES (?, ?, ?, ?, NULL, ?)`,
-    ).run(token, pub, draftPropertyId, exp, Date.now());
-    const base = process.env.PUBLIC_WEB_ORIGIN?.replace(/\/$/, "") || "https://bestie.mx";
-    res.json({ token, url: `${base}/publicar?handoff=${encodeURIComponent(token)}` });
+    const { token, url } = createPublishHandoff(db, pub, draftPropertyId);
+    res.json({ token, url });
   });
 
   r.post("/handoff/consume", jsonMw(), (req: Request, res: Response) => {

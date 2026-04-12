@@ -19,6 +19,7 @@ export type AuthMe = {
   createdAt: string;
   linkedPublisherIds: string[];
   isAdmin?: boolean;
+  emailVerified?: boolean;
 };
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
@@ -30,10 +31,15 @@ export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
   return (await res.json()) as AuthMe;
 }
 
+export type RegisterResult = {
+  me: AuthMe;
+  devVerificationUrl?: string;
+};
+
 export async function authRegister(
   body: { email: string; password: string; displayName?: string },
   signal?: AbortSignal,
-): Promise<AuthMe> {
+): Promise<RegisterResult> {
   const base = apiBase();
   const res = await fetch(`${base}/api/auth/register`, {
     method: "POST",
@@ -46,10 +52,15 @@ export async function authRegister(
     const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
     throw new Error(j.message || j.error || `register_${res.status}`);
   }
-  await res.json().catch(() => null);
+  const created = (await res.json()) as { devVerificationUrl?: string };
   const me = await authMe(signal);
   if (!me) throw new Error("register_session_missing");
-  return me;
+  return {
+    me,
+    ...(typeof created.devVerificationUrl === "string"
+      ? { devVerificationUrl: created.devVerificationUrl }
+      : {}),
+  };
 }
 
 export async function authLogin(

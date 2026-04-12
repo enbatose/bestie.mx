@@ -90,5 +90,23 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
       publisher_id TEXT NOT NULL,
       PRIMARY KEY (day, publisher_id)
     );
+
+    CREATE TABLE IF NOT EXISTS messenger_chat_sessions (
+      psid TEXT PRIMARY KEY,
+      publisher_id TEXT NOT NULL,
+      flow TEXT NOT NULL DEFAULT 'idle',
+      draft_json TEXT NOT NULL DEFAULT '{}',
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_email_verify_user ON email_verification_tokens(user_id);
   `);
 }

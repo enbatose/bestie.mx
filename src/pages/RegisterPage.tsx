@@ -31,7 +31,6 @@ export function RegisterPage() {
       {err ? (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
       ) : null}
-
       <form
         className="mt-8 space-y-4"
         onSubmit={async (e) => {
@@ -39,12 +38,17 @@ export function RegisterPage() {
           setErr(null);
           setBusy(true);
           try {
-            await authRegister({
+            const { me, devVerificationUrl } = await authRegister({
               email: email.trim().toLowerCase(),
               password,
               displayName: displayName.trim() || undefined,
             });
-            navigate("/entrar", { replace: true });
+            const registrationNotice = devVerificationUrl
+              ? `Verifica tu correo con este enlace (entorno no productivo): ${devVerificationUrl}`
+              : me.email && !me.emailVerified
+                ? "Te enviamos un enlace de verificación al correo (revisa spam)."
+                : undefined;
+            navigate("/entrar", { replace: true, state: registrationNotice ? { registrationNotice } : undefined });
           } catch (x) {
             setErr(x instanceof Error ? x.message : "Error");
           } finally {

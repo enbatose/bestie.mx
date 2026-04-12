@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
+import { processMessengerUserInput } from "./messengerFlows.js";
 
 export function messengerWebhookVerify(req: Request, res: Response): void {
   const mode = req.query["hub.mode"];
@@ -26,19 +27,11 @@ function verifyMetaSignature(rawBody: Buffer, sigHeader: string | undefined): bo
   }
 }
 
-async function sendMessengerText(psid: string, text: string): Promise<void> {
-  const pageToken = process.env.MESSENGER_PAGE_ACCESS_TOKEN?.trim();
-  if (!pageToken) return;
-  await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${encodeURIComponent(pageToken)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      recipient: { id: psid },
-      messaging_type: "RESPONSE",
-      message: { text },
-    }),
-  });
-}
+type MessagingEvent = {
+  sender?: { id?: string };
+  postback?: { payload?: string };
+  message?: { text?: string; quick_reply?: { payload?: string }; is_echo?: boolean };
+};
 
 export function messengerWebhookPost(db: DatabaseSync) {
   return async (req: Request, res: Response): Promise<void> => {
@@ -56,22 +49,31 @@ export function messengerWebhookPost(db: DatabaseSync) {
       return;
     }
 
-    const base = process.env.PUBLIC_WEB_ORIGIN?.replace(/\/$/, "") || "https://bestie.mx";
     const entries = (payload as { entry?: unknown })?.entry;
     let firstPsid: string | null = null;
     if (Array.isArray(entries)) {
       for (const ent of entries) {
         const messaging = (ent as { messaging?: unknown })?.messaging;
         if (!Array.isArray(messaging)) continue;
-        for (const ev of messaging) {
-          const sender = (ev as { sender?: { id?: string } })?.sender?.id;
-          const text = (ev as { message?: { text?: string } })?.message?.text?.trim();
+        for (const ev of messaging as MessagingEvent[]) {
+          const sender = ev.sender?.id;
           if (!sender) continue;
           if (!firstPsid) firstPsid = sender;
-          const q = text && text.length > 0 ? encodeURIComponent(text.slice(0, 120)) : "";
-          const url = `${base}/buscar${q ? `?q=${q}` : ""}`;
-          const reply = `Busca en Bestie: ${url}\n\nPara publicar, abre ${base}/publicar en tu navegador.`;
-          await sendMessengerText(sender, reply);
+          if (ev.message?.is_echo) continue;
+
+          try {
+            if (ev.postback?.payload) {
+              await processMessengerUserInput(db, sender, { postback: ev.postback.payload });
+            } else if (ev.message?.quick_reply?.payload) {
+              await processMessengerUserInput(db, sender, {
+                quickReplyPayload: ev.message.quick_reply.payload,
+              });
+            } else if (typeof ev.message?.text === "string") {
+              await processMessengerUserInput(db, sender, { text: ev.message.text });
+            }
+          } catch (err) {
+            console.warn(`[messenger] handler error for ${sender}:`, err);
+          }
         }
       }
     }

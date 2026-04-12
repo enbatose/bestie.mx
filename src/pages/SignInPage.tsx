@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   authLinkPublisher,
   authLogin,
@@ -12,6 +12,8 @@ import {
 } from "@/lib/authApi";
 
 export function SignInPage() {
+  const location = useLocation() as { state?: { registrationNotice?: string } };
+  const [searchParams, setSearchParams] = useSearchParams();
   const apiOn = isAuthApiConfigured();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [tab, setTab] = useState<"wa" | "email">("wa");
@@ -43,6 +45,13 @@ export function SignInPage() {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (searchParams.get("verified") === "1") {
+      setMsg("Correo verificado. ¡Gracias!");
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const onWaRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,6 +150,12 @@ export function SignInPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tu cuenta</h1>
+        {me.email && me.emailVerified !== true ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+            Tu correo aún no está verificado. Revisa tu bandeja o vuelve a registrarte con otro correo si no
+            recibiste el enlace.
+          </p>
+        ) : null}
         <p className="mt-2 text-sm text-muted">
           <span className="font-medium text-body">{me.displayName}</span>
           {me.email ? (
@@ -191,6 +206,11 @@ export function SignInPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Entrar</h1>
+      {location.state?.registrationNotice ? (
+        <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-xs text-body">
+          {location.state.registrationNotice}
+        </p>
+      ) : null}
       <p className="mt-2 text-sm text-muted">
         WhatsApp OTP o correo + contraseña. La sesión usa cookies seguras al mismo dominio que la API.
       </p>

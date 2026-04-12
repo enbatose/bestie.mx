@@ -53,12 +53,14 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
 
   it("register, logout, login, /me includes isAdmin", async () => {
     const agent = request.agent(app);
-    await agent
+    const reg = await agent
       .post("/api/auth/register")
       .send({ email: userEmail, password: "longenough1", displayName: "U" })
       .expect(201);
+    expect(typeof reg.body.devVerificationUrl).toBe("string");
     const me1 = await agent.get("/api/auth/me").expect(200);
     expect(me1.body.isAdmin).toBe(false);
+    expect(me1.body.emailVerified).toBe(false);
     await agent.post("/api/auth/logout").expect(200);
     await agent.get("/api/auth/me").expect(401);
     await agent.post("/api/auth/login").send({ email: userEmail, password: "longenough1" }).expect(200);
@@ -103,5 +105,24 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   it("GET /api/analytics/featured-cities", async () => {
     const res = await request(app).get("/api/analytics/featured-cities").expect(200);
     expect(Array.isArray(res.body.cities)).toBe(true);
+  });
+
+  it("email verification link verifies user", async () => {
+    const em = `verify-${testId}@test.mx`;
+    const reg = await request(app)
+      .post("/api/auth/register")
+      .send({ email: em, password: "longenough1", displayName: "V" })
+      .expect(201);
+    const vUrl = reg.body.devVerificationUrl as string;
+    const token = new URL(vUrl).searchParams.get("token");
+    expect(token).toBeTruthy();
+    await request(app)
+      .get(`/api/auth/verify-email?token=${encodeURIComponent(token!)}`)
+      .redirects(0)
+      .expect(302);
+    const agent = request.agent(app);
+    await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.emailVerified).toBe(true);
   });
 });

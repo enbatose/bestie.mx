@@ -6,6 +6,9 @@ export function GroupsPage() {
   const apiOn = isAuthApiConfigured();
   const [rows, setRows] = useState<GroupRow[] | null>(null);
   const [name, setName] = useState("");
+  const [minAge, setMinAge] = useState<string>("");
+  const [maxAge, setMaxAge] = useState<string>("");
+  const [minIncomeMxn, setMinIncomeMxn] = useState<string>("");
   const [invite, setInvite] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,11 +40,12 @@ export function GroupsPage() {
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold text-primary">Grupos</h1>
       <p className="mt-2 text-sm text-muted">
-        Crea un grupo para rentar un depa completo o únete con un código. Requiere sesión de publicador (visita{" "}
+        Organiza roomies compatibles (edad / ingreso mínimo opcional) para rentar una propiedad completa. Requiere
+        sesión de publicador:{" "}
         <Link to="/publicar" className="font-medium text-primary underline-offset-2 hover:underline">
           Publicar
         </Link>{" "}
-        o inicia sesión).
+        o inicia sesión. Luego comparte el código de invitación por WhatsApp o Messenger.
       </p>
 
       {err ? (
@@ -55,8 +59,19 @@ export function GroupsPage() {
           setErr(null);
           setBusy(true);
           try {
-            await groupsCreate({ name: name.trim() });
+            const minA = minAge.trim() === "" ? undefined : Number(minAge);
+            const maxA = maxAge.trim() === "" ? undefined : Number(maxAge);
+            const inc = minIncomeMxn.trim() === "" ? undefined : Number(minIncomeMxn);
+            await groupsCreate({
+              name: name.trim(),
+              ...(Number.isFinite(minA) ? { minAge: minA } : {}),
+              ...(Number.isFinite(maxA) ? { maxAge: maxA } : {}),
+              ...(Number.isFinite(inc) ? { minIncomeMxn: inc } : {}),
+            });
             setName("");
+            setMinAge("");
+            setMaxAge("");
+            setMinIncomeMxn("");
             await load();
           } catch (x) {
             setErr(x instanceof Error ? x.message : "Error");
@@ -72,6 +87,43 @@ export function GroupsPage() {
           placeholder="Nombre del grupo"
           className="w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
         />
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted">
+            Edad mín.
+            <input
+              type="number"
+              min={18}
+              max={99}
+              value={minAge}
+              onChange={(e) => setMinAge(e.target.value)}
+              placeholder="—"
+              className="mt-0.5 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+            />
+          </label>
+          <label className="text-xs text-muted">
+            Edad máx.
+            <input
+              type="number"
+              min={18}
+              max={99}
+              value={maxAge}
+              onChange={(e) => setMaxAge(e.target.value)}
+              placeholder="—"
+              className="mt-0.5 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+            />
+          </label>
+        </div>
+        <label className="text-xs text-muted">
+          Ingreso mínimo (MXN / mes, opcional)
+          <input
+            type="number"
+            min={0}
+            value={minIncomeMxn}
+            onChange={(e) => setMinIncomeMxn(e.target.value)}
+            placeholder="Ej. 15000"
+            className="mt-0.5 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+          />
+        </label>
         <button
           type="submit"
           disabled={busy || name.trim().length < 2}
@@ -125,9 +177,21 @@ export function GroupsPage() {
             <li key={g.id} className="rounded-xl border border-border bg-bg-light px-4 py-3 text-sm">
               <div className="font-medium text-body">{g.name}</div>
               <div className="mt-1 text-xs text-muted">
-                Código: <span className="font-mono text-body">{g.invite_code}</span> · {g.member_count}{" "}
-                miembros
+                Código: <span className="font-mono text-body">{g.invite_code}</span> · {g.member_count} miembros
+                {g.min_age != null || g.max_age != null ? (
+                  <>
+                    {" "}
+                    · edad {g.min_age ?? "—"}–{g.max_age ?? "—"}
+                  </>
+                ) : null}
+                {g.min_income_mxn != null ? <> · ingreso ≥ {g.min_income_mxn} MXN</> : null}
               </div>
+              <p className="mt-2 text-xs text-muted">
+                Comparte:{" "}
+                <span className="select-all font-mono text-body">
+                  Únete a “{g.name}” en Bestie con el código {g.invite_code}
+                </span>
+              </p>
             </li>
           ))}
         </ul>
