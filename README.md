@@ -52,15 +52,27 @@ Default **http://localhost:3000**. Point the web app at it with `VITE_API_URL` (
 
 ### Listing writes — v1 security model
 
-- **Publisher identity:** first successful `POST /api/listings` from a browser sets an **httpOnly** cookie `bestie_pub` (UUID). That id is stored as `publisher_id` on new rows. It is **not** a full account system; clearing cookies starts a new publisher id. WhatsApp OTP is planned later (Phase C).
-- **Rate limiting:** `POST /api/listings` is limited per **IP** and optional header **`X-Device-Fingerprint`** (the SPA sends a stable random id from `localStorage`). Tune with `RATE_LIMIT_POST_LISTINGS_MAX` and `RATE_LIMIT_POST_LISTINGS_WINDOW_MS` (defaults: 30 requests / hour per key).
+- **Publisher identity:** first successful `POST /api/listings` or `POST /api/properties/publish-bundle` sets an **httpOnly** cookie `bestie_pub` (UUID). That id is stored as `publisher_id` on **properties**. It is **not** a full account system; clearing cookies starts a new publisher id. WhatsApp OTP is planned later (Phase C).
+- **Rate limiting:** `POST /api/listings` and `POST /api/properties/publish-bundle` share the same per-IP / device limit. Tune with `RATE_LIMIT_POST_LISTINGS_MAX` and `RATE_LIMIT_POST_LISTINGS_WINDOW_MS` (defaults: 30 requests / hour per key).
 - **Errors:** validation failures return `{ "error": "<code>" }`. Rate limit returns **429** with `{ "error": "rate_limited", "retryAfterSec": number }` and a `Retry-After` header.
 - **CORS:** `CORS_ORIGINS` must list the exact SPA origins; the API uses **`credentials: true`**, so the browser sends cookies on `fetch` when the SPA uses `credentials: "include"` (already wired in `src/lib/listingsApi.ts`).
 
 ### Owner endpoints
 
-- `GET /api/my-listings` — requires `bestie_pub` cookie; returns all statuses for that publisher.
-- `PATCH /api/listings/:id` — body `{ "status": "published" | "paused" | "archived" }`; only the owning publisher (matching cookie) may update. Valid transitions: `draft→published`, `published↔paused`, `published|paused→archived`.
+- `GET /api/my-listings` — requires `bestie_pub` cookie; returns **room rows** (joined with property) for all statuses owned by that publisher.
+- `PATCH /api/listings/:id` — updates **room** `:id` (same id as in search). Body `{ "status": "published" | "paused" | "archived" }`; only the owning publisher may update. Valid transitions: `draft→published`, `published↔paused`, `published|paused→archived`.
+
+### Phase B — property + rooms (normalized SQLite)
+
+- **Schema:** `properties` (title, city, geo, contact, `property_kind`, `publisher_id`, lifecycle) and `rooms` (rent, tags, preferences, room lifecycle, `property_id` FK). Each **search row / map pin** is a **room**; `PropertyListing.id` in JSON is always the **room id**.
+- **Migration:** if a legacy `listings` table exists, rows are split into `prp__{listingId}` + room `id = {listingId}`, then `listings` is dropped.
+- **`GET /api/properties/:id`** — property plus rooms (non-owners see only published rooms on published properties).
+- **`POST /api/properties/publish-bundle`** — body `{ "legalAccepted": true, "property": { ... }, "rooms": [ ... ] }` (≥1 room); creates a **published** property and rooms in one transaction.
+- **`POST /api/properties`** — create draft property; **`POST /api/properties/:id/rooms`** — add draft room; **`PATCH /api/properties/:id`** — update property fields/status; pausing or archiving cascades to rooms; republishing a paused property sets paused rooms back to published.
+
+**Hardening (Phase B):** request validation (string max lengths, WhatsApp 10–15 digits, lat/lng bounds, rent/spots clamps), safe id patterns on routes, **rate limit** on `POST /api/properties` and `POST /api/properties/:id/rooms` (same bucket as publish-bundle / flat listing POST), **invariants** — cannot `PATCH` a room to `published` until its property is `published`; cannot set a **draft** property to `published` without at least one room. Integration tests in `server/src/api.hardening.test.ts` (supertest + temp SQLite).
+
+**Client parity:** wizard sends **property kind**, optional **custom map pin**, per-room **tags / lodging type / gender pref / age range**; **“Guardar borrador en servidor”** uses `POST /api/properties` + `POST …/rooms`, then **Mis anuncios** can **publish the property** (with legal checkbox); publishing a draft property **cascades** all draft rooms to `published`. Owners can **GET `/api/listings/:id`** for non-public room rows (same publisher cookie). Listing detail shows **property summary** when loaded from `GET /api/properties/:id`.
 
 ### Search bbox
 

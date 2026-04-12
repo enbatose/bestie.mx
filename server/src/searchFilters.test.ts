@@ -4,6 +4,7 @@ import type { PropertyListing } from "./types.js";
 
 const baseListing = (over: Partial<PropertyListing>): PropertyListing => ({
   id: "t1",
+  propertyId: "prp__t1",
   title: "Test",
   city: "Guadalajara",
   neighborhood: "Centro",

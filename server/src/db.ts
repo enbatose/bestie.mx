@@ -1,195 +1,306 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import seed from "./seedListings.json" with { type: "json" };
-import type {
-  ListingStatus,
-  LodgingType,
-  PropertyKind,
-  PropertyListing,
-  RoomDimension,
-} from "./types.js";
+import legacySeed from "./seedListings.json" with { type: "json" };
+import type { ListingStatus } from "./types.js";
 
-const LISTING_EXTRA_COLUMNS: { name: string; ddl: string }[] = [
-  { name: "publisher_id", ddl: "TEXT" },
-  { name: "lodging_type", ddl: "TEXT" },
-  { name: "property_kind", ddl: "TEXT" },
-  { name: "available_from", ddl: "TEXT" },
-  { name: "minimal_stay_months", ddl: "INTEGER" },
-  { name: "room_dimension", ddl: "TEXT" },
-  { name: "aval_required", ddl: "INTEGER" },
-  { name: "sublet_allowed", ddl: "INTEGER" },
-];
+const SEED_PUBLISHER_ID = "__seed__";
 
-function migrateListingsTable(db: DatabaseSync): void {
-  const cols = db.prepare("PRAGMA table_info(listings)").all() as { name: string }[];
-  const names = new Set(cols.map((c) => c.name));
-  for (const { name, ddl } of LISTING_EXTRA_COLUMNS) {
-    if (!names.has(name)) {
-      db.exec(`ALTER TABLE listings ADD COLUMN ${name} ${ddl};`);
+/** Legacy flat row shape (pre–Phase B `listings` table). */
+type LegacyListingRow = {
+  id: string;
+  title: string;
+  city: string;
+  neighborhood: string;
+  lat: number;
+  lng: number;
+  rentMxn: number;
+  roomsAvailable: number;
+  tags: string[];
+  roommateGenderPref: string;
+  ageMin: number;
+  ageMax: number;
+  summary: string;
+  contactWhatsApp: string;
+  lodgingType?: string;
+  propertyKind?: string;
+  availableFrom?: string;
+  minimalStayMonths?: number;
+  roomDimension?: string;
+  avalRequired?: boolean;
+  subletAllowed?: boolean;
+};
+
+function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
+  const row = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='listings'")
+    .get() as { name: string } | undefined;
+  if (!row) return;
+
+  const insertProp = db.prepare(`
+    INSERT INTO properties (
+      id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
+    ) VALUES (
+      @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind
+    )
+  `);
+  const insertRoom = db.prepare(`
+    INSERT INTO rooms (
+      id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
+      age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
+      aval_required, sublet_allowed, sort_order
+    ) VALUES (
+      @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
+      @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
+      @avalRequired, @subletAllowed, @sortOrder
+    )
+  `);
+
+  const legacyRows = db.prepare("SELECT * FROM listings").all() as Record<string, unknown>[];
+  db.exec("BEGIN IMMEDIATE;");
+  try {
+    for (const r of legacyRows) {
+      const listingId = String(r.id);
+      const propertyId = `prp__${listingId}`;
+      const pub =
+        r.publisher_id != null && String(r.publisher_id).trim() !== ""
+          ? String(r.publisher_id).trim()
+          : SEED_PUBLISHER_ID;
+      const st = String(r.status ?? "published") as ListingStatus;
+      const propertyStatus: ListingStatus =
+        st === "draft" || st === "published" || st === "paused" || st === "archived" ? st : "published";
+
+      insertProp.run({
+        id: propertyId,
+        publisherId: pub,
+        status: propertyStatus,
+        title: String(r.title),
+        city: String(r.city),
+        neighborhood: String(r.neighborhood),
+        lat: Number(r.lat),
+        lng: Number(r.lng),
+        summary: String(r.summary),
+        contactWhatsApp: String(r.contact_whatsapp),
+        propertyKind: r.property_kind != null && String(r.property_kind) !== "" ? String(r.property_kind) : null,
+      });
+
+      insertRoom.run({
+        id: listingId,
+        propertyId,
+        status: propertyStatus,
+        title: "Espacio en renta",
+        rentMxn: Number(r.rent_mxn),
+        roomsAvailable: Number(r.rooms_available),
+        tagsJson: String(r.tags_json),
+        roommateGenderPref: String(r.roommate_gender_pref),
+        ageMin: Number(r.age_min),
+        ageMax: Number(r.age_max),
+        summary: String(r.summary),
+        lodgingType: r.lodging_type != null ? String(r.lodging_type) : null,
+        availableFrom: r.available_from != null ? String(r.available_from) : null,
+        minimalStayMonths: r.minimal_stay_months != null ? Number(r.minimal_stay_months) : null,
+        roomDimension: r.room_dimension != null ? String(r.room_dimension) : null,
+        avalRequired:
+          r.aval_required === 1 || r.aval_required === true
+            ? 1
+            : r.aval_required === 0 || r.aval_required === false
+              ? 0
+              : null,
+        subletAllowed:
+          r.sublet_allowed === 1 || r.sublet_allowed === true
+            ? 1
+            : r.sublet_allowed === 0 || r.sublet_allowed === false
+              ? 0
+              : null,
+        sortOrder: 0,
+      });
     }
+    db.exec("DROP TABLE listings");
+    db.exec("COMMIT;");
+  } catch (e) {
+    db.exec("ROLLBACK;");
+    throw e instanceof Error ? e : new Error(String(e));
   }
 }
 
-function int01(v: unknown): boolean | undefined {
-  if (v == null) return undefined;
-  const n = Number(v);
-  if (!Number.isFinite(n)) return undefined;
-  return n !== 0;
+function ensurePhaseBSchema(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS properties (
+      id TEXT PRIMARY KEY,
+      publisher_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      title TEXT NOT NULL,
+      city TEXT NOT NULL,
+      neighborhood TEXT NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      contact_whatsapp TEXT NOT NULL,
+      property_kind TEXT
+    );
+    CREATE TABLE IF NOT EXISTS rooms (
+      id TEXT PRIMARY KEY,
+      property_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      title TEXT NOT NULL,
+      rent_mxn INTEGER NOT NULL,
+      rooms_available INTEGER NOT NULL DEFAULT 1,
+      tags_json TEXT NOT NULL,
+      roommate_gender_pref TEXT NOT NULL,
+      age_min INTEGER NOT NULL,
+      age_max INTEGER NOT NULL,
+      summary TEXT NOT NULL,
+      lodging_type TEXT,
+      available_from TEXT,
+      minimal_stay_months INTEGER,
+      room_dimension TEXT,
+      aval_required INTEGER,
+      sublet_allowed INTEGER,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_rooms_property ON rooms(property_id);
+    CREATE INDEX IF NOT EXISTS idx_rooms_status_rent ON rooms(status, rent_mxn);
+    CREATE INDEX IF NOT EXISTS idx_properties_pub ON properties(publisher_id);
+    CREATE INDEX IF NOT EXISTS idx_properties_city ON properties(city);
+    CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
+    CREATE INDEX IF NOT EXISTS idx_properties_lat_lng ON properties(lat, lng);
+  `);
 }
 
-function optStr(row: Record<string, unknown>, key: string): string | undefined {
-  const v = row[key];
-  if (v == null || String(v).trim() === "") return undefined;
-  return String(v);
-}
+function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
+  const insertProp = db.prepare(`
+    INSERT INTO properties (
+      id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
+    ) VALUES (
+      @id, @publisherId, 'published', @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind
+    )
+  `);
+  const insertRoom = db.prepare(`
+    INSERT INTO rooms (
+      id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
+      age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
+      aval_required, sublet_allowed, sort_order
+    ) VALUES (
+      @id, @propertyId, 'published', @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
+      @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
+      @avalRequired, @subletAllowed, 0
+    )
+  `);
 
-function optLodging(v: unknown): LodgingType | undefined {
-  const s = String(v ?? "");
-  if (s === "whole_home" || s === "private_room" || s === "shared_room") return s;
-  return undefined;
-}
+  db.exec("BEGIN IMMEDIATE;");
+  try {
+    for (const row of rows) {
+      const propertyId = `prp__${row.id}`;
+      const parts = row.title.split(/[—–-]/).map((s) => s.trim());
+      const propertyTitle = parts[0] && parts[0].length > 0 ? parts[0]! : row.title;
+      const roomTitle =
+        parts.length > 1 && parts[1]!.length > 0 ? parts.slice(1).join(" · ") : "Cuarto disponible";
 
-function optPropertyKind(v: unknown): PropertyKind | undefined {
-  const s = String(v ?? "");
-  if (s === "house" || s === "apartment") return s;
-  return undefined;
-}
+      insertProp.run({
+        id: propertyId,
+        publisherId: SEED_PUBLISHER_ID,
+        title: propertyTitle,
+        city: row.city,
+        neighborhood: row.neighborhood,
+        lat: row.lat,
+        lng: row.lng,
+        summary: row.summary,
+        contactWhatsApp: row.contactWhatsApp,
+        propertyKind: row.propertyKind ?? null,
+      });
 
-function optDim(v: unknown): RoomDimension | undefined {
-  const s = String(v ?? "");
-  if (s === "small" || s === "medium" || s === "large") return s;
-  return undefined;
+      insertRoom.run({
+        id: row.id,
+        propertyId,
+        title: roomTitle,
+        rentMxn: row.rentMxn,
+        roomsAvailable: row.roomsAvailable,
+        tagsJson: JSON.stringify(row.tags),
+        roommateGenderPref: row.roommateGenderPref,
+        ageMin: row.ageMin,
+        ageMax: row.ageMax,
+        summary: row.summary,
+        lodgingType: row.lodgingType ?? null,
+        availableFrom: row.availableFrom ?? null,
+        minimalStayMonths: row.minimalStayMonths ?? null,
+        roomDimension: row.roomDimension ?? null,
+        avalRequired: row.avalRequired === true ? 1 : row.avalRequired === false ? 0 : null,
+        subletAllowed: row.subletAllowed === true ? 1 : row.subletAllowed === false ? 0 : null,
+      });
+    }
+
+    // Demo: two published rooms under one Bucerías property (stable ids for tests / UI).
+    const dupPropId = "prp__buc_duplex_demo";
+    insertProp.run({
+      id: dupPropId,
+      publisherId: SEED_PUBLISHER_ID,
+      title: "Casa playa — dos cuartos (demo)",
+      city: "Bucerías",
+      neighborhood: "La Cruz",
+      lat: 20.746,
+      lng: -105.326,
+      summary: "Dos espacios en la misma casa; ideal roomies que ya se conocen.",
+      contactWhatsApp: "523229292929",
+      propertyKind: "house",
+    });
+    insertRoom.run({
+      id: "buc-demo-a",
+      propertyId: dupPropId,
+      title: "Cuarto planta baja",
+      rentMxn: 4800,
+      roomsAvailable: 1,
+      tagsJson: JSON.stringify(["wifi", "mascotas"]),
+      roommateGenderPref: "any",
+      ageMin: 22,
+      ageMax: 40,
+      summary: "Acceso directo al patio.",
+      lodgingType: "private_room",
+      availableFrom: "2025-05-01",
+      minimalStayMonths: 2,
+      roomDimension: "medium",
+      avalRequired: 0,
+      subletAllowed: 1,
+    });
+    insertRoom.run({
+      id: "buc-demo-b",
+      propertyId: dupPropId,
+      title: "Cuarto planta alta",
+      rentMxn: 4600,
+      roomsAvailable: 1,
+      tagsJson: JSON.stringify(["wifi", "muebles"]),
+      roommateGenderPref: "any",
+      ageMin: 22,
+      ageMax: 40,
+      summary: "Más silencioso, ventilación cruzada.",
+      lodgingType: "private_room",
+      availableFrom: "2025-05-01",
+      minimalStayMonths: 2,
+      roomDimension: "small",
+      avalRequired: 0,
+      subletAllowed: 0,
+    });
+
+    db.exec("COMMIT;");
+  } catch (e) {
+    db.exec("ROLLBACK;");
+    throw e instanceof Error ? e : new Error(String(e));
+  }
 }
 
 export function openDb(databasePath: string): DatabaseSync {
   fs.mkdirSync(path.dirname(databasePath), { recursive: true });
   const db = new DatabaseSync(databasePath);
   db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA foreign_keys = ON;");
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS listings (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      city TEXT NOT NULL,
-      neighborhood TEXT NOT NULL,
-      lat REAL NOT NULL,
-      lng REAL NOT NULL,
-      rent_mxn INTEGER NOT NULL,
-      rooms_available INTEGER NOT NULL,
-      tags_json TEXT NOT NULL,
-      roommate_gender_pref TEXT NOT NULL,
-      age_min INTEGER NOT NULL,
-      age_max INTEGER NOT NULL,
-      summary TEXT NOT NULL,
-      contact_whatsapp TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'published'
-    );
-  `);
+  ensurePhaseBSchema(db);
+  migrateLegacyListingsTableIfPresent(db);
 
-  migrateListingsTable(db);
-
-  const countRow = db.prepare("SELECT COUNT(*) AS c FROM listings").get() as { c: number };
+  const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
   if (countRow.c === 0) {
-    const insert = db.prepare(
-      `INSERT INTO listings (
-        id, title, city, neighborhood, lat, lng, rent_mxn, rooms_available,
-        tags_json, roommate_gender_pref, age_min, age_max, summary, contact_whatsapp, status,
-        lodging_type, property_kind, available_from, minimal_stay_months, room_dimension,
-        aval_required, sublet_allowed
-      ) VALUES (
-        @id, @title, @city, @neighborhood, @lat, @lng, @rentMxn, @roomsAvailable,
-        @tagsJson, @roommateGenderPref, @ageMin, @ageMax, @summary, @contactWhatsApp, 'published',
-        @lodgingType, @propertyKind, @availableFrom, @minimalStayMonths, @roomDimension,
-        @avalRequired, @subletAllowed
-      )`,
-    );
-
-    db.exec("BEGIN IMMEDIATE;");
-    try {
-      for (const row of seed as PropertyListing[]) {
-        insert.run({
-          id: row.id,
-          title: row.title,
-          city: row.city,
-          neighborhood: row.neighborhood,
-          lat: row.lat,
-          lng: row.lng,
-          rentMxn: row.rentMxn,
-          roomsAvailable: row.roomsAvailable,
-          tagsJson: JSON.stringify(row.tags),
-          roommateGenderPref: row.roommateGenderPref,
-          ageMin: row.ageMin,
-          ageMax: row.ageMax,
-          summary: row.summary,
-          contactWhatsApp: row.contactWhatsApp,
-          lodgingType: row.lodgingType ?? null,
-          propertyKind: row.propertyKind ?? null,
-          availableFrom: row.availableFrom ?? null,
-          minimalStayMonths: row.minimalStayMonths ?? null,
-          roomDimension: row.roomDimension ?? null,
-          avalRequired: row.avalRequired === true ? 1 : row.avalRequired === false ? 0 : null,
-          subletAllowed: row.subletAllowed === true ? 1 : row.subletAllowed === false ? 0 : null,
-        });
-      }
-      db.exec("COMMIT;");
-    } catch {
-      db.exec("ROLLBACK;");
-      throw new Error("Failed to seed listings table");
-    }
+    seedFromLegacyJson(db, legacySeed as LegacyListingRow[]);
   }
 
   return db;
-}
-
-function listingStatusFromRow(row: Record<string, unknown>): ListingStatus {
-  const s = String(row.status ?? "published");
-  if (s === "draft" || s === "published" || s === "paused" || s === "archived") return s;
-  return "published";
-}
-
-export function rowToListing(row: Record<string, unknown>): PropertyListing {
-  const publisherRaw = row.publisher_id;
-  const publisherId =
-    publisherRaw != null && String(publisherRaw).trim() !== ""
-      ? String(publisherRaw)
-      : undefined;
-
-  const lodgingType = optLodging(row.lodging_type);
-  const propertyKind = optPropertyKind(row.property_kind);
-  const availableFrom = optStr(row, "available_from");
-  const minimalStayRaw = row.minimal_stay_months;
-  const minimalStayMonths =
-    minimalStayRaw != null && Number.isFinite(Number(minimalStayRaw))
-      ? Number(minimalStayRaw)
-      : undefined;
-  const roomDimension = optDim(row.room_dimension);
-  const avalRequired = int01(row.aval_required);
-  const subletAllowed = int01(row.sublet_allowed);
-
-  return {
-    id: String(row.id),
-    title: String(row.title),
-    city: String(row.city),
-    neighborhood: String(row.neighborhood),
-    lat: Number(row.lat),
-    lng: Number(row.lng),
-    rentMxn: Number(row.rent_mxn),
-    roomsAvailable: Number(row.rooms_available),
-    tags: JSON.parse(String(row.tags_json)) as PropertyListing["tags"],
-    roommateGenderPref: String(row.roommate_gender_pref) as PropertyListing["roommateGenderPref"],
-    ageMin: Number(row.age_min),
-    ageMax: Number(row.age_max),
-    summary: String(row.summary),
-    contactWhatsApp: String(row.contact_whatsapp),
-    status: listingStatusFromRow(row),
-    ...(publisherId ? { publisherId } : {}),
-    ...(lodgingType ? { lodgingType } : {}),
-    ...(propertyKind ? { propertyKind } : {}),
-    ...(availableFrom ? { availableFrom } : {}),
-    ...(minimalStayMonths != null ? { minimalStayMonths } : {}),
-    ...(roomDimension ? { roomDimension } : {}),
-    ...(avalRequired !== undefined ? { avalRequired } : {}),
-    ...(subletAllowed !== undefined ? { subletAllowed } : {}),
-  };
 }

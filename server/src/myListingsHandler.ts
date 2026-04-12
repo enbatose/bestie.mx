@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
-import { rowToListing } from "./db.js";
+import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import { readPublisherIdFromRequest } from "./session.js";
 
 export function myListingsHandler(db: DatabaseSync) {
@@ -16,10 +16,10 @@ export function myListingsHandler(db: DatabaseSync) {
 
     const rows = db
       .prepare(
-        "SELECT * FROM listings WHERE publisher_id = ? ORDER BY rent_mxn ASC, id ASC",
+        `${ROOM_PROPERTY_JOIN_SQL} WHERE p.publisher_id = ? ORDER BY p.title ASC, r.sort_order ASC, r.rent_mxn ASC, r.id ASC`,
       )
       .all(publisherId) as Record<string, unknown>[];
 
-    res.json(rows.map(rowToListing));
+    res.json(rows.map(joinRowToPropertyListing));
   };
 }

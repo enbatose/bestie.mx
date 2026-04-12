@@ -20,8 +20,60 @@ export type ListingTag =
   | "fumar"
   | "fiestas";
 
+/** Parent address + contact; Phase B normalized table. */
+export type Property = {
+  id: string;
+  publisherId: string;
+  status: ListingStatus;
+  title: string;
+  city: string;
+  neighborhood: string;
+  lat: number;
+  lng: number;
+  summary: string;
+  contactWhatsApp: string;
+  propertyKind?: PropertyKind;
+};
+
+/** Rentable unit / space inside a property; search pins are per room. */
+export type Room = {
+  id: string;
+  propertyId: string;
+  status: ListingStatus;
+  /** Short label, e.g. “Cuarto planta alta”. */
+  title: string;
+  rentMxn: number;
+  roomsAvailable: number;
+  tags: ListingTag[];
+  roommateGenderPref: RoommateGenderPref;
+  ageMin: number;
+  ageMax: number;
+  summary: string;
+  lodgingType?: LodgingType;
+  availableFrom?: string;
+  minimalStayMonths?: number;
+  roomDimension?: RoomDimension;
+  avalRequired?: boolean;
+  subletAllowed?: boolean;
+  sortOrder: number;
+};
+
+export type PropertyWithRooms = {
+  property: Property;
+  rooms: Room[];
+};
+
+/**
+ * Search / map DTO: one row per **room**, with address inherited from the property.
+ * `id` is always the **room** id (stable URLs: `/anuncio/:id`, `PATCH /api/listings/:id`).
+ */
 export type PropertyListing = {
   id: string;
+  propertyId: string;
+  /** Parent property title (populated from `rooms`↔`properties` join). */
+  propertyTitle?: string;
+  /** Parent property lifecycle (same join). */
+  propertyStatus?: ListingStatus;
   title: string;
   city: string;
   neighborhood: string;
@@ -35,6 +87,7 @@ export type PropertyListing = {
   ageMax: number;
   summary: string;
   contactWhatsApp: string;
+  /** Room lifecycle (PATCH targets the room). */
   status: ListingStatus;
   /** Only returned for authenticated owner responses (e.g. my-listings). */
   publisherId?: string;

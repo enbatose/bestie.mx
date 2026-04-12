@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getListingById } from "@/data/seedListings";
-import { fetchListingByIdFromApi, isListingsApiConfigured } from "@/lib/listingsApi";
+import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
+import {
+  fetchListingByIdFromApi,
+  fetchPropertyWithRooms,
+  isListingsApiConfigured,
+} from "@/lib/listingsApi";
 import { TAG_LABELS } from "@/lib/searchFilters";
-import type { PropertyListing } from "@/types/listing";
+import type { PropertyListing, PropertyWithRooms } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -20,6 +24,14 @@ export function ListingPage() {
     apiOn ? undefined : null,
   );
   const [apiErr, setApiErr] = useState<string | null>(null);
+  const [propertyPack, setPropertyPack] = useState<PropertyWithRooms | null | undefined>(() =>
+    apiOn ? undefined : null,
+  );
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    setRevealed(false);
+  }, [id]);
 
   useEffect(() => {
     if (!apiOn || !id) {
@@ -43,7 +55,36 @@ export function ListingPage() {
   }, [apiOn, id]);
 
   const listing = apiOn ? (apiListing === undefined ? undefined : apiListing) : seedListing;
-  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    if (!apiOn || !listing?.propertyId) {
+      setPropertyPack(null);
+      return;
+    }
+    const ac = new AbortController();
+    setPropertyPack(undefined);
+    fetchPropertyWithRooms(listing.propertyId, ac.signal)
+      .then((p) => setPropertyPack(p))
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setPropertyPack(null);
+      });
+    return () => ac.abort();
+  }, [apiOn, listing?.propertyId]);
+
+  const seedSiblings = useMemo(() => {
+    if (!listing?.propertyId) return [];
+    return SEED_LISTINGS.filter((l) => l.propertyId === listing.propertyId && l.id !== listing.id);
+  }, [listing]);
+
+  const siblingLinks = useMemo(() => {
+    if (apiOn && propertyPack && propertyPack.rooms.length > 1) {
+      return propertyPack.rooms
+        .filter((r) => r.id !== listing?.id && r.status === "published")
+        .map((r) => ({ id: r.id, label: r.title }));
+    }
+    return seedSiblings.map((l) => ({ id: l.id, label: l.title }));
+  }, [apiOn, propertyPack, listing?.id, seedSiblings]);
 
   if (apiOn && apiListing === undefined && !apiErr) {
     return (
@@ -86,6 +127,7 @@ export function ListingPage() {
   }
 
   const wa = `https://wa.me/${listing.contactWhatsApp.replace(/\D/g, "")}`;
+  const listingStatus = listing.status ?? "published";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
@@ -103,9 +145,28 @@ export function ListingPage() {
         <p className="text-sm text-muted">
           {listing.neighborhood} · {listing.city}
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-          {listing.title}
-        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{listing.title}</h1>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+              listingStatus === "published"
+                ? "bg-secondary/25 text-primary"
+                : listingStatus === "paused"
+                  ? "bg-amber-100 text-amber-900"
+                  : listingStatus === "draft"
+                    ? "bg-slate-200 text-slate-800"
+                    : "bg-slate-200 text-slate-600"
+            }`}
+          >
+            {listingStatus === "published"
+              ? "Publicado"
+              : listingStatus === "paused"
+                ? "Pausado"
+                : listingStatus === "draft"
+                  ? "Borrador"
+                  : "Archivado"}
+          </span>
+        </div>
         <p className="mt-3 text-2xl font-semibold text-body">{money.format(listing.rentMxn)}</p>
         <p className="mt-1 text-sm text-muted">
           {listing.roomsAvailable} cuarto(s) disponible(s) · Roomies{" "}
@@ -114,10 +175,41 @@ export function ListingPage() {
             : `prefieren ${listing.roommateGenderPref === "female" ? "mujer" : "hombre"}`}{" "}
           · Edad anuncio {listing.ageMin}–{listing.ageMax}
         </p>
+        <p className="mt-2 text-xs text-muted">
+          Anuncio (cuarto) <span className="font-mono">{listing.id}</span> · Propiedad{" "}
+          <span className="font-mono">{listing.propertyId}</span>
+        </p>
       </header>
 
+      {siblingLinks.length ? (
+        <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-body">Otros cuartos en la misma propiedad</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {siblingLinks.map((s) => (
+              <li key={s.id}>
+                <Link
+                  to={`/anuncio/${s.id}`}
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  {s.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {apiOn && propertyPack?.property.summary.trim() ? (
+        <section className="mt-6 rounded-2xl border border-border bg-bg-light p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-body">Sobre la propiedad</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
+            {propertyPack.property.summary}
+          </p>
+        </section>
+      ) : null}
+
       <div className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-body">Descripción</h2>
+        <h2 className="text-sm font-semibold text-body">Descripción del cuarto</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">{listing.summary}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {listing.tags.map((t) => (

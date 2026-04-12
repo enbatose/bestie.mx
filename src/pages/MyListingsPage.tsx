@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   fetchMyListings,
   isListingsApiConfigured,
   updateListingStatus,
+  updateProperty,
 } from "@/lib/listingsApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
@@ -20,12 +21,53 @@ function statusLabel(s: ListingStatus | undefined): string {
   }
 }
 
+function propertyStatusLabel(s: ListingStatus | undefined): string {
+  switch (s) {
+    case "draft":
+      return "Propiedad: borrador";
+    case "paused":
+      return "Propiedad: pausada";
+    case "archived":
+      return "Propiedad: archivada";
+    default:
+      return "Propiedad: publicada";
+  }
+}
+
 export function MyListingsPage() {
   const apiOn = isListingsApiConfigured();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [rows, setRows] = useState<PropertyListing[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [actionPropertyId, setActionPropertyId] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [legalPublishByProperty, setLegalPublishByProperty] = useState<Record<string, boolean>>({});
+
+  const groups = useMemo(() => {
+    if (!rows?.length) return [] as [string, PropertyListing[]][];
+    const m = new Map<string, PropertyListing[]>();
+    for (const l of rows) {
+      const list = m.get(l.propertyId) ?? [];
+      list.push(l);
+      m.set(l.propertyId, list);
+    }
+    return [...m.entries()].sort((a, b) => {
+      const ta = a[1][0]?.propertyTitle ?? a[0];
+      const tb = b[1][0]?.propertyTitle ?? b[0];
+      return ta.localeCompare(tb, "es");
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    const st = location.state as { draftSaved?: boolean } | null;
+    if (st?.draftSaved) {
+      setFlash("Borrador guardado en el servidor. Puedes publicar la propiedad cuando estés listo.");
+      navigate(".", { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   const load = useCallback(async () => {
     if (!apiOn) return;
@@ -72,6 +114,79 @@ export function MyListingsPage() {
     }
   }
 
+  async function archive(id: string) {
+    setActionId(id);
+    setErr(null);
+    try {
+      await updateListingStatus(id, "archived");
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se pudo archivar.");
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function pauseProperty(propertyId: string) {
+    setActionPropertyId(propertyId);
+    setErr(null);
+    try {
+      await updateProperty(propertyId, { status: "paused" });
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se pudo pausar la propiedad.");
+    } finally {
+      setActionPropertyId(null);
+    }
+  }
+
+  async function republishProperty(propertyId: string) {
+    setActionPropertyId(propertyId);
+    setErr(null);
+    try {
+      await updateProperty(propertyId, { status: "published" });
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se pudo republicar la propiedad.");
+    } finally {
+      setActionPropertyId(null);
+    }
+  }
+
+  async function archiveProperty(propertyId: string) {
+    setActionPropertyId(propertyId);
+    setErr(null);
+    try {
+      await updateProperty(propertyId, { status: "archived" });
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se pudo archivar la propiedad.");
+    } finally {
+      setActionPropertyId(null);
+    }
+  }
+
+  async function publishDraftProperty(propertyId: string) {
+    if (!legalPublishByProperty[propertyId]) {
+      setErr("Marca la confirmación legal antes de publicar la propiedad.");
+      return;
+    }
+    setActionPropertyId(propertyId);
+    setErr(null);
+    try {
+      await updateProperty(propertyId, { status: "published" });
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se pudo publicar la propiedad.");
+    } finally {
+      setActionPropertyId(null);
+    }
+  }
+
+  function rowBusy(l: PropertyListing): boolean {
+    return actionId === l.id || actionPropertyId === l.propertyId;
+  }
+
   if (!apiOn) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -95,7 +210,8 @@ export function MyListingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-primary">Mis anuncios</h1>
           <p className="mt-2 text-sm text-muted">
-            Solo ves anuncios creados desde este navegador (sesión anónima por cookie).
+            Solo ves anuncios creados desde este navegador (sesión anónima por cookie). Las acciones de
+            propiedad aplican a todos los cuartos de esa propiedad.
           </p>
         </div>
         <button
@@ -108,94 +224,186 @@ export function MyListingsPage() {
         </button>
       </div>
 
+      {flash ? (
+        <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-body">
+          {flash}
+        </p>
+      ) : null}
+
       {err ? (
         <p className="mt-4 text-sm text-red-600" role="alert">
           {err}
         </p>
       ) : null}
 
-      <div className="mt-8 overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
-        <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-border bg-surface-elevated text-xs font-semibold uppercase tracking-wide text-muted">
-            <tr>
-              <th className="px-4 py-3">Título</th>
-              <th className="px-4 py-3">Ciudad</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border text-body">
-            {busy && rows === null ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-muted">
-                  Cargando…
-                </td>
-              </tr>
-            ) : rows?.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-muted">
-                  Aún no hay anuncios asociados a esta sesión.{" "}
-                  <Link to="/publicar" className="font-semibold text-primary underline-offset-2 hover:underline">
-                    Publicar
-                  </Link>
-                </td>
-              </tr>
-            ) : (
-              rows?.map((l) => {
-                const st = l.status ?? "published";
-                const acting = actionId === l.id;
-                return (
-                  <tr key={l.id}>
-                    <td className="px-4 py-3 font-medium">{l.title}</td>
-                    <td className="px-4 py-3 text-muted">{l.city}</td>
-                    <td className="px-4 py-3">{statusLabel(st)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {st === "published" ? (
-                          <Link
-                            to={`/anuncio/${l.id}`}
-                            className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated"
-                          >
-                            Ver público
-                          </Link>
-                        ) : (
-                          <span className="text-xs text-muted">Oculto del buscador</span>
-                        )}
-                        {st === "published" ? (
-                          <button
-                            type="button"
-                            disabled={acting}
-                            onClick={() => void pause(l.id)}
-                            className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
-                          >
-                            {acting ? "…" : "Pausar"}
-                          </button>
-                        ) : null}
-                        {st === "paused" ? (
-                          <button
-                            type="button"
-                            disabled={acting}
-                            onClick={() => void republish(l.id)}
-                            className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
-                          >
-                            {acting ? "…" : "Republicar"}
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+      <div className="mt-8 space-y-8">
+        {busy && rows === null ? (
+          <p className="text-sm text-muted">Cargando…</p>
+        ) : rows?.length === 0 ? (
+          <p className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted shadow-sm">
+            Aún no hay anuncios asociados a esta sesión.{" "}
+            <Link to="/publicar" className="font-semibold text-primary underline-offset-2 hover:underline">
+              Publicar
+            </Link>
+          </p>
+        ) : (
+          groups.map(([propertyId, list]) => {
+            const head = list[0]!;
+            const propSt = head.propertyStatus ?? "published";
+            const propActing = actionPropertyId === propertyId;
+
+            return (
+              <section
+                key={propertyId}
+                className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
+              >
+                <div className="flex flex-col gap-3 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      {propertyStatusLabel(head.propertyStatus)}
+                    </p>
+                    <h2 className="mt-1 text-base font-semibold text-body">
+                      {head.propertyTitle ?? head.title}
+                    </h2>
+                    <p className="mt-0.5 font-mono text-xs text-muted">{propertyId}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {propSt === "draft" ? (
+                      <>
+                        <label className="flex max-w-full cursor-pointer items-center gap-2 text-xs text-body">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(legalPublishByProperty[propertyId])}
+                            onChange={(e) =>
+                              setLegalPublishByProperty((m) => ({
+                                ...m,
+                                [propertyId]: e.target.checked,
+                              }))
+                            }
+                            className="size-4 shrink-0 rounded border-border text-primary"
+                          />
+                          <span>Confirmo datos verídicos y acepto publicar (v1)</span>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={propActing}
+                          onClick={() => void publishDraftProperty(propertyId)}
+                          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
+                        >
+                          {propActing ? "…" : "Publicar propiedad"}
+                        </button>
+                      </>
+                    ) : null}
+                    {propSt === "published" ? (
+                      <button
+                        type="button"
+                        disabled={propActing}
+                        onClick={() => void pauseProperty(propertyId)}
+                        className="rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-50"
+                      >
+                        {propActing ? "…" : "Pausar propiedad"}
+                      </button>
+                    ) : null}
+                    {propSt === "paused" ? (
+                      <button
+                        type="button"
+                        disabled={propActing}
+                        onClick={() => void republishProperty(propertyId)}
+                        className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface disabled:opacity-50"
+                      >
+                        {propActing ? "…" : "Republicar propiedad"}
+                      </button>
+                    ) : null}
+                    {propSt === "published" || propSt === "paused" ? (
+                      <button
+                        type="button"
+                        disabled={propActing}
+                        onClick={() => void archiveProperty(propertyId)}
+                        className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted transition hover:bg-surface disabled:opacity-50"
+                      >
+                        {propActing ? "…" : "Archivar propiedad"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+                      <tr>
+                        <th className="px-4 py-3">Cuarto / título</th>
+                        <th className="px-4 py-3">Ciudad</th>
+                        <th className="px-4 py-3">Estado cuarto</th>
+                        <th className="px-4 py-3 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border text-body">
+                      {list.map((l) => {
+                        const st = l.status ?? "published";
+                        const acting = rowBusy(l);
+                        return (
+                          <tr key={l.id}>
+                            <td className="px-4 py-3 font-medium">{l.title}</td>
+                            <td className="px-4 py-3 text-muted">{l.city}</td>
+                            <td className="px-4 py-3">{statusLabel(st)}</td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex flex-wrap justify-end gap-2">
+                                <Link
+                                  to={`/anuncio/${l.id}`}
+                                  className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated"
+                                >
+                                  {st === "published" && propSt === "published"
+                                    ? "Ver público"
+                                    : "Vista previa"}
+                                </Link>
+                                {st === "published" ? (
+                                  <button
+                                    type="button"
+                                    disabled={acting}
+                                    onClick={() => void pause(l.id)}
+                                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
+                                  >
+                                    {acting ? "…" : "Pausar"}
+                                  </button>
+                                ) : null}
+                                {st === "paused" ? (
+                                  <button
+                                    type="button"
+                                    disabled={acting}
+                                    onClick={() => void republish(l.id)}
+                                    className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
+                                  >
+                                    {acting ? "…" : "Republicar"}
+                                  </button>
+                                ) : null}
+                                {st === "published" || st === "paused" ? (
+                                  <button
+                                    type="button"
+                                    disabled={acting}
+                                    onClick={() => void archive(l.id)}
+                                    className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted hover:bg-surface-elevated disabled:opacity-50"
+                                  >
+                                    {acting ? "…" : "Archivar"}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            );
+          })
+        )}
       </div>
 
-      <p className="mt-6 text-xs text-muted">
-        Para pausar o republicar necesitas la misma cookie con la que publicaste.{" "}
-        <span className="font-medium">API:</span>{" "}
+      <p className="mt-8 text-xs text-muted">
+        Cuartos:{" "}
         <code className="rounded bg-surface-elevated px-1">PATCH /api/listings/:id</code> con{" "}
-        <code className="rounded bg-surface-elevated px-1">{"{ \"status\" }"}</code>.
+        <code className="rounded bg-surface-elevated px-1">{"{ \"status\" }"}</code>. Propiedad:{" "}
+        <code className="rounded bg-surface-elevated px-1">PATCH /api/properties/:id</code>.
       </p>
     </div>
   );

@@ -1,10 +1,23 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
-import { rowToListing } from "./db.js";
+import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
+import {
+  CITY_MAX_LEN,
+  clampAge,
+  clampRentMxn,
+  clampRoomsAvailable,
+  clampStr,
+  isSafeRoomOrListingId,
+  NEIGHBORHOOD_MAX_LEN,
+  normalizeWhatsAppDigits,
+  SUMMARY_MAX_LEN,
+  TITLE_MAX_LEN,
+  validLatLng,
+} from "./validation.js";
 import type {
   ListingStatus,
   ListingTag,
@@ -95,30 +108,43 @@ function canTransitionStatus(from: ListingStatus, to: ListingStatus): boolean {
   return false;
 }
 
+const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' `;
+
 export function listingsRouter(db: DatabaseSync) {
   const r = express.Router();
-  const jsonMw = express.json({ limit: "256kb" });
+  const jsonMw = express.json({ limit: "512kb" });
 
   r.get("/", (req: Request, res: Response) => {
     const mark = req.originalUrl.indexOf("?");
     const qs = mark >= 0 ? req.originalUrl.slice(mark + 1) : "";
     const filters = parseFilters(new URLSearchParams(qs));
-    const rows = db
-      .prepare("SELECT * FROM listings WHERE status = ? ORDER BY rent_mxn ASC")
-      .all("published") as Record<string, unknown>[];
-    const all = rows.map(rowToListing).map(listingForPublic);
+    const sql = `${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} ORDER BY r.rent_mxn ASC, r.id ASC`;
+    const rows = db.prepare(sql).all() as Record<string, unknown>[];
+    const all = rows.map(joinRowToPropertyListing).map(listingForPublic);
     res.json(filterListings(all, filters));
   });
 
   r.get("/:id", (req: Request, res: Response) => {
-    const row = db
-      .prepare("SELECT * FROM listings WHERE id = ? AND status = ?")
-      .get(req.params.id, "published") as Record<string, unknown> | undefined;
+    if (!isSafeRoomOrListingId(req.params.id)) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const publisherId = readPublisherIdFromRequest(req);
+    const row = publisherId
+      ? (db
+          .prepare(
+            `${ROOM_PROPERTY_JOIN_SQL}
+             WHERE r.id = ? AND p.publisher_id = ?`,
+          )
+          .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
+      : (db
+          .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
+          .get(req.params.id) as Record<string, unknown> | undefined);
     if (!row) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    res.json(listingForPublic(rowToListing(row)));
+    res.json(listingForPublic(joinRowToPropertyListing(row)));
   });
 
   r.post("/", jsonMw, (req: Request, res: Response) => {
@@ -168,13 +194,41 @@ export function listingsRouter(db: DatabaseSync) {
       return;
     }
 
+    const contactDigits = normalizeWhatsAppDigits(body.contactWhatsApp);
+    if (contactDigits == null) {
+      res.status(400).json({ error: "invalid_whatsapp", message: "WhatsApp must be 10–15 digits." });
+      return;
+    }
+    if (!validLatLng(body.lat, body.lng)) {
+      res.status(400).json({ error: "invalid_geo" });
+      return;
+    }
+    const title = clampStr(body.title, TITLE_MAX_LEN);
+    const city = clampStr(body.city, CITY_MAX_LEN);
+    const neighborhood = clampStr(body.neighborhood, NEIGHBORHOOD_MAX_LEN);
+    const summary = clampStr(body.summary, SUMMARY_MAX_LEN);
+    if (!title || !city || !neighborhood || !summary) {
+      res.status(400).json({ error: "invalid_body", message: "Title, city, neighborhood, and summary are required." });
+      return;
+    }
+    const rentMxn = clampRentMxn(body.rentMxn);
+    const roomsAvailable = clampRoomsAvailable(body.roomsAvailable);
+    const ageMin = clampAge(body.ageMin, 18);
+    const ageMax = clampAge(body.ageMax, 99);
+    if (ageMin > ageMax) {
+      res.status(400).json({ error: "invalid_age_range" });
+      return;
+    }
+
     const rawStatus =
       typeof body.status === "string" && isListingStatus(body.status) ? body.status : "published";
     const status: ListingStatus =
       rawStatus === "draft" || rawStatus === "published" ? rawStatus : "published";
 
     const publisherId = getOrCreatePublisherId(req, res);
-    const id = typeof body.id === "string" && body.id.trim() ? body.id.trim() : randomUUID();
+    const roomIdRaw = typeof body.id === "string" && body.id.trim() ? body.id.trim() : randomUUID();
+    const roomId = isSafeRoomOrListingId(roomIdRaw) ? roomIdRaw : randomUUID();
+    const propertyId = `prp__${randomUUID()}`;
 
     const lodgingType = optLodging(body.lodgingType);
     const propertyKind = optPropertyKind(body.propertyKind);
@@ -184,76 +238,95 @@ export function listingsRouter(db: DatabaseSync) {
     const avalRequired = optBool(body.avalRequired);
     const subletAllowed = optBool(body.subletAllowed);
 
+    const insertProp = db.prepare(`
+      INSERT INTO properties (
+        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
+      ) VALUES (
+        @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind
+      )
+    `);
+    const insertRoom = db.prepare(`
+      INSERT INTO rooms (
+        id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
+        age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
+        aval_required, sublet_allowed, sort_order
+      ) VALUES (
+        @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
+        @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
+        @avalRequired, @subletAllowed, 0
+      )
+    `);
+
     try {
-      db.prepare(
-        `INSERT INTO listings (
-          id, title, city, neighborhood, lat, lng, rent_mxn, rooms_available,
-          tags_json, roommate_gender_pref, age_min, age_max, summary, contact_whatsapp,
-          publisher_id, status,
-          lodging_type, property_kind, available_from, minimal_stay_months, room_dimension,
-          aval_required, sublet_allowed
-        ) VALUES (
-          @id, @title, @city, @neighborhood, @lat, @lng, @rentMxn, @roomsAvailable,
-          @tagsJson, @roommateGenderPref, @ageMin, @ageMax, @summary, @contactWhatsApp,
-          @publisherId, @status,
-          @lodgingType, @propertyKind, @availableFrom, @minimalStayMonths, @roomDimension,
-          @avalRequired, @subletAllowed
-        )`,
-      ).run({
-        id,
-        title: body.title,
-        city: body.city,
-        neighborhood: body.neighborhood,
-        lat: body.lat,
-        lng: body.lng,
-        rentMxn: body.rentMxn,
-        roomsAvailable: body.roomsAvailable,
-        tagsJson: JSON.stringify(tags),
-        roommateGenderPref: body.roommateGenderPref,
-        ageMin: body.ageMin,
-        ageMax: body.ageMax,
-        summary: body.summary,
-        contactWhatsApp: body.contactWhatsApp,
+      db.exec("BEGIN IMMEDIATE;");
+      insertProp.run({
+        id: propertyId,
         publisherId,
         status,
-        lodgingType: lodgingType ?? null,
+        title,
+        city,
+        neighborhood,
+        lat: body.lat,
+        lng: body.lng,
+        summary,
+        contactWhatsApp: contactDigits,
         propertyKind: propertyKind ?? null,
+      });
+      insertRoom.run({
+        id: roomId,
+        propertyId,
+        status,
+        title,
+        rentMxn,
+        roomsAvailable,
+        tagsJson: JSON.stringify(tags),
+        roommateGenderPref: body.roommateGenderPref,
+        ageMin,
+        ageMax,
+        summary,
+        lodgingType: lodgingType ?? null,
         availableFrom: availableFrom ?? null,
         minimalStayMonths: minimalStayMonths ?? null,
         roomDimension: roomDimension ?? null,
         avalRequired: avalRequired === true ? 1 : avalRequired === false ? 0 : null,
         subletAllowed: subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
       });
+      db.exec("COMMIT;");
     } catch {
+      db.exec("ROLLBACK;");
       res.status(409).json({ error: "conflict" });
       return;
     }
 
-    const created = db.prepare("SELECT * FROM listings WHERE id = ?").get(id) as Record<string, unknown>;
-    res.status(201).json(listingForPublic(rowToListing(created)));
+    const created = db
+      .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
+      .get(roomId) as Record<string, unknown>;
+    res.status(201).json(listingForPublic(joinRowToPropertyListing(created)));
   });
 
   r.patch("/:id", jsonMw, (req: Request, res: Response) => {
+    if (!isSafeRoomOrListingId(req.params.id)) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
     const publisherId = readPublisherIdFromRequest(req);
     if (!publisherId) {
       res.status(401).json({ error: "publisher_session_required", message: "Missing publisher session cookie." });
       return;
     }
 
-    const row = db.prepare("SELECT * FROM listings WHERE id = ?").get(req.params.id) as
-      | Record<string, unknown>
-      | undefined;
+    const row = db
+      .prepare(
+        `${ROOM_PROPERTY_JOIN_SQL}
+         WHERE r.id = ? AND p.publisher_id = ?`,
+      )
+      .get(req.params.id, publisherId) as Record<string, unknown> | undefined;
     if (!row) {
       res.status(404).json({ error: "not_found" });
       return;
     }
 
-    const listing = rowToListing(row);
-    if (listing.publisherId !== publisherId) {
-      res.status(403).json({ error: "forbidden", message: "You can only update your own listings." });
-      return;
-    }
-
+    const listing = joinRowToPropertyListing(row);
     const patch = req.body as { status?: unknown };
     if (typeof patch.status !== "string" || !isListingStatus(patch.status)) {
       res.status(400).json({ error: "invalid_body", message: "Expected { status } with a valid status value." });
@@ -269,9 +342,20 @@ export function listingsRouter(db: DatabaseSync) {
       return;
     }
 
-    db.prepare("UPDATE listings SET status = ? WHERE id = ?").run(next, listing.id);
-    const updated = db.prepare("SELECT * FROM listings WHERE id = ?").get(listing.id) as Record<string, unknown>;
-    res.json(rowToListing(updated));
+    if (next === "published") {
+      const propStatus = String(row.property_status ?? "");
+      if (propStatus !== "published") {
+        res.status(400).json({
+          error: "property_not_published",
+          message: "Publish the property before publishing this room.",
+        });
+        return;
+      }
+    }
+
+    db.prepare("UPDATE rooms SET status = ? WHERE id = ?").run(next, listing.id);
+    const updated = db.prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`).get(listing.id) as Record<string, unknown>;
+    res.json(listingForPublic(joinRowToPropertyListing(updated)));
   });
 
   return r;

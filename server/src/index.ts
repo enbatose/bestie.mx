@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import cors from "cors";
-import express, { type Request, type Response } from "express";
+import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
-import { listingsRouter } from "./listingsRouter.js";
-import { myListingsHandler } from "./myListingsHandler.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -40,40 +37,11 @@ const corsOrigins = (process.env.CORS_ORIGINS ??
   .map((s) => s.trim())
   .filter(Boolean);
 
-const app = express();
-app.set("trust proxy", 1);
-app.disable("x-powered-by");
-
-// Before DB + CORS so Railway healthchecks always get 200 even if SQLite init is slow or misconfigured.
-app.get("/health", (_req: Request, res: Response) => {
-  res.status(200).type("text/plain").send("ok");
-});
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || corsOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error(`CORS blocked origin: ${origin}`));
-    },
-    credentials: true,
-  }),
-);
-
 const db = openDb(databasePath);
 
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.json({ ok: true, service: "bestie-mx-api", database: path.basename(databasePath) });
-});
-
-app.get("/api/my-listings", myListingsHandler(db));
-
-app.use("/api/listings", listingsRouter(db));
-
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: "not_found" });
+const app = createApp(db, {
+  corsOrigins,
+  databaseLabel: path.basename(databasePath),
 });
 
 app.listen(PORT, "0.0.0.0", () => {
