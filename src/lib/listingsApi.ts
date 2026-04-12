@@ -73,6 +73,11 @@ export type PublishBundlePayload = {
     summary?: string;
     contactWhatsApp: string;
     propertyKind?: PropertyListing["propertyKind"];
+    /** Total bedrooms in the home (Roomix `rooms_number`). */
+    bedroomsTotal?: number;
+    bathrooms?: number;
+    /** Default true — same idea as Roomix “Visible en anuncio” for phone. */
+    showWhatsApp?: boolean;
   };
   rooms: Array<{
     id?: string;
@@ -85,9 +90,11 @@ export type PublishBundlePayload = {
     ageMax: number;
     summary: string;
     lodgingType?: PropertyListing["lodgingType"];
-    availableFrom?: string;
-    minimalStayMonths?: number;
-    roomDimension?: PropertyListing["roomDimension"];
+    /** ISO `YYYY-MM-DD` — Roomix “Disponible a partir de”. */
+    availableFrom: string;
+    minimalStayMonths: number;
+    roomDimension: PropertyListing["roomDimension"];
+    depositMxn: number;
     avalRequired?: boolean;
     subletAllowed?: boolean;
   }>;
@@ -141,6 +148,9 @@ export type CreateDraftPropertyPayload = {
   summary?: string;
   contactWhatsApp: string;
   propertyKind?: PropertyKind;
+  bedroomsTotal?: number;
+  bathrooms?: number;
+  showWhatsApp?: boolean;
 };
 
 export type AddDraftRoomPayload = {
@@ -157,6 +167,7 @@ export type AddDraftRoomPayload = {
   availableFrom?: string;
   minimalStayMonths?: number;
   roomDimension?: RoomDimension;
+  depositMxn?: number;
   avalRequired?: boolean;
   subletAllowed?: boolean;
 };
@@ -165,12 +176,18 @@ export type UpdatePropertyPayload = {
   status?: ListingStatus;
   title?: string;
   summary?: string;
+  city?: string;
   neighborhood?: string;
   lat?: number;
   lng?: number;
   contactWhatsApp?: string;
   propertyKind?: PropertyKind;
+  bedroomsTotal?: number;
+  bathrooms?: number;
+  showWhatsApp?: boolean;
 };
+
+export type PatchDraftRoomPayload = Partial<Omit<AddDraftRoomPayload, "id">>;
 
 export async function createDraftProperty(
   payload: CreateDraftPropertyPayload,
@@ -198,6 +215,66 @@ export async function createDraftProperty(
     throw new Error(`create_property_http_${res.status}${detail}`);
   }
   return (await res.json()) as Property;
+}
+
+export async function patchDraftRoom(
+  propertyId: string,
+  roomId: string,
+  payload: PatchDraftRoomPayload,
+  signal?: AbortSignal,
+): Promise<Room> {
+  const base = apiBase();
+  const res = await fetch(
+    `${base}/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...deviceHeaders() },
+      credentials: cred,
+      body: JSON.stringify(payload),
+      signal,
+    },
+  );
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = (await res.json()) as { error?: string; message?: string };
+      if (j.message) detail = `: ${j.message}`;
+      else if (j.error) detail = `: ${j.error}`;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`patch_room_http_${res.status}${detail}`);
+  }
+  return (await res.json()) as Room;
+}
+
+export async function deleteDraftRoom(
+  propertyId: string,
+  roomId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(
+    `${base}/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`,
+    {
+      method: "DELETE",
+      headers: { ...deviceHeaders() },
+      credentials: cred,
+      signal,
+    },
+  );
+  if (res.status === 404) return;
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = (await res.json()) as { error?: string; message?: string };
+      if (j.message) detail = `: ${j.message}`;
+      else if (j.error) detail = `: ${j.error}`;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`delete_room_http_${res.status}${detail}`);
+  }
 }
 
 export async function addDraftRoomToProperty(

@@ -7,11 +7,17 @@ import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js
 import {
   CITY_MAX_LEN,
   clampAge,
+  clampBathrooms,
+  clampBedroomsTotal,
+  clampDepositMxn,
   clampRentMxn,
   clampRoomsAvailable,
   clampStr,
+  isDraftPlaceholderWhatsApp,
   isSafePropertyId,
   isSafeRoomOrListingId,
+  minimalPropertySummaryOk,
+  PROPERTY_SUMMARY_MIN_LEN,
   NEIGHBORHOOD_MAX_LEN,
   normalizeWhatsAppDigits,
   ROOM_TITLE_MAX_LEN,
@@ -85,6 +91,8 @@ function rowToProperty(row: Record<string, unknown>): Property {
   const pk = optPropertyKind(row.property_kind);
   const st = String(row.status ?? "draft");
   const status: ListingStatus = isListingStatus(st) ? st : "draft";
+  const sw = row.show_whatsapp;
+  const showWhatsApp = !(sw === 0 || sw === false || sw === "0");
   return {
     id: String(row.id),
     publisherId: String(row.publisher_id),
@@ -96,6 +104,12 @@ function rowToProperty(row: Record<string, unknown>): Property {
     lng: Number(row.lng),
     summary: String(row.summary ?? ""),
     contactWhatsApp: String(row.contact_whatsapp),
+    bedroomsTotal:
+      row.bedrooms_total != null && Number.isFinite(Number(row.bedrooms_total))
+        ? Number(row.bedrooms_total)
+        : 1,
+    bathrooms: row.bathrooms != null && Number.isFinite(Number(row.bathrooms)) ? Number(row.bathrooms) : 1,
+    showWhatsApp,
     ...(pk ? { propertyKind: pk } : {}),
   };
 }
@@ -127,12 +141,14 @@ function rowToRoom(row: Record<string, unknown>): Room {
 
   const rst = String(row.status ?? "draft");
   const rstatus: ListingStatus = isListingStatus(rst) ? rst : "draft";
+  const dep = row.deposit_mxn != null && Number.isFinite(Number(row.deposit_mxn)) ? clampDepositMxn(Number(row.deposit_mxn)) : 0;
   return {
     id: String(row.id),
     propertyId: String(row.property_id),
     status: rstatus,
     title: String(row.title),
     rentMxn: Number(row.rent_mxn),
+    depositMxn: dep,
     roomsAvailable: Number(row.rooms_available),
     tags,
     roommateGenderPref: String(row.roommate_gender_pref) as RoommateGenderPref,
@@ -220,7 +236,7 @@ export function propertiesRouter(db: DatabaseSync) {
     }
 
     for (const raw of roomsIn) {
-      const rm = raw as Partial<Room>;
+      const rm = raw as Partial<Room> & { availableFrom?: unknown; depositMxn?: unknown };
       if (
         typeof rm.title !== "string" ||
         typeof rm.rentMxn !== "number" ||
@@ -229,9 +245,26 @@ export function propertiesRouter(db: DatabaseSync) {
         typeof rm.roommateGenderPref !== "string" ||
         typeof rm.ageMin !== "number" ||
         typeof rm.ageMax !== "number" ||
-        typeof rm.summary !== "string"
+        typeof rm.summary !== "string" ||
+        typeof rm.availableFrom !== "string" ||
+        typeof rm.roomDimension !== "string" ||
+        typeof rm.minimalStayMonths !== "number" ||
+        typeof rm.depositMxn !== "number"
       ) {
-        res.status(400).json({ error: "invalid_room" });
+        res.status(400).json({
+          error: "invalid_room",
+          message:
+            "Each room needs title, rent, spots, tags, gender pref, ages, summary, availableFrom (YYYY-MM-DD), roomDimension, minimalStayMonths, depositMxn.",
+        });
+        return;
+      }
+      if (!optIsoDate(rm.availableFrom) || !optDim(rm.roomDimension)) {
+        res.status(400).json({ error: "invalid_room", message: "Invalid availableFrom or roomDimension." });
+        return;
+      }
+      const ms = optPositiveInt(rm.minimalStayMonths);
+      if (ms == null || ms < 1) {
+        res.status(400).json({ error: "invalid_room", message: "minimalStayMonths must be >= 1." });
         return;
       }
     }
@@ -239,6 +272,13 @@ export function propertiesRouter(db: DatabaseSync) {
     const contactDigits = normalizeWhatsAppDigits(p.contactWhatsApp);
     if (contactDigits == null) {
       res.status(400).json({ error: "invalid_whatsapp" });
+      return;
+    }
+    if (isDraftPlaceholderWhatsApp(contactDigits)) {
+      res.status(400).json({
+        error: "invalid_whatsapp",
+        message: "Provide a real WhatsApp number (placeholder numbers are not allowed for publishing).",
+      });
       return;
     }
     if (!validLatLng(p.lat, p.lng)) {
@@ -254,6 +294,18 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_body" });
       return;
     }
+    if (!minimalPropertySummaryOk(ps)) {
+      res.status(400).json({
+        error: "invalid_body",
+        message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters.`,
+      });
+      return;
+    }
+
+    const bedTotal = clampBedroomsTotal(Number((p as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
+    const bathTotal = clampBathrooms(Number((p as { bathrooms?: unknown }).bathrooms ?? 1));
+    const showWa = optBool((p as { showWhatsApp?: unknown }).showWhatsApp);
+    const showWhatsappInt = showWa === false ? 0 : 1;
 
     const publisherId = getOrCreatePublisherId(req, res);
     const propertyId = `prp__${randomUUID()}`;
@@ -261,15 +313,16 @@ export function propertiesRouter(db: DatabaseSync) {
 
     const insertProp = db.prepare(`
       INSERT INTO properties (
-        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?)
+        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+        bedrooms_total, bathrooms, show_whatsapp
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertRoom = db.prepare(`
       INSERT INTO rooms (
         id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-        aval_required, sublet_allowed, sort_order
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        aval_required, sublet_allowed, sort_order, deposit_mxn
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
@@ -285,6 +338,9 @@ export function propertiesRouter(db: DatabaseSync) {
         ps,
         contactDigits,
         propertyKind ?? null,
+        bedTotal,
+        bathTotal,
+        showWhatsappInt,
       );
 
       let order = 0;
@@ -308,6 +364,11 @@ export function propertiesRouter(db: DatabaseSync) {
         const ageMin = clampAge(Number(rm.ageMin), 18);
         const ageMax = clampAge(Number(rm.ageMax), 99);
         if (ageMin > ageMax) throw new Error("bad_age");
+        const availFrom = optIsoDate(rm.availableFrom);
+        const dim = optDim(rm.roomDimension);
+        const minStay = optPositiveInt(rm.minimalStayMonths);
+        if (!availFrom || !dim || minStay == null || minStay < 1) throw new Error("bad_room_fields");
+        const depositMxn = clampDepositMxn(Number((rm as { depositMxn?: unknown }).depositMxn));
         insertRoom.run(
           roomId,
           propertyId,
@@ -320,12 +381,13 @@ export function propertiesRouter(db: DatabaseSync) {
           ageMax,
           summary,
           optLodging(rm.lodgingType) ?? null,
-          optIsoDate(rm.availableFrom) ?? null,
-          optPositiveInt(rm.minimalStayMonths) ?? null,
-          optDim(rm.roomDimension) ?? null,
+          availFrom,
+          minStay,
+          dim,
           optBool(rm.avalRequired) === true ? 1 : optBool(rm.avalRequired) === false ? 0 : null,
           optBool(rm.subletAllowed) === true ? 1 : optBool(rm.subletAllowed) === false ? 0 : null,
           order++,
+          depositMxn,
         );
       }
       db.exec("COMMIT;");
@@ -415,21 +477,26 @@ export function propertiesRouter(db: DatabaseSync) {
     const city = clampStr(body.city, CITY_MAX_LEN);
     const neighborhood = clampStr(body.neighborhood, NEIGHBORHOOD_MAX_LEN);
     const summary = clampStr(typeof body.summary === "string" ? body.summary : "", SUMMARY_MAX_LEN);
-    if (!title || !city || !neighborhood) {
+    const titleOrDefault = title || "Sin título";
+    if (!city || !neighborhood) {
       res.status(400).json({ error: "invalid_body" });
       return;
     }
     const propertyKind = optPropertyKind(body.propertyKind);
+    const bed = clampBedroomsTotal(Number((body as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
+    const bath = clampBathrooms(Number((body as { bathrooms?: unknown }).bathrooms ?? 1));
+    const showInt = optBool((body as { showWhatsApp?: unknown }).showWhatsApp) === false ? 0 : 1;
     const id = randomUUID();
     const propertyId = `prp__${id}`;
     db.prepare(
       `INSERT INTO properties (
-        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+        bedrooms_total, bathrooms, show_whatsapp
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
-      title,
+      titleOrDefault,
       city,
       neighborhood,
       body.lat,
@@ -437,6 +504,9 @@ export function propertiesRouter(db: DatabaseSync) {
       summary,
       wa,
       propertyKind ?? null,
+      bed,
+      bath,
+      showInt,
     );
     const created = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
     res.status(201).json(rowToProperty(created));
@@ -493,12 +563,8 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
 
-    const rTitle = clampStr(body.title, ROOM_TITLE_MAX_LEN);
-    const rSummary = clampStr(body.summary, SUMMARY_MAX_LEN);
-    if (!rTitle || !rSummary) {
-      res.status(400).json({ error: "invalid_body" });
-      return;
-    }
+    const rTitle = clampStr(body.title, ROOM_TITLE_MAX_LEN) || "Cuarto en borrador";
+    const rSummary = clampStr(typeof body.summary === "string" ? body.summary : "", SUMMARY_MAX_LEN);
     const rentMxn = clampRentMxn(body.rentMxn);
     const roomsAvailable = clampRoomsAvailable(body.roomsAvailable);
     const ageMin = clampAge(body.ageMin, 18);
@@ -517,18 +583,19 @@ export function propertiesRouter(db: DatabaseSync) {
     const roomId = isSafeRoomOrListingId(roomIdRaw) ? roomIdRaw : randomUUID();
     const lodgingType = optLodging(body.lodgingType);
     const availableFrom = optIsoDate(body.availableFrom);
-    const minimalStayMonths = optPositiveInt(body.minimalStayMonths);
-    const roomDimension = optDim(body.roomDimension);
+    const minimalStayMonths = optPositiveInt(body.minimalStayMonths) ?? 1;
+    const roomDimension = optDim(body.roomDimension) ?? "medium";
     const avalRequired = optBool(body.avalRequired);
     const subletAllowed = optBool(body.subletAllowed);
+    const depositMxn = clampDepositMxn(Number((body as { depositMxn?: unknown }).depositMxn ?? 0));
 
     try {
       db.prepare(
         `INSERT INTO rooms (
           id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
           age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-          aval_required, sublet_allowed, sort_order
-        ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          aval_required, sublet_allowed, sort_order, deposit_mxn
+        ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         roomId,
         propertyId,
@@ -542,11 +609,12 @@ export function propertiesRouter(db: DatabaseSync) {
         rSummary,
         lodgingType ?? null,
         availableFrom ?? null,
-        minimalStayMonths ?? null,
-        roomDimension ?? null,
+        minimalStayMonths,
+        roomDimension,
         avalRequired === true ? 1 : avalRequired === false ? 0 : null,
         subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
         maxSort,
+        depositMxn,
       );
     } catch {
       res.status(409).json({ error: "conflict" });
@@ -555,6 +623,151 @@ export function propertiesRouter(db: DatabaseSync) {
 
     const row = db.prepare("SELECT * FROM rooms WHERE id = ?").get(roomId) as Record<string, unknown>;
     res.status(201).json(rowToRoom(row));
+  });
+
+  /** Update a draft room (wizard autosave). */
+  r.patch("/:id/rooms/:roomId", jsonMw, (req: Request, res: Response) => {
+    const publisherId = readPublisherIdFromRequest(req);
+    if (!publisherId) {
+      res.status(401).json({ error: "publisher_session_required" });
+      return;
+    }
+    const propertyId = req.params.id;
+    const roomId = req.params.roomId;
+    if (!isSafePropertyId(propertyId) || !isSafeRoomOrListingId(roomId)) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const prop = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown> | undefined;
+    if (!prop || String(prop.publisher_id) !== publisherId) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const roomRow = db
+      .prepare("SELECT * FROM rooms WHERE id = ? AND property_id = ?")
+      .get(roomId, propertyId) as Record<string, unknown> | undefined;
+    if (!roomRow) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (String(roomRow.status) !== "draft") {
+      res.status(400).json({ error: "only_draft_room_editable", message: "Only draft rooms can be edited here." });
+      return;
+    }
+
+    const body = req.body as Partial<Room> & { depositMxn?: unknown };
+    let title = clampStr(String(roomRow.title), ROOM_TITLE_MAX_LEN) || "Cuarto en borrador";
+    if (typeof body.title === "string") {
+      const t = clampStr(body.title, ROOM_TITLE_MAX_LEN);
+      if (t) title = t;
+    }
+    let summary = clampStr(String(roomRow.summary ?? ""), SUMMARY_MAX_LEN);
+    if (typeof body.summary === "string") summary = clampStr(body.summary, SUMMARY_MAX_LEN);
+
+    const rentMxn =
+      typeof body.rentMxn === "number" ? clampRentMxn(body.rentMxn) : clampRentMxn(Number(roomRow.rent_mxn));
+    const roomsAvailable =
+      typeof body.roomsAvailable === "number"
+        ? clampRoomsAvailable(body.roomsAvailable)
+        : clampRoomsAvailable(Number(roomRow.rooms_available));
+    let roommateGenderPref = String(roomRow.roommate_gender_pref);
+    if (typeof body.roommateGenderPref === "string" && isRoommateGenderPref(body.roommateGenderPref)) {
+      roommateGenderPref = body.roommateGenderPref;
+    }
+    const ageMin = typeof body.ageMin === "number" ? clampAge(body.ageMin, 18) : clampAge(Number(roomRow.age_min), 18);
+    const ageMax = typeof body.ageMax === "number" ? clampAge(body.ageMax, 99) : clampAge(Number(roomRow.age_max), 99);
+    if (ageMin > ageMax) {
+      res.status(400).json({ error: "invalid_age_range" });
+      return;
+    }
+
+    let tagsJson = String(roomRow.tags_json);
+    if (Array.isArray(body.tags)) {
+      const tags = body.tags.filter((t): t is ListingTag => typeof t === "string" && isListingTag(t));
+      if (tags.length !== body.tags.length) {
+        res.status(400).json({ error: "invalid_tags" });
+        return;
+      }
+      tagsJson = JSON.stringify(tags);
+    }
+
+    const lodgingType = body.lodgingType != null ? optLodging(body.lodgingType) : optLodging(roomRow.lodging_type);
+    const availableFrom =
+      body.availableFrom !== undefined ? optIsoDate(body.availableFrom) : optIsoDate(roomRow.available_from);
+    const rowMinStay = optPositiveInt(Number(roomRow.minimal_stay_months)) ?? 1;
+    const minimalStayMonths =
+      body.minimalStayMonths !== undefined
+        ? optPositiveInt(body.minimalStayMonths) ?? rowMinStay
+        : rowMinStay;
+    const roomDimension =
+      body.roomDimension !== undefined ? optDim(body.roomDimension) ?? "medium" : optDim(roomRow.room_dimension) ?? "medium";
+    const avalRequired = body.avalRequired !== undefined ? optBool(body.avalRequired) : optBool(roomRow.aval_required);
+    const subletAllowed = body.subletAllowed !== undefined ? optBool(body.subletAllowed) : optBool(roomRow.sublet_allowed);
+    const depositMxn =
+      typeof body.depositMxn === "number"
+        ? clampDepositMxn(body.depositMxn)
+        : clampDepositMxn(Number(roomRow.deposit_mxn ?? 0));
+
+    db.prepare(
+      `UPDATE rooms SET
+        title = ?, rent_mxn = ?, rooms_available = ?, tags_json = ?, roommate_gender_pref = ?,
+        age_min = ?, age_max = ?, summary = ?, lodging_type = ?, available_from = ?,
+        minimal_stay_months = ?, room_dimension = ?, aval_required = ?, sublet_allowed = ?, deposit_mxn = ?
+      WHERE id = ?`,
+    ).run(
+      title,
+      rentMxn,
+      roomsAvailable,
+      tagsJson,
+      roommateGenderPref,
+      ageMin,
+      ageMax,
+      summary,
+      lodgingType ?? null,
+      availableFrom ?? null,
+      minimalStayMonths,
+      roomDimension,
+      avalRequired === true ? 1 : avalRequired === false ? 0 : null,
+      subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
+      depositMxn,
+      roomId,
+    );
+
+    const updated = db.prepare("SELECT * FROM rooms WHERE id = ?").get(roomId) as Record<string, unknown>;
+    res.json(rowToRoom(updated));
+  });
+
+  /** Delete a draft room (wizard removed a room). */
+  r.delete("/:id/rooms/:roomId", (req: Request, res: Response) => {
+    const publisherId = readPublisherIdFromRequest(req);
+    if (!publisherId) {
+      res.status(401).json({ error: "publisher_session_required" });
+      return;
+    }
+    const propertyId = req.params.id;
+    const roomId = req.params.roomId;
+    if (!isSafePropertyId(propertyId) || !isSafeRoomOrListingId(roomId)) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const prop = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown> | undefined;
+    if (!prop || String(prop.publisher_id) !== publisherId) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const roomRow = db
+      .prepare("SELECT * FROM rooms WHERE id = ? AND property_id = ?")
+      .get(roomId, propertyId) as Record<string, unknown> | undefined;
+    if (!roomRow) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (String(roomRow.status) !== "draft") {
+      res.status(400).json({ error: "only_draft_room_deletable" });
+      return;
+    }
+    db.prepare("DELETE FROM rooms WHERE id = ?").run(roomId);
+    res.status(204).end();
   });
 
   /** Update property fields and/or status (pause cascades to rooms). */
@@ -579,11 +792,15 @@ export function propertiesRouter(db: DatabaseSync) {
       status?: unknown;
       title?: unknown;
       summary?: unknown;
+      city?: unknown;
       neighborhood?: unknown;
       lat?: unknown;
       lng?: unknown;
       contactWhatsApp?: unknown;
       propertyKind?: unknown;
+      bedroomsTotal?: unknown;
+      bathrooms?: unknown;
+      showWhatsApp?: unknown;
     };
 
     const curStatus = String(prop.status) as ListingStatus;
@@ -605,6 +822,10 @@ export function propertiesRouter(db: DatabaseSync) {
     const nextSummary = clampStr(
       typeof patch.summary === "string" ? patch.summary : String(prop.summary ?? ""),
       SUMMARY_MAX_LEN,
+    );
+    const nextCity = clampStr(
+      typeof patch.city === "string" ? patch.city : String(prop.city),
+      CITY_MAX_LEN,
     );
     const nextHood = clampStr(
       typeof patch.neighborhood === "string" ? patch.neighborhood : String(prop.neighborhood),
@@ -628,8 +849,19 @@ export function propertiesRouter(db: DatabaseSync) {
     const nextWa = nextWaDigits;
     const nextPk = patch.propertyKind != null ? optPropertyKind(patch.propertyKind) : optPropertyKind(prop.property_kind);
 
-    if (!nextTitle || !nextHood) {
-      res.status(400).json({ error: "invalid_body", message: "Title and neighborhood cannot be empty." });
+    if (!nextTitle || !nextCity || !nextHood) {
+      res.status(400).json({
+        error: "invalid_body",
+        message: "Title, city, and neighborhood cannot be empty.",
+      });
+      return;
+    }
+
+    if (patch.status === "published" && isDraftPlaceholderWhatsApp(nextWa)) {
+      res.status(400).json({
+        error: "invalid_whatsapp",
+        message: "Replace the placeholder WhatsApp with a real number before publishing.",
+      });
       return;
     }
 
@@ -648,23 +880,52 @@ export function propertiesRouter(db: DatabaseSync) {
         });
         return;
       }
+      if (!minimalPropertySummaryOk(nextSummary)) {
+        res.status(400).json({
+          error: "invalid_body",
+          message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters before publishing.`,
+        });
+        return;
+      }
     }
+
+    const nextBed =
+      typeof patch.bedroomsTotal === "number"
+        ? clampBedroomsTotal(patch.bedroomsTotal)
+        : clampBedroomsTotal(Number(prop.bedrooms_total ?? 1));
+    const nextBath =
+      typeof patch.bathrooms === "number"
+        ? clampBathrooms(patch.bathrooms)
+        : clampBathrooms(Number(prop.bathrooms ?? 1));
+    const nextShowWhatsapp =
+      patch.showWhatsApp !== undefined
+        ? optBool(patch.showWhatsApp) === false
+          ? 0
+          : 1
+        : prop.show_whatsapp === 0 || prop.show_whatsapp === false
+          ? 0
+          : 1;
 
     db.prepare(
       `UPDATE properties SET
         status = ?,
-        title = ?, summary = ?, neighborhood = ?, lat = ?, lng = ?,
-        contact_whatsapp = ?, property_kind = ?
+        title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
+        contact_whatsapp = ?, property_kind = ?,
+        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?
       WHERE id = ?`,
     ).run(
       nextStatus,
       nextTitle,
       nextSummary,
+      nextCity,
       nextHood,
       nextLat,
       nextLng,
       nextWa,
       nextPk ?? null,
+      nextBed,
+      nextBath,
+      nextShowWhatsapp,
       propertyId,
     );
 

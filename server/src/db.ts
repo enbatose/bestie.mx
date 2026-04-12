@@ -39,20 +39,22 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
 
   const insertProp = db.prepare(`
     INSERT INTO properties (
-      id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
+      id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+      bedrooms_total, bathrooms, show_whatsapp
     ) VALUES (
-      @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind
+      @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
+      @bedroomsTotal, @bathrooms, @showWhatsapp
     )
   `);
   const insertRoom = db.prepare(`
     INSERT INTO rooms (
       id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
       age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-      aval_required, sublet_allowed, sort_order
+      aval_required, sublet_allowed, sort_order, deposit_mxn
     ) VALUES (
       @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
       @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-      @avalRequired, @subletAllowed, @sortOrder
+      @avalRequired, @subletAllowed, @sortOrder, @depositMxn
     )
   `);
 
@@ -82,6 +84,9 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
         summary: String(r.summary),
         contactWhatsApp: String(r.contact_whatsapp),
         propertyKind: r.property_kind != null && String(r.property_kind) !== "" ? String(r.property_kind) : null,
+        bedroomsTotal: 1,
+        bathrooms: 1,
+        showWhatsapp: 1,
       });
 
       insertRoom.run({
@@ -113,6 +118,7 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
               ? 0
               : null,
         sortOrder: 0,
+        depositMxn: 0,
       });
     }
     db.exec("DROP TABLE listings");
@@ -120,6 +126,27 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
   } catch (e) {
     db.exec("ROLLBACK;");
     throw e instanceof Error ? e : new Error(String(e));
+  }
+}
+
+function tableHasColumn(db: DatabaseSync, table: string, column: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  return rows.some((r) => r.name === column);
+}
+
+/** Roomix-aligned: total bedrooms in building, bathrooms, WhatsApp visibility; per-room deposit. */
+function migratePhaseBRoomixColumns(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "bedrooms_total")) {
+    db.exec("ALTER TABLE properties ADD COLUMN bedrooms_total INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!tableHasColumn(db, "properties", "bathrooms")) {
+    db.exec("ALTER TABLE properties ADD COLUMN bathrooms REAL NOT NULL DEFAULT 1");
+  }
+  if (!tableHasColumn(db, "properties", "show_whatsapp")) {
+    db.exec("ALTER TABLE properties ADD COLUMN show_whatsapp INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!tableHasColumn(db, "rooms", "deposit_mxn")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN deposit_mxn INTEGER NOT NULL DEFAULT 0");
   }
 }
 
@@ -136,7 +163,10 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       lng REAL NOT NULL,
       summary TEXT NOT NULL DEFAULT '',
       contact_whatsapp TEXT NOT NULL,
-      property_kind TEXT
+      property_kind TEXT,
+      bedrooms_total INTEGER NOT NULL DEFAULT 1,
+      bathrooms REAL NOT NULL DEFAULT 1,
+      show_whatsapp INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS rooms (
       id TEXT PRIMARY KEY,
@@ -157,6 +187,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       aval_required INTEGER,
       sublet_allowed INTEGER,
       sort_order INTEGER NOT NULL DEFAULT 0,
+      deposit_mxn INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_rooms_property ON rooms(property_id);
@@ -166,25 +197,28 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
     CREATE INDEX IF NOT EXISTS idx_properties_lat_lng ON properties(lat, lng);
   `);
+  migratePhaseBRoomixColumns(db);
 }
 
 function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
   const insertProp = db.prepare(`
     INSERT INTO properties (
-      id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
+      id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+      bedrooms_total, bathrooms, show_whatsapp
     ) VALUES (
-      @id, @publisherId, 'published', @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind
+      @id, @publisherId, 'published', @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
+      @bedroomsTotal, @bathrooms, @showWhatsapp
     )
   `);
   const insertRoom = db.prepare(`
     INSERT INTO rooms (
       id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
       age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-      aval_required, sublet_allowed, sort_order
+      aval_required, sublet_allowed, sort_order, deposit_mxn
     ) VALUES (
       @id, @propertyId, 'published', @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
       @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-      @avalRequired, @subletAllowed, 0
+      @avalRequired, @subletAllowed, 0, @depositMxn
     )
   `);
 
@@ -208,6 +242,9 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
         summary: row.summary,
         contactWhatsApp: row.contactWhatsApp,
         propertyKind: row.propertyKind ?? null,
+        bedroomsTotal: 1,
+        bathrooms: 1,
+        showWhatsapp: 1,
       });
 
       insertRoom.run({
@@ -227,6 +264,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
         roomDimension: row.roomDimension ?? null,
         avalRequired: row.avalRequired === true ? 1 : row.avalRequired === false ? 0 : null,
         subletAllowed: row.subletAllowed === true ? 1 : row.subletAllowed === false ? 0 : null,
+        depositMxn: 0,
       });
     }
 
@@ -243,6 +281,9 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       summary: "Dos espacios en la misma casa; ideal roomies que ya se conocen.",
       contactWhatsApp: "523229292929",
       propertyKind: "house",
+      bedroomsTotal: 2,
+      bathrooms: 2,
+      showWhatsapp: 1,
     });
     insertRoom.run({
       id: "buc-demo-a",
@@ -261,6 +302,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       roomDimension: "medium",
       avalRequired: 0,
       subletAllowed: 1,
+      depositMxn: 2400,
     });
     insertRoom.run({
       id: "buc-demo-b",
@@ -279,6 +321,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       roomDimension: "small",
       avalRequired: 0,
       subletAllowed: 0,
+      depositMxn: 2300,
     });
 
     db.exec("COMMIT;");

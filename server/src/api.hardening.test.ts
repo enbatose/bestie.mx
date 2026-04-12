@@ -8,6 +8,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 
+const PROP_SUMMARY_OK =
+  "Descripción de la propiedad lo bastante larga para pruebas API y criterio Roomix (≥20 caracteres).";
+
 function cookiePairFromSetCookie(res: { headers: Record<string, unknown> }): string {
   const sc = res.headers["set-cookie"] as string | string[] | undefined;
   if (!sc) return "";
@@ -52,6 +55,41 @@ describe("Phase B API hardening", () => {
     await request(app).get(`/api/listings/${encodeURIComponent("bad!id")}`).expect(400);
   });
 
+  it("publish-bundle rejects all-zero WhatsApp", async () => {
+    const res = await request(app)
+      .post("/api/properties/publish-bundle")
+      .send({
+        legalAccepted: true,
+        property: {
+          title: "T",
+          city: "Guadalajara",
+          neighborhood: "Centro",
+          lat: 20.67,
+          lng: -103.35,
+          contactWhatsApp: "0000000000000",
+          summary: PROP_SUMMARY_OK,
+        },
+        rooms: [
+          {
+            title: "C1",
+            rentMxn: 4000,
+            roomsAvailable: 1,
+            tags: [],
+            roommateGenderPref: "any",
+            ageMin: 18,
+            ageMax: 99,
+            summary: "Descripción del cuarto.",
+            availableFrom: "2026-01-15",
+            roomDimension: "medium",
+            minimalStayMonths: 1,
+            depositMxn: 0,
+          },
+        ],
+      })
+      .expect(400);
+    expect((res.body as { error?: string }).error).toBe("invalid_whatsapp");
+  });
+
   it("publish-bundle requires legalAccepted", async () => {
     await request(app)
       .post("/api/properties/publish-bundle")
@@ -91,6 +129,7 @@ describe("Phase B API hardening", () => {
         lat: 20.67,
         lng: -103.35,
         contactWhatsApp: "523331234567",
+        summary: PROP_SUMMARY_OK,
       })
       .expect(201);
     const cookie = cookiePairFromSetCookie(r1);
@@ -142,6 +181,7 @@ describe("Phase B API hardening", () => {
         lat: 20.67,
         lng: -103.35,
         contactWhatsApp: "523331234567",
+        summary: PROP_SUMMARY_OK,
       })
       .expect(201);
     const cookie = cookiePairFromSetCookie(r1);
@@ -182,6 +222,7 @@ describe("Phase B API hardening", () => {
         lat: 20.97,
         lng: -89.59,
         contactWhatsApp: "529991112233",
+        summary: PROP_SUMMARY_OK,
       })
       .expect(201);
     const cookie = cookiePairFromSetCookie(r1);
@@ -241,6 +282,103 @@ describe("Phase B API hardening", () => {
     expect(ids2).toContain(room2Id);
   });
 
+  it("allows creating a draft property with a short summary (wizard autosave)", async () => {
+    const r1 = await request(app)
+      .post("/api/properties")
+      .send({
+        title: "",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "0000000000000",
+        summary: "corta",
+      })
+      .expect(201);
+    expect((r1.body as { title?: string }).title).toBe("Sin título");
+    expect(String((r1.body as { summary?: string }).summary)).toBe("corta");
+  });
+
+  it("PATCH draft room updates fields", async () => {
+    const r1 = await request(app)
+      .post("/api/properties")
+      .send({
+        title: "C PATCH room",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "523331234567",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const cookie = cookiePairFromSetCookie(r1);
+    const propertyId = (r1.body as { id: string }).id;
+
+    const r2 = await request(app)
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .set("Cookie", cookie)
+      .send({
+        title: "Cuarto",
+        rentMxn: 4000,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "",
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+
+    const r3 = await request(app)
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`)
+      .set("Cookie", cookie)
+      .send({ title: "Cuarto renovado", summary: "Texto actualizado del cuarto.", rentMxn: 4100 })
+      .expect(200);
+    expect((r3.body as { title?: string }).title).toBe("Cuarto renovado");
+    expect((r3.body as { rentMxn?: number }).rentMxn).toBe(4100);
+  });
+
+  it("rejects publishing with placeholder WhatsApp", async () => {
+    const r1 = await request(app)
+      .post("/api/properties")
+      .send({
+        title: "Casa placeholder",
+        city: "Mérida",
+        neighborhood: "Centro",
+        lat: 20.97,
+        lng: -89.59,
+        contactWhatsApp: "0000000000000",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const cookie = cookiePairFromSetCookie(r1);
+    const propertyId = (r1.body as { id: string }).id;
+
+    await request(app)
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .set("Cookie", cookie)
+      .send({
+        title: "C1",
+        rentMxn: 3000,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 99,
+        summary: "Descripción del cuarto.",
+      })
+      .expect(201);
+
+    const bad = await request(app)
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
+      .set("Cookie", cookie)
+      .send({ status: "published" })
+      .expect(400);
+    expect((bad.body as { error?: string }).error).toBe("invalid_whatsapp");
+  });
+
   it("rejects publishing a draft property that has no rooms", async () => {
     const r1 = await request(app)
       .post("/api/properties")
@@ -251,6 +389,7 @@ describe("Phase B API hardening", () => {
         lat: 20.97,
         lng: -89.59,
         contactWhatsApp: "529991112233",
+        summary: PROP_SUMMARY_OK,
       })
       .expect(201);
     const cookie = cookiePairFromSetCookie(r1);

@@ -128,6 +128,8 @@ export function ListingPage() {
 
   const wa = `https://wa.me/${listing.contactWhatsApp.replace(/\D/g, "")}`;
   const listingStatus = listing.status ?? "published";
+  const showWhatsApp = listing.showWhatsApp !== false;
+  const depositMxn = listing.depositMxn ?? 0;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
@@ -168,6 +170,15 @@ export function ListingPage() {
           </span>
         </div>
         <p className="mt-3 text-2xl font-semibold text-body">{money.format(listing.rentMxn)}</p>
+        {depositMxn > 0 ? (
+          <p className="mt-1 text-sm text-muted">Depósito · {money.format(depositMxn)}</p>
+        ) : null}
+        {apiOn && propertyPack ? (
+          <p className="mt-1 text-sm text-muted">
+            Propiedad · {propertyPack.property.bedroomsTotal} recámara(s) · {propertyPack.property.bathrooms}{" "}
+            baño(s)
+          </p>
+        ) : null}
         <p className="mt-1 text-sm text-muted">
           {listing.roomsAvailable} cuarto(s) disponible(s) · Roomies{" "}
           {listing.roommateGenderPref === "any"
@@ -225,31 +236,43 @@ export function ListingPage() {
 
       <section className="mt-8 rounded-2xl border border-border bg-bg-light p-5 sm:p-6">
         <h2 className="text-base font-semibold text-body">Contacto (v1)</h2>
-        <p className="mt-2 text-sm text-muted">
-          Sin chat en la app por ahora: revela WhatsApp cuando estés listo (datos de muestra).
-        </p>
-        {!revealed ? (
-          <button
-            type="button"
-            onClick={() => setRevealed(true)}
-            className="mt-4 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition hover:brightness-95"
-          >
-            Revelar WhatsApp
-          </button>
+        {!showWhatsApp ? (
+          <p className="mt-2 text-sm text-muted">
+            El anunciante eligió no mostrar WhatsApp en Bestie. Puedes escribir a{" "}
+            <a href="mailto:support@bestie.mx" className="font-medium text-primary underline-offset-2 hover:underline">
+              support@bestie.mx
+            </a>{" "}
+            si necesitas ayuda para contactar (misma idea que “no visible” en Roomix).
+          </p>
         ) : (
-          <div className="mt-4 space-y-3">
-            <p className="text-sm text-body">
-              <span className="font-medium">Número:</span> +{listing.contactWhatsApp}
+          <>
+            <p className="mt-2 text-sm text-muted">
+              Sin chat en la app por ahora: revela WhatsApp cuando estés listo.
             </p>
-            <a
-              href={wa}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-            >
-              Abrir WhatsApp
-            </a>
-          </div>
+            {!revealed ? (
+              <button
+                type="button"
+                onClick={() => setRevealed(true)}
+                className="mt-4 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition hover:brightness-95"
+              >
+                Revelar WhatsApp
+              </button>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-body">
+                  <span className="font-medium">Número:</span> +{listing.contactWhatsApp}
+                </p>
+                <a
+                  href={wa}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
+                >
+                  Abrir WhatsApp
+                </a>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>

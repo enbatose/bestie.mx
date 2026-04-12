@@ -30,6 +30,11 @@ export type Property = {
   summary: string;
   contactWhatsApp: string;
   propertyKind?: PropertyKind;
+  /** Total bedrooms in the building (Roomix-style). */
+  bedroomsTotal: number;
+  bathrooms: number;
+  /** When false, do not show WhatsApp on the public listing. */
+  showWhatsApp: boolean;
 };
 
 /** Rentable space inside a property. */
@@ -39,6 +44,8 @@ export type Room = {
   status: ListingStatus;
   title: string;
   rentMxn: number;
+  /** One-time deposit in MXN (Roomix `deposit`). */
+  depositMxn: number;
   roomsAvailable: number;
   tags: ListingTag[];
   roommateGenderPref: RoommateGenderPref;
@@ -75,6 +82,12 @@ export type PropertyListing = {
   lat: number;
   lng: number;
   rentMxn: number;
+  /** From API; defaults to 0 in local seed. */
+  depositMxn?: number;
+  /** From parent property join; seed may omit. */
+  propertyBedroomsTotal?: number;
+  propertyBathrooms?: number;
+  showWhatsApp?: boolean;
   roomsAvailable: number;
   tags: ListingTag[];
   roommateGenderPref: RoommateGenderPref;

@@ -67,6 +67,14 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
       ? `${propertyTitle} · ${roomListingTitle}`.trim()
       : propertyTitle;
 
+  const depositMxn = row.deposit_mxn != null && Number.isFinite(Number(row.deposit_mxn)) ? Number(row.deposit_mxn) : 0;
+  const bedroomsTotal =
+    row.bedrooms_total != null && Number.isFinite(Number(row.bedrooms_total)) ? Number(row.bedrooms_total) : 1;
+  const bathrooms = row.bathrooms != null && Number.isFinite(Number(row.bathrooms)) ? Number(row.bathrooms) : 1;
+  const showWaRaw = row.show_whatsapp;
+  const showWhatsApp =
+    showWaRaw === 0 || showWaRaw === false || showWaRaw === "0" ? false : true;
+
   return {
     id: String(row.id),
     propertyId: String(row.property_id),
@@ -78,6 +86,10 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     lat: Number(row.lat),
     lng: Number(row.lng),
     rentMxn: Number(row.rent_mxn),
+    depositMxn,
+    propertyBedroomsTotal: bedroomsTotal,
+    propertyBathrooms: bathrooms,
+    showWhatsApp,
     roomsAvailable: Number(row.rooms_available),
     tags: JSON.parse(String(row.tags_json)) as PropertyListing["tags"],
     roommateGenderPref: String(row.roommate_gender_pref) as PropertyListing["roommateGenderPref"],
@@ -124,7 +136,11 @@ SELECT
   p.contact_whatsapp AS contact_whatsapp,
   p.publisher_id AS publisher_id,
   p.property_kind AS property_kind,
-  p.status AS property_status
+  p.status AS property_status,
+  p.bedrooms_total AS bedrooms_total,
+  p.bathrooms AS bathrooms,
+  p.show_whatsapp AS show_whatsapp,
+  r.deposit_mxn AS deposit_mxn
 FROM rooms r
 INNER JOIN properties p ON p.id = r.property_id
 `;

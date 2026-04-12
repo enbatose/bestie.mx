@@ -1,22 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
+  deleteDraftRoom,
   isListingsApiConfigured,
+  patchDraftRoom,
   publishPropertyBundle,
+  updateProperty,
 } from "@/lib/listingsApi";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingTag,
   LodgingType,
   PropertyKind,
+  RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
 
 const ALL_TAGS = Object.keys(TAG_LABELS) as ListingTag[];
+/** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (Roomix-style property description). */
+const PROPERTY_SUMMARY_MIN = 20;
 
-const STORAGE_KEY = "bestie-publish-draft-v2";
+function isoToday(): string {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+const STORAGE_KEY_V3 = "bestie-publish-draft-v3";
+const STORAGE_KEY_V2 = "bestie-publish-draft-v2";
+
+/** Valid-length placeholder until the user enters a real number; publishing rejects all-zero contacts server-side. */
+const DRAFT_WA_PLACEHOLDER = "0000000000000";
+
+type ServerSync = {
+  propertyId: string | null;
+  /** Parallel to `rooms`; empty string = room not created on the server yet. */
+  roomIds: string[];
+};
 
 const CITIES = [
   "Guadalajara",
@@ -40,6 +61,7 @@ const CITY_ANCHOR: Record<
 type RoomDraft = {
   title: string;
   rentMxn: number;
+  depositMxn: number;
   roomsAvailable: number;
   summary: string;
   tags: ListingTag[];
@@ -47,6 +69,10 @@ type RoomDraft = {
   ageMin: number;
   ageMax: number;
   lodgingType: LodgingType;
+  /** ISO `YYYY-MM-DD` — Roomix “Disponible a partir de”. */
+  availableFrom: string;
+  minimalStayMonths: number;
+  roomDimension: RoomDimension;
 };
 
 type Draft = {
@@ -56,6 +82,12 @@ type Draft = {
   contactWhatsApp: string;
   propertySummary: string;
   propertyKind: PropertyKind;
+  /** Total bedrooms in the building (Roomix `rooms_number`). */
+  propertyBedroomsTotal: number;
+  /** Bathrooms count (Roomix allows medios baños). */
+  propertyBathrooms: number;
+  /** Roomix-style: show WhatsApp on the public listing. */
+  showWhatsApp: boolean;
   useCustomMapPin: boolean;
   customLat: string;
   customLng: string;
@@ -66,6 +98,7 @@ type Draft = {
 const defaultRoom = (): RoomDraft => ({
   title: "Cuarto disponible",
   rentMxn: 5000,
+  depositMxn: 0,
   roomsAvailable: 1,
   summary: "",
   tags: [],
@@ -73,15 +106,24 @@ const defaultRoom = (): RoomDraft => ({
   ageMin: 18,
   ageMax: 99,
   lodgingType: "private_room",
+  availableFrom: isoToday(),
+  minimalStayMonths: 1,
+  roomDimension: "medium",
 });
+
+const DEFAULT_PROPERTY_SUMMARY =
+  "Describe la propiedad y áreas compartidas: reglas de convivencia, baños, cocina, estacionamiento y lo que hace único el espacio.";
 
 const defaultDraft = (): Draft => ({
   city: "Guadalajara",
   propertyTitle: "",
   neighborhood: "",
   contactWhatsApp: "",
-  propertySummary: "",
+  propertySummary: DEFAULT_PROPERTY_SUMMARY,
   propertyKind: "house",
+  propertyBedroomsTotal: 1,
+  propertyBathrooms: 1,
+  showWhatsApp: true,
   useCustomMapPin: false,
   customLat: "",
   customLng: "",
@@ -89,29 +131,82 @@ const defaultDraft = (): Draft => ({
   legalAccepted: false,
 });
 
-function loadDraft(): Draft {
+function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
+  const baseRooms = Array.isArray(parsed.rooms) && parsed.rooms.length ? parsed.rooms : [defaultRoom()];
+  const rooms = baseRooms.map((r) => ({ ...defaultRoom(), ...r }));
+  const pk =
+    parsed.propertyKind === "apartment" || parsed.propertyKind === "house"
+      ? parsed.propertyKind
+      : defaultDraft().propertyKind;
+  const bed =
+    typeof parsed.propertyBedroomsTotal === "number" && Number.isFinite(parsed.propertyBedroomsTotal)
+      ? Math.min(35, Math.max(1, Math.floor(parsed.propertyBedroomsTotal)))
+      : defaultDraft().propertyBedroomsTotal;
+  const bath =
+    typeof parsed.propertyBathrooms === "number" && Number.isFinite(parsed.propertyBathrooms)
+      ? Math.min(99, Math.max(0, Math.round(parsed.propertyBathrooms * 2) / 2))
+      : defaultDraft().propertyBathrooms;
+  return {
+    ...defaultDraft(),
+    ...parsed,
+    propertyKind: pk,
+    propertyBedroomsTotal: bed,
+    propertyBathrooms: bath,
+    showWhatsApp: parsed.showWhatsApp !== false,
+    useCustomMapPin: Boolean(parsed.useCustomMapPin),
+    customLat: typeof parsed.customLat === "string" ? parsed.customLat : "",
+    customLng: typeof parsed.customLng === "string" ? parsed.customLng : "",
+    rooms,
+  };
+}
+
+function loadPersisted(): { draft: Draft; serverSync: ServerSync } {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultDraft();
-    const parsed = JSON.parse(raw) as Partial<Draft>;
-    const baseRooms = Array.isArray(parsed.rooms) && parsed.rooms.length ? parsed.rooms : [defaultRoom()];
-    const rooms = baseRooms.map((r) => ({ ...defaultRoom(), ...r }));
-    const pk =
-      parsed.propertyKind === "apartment" || parsed.propertyKind === "house"
-        ? parsed.propertyKind
-        : defaultDraft().propertyKind;
-    return {
-      ...defaultDraft(),
-      ...parsed,
-      propertyKind: pk,
-      useCustomMapPin: Boolean(parsed.useCustomMapPin),
-      customLat: typeof parsed.customLat === "string" ? parsed.customLat : "",
-      customLng: typeof parsed.customLng === "string" ? parsed.customLng : "",
-      rooms,
-    };
+    const rawV3 = localStorage.getItem(STORAGE_KEY_V3);
+    if (rawV3) {
+      const root = JSON.parse(rawV3) as {
+        draft?: Partial<Draft>;
+        serverSync?: { propertyId?: unknown; roomIds?: unknown };
+      };
+      if (root.draft) {
+        const draft = normalizeParsedDraft(root.draft);
+        let roomIds = Array.isArray(root.serverSync?.roomIds)
+          ? (root.serverSync!.roomIds as unknown[]).filter((x): x is string => typeof x === "string")
+          : [];
+        while (roomIds.length < draft.rooms.length) roomIds.push("");
+        roomIds = roomIds.slice(0, draft.rooms.length);
+        const propertyId =
+          typeof root.serverSync?.propertyId === "string" && root.serverSync.propertyId.trim()
+            ? root.serverSync.propertyId.trim()
+            : null;
+        return {
+          draft,
+          serverSync: propertyId ? { propertyId, roomIds } : { propertyId: null, roomIds: [] },
+        };
+      }
+    }
+    const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
+    if (rawV2) {
+      return {
+        draft: normalizeParsedDraft(JSON.parse(rawV2) as Partial<Draft>),
+        serverSync: { propertyId: null, roomIds: [] },
+      };
+    }
   } catch {
-    return defaultDraft();
+    /* ignore */
   }
+  return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
+}
+
+function isFreshDefaultDraft(d: Draft): boolean {
+  return (
+    JSON.stringify({ ...d, legalAccepted: false }) === JSON.stringify({ ...defaultDraft(), legalAccepted: false })
+  );
+}
+
+function wizardContactDigits(contactWhatsApp: string): string {
+  const d = normalizeWhatsApp(contactWhatsApp);
+  return d.length >= 10 ? d : DRAFT_WA_PLACEHOLDER;
 }
 
 function normalizeWhatsApp(s: string): string {
@@ -121,14 +216,157 @@ function normalizeWhatsApp(s: string): string {
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const apiOn = isListingsApiConfigured();
+  const persistedInit = useMemo(() => loadPersisted(), []);
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(() => loadDraft());
+  const [draft, setDraft] = useState<Draft>(() => persistedInit.draft);
+  const [serverSync, setServerSync] = useState<ServerSync>(() => persistedInit.serverSync);
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [publishErr, setPublishErr] = useState<string | null>(null);
+  const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const serverSyncRef = useRef(serverSync);
+  serverSyncRef.current = serverSync;
+
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  }, [draft]);
+    localStorage.setItem(STORAGE_KEY_V3, JSON.stringify({ draft, serverSync }));
+  }, [draft, serverSync]);
+
+  const resolveLatLngForDraft = useCallback((d: Draft): { lat: number; lng: number } => {
+    const anchor = CITY_ANCHOR[d.city];
+    if (!d.useCustomMapPin) return { lat: anchor.lat, lng: anchor.lng };
+    const lat = Number(String(d.customLat).replace(",", "."));
+    const lng = Number(String(d.customLng).replace(",", "."));
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    return { lat: anchor.lat, lng: anchor.lng };
+  }, []);
+
+  runAutosaveRef.current = async (): Promise<ServerSync | null> => {
+    if (!isListingsApiConfigured()) return null;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setAutosaveNote("idle");
+      return null;
+    }
+    const d = draftRef.current;
+    if (isFreshDefaultDraft(d)) {
+      setAutosaveNote("idle");
+      return null;
+    }
+
+    try {
+      setAutosaveNote("saving");
+      const anchor = CITY_ANCHOR[d.city];
+      const neighborhood = d.neighborhood.trim() || anchor.neighborhood;
+      const { lat, lng } = resolveLatLngForDraft(d);
+      const wa = wizardContactDigits(d.contactWhatsApp);
+
+      let propertyId = serverSyncRef.current.propertyId;
+      let roomIds = [...serverSyncRef.current.roomIds];
+
+      if (!propertyId) {
+        const prop = await createDraftProperty({
+          title: d.propertyTitle.trim() || "Sin título",
+          city: d.city,
+          neighborhood,
+          lat,
+          lng,
+          summary: d.propertySummary.trim(),
+          contactWhatsApp: wa,
+          propertyKind: d.propertyKind,
+          bedroomsTotal: d.propertyBedroomsTotal,
+          bathrooms: d.propertyBathrooms,
+          showWhatsApp: d.showWhatsApp,
+        });
+        propertyId = prop.id;
+        roomIds = d.rooms.map(() => "");
+      }
+
+      while (roomIds.length < d.rooms.length) roomIds.push("");
+      roomIds = roomIds.slice(0, d.rooms.length);
+
+      for (let i = 0; i < d.rooms.length; i++) {
+        const r = d.rooms[i]!;
+        const payload = {
+          title: r.title.trim() || "Cuarto en borrador",
+          rentMxn: r.rentMxn,
+          roomsAvailable: r.roomsAvailable,
+          tags: r.tags,
+          roommateGenderPref: r.roommateGenderPref,
+          ageMin: r.ageMin,
+          ageMax: r.ageMax,
+          summary: r.summary.trim(),
+          lodgingType: r.lodgingType,
+          availableFrom: r.availableFrom.trim(),
+          minimalStayMonths: r.minimalStayMonths,
+          roomDimension: r.roomDimension,
+          depositMxn: r.depositMxn,
+        };
+        const rid = roomIds[i];
+        if (!rid) {
+          const created = await addDraftRoomToProperty(propertyId!, payload);
+          roomIds[i] = created.id;
+        } else {
+          await patchDraftRoom(propertyId!, rid, payload);
+        }
+      }
+
+      await updateProperty(propertyId!, {
+        title: d.propertyTitle.trim() || "Sin título",
+        summary: d.propertySummary.trim(),
+        city: d.city,
+        neighborhood,
+        lat,
+        lng,
+        contactWhatsApp: wa,
+        propertyKind: d.propertyKind,
+        bedroomsTotal: d.propertyBedroomsTotal,
+        bathrooms: d.propertyBathrooms,
+        showWhatsApp: d.showWhatsApp,
+      });
+
+      const next: ServerSync = { propertyId, roomIds };
+      serverSyncRef.current = next;
+      setServerSync(next);
+      setAutosaveNote("saved");
+      window.setTimeout(() => {
+        setAutosaveNote((n) => (n === "saved" ? "idle" : n));
+      }, 2000);
+      return next;
+    } catch {
+      setAutosaveNote("error");
+      return null;
+    }
+  };
+
+  const flushWizardAutosave = useCallback(async (): Promise<ServerSync | null> => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (!apiOn) return serverSyncRef.current.propertyId ? serverSyncRef.current : null;
+    if (isFreshDefaultDraft(draftRef.current)) {
+      return serverSyncRef.current.propertyId ? serverSyncRef.current : null;
+    }
+    const out = await runAutosaveRef.current();
+    return out ?? (serverSyncRef.current.propertyId ? serverSyncRef.current : null);
+  }, [apiOn]);
+
+  useEffect(() => {
+    if (!apiOn) return;
+    if (isFreshDefaultDraft(draftRef.current)) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void runAutosaveRef.current();
+    }, 900);
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [draft, apiOn]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -139,9 +377,19 @@ export function PublishWizardPage() {
 
   function addRoom() {
     setDraft((d) => ({ ...d, rooms: [...d.rooms, defaultRoom()] }));
+    setServerSync((s) => (s.propertyId ? { ...s, roomIds: [...s.roomIds, ""] } : s));
   }
 
   function removeRoom(i: number) {
+    const pid = serverSyncRef.current.propertyId;
+    const rid = serverSyncRef.current.roomIds[i];
+    if (apiOn && pid && rid) {
+      void deleteDraftRoom(pid, rid).catch(() => undefined);
+    }
+    setServerSync((s) => ({
+      ...s,
+      roomIds: s.roomIds.filter((_, j) => j !== i),
+    }));
     setDraft((d) => ({
       ...d,
       rooms: d.rooms.length <= 1 ? d.rooms : d.rooms.filter((_, j) => j !== i),
@@ -233,14 +481,72 @@ export function PublishWizardPage() {
               />
             </label>
             <label className="block text-sm font-medium text-body">
-              Resumen de la propiedad (opcional)
+              Descripción de la propiedad
+              <span className="text-red-600"> *</span>
               <textarea
                 value={draft.propertySummary}
                 onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
-                rows={3}
-                placeholder="Reglas de la casa, áreas comunes, estacionamiento…"
+                rows={5}
+                maxLength={2000}
+                placeholder="Reglas de la casa, áreas comunes, estacionamiento, convivencia… (mín. 20 caracteres, como en Roomix.)"
                 className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
               />
+              <span className="mt-1 block text-xs text-muted">
+                Mínimo {PROPERTY_SUMMARY_MIN} caracteres · {draft.propertySummary.trim().length} ahora
+              </span>
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-body">
+                Cuartos en la propiedad (total)
+                <span className="text-red-600"> *</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={35}
+                  step={1}
+                  value={draft.propertyBedroomsTotal}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      propertyBedroomsTotal: Math.min(35, Math.max(1, Number(e.target.value) || 1)),
+                    }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                />
+                <span className="mt-1 block text-xs text-muted">
+                  Incluye cuartos ocupados y libres (mismo criterio que Roomix).
+                </span>
+              </label>
+              <label className="block text-sm font-medium text-body">
+                Baños (total)
+                <span className="text-red-600"> *</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={99}
+                  step={0.5}
+                  value={draft.propertyBathrooms}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      propertyBathrooms: Math.min(
+                        99,
+                        Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
+                      ),
+                    }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-body">
+              <input
+                type="checkbox"
+                checked={draft.showWhatsApp}
+                onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
+                className="mt-1 size-4 rounded border-border text-primary"
+              />
+              <span>Mostrar WhatsApp en el anuncio público (equivalente a “Visible en anuncio” en Roomix).</span>
             </label>
             <label className="block text-sm font-medium text-body">
               Tipo de vivienda
@@ -304,6 +610,7 @@ export function PublishWizardPage() {
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="block text-sm font-medium text-body">
                     Renta (MXN / mes)
+                    <span className="text-red-600"> *</span>
                     <input
                       type="number"
                       min={0}
@@ -311,6 +618,20 @@ export function PublishWizardPage() {
                       value={room.rentMxn}
                       onChange={(e) =>
                         updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-body">
+                    Depósito (MXN)
+                    <span className="text-red-600"> *</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={room.depositMxn}
+                      onChange={(e) =>
+                        updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
                       }
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                     />
@@ -329,6 +650,50 @@ export function PublishWizardPage() {
                       }
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                     />
+                  </label>
+                  <label className="block text-sm font-medium text-body">
+                    Disponible desde
+                    <span className="text-red-600"> *</span>
+                    <input
+                      type="date"
+                      value={room.availableFrom}
+                      onChange={(e) => updateRoom(i, { availableFrom: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-body">
+                    Estancia mínima (meses)
+                    <span className="text-red-600"> *</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={36}
+                      value={room.minimalStayMonths}
+                      onChange={(e) =>
+                        updateRoom(i, {
+                          minimalStayMonths: Math.min(
+                            36,
+                            Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                          ),
+                        })
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-body">
+                    Tamaño del cuarto
+                    <span className="text-red-600"> *</span>
+                    <select
+                      value={room.roomDimension}
+                      onChange={(e) =>
+                        updateRoom(i, { roomDimension: e.target.value as RoomDimension })
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    >
+                      <option value="small">Pequeño</option>
+                      <option value="medium">Mediano</option>
+                      <option value="large">Grande</option>
+                    </select>
                   </label>
                 </div>
                 <label className="mt-3 block text-sm font-medium text-body">
@@ -476,10 +841,15 @@ export function PublishWizardPage() {
             </label>
             {!apiOn ? (
               <p className="text-sm text-muted">
-                Sin <code className="rounded bg-surface-elevated px-1 text-xs">VITE_API_URL</code>{" "}
-                el borrador solo se guarda en tu navegador.
+                Sin <code className="rounded bg-surface-elevated px-1 text-xs">VITE_API_URL</code> el borrador solo se
+                guarda en tu navegador.
               </p>
-            ) : null}
+            ) : (
+              <p className="text-sm text-muted">
+                Con la API activa, el borrador también se guarda en la base de datos automáticamente; no hace falta
+                pulsar &quot;Guardar borrador en servidor&quot; salvo que quieras forzar una sincronización inmediata.
+              </p>
+            )}
           </div>
         ),
       },
@@ -489,22 +859,23 @@ export function PublishWizardPage() {
 
   const current = steps[step]!;
 
-  function resolveLatLng(d: Draft): { lat: number; lng: number } {
-    const anchor = CITY_ANCHOR[d.city];
-    if (!d.useCustomMapPin) return { lat: anchor.lat, lng: anchor.lng };
-    const lat = Number(String(d.customLat).replace(",", "."));
-    const lng = Number(String(d.customLng).replace(",", "."));
-    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
-    return { lat: anchor.lat, lng: anchor.lng };
-  }
-
   function validateRoomsForSubmit(): string | null {
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
     for (const r of draft.rooms) {
       if (!r.title.trim() || !r.summary.trim()) {
         return "Cada cuarto necesita título y descripción.";
       }
       if (r.ageMin > r.ageMax) {
         return "En cada cuarto la edad mínima no puede ser mayor que la máxima.";
+      }
+      if (!iso.test(r.availableFrom.trim())) {
+        return "En cada cuarto indica una fecha “Disponible desde” válida (AAAA-MM-DD).";
+      }
+      if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
+        return "En cada cuarto la estancia mínima debe ser de al menos 1 mes.";
+      }
+      if (r.rentMxn < 0 || r.depositMxn < 0) {
+        return "Renta y depósito no pueden ser negativos.";
       }
     }
     return null;
@@ -517,6 +888,12 @@ export function PublishWizardPage() {
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
     if (!draft.propertyTitle.trim()) {
       setPublishErr("Agrega el nombre de la propiedad.");
+      return;
+    }
+    if (draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+      setPublishErr(
+        `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres (campos obligatorios alineados con Roomix).`,
+      );
       return;
     }
     if (digits.length < 10) {
@@ -535,7 +912,38 @@ export function PublishWizardPage() {
 
     setSubmitInFlight("publish");
     try {
-      const { lat, lng } = resolveLatLng(draft);
+      const sync = await flushWizardAutosave();
+      const { lat, lng } = resolveLatLngForDraft(draft);
+      const firstRoomId =
+        sync?.roomIds.find((id) => typeof id === "string" && id.length > 0) ?? null;
+
+      if (apiOn && sync?.propertyId && firstRoomId) {
+        await updateProperty(sync.propertyId, {
+          status: "published",
+          title: draft.propertyTitle.trim(),
+          summary: draft.propertySummary.trim(),
+          city: draft.city,
+          neighborhood,
+          lat,
+          lng,
+          contactWhatsApp: digits,
+          propertyKind: draft.propertyKind,
+          bedroomsTotal: draft.propertyBedroomsTotal,
+          bathrooms: draft.propertyBathrooms,
+          showWhatsApp: draft.showWhatsApp,
+        });
+        localStorage.setItem(
+          STORAGE_KEY_V3,
+          JSON.stringify({
+            draft: { ...defaultDraft(), city: draft.city },
+            serverSync: { propertyId: null, roomIds: [] },
+          }),
+        );
+        setServerSync({ propertyId: null, roomIds: [] });
+        navigate(`/anuncio/${firstRoomId}`);
+        return;
+      }
+
       const res = await publishPropertyBundle({
         legalAccepted: true,
         property: {
@@ -547,6 +955,9 @@ export function PublishWizardPage() {
           summary: draft.propertySummary.trim(),
           contactWhatsApp: digits,
           propertyKind: draft.propertyKind,
+          bedroomsTotal: draft.propertyBedroomsTotal,
+          bathrooms: draft.propertyBathrooms,
+          showWhatsApp: draft.showWhatsApp,
         },
         rooms: draft.rooms.map((r) => ({
           title: r.title.trim(),
@@ -558,6 +969,10 @@ export function PublishWizardPage() {
           ageMax: r.ageMax,
           summary: r.summary.trim(),
           lodgingType: r.lodgingType,
+          availableFrom: r.availableFrom.trim(),
+          minimalStayMonths: r.minimalStayMonths,
+          roomDimension: r.roomDimension,
+          depositMxn: r.depositMxn,
         })),
       });
       const first = res.rooms[0];
@@ -565,7 +980,14 @@ export function PublishWizardPage() {
         setPublishErr("La API no devolvió cuartos.");
         return;
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...defaultDraft(), city: draft.city }));
+      localStorage.setItem(
+        STORAGE_KEY_V3,
+        JSON.stringify({
+          draft: { ...defaultDraft(), city: draft.city },
+          serverSync: { propertyId: null, roomIds: [] },
+        }),
+      );
+      setServerSync({ propertyId: null, roomIds: [] });
       navigate(`/anuncio/${first.id}`);
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
@@ -583,6 +1005,12 @@ export function PublishWizardPage() {
       setPublishErr("Agrega el nombre de la propiedad.");
       return;
     }
+    if (draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+      setPublishErr(
+        `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`,
+      );
+      return;
+    }
     if (digits.length < 10) {
       setPublishErr("Agrega un WhatsApp válido (al menos 10 dígitos).");
       return;
@@ -592,33 +1020,10 @@ export function PublishWizardPage() {
       setPublishErr(roomErr);
       return;
     }
-    const { lat, lng } = resolveLatLng(draft);
 
     setSubmitInFlight("draft");
     try {
-      const prop = await createDraftProperty({
-        title: draft.propertyTitle.trim(),
-        city: draft.city,
-        neighborhood,
-        lat,
-        lng,
-        summary: draft.propertySummary.trim(),
-        contactWhatsApp: digits,
-        propertyKind: draft.propertyKind,
-      });
-      for (const r of draft.rooms) {
-        await addDraftRoomToProperty(prop.id, {
-          title: r.title.trim(),
-          rentMxn: r.rentMxn,
-          roomsAvailable: r.roomsAvailable,
-          tags: r.tags,
-          roommateGenderPref: r.roommateGenderPref,
-          ageMin: r.ageMin,
-          ageMax: r.ageMax,
-          summary: r.summary.trim(),
-          lodgingType: r.lodgingType,
-        });
-      }
+      await flushWizardAutosave();
       navigate("/mis-anuncios", { state: { draftSaved: true } });
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.");
@@ -634,6 +1039,17 @@ export function PublishWizardPage() {
         Modelo v1: una <strong className="font-medium text-body">propiedad</strong> y uno o más{" "}
         <strong className="font-medium text-body">cuartos</strong> con renta y descripción propias.
       </p>
+      {apiOn ? (
+        <p className="mt-2 text-xs text-muted" aria-live="polite">
+          {autosaveNote === "saving"
+            ? "Guardando borrador en el servidor…"
+            : autosaveNote === "saved"
+              ? "Borrador guardado en el servidor."
+              : autosaveNote === "error"
+                ? "No se pudo sincronizar con el servidor (tus datos siguen en este navegador). Se reintentará al seguir editando."
+                : "Los cambios se guardan solos en el servidor unos segundos después de editar (y siempre en este navegador)."}
+        </p>
+      ) : null}
 
       <div className="mt-8 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -668,7 +1084,9 @@ export function PublishWizardPage() {
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))}
+                onClick={() =>
+                  localStorage.setItem(STORAGE_KEY_V3, JSON.stringify({ draft, serverSync }))
+                }
                 className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
               >
                 Guardar borrador

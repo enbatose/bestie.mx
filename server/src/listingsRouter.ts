@@ -8,12 +8,17 @@ import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js
 import {
   CITY_MAX_LEN,
   clampAge,
+  clampBathrooms,
+  clampBedroomsTotal,
+  clampDepositMxn,
   clampRentMxn,
   clampRoomsAvailable,
   clampStr,
   isSafeRoomOrListingId,
+  minimalPropertySummaryOk,
   NEIGHBORHOOD_MAX_LEN,
   normalizeWhatsAppDigits,
+  PROPERTY_SUMMARY_MIN_LEN,
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
   validLatLng,
@@ -225,6 +230,14 @@ export function listingsRouter(db: DatabaseSync) {
     const status: ListingStatus =
       rawStatus === "draft" || rawStatus === "published" ? rawStatus : "published";
 
+    if (status === "published" && !minimalPropertySummaryOk(summary)) {
+      res.status(400).json({
+        error: "invalid_body",
+        message: `Property summary must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters.`,
+      });
+      return;
+    }
+
     const publisherId = getOrCreatePublisherId(req, res);
     const roomIdRaw = typeof body.id === "string" && body.id.trim() ? body.id.trim() : randomUUID();
     const roomId = isSafeRoomOrListingId(roomIdRaw) ? roomIdRaw : randomUUID();
@@ -238,22 +251,30 @@ export function listingsRouter(db: DatabaseSync) {
     const avalRequired = optBool(body.avalRequired);
     const subletAllowed = optBool(body.subletAllowed);
 
+    const bedTotal = clampBedroomsTotal(Number((body as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
+    const bathTotal = clampBathrooms(Number((body as { bathrooms?: unknown }).bathrooms ?? 1));
+    const showWa = (body as { showWhatsApp?: unknown }).showWhatsApp;
+    const showWhatsappInt = showWa === false ? 0 : 1;
+    const depositMxn = clampDepositMxn(Number((body as { depositMxn?: unknown }).depositMxn ?? 0));
+
     const insertProp = db.prepare(`
       INSERT INTO properties (
-        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind
+        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+        bedrooms_total, bathrooms, show_whatsapp
       ) VALUES (
-        @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind
+        @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
+        @bedroomsTotal, @bathrooms, @showWhatsapp
       )
     `);
     const insertRoom = db.prepare(`
       INSERT INTO rooms (
         id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-        aval_required, sublet_allowed, sort_order
+        aval_required, sublet_allowed, sort_order, deposit_mxn
       ) VALUES (
         @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
         @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-        @avalRequired, @subletAllowed, 0
+        @avalRequired, @subletAllowed, 0, @depositMxn
       )
     `);
 
@@ -271,6 +292,9 @@ export function listingsRouter(db: DatabaseSync) {
         summary,
         contactWhatsApp: contactDigits,
         propertyKind: propertyKind ?? null,
+        bedroomsTotal: bedTotal,
+        bathrooms: bathTotal,
+        showWhatsapp: showWhatsappInt,
       });
       insertRoom.run({
         id: roomId,
@@ -290,6 +314,7 @@ export function listingsRouter(db: DatabaseSync) {
         roomDimension: roomDimension ?? null,
         avalRequired: avalRequired === true ? 1 : avalRequired === false ? 0 : null,
         subletAllowed: subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
+        depositMxn,
       });
       db.exec("COMMIT;");
     } catch {

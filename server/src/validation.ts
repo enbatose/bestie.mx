@@ -6,7 +6,12 @@ export const CITY_MAX_LEN = 80;
 export const NEIGHBORHOOD_MAX_LEN = 120;
 export const ROOM_TITLE_MAX_LEN = 120;
 export const RENT_MXN_MAX = 2_000_000;
+export const DEPOSIT_MXN_MAX = 2_000_000;
 export const ROOMS_AVAILABLE_MAX = 99;
+/** Minimum property description length (Roomix-style “Descripción de propiedad”). */
+export const PROPERTY_SUMMARY_MIN_LEN = 20;
+export const PROPERTY_BEDROOMS_MAX = 35;
+export const PROPERTY_BATHROOMS_MAX = 99;
 export const PUBLIC_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 /** Includes migrated ids such as `prp__gdl-01`. */
 export const PROPERTY_ID_PATTERN = /^prp__[a-zA-Z0-9_-]{4,128}$/;
@@ -56,4 +61,32 @@ export function clampRoomsAvailable(n: number): number {
 export function clampAge(n: number, fallback: number): number {
   if (!Number.isFinite(n)) return fallback;
   return Math.min(99, Math.max(16, Math.floor(n)));
+}
+
+/** Total bedrooms in the building (Roomix `rooms_number`). */
+export function clampBedroomsTotal(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(PROPERTY_BEDROOMS_MAX, Math.max(1, Math.floor(n)));
+}
+
+/** Bathrooms count; allows halves like Roomix (0.5 steps). */
+export function clampBathrooms(n: number): number {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  const rounded = Math.round(n * 2) / 2;
+  return Math.min(PROPERTY_BATHROOMS_MAX, rounded);
+}
+
+export function clampDepositMxn(n: number): number {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(Math.floor(n), DEPOSIT_MXN_MAX);
+}
+
+export function minimalPropertySummaryOk(s: string): boolean {
+  return typeof s === "string" && s.trim().length >= PROPERTY_SUMMARY_MIN_LEN;
+}
+
+/** Autosave drafts may use an all-zero placeholder until the user enters a real number. Publishing must reject it. */
+export function isDraftPlaceholderWhatsApp(digits: string): boolean {
+  if (typeof digits !== "string" || digits.length < 10) return false;
+  return /^0+$/.test(digits);
 }

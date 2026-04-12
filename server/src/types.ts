@@ -33,6 +33,11 @@ export type Property = {
   summary: string;
   contactWhatsApp: string;
   propertyKind?: PropertyKind;
+  /** Total bedrooms in the home (Roomix `rooms_number`). */
+  bedroomsTotal: number;
+  bathrooms: number;
+  /** When false, WhatsApp must not be shown publicly (Roomix `show_phone`). */
+  showWhatsApp: boolean;
 };
 
 /** Rentable unit / space inside a property; search pins are per room. */
@@ -56,6 +61,7 @@ export type Room = {
   avalRequired?: boolean;
   subletAllowed?: boolean;
   sortOrder: number;
+  depositMxn: number;
 };
 
 export type PropertyWithRooms = {
@@ -74,12 +80,17 @@ export type PropertyListing = {
   propertyTitle?: string;
   /** Parent property lifecycle (same join). */
   propertyStatus?: ListingStatus;
+  /** From parent property join. */
+  propertyBedroomsTotal: number;
+  propertyBathrooms: number;
+  showWhatsApp: boolean;
   title: string;
   city: string;
   neighborhood: string;
   lat: number;
   lng: number;
   rentMxn: number;
+  depositMxn: number;
   roomsAvailable: number;
   tags: ListingTag[];
   roommateGenderPref: RoommateGenderPref;
