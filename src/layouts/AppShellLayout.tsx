@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
+import { analyticsHeartbeat, authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
@@ -11,6 +13,17 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 export function AppShellLayout() {
+  const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isAuthApiConfigured()) {
+      setMe(null);
+      return;
+    }
+    void analyticsHeartbeat();
+    void authMe().then(setMe).catch(() => setMe(null));
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
@@ -26,11 +39,19 @@ export function AppShellLayout() {
             <NavLink to="/mis-anuncios" className={navClass}>
               Mis anuncios
             </NavLink>
+            <NavLink to="/grupos" className={navClass}>
+              Grupos
+            </NavLink>
+            {me?.isAdmin ? (
+              <NavLink to="/admin" className={navClass}>
+                Admin
+              </NavLink>
+            ) : null}
             <Link
               to="/entrar"
               className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:px-4"
             >
-              Entrar
+              {me && me.id ? me.displayName.split(" ")[0] ?? "Cuenta" : "Entrar"}
             </Link>
           </nav>
         </div>

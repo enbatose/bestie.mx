@@ -1,0 +1,308 @@
+import { deviceHeaders } from "@/lib/deviceFingerprint";
+
+function apiBase(): string {
+  const raw = import.meta.env.VITE_API_URL?.trim() ?? "";
+  return raw.replace(/\/$/, "");
+}
+
+const cred: RequestCredentials = "include";
+
+export function isAuthApiConfigured(): boolean {
+  return apiBase().length > 0;
+}
+
+export type AuthMe = {
+  id: string;
+  email: string | null;
+  phoneE164: string | null;
+  displayName: string;
+  createdAt: string;
+  linkedPublisherIds: string[];
+  isAdmin?: boolean;
+};
+
+export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
+  const base = apiBase();
+  if (!base) return null;
+  const res = await fetch(`${base}/api/auth/me`, { credentials: cred, signal });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`auth_me_${res.status}`);
+  return (await res.json()) as AuthMe;
+}
+
+export async function authRegister(
+  body: { email: string; password: string; displayName?: string },
+  signal?: AbortSignal,
+): Promise<AuthMe> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    throw new Error(j.message || j.error || `register_${res.status}`);
+  }
+  await res.json().catch(() => null);
+  const me = await authMe(signal);
+  if (!me) throw new Error("register_session_missing");
+  return me;
+}
+
+export async function authLogin(
+  body: { email: string; password: string },
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(j.error || `login_${res.status}`);
+  }
+}
+
+export async function authLogout(signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  await fetch(`${base}/api/auth/logout`, { method: "POST", credentials: cred, signal });
+}
+
+export async function authLinkPublisher(signal?: AbortSignal): Promise<boolean> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/auth/link-publisher`, {
+    method: "POST",
+    credentials: cred,
+    signal,
+  });
+  if (res.status === 401) return false;
+  if (res.status === 409) return true;
+  if (!res.ok) throw new Error(`link_publisher_${res.status}`);
+  return true;
+}
+
+export type WaRequestResult =
+  | { ok: true; devCode?: string; message?: string }
+  | { ok: false; error: string; retryAfterMs?: number };
+
+export async function authWhatsAppRequest(
+  phone: string,
+  signal?: AbortSignal,
+): Promise<WaRequestResult> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/auth/whatsapp/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ phone }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: String(j.error ?? "request_failed"),
+      retryAfterMs: typeof j.retryAfterMs === "number" ? j.retryAfterMs : undefined,
+    };
+  }
+  return {
+    ok: true,
+    devCode: typeof j.devCode === "string" ? j.devCode : undefined,
+    message: typeof j.message === "string" ? j.message : undefined,
+  };
+}
+
+export async function authWhatsAppVerify(
+  body: { phone: string; code: string },
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/auth/whatsapp/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(j.error || `verify_${res.status}`);
+  }
+}
+
+export type HandoffConsumeResult = {
+  publisherId: string;
+  draftPropertyId: string | null;
+};
+
+export async function consumeHandoffToken(
+  token: string,
+  signal?: AbortSignal,
+): Promise<HandoffConsumeResult> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/auth/handoff/consume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ token }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    publisherId?: string;
+    draftPropertyId?: string | null;
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(j.error || `handoff_${res.status}`);
+  }
+  if (!j.publisherId) throw new Error("handoff_bad_response");
+  return { publisherId: j.publisherId, draftPropertyId: j.draftPropertyId ?? null };
+}
+
+export async function analyticsHeartbeat(signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  if (!base) return;
+  await fetch(`${base}/api/analytics/heartbeat`, {
+    method: "POST",
+    credentials: cred,
+    signal,
+  });
+}
+
+export async function fetchFeaturedCities(signal?: AbortSignal): Promise<string[]> {
+  const base = apiBase();
+  if (!base) return [];
+  const res = await fetch(`${base}/api/analytics/featured-cities`, { signal });
+  if (!res.ok) return [];
+  const j = (await res.json()) as { cities?: unknown };
+  return Array.isArray(j.cities) ? j.cities.filter((x): x is string => typeof x === "string") : [];
+}
+
+export type AdminUserRow = {
+  id: string;
+  email: string | null;
+  phoneLast4: string | null;
+  displayName: string;
+  createdAt: string;
+};
+
+export async function adminListUsers(
+  opts: { limit?: number; offset?: number } = {},
+  signal?: AbortSignal,
+): Promise<{ users: AdminUserRow[]; total: number }> {
+  const base = apiBase();
+  const q = new URLSearchParams();
+  if (opts.limit != null) q.set("limit", String(opts.limit));
+  if (opts.offset != null) q.set("offset", String(opts.offset));
+  const res = await fetch(`${base}/api/admin/users?${q}`, { credentials: cred, signal });
+  if (!res.ok) throw new Error(`admin_users_${res.status}`);
+  return (await res.json()) as { users: AdminUserRow[]; total: number };
+}
+
+export async function adminPatchPropertyStatus(
+  propertyId: string,
+  status: "draft" | "published" | "paused" | "archived",
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/admin/properties/${encodeURIComponent(propertyId)}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ status }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_status_${res.status}`);
+}
+
+export async function adminGetFeaturedCities(signal?: AbortSignal): Promise<string[]> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/admin/settings/featured-cities`, { credentials: cred, signal });
+  if (!res.ok) throw new Error(`admin_fc_get_${res.status}`);
+  const j = (await res.json()) as { cities: string[] };
+  return j.cities ?? [];
+}
+
+export async function adminPutFeaturedCities(
+  cities: string[],
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/admin/settings/featured-cities`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ cities }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_fc_put_${res.status}`);
+}
+
+export async function adminAnalyticsSummary(signal?: AbortSignal): Promise<{
+  publishedPropertyCount: number;
+  dauPublishersApprox: number;
+  day: string;
+}> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/admin/analytics/summary`, { credentials: cred, signal });
+  if (!res.ok) throw new Error(`admin_analytics_${res.status}`);
+  return (await res.json()) as {
+    publishedPropertyCount: number;
+    dauPublishersApprox: number;
+    day: string;
+  };
+}
+
+export type GroupRow = {
+  id: string;
+  name: string;
+  invite_code: string;
+  created_at: string;
+  min_age: number | null;
+  max_age: number | null;
+  min_income_mxn: number | null;
+  member_count: number;
+};
+
+export async function groupsMine(signal?: AbortSignal): Promise<GroupRow[]> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/groups/mine`, { credentials: cred, signal });
+  if (res.status === 401) return [];
+  if (!res.ok) throw new Error(`groups_mine_${res.status}`);
+  return (await res.json()) as GroupRow[];
+}
+
+export async function groupsCreate(
+  body: { name: string; minAge?: number; maxAge?: number; minIncomeMxn?: number },
+  signal?: AbortSignal,
+): Promise<{ id: string; name: string; inviteCode: string }> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/groups/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`groups_create_${res.status}`);
+  return (await res.json()) as { id: string; name: string; inviteCode: string };
+}
+
+export async function groupsJoin(inviteCode: string, signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/groups/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ inviteCode }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`groups_join_${res.status}`);
+}

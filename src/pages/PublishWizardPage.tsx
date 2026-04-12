@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
   deleteDraftRoom,
+  fetchPropertyWithRooms,
   isListingsApiConfigured,
   patchDraftRoom,
   publishPropertyBundle,
   updateProperty,
   uploadListingImage,
 } from "@/lib/listingsApi";
+import { authLinkPublisher, consumeHandoffToken } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingTag,
   LodgingType,
   PropertyKind,
+  PropertyWithRooms,
   RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
@@ -235,8 +238,76 @@ function normalizeWhatsApp(s: string): string {
   return s.replace(/\D/g, "");
 }
 
+function pickCity(city: string): (typeof CITIES)[number] {
+  return (CITIES as readonly string[]).includes(city) ? (city as (typeof CITIES)[number]) : "Guadalajara";
+}
+
+function tagOk(t: string): t is ListingTag {
+  return (ALL_TAGS as readonly string[]).includes(t);
+}
+
+function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; serverSync: ServerSync } {
+  const p = bundle.property;
+  const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
+  const city = pickCity(p.city);
+  const anchor = CITY_ANCHOR[city];
+  const usePin =
+    Number.isFinite(p.lat) &&
+    Number.isFinite(p.lng) &&
+    (Math.abs(p.lat - anchor.lat) > 0.0002 || Math.abs(p.lng - anchor.lng) > 0.0002);
+  const roomDrafts: RoomDraft[] =
+    srvRooms.length > 0
+      ? srvRooms.map((r) => ({
+          ...defaultRoom(),
+          title: r.title,
+          rentMxn: r.rentMxn,
+          depositMxn: r.depositMxn,
+          roomsAvailable: r.roomsAvailable,
+          summary: r.summary,
+          tags: (r.tags ?? []).filter(tagOk),
+          roommateGenderPref: r.roommateGenderPref,
+          ageMin: r.ageMin,
+          ageMax: r.ageMax,
+          lodgingType: r.lodgingType ?? "private_room",
+          availableFrom: (r.availableFrom ?? isoToday()).slice(0, 10),
+          minimalStayMonths: r.minimalStayMonths ?? 1,
+          roomDimension: r.roomDimension ?? "medium",
+        }))
+      : [defaultRoom()];
+  const draft: Draft = {
+    ...defaultDraft(),
+    city,
+    propertyTitle: p.title,
+    neighborhood: p.neighborhood,
+    contactWhatsApp: p.contactWhatsApp || "",
+    propertySummary: p.summary?.trim() ? p.summary : DEFAULT_PROPERTY_SUMMARY,
+    propertyKind: p.propertyKind ?? "house",
+    propertyBedroomsTotal: p.bedroomsTotal,
+    propertyBathrooms: p.bathrooms,
+    showWhatsApp: p.showWhatsApp,
+    useCustomMapPin: usePin,
+    customLat: usePin ? String(p.lat) : "",
+    customLng: usePin ? String(p.lng) : "",
+    propertyImageUrls: p.imageUrls ?? [],
+    roomImageUrls: srvRooms.length > 0 ? srvRooms.map((r) => r.imageUrls ?? []) : [[]],
+    rooms: roomDrafts,
+    legalAccepted: false,
+  };
+  return {
+    draft,
+    serverSync:
+      srvRooms.length > 0
+        ? { propertyId: p.id, roomIds: srvRooms.map((r) => r.id) }
+        : { propertyId: p.id, roomIds: [] },
+  };
+}
+
 export function PublishWizardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handoffToken = searchParams.get("handoff");
+  const handoffLock = useRef(false);
+  const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
   const apiOn = isListingsApiConfigured();
   const persistedInit = useMemo(() => loadPersisted(), []);
   const [step, setStep] = useState(0);
@@ -257,6 +328,51 @@ export function PublishWizardPage() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_V3, JSON.stringify({ draft, serverSync }));
   }, [draft, serverSync]);
+
+  useEffect(() => {
+    if (!handoffToken) {
+      handoffLock.current = false;
+      return;
+    }
+    if (!apiOn || handoffLock.current) return;
+    handoffLock.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { draftPropertyId } = await consumeHandoffToken(handoffToken);
+        await authLinkPublisher();
+        if (draftPropertyId) {
+          const bundle = await fetchPropertyWithRooms(draftPropertyId);
+          if (bundle && !cancelled) {
+            const mapped = draftFromPropertyBundle(bundle);
+            setDraft(mapped.draft);
+            setServerSync(mapped.serverSync);
+            setHandoffBanner("Tu borrador desde Messenger está cargado.");
+          }
+        } else if (!cancelled) {
+          setHandoffBanner("Sesión de publicación restaurada. Continúa donde la dejaste.");
+        }
+        if (!cancelled) {
+          setSearchParams(
+            (prev) => {
+              const n = new URLSearchParams(prev);
+              n.delete("handoff");
+              return n;
+            },
+            { replace: true },
+          );
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setPublishErr(e instanceof Error ? e.message : "No se pudo abrir el enlace de Messenger.");
+          handoffLock.current = false;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiOn, handoffToken, setSearchParams]);
 
   const resolveLatLngForDraft = useCallback((d: Draft): { lat: number; lng: number } => {
     const anchor = CITY_ANCHOR[d.city];
@@ -1237,6 +1353,11 @@ export function PublishWizardPage() {
         Modelo v1: una <strong className="font-medium text-body">propiedad</strong> y uno o más{" "}
         <strong className="font-medium text-body">cuartos</strong> con renta y descripción propias.
       </p>
+      {handoffBanner ? (
+        <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
+          {handoffBanner}
+        </p>
+      ) : null}
       {apiOn ? (
         <p className="mt-2 text-xs text-muted" aria-live="polite">
           {autosaveNote === "saving"

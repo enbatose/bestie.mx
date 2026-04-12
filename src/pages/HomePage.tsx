@@ -1,15 +1,16 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
+import { fetchFeaturedCities } from "@/lib/authApi";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 
-const CITIES = [
+const DEFAULT_CITIES = [
   "Guadalajara",
   "Mérida",
   "Puerto Vallarta",
   "Sayulita",
   "Bucerías",
-];
+] as const;
 
 function buildSearchParams(query: string): URLSearchParams {
   return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: query.trim() });
@@ -18,7 +19,14 @@ function buildSearchParams(query: string): URLSearchParams {
 export function HomePage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [cityChoices, setCityChoices] = useState<string[]>([...DEFAULT_CITIES]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void fetchFeaturedCities().then((fc) => {
+      if (fc.length) setCityChoices([...new Set([...fc, ...DEFAULT_CITIES])]);
+    });
+  }, []);
 
   const goSearch = useCallback(() => {
     navigate({ pathname: "/buscar", search: `?${buildSearchParams(searchQuery).toString()}` });
@@ -100,7 +108,7 @@ export function HomePage() {
         <div className="mx-auto max-w-6xl">
           <h2 className="text-lg font-semibold text-body sm:text-xl">Ciudades al inicio</h2>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {CITIES.map((city) => {
+            {cityChoices.map((city) => {
               const active = searchQuery.trim() === city;
               return (
                 <li key={city}>
@@ -140,8 +148,8 @@ export function HomePage() {
               body: "Pins en mapa y tarjetas sincronizadas — similar a la búsqueda geográfica que conoces en Roomix, con datos de ejemplo hasta conectar API.",
             },
             {
-              title: "Próximamente",
-              body: "WhatsApp OTP, Messenger para búsqueda y handoff a la web, grupos para renta completa.",
+              title: "Cuenta y comunidad",
+              body: "WhatsApp OTP y correo vía API, webhook de Messenger con handoff a publicar, y grupos para rentar en equipo.",
             },
           ].map((card) => (
             <article

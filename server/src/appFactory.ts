@@ -2,7 +2,13 @@ import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import cors from "cors";
 import express, { type Request, type Response } from "express";
+import { adminRouter } from "./adminRouter.js";
+import { analyticsRouter } from "./analyticsRouter.js";
+import { authRouter } from "./authRouter.js";
+import { complianceRouter } from "./complianceRouter.js";
+import { groupsRouter } from "./groupsRouter.js";
 import { listingsRouter } from "./listingsRouter.js";
+import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { uploadsRouter } from "./uploadsRouter.js";
@@ -48,6 +54,15 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
     res.json({ ok: true, service: "bestie-mx-api", database: databaseLabel });
   });
 
+  app.get("/api/messenger/webhook", messengerWebhookVerify);
+  app.post(
+    "/api/messenger/webhook",
+    express.raw({ type: "application/json", limit: "4mb" }),
+    (req, res, next) => {
+      void messengerWebhookPost(db)(req, res).catch(next);
+    },
+  );
+
   app.get("/api/my-listings", myListingsHandler(db));
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
@@ -57,6 +72,12 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
       ? path.resolve(process.env.UPLOAD_DIR.trim())
       : path.resolve(process.cwd(), "data", "uploads");
   app.use("/api/uploads", uploadsRouter({ uploadDir }));
+
+  app.use("/api/auth", authRouter(db));
+  app.use("/api/admin", adminRouter(db));
+  app.use("/api/groups", groupsRouter(db));
+  app.use("/api/analytics", analyticsRouter(db));
+  app.use("/api/compliance", complianceRouter());
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: "not_found" });
