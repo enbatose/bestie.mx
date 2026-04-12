@@ -102,7 +102,7 @@ export function PropertyMap({
   return (
     <div className={shell}>
       <MapContainer
-        key={listings.map((l) => l.id).join("|") || "empty"}
+        key={embed ? "property-map-embed" : listings.map((l) => l.id).join("|") || "empty"}
         center={center}
         zoom={11}
         className={mapHeight}

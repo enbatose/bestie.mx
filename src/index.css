@@ -17,6 +17,13 @@
   width: 100%;
 }
 
+/* Tailwind preflight sets img { max-width: 100% }, which breaks Leaflet tile positioning (gaps / stray tiles). */
+.leaflet-container img.leaflet-tile,
+.leaflet-container .leaflet-tile-pane img {
+  max-width: none !important;
+  height: auto !important;
+}
+
 .bestie-selected-pin {
   background: transparent !important;
   border: none !important;
