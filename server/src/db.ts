@@ -40,21 +40,21 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
   const insertProp = db.prepare(`
     INSERT INTO properties (
       id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-      bedrooms_total, bathrooms, show_whatsapp
+      bedrooms_total, bathrooms, show_whatsapp, image_urls_json
     ) VALUES (
       @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
-      @bedroomsTotal, @bathrooms, @showWhatsapp
+      @bedroomsTotal, @bathrooms, @showWhatsapp, @imageUrlsJson
     )
   `);
   const insertRoom = db.prepare(`
     INSERT INTO rooms (
       id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
       age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-      aval_required, sublet_allowed, sort_order, deposit_mxn
+      aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
     ) VALUES (
       @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
       @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-      @avalRequired, @subletAllowed, @sortOrder, @depositMxn
+      @avalRequired, @subletAllowed, @sortOrder, @depositMxn, @imageUrlsJson
     )
   `);
 
@@ -87,6 +87,7 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
         bedroomsTotal: 1,
         bathrooms: 1,
         showWhatsapp: 1,
+        imageUrlsJson: "[]",
       });
 
       insertRoom.run({
@@ -119,6 +120,7 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
               : null,
         sortOrder: 0,
         depositMxn: 0,
+        imageUrlsJson: "[]",
       });
     }
     db.exec("DROP TABLE listings");
@@ -150,6 +152,15 @@ function migratePhaseBRoomixColumns(db: DatabaseSync): void {
   }
 }
 
+function migrateImageUrlsJson(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "image_urls_json")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN image_urls_json TEXT NOT NULL DEFAULT '[]'`);
+  }
+  if (!tableHasColumn(db, "rooms", "image_urls_json")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN image_urls_json TEXT NOT NULL DEFAULT '[]'`);
+  }
+}
+
 function ensurePhaseBSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS properties (
@@ -166,7 +177,8 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       property_kind TEXT,
       bedrooms_total INTEGER NOT NULL DEFAULT 1,
       bathrooms REAL NOT NULL DEFAULT 1,
-      show_whatsapp INTEGER NOT NULL DEFAULT 1
+      show_whatsapp INTEGER NOT NULL DEFAULT 1,
+      image_urls_json TEXT NOT NULL DEFAULT '[]'
     );
     CREATE TABLE IF NOT EXISTS rooms (
       id TEXT PRIMARY KEY,
@@ -188,6 +200,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       sublet_allowed INTEGER,
       sort_order INTEGER NOT NULL DEFAULT 0,
       deposit_mxn INTEGER NOT NULL DEFAULT 0,
+      image_urls_json TEXT NOT NULL DEFAULT '[]',
       FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_rooms_property ON rooms(property_id);
@@ -198,27 +211,28 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_properties_lat_lng ON properties(lat, lng);
   `);
   migratePhaseBRoomixColumns(db);
+  migrateImageUrlsJson(db);
 }
 
 function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
   const insertProp = db.prepare(`
     INSERT INTO properties (
       id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-      bedrooms_total, bathrooms, show_whatsapp
+      bedrooms_total, bathrooms, show_whatsapp, image_urls_json
     ) VALUES (
       @id, @publisherId, 'published', @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
-      @bedroomsTotal, @bathrooms, @showWhatsapp
+      @bedroomsTotal, @bathrooms, @showWhatsapp, @imageUrlsJson
     )
   `);
   const insertRoom = db.prepare(`
     INSERT INTO rooms (
       id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
       age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-      aval_required, sublet_allowed, sort_order, deposit_mxn
+      aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
     ) VALUES (
       @id, @propertyId, 'published', @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
       @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-      @avalRequired, @subletAllowed, 0, @depositMxn
+      @avalRequired, @subletAllowed, 0, @depositMxn, @imageUrlsJson
     )
   `);
 
@@ -245,6 +259,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
         bedroomsTotal: 1,
         bathrooms: 1,
         showWhatsapp: 1,
+        imageUrlsJson: "[]",
       });
 
       insertRoom.run({
@@ -265,6 +280,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
         avalRequired: row.avalRequired === true ? 1 : row.avalRequired === false ? 0 : null,
         subletAllowed: row.subletAllowed === true ? 1 : row.subletAllowed === false ? 0 : null,
         depositMxn: 0,
+        imageUrlsJson: "[]",
       });
     }
 
@@ -284,6 +300,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       bedroomsTotal: 2,
       bathrooms: 2,
       showWhatsapp: 1,
+      imageUrlsJson: "[]",
     });
     insertRoom.run({
       id: "buc-demo-a",
@@ -303,6 +320,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       avalRequired: 0,
       subletAllowed: 1,
       depositMxn: 2400,
+      imageUrlsJson: "[]",
     });
     insertRoom.run({
       id: "buc-demo-b",
@@ -322,6 +340,7 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       avalRequired: 0,
       subletAllowed: 0,
       depositMxn: 2300,
+      imageUrlsJson: "[]",
     });
 
     db.exec("COMMIT;");

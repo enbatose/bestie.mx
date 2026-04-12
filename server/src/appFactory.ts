@@ -1,9 +1,11 @@
+import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import cors from "cors";
 import express, { type Request, type Response } from "express";
 import { listingsRouter } from "./listingsRouter.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
+import { uploadsRouter } from "./uploadsRouter.js";
 
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
@@ -49,6 +51,12 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.get("/api/my-listings", myListingsHandler(db));
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
+
+  const uploadDir =
+    process.env.UPLOAD_DIR != null && process.env.UPLOAD_DIR.trim() !== ""
+      ? path.resolve(process.env.UPLOAD_DIR.trim())
+      : path.resolve(process.cwd(), "data", "uploads");
+  app.use("/api/uploads", uploadsRouter({ uploadDir }));
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: "not_found" });

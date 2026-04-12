@@ -78,6 +78,7 @@ export type PublishBundlePayload = {
     bathrooms?: number;
     /** Default true — same idea as Roomix “Visible en anuncio” for phone. */
     showWhatsApp?: boolean;
+    imageUrls?: string[];
   };
   rooms: Array<{
     id?: string;
@@ -97,6 +98,7 @@ export type PublishBundlePayload = {
     depositMxn: number;
     avalRequired?: boolean;
     subletAllowed?: boolean;
+    imageUrls?: string[];
   }>;
 };
 
@@ -151,6 +153,7 @@ export type CreateDraftPropertyPayload = {
   bedroomsTotal?: number;
   bathrooms?: number;
   showWhatsApp?: boolean;
+  imageUrls?: string[];
 };
 
 export type AddDraftRoomPayload = {
@@ -170,6 +173,7 @@ export type AddDraftRoomPayload = {
   depositMxn?: number;
   avalRequired?: boolean;
   subletAllowed?: boolean;
+  imageUrls?: string[];
 };
 
 export type UpdatePropertyPayload = {
@@ -185,6 +189,7 @@ export type UpdatePropertyPayload = {
   bedroomsTotal?: number;
   bathrooms?: number;
   showWhatsApp?: boolean;
+  imageUrls?: string[];
 };
 
 export type PatchDraftRoomPayload = Partial<Omit<AddDraftRoomPayload, "id">>;
@@ -304,6 +309,35 @@ export async function addDraftRoomToProperty(
     throw new Error(`add_room_http_${res.status}${detail}`);
   }
   return (await res.json()) as Room;
+}
+
+export async function uploadListingImage(file: File, signal?: AbortSignal): Promise<string> {
+  const base = apiBase();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/api/uploads`, {
+    method: "POST",
+    headers: { ...deviceHeaders() },
+    credentials: cred,
+    body: form,
+    signal,
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = (await res.json()) as { error?: string; message?: string };
+      if (j.message) detail = `: ${j.message}`;
+      else if (j.error) detail = `: ${j.error}`;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`upload_http_${res.status}${detail}`);
+  }
+  const j = (await res.json()) as { url?: string };
+  if (typeof j.url !== "string" || !j.url.startsWith("/api/uploads/")) {
+    throw new Error("upload_bad_response");
+  }
+  return j.url;
 }
 
 export async function updateProperty(

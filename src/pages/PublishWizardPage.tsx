@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { WizardLocationMap } from "@/components/WizardLocationMap";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
@@ -8,7 +9,9 @@ import {
   patchDraftRoom,
   publishPropertyBundle,
   updateProperty,
+  uploadListingImage,
 } from "@/lib/listingsApi";
+import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingTag,
@@ -91,6 +94,10 @@ type Draft = {
   useCustomMapPin: boolean;
   customLat: string;
   customLng: string;
+  /** Shared areas / facade — `/api/uploads/...` from server. */
+  propertyImageUrls: string[];
+  /** One array per room index. */
+  roomImageUrls: string[][];
   rooms: RoomDraft[];
   legalAccepted: boolean;
 };
@@ -127,6 +134,8 @@ const defaultDraft = (): Draft => ({
   useCustomMapPin: false,
   customLat: "",
   customLng: "",
+  propertyImageUrls: [],
+  roomImageUrls: [[]],
   rooms: [defaultRoom()],
   legalAccepted: false,
 });
@@ -146,6 +155,17 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
     typeof parsed.propertyBathrooms === "number" && Number.isFinite(parsed.propertyBathrooms)
       ? Math.min(99, Math.max(0, Math.round(parsed.propertyBathrooms * 2) / 2))
       : defaultDraft().propertyBathrooms;
+  const propertyImageUrls = Array.isArray(parsed.propertyImageUrls)
+    ? parsed.propertyImageUrls.filter((x): x is string => typeof x === "string")
+    : [];
+  let roomImageUrls: string[][] = [];
+  if (Array.isArray(parsed.roomImageUrls)) {
+    roomImageUrls = parsed.roomImageUrls.map((row) =>
+      Array.isArray(row) ? row.filter((x): x is string => typeof x === "string") : [],
+    );
+  }
+  while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
+  roomImageUrls = roomImageUrls.slice(0, rooms.length);
   return {
     ...defaultDraft(),
     ...parsed,
@@ -157,6 +177,8 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
     customLat: typeof parsed.customLat === "string" ? parsed.customLat : "",
     customLng: typeof parsed.customLng === "string" ? parsed.customLng : "",
     rooms,
+    propertyImageUrls,
+    roomImageUrls,
   };
 }
 
@@ -280,6 +302,7 @@ export function PublishWizardPage() {
           bedroomsTotal: d.propertyBedroomsTotal,
           bathrooms: d.propertyBathrooms,
           showWhatsApp: d.showWhatsApp,
+          imageUrls: d.propertyImageUrls,
         });
         propertyId = prop.id;
         roomIds = d.rooms.map(() => "");
@@ -304,6 +327,7 @@ export function PublishWizardPage() {
           minimalStayMonths: r.minimalStayMonths,
           roomDimension: r.roomDimension,
           depositMxn: r.depositMxn,
+          imageUrls: d.roomImageUrls[i] ?? [],
         };
         const rid = roomIds[i];
         if (!rid) {
@@ -326,6 +350,7 @@ export function PublishWizardPage() {
         bedroomsTotal: d.propertyBedroomsTotal,
         bathrooms: d.propertyBathrooms,
         showWhatsApp: d.showWhatsApp,
+        imageUrls: d.propertyImageUrls,
       });
 
       const next: ServerSync = { propertyId, roomIds };
@@ -376,7 +401,11 @@ export function PublishWizardPage() {
   }
 
   function addRoom() {
-    setDraft((d) => ({ ...d, rooms: [...d.rooms, defaultRoom()] }));
+    setDraft((d) => ({
+      ...d,
+      rooms: [...d.rooms, defaultRoom()],
+      roomImageUrls: [...d.roomImageUrls, []],
+    }));
     setServerSync((s) => (s.propertyId ? { ...s, roomIds: [...s.roomIds, ""] } : s));
   }
 
@@ -393,6 +422,8 @@ export function PublishWizardPage() {
     setDraft((d) => ({
       ...d,
       rooms: d.rooms.length <= 1 ? d.rooms : d.rooms.filter((_, j) => j !== i),
+      roomImageUrls:
+        d.rooms.length <= 1 ? d.roomImageUrls : d.roomImageUrls.filter((_, j) => j !== i),
     }));
   }
 
@@ -401,7 +432,7 @@ export function PublishWizardPage() {
       {
         title: "Ubicación",
         body: (
-          <div>
+          <div className="space-y-4">
             <label className="block text-sm font-medium text-body">
               Ciudad
               <select
@@ -418,26 +449,63 @@ export function PublishWizardPage() {
                 ))}
               </select>
               <span className="mt-2 block text-xs text-muted">
-                La propiedad y todos los cuartos comparten esta ciudad. El pin del mapa usa la zona por
-                defecto de la ciudad salvo que indiques coordenadas.
+                Todos los cuartos comparten esta ciudad. Haz clic en el mapa o arrastra el pin para la
+                ubicación exacta de la propiedad.
               </span>
             </label>
-            <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-body">
-              <input
-                type="checkbox"
-                checked={draft.useCustomMapPin}
-                onChange={(e) => setDraft((d) => ({ ...d, useCustomMapPin: e.target.checked }))}
-                className="mt-1 size-4 rounded border-border text-primary"
-              />
-              <span>Usar latitud / longitud personalizadas (pin en mapa)</span>
-            </label>
-            {draft.useCustomMapPin ? (
+            <div>
+              <p className="text-sm font-medium text-body">Ubicación en el mapa</p>
+              <p className="mt-1 text-xs text-muted">
+                Clic en el mapa o arrastra el marcador. Puedes volver al centro de la ciudad con el botón de
+                abajo.
+              </p>
+              <div className="mt-3">
+                <WizardLocationMap
+                  key={draft.city}
+                  center={[CITY_ANCHOR[draft.city].lat, CITY_ANCHOR[draft.city].lng]}
+                  position={(() => {
+                    const { lat, lng } = resolveLatLngForDraft(draft);
+                    return [lat, lng] as [number, number];
+                  })()}
+                  onPositionChange={(lat, lng) => {
+                    setDraft((d) => ({
+                      ...d,
+                      useCustomMapPin: true,
+                      customLat: String(lat),
+                      customLng: String(lng),
+                    }));
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                className="mt-3 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+                onClick={() =>
+                  setDraft((d) => ({
+                    ...d,
+                    useCustomMapPin: false,
+                    customLat: "",
+                    customLng: "",
+                  }))
+                }
+              >
+                Usar centro de {draft.city} (quitar pin personalizado)
+              </button>
+            </div>
+            <details className="rounded-xl border border-border bg-surface-elevated/40 px-3 py-2 text-sm">
+              <summary className="cursor-pointer font-medium text-body">Ajustar con latitud / longitud</summary>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
                   Latitud
                   <input
                     value={draft.customLat}
-                    onChange={(e) => setDraft((d) => ({ ...d, customLat: e.target.value }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        useCustomMapPin: true,
+                        customLat: e.target.value,
+                      }))
+                    }
                     placeholder={String(CITY_ANCHOR[draft.city].lat)}
                     inputMode="decimal"
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
@@ -447,14 +515,20 @@ export function PublishWizardPage() {
                   Longitud
                   <input
                     value={draft.customLng}
-                    onChange={(e) => setDraft((d) => ({ ...d, customLng: e.target.value }))}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        useCustomMapPin: true,
+                        customLng: e.target.value,
+                      }))
+                    }
                     placeholder={String(CITY_ANCHOR[draft.city].lng)}
                     inputMode="decimal"
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                   />
                 </label>
               </div>
-            ) : null}
+            </details>
           </div>
         ),
       },
@@ -561,18 +635,22 @@ export function PublishWizardPage() {
                 <option value="apartment">Departamento</option>
               </select>
             </label>
-            {apiOn ? (
-              <label className="block text-sm font-medium text-body">
-                WhatsApp de contacto (se muestra en cada cuarto)
-                <input
-                  value={draft.contactWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
-                  placeholder="Ej. 523312345678"
-                  inputMode="tel"
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                />
-              </label>
-            ) : null}
+            <label className="block text-sm font-medium text-body">
+              WhatsApp de contacto (se muestra en cada cuarto al publicar)
+              <input
+                value={draft.contactWhatsApp}
+                onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
+                placeholder="Ej. 523312345678"
+                inputMode="tel"
+                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+              />
+              {!apiOn ? (
+                <span className="mt-1 block text-xs text-muted">
+                  Sin API configurada, el número solo se guarda en este navegador hasta que conectes el
+                  servidor.
+                </span>
+              ) : null}
+            </label>
           </div>
         ),
       },
@@ -817,51 +895,154 @@ export function PublishWizardPage() {
       {
         title: "Fotos",
         body: (
-          <p className="text-sm text-muted">
-            Aquí irá la carga de fotos por cuarto y áreas comunes. Por ahora es un paso informativo
-            (stub) — en v1 se conectará al mismo modelo propiedad + cuartos.
-          </p>
+          <div className="space-y-6">
+            <p className="text-sm text-muted">
+              Sube fotos de áreas comunes o fachada (propiedad) y fotos específicas de cada cuarto. Formatos: JPEG,
+              PNG o Webp. Máximo ~5&nbsp;MB por imagen.
+            </p>
+            <div>
+              <h3 className="text-sm font-semibold text-body">Propiedad</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {draft.propertyImageUrls.map((u, ix) => (
+                  <div
+                    key={`${u}-${ix}`}
+                    className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-bg-light"
+                  >
+                    <img src={apiAbsoluteUrl(u)} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white"
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          propertyImageUrls: d.propertyImageUrls.filter((_, j) => j !== ix),
+                        }))
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <label className="mt-3 inline-flex cursor-pointer rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    if (!apiOn) {
+                      setPublishErr("Configura VITE_API_URL para subir imágenes al servidor.");
+                      return;
+                    }
+                    void (async () => {
+                      try {
+                        const url = await uploadListingImage(f);
+                        setDraft((d) => ({
+                          ...d,
+                          propertyImageUrls: [...d.propertyImageUrls, url].slice(0, 12),
+                        }));
+                        setPublishErr(null);
+                      } catch (err) {
+                        setPublishErr(err instanceof Error ? err.message : "No se pudo subir la imagen.");
+                      }
+                    })();
+                  }}
+                />
+                + Añadir foto de la propiedad
+              </label>
+            </div>
+            {draft.rooms.map((room, i) => (
+              <div key={i} className="rounded-xl border border-border bg-surface-elevated/30 p-4">
+                <h3 className="text-sm font-semibold text-body">
+                  Cuarto {i + 1}: {room.title.trim() || "Sin título"}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(draft.roomImageUrls[i] ?? []).map((u, ix) => (
+                    <div
+                      key={`${u}-${ix}`}
+                      className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-bg-light"
+                    >
+                      <img src={apiAbsoluteUrl(u)} alt="" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white"
+                        onClick={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            roomImageUrls: d.roomImageUrls.map((row, ri) =>
+                              ri === i ? row.filter((_, j) => j !== ix) : row,
+                            ),
+                          }))
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <label className="mt-3 inline-flex cursor-pointer rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      if (!apiOn) {
+                        setPublishErr("Configura VITE_API_URL para subir imágenes al servidor.");
+                        return;
+                      }
+                      void (async () => {
+                        try {
+                          const url = await uploadListingImage(f);
+                          setDraft((d) => ({
+                            ...d,
+                            roomImageUrls: d.roomImageUrls.map((row, ri) =>
+                              ri === i ? [...row, url].slice(0, 12) : row,
+                            ),
+                          }));
+                          setPublishErr(null);
+                        } catch (err) {
+                          setPublishErr(err instanceof Error ? err.message : "No se pudo subir la imagen.");
+                        }
+                      })();
+                    }}
+                  />
+                  + Foto de este cuarto
+                </label>
+              </div>
+            ))}
+          </div>
         ),
       },
       {
         title: "Publicar",
         body: (
-          <div className="space-y-4">
-            <label className="flex cursor-pointer items-start gap-3 text-sm text-body">
-              <input
-                type="checkbox"
-                checked={draft.legalAccepted}
-                onChange={(e) => setDraft((d) => ({ ...d, legalAccepted: e.target.checked }))}
-                className="mt-1 size-4 rounded border-border text-primary"
-              />
-              <span>
-                Confirmo que la información es verídica y acepto las responsabilidades legales al
-                publicar en Bestie (v1).
-              </span>
-            </label>
-            {!apiOn ? (
-              <p className="text-sm text-muted">
-                Sin <code className="rounded bg-surface-elevated px-1 text-xs">VITE_API_URL</code> el borrador solo se
-                guarda en tu navegador.
-              </p>
-            ) : (
-              <p className="text-sm text-muted">
-                Con la API activa, el borrador también se guarda en la base de datos automáticamente; no hace falta
-                pulsar &quot;Guardar borrador en servidor&quot; salvo que quieras forzar una sincronización inmediata.
-              </p>
-            )}
+          <div className="space-y-3 text-sm text-muted">
+            <p>
+              Revisa los pasos anteriores. Puedes <strong className="text-body">publicar el anuncio ya</strong> o
+              seguir guardando borrador desde el panel inferior: no hace falta llegar a este paso para publicar.
+            </p>
+            <p>
+              Con la API activa, los datos se sincronizan solos en segundo plano; el botón &quot;Guardar borrador en
+              servidor&quot; solo fuerza una sincronización inmediata.
+            </p>
           </div>
         ),
       },
     ],
-    [draft, apiOn],
+    [draft, apiOn, resolveLatLngForDraft],
   );
 
   const current = steps[step]!;
 
-  function validateRoomsForSubmit(): string | null {
+  function validateRoomsForSubmit(d: Draft): string | null {
     const iso = /^\d{4}-\d{2}-\d{2}$/;
-    for (const r of draft.rooms) {
+    for (const r of d.rooms) {
       if (!r.title.trim() || !r.summary.trim()) {
         return "Cada cuarto necesita título y descripción.";
       }
@@ -880,6 +1061,20 @@ export function PublishWizardPage() {
     }
     return null;
   }
+
+  const publishBlockedReason = useMemo(() => {
+    if (!draft.propertyTitle.trim()) return "Agrega el nombre de la propiedad.";
+    if (draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+      return `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
+    }
+    if (normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
+      return "Agrega un WhatsApp válido (al menos 10 dígitos).";
+    }
+    if (!draft.legalAccepted) {
+      return "Marca la casilla de confirmación legal para publicar.";
+    }
+    return validateRoomsForSubmit(draft);
+  }, [draft]);
 
   async function submitPublish() {
     setPublishErr(null);
@@ -904,7 +1099,7 @@ export function PublishWizardPage() {
       setPublishErr("Debes aceptar la confirmación legal.");
       return;
     }
-    const roomErr = validateRoomsForSubmit();
+    const roomErr = validateRoomsForSubmit(draft);
     if (roomErr) {
       setPublishErr(roomErr);
       return;
@@ -931,6 +1126,7 @@ export function PublishWizardPage() {
           bedroomsTotal: draft.propertyBedroomsTotal,
           bathrooms: draft.propertyBathrooms,
           showWhatsApp: draft.showWhatsApp,
+          imageUrls: draft.propertyImageUrls,
         });
         localStorage.setItem(
           STORAGE_KEY_V3,
@@ -958,8 +1154,9 @@ export function PublishWizardPage() {
           bedroomsTotal: draft.propertyBedroomsTotal,
           bathrooms: draft.propertyBathrooms,
           showWhatsApp: draft.showWhatsApp,
+          imageUrls: draft.propertyImageUrls,
         },
-        rooms: draft.rooms.map((r) => ({
+        rooms: draft.rooms.map((r, i) => ({
           title: r.title.trim(),
           rentMxn: r.rentMxn,
           roomsAvailable: r.roomsAvailable,
@@ -973,6 +1170,7 @@ export function PublishWizardPage() {
           minimalStayMonths: r.minimalStayMonths,
           roomDimension: r.roomDimension,
           depositMxn: r.depositMxn,
+          imageUrls: draft.roomImageUrls[i] ?? [],
         })),
       });
       const first = res.rooms[0];
@@ -1015,7 +1213,7 @@ export function PublishWizardPage() {
       setPublishErr("Agrega un WhatsApp válido (al menos 10 dígitos).");
       return;
     }
-    const roomErr = validateRoomsForSubmit();
+    const roomErr = validateRoomsForSubmit(draft);
     if (roomErr) {
       setPublishErr(roomErr);
       return;
@@ -1115,6 +1313,61 @@ export function PublishWizardPage() {
           )}
         </div>
       </div>
+
+      <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+        <h2 className="text-base font-semibold text-body">Publicación</h2>
+        <p className="mt-1 text-sm text-muted">
+          Desde aquí puedes <strong className="font-medium text-body">publicar en vivo</strong> (anuncio visible en
+          búsqueda) o guardar borrador en el servidor, en cualquier paso del asistente.
+        </p>
+        <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-body">
+          <input
+            type="checkbox"
+            checked={draft.legalAccepted}
+            onChange={(e) => setDraft((d) => ({ ...d, legalAccepted: e.target.checked }))}
+            className="mt-1 size-4 rounded border-border text-primary"
+          />
+          <span>
+            Confirmo que la información es verídica y acepto las responsabilidades legales al publicar en Bestie
+            (v1).
+          </span>
+        </label>
+        {publishBlockedReason ? (
+          <p className="mt-3 text-xs text-muted">
+            Para habilitar &quot;Publicar ahora&quot;: {publishBlockedReason}
+          </p>
+        ) : null}
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={submitInFlight !== null || Boolean(publishBlockedReason) || !apiOn}
+            title={
+              !apiOn
+                ? "Configura VITE_API_URL y ejecuta la API para publicar."
+                : publishBlockedReason ?? undefined
+            }
+            onClick={() => void submitPublish()}
+            className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-45"
+          >
+            {submitInFlight === "publish" ? "Publicando…" : "Publicar ahora"}
+          </button>
+          {apiOn ? (
+            <button
+              type="button"
+              disabled={submitInFlight !== null}
+              onClick={() => void submitServerDraft()}
+              className="rounded-full border border-secondary/50 bg-secondary/10 px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/20 disabled:opacity-50"
+            >
+              {submitInFlight === "draft" ? "Guardando…" : "Guardar borrador en servidor"}
+            </button>
+          ) : (
+            <span className="text-xs text-muted">
+              Sin API: el borrador vive en tu navegador; publicar en el catálogo requiere{" "}
+              <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code>.
+            </span>
+          )}
+        </div>
+      </section>
 
       <p className="mt-6 text-sm text-muted">
         <Link to="/buscar" className="font-semibold text-primary underline-offset-2 hover:underline">

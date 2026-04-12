@@ -22,6 +22,7 @@ import {
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
   validLatLng,
+  clampListingImageUrls,
 } from "./validation.js";
 import type {
   ListingStatus,
@@ -256,25 +257,31 @@ export function listingsRouter(db: DatabaseSync) {
     const showWa = (body as { showWhatsApp?: unknown }).showWhatsApp;
     const showWhatsappInt = showWa === false ? 0 : 1;
     const depositMxn = clampDepositMxn(Number((body as { depositMxn?: unknown }).depositMxn ?? 0));
+    const propImagesJson = JSON.stringify(
+      clampListingImageUrls((body as { propertyImageUrls?: unknown }).propertyImageUrls),
+    );
+    const roomImagesJson = JSON.stringify(
+      clampListingImageUrls((body as { roomImageUrls?: unknown }).roomImageUrls),
+    );
 
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json
       ) VALUES (
         @id, @publisherId, @status, @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
-        @bedroomsTotal, @bathrooms, @showWhatsapp
+        @bedroomsTotal, @bathrooms, @showWhatsapp, @imageUrlsJson
       )
     `);
     const insertRoom = db.prepare(`
       INSERT INTO rooms (
         id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-        aval_required, sublet_allowed, sort_order, deposit_mxn
+        aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
       ) VALUES (
         @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
         @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-        @avalRequired, @subletAllowed, 0, @depositMxn
+        @avalRequired, @subletAllowed, 0, @depositMxn, @imageUrlsJson
       )
     `);
 
@@ -295,6 +302,7 @@ export function listingsRouter(db: DatabaseSync) {
         bedroomsTotal: bedTotal,
         bathrooms: bathTotal,
         showWhatsapp: showWhatsappInt,
+        imageUrlsJson: propImagesJson,
       });
       insertRoom.run({
         id: roomId,
@@ -315,6 +323,7 @@ export function listingsRouter(db: DatabaseSync) {
         avalRequired: avalRequired === true ? 1 : avalRequired === false ? 0 : null,
         subletAllowed: subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
         depositMxn,
+        imageUrlsJson: roomImagesJson,
       });
       db.exec("COMMIT;");
     } catch {

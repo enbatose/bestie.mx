@@ -38,6 +38,8 @@ export type Property = {
   bathrooms: number;
   /** When false, WhatsApp must not be shown publicly (Roomix `show_phone`). */
   showWhatsApp: boolean;
+  /** Gallery paths from `POST /api/uploads` (same-origin `/api/uploads/...`). */
+  imageUrls?: string[];
 };
 
 /** Rentable unit / space inside a property; search pins are per room. */
@@ -62,6 +64,7 @@ export type Room = {
   subletAllowed?: boolean;
   sortOrder: number;
   depositMxn: number;
+  imageUrls?: string[];
 };
 
 export type PropertyWithRooms = {
@@ -110,4 +113,8 @@ export type PropertyListing = {
   roomDimension?: RoomDimension;
   avalRequired?: boolean;
   subletAllowed?: boolean;
+  /** From parent `properties.image_urls_json`. */
+  propertyImageUrls?: string[];
+  /** From `rooms.image_urls_json`. */
+  roomImageUrls?: string[];
 };

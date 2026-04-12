@@ -6,6 +6,7 @@ import {
   fetchPropertyWithRooms,
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
+import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { PropertyListing, PropertyWithRooms } from "@/types/listing";
 
@@ -76,6 +77,15 @@ export function ListingPage() {
     if (!listing?.propertyId) return [];
     return SEED_LISTINGS.filter((l) => l.propertyId === listing.propertyId && l.id !== listing.id);
   }, [listing]);
+
+  const galleryUrls = useMemo(() => {
+    if (!listing) return [];
+    const fromJoin = [...(listing.propertyImageUrls ?? []), ...(listing.roomImageUrls ?? [])];
+    if (fromJoin.length) return fromJoin;
+    if (!apiOn || !propertyPack) return [];
+    const room = propertyPack.rooms.find((r) => r.id === listing.id);
+    return [...(propertyPack.property.imageUrls ?? []), ...(room?.imageUrls ?? [])];
+  }, [apiOn, listing, propertyPack]);
 
   const siblingLinks = useMemo(() => {
     if (apiOn && propertyPack && propertyPack.rooms.length > 1) {
@@ -191,6 +201,25 @@ export function ListingPage() {
           <span className="font-mono">{listing.propertyId}</span>
         </p>
       </header>
+
+      {galleryUrls.length ? (
+        <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-body">Fotos</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {galleryUrls.map((u) => (
+              <a
+                key={u}
+                href={apiAbsoluteUrl(u)}
+                target="_blank"
+                rel="noreferrer"
+                className="block overflow-hidden rounded-xl ring-1 ring-border transition hover:opacity-90"
+              >
+                <img src={apiAbsoluteUrl(u)} alt="" className="aspect-square w-full object-cover" loading="lazy" />
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {siblingLinks.length ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">

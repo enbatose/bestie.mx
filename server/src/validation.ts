@@ -90,3 +90,20 @@ export function isDraftPlaceholderWhatsApp(digits: string): boolean {
   if (typeof digits !== "string" || digits.length < 10) return false;
   return /^0+$/.test(digits);
 }
+
+const LISTING_IMAGE_URL_LEN_MAX = 240;
+const LISTING_IMAGE_COUNT_MAX = 12;
+
+/** Only allow same-origin upload paths written by our API. */
+export function clampListingImageUrls(input: unknown, max = LISTING_IMAGE_COUNT_MAX): string[] {
+  if (!Array.isArray(input)) return [];
+  const out: string[] = [];
+  for (const x of input) {
+    if (typeof x !== "string" || x.length > LISTING_IMAGE_URL_LEN_MAX) continue;
+    if (!x.startsWith("/api/uploads/")) continue;
+    if (x.includes("..") || x.includes("\\")) continue;
+    out.push(x);
+    if (out.length >= max) break;
+  }
+  return out;
+}

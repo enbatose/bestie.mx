@@ -5,6 +5,15 @@ import type {
   PropertyListing,
   RoomDimension,
 } from "./types.js";
+import { clampListingImageUrls } from "./validation.js";
+
+function imageUrlsFromCell(raw: unknown): string[] {
+  try {
+    return clampListingImageUrls(JSON.parse(String(raw ?? "[]")));
+  } catch {
+    return [];
+  }
+}
 
 function listingStatusFromRow(v: unknown): ListingStatus {
   const s = String(v ?? "published");
@@ -75,6 +84,9 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
   const showWhatsApp =
     showWaRaw === 0 || showWaRaw === false || showWaRaw === "0" ? false : true;
 
+  const propertyImageUrls = imageUrlsFromCell(row.property_image_urls_json);
+  const roomImageUrls = imageUrlsFromCell(row.room_image_urls_json);
+
   return {
     id: String(row.id),
     propertyId: String(row.property_id),
@@ -106,6 +118,8 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ...(roomDimension ? { roomDimension } : {}),
     ...(avalRequired !== undefined ? { avalRequired } : {}),
     ...(subletAllowed !== undefined ? { subletAllowed } : {}),
+    ...(propertyImageUrls.length ? { propertyImageUrls } : {}),
+    ...(roomImageUrls.length ? { roomImageUrls } : {}),
   };
 }
 
@@ -140,7 +154,9 @@ SELECT
   p.bedrooms_total AS bedrooms_total,
   p.bathrooms AS bathrooms,
   p.show_whatsapp AS show_whatsapp,
-  r.deposit_mxn AS deposit_mxn
+  r.deposit_mxn AS deposit_mxn,
+  p.image_urls_json AS property_image_urls_json,
+  r.image_urls_json AS room_image_urls_json
 FROM rooms r
 INNER JOIN properties p ON p.id = r.property_id
 `;

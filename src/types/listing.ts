@@ -35,6 +35,7 @@ export type Property = {
   bathrooms: number;
   /** When false, do not show WhatsApp on the public listing. */
   showWhatsApp: boolean;
+  imageUrls?: string[];
 };
 
 /** Rentable space inside a property. */
@@ -59,6 +60,7 @@ export type Room = {
   avalRequired?: boolean;
   subletAllowed?: boolean;
   sortOrder: number;
+  imageUrls?: string[];
 };
 
 export type PropertyWithRooms = {
@@ -97,6 +99,8 @@ export type PropertyListing = {
   contactWhatsApp: string;
   /** Defaults to `published` when omitted (local seed data). */
   status?: ListingStatus;
+  propertyImageUrls?: string[];
+  roomImageUrls?: string[];
   /** Only returned for `/api/my-listings` when authenticated with publisher cookie. */
   publisherId?: string;
   lodgingType?: LodgingType;
