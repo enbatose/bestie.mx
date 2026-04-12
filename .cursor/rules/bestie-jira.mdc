@@ -14,3 +14,10 @@ For **all bestie.mx–related** planning, backlog, epics, stories, and tasks:
 When creating or updating Jira issues via MCP, use **`user-Atlassian-MCP-Server`** with cloud id **`2aeff5e5-4ae4-4f40-94f1-6299199597e1`** (hostname **`enbaos.atlassian.net`**) and project key **`BES`** unless the user specifies otherwise.
 
 Prefer linking work to **BES** instead of other Jira projects for this codebase.
+
+## When to set status to **Done** (critical)
+
+- **Do not** move issues to **Done** for backlog import, planning-only work, or “ticket created” milestones.
+- **Only** transition to **Done** after the issue’s scope is **implemented in this repo**, **committed**, and **pushed (merged) to the canonical GitHub branch** (typically `main` on `enbatose/bestie.mx`), unless the user explicitly defines a different completion gate.
+- For parent epics: leave **To Do** / **In Progress** until **all** agreed child work is merged (or split the epic).
+- If unsure, leave the issue **To Do** or **In Progress** and add a **comment** with progress instead of closing.
