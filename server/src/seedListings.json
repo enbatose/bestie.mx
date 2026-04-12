@@ -1,0 +1,196 @@
+[
+  {
+    "id": "gdl-01",
+    "title": "Casa compartida cerca de Chapalita",
+    "city": "Guadalajara",
+    "neighborhood": "Chapalita",
+    "lat": 20.669700000000002,
+    "lng": -103.3616,
+    "rentMxn": 4800,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "muebles",
+      "estacionamiento"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 22,
+    "ageMax": 35,
+    "summary": "Cuarto con closet, baño compartido limpio. Ambiente tranquilo, ideal estudiantes o jóvenes profesionales.",
+    "contactWhatsApp": "523331234567"
+  },
+  {
+    "id": "gdl-02",
+    "title": "Depa zona Minerva — cuarto disponible",
+    "city": "Guadalajara",
+    "neighborhood": "Americana",
+    "lat": 20.6447,
+    "lng": -103.3416,
+    "rentMxn": 5500,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "baño-privado"
+    ],
+    "roommateGenderPref": "female",
+    "ageMin": 24,
+    "ageMax": 32,
+    "summary": "Iluminación natural, cocina equipada. Buscamos roomie responsable y no fumadorx.",
+    "contactWhatsApp": "523339998877"
+  },
+  {
+    "id": "mid-01",
+    "title": "Casa colonial en García Ginerés",
+    "city": "Mérida",
+    "neighborhood": "García Ginerés",
+    "lat": 20.9754,
+    "lng": -89.5826,
+    "rentMxn": 4200,
+    "roomsAvailable": 2,
+    "tags": [
+      "wifi",
+      "mascotas",
+      "muebles"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 21,
+    "ageMax": 40,
+    "summary": "Dos cuartos disponibles; patio amplio. Aceptamos mascotas pequeñas con depósito.",
+    "contactWhatsApp": "529991112233"
+  },
+  {
+    "id": "mid-02",
+    "title": "Townhouse al norte — habitación con baño",
+    "city": "Mérida",
+    "neighborhood": "Montealbán",
+    "lat": 20.9554,
+    "lng": -89.5986,
+    "rentMxn": 6100,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "baño-privado",
+      "estacionamiento"
+    ],
+    "roommateGenderPref": "male",
+    "ageMin": 26,
+    "ageMax": 38,
+    "summary": "Baño propio, clima inverter en áreas comunes. Estacionamiento techado.",
+    "contactWhatsApp": "529994445566"
+  },
+  {
+    "id": "pv-01",
+    "title": "Condo Zona Romántica — roomie",
+    "city": "Puerto Vallarta",
+    "neighborhood": "Zona Romántica",
+    "lat": 20.657400000000003,
+    "lng": -105.2343,
+    "rentMxn": 7200,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "muebles"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 25,
+    "ageMax": 45,
+    "summary": "A 6 cuadras del malecón. Ideal nómada digital; fibra 200 Mbps.",
+    "contactWhatsApp": "523221010101"
+  },
+  {
+    "id": "pv-02",
+    "title": "Casa 5 de diciembre — cuarto planta alta",
+    "city": "Puerto Vallarta",
+    "neighborhood": "5 de diciembre",
+    "lat": 20.6464,
+    "lng": -105.21430000000001,
+    "rentMxn": 5300,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "baño-privado"
+    ],
+    "roommateGenderPref": "female",
+    "ageMin": 23,
+    "ageMax": 34,
+    "summary": "Terraza común con vista parcial a la bahía. Reglas claras de limpieza rotativa.",
+    "contactWhatsApp": "523224040404"
+  },
+  {
+    "id": "say-01",
+    "title": "Casa a dos cuadras de la playa",
+    "city": "Sayulita",
+    "neighborhood": "Centro",
+    "lat": 20.8726,
+    "lng": -105.4377,
+    "rentMxn": 6500,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "mascotas",
+      "muebles"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 22,
+    "ageMax": 36,
+    "summary": "Surf friendly. Espacio para tabla. Cocina compartida tipo hostel boutique.",
+    "contactWhatsApp": "523313131313"
+  },
+  {
+    "id": "say-02",
+    "title": "Depa pequeño — ideal una persona",
+    "city": "Sayulita",
+    "neighborhood": "Nanzal",
+    "lat": 20.8666,
+    "lng": -105.4457,
+    "rentMxn": 5800,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 21,
+    "ageMax": 33,
+    "summary": "Cuarto compacto pero con buena ventilación. Sin estacionamiento asignado.",
+    "contactWhatsApp": "523315151515"
+  },
+  {
+    "id": "buc-01",
+    "title": "Residencial con alberca — cuarto disponible",
+    "city": "Bucerías",
+    "neighborhood": "Dorada",
+    "lat": 20.7575,
+    "lng": -105.3374,
+    "rentMxn": 6900,
+    "roomsAvailable": 1,
+    "tags": [
+      "wifi",
+      "estacionamiento",
+      "muebles"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 28,
+    "ageMax": 50,
+    "summary": "Alberca común, palapa y asadores. Preferencia roomies tranquilos en semana.",
+    "contactWhatsApp": "523227272727"
+  },
+  {
+    "id": "buc-02",
+    "title": "Casa cerca de la playa — 2 cuartos",
+    "city": "Bucerías",
+    "neighborhood": "La Cruz",
+    "lat": 20.7465,
+    "lng": -105.32639999999999,
+    "rentMxn": 5200,
+    "roomsAvailable": 2,
+    "tags": [
+      "wifi",
+      "mascotas"
+    ],
+    "roommateGenderPref": "any",
+    "ageMin": 24,
+    "ageMax": 40,
+    "summary": "Ideal pareja de roomies que quieran dividir renta. Baño compartido recién remodelado.",
+    "contactWhatsApp": "523229292929"
+  }
+]

@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getListingById } from "@/data/seedListings";
+import { fetchListingByIdFromApi, isListingsApiConfigured } from "@/lib/listingsApi";
 import { TAG_LABELS } from "@/lib/searchFilters";
+import type { PropertyListing } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -11,14 +13,68 @@ const money = new Intl.NumberFormat("es-MX", {
 
 export function ListingPage() {
   const { id } = useParams();
-  const listing = useMemo(() => (id ? getListingById(id) : undefined), [id]);
+  const apiOn = isListingsApiConfigured();
+  const seedListing = useMemo(() => (id ? getListingById(id) : undefined), [id]);
+
+  const [apiListing, setApiListing] = useState<PropertyListing | null | undefined>(() =>
+    apiOn ? undefined : null,
+  );
+  const [apiErr, setApiErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!apiOn || !id) {
+      setApiListing(apiOn ? undefined : null);
+      setApiErr(null);
+      return;
+    }
+    const ac = new AbortController();
+    setApiListing(undefined);
+    setApiErr(null);
+    fetchListingByIdFromApi(id, ac.signal)
+      .then((l) => {
+        setApiListing(l);
+      })
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setApiErr("No se pudo cargar el anuncio.");
+        setApiListing(null);
+      });
+    return () => ac.abort();
+  }, [apiOn, id]);
+
+  const listing = apiOn ? (apiListing === undefined ? undefined : apiListing) : seedListing;
   const [revealed, setRevealed] = useState(false);
+
+  if (apiOn && apiListing === undefined && !apiErr) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
+        <p className="text-sm text-muted">Cargando anuncio…</p>
+      </div>
+    );
+  }
+
+  if (apiErr) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
+        <h1 className="text-xl font-semibold text-body">Error</h1>
+        <p className="mt-2 text-sm text-muted">{apiErr}</p>
+        <Link
+          to="/buscar"
+          className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
+        >
+          Volver a buscar
+        </Link>
+      </div>
+    );
+  }
 
   if (!listing) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <h1 className="text-xl font-semibold text-body">Anuncio no encontrado</h1>
-        <p className="mt-2 text-sm text-muted">El ID no existe en los datos de muestra.</p>
+        <p className="mt-2 text-sm text-muted">
+          El anuncio no existe o ya no está publicado.
+        </p>
         <Link
           to="/buscar"
           className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"

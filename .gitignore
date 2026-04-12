@@ -4,6 +4,7 @@ dist
 *.local
 .env
 .env.*.local
+server/data/
 npm-debug.log*
 pnpm-debug.log*
 yarn-error.log*
