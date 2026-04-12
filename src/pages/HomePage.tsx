@@ -136,6 +136,35 @@ export function HomePage() {
         </div>
       </section>
 
+      <section className="border-t border-border bg-primary px-4 py-10 text-center text-primary-fg sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-lg font-bold tracking-tight sm:text-xl">Publicar anuncio</h2>
+          <p className="mt-2 text-sm text-primary-fg/90">
+            Mismo tipo de CTA que Roomix: publica cuarto(s) o vivienda completa con el asistente paso a paso.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/publicar"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-secondary px-8 text-base font-bold text-primary shadow-md transition hover:brightness-95"
+            >
+              Publicar anuncio
+            </Link>
+            <Link
+              to="/registro"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/40 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
+            >
+              Regístrate
+            </Link>
+            <Link
+              to="/entrar"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/40 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
+            >
+              Iniciar sesión
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="px-4 py-10 sm:px-6">
         <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-3">
           {[

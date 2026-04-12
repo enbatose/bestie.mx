@@ -7,7 +7,9 @@ import { GroupsPage } from "@/pages/GroupsPage";
 import { HomePage } from "@/pages/HomePage";
 import { LegalPage } from "@/pages/LegalPage";
 import { ListingPage } from "@/pages/ListingPage";
+import { MessagesPage } from "@/pages/MessagesPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 import { PublishWizardPage } from "@/pages/PublishWizardPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { SearchPage } from "@/pages/SearchPage";
@@ -23,6 +25,8 @@ const router = createBrowserRouter([
       { path: "anuncio/:id", element: <ListingPage /> },
       { path: "publicar", element: <PublishWizardPage /> },
       { path: "mis-anuncios", element: <MyListingsPage /> },
+      { path: "perfil", element: <ProfilePage /> },
+      { path: "mensajes", element: <MessagesPage /> },
       { path: "contacto", element: <ContactPage /> },
       { path: "faq", element: <FaqPage /> },
       { path: "legal", element: <LegalPage /> },

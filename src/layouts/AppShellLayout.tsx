@@ -16,6 +16,11 @@ function navClass({ isActive }: { isActive: boolean }) {
 export function AppShellLayout() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
 
+  const profileIncomplete =
+    me != null &&
+    me.id &&
+    Boolean(me.email && (me.emailVerified !== true || !me.phoneE164));
+
   useEffect(() => {
     if (!isAuthApiConfigured()) {
       setMe(null);
@@ -41,6 +46,34 @@ export function AppShellLayout() {
             <NavLink to="/mis-anuncios" className={navClass}>
               Mis anuncios
             </NavLink>
+            {me?.id ? (
+              <>
+                <span className="hidden text-sm text-muted sm:inline">
+                  Hola,{" "}
+                  <span className="font-semibold text-body">{me.displayName.split(/\s+/)[0] ?? "…"}</span>
+                </span>
+                <NavLink to="/perfil" className={navClass}>
+                  <span className="inline-flex items-center gap-1">
+                    Perfil
+                    {profileIncomplete ? (
+                      <span
+                        className="rounded-full bg-error px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                        title="Completa tu perfil"
+                      >
+                        !
+                      </span>
+                    ) : null}
+                  </span>
+                </NavLink>
+                <NavLink to="/mensajes" className={navClass}>
+                  Mensajes
+                </NavLink>
+              </>
+            ) : (
+              <NavLink to="/registro" className={navClass}>
+                Registro
+              </NavLink>
+            )}
             <NavLink to="/grupos" className={navClass}>
               Grupos
             </NavLink>
@@ -53,7 +86,7 @@ export function AppShellLayout() {
               to="/entrar"
               className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:px-4"
             >
-              {me && me.id ? me.displayName.split(" ")[0] ?? "Cuenta" : "Entrar"}
+              {me && me.id ? "Sesión" : "Entrar"}
             </Link>
           </nav>
         </div>
