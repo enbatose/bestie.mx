@@ -8,6 +8,7 @@ import { authRouter } from "./authRouter.js";
 import { complianceRouter } from "./complianceRouter.js";
 import { groupsRouter } from "./groupsRouter.js";
 import { listingsRouter } from "./listingsRouter.js";
+import { messagesRouter } from "./messagesRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
@@ -74,6 +75,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/uploads", uploadsRouter({ uploadDir }));
 
   app.use("/api/auth", authRouter(db));
+  app.use("/api/messages", messagesRouter(db));
   app.use("/api/admin", adminRouter(db));
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));

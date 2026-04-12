@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
+import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 import {
   fetchListingByIdFromApi,
   fetchPropertyWithRooms,
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
+import { startConversationFromListing } from "@/lib/messagesApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { PropertyListing, PropertyWithRooms } from "@/types/listing";
@@ -18,7 +21,10 @@ const money = new Intl.NumberFormat("es-MX", {
 
 export function ListingPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { openLogin } = useAuthModal();
   const apiOn = isListingsApiConfigured();
+  const messagingOn = isAuthApiConfigured();
   const seedListing = useMemo(() => (id ? getListingById(id) : undefined), [id]);
 
   const [apiListing, setApiListing] = useState<PropertyListing | null | undefined>(() =>
@@ -29,10 +35,25 @@ export function ListingPage() {
     apiOn ? undefined : null,
   );
   const [revealed, setRevealed] = useState(false);
+  const [viewer, setViewer] = useState<AuthMe | null | undefined>(() =>
+    messagingOn ? undefined : null,
+  );
+  const [msgBusy, setMsgBusy] = useState(false);
+  const [msgErr, setMsgErr] = useState<string | null>(null);
+
+  const refreshViewer = useCallback(async () => {
+    if (!messagingOn) {
+      setViewer(null);
+      return;
+    }
+    setViewer(await authMe().catch(() => null));
+  }, [messagingOn]);
 
   useEffect(() => {
     setRevealed(false);
-  }, [id]);
+    setMsgErr(null);
+    void refreshViewer();
+  }, [id, refreshViewer]);
 
   useEffect(() => {
     if (!apiOn || !id) {
@@ -95,6 +116,25 @@ export function ListingPage() {
     }
     return seedSiblings.map((l) => ({ id: l.id, label: l.title }));
   }, [apiOn, propertyPack, listing?.id, seedSiblings]);
+
+  const onInAppMessage = useCallback(async () => {
+    if (!id || !messagingOn) return;
+    setMsgErr(null);
+    if (viewer === undefined) return;
+    if (!viewer) {
+      openLogin();
+      return;
+    }
+    setMsgBusy(true);
+    try {
+      const { conversationId } = await startConversationFromListing(id);
+      navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+    } catch (e) {
+      setMsgErr(e instanceof Error ? e.message : "No se pudo abrir el mensaje.");
+    } finally {
+      setMsgBusy(false);
+    }
+  }, [id, messagingOn, viewer, openLogin, navigate]);
 
   if (apiOn && apiListing === undefined && !apiErr) {
     return (
@@ -265,6 +305,29 @@ export function ListingPage() {
 
       <section className="mt-8 rounded-2xl border border-border bg-bg-light p-5 sm:p-6">
         <h2 className="text-base font-semibold text-body">Contacto (v1)</h2>
+        {messagingOn && listingStatus === "published" && id ? (
+          <div className="mt-3 rounded-xl border border-border bg-surface p-4">
+            <p className="text-sm text-muted">
+              Mensajes dentro de Bestie cuando el anunciante tiene cuenta vinculada. Si no hay cuenta,
+              verás un aviso y puedes usar WhatsApp abajo.
+            </p>
+            {msgErr ? <p className="mt-2 text-sm text-error">{msgErr}</p> : null}
+            <button
+              type="button"
+              onClick={() => void onInAppMessage()}
+              disabled={msgBusy || viewer === undefined}
+              className="mt-3 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50"
+            >
+              {msgBusy
+                ? "Abriendo…"
+                : viewer === undefined
+                  ? "Comprobando sesión…"
+                  : !viewer
+                    ? "Mensaje al anunciante (inicia sesión)"
+                    : "Mensaje al anunciante"}
+            </button>
+          </div>
+        ) : null}
         {!showWhatsApp ? (
           <p className="mt-2 text-sm text-muted">
             El anunciante eligió no mostrar WhatsApp en Bestie. Puedes escribir a{" "}
@@ -276,7 +339,9 @@ export function ListingPage() {
         ) : (
           <>
             <p className="mt-2 text-sm text-muted">
-              Sin chat en la app por ahora: revela WhatsApp cuando estés listo.
+              {messagingOn
+                ? "También puedes revelar WhatsApp cuando estés listo."
+                : "Revela WhatsApp cuando estés listo (conecta la API para mensajes en la app)."}
             </p>
             {!revealed ? (
               <button

@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import legacySeed from "./seedListings.json" with { type: "json" };
 import type { ListingStatus } from "./types.js";
 import { ensurePhaseCDSchema } from "./phaseCDSchema.js";
+import { ensureMessagingSchema } from "./messagingSchema.js";
 
 const SEED_PUBLISHER_ID = "__seed__";
 
@@ -360,6 +361,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensurePhaseBSchema(db);
   migrateLegacyListingsTableIfPresent(db);
   ensurePhaseCDSchema(db);
+  ensureMessagingSchema(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
   if (countRow.c === 0) {

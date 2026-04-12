@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import { fetchFeaturedCities } from "@/lib/authApi";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 
@@ -149,18 +150,20 @@ export function HomePage() {
             >
               Publicar anuncio
             </Link>
-            <Link
-              to="/registro"
+            <button
+              type="button"
+              onClick={() => openRegister()}
               className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/40 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
             >
               Regístrate
-            </Link>
-            <Link
-              to="/entrar"
+            </button>
+            <button
+              type="button"
+              onClick={() => openLogin()}
               className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/40 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
             >
               Iniciar sesión
-            </Link>
+            </button>
           </div>
         </div>
       </section>
