@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
+import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
@@ -11,6 +12,7 @@ import {
   filtersToParams,
   parseFilters,
   type Bbox,
+  type SearchFilters,
 } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
@@ -52,6 +54,7 @@ export function SearchPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchOnMapMove, setSearchOnMapMove] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -80,6 +83,12 @@ export function SearchPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
+      <SearchAdvancedSheet
+        open={advancedOpen}
+        onClose={() => setAdvancedOpen(false)}
+        filters={filters}
+        onChange={applyFilters}
+      />
       <SearchTopBar
         filters={filters}
         onChange={applyFilters}
@@ -101,7 +110,11 @@ export function SearchPage() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ~2/3: rail + map (Roomix-style) */}
         <section className="relative flex min-h-0 min-w-0 flex-[2] flex-col border-border lg:border-r">
-          <SearchFilterRail filters={filters} onChange={applyFilters} />
+          <SearchFilterRail
+            filters={filters}
+            onChange={applyFilters}
+            onOpenAdvanced={() => setAdvancedOpen(true)}
+          />
           <div className="relative min-h-[42vh] flex-1 lg:min-h-[calc(100dvh-10.5rem)]">
             <div className="absolute inset-0">
               <PropertyMap

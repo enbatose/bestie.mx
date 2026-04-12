@@ -49,3 +49,37 @@ describe("filterListings + bbox", () => {
     expect(out.map((r) => r.id)).toEqual(["in"]);
   });
 });
+
+describe("parseFilters extended", () => {
+  it("parses lodging and property flags", () => {
+    const f = parseFilters(
+      new URLSearchParams({
+        lodging: "private_room",
+        house: "1",
+        apartment: "1",
+        from: "2025-06-01",
+        minStay: "6",
+        dim: "M",
+        aval: "0",
+        sublet: "1",
+      }),
+    );
+    expect(f.lodgingType).toBe("private_room");
+    expect(f.wantHouse).toBe(true);
+    expect(f.wantApartment).toBe(true);
+    expect(f.availableFrom).toBe("2025-06-01");
+    expect(f.minimalStayMonths).toBe(6);
+    expect(f.roomDimension).toBe("medium");
+    expect(f.avalRequired).toBe(false);
+    expect(f.subletAllowed).toBe(true);
+  });
+
+  it("filters by minimal stay commitment", () => {
+    const rows = [
+      baseListing({ id: "ok", minimalStayMonths: 3 }),
+      baseListing({ id: "no", minimalStayMonths: 12 }),
+    ];
+    const f = parseFilters(new URLSearchParams({ minStay: "6" }));
+    expect(filterListings(rows, f).map((r) => r.id)).toEqual(["ok"]);
+  });
+});

@@ -1,4 +1,4 @@
-import type { RoommateGenderPref } from "@/types/listing";
+import type { LodgingType } from "@/types/listing";
 import type { SearchFilters } from "@/lib/searchFilters";
 
 type Props = {
@@ -8,6 +8,13 @@ type Props = {
   searchOnMapMove: boolean;
   onSearchOnMapMoveChange: (v: boolean) => void;
 };
+
+const LODGING_OPTIONS: { value: LodgingType | ""; label: string }[] = [
+  { value: "", label: "Cualquiera" },
+  { value: "whole_home", label: "Hogar entero" },
+  { value: "private_room", label: "Cuarto privado" },
+  { value: "shared_room", label: "Cuarto compartido" },
+];
 
 export function SearchTopBar({
   filters,
@@ -93,24 +100,39 @@ export function SearchTopBar({
           </div>
         </fieldset>
 
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:max-w-2xl lg:flex-1">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80 sm:col-span-1">
-            Roomies (anuncio)
-            <select
-              value={filters.pref ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                const pref: RoommateGenderPref | null =
-                  v === "female" || v === "male" ? v : null;
-                onChange({ ...filters, pref });
-              }}
-              className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-2 py-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            >
-              <option value="">Cualquiera</option>
-              <option value="female">Pref. mujer</option>
-              <option value="male">Pref. hombre</option>
-            </select>
-          </label>
+        <fieldset className="min-w-0 flex-1 lg:max-w-xl">
+          <legend className="text-xs font-semibold uppercase tracking-wide text-primary/80">
+            Tipo de hospedaje
+          </legend>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {LODGING_OPTIONS.map(({ value, label }) => {
+              const selected =
+                value === "" ? filters.lodgingType == null : filters.lodgingType === value;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() =>
+                    onChange({
+                      ...filters,
+                      lodgingType: value === "" ? null : (value as LodgingType),
+                    })
+                  }
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                    selected
+                      ? "border-secondary bg-surface ring-2 ring-secondary/40"
+                      : "border-primary/20 bg-surface/90 hover:border-secondary/50"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:max-w-md lg:flex-none">
           <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
             Edad mín.
             <input

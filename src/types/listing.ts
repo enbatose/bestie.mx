@@ -2,12 +2,20 @@ export type RoommateGenderPref = "any" | "female" | "male";
 
 export type ListingStatus = "draft" | "published" | "paused" | "archived";
 
+export type LodgingType = "whole_home" | "private_room" | "shared_room";
+
+export type PropertyKind = "house" | "apartment";
+
+export type RoomDimension = "small" | "medium" | "large";
+
 export type ListingTag =
   | "wifi"
   | "mascotas"
   | "estacionamiento"
   | "muebles"
-  | "baño-privado";
+  | "baño-privado"
+  | "fumar"
+  | "fiestas";
 
 export type PropertyListing = {
   id: string;
@@ -28,4 +36,11 @@ export type PropertyListing = {
   status?: ListingStatus;
   /** Only returned for `/api/my-listings` when authenticated with publisher cookie. */
   publisherId?: string;
+  lodgingType?: LodgingType;
+  propertyKind?: PropertyKind;
+  availableFrom?: string;
+  minimalStayMonths?: number;
+  roomDimension?: RoomDimension;
+  avalRequired?: boolean;
+  subletAllowed?: boolean;
 };

@@ -1,4 +1,11 @@
-import type { ListingTag, PropertyListing, RoommateGenderPref } from "@/types/listing";
+import type {
+  ListingTag,
+  LodgingType,
+  PropertyKind,
+  PropertyListing,
+  RoomDimension,
+  RoommateGenderPref,
+} from "@/types/listing";
 
 export type Bbox = {
   minLat: number;
@@ -12,11 +19,18 @@ export type SearchFilters = {
   budgetMin: number | null;
   budgetMax: number | null;
   tags: ListingTag[];
-  /** When set, include listings that accept `any` or match this preference. */
   pref: RoommateGenderPref | null;
   ageMin: number | null;
   ageMax: number | null;
   bbox: Bbox | null;
+  lodgingType: LodgingType | null;
+  wantHouse: boolean;
+  wantApartment: boolean;
+  availableFrom: string | null;
+  minimalStayMonths: number | null;
+  roomDimension: RoomDimension | null;
+  avalRequired: boolean | null;
+  subletAllowed: boolean | null;
 };
 
 const TAG_SET = new Set<ListingTag>([
@@ -25,6 +39,8 @@ const TAG_SET = new Set<ListingTag>([
   "estacionamiento",
   "muebles",
   "baño-privado",
+  "fumar",
+  "fiestas",
 ]);
 
 function num(v: string | null): number | null {
@@ -41,6 +57,36 @@ export function parseBboxParam(raw: string | null): Bbox | null {
   if (minLat < -90 || maxLat > 90 || minLng < -180 || maxLng > 180) return null;
   if (minLat > maxLat || minLng > maxLng) return null;
   return { minLat, minLng, maxLat, maxLng };
+}
+
+function parseLodging(raw: string | null): LodgingType | null {
+  if (raw === "whole_home" || raw === "private_room" || raw === "shared_room") return raw;
+  return null;
+}
+
+function parseDim(raw: string | null): RoomDimension | null {
+  if (raw === "small" || raw === "medium" || raw === "large") return raw;
+  if (raw === "S") return "small";
+  if (raw === "M") return "medium";
+  if (raw === "L") return "large";
+  return null;
+}
+
+function flag(v: string | null): boolean {
+  return v === "1" || v === "true" || v === "yes";
+}
+
+function parseBoolTri(raw: string | null): boolean | null {
+  if (raw == null || raw === "") return null;
+  if (raw === "1" || raw === "true" || raw === "yes") return true;
+  if (raw === "0" || raw === "false" || raw === "no") return false;
+  return null;
+}
+
+function isoDateOk(s: string | null): string | null {
+  if (s == null || s.trim() === "") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) return null;
+  return s.trim();
 }
 
 export function parseFilters(params: URLSearchParams): SearchFilters {
@@ -62,6 +108,14 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
     ageMin: num(params.get("ageMin")),
     ageMax: num(params.get("ageMax")),
     bbox: parseBboxParam(params.get("bbox")),
+    lodgingType: parseLodging(params.get("lodging")),
+    wantHouse: flag(params.get("house")),
+    wantApartment: flag(params.get("apartment")),
+    availableFrom: isoDateOk(params.get("from")),
+    minimalStayMonths: num(params.get("minStay")),
+    roomDimension: parseDim(params.get("dim")),
+    avalRequired: parseBoolTri(params.get("aval")),
+    subletAllowed: parseBoolTri(params.get("sublet")),
   };
 }
 
@@ -78,6 +132,16 @@ export function filtersToParams(f: SearchFilters): URLSearchParams {
     const { minLat, minLng, maxLat, maxLng } = f.bbox;
     p.set("bbox", `${minLat},${minLng},${maxLat},${maxLng}`);
   }
+  if (f.lodgingType != null) p.set("lodging", f.lodgingType);
+  if (f.wantHouse) p.set("house", "1");
+  if (f.wantApartment) p.set("apartment", "1");
+  if (f.availableFrom) p.set("from", f.availableFrom);
+  if (f.minimalStayMonths != null) p.set("minStay", String(f.minimalStayMonths));
+  if (f.roomDimension != null) p.set("dim", f.roomDimension);
+  if (f.avalRequired === true) p.set("aval", "1");
+  if (f.avalRequired === false) p.set("aval", "0");
+  if (f.subletAllowed === true) p.set("sublet", "1");
+  if (f.subletAllowed === false) p.set("sublet", "0");
   return p;
 }
 
@@ -94,9 +158,58 @@ function matchesAge(listing: PropertyListing, ageMin: number | null, ageMax: num
 }
 
 function inBbox(l: PropertyListing, b: Bbox): boolean {
-  return (
-    l.lat >= b.minLat && l.lat <= b.maxLat && l.lng >= b.minLng && l.lng <= b.maxLng
-  );
+  return l.lat >= b.minLat && l.lat <= b.maxLat && l.lng >= b.minLng && l.lng <= b.maxLng;
+}
+
+function matchesLodging(l: PropertyListing, f: LodgingType | null): boolean {
+  if (f == null) return true;
+  if (l.lodgingType == null) return true;
+  return l.lodgingType === f;
+}
+
+function matchesPropertyKind(
+  l: PropertyListing,
+  wantHouse: boolean,
+  wantApartment: boolean,
+): boolean {
+  if (!wantHouse && !wantApartment) return true;
+  const k = l.propertyKind;
+  if (k == null) return true;
+  if (wantHouse && wantApartment) return k === "house" || k === "apartment";
+  if (wantHouse) return k === "house";
+  return k === "apartment";
+}
+
+function matchesAvailableFrom(l: PropertyListing, from: string | null): boolean {
+  if (from == null) return true;
+  const lf = l.availableFrom;
+  if (lf == null || lf === "") return true;
+  return lf <= from;
+}
+
+function matchesMinimalStay(l: PropertyListing, userMonths: number | null): boolean {
+  if (userMonths == null) return true;
+  const req = l.minimalStayMonths;
+  if (req == null) return true;
+  return userMonths >= req;
+}
+
+function matchesDimension(l: PropertyListing, d: RoomDimension | null): boolean {
+  if (d == null) return true;
+  if (l.roomDimension == null) return true;
+  return l.roomDimension === d;
+}
+
+function matchesAval(l: PropertyListing, f: boolean | null): boolean {
+  if (f == null) return true;
+  if (l.avalRequired == null) return true;
+  return l.avalRequired === f;
+}
+
+function matchesSublet(l: PropertyListing, f: boolean | null): boolean {
+  if (f == null) return true;
+  if (l.subletAllowed == null) return true;
+  return l.subletAllowed === f;
 }
 
 export function filterListings(listings: PropertyListing[], f: SearchFilters): PropertyListing[] {
@@ -110,6 +223,13 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (!matchesPref(l, f.pref)) return false;
     if (!matchesAge(l, f.ageMin, f.ageMax)) return false;
     if (f.bbox != null && !inBbox(l, f.bbox)) return false;
+    if (!matchesLodging(l, f.lodgingType)) return false;
+    if (!matchesPropertyKind(l, f.wantHouse, f.wantApartment)) return false;
+    if (!matchesAvailableFrom(l, f.availableFrom)) return false;
+    if (!matchesMinimalStay(l, f.minimalStayMonths)) return false;
+    if (!matchesDimension(l, f.roomDimension)) return false;
+    if (!matchesAval(l, f.avalRequired)) return false;
+    if (!matchesSublet(l, f.subletAllowed)) return false;
     return true;
   });
 }
@@ -120,4 +240,25 @@ export const TAG_LABELS: Record<ListingTag, string> = {
   estacionamiento: "Estacionamiento",
   muebles: "Amueblado",
   "baño-privado": "Baño privado",
+  fumar: "Se permite fumar",
+  fiestas: "Fiestas OK",
+};
+
+export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
+  q: "",
+  budgetMin: null,
+  budgetMax: null,
+  tags: [],
+  pref: null,
+  ageMin: null,
+  ageMax: null,
+  bbox: null,
+  lodgingType: null,
+  wantHouse: false,
+  wantApartment: false,
+  availableFrom: null,
+  minimalStayMonths: null,
+  roomDimension: null,
+  avalRequired: null,
+  subletAllowed: null,
 };

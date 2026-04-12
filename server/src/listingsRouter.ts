@@ -5,7 +5,15 @@ import { rowToListing } from "./db.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
-import type { ListingStatus, ListingTag, PropertyListing, RoommateGenderPref } from "./types.js";
+import type {
+  ListingStatus,
+  ListingTag,
+  LodgingType,
+  PropertyKind,
+  PropertyListing,
+  RoomDimension,
+  RoommateGenderPref,
+} from "./types.js";
 
 function isListingTag(t: string): t is ListingTag {
   return (
@@ -13,8 +21,40 @@ function isListingTag(t: string): t is ListingTag {
     t === "mascotas" ||
     t === "estacionamiento" ||
     t === "muebles" ||
-    t === "baño-privado"
+    t === "baño-privado" ||
+    t === "fumar" ||
+    t === "fiestas"
   );
+}
+
+function optLodging(v: unknown): LodgingType | undefined {
+  if (v !== "whole_home" && v !== "private_room" && v !== "shared_room") return undefined;
+  return v;
+}
+
+function optPropertyKind(v: unknown): PropertyKind | undefined {
+  if (v !== "house" && v !== "apartment") return undefined;
+  return v;
+}
+
+function optIsoDate(v: unknown): string | undefined {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return undefined;
+  return v.trim();
+}
+
+function optPositiveInt(v: unknown): number | undefined {
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) return undefined;
+  return Math.floor(v);
+}
+
+function optDim(v: unknown): RoomDimension | undefined {
+  if (v !== "small" && v !== "medium" && v !== "large") return undefined;
+  return v;
+}
+
+function optBool(v: unknown): boolean | undefined {
+  if (typeof v !== "boolean") return undefined;
+  return v;
 }
 
 function isRoommateGenderPref(s: string): s is RoommateGenderPref {
@@ -136,16 +176,28 @@ export function listingsRouter(db: DatabaseSync) {
     const publisherId = getOrCreatePublisherId(req, res);
     const id = typeof body.id === "string" && body.id.trim() ? body.id.trim() : randomUUID();
 
+    const lodgingType = optLodging(body.lodgingType);
+    const propertyKind = optPropertyKind(body.propertyKind);
+    const availableFrom = optIsoDate(body.availableFrom);
+    const minimalStayMonths = optPositiveInt(body.minimalStayMonths);
+    const roomDimension = optDim(body.roomDimension);
+    const avalRequired = optBool(body.avalRequired);
+    const subletAllowed = optBool(body.subletAllowed);
+
     try {
       db.prepare(
         `INSERT INTO listings (
           id, title, city, neighborhood, lat, lng, rent_mxn, rooms_available,
           tags_json, roommate_gender_pref, age_min, age_max, summary, contact_whatsapp,
-          publisher_id, status
+          publisher_id, status,
+          lodging_type, property_kind, available_from, minimal_stay_months, room_dimension,
+          aval_required, sublet_allowed
         ) VALUES (
           @id, @title, @city, @neighborhood, @lat, @lng, @rentMxn, @roomsAvailable,
           @tagsJson, @roommateGenderPref, @ageMin, @ageMax, @summary, @contactWhatsApp,
-          @publisherId, @status
+          @publisherId, @status,
+          @lodgingType, @propertyKind, @availableFrom, @minimalStayMonths, @roomDimension,
+          @avalRequired, @subletAllowed
         )`,
       ).run({
         id,
@@ -164,6 +216,13 @@ export function listingsRouter(db: DatabaseSync) {
         contactWhatsApp: body.contactWhatsApp,
         publisherId,
         status,
+        lodgingType: lodgingType ?? null,
+        propertyKind: propertyKind ?? null,
+        availableFrom: availableFrom ?? null,
+        minimalStayMonths: minimalStayMonths ?? null,
+        roomDimension: roomDimension ?? null,
+        avalRequired: avalRequired === true ? 1 : avalRequired === false ? 0 : null,
+        subletAllowed: subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
       });
     } catch {
       res.status(409).json({ error: "conflict" });

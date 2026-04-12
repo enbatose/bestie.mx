@@ -8,16 +8,19 @@
     "lng": -103.3616,
     "rentMxn": 4800,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "muebles",
-      "estacionamiento"
-    ],
+    "tags": ["wifi", "muebles", "estacionamiento"],
     "roommateGenderPref": "any",
     "ageMin": 22,
     "ageMax": 35,
     "summary": "Cuarto con closet, baño compartido limpio. Ambiente tranquilo, ideal estudiantes o jóvenes profesionales.",
-    "contactWhatsApp": "523331234567"
+    "contactWhatsApp": "523331234567",
+    "lodgingType": "private_room",
+    "propertyKind": "house",
+    "availableFrom": "2025-06-01",
+    "minimalStayMonths": 3,
+    "roomDimension": "medium",
+    "avalRequired": true,
+    "subletAllowed": false
   },
   {
     "id": "gdl-02",
@@ -28,15 +31,19 @@
     "lng": -103.3416,
     "rentMxn": 5500,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "baño-privado"
-    ],
+    "tags": ["wifi", "baño-privado", "fumar"],
     "roommateGenderPref": "female",
     "ageMin": 24,
     "ageMax": 32,
     "summary": "Iluminación natural, cocina equipada. Buscamos roomie responsable y no fumadorx.",
-    "contactWhatsApp": "523339998877"
+    "contactWhatsApp": "523339998877",
+    "lodgingType": "private_room",
+    "propertyKind": "apartment",
+    "availableFrom": "2025-07-01",
+    "minimalStayMonths": 6,
+    "roomDimension": "small",
+    "avalRequired": false,
+    "subletAllowed": true
   },
   {
     "id": "mid-01",
@@ -47,16 +54,19 @@
     "lng": -89.5826,
     "rentMxn": 4200,
     "roomsAvailable": 2,
-    "tags": [
-      "wifi",
-      "mascotas",
-      "muebles"
-    ],
+    "tags": ["wifi", "mascotas", "muebles", "fiestas"],
     "roommateGenderPref": "any",
     "ageMin": 21,
     "ageMax": 40,
     "summary": "Dos cuartos disponibles; patio amplio. Aceptamos mascotas pequeñas con depósito.",
-    "contactWhatsApp": "529991112233"
+    "contactWhatsApp": "529991112233",
+    "lodgingType": "shared_room",
+    "propertyKind": "house",
+    "availableFrom": "2025-05-15",
+    "minimalStayMonths": 1,
+    "roomDimension": "large",
+    "avalRequired": false,
+    "subletAllowed": false
   },
   {
     "id": "mid-02",
@@ -67,16 +77,19 @@
     "lng": -89.5986,
     "rentMxn": 6100,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "baño-privado",
-      "estacionamiento"
-    ],
+    "tags": ["wifi", "baño-privado", "estacionamiento"],
     "roommateGenderPref": "male",
     "ageMin": 26,
     "ageMax": 38,
     "summary": "Baño propio, clima inverter en áreas comunes. Estacionamiento techado.",
-    "contactWhatsApp": "529994445566"
+    "contactWhatsApp": "529994445566",
+    "lodgingType": "private_room",
+    "propertyKind": "house",
+    "availableFrom": "2025-08-01",
+    "minimalStayMonths": 12,
+    "roomDimension": "medium",
+    "avalRequired": true,
+    "subletAllowed": false
   },
   {
     "id": "pv-01",
@@ -87,15 +100,19 @@
     "lng": -105.2343,
     "rentMxn": 7200,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "muebles"
-    ],
+    "tags": ["wifi", "muebles"],
     "roommateGenderPref": "any",
     "ageMin": 25,
     "ageMax": 45,
     "summary": "A 6 cuadras del malecón. Ideal nómada digital; fibra 200 Mbps.",
-    "contactWhatsApp": "523221010101"
+    "contactWhatsApp": "523221010101",
+    "lodgingType": "private_room",
+    "propertyKind": "apartment",
+    "availableFrom": "2025-09-01",
+    "minimalStayMonths": 3,
+    "roomDimension": "small",
+    "avalRequired": true,
+    "subletAllowed": true
   },
   {
     "id": "pv-02",
@@ -106,15 +123,19 @@
     "lng": -105.21430000000001,
     "rentMxn": 5300,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "baño-privado"
-    ],
+    "tags": ["wifi", "baño-privado"],
     "roommateGenderPref": "female",
     "ageMin": 23,
     "ageMax": 34,
     "summary": "Terraza común con vista parcial a la bahía. Reglas claras de limpieza rotativa.",
-    "contactWhatsApp": "523224040404"
+    "contactWhatsApp": "523224040404",
+    "lodgingType": "private_room",
+    "propertyKind": "house",
+    "availableFrom": "2025-06-20",
+    "minimalStayMonths": 2,
+    "roomDimension": "medium",
+    "avalRequired": false,
+    "subletAllowed": false
   },
   {
     "id": "say-01",
@@ -125,16 +146,19 @@
     "lng": -105.4377,
     "rentMxn": 6500,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "mascotas",
-      "muebles"
-    ],
+    "tags": ["wifi", "mascotas", "muebles", "fiestas"],
     "roommateGenderPref": "any",
     "ageMin": 22,
     "ageMax": 36,
     "summary": "Surf friendly. Espacio para tabla. Cocina compartida tipo hostel boutique.",
-    "contactWhatsApp": "523313131313"
+    "contactWhatsApp": "523313131313",
+    "lodgingType": "whole_home",
+    "propertyKind": "house",
+    "availableFrom": "2025-11-01",
+    "minimalStayMonths": 1,
+    "roomDimension": "large",
+    "avalRequired": false,
+    "subletAllowed": true
   },
   {
     "id": "say-02",
@@ -145,14 +169,19 @@
     "lng": -105.4457,
     "rentMxn": 5800,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi"
-    ],
+    "tags": ["wifi"],
     "roommateGenderPref": "any",
     "ageMin": 21,
     "ageMax": 33,
     "summary": "Cuarto compacto pero con buena ventilación. Sin estacionamiento asignado.",
-    "contactWhatsApp": "523315151515"
+    "contactWhatsApp": "523315151515",
+    "lodgingType": "private_room",
+    "propertyKind": "apartment",
+    "availableFrom": "2025-04-01",
+    "minimalStayMonths": 6,
+    "roomDimension": "small",
+    "avalRequired": true,
+    "subletAllowed": false
   },
   {
     "id": "buc-01",
@@ -163,16 +192,19 @@
     "lng": -105.3374,
     "rentMxn": 6900,
     "roomsAvailable": 1,
-    "tags": [
-      "wifi",
-      "estacionamiento",
-      "muebles"
-    ],
+    "tags": ["wifi", "estacionamiento", "muebles"],
     "roommateGenderPref": "any",
     "ageMin": 28,
     "ageMax": 50,
     "summary": "Alberca común, palapa y asadores. Preferencia roomies tranquilos en semana.",
-    "contactWhatsApp": "523227272727"
+    "contactWhatsApp": "523227272727",
+    "lodgingType": "private_room",
+    "propertyKind": "apartment",
+    "availableFrom": "2025-10-01",
+    "minimalStayMonths": 6,
+    "roomDimension": "medium",
+    "avalRequired": true,
+    "subletAllowed": false
   },
   {
     "id": "buc-02",
@@ -183,14 +215,18 @@
     "lng": -105.32639999999999,
     "rentMxn": 5200,
     "roomsAvailable": 2,
-    "tags": [
-      "wifi",
-      "mascotas"
-    ],
+    "tags": ["wifi", "mascotas"],
     "roommateGenderPref": "any",
     "ageMin": 24,
     "ageMax": 40,
     "summary": "Ideal pareja de roomies que quieran dividir renta. Baño compartido recién remodelado.",
-    "contactWhatsApp": "523229292929"
+    "contactWhatsApp": "523229292929",
+    "lodgingType": "shared_room",
+    "propertyKind": "house",
+    "availableFrom": "2025-05-01",
+    "minimalStayMonths": 2,
+    "roomDimension": "medium",
+    "avalRequired": false,
+    "subletAllowed": true
   }
 ]

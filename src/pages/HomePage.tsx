@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
-import { filtersToParams, type SearchFilters } from "@/lib/searchFilters";
+import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 
 const CITIES = [
   "Guadalajara",
@@ -12,17 +12,7 @@ const CITIES = [
 ];
 
 function buildSearchParams(query: string): URLSearchParams {
-  const base: SearchFilters = {
-    q: query.trim(),
-    budgetMin: null,
-    budgetMax: null,
-    tags: [],
-    pref: null,
-    ageMin: null,
-    ageMax: null,
-    bbox: null,
-  };
-  return filtersToParams(base);
+  return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: query.trim() });
 }
 
 export function HomePage() {
