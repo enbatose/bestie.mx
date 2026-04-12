@@ -20,12 +20,43 @@ type Props = {
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
 
+/** Leaflet caches pixel bounds at init; flex/absolute layouts often finish sizing later — reflow tiles after resize. */
+function MapResizeInvalidate() {
+  const map = useMap();
+  useEffect(() => {
+    const run = () => {
+      try {
+        map.invalidateSize({ animate: false });
+      } catch {
+        /* mid-teardown */
+      }
+    };
+    run();
+    const t1 = window.setTimeout(run, 50);
+    const t2 = window.setTimeout(run, 300);
+    const el = map.getContainer();
+    const ro = new ResizeObserver(() => {
+      window.requestAnimationFrame(run);
+    });
+    ro.observe(el);
+    window.addEventListener("resize", run);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      ro.disconnect();
+      window.removeEventListener("resize", run);
+    };
+  }, [map]);
+  return null;
+}
+
 function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   useEffect(() => {
     const el = map.getContainer();
     if (!el?.isConnected) return;
     try {
+      map.invalidateSize({ animate: false });
       if (bounds?.isValid()) {
         map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
       } else {
@@ -61,11 +92,11 @@ export function PropertyMap({
   }, [bounds]);
 
   const shell = embed
-    ? `overflow-hidden bg-surface-elevated ${className}`
+    ? `min-h-0 overflow-hidden bg-surface-elevated ${className}`
     : `overflow-hidden rounded-2xl border border-border shadow-sm ${className}`;
 
   const mapHeight = embed
-    ? "z-0 h-full min-h-[260px] w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]"
+    ? "z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]"
     : "z-0 h-[min(52vh,420px)] w-full min-h-[280px] bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]";
 
   return (
@@ -82,6 +113,7 @@ export function PropertyMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <MapResizeInvalidate />
         <FitBounds bounds={bounds} />
         <MapSelectionSync selectedId={selectedId} listings={listings} />
         {listings.map((l) => {

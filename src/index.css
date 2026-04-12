@@ -13,6 +13,8 @@
 
 .leaflet-container {
   font-family: inherit;
+  height: 100%;
+  width: 100%;
 }
 
 .bestie-selected-pin {
