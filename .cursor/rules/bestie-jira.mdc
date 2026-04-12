@@ -1,0 +1,16 @@
+---
+description: Track bestie.mx work in Jira project BES (enbaos.atlassian.net)
+alwaysApply: true
+---
+
+# Jira — bestie.mx work
+
+For **all bestie.mx–related** planning, backlog, epics, stories, and tasks:
+
+- **Jira site:** `https://enbaos.atlassian.net`
+- **Project:** **BES** (board: `https://enbaos.atlassian.net/jira/software/projects/BES`)
+- **Project settings (access, etc.):** `https://enbaos.atlassian.net/jira/software/projects/BES/settings/access`
+
+When creating or updating Jira issues via MCP, use **`user-Atlassian-MCP-Server`** with cloud id **`2aeff5e5-4ae4-4f40-94f1-6299199597e1`** (hostname **`enbaos.atlassian.net`**) and project key **`BES`** unless the user specifies otherwise.
+
+Prefer linking work to **BES** instead of other Jira projects for this codebase.
