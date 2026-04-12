@@ -20,6 +20,7 @@ function buildSearchParams(query: string): URLSearchParams {
     pref: null,
     ageMin: null,
     ageMax: null,
+    bbox: null,
   };
   return filtersToParams(base);
 }

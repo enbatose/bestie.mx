@@ -2,7 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import seed from "./seedListings.json" with { type: "json" };
-import type { PropertyListing } from "./types.js";
+import type { ListingStatus, PropertyListing } from "./types.js";
+
+function migrateListingsTable(db: DatabaseSync): void {
+  const cols = db.prepare("PRAGMA table_info(listings)").all() as { name: string }[];
+  const names = new Set(cols.map((c) => c.name));
+  if (!names.has("publisher_id")) {
+    db.exec("ALTER TABLE listings ADD COLUMN publisher_id TEXT;");
+  }
+}
 
 export function openDb(databasePath: string): DatabaseSync {
   fs.mkdirSync(path.dirname(databasePath), { recursive: true });
@@ -28,6 +36,8 @@ export function openDb(databasePath: string): DatabaseSync {
       status TEXT NOT NULL DEFAULT 'published'
     );
   `);
+
+  migrateListingsTable(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM listings").get() as { c: number };
   if (countRow.c === 0) {
@@ -71,7 +81,19 @@ export function openDb(databasePath: string): DatabaseSync {
   return db;
 }
 
+function listingStatusFromRow(row: Record<string, unknown>): ListingStatus {
+  const s = String(row.status ?? "published");
+  if (s === "draft" || s === "published" || s === "paused" || s === "archived") return s;
+  return "published";
+}
+
 export function rowToListing(row: Record<string, unknown>): PropertyListing {
+  const publisherRaw = row.publisher_id;
+  const publisherId =
+    publisherRaw != null && String(publisherRaw).trim() !== ""
+      ? String(publisherRaw)
+      : undefined;
+
   return {
     id: String(row.id),
     title: String(row.title),
@@ -87,5 +109,7 @@ export function rowToListing(row: Record<string, unknown>): PropertyListing {
     ageMax: Number(row.age_max),
     summary: String(row.summary),
     contactWhatsApp: String(row.contact_whatsapp),
+    status: listingStatusFromRow(row),
+    ...(publisherId ? { publisherId } : {}),
   };
 }

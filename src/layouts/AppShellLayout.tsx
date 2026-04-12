@@ -23,6 +23,9 @@ export function AppShellLayout() {
             <NavLink to="/publicar" className={navClass}>
               Publicar
             </NavLink>
+            <NavLink to="/mis-anuncios" className={navClass}>
+              Mis anuncios
+            </NavLink>
             <Link
               to="/entrar"
               className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:px-4"
@@ -50,6 +53,17 @@ export function AppShellLayout() {
                 support@bestie.mx
               </a>
             </p>
+            <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-primary">
+              <Link to="/contacto" className="underline-offset-2 hover:underline">
+                Contacto
+              </Link>
+              <Link to="/faq" className="underline-offset-2 hover:underline">
+                FAQ
+              </Link>
+              <Link to="/legal" className="underline-offset-2 hover:underline">
+                Legal y privacidad
+              </Link>
+            </nav>
           </div>
           <p className="text-xs text-muted sm:text-right">bestie.mx — MVP en construcción</p>
         </div>

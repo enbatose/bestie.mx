@@ -1,5 +1,12 @@
 import type { ListingTag, PropertyListing, RoommateGenderPref } from "./types.js";
 
+export type Bbox = {
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+};
+
 export type SearchFilters = {
   q: string;
   budgetMin: number | null;
@@ -8,6 +15,8 @@ export type SearchFilters = {
   pref: RoommateGenderPref | null;
   ageMin: number | null;
   ageMax: number | null;
+  /** `?bbox=minLat,minLng,maxLat,maxLng` from map viewport. */
+  bbox: Bbox | null;
 };
 
 const TAG_SET = new Set<ListingTag>([
@@ -22,6 +31,16 @@ function num(v: string | null): number | null {
   if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+export function parseBboxParam(raw: string | null): Bbox | null {
+  if (raw == null || raw.trim() === "") return null;
+  const parts = raw.split(",").map((s) => Number(s.trim()));
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [minLat, minLng, maxLat, maxLng] = parts as [number, number, number, number];
+  if (minLat < -90 || maxLat > 90 || minLng < -180 || maxLng > 180) return null;
+  if (minLat > maxLat || minLng > maxLng) return null;
+  return { minLat, minLng, maxLat, maxLng };
 }
 
 export function parseFilters(params: URLSearchParams): SearchFilters {
@@ -42,6 +61,7 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
     pref,
     ageMin: num(params.get("ageMin")),
     ageMax: num(params.get("ageMax")),
+    bbox: parseBboxParam(params.get("bbox")),
   };
 }
 
@@ -57,6 +77,12 @@ function matchesAge(listing: PropertyListing, ageMin: number | null, ageMax: num
   return listing.ageMax >= uMin && listing.ageMin <= uMax;
 }
 
+function inBbox(l: PropertyListing, b: Bbox): boolean {
+  return (
+    l.lat >= b.minLat && l.lat <= b.maxLat && l.lng >= b.minLng && l.lng <= b.maxLng
+  );
+}
+
 export function filterListings(listings: PropertyListing[], f: SearchFilters): PropertyListing[] {
   const q = f.q.toLowerCase();
   return listings.filter((l) => {
@@ -67,6 +93,7 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (f.tags.length && !f.tags.every((t) => l.tags.includes(t))) return false;
     if (!matchesPref(l, f.pref)) return false;
     if (!matchesAge(l, f.ageMin, f.ageMax)) return false;
+    if (f.bbox != null && !inBbox(l, f.bbox)) return false;
     return true;
   });
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
@@ -10,7 +10,7 @@ import {
   filterListings,
   filtersToParams,
   parseFilters,
-  type SearchFilters,
+  type Bbox,
 } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
@@ -65,13 +65,37 @@ export function SearchPage() {
     setSearchParams(filtersToParams(next), { replace: true });
   }
 
+  const onViewportBbox = useCallback(
+    (bbox: Bbox) => {
+      setSearchParams(
+        (prev) => {
+          const f = parseFilters(new URLSearchParams(prev));
+          return filtersToParams({ ...f, bbox });
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
       <SearchTopBar
         filters={filters}
         onChange={applyFilters}
         searchOnMapMove={searchOnMapMove}
-        onSearchOnMapMoveChange={setSearchOnMapMove}
+        onSearchOnMapMoveChange={(v) => {
+          setSearchOnMapMove(v);
+          if (!v) {
+            setSearchParams(
+              (prev) => {
+                const f = parseFilters(new URLSearchParams(prev));
+                return filtersToParams({ ...f, bbox: null });
+              },
+              { replace: true },
+            );
+          }
+        }}
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -86,6 +110,8 @@ export function SearchPage() {
                 listings={filtered}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
+                searchOnMapMove={searchOnMapMove}
+                onViewportBbox={searchOnMapMove ? onViewportBbox : undefined}
               />
             </div>
           </div>

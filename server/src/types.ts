@@ -1,5 +1,7 @@
 export type RoommateGenderPref = "any" | "female" | "male";
 
+export type ListingStatus = "draft" | "published" | "paused" | "archived";
+
 export type ListingTag =
   | "wifi"
   | "mascotas"
@@ -22,4 +24,7 @@ export type PropertyListing = {
   ageMax: number;
   summary: string;
   contactWhatsApp: string;
+  status: ListingStatus;
+  /** Present only for authenticated owner responses (e.g. my-listings). */
+  publisherId?: string;
 };

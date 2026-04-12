@@ -4,6 +4,7 @@ import cors from "cors";
 import express, { type Request, type Response } from "express";
 import { openDb } from "./db.js";
 import { listingsRouter } from "./listingsRouter.js";
+import { myListingsHandler } from "./myListingsHandler.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -50,7 +51,14 @@ app.get("/health", (_req: Request, res: Response) => {
 
 app.use(
   cors({
-    origin: corsOrigins,
+    origin(origin, callback) {
+      if (!origin || corsOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
+    credentials: true,
   }),
 );
 
@@ -59,6 +67,8 @@ const db = openDb(databasePath);
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ ok: true, service: "bestie-mx-api", database: path.basename(databasePath) });
 });
+
+app.get("/api/my-listings", myListingsHandler(db));
 
 app.use("/api/listings", listingsRouter(db));
 

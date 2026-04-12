@@ -4,7 +4,7 @@ import type { SearchFilters } from "@/lib/searchFilters";
 type Props = {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
-  /** UI-only for now (Roomix-style); map moveend search can wire later. */
+  /** When enabled, panning the map updates the search bbox (debounced). */
   searchOnMapMove: boolean;
   onSearchOnMapMoveChange: (v: boolean) => void;
 };
@@ -52,7 +52,6 @@ export function SearchTopBar({
               className="size-4 rounded border-primary/40 text-primary focus:ring-primary"
             />
             Buscar al mover el mapa
-            <span className="font-normal text-primary/70">(próximamente)</span>
           </label>
         </div>
 

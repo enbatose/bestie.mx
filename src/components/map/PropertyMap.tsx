@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
+import type { Bbox } from "@/lib/searchFilters";
 import {
   ensureLeafletDefaultIcons,
   selectedMarkerIcon,
@@ -16,6 +17,9 @@ type Props = {
   /** Full-bleed map inside split layout (no outer card radius). */
   embed?: boolean;
   className?: string;
+  /** When true, debounced map `moveend` reports viewport bounds. */
+  searchOnMapMove?: boolean;
+  onViewportBbox?: (bbox: Bbox) => void;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -50,6 +54,52 @@ function MapResizeInvalidate() {
   return null;
 }
 
+function MapViewportReporter({
+  enabled,
+  onBbox,
+}: {
+  enabled: boolean;
+  onBbox: (bbox: Bbox) => void;
+}) {
+  const map = useMap();
+  const debounceRef = useRef<number>();
+  const wasEnabledRef = useRef(false);
+
+  const emit = useCallback(() => {
+    const b = map.getBounds();
+    const sw = b.getSouthWest();
+    const ne = b.getNorthEast();
+    onBbox({ minLat: sw.lat, minLng: sw.lng, maxLat: ne.lat, maxLng: ne.lng });
+  }, [map, onBbox]);
+
+  useEffect(() => {
+    if (enabled && !wasEnabledRef.current) {
+      wasEnabledRef.current = true;
+      window.setTimeout(() => emit(), 0);
+    }
+    if (!enabled) {
+      wasEnabledRef.current = false;
+    }
+  }, [enabled, emit]);
+
+  useMapEvents({
+    moveend() {
+      if (!enabled) return;
+      window.clearTimeout(debounceRef.current);
+      debounceRef.current = window.setTimeout(() => emit(), 400);
+    },
+  });
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(debounceRef.current);
+    },
+    [],
+  );
+
+  return null;
+}
+
 function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   useEffect(() => {
@@ -75,6 +125,8 @@ export function PropertyMap({
   onSelect,
   embed = false,
   className = "",
+  searchOnMapMove = false,
+  onViewportBbox,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -115,6 +167,9 @@ export function PropertyMap({
         />
         <MapResizeInvalidate />
         <FitBounds bounds={bounds} />
+        {searchOnMapMove && onViewportBbox ? (
+          <MapViewportReporter enabled={searchOnMapMove} onBbox={onViewportBbox} />
+        ) : null}
         <MapSelectionSync selectedId={selectedId} listings={listings} />
         {listings.map((l) => {
           const selected = l.id === selectedId;
