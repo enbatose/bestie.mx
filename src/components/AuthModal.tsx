@@ -25,7 +25,7 @@ export function AuthModal() {
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
       close();
-      window.location.reload();
+      window.location.assign("/mis-anuncios");
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
@@ -48,7 +48,7 @@ export function AuthModal() {
         displayName: displayName.trim() || undefined,
       });
       close();
-      window.location.reload();
+      window.location.assign("/mis-anuncios");
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {

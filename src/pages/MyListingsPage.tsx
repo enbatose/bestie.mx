@@ -5,6 +5,7 @@ import {
   isListingsApiConfigured,
   updateListingStatus,
   updateProperty,
+  fetchPropertyWithRooms,
 } from "@/lib/listingsApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
@@ -45,6 +46,25 @@ export function MyListingsPage() {
   const [actionPropertyId, setActionPropertyId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [legalPublishByProperty, setLegalPublishByProperty] = useState<Record<string, boolean>>({});
+  const [missingByProperty, setMissingByProperty] = useState<Record<string, string>>({});
+
+  const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
+    if (!bundle) return ["No se pudo leer la propiedad"];
+    const m: string[] = [];
+    const p = bundle.property;
+    if (!p.title?.trim() || p.title.trim().toLowerCase() === "sin título") m.push("Nombre de propiedad");
+    if (!p.neighborhood?.trim()) m.push("Colonia");
+    if (!p.city?.trim()) m.push("Ciudad");
+    if (!p.contactWhatsApp?.trim() || p.contactWhatsApp.replace(/\D/g, "").length < 10) m.push("WhatsApp real");
+    if (!p.summary?.trim() || p.summary.trim().length < 20) m.push("Descripción de la propiedad");
+    if (!bundle.rooms?.length) m.push("Al menos 1 cuarto");
+    for (const r of bundle.rooms ?? []) {
+      if (!r.title?.trim()) m.push(`Título de cuarto (${r.id})`);
+      if (!r.summary?.trim()) m.push(`Descripción de cuarto (${r.id})`);
+      if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) m.push(`Renta (${r.id})`);
+    }
+    return [...new Set(m)];
+  }, []);
 
   const groups = useMemo(() => {
     if (!rows?.length) return [] as [string, PropertyListing[]][];
@@ -76,13 +96,27 @@ export function MyListingsPage() {
     try {
       const data = await fetchMyListings();
       setRows(data);
+      const propIds = [...new Set(data.map((l) => l.propertyId))];
+      const draftPropIds = propIds.filter((pid) => {
+        const any = data.find((l) => l.propertyId === pid);
+        const ps = any?.propertyStatus ?? "published";
+        return ps === "draft";
+      });
+      const nextMissing: Record<string, string> = {};
+      for (const pid of draftPropIds) {
+        const bundle = await fetchPropertyWithRooms(pid).catch(() => null);
+        const missing = computeMissing(bundle);
+        if (missing.length) nextMissing[pid] = missing.join(" · ");
+      }
+      setMissingByProperty(nextMissing);
     } catch {
       setErr("No se pudieron cargar tus anuncios.");
       setRows([]);
+      setMissingByProperty({});
     } finally {
       setBusy(false);
     }
-  }, [apiOn]);
+  }, [apiOn, computeMissing]);
 
   useEffect(() => {
     void load();
@@ -171,6 +205,10 @@ export function MyListingsPage() {
       setErr("Marca la confirmación legal antes de publicar la propiedad.");
       return;
     }
+    if (missingByProperty[propertyId]) {
+      setErr(`Completa lo siguiente antes de publicar: ${missingByProperty[propertyId]}`);
+      return;
+    }
     setActionPropertyId(propertyId);
     setErr(null);
     try {
@@ -210,8 +248,8 @@ export function MyListingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-primary">Mis anuncios</h1>
           <p className="mt-2 text-sm text-muted">
-            Solo ves anuncios creados desde este navegador (sesión anónima por cookie). Las acciones de
-            propiedad aplican a todos los cuartos de esa propiedad.
+            Aquí puedes ver tus borradores y tus anuncios activos. Un borrador puede crearse sin cuenta, pero
+            para activarlo y publicarlo necesitas iniciar sesión.
           </p>
         </div>
         <button
@@ -266,10 +304,21 @@ export function MyListingsPage() {
                       {head.propertyTitle ?? head.title}
                     </h2>
                     <p className="mt-0.5 font-mono text-xs text-muted">{propertyId}</p>
+                    {propSt === "draft" && missingByProperty[propertyId] ? (
+                      <p className="mt-2 text-xs text-amber-900">
+                        Falta: <span className="font-medium">{missingByProperty[propertyId]}</span>
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {propSt === "draft" ? (
                       <>
+                        <Link
+                          to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                          className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                        >
+                          Editar
+                        </Link>
                         <label className="flex max-w-full cursor-pointer items-center gap-2 text-xs text-body">
                           <input
                             type="checkbox"

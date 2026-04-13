@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
+import { readAuthUserId } from "./jwtSession.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import {
@@ -203,6 +204,13 @@ function parsePostLimit(): { windowMs: number; max: number } {
 
 const publishLimiter = createSlidingWindowLimiter(parsePostLimit());
 
+function publisherLinkedToUser(db: DatabaseSync, publisherId: string, userId: string): boolean {
+  const row = db
+    .prepare(`SELECT 1 AS x FROM user_publishers WHERE user_id = ? AND publisher_id = ?`)
+    .get(userId, publisherId) as { x: number } | undefined;
+  return Boolean(row?.x);
+}
+
 export function propertiesRouter(db: DatabaseSync) {
   const r = express.Router();
   const jsonMw = express.json({ limit: "512kb" });
@@ -213,6 +221,14 @@ export function propertiesRouter(db: DatabaseSync) {
    * Registered before `/:id` so the path `/publish-bundle` is not captured as an id.
    */
   r.post("/publish-bundle", jsonMw, (req: Request, res: Response) => {
+    const userId = readAuthUserId(req);
+    if (!userId) {
+      res.status(401).json({
+        error: "auth_required",
+        message: "Inicia sesión o crea una cuenta para publicar. Tu borrador se puede guardar sin cuenta.",
+      });
+      return;
+    }
     const lim = publishLimiter(rateLimitKey(req));
     if (!lim.ok) {
       const retryAfterSec = Math.ceil(lim.retryAfterMs / 1000);
@@ -321,6 +337,14 @@ export function propertiesRouter(db: DatabaseSync) {
     const showWhatsappInt = showWa === false ? 0 : 1;
 
     const publisherId = getOrCreatePublisherId(req, res);
+    if (!publisherLinkedToUser(db, publisherId, userId)) {
+      res.status(403).json({
+        error: "publisher_not_linked",
+        message:
+          "Tu sesión de publicación no está vinculada a tu cuenta. Entra o regístrate y vuelve a intentar.",
+      });
+      return;
+    }
     const propertyId = `prp__${randomUUID()}`;
     const propertyKind = optPropertyKind(p.propertyKind);
 
@@ -903,6 +927,23 @@ export function propertiesRouter(db: DatabaseSync) {
     const nextStatus = patch.status != null ? (patch.status as ListingStatus) : curStatus;
 
     if (patch.status === "published" && curStatus === "draft") {
+      const userId = readAuthUserId(req);
+      if (!userId) {
+        res.status(401).json({
+          error: "auth_required",
+          message:
+            "Tu anuncio ya está creado como borrador. Para activarlo, inicia sesión o crea una cuenta.",
+        });
+        return;
+      }
+      if (!publisherLinkedToUser(db, publisherId, userId)) {
+        res.status(403).json({
+          error: "publisher_not_linked",
+          message:
+            "Esta publicación pertenece a otra sesión. Entra en la cuenta correcta para activarla.",
+        });
+        return;
+      }
       const cnt = (
         db.prepare("SELECT COUNT(*) AS c FROM rooms WHERE property_id = ?").get(propertyId) as {
           c: number;

@@ -12,7 +12,7 @@ import {
   updateProperty,
   uploadListingImage,
 } from "@/lib/listingsApi";
-import { authLinkPublisher, consumeHandoffToken } from "@/lib/authApi";
+import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
@@ -326,6 +326,7 @@ export function PublishWizardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
+  const editPropertyId = searchParams.get("edit");
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
   const apiOn = isListingsApiConfigured();
@@ -336,6 +337,15 @@ export function PublishWizardPage() {
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!apiOn) {
+      setMe(null);
+      return;
+    }
+    void authMe().then(setMe).catch(() => setMe(null));
+  }, [apiOn]);
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -393,6 +403,39 @@ export function PublishWizardPage() {
       cancelled = true;
     };
   }, [apiOn, handoffToken, setSearchParams]);
+
+  useEffect(() => {
+    if (!editPropertyId) return;
+    if (!apiOn) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const bundle = await fetchPropertyWithRooms(editPropertyId);
+        if (bundle && !cancelled) {
+          const mapped = draftFromPropertyBundle(bundle);
+          setDraft(mapped.draft);
+          setServerSync(mapped.serverSync);
+          setHandoffBanner("Borrador cargado para editar.");
+        }
+      } catch (e) {
+        if (!cancelled) setPublishErr(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
+      } finally {
+        if (!cancelled) {
+          setSearchParams(
+            (prev) => {
+              const n = new URLSearchParams(prev);
+              n.delete("edit");
+              return n;
+            },
+            { replace: true },
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiOn, editPropertyId, setSearchParams]);
 
   const resolveLatLngForDraft = useCallback((d: Draft): { lat: number; lng: number } => {
     const anchor = CITY_ANCHOR[d.city];
@@ -1303,6 +1346,28 @@ export function PublishWizardPage() {
     const roomErr = validateRoomsForSubmit(draft);
     if (roomErr) {
       setPublishErr(roomErr);
+      return;
+    }
+    if (me === undefined) {
+      setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
+      return;
+    }
+    if (!me) {
+      setSubmitInFlight("draft");
+      try {
+        await flushWizardAutosave();
+        navigate("/entrar", {
+          replace: true,
+          state: {
+            registrationNotice:
+              "Tu anuncio ya está creado como borrador. Para activarlo y publicarlo, inicia sesión o crea una cuenta.",
+          },
+        });
+      } catch (e) {
+        setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador.");
+      } finally {
+        setSubmitInFlight(null);
+      }
       return;
     }
 

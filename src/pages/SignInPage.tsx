@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   authLinkPublisher,
   authLogin,
@@ -13,6 +13,7 @@ import {
 
 export function SignInPage() {
   const location = useLocation() as { state?: { registrationNotice?: string } };
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiOn = isAuthApiConfigured();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
@@ -89,6 +90,7 @@ export function SignInPage() {
       await authLinkPublisher();
       setMsg("Listo. Tu cuenta de WhatsApp quedó vinculada a esta sesión.");
       await refreshMe();
+      navigate("/mis-anuncios", { replace: true });
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
@@ -107,6 +109,7 @@ export function SignInPage() {
       await authLinkPublisher();
       setMsg("Sesión iniciada.");
       await refreshMe();
+      navigate("/mis-anuncios", { replace: true });
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
