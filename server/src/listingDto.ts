@@ -48,6 +48,8 @@ function optDim(v: unknown): RoomDimension | undefined {
 
 /** Maps a joined `rooms` + `properties` row (see SQL aliases in repositories). */
 export function joinRowToPropertyListing(row: Record<string, unknown>): PropertyListing {
+  const postMode: PropertyListing["propertyPostMode"] =
+    String(row.post_mode ?? "property") === "room" ? "room" : "property";
   const publisherRaw = row.publisher_id;
   const publisherId =
     publisherRaw != null && String(publisherRaw).trim() !== ""
@@ -92,6 +94,7 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     propertyId: String(row.property_id),
     propertyTitle: propertyTitle.trim() || undefined,
     propertyStatus: listingStatusFromRow(row.property_status),
+    propertyPostMode: postMode,
     title: displayTitle,
     city: String(row.city),
     neighborhood: String(row.neighborhood),
@@ -130,6 +133,7 @@ SELECT
   r.title AS room_listing_title,
   p.id AS property_id,
   p.title AS property_title,
+  p.post_mode AS post_mode,
   r.rent_mxn AS rent_mxn,
   r.rooms_available AS rooms_available,
   r.tags_json AS tags_json,

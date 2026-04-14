@@ -312,6 +312,11 @@ export function MyListingsPage() {
                         Falta: <span className="font-medium">{missingByProperty[propertyId]}</span>
                       </p>
                     ) : null}
+                    {head.propertyPostMode === "room" ? (
+                      <p className="mt-2 text-xs text-muted">
+                        Tipo: <span className="font-medium text-body">solo un cuarto</span> (puedes convertirlo a propiedad).
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {propSt === "draft" ? (
@@ -322,6 +327,14 @@ export function MyListingsPage() {
                         >
                           Editar
                         </Link>
+                        {head.propertyPostMode === "room" ? (
+                          <Link
+                            to={`/publicar?edit=${encodeURIComponent(propertyId)}&upgrade=1`}
+                            className="rounded-full bg-secondary px-4 py-2 text-xs font-semibold text-primary transition hover:brightness-95"
+                          >
+                            Convertir a propiedad
+                          </Link>
+                        ) : null}
                         <label className="flex max-w-full cursor-pointer items-center gap-2 text-xs text-body">
                           <input
                             type="checkbox"

@@ -80,6 +80,8 @@ export type PropertyListing = {
   propertyTitle?: string;
   /** Parent property status when returned from my-listings / joins. */
   propertyStatus?: ListingStatus;
+  /** Publishing strategy of the parent property. */
+  propertyPostMode?: "room" | "property";
   title: string;
   city: string;
   neighborhood: string;

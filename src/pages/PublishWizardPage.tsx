@@ -103,8 +103,13 @@ type Draft = {
   useCustomMapPin: boolean;
   customLat: string;
   customLng: string;
-  /** Shared areas / facade — `/api/uploads/...` from server. */
+  /**
+   * Tagged property images (shared areas / facade) — `/api/uploads/...` from server.
+   * Note: we don't persist per-image tags yet; this is the post-tagging bucket.
+   */
   propertyImageUrls: string[];
+  /** Untagged pool (mandatory to tag for property-mode before publishing). */
+  unassignedImageUrls: string[];
   /** One array per room index. */
   roomImageUrls: string[][];
   rooms: RoomDraft[];
@@ -153,6 +158,7 @@ const defaultDraft = (): Draft => ({
   customLat: "",
   customLng: "",
   propertyImageUrls: [],
+  unassignedImageUrls: [],
   roomImageUrls: [[]],
   rooms: [defaultRoom()],
   legalAccepted: false,
@@ -181,6 +187,9 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
   const propertyImageUrls = Array.isArray(parsed.propertyImageUrls)
     ? parsed.propertyImageUrls.filter((x): x is string => typeof x === "string")
     : [];
+  const unassignedImageUrls = Array.isArray(parsed.unassignedImageUrls)
+    ? parsed.unassignedImageUrls.filter((x): x is string => typeof x === "string")
+    : [];
   let roomImageUrls: string[][] = [];
   if (Array.isArray(parsed.roomImageUrls)) {
     roomImageUrls = parsed.roomImageUrls.map((row) =>
@@ -203,6 +212,7 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
     customLng: typeof parsed.customLng === "string" ? parsed.customLng : "",
     rooms,
     propertyImageUrls,
+    unassignedImageUrls,
     roomImageUrls,
   };
 }
@@ -300,6 +310,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     srvRooms.length === 1 && srvRooms[0]?.lodgingType === "whole_home" ? "whole_property" : "rooms_in_shared";
   const draft: Draft = {
     ...defaultDraft(),
+    postMode: p.postMode === "room" ? "room" : "property",
     publishMode,
     city,
     propertyTitle: p.title,
@@ -314,6 +325,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     customLat: usePin ? String(p.lat) : "",
     customLng: usePin ? String(p.lng) : "",
     propertyImageUrls: p.imageUrls ?? [],
+    unassignedImageUrls: [],
     roomImageUrls: srvRooms.length > 0 ? srvRooms.map((r) => r.imageUrls ?? []) : [[]],
     rooms: roomDrafts,
     legalAccepted: false,
@@ -332,6 +344,7 @@ export function PublishWizardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
+  const upgrade = searchParams.get("upgrade") === "1";
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
   const apiOn = isListingsApiConfigured();
@@ -420,7 +433,11 @@ export function PublishWizardPage() {
           const mapped = draftFromPropertyBundle(bundle);
           setDraft(mapped.draft);
           setServerSync(mapped.serverSync);
-          setHandoffBanner("Borrador cargado para editar.");
+          if (upgrade && mapped.draft.postMode === "room") {
+            setHandoffBanner("Borrador cargado. Puedes convertir este cuarto en una propiedad con varios cuartos.");
+          } else {
+            setHandoffBanner("Borrador cargado para editar.");
+          }
         }
       } catch (e) {
         if (!cancelled) setPublishErr(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
@@ -430,6 +447,7 @@ export function PublishWizardPage() {
             (prev) => {
               const n = new URLSearchParams(prev);
               n.delete("edit");
+              n.delete("upgrade");
               return n;
             },
             { replace: true },
@@ -440,7 +458,7 @@ export function PublishWizardPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiOn, editPropertyId, setSearchParams]);
+  }, [apiOn, editPropertyId, upgrade, setSearchParams]);
 
   const resolveLatLngForDraft = useCallback((d: Draft): { lat: number; lng: number } => {
     const anchor = CITY_ANCHOR[d.city];
@@ -1178,13 +1196,14 @@ export function PublishWizardPage() {
             </p>
             {draft.postMode === "property" ? (
               <BulkImageUploader
-                title="Propiedad (áreas comunes / fachada)"
-                urls={draft.propertyImageUrls}
-                maxCount={20}
+                title="Fotos sin categorizar (propiedad)"
+                urls={draft.unassignedImageUrls}
+                maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
                 apiOn={apiOn}
                 onChange={(next) => {
-                  setDraft((d) => ({ ...d, propertyImageUrls: next }));
+                  setDraft((d) => ({ ...d, unassignedImageUrls: next }));
                 }}
+                hint="Luego las etiquetas por cuarto / áreas compartidas / fachada."
               />
             ) : null}
             {draft.rooms.map((room, i) => (
@@ -1205,6 +1224,117 @@ export function PublishWizardPage() {
           </div>
         ),
       },
+      ...(draft.postMode === "property"
+        ? ([
+            {
+              title: "Etiquetar fotos",
+              body: (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted">
+                    Para una publicación de propiedad, las fotos deben estar etiquetadas antes de publicar. Puedes
+                    dejar fotos “Sin categorizar” mientras editas, pero no al momento de publicar.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                    <span>
+                      Sin categorizar: <strong className="text-body">{draft.unassignedImageUrls.length}</strong>
+                    </span>
+                    <span aria-hidden>·</span>
+                    <span>
+                      Propiedad: <strong className="text-body">{draft.propertyImageUrls.length}</strong>
+                    </span>
+                    <span aria-hidden>·</span>
+                    <span>
+                      Cuartos:{" "}
+                      <strong className="text-body">
+                        {draft.roomImageUrls.reduce((a, r) => a + (r?.length ?? 0), 0)}
+                      </strong>
+                    </span>
+                  </div>
+                  {draft.unassignedImageUrls.length ? (
+                    <button
+                      type="button"
+                      className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body hover:bg-surface-elevated"
+                      onClick={() => {
+                        setDraft((d) => ({
+                          ...d,
+                          propertyImageUrls: [...d.propertyImageUrls, ...d.unassignedImageUrls].slice(0, 20),
+                          unassignedImageUrls: [],
+                        }));
+                      }}
+                    >
+                      Etiquetar todo como “Áreas compartidas”
+                    </button>
+                  ) : null}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {draft.unassignedImageUrls.map((u) => (
+                      <div key={u} className="rounded-xl border border-border bg-surface p-3">
+                        <div className="flex items-start gap-3">
+                          <img
+                            src={apiAbsoluteUrl(u)}
+                            alt=""
+                            className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
+                            loading="lazy"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
+                              Etiqueta
+                              <select
+                                className="mt-1 w-full rounded-lg border border-border bg-bg-light px-2 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                                defaultValue="uncat"
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setDraft((d) => {
+                                    const nextUnassigned = d.unassignedImageUrls.filter((x) => x !== u);
+                                    if (v === "shared") {
+                                      return {
+                                        ...d,
+                                        unassignedImageUrls: nextUnassigned,
+                                        propertyImageUrls: [...d.propertyImageUrls, u].slice(0, 20),
+                                      };
+                                    }
+                                    if (v === "facade") {
+                                      const without = d.propertyImageUrls.filter((x) => x !== u);
+                                      return {
+                                        ...d,
+                                        unassignedImageUrls: nextUnassigned,
+                                        propertyImageUrls: [u, ...without].slice(0, 20),
+                                      };
+                                    }
+                                    if (v.startsWith("room:")) {
+                                      const idx = Number(v.split(":")[1] ?? "1") - 1;
+                                      if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
+                                      return {
+                                        ...d,
+                                        unassignedImageUrls: nextUnassigned,
+                                        roomImageUrls: d.roomImageUrls.map((row, ri) =>
+                                          ri === idx ? [...row, u].slice(0, 20) : row,
+                                        ),
+                                      };
+                                    }
+                                    return d;
+                                  });
+                                }}
+                              >
+                                <option value="uncat">Sin categorizar</option>
+                                <option value="shared">Áreas compartidas</option>
+                                <option value="facade">Fachada</option>
+                                {draft.rooms.map((r, idx) => (
+                                  <option key={idx} value={`room:${idx + 1}`}>
+                                    Cuarto {idx + 1}: {r.title.trim() || "Sin título"}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ),
+            },
+          ] as const)
+        : []),
       {
         title: "Publicar",
         body: (
@@ -1249,12 +1379,15 @@ export function PublishWizardPage() {
   }
 
   const publishBlockedReason = useMemo(() => {
-    if (!draft.propertyTitle.trim()) return "Agrega el nombre de la propiedad.";
-    if (draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+    if (draft.postMode !== "room" && !draft.propertyTitle.trim()) return "Agrega el nombre de la propiedad.";
+    if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
       return `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
     }
     if (normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
       return "Agrega un WhatsApp válido (al menos 10 dígitos).";
+    }
+    if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
+      return "Etiqueta tus fotos (Sin categorizar) antes de publicar.";
     }
     if (!draft.legalAccepted) {
       return "Marca la casilla de confirmación legal para publicar.";
@@ -1283,6 +1416,10 @@ export function PublishWizardPage() {
     }
     if (!draft.legalAccepted) {
       setPublishErr("Debes aceptar la confirmación legal.");
+      return;
+    }
+    if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
+      setPublishErr("Etiqueta tus fotos (Sin categorizar) antes de publicar.");
       return;
     }
     const roomErr = validateRoomsForSubmit(draft);
@@ -1450,6 +1587,27 @@ export function PublishWizardPage() {
         <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
           {handoffBanner}
         </p>
+      ) : null}
+      {draft.postMode === "room" ? (
+        <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4">
+          <p className="text-sm text-body">
+            Estás publicando <strong>solo un cuarto</strong>. Si después quieres subir más fotos, agregar cuartos o
+            etiquetar fotos por cuarto/áreas compartidas/fachada, puedes convertirlo a propiedad.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              setDraft((d) => ({
+                ...d,
+                postMode: "property",
+                propertySummary: d.propertySummary.trim() ? d.propertySummary : DEFAULT_PROPERTY_SUMMARY,
+              }))
+            }
+            className="mt-3 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary transition hover:brightness-95"
+          >
+            Convertir a propiedad
+          </button>
+        </div>
       ) : null}
       {apiOn ? (
         <p className="mt-2 text-xs text-muted" aria-live="polite">

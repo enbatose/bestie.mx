@@ -85,6 +85,8 @@ export type PropertyListing = {
   propertyTitle?: string;
   /** Parent property lifecycle (same join). */
   propertyStatus?: ListingStatus;
+  /** Publishing strategy of the parent property. */
+  propertyPostMode?: "room" | "property";
   /** From parent property join. */
   propertyBedroomsTotal: number;
   propertyBathrooms: number;
