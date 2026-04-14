@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
+import { BulkImageUploader } from "@/components/BulkImageUploader";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
@@ -10,7 +11,6 @@ import {
   patchDraftRoom,
   publishPropertyBundle,
   updateProperty,
-  uploadListingImage,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -85,6 +85,8 @@ type RoomDraft = {
 type PublishOfferMode = "rooms_in_shared" | "whole_property";
 
 type Draft = {
+  /** Strategy: 'room' = single-room post; 'property' = property/multi-room post. */
+  postMode: "room" | "property";
   publishMode: PublishOfferMode;
   city: (typeof CITIES)[number];
   propertyTitle: string;
@@ -136,6 +138,7 @@ const wholePropertyRoom = (): RoomDraft => ({
 });
 
 const defaultDraft = (): Draft => ({
+  postMode: "property",
   publishMode: "rooms_in_shared",
   city: "Guadalajara",
   propertyTitle: "",
@@ -158,6 +161,7 @@ const defaultDraft = (): Draft => ({
 function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
   const baseRooms = Array.isArray(parsed.rooms) && parsed.rooms.length ? parsed.rooms : [defaultRoom()];
   const rooms = baseRooms.map((r) => ({ ...defaultRoom(), ...r }));
+  const postMode: Draft["postMode"] = parsed.postMode === "room" || parsed.postMode === "property" ? parsed.postMode : "property";
   const publishMode: PublishOfferMode =
     parsed.publishMode === "whole_property" || parsed.publishMode === "rooms_in_shared"
       ? parsed.publishMode
@@ -188,6 +192,7 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
   return {
     ...defaultDraft(),
     ...parsed,
+    postMode,
     publishMode,
     propertyKind: pk,
     propertyBedroomsTotal: bed,
@@ -518,6 +523,7 @@ export function PublishWizardPage() {
       }
 
       await updateProperty(propertyId!, {
+        postMode: d.postMode,
         title: d.propertyTitle.trim() || "Sin título",
         summary: d.propertySummary.trim(),
         city: d.city,
@@ -580,6 +586,7 @@ export function PublishWizardPage() {
   }
 
   function addRoom() {
+    if (draftRef.current.postMode === "room") return;
     if (draftRef.current.publishMode === "whole_property") return;
     setDraft((d) => ({
       ...d,
@@ -590,6 +597,7 @@ export function PublishWizardPage() {
   }
 
   function removeRoom(i: number) {
+    if (draftRef.current.postMode === "room") return;
     if (draftRef.current.publishMode === "whole_property" && draftRef.current.rooms.length <= 1) return;
     const pid = serverSyncRef.current.propertyId;
     const rid = serverSyncRef.current.roomIds[i];
@@ -611,21 +619,44 @@ export function PublishWizardPage() {
   const steps = useMemo(
     () => [
       {
-        title: "¿Qué ofreces?",
+        title: "¿Qué quieres publicar?",
         body: (
           <div className="space-y-4">
             <p className="text-sm text-muted">
-              Paso 1 (estilo Roomix): indica si publicas cuarto(s) en un depa compartido o la vivienda completa en un
-              solo anuncio.
+              Empieza rápido con un solo cuarto o crea una propiedad con varios cuartos.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() =>
+                  setDraft((d) => ({
+                    ...d,
+                    postMode: "room",
+                    publishMode: "rooms_in_shared",
+                    rooms: [defaultRoom()],
+                    roomImageUrls: [d.roomImageUrls[0] ?? []],
+                    propertySummary: "",
+                  }))
+                }
+                className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
+                  draft.postMode === "room"
+                    ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
+                    : "border-border bg-surface hover:bg-surface-elevated"
+                }`}
+              >
+                <div className="text-base font-bold text-primary">Solo un cuarto</div>
+                <p className="mt-2 text-xs text-muted">
+                  Publica un solo cuarto ahora. Luego puedes convertirlo en propiedad y agregar más cuartos.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
                   setDraft((d) => {
-                    if (d.publishMode === "rooms_in_shared") return d;
+                    if (d.postMode === "property" && d.publishMode === "rooms_in_shared") return d;
                     return {
                       ...d,
+                      postMode: "property",
                       publishMode: "rooms_in_shared",
                       rooms: [defaultRoom()],
                       roomImageUrls: [[]],
@@ -633,7 +664,7 @@ export function PublishWizardPage() {
                   })
                 }
                 className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                  draft.publishMode === "rooms_in_shared"
+                  draft.postMode === "property" && draft.publishMode === "rooms_in_shared"
                     ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
                     : "border-border bg-surface hover:bg-surface-elevated"
                 }`}
@@ -645,9 +676,10 @@ export function PublishWizardPage() {
                 type="button"
                 onClick={() =>
                   setDraft((d) => {
-                    if (d.publishMode === "whole_property") return d;
+                    if (d.postMode === "property" && d.publishMode === "whole_property") return d;
                     return {
                       ...d,
+                      postMode: "property",
                       publishMode: "whole_property",
                       rooms: [wholePropertyRoom()],
                       roomImageUrls: [[]],
@@ -655,7 +687,7 @@ export function PublishWizardPage() {
                   })
                 }
                 className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                  draft.publishMode === "whole_property"
+                  draft.postMode === "property" && draft.publishMode === "whole_property"
                     ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
                     : "border-border bg-surface hover:bg-surface-elevated"
                 }`}
@@ -1141,124 +1173,34 @@ export function PublishWizardPage() {
         body: (
           <div className="space-y-6">
             <p className="text-sm text-muted">
-              Sube fotos de áreas comunes o fachada (propiedad) y fotos específicas de cada cuarto. Formatos: JPEG,
-              PNG o Webp. Máximo ~5&nbsp;MB por imagen.
+              Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después podrás
+              etiquetarlas por cuarto/áreas compartidas/fachada.
             </p>
-            <div>
-              <h3 className="text-sm font-semibold text-body">Propiedad</h3>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {draft.propertyImageUrls.map((u, ix) => (
-                  <div
-                    key={`${u}-${ix}`}
-                    className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-bg-light"
-                  >
-                    <img src={apiAbsoluteUrl(u)} alt="" className="h-full w-full object-cover" />
-                    <button
-                      type="button"
-                      className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white"
-                      onClick={() =>
-                        setDraft((d) => ({
-                          ...d,
-                          propertyImageUrls: d.propertyImageUrls.filter((_, j) => j !== ix),
-                        }))
-                      }
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <label className="mt-3 inline-flex cursor-pointer rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = "";
-                    if (!f) return;
-                    if (!apiOn) {
-                      setPublishErr("Configura VITE_API_URL para subir imágenes al servidor.");
-                      return;
-                    }
-                    void (async () => {
-                      try {
-                        const url = await uploadListingImage(f);
-                        setDraft((d) => ({
-                          ...d,
-                          propertyImageUrls: [...d.propertyImageUrls, url].slice(0, 12),
-                        }));
-                        setPublishErr(null);
-                      } catch (err) {
-                        setPublishErr(err instanceof Error ? err.message : "No se pudo subir la imagen.");
-                      }
-                    })();
-                  }}
-                />
-                + Añadir foto de la propiedad
-              </label>
-            </div>
+            {draft.postMode === "property" ? (
+              <BulkImageUploader
+                title="Propiedad (áreas comunes / fachada)"
+                urls={draft.propertyImageUrls}
+                maxCount={20}
+                apiOn={apiOn}
+                onChange={(next) => {
+                  setDraft((d) => ({ ...d, propertyImageUrls: next }));
+                }}
+              />
+            ) : null}
             {draft.rooms.map((room, i) => (
-              <div key={i} className="rounded-xl border border-border bg-surface-elevated/30 p-4">
-                <h3 className="text-sm font-semibold text-body">
-                  Cuarto {i + 1}: {room.title.trim() || "Sin título"}
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(draft.roomImageUrls[i] ?? []).map((u, ix) => (
-                    <div
-                      key={`${u}-${ix}`}
-                      className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-bg-light"
-                    >
-                      <img src={apiAbsoluteUrl(u)} alt="" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white"
-                        onClick={() =>
-                          setDraft((d) => ({
-                            ...d,
-                            roomImageUrls: d.roomImageUrls.map((row, ri) =>
-                              ri === i ? row.filter((_, j) => j !== ix) : row,
-                            ),
-                          }))
-                        }
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <label className="mt-3 inline-flex cursor-pointer rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!f) return;
-                      if (!apiOn) {
-                        setPublishErr("Configura VITE_API_URL para subir imágenes al servidor.");
-                        return;
-                      }
-                      void (async () => {
-                        try {
-                          const url = await uploadListingImage(f);
-                          setDraft((d) => ({
-                            ...d,
-                            roomImageUrls: d.roomImageUrls.map((row, ri) =>
-                              ri === i ? [...row, url].slice(0, 12) : row,
-                            ),
-                          }));
-                          setPublishErr(null);
-                        } catch (err) {
-                          setPublishErr(err instanceof Error ? err.message : "No se pudo subir la imagen.");
-                        }
-                      })();
-                    }}
-                  />
-                  + Foto de este cuarto
-                </label>
-              </div>
+              <BulkImageUploader
+                key={i}
+                title={`Cuarto ${i + 1}: ${room.title.trim() || "Sin título"}`}
+                urls={draft.roomImageUrls[i] ?? []}
+                maxCount={20}
+                apiOn={apiOn}
+                onChange={(next) => {
+                  setDraft((d) => ({
+                    ...d,
+                    roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
+                  }));
+                }}
+              />
             ))}
           </div>
         ),
@@ -1325,11 +1267,11 @@ export function PublishWizardPage() {
     const anchor = CITY_ANCHOR[draft.city];
     const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
-    if (!draft.propertyTitle.trim()) {
+    if (draft.postMode !== "room" && !draft.propertyTitle.trim()) {
       setPublishErr("Agrega el nombre de la propiedad.");
       return;
     }
-    if (draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+    if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
       setPublishErr(
         `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres (campos obligatorios alineados con Roomix).`,
       );
@@ -1381,6 +1323,7 @@ export function PublishWizardPage() {
       if (apiOn && sync?.propertyId && firstRoomId) {
         await updateProperty(sync.propertyId, {
           status: "published",
+          postMode: draft.postMode,
           title: draft.propertyTitle.trim(),
           summary: draft.propertySummary.trim(),
           city: draft.city,
@@ -1409,6 +1352,7 @@ export function PublishWizardPage() {
       const res = await publishPropertyBundle({
         legalAccepted: true,
         property: {
+          postMode: draft.postMode,
           title: draft.propertyTitle.trim(),
           city: draft.city,
           neighborhood,
@@ -1465,14 +1409,12 @@ export function PublishWizardPage() {
     const anchor = CITY_ANCHOR[draft.city];
     const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
-    if (!draft.propertyTitle.trim()) {
+    if (draft.postMode !== "room" && !draft.propertyTitle.trim()) {
       setPublishErr("Agrega el nombre de la propiedad.");
       return;
     }
-    if (draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-      setPublishErr(
-        `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`,
-      );
+    if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+      setPublishErr(`La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`);
       return;
     }
     if (digits.length < 10) {
@@ -1500,8 +1442,9 @@ export function PublishWizardPage() {
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
       <p className="mt-2 text-sm text-muted">
-        Modelo v1: una <strong className="font-medium text-body">propiedad</strong> y uno o más{" "}
-        <strong className="font-medium text-body">cuartos</strong> con renta y descripción propias.
+        Elige cómo empezar:{" "}
+        <strong className="font-medium text-body">un solo cuarto</strong> (rápido) o{" "}
+        <strong className="font-medium text-body">una propiedad con varios cuartos</strong>.
       </p>
       {handoffBanner ? (
         <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">

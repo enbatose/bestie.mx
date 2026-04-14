@@ -52,11 +52,14 @@ export function MyListingsPage() {
     if (!bundle) return ["No se pudo leer la propiedad"];
     const m: string[] = [];
     const p = bundle.property;
-    if (!p.title?.trim() || p.title.trim().toLowerCase() === "sin título") m.push("Nombre de propiedad");
+    const isRoomPost = p.postMode === "room";
+    if (!isRoomPost && (!p.title?.trim() || p.title.trim().toLowerCase() === "sin título")) {
+      m.push("Nombre de propiedad");
+    }
     if (!p.neighborhood?.trim()) m.push("Colonia");
     if (!p.city?.trim()) m.push("Ciudad");
     if (!p.contactWhatsApp?.trim() || p.contactWhatsApp.replace(/\D/g, "").length < 10) m.push("WhatsApp real");
-    if (!p.summary?.trim() || p.summary.trim().length < 20) m.push("Descripción de la propiedad");
+    if (!isRoomPost && (!p.summary?.trim() || p.summary.trim().length < 20)) m.push("Descripción de la propiedad");
     if (!bundle.rooms?.length) m.push("Al menos 1 cuarto");
     for (const r of bundle.rooms ?? []) {
       if (!r.title?.trim()) m.push(`Título de cuarto (${r.id})`);

@@ -65,6 +65,7 @@ export type CreateListingPayload = Omit<
 export type PublishBundlePayload = {
   legalAccepted: boolean;
   property: {
+    postMode?: "room" | "property";
     title: string;
     city: string;
     neighborhood: string;
@@ -142,6 +143,7 @@ export async function publishPropertyBundle(
 }
 
 export type CreateDraftPropertyPayload = {
+  postMode?: "room" | "property";
   title: string;
   city: string;
   neighborhood: string;
@@ -178,6 +180,7 @@ export type AddDraftRoomPayload = {
 
 export type UpdatePropertyPayload = {
   status?: ListingStatus;
+  postMode?: "room" | "property";
   title?: string;
   summary?: string;
   city?: string;

@@ -22,6 +22,8 @@ export type Property = {
   id: string;
   publisherId: string;
   status: ListingStatus;
+  /** Strategy: 'room' = single-room post; 'property' = multi-room/property post. */
+  postMode?: "room" | "property";
   title: string;
   city: string;
   neighborhood: string;

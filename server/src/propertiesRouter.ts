@@ -101,6 +101,8 @@ function rowToProperty(row: Record<string, unknown>): Property {
   const pk = optPropertyKind(row.property_kind);
   const st = String(row.status ?? "draft");
   const status: ListingStatus = isListingStatus(st) ? st : "draft";
+  const pmRaw = String(row.post_mode ?? "property");
+  const postMode: "room" | "property" = pmRaw === "room" ? "room" : "property";
   const sw = row.show_whatsapp;
   const showWhatsApp = !(sw === 0 || sw === false || sw === "0");
   const imageUrls = imageUrlsFromRow(row.image_urls_json);
@@ -108,6 +110,7 @@ function rowToProperty(row: Record<string, unknown>): Property {
     id: String(row.id),
     publisherId: String(row.publisher_id),
     status,
+    postMode,
     title: String(row.title),
     city: String(row.city),
     neighborhood: String(row.neighborhood),
@@ -323,7 +326,10 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_body" });
       return;
     }
-    if (!minimalPropertySummaryOk(ps)) {
+    const postModeRaw = (p as { postMode?: unknown; post_mode?: unknown }).postMode ?? (p as { post_mode?: unknown }).post_mode;
+    const postMode: "room" | "property" =
+      (typeof postModeRaw === "string" ? postModeRaw : "") === "room" ? "room" : "property";
+    if (postMode !== "room" && !minimalPropertySummaryOk(ps)) {
       res.status(400).json({
         error: "invalid_body",
         message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters.`,
@@ -354,9 +360,9 @@ export function propertiesRouter(db: DatabaseSync) {
 
     const insertProp = db.prepare(`
       INSERT INTO properties (
-        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+        id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertRoom = db.prepare(`
       INSERT INTO rooms (
@@ -371,6 +377,7 @@ export function propertiesRouter(db: DatabaseSync) {
       insertProp.run(
         propertyId,
         publisherId,
+        postMode,
         pt,
         pc,
         pn,
@@ -497,6 +504,7 @@ export function propertiesRouter(db: DatabaseSync) {
     }
     const publisherId = getOrCreatePublisherId(req, res);
     const body = req.body as Partial<Property>;
+    const postMode: "room" | "property" = body.postMode === "room" ? "room" : "property";
     if (
       typeof body.title !== "string" ||
       typeof body.city !== "string" ||
@@ -537,12 +545,13 @@ export function propertiesRouter(db: DatabaseSync) {
     );
     db.prepare(
       `INSERT INTO properties (
-        id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
+        id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
+      postMode,
       titleOrDefault,
       city,
       neighborhood,
@@ -848,6 +857,7 @@ export function propertiesRouter(db: DatabaseSync) {
 
     const patch = req.body as {
       status?: unknown;
+      postMode?: unknown;
       title?: unknown;
       summary?: unknown;
       city?: unknown;
@@ -956,7 +966,12 @@ export function propertiesRouter(db: DatabaseSync) {
         });
         return;
       }
-      if (!minimalPropertySummaryOk(nextSummary)) {
+      const curMode = String(prop.post_mode ?? "property") === "room" ? "room" : "property";
+      const nextMode =
+        patch.postMode != null && typeof patch.postMode === "string" && patch.postMode === "property"
+          ? "property"
+          : curMode;
+      if (nextMode !== "room" && !minimalPropertySummaryOk(nextSummary)) {
         res.status(400).json({
           error: "invalid_body",
           message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters before publishing.`,
@@ -987,15 +1002,27 @@ export function propertiesRouter(db: DatabaseSync) {
         ? JSON.stringify(clampListingImageUrls(patch.imageUrls))
         : String(prop.image_urls_json ?? "[]");
 
+    const curMode = String(prop.post_mode ?? "property") === "room" ? "room" : "property";
+    const nextMode =
+      patch.postMode != null && typeof patch.postMode === "string"
+        ? patch.postMode === "room"
+          ? "room"
+          : patch.postMode === "property"
+            ? "property"
+            : curMode
+        : curMode;
+
     db.prepare(
       `UPDATE properties SET
         status = ?,
+        post_mode = ?,
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
         bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?
       WHERE id = ?`,
     ).run(
       nextStatus,
+      nextMode,
       nextTitle,
       nextSummary,
       nextCity,

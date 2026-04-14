@@ -163,12 +163,19 @@ function migrateImageUrlsJson(db: DatabaseSync): void {
   }
 }
 
+function migratePropertyPostMode(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "post_mode")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN post_mode TEXT NOT NULL DEFAULT 'property'`);
+  }
+}
+
 function ensurePhaseBSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS properties (
       id TEXT PRIMARY KEY,
       publisher_id TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'draft',
+      post_mode TEXT NOT NULL DEFAULT 'property',
       title TEXT NOT NULL,
       city TEXT NOT NULL,
       neighborhood TEXT NOT NULL,
@@ -214,6 +221,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   `);
   migratePhaseBRoomixColumns(db);
   migrateImageUrlsJson(db);
+  migratePropertyPostMode(db);
 }
 
 function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
