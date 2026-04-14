@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { readPublisherIdFromRequest, getOrCreatePublisherId } from "./session.js";
+import { readAuthUserId } from "./jwtSession.js";
 
 export function analyticsRouter(db: DatabaseSync) {
   const r = express.Router();
+  const jsonMw = express.json({ limit: "64kb" });
 
   r.post("/heartbeat", (req: Request, res: Response) => {
     const pub = readPublisherIdFromRequest(req) ?? getOrCreatePublisherId(req, res);
@@ -46,6 +49,31 @@ export function analyticsRouter(db: DatabaseSync) {
       dauPublishersApprox: dauRow?.value ?? 0,
       day,
     });
+  });
+
+  r.post("/event", jsonMw, (req: Request, res: Response) => {
+    const pub = readPublisherIdFromRequest(req) ?? getOrCreatePublisherId(req, res);
+    const userId = readAuthUserId(req);
+    const body = req.body as { name?: unknown; payload?: unknown };
+    const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
+    if (!name) {
+      res.status(400).json({ error: "invalid_name" });
+      return;
+    }
+    let payloadJson = "{}";
+    try {
+      payloadJson =
+        body.payload === undefined ? "{}" : JSON.stringify(body.payload, (_k, v) => (v === undefined ? null : v));
+      if (payloadJson.length > 20_000) payloadJson = payloadJson.slice(0, 20_000);
+    } catch {
+      payloadJson = "{}";
+    }
+    const id = randomUUID();
+    const createdAt = Date.now();
+    db.prepare(
+      `INSERT INTO client_events (id, created_at, publisher_id, user_id, name, payload_json) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(id, createdAt, pub, userId ?? null, name, payloadJson);
+    res.status(202).json({ ok: true });
   });
 
   return r;

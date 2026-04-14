@@ -91,6 +91,17 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
       PRIMARY KEY (day, publisher_id)
     );
 
+    CREATE TABLE IF NOT EXISTS client_events (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      publisher_id TEXT NOT NULL,
+      user_id TEXT,
+      name TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_client_events_created_at ON client_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_client_events_name ON client_events(name);
+
     CREATE TABLE IF NOT EXISTS messenger_chat_sessions (
       psid TEXT PRIMARY KEY,
       publisher_id TEXT NOT NULL,

@@ -187,6 +187,22 @@ export async function analyticsHeartbeat(signal?: AbortSignal): Promise<void> {
   });
 }
 
+export async function analyticsEvent(
+  name: string,
+  payload: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  if (!base) return;
+  await fetch(`${base}/api/analytics/event`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ name, payload }),
+    signal,
+  }).catch(() => null);
+}
+
 export async function fetchFeaturedCities(signal?: AbortSignal): Promise<string[]> {
   const base = apiBase();
   if (!base) return [];
