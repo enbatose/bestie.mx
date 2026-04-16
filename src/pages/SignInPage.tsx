@@ -151,8 +151,14 @@ export function SignInPage() {
                 setMsg(null);
                 setResendBusy(true);
                 try {
-                  await authResendVerification(me.email);
-                  setMsg("Listo. Si el correo está configurado en el servidor, te reenviamos el enlace.");
+                  const dr = await authResendVerification(me.email);
+                  if (dr.emailDispatch === "failed") {
+                    setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP en el servidor (GET /api/health).");
+                  } else if (dr.emailDispatch === "skipped_no_smtp") {
+                    setErr("El servidor no tiene envío de correo configurado (SMTP).");
+                  } else {
+                    setMsg("Listo. Revisa tu bandeja (y spam).");
+                  }
                 } catch (x) {
                   setErr(x instanceof Error ? x.message : "Error");
                 } finally {
@@ -339,8 +345,14 @@ export function SignInPage() {
                   setMsg(null);
                   setResendBusy(true);
                   try {
-                    await authResendVerification(loginUnverifiedEmail);
-                    setMsg("Listo. Si SMTP está configurado en el servidor, te reenviamos el enlace (revisa spam).");
+                    const dr = await authResendVerification(loginUnverifiedEmail);
+                    if (dr.emailDispatch === "failed") {
+                      setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP (GET /api/health).");
+                    } else if (dr.emailDispatch === "skipped_no_smtp") {
+                      setErr("El servidor no tiene SMTP configurado.");
+                    } else {
+                      setMsg("Listo. Revisa tu bandeja (y spam).");
+                    }
                   } catch (x) {
                     setErr(x instanceof Error ? x.message : "Error");
                   } finally {

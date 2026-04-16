@@ -67,7 +67,7 @@ export function authRouter(db: DatabaseSync) {
     res.redirect(302, `${base}/entrar?verified=1`);
   });
 
-  r.post("/register", jsonMw(), (req: Request, res: Response) => {
+  r.post("/register", jsonMw(), async (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
@@ -96,20 +96,23 @@ export function authRouter(db: DatabaseSync) {
     }
     const rawVerify = createEmailVerificationToken(db, id);
     const verifyUrl = `${verificationLinkBase()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
-    void sendVerificationEmail(email, verifyUrl).catch((e) => {
-      console.warn(`[email] verification send failed: ${e instanceof Error ? e.message : String(e)}`);
-    });
+    const emailResult = await sendVerificationEmail(email, verifyUrl);
+    if (emailResult.status === "failed") {
+      console.error(`[email] registration verify mail failed for ${email}: ${emailResult.detail ?? "unknown"}`);
+    }
     const devVerificationUrl = process.env.NODE_ENV !== "production" ? verifyUrl : undefined;
     res.status(201).json({
       id,
       email,
       displayName: displayName || email.split("@")[0],
+      emailDispatch: emailResult.status,
+      ...(emailResult.status === "failed" && emailResult.detail ? { emailError: emailResult.detail } : {}),
       ...(strict ? { verificationPending: true } : {}),
       ...(devVerificationUrl ? { devVerificationUrl } : {}),
     });
   });
 
-  r.post("/resend-verification", jsonMw(), (req: Request, res: Response) => {
+  r.post("/resend-verification", jsonMw(), async (req: Request, res: Response) => {
     const lim = emailVerifyLimiter(`${req.ip ?? "ip"}:${String((req.body as { email?: string }).email ?? "")}`);
     if (!lim.ok) {
       res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
@@ -135,10 +138,15 @@ export function authRouter(db: DatabaseSync) {
     }
     const rawVerify = createEmailVerificationToken(db, u.id);
     const verifyUrl = `${verificationLinkBase()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
-    void sendVerificationEmail(email, verifyUrl).catch((e) => {
-      console.warn(`[email] verification resend failed: ${e instanceof Error ? e.message : String(e)}`);
+    const emailResult = await sendVerificationEmail(email, verifyUrl);
+    if (emailResult.status === "failed") {
+      console.error(`[email] resend verify mail failed for ${email}: ${emailResult.detail ?? "unknown"}`);
+    }
+    res.json({
+      ok: true,
+      emailDispatch: emailResult.status,
+      ...(emailResult.status === "failed" && emailResult.detail ? { emailError: emailResult.detail } : {}),
     });
-    res.json({ ok: true });
   });
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {

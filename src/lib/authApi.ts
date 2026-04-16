@@ -47,12 +47,22 @@ export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
   return (await res.json()) as AuthMe;
 }
 
+export type EmailDispatch = "sent" | "skipped_no_smtp" | "failed";
+
 export type RegisterResult = {
   me: AuthMe | null;
   /** Present when the server created the account but did not start a session (production email flow). */
   verificationPending?: boolean;
   registeredEmail?: string;
   devVerificationUrl?: string;
+  /** Whether the verification email was accepted by SMTP (see /api/health if failed). */
+  emailDispatch?: EmailDispatch;
+  emailError?: string;
+};
+
+export type ResendVerificationResult = {
+  emailDispatch?: EmailDispatch;
+  emailError?: string;
 };
 
 export async function authRegister(
@@ -80,12 +90,16 @@ export async function authRegister(
     email?: string;
     devVerificationUrl?: string;
     verificationPending?: boolean;
+    emailDispatch?: EmailDispatch;
+    emailError?: string;
   };
   if (created.verificationPending) {
     return {
       me: null,
       verificationPending: true,
       registeredEmail: typeof created.email === "string" ? created.email : undefined,
+      ...(typeof created.emailDispatch === "string" ? { emailDispatch: created.emailDispatch } : {}),
+      ...(typeof created.emailError === "string" ? { emailError: created.emailError } : {}),
       ...(typeof created.devVerificationUrl === "string"
         ? { devVerificationUrl: created.devVerificationUrl }
         : {}),
@@ -95,6 +109,8 @@ export async function authRegister(
   if (!me) throw new Error("register_session_missing");
   return {
     me,
+    ...(typeof created.emailDispatch === "string" ? { emailDispatch: created.emailDispatch } : {}),
+    ...(typeof created.emailError === "string" ? { emailError: created.emailError } : {}),
     ...(typeof created.devVerificationUrl === "string"
       ? { devVerificationUrl: created.devVerificationUrl }
       : {}),
@@ -134,7 +150,10 @@ export async function authLogin(
   }
 }
 
-export async function authResendVerification(email: string, signal?: AbortSignal): Promise<void> {
+export async function authResendVerification(
+  email: string,
+  signal?: AbortSignal,
+): Promise<ResendVerificationResult> {
   const base = apiBase();
   const res = await networkFetch(`${base}/api/auth/resend-verification`, {
     method: "POST",
@@ -150,6 +169,14 @@ export async function authResendVerification(email: string, signal?: AbortSignal
     }
     throw new Error(j.error || `resend_${res.status}`);
   }
+  const j = (await res.json().catch(() => ({}))) as {
+    emailDispatch?: EmailDispatch;
+    emailError?: string;
+  };
+  return {
+    ...(typeof j.emailDispatch === "string" ? { emailDispatch: j.emailDispatch } : {}),
+    ...(typeof j.emailError === "string" ? { emailError: j.emailError } : {}),
+  };
 }
 
 export async function authLogout(signal?: AbortSignal): Promise<void> {

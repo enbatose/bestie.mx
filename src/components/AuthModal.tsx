@@ -46,9 +46,14 @@ export function AuthModal() {
         displayName: displayName.trim() || undefined,
       });
       if (r.verificationPending) {
-        const registrationNotice = r.devVerificationUrl
+        let registrationNotice = r.devVerificationUrl
           ? `Cuenta creada. Verifica tu correo (dev): ${r.devVerificationUrl}`
           : "Cuenta creada. Te enviamos un enlace de verificación. Ábrelo y luego entra con tu correo y contraseña.";
+        if (r.emailDispatch === "failed") {
+          registrationNotice = `Cuenta creada, pero el correo no se envió: ${r.emailError ?? "SMTP"}. Revisa GET /api/health → smtp.`;
+        } else if (r.emailDispatch === "skipped_no_smtp") {
+          registrationNotice = "Cuenta creada, pero el servidor no tiene SMTP: no se envió correo.";
+        }
         close();
         navigate("/entrar", { replace: true, state: { registrationNotice } });
         return;
@@ -166,8 +171,14 @@ export function AuthModal() {
                   setResendOk(null);
                   setResendBusy(true);
                   try {
-                    await authResendVerification(email.trim().toLowerCase());
-                    setResendOk("Si el servidor tiene SMTP configurado, revisa tu correo (y spam).");
+                    const dr = await authResendVerification(email.trim().toLowerCase());
+                    if (dr.emailDispatch === "failed") {
+                      setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP en el servidor.");
+                    } else if (dr.emailDispatch === "skipped_no_smtp") {
+                      setErr("El servidor no tiene SMTP configurado.");
+                    } else {
+                      setResendOk("Revisa tu correo (y spam).");
+                    }
                   } catch (x) {
                     setErr(x instanceof Error ? x.message : "Error");
                   } finally {

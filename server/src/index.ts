@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
+import { verifySmtpConnection } from "./mailer.js";
 
 /** When `index.html` exists, API + SPA share one origin (see `createApp` `webDistDir`). */
 function resolveWebDistDir(): string | undefined {
@@ -72,4 +73,5 @@ app.listen(PORT, "0.0.0.0", () => {
   if (webDistDir) {
     console.log(`[web] SPA + API same origin from ${webDistDir}`);
   }
+  void verifySmtpConnection();
 });

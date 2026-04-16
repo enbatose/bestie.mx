@@ -14,7 +14,7 @@ import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { uploadsRouter } from "./uploadsRouter.js";
-import { smtpConfigured } from "./mailer.js";
+import { getSmtpDiagnostics, smtpConfigured } from "./mailer.js";
 
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
@@ -66,11 +66,21 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   );
 
   app.get("/api/health", (_req: Request, res: Response) => {
+    const smtp = getSmtpDiagnostics();
     res.json({
       ok: true,
       service: "bestie-mx-api",
       database: databaseLabel,
       smtpConfigured: smtpConfigured(),
+      smtp: {
+        configured: smtp.configured,
+        verifyOk: smtp.verifyOk,
+        verifiedAt: smtp.verifiedAt,
+        verifyError: smtp.verifyError,
+        lastSendStatus: smtp.lastSendStatus,
+        lastSendAt: smtp.lastSendAt,
+        lastSendError: smtp.lastSendError,
+      },
       ...(databasePath ? { databasePath } : {}),
       ...(instanceId ? { instanceId } : {}),
     });

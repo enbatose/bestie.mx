@@ -33,9 +33,15 @@ export function RegisterPage() {
               displayName: displayName.trim() || undefined,
             });
             if (r.verificationPending) {
-              const registrationNotice = r.devVerificationUrl
+              let registrationNotice = r.devVerificationUrl
                 ? `Cuenta creada. Verifica tu correo con este enlace (solo desarrollo): ${r.devVerificationUrl}`
                 : "Cuenta creada. Te enviamos un enlace de verificación al correo (revisa spam). Ábrelo y luego vuelve aquí para iniciar sesión.";
+              if (r.emailDispatch === "failed") {
+                registrationNotice = `Cuenta creada, pero el correo no se pudo enviar: ${r.emailError ?? "error SMTP"}. Revisa en el servidor SMTP_SERVICE=gmail, SMTP_USER y contraseña de aplicación; consulta GET /api/health (campo smtp).`;
+              } else if (r.emailDispatch === "skipped_no_smtp") {
+                registrationNotice =
+                  "Cuenta creada, pero el servidor no tiene SMTP configurado: no se envió ningún correo. Configura Gmail u otro SMTP en las variables de entorno.";
+              }
               navigate("/entrar", { replace: true, state: { registrationNotice } });
               return;
             }
