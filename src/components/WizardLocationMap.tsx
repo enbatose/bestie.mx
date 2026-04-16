@@ -28,7 +28,8 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
     <MapContainer
       center={center}
       zoom={13}
-      className="z-0 h-72 w-full overflow-hidden rounded-xl border border-border shadow-sm"
+      className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm"
+      style={{ height: 288 }}
       scrollWheelZoom
     >
       <TileLayer
