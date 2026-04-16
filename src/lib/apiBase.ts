@@ -5,5 +5,14 @@
  */
 export function apiBase(): string {
   const raw = (import.meta.env.VITE_API_URL ?? "").trim();
-  return raw.replace(/\/$/, "");
+  if (raw) return raw.replace(/\/$/, "");
+
+  if (typeof window !== "undefined" && import.meta.env.PROD) {
+    const h = window.location.hostname.toLowerCase();
+    if (h === "bestie.mx" || h === "www.bestie.mx" || h.includes("github.io")) {
+      return "https://api.bestie.mx";
+    }
+  }
+
+  return "";
 }
