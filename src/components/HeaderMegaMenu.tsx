@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -24,6 +24,11 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const megaRef = useRef<HTMLDivElement>(null);
 
+  const dismissNav = useCallback(() => {
+    setMegaOpen(false);
+    setMobileOpen(false);
+  }, []);
+
   useEffect(() => {
     if (!megaOpen) return;
     const close = (e: MouseEvent) => {
@@ -40,27 +45,27 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
     <div className="grid gap-6 sm:grid-cols-3">
       <div className={linkCol}>
         <p className={h}>Explorar</p>
-        <NavLink to="/buscar" className={navClass} onClick={() => setMegaOpen(false)}>
+        <NavLink to="/buscar" className={navClass} onClick={dismissNav}>
           Buscar
         </NavLink>
-        <NavLink to="/faq" className={navClass} onClick={() => setMegaOpen(false)}>
+        <NavLink to="/faq" className={navClass} onClick={dismissNav}>
           FAQ
         </NavLink>
       </div>
       <div className={linkCol}>
         <p className={h}>Publicar</p>
-        <NavLink to="/publicar" className={navClass} onClick={() => setMegaOpen(false)}>
+        <NavLink to="/publicar" className={navClass} onClick={dismissNav}>
           Publicar anuncio
         </NavLink>
-        <NavLink to="/mis-anuncios" className={navClass} onClick={() => setMegaOpen(false)}>
+        <NavLink to="/mis-anuncios" className={navClass} onClick={dismissNav}>
           Mis anuncios
         </NavLink>
         {me?.id ? (
           <>
-            <NavLink to="/grupos" className={navClass} onClick={() => setMegaOpen(false)}>
+            <NavLink to="/grupos" className={navClass} onClick={dismissNav}>
               Grupos
             </NavLink>
-            <NavLink to="/perfil" className={navClass} onClick={() => setMegaOpen(false)}>
+            <NavLink to="/perfil" className={navClass} onClick={dismissNav}>
               <span className="inline-flex items-center gap-1">
                 Perfil
                 {profileIncomplete ? (
@@ -68,7 +73,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
                 ) : null}
               </span>
             </NavLink>
-            <NavLink to="/mensajes" className={navClass} onClick={() => setMegaOpen(false)}>
+            <NavLink to="/mensajes" className={navClass} onClick={dismissNav}>
               <span className="inline-flex items-center gap-1">
                 Mensajes
                 {unreadCount > 0 ? (
@@ -79,7 +84,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
               </span>
             </NavLink>
             {me.isAdmin ? (
-              <NavLink to="/admin" className={navClass} onClick={() => setMegaOpen(false)}>
+              <NavLink to="/admin" className={navClass} onClick={dismissNav}>
                 Admin
               </NavLink>
             ) : null}
@@ -90,7 +95,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
               type="button"
               className="rounded-lg px-3 py-2 text-left text-sm font-medium text-body hover:bg-surface-elevated"
               onClick={() => {
-                setMegaOpen(false);
+                dismissNav();
                 openRegister();
               }}
             >
@@ -100,7 +105,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
               type="button"
               className="rounded-lg px-3 py-2 text-left text-sm font-medium text-body hover:bg-surface-elevated"
               onClick={() => {
-                setMegaOpen(false);
+                dismissNav();
                 openLogin();
               }}
             >
@@ -111,16 +116,16 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
       </div>
       <div className={linkCol}>
         <p className={h}>Ayuda</p>
-        <NavLink to="/contacto" className={navClass} onClick={() => setMegaOpen(false)}>
+        <NavLink to="/contacto" className={navClass} onClick={dismissNav}>
           Contacto
         </NavLink>
-        <NavLink to="/legal" className={navClass} onClick={() => setMegaOpen(false)}>
+        <NavLink to="/legal" className={navClass} onClick={dismissNav}>
           Legal
         </NavLink>
         <Link
           to="/entrar"
           className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-surface-elevated"
-          onClick={() => setMegaOpen(false)}
+          onClick={dismissNav}
         >
           Página completa entrar
         </Link>
@@ -252,7 +257,25 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
                 ✕
               </button>
             </div>
-            <div className="mt-4 flex-1 overflow-y-auto" onClick={() => setMobileOpen(false)}>
+            {!me?.id ? (
+              <div className="mt-4 flex flex-col gap-2 border-b border-border pb-4 dark:border-slate-600">
+                <Link
+                  to="/entrar"
+                  className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-fg transition hover:brightness-110"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Entrar
+                </Link>
+                <Link
+                  to="/registro"
+                  className="rounded-xl border border-border bg-bg-light py-3 text-center text-sm font-semibold text-body transition hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-800"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Crear cuenta
+                </Link>
+              </div>
+            ) : null}
+            <div className="mt-4 flex-1 overflow-y-auto overscroll-contain">
               {megaPanel}
             </div>
           </div>

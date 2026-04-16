@@ -125,7 +125,7 @@ export function SignInPage() {
 
   if (me === undefined) {
     return (
-      <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
         <p className="text-sm text-muted">Cargando…</p>
       </div>
     );
@@ -133,7 +133,7 @@ export function SignInPage() {
 
   if (me) {
     return (
-      <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tu cuenta</h1>
         {me.email && me.emailVerified !== true ? (
           <div className="mt-3 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
@@ -212,7 +212,7 @@ export function SignInPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Entrar</h1>
       {location.state?.registrationNotice ? (
         <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-xs text-body">

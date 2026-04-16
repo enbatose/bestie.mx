@@ -46,7 +46,7 @@ export function AppShellLayout() {
           </div>
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col">
+        <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
           <Outlet />
         </main>
 

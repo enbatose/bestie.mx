@@ -65,7 +65,11 @@ export function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+      className="fixed inset-0 z-[100] overflow-y-auto overscroll-y-contain bg-black/50 px-4 py-4 sm:py-8"
+      style={{
+        paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
@@ -73,7 +77,11 @@ export function AuthModal() {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl dark:border-slate-600 dark:bg-slate-900">
+      <div className="flex min-h-[100dvh] w-full flex-col justify-end sm:justify-center">
+        <div
+          className="mx-auto w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl dark:border-slate-600 dark:bg-slate-900 max-h-[min(32rem,calc(100dvh-6rem))] sm:max-h-[min(36rem,calc(100dvh-4rem))]"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="flex items-center justify-between gap-2">
           <h2 id="auth-modal-title" className="text-lg font-bold text-primary">
             {tab === "login" ? "Iniciar sesión" : "Regístrate"}
@@ -128,7 +136,7 @@ export function AuthModal() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
               />
             </label>
             <label className="block text-sm font-medium text-body">
@@ -139,7 +147,7 @@ export function AuthModal() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
               />
             </label>
             <button
@@ -179,7 +187,7 @@ export function AuthModal() {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
               />
             </label>
             <label className="block text-sm font-medium text-body">
@@ -189,7 +197,7 @@ export function AuthModal() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
               />
             </label>
             <label className="block text-sm font-medium text-body">
@@ -200,7 +208,7 @@ export function AuthModal() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
               />
             </label>
             <button
@@ -220,6 +228,7 @@ export function AuthModal() {
           </Link>
           .
         </p>
+        </div>
       </div>
     </div>
   );
