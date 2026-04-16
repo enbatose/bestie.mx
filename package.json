@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run server:build && vite build",
     "preview": "vite preview",
+    "start": "npm run server:start",
     "server:dev": "npm run dev --prefix server",
     "server:build": "npm run build --prefix server",
     "server:start": "npm run start --prefix server",
