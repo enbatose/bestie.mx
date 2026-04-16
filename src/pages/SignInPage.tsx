@@ -5,6 +5,7 @@ import {
   authLogin,
   authLogout,
   authMe,
+  authResendVerification,
   authWhatsAppRequest,
   authWhatsAppVerify,
   type AuthMe,
@@ -28,6 +29,7 @@ export function SignInPage() {
 
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [resendBusy, setResendBusy] = useState(false);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -128,10 +130,33 @@ export function SignInPage() {
       <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tu cuenta</h1>
         {me.email && me.emailVerified !== true ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-            Tu correo aún no está verificado. Revisa tu bandeja o vuelve a registrarte con otro correo si no
-            recibiste el enlace.
-          </p>
+          <div className="mt-3 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+            <p>
+              Tu correo aún no está verificado. Revisa tu bandeja (y spam). Si no recibiste el enlace, puedes
+              reenviarlo.
+            </p>
+            <button
+              type="button"
+              disabled={resendBusy}
+              className="rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-950 disabled:opacity-50"
+              onClick={async () => {
+                if (!me.email) return;
+                setErr(null);
+                setMsg(null);
+                setResendBusy(true);
+                try {
+                  await authResendVerification(me.email);
+                  setMsg("Listo. Si el correo está configurado en el servidor, te reenviamos el enlace.");
+                } catch (x) {
+                  setErr(x instanceof Error ? x.message : "Error");
+                } finally {
+                  setResendBusy(false);
+                }
+              }}
+            >
+              {resendBusy ? "Reenviando…" : "Reenviar correo de verificación"}
+            </button>
+          </div>
         ) : null}
         <p className="mt-2 text-sm text-muted">
           <span className="font-medium text-body">{me.displayName}</span>

@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-function smtpConfigured(): boolean {
+export function smtpConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST?.trim());
 }
 

@@ -14,6 +14,7 @@ import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { uploadsRouter } from "./uploadsRouter.js";
+import { smtpConfigured } from "./mailer.js";
 
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
@@ -69,6 +70,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
       ok: true,
       service: "bestie-mx-api",
       database: databaseLabel,
+      smtpConfigured: smtpConfigured(),
       ...(databasePath ? { databasePath } : {}),
       ...(instanceId ? { instanceId } : {}),
     });

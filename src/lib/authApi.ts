@@ -102,6 +102,24 @@ export async function authLogin(
   }
 }
 
+export async function authResendVerification(email: string, signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ email }),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string; retryAfterMs?: number };
+    if (j.error === "rate_limited" && typeof j.retryAfterMs === "number") {
+      throw new Error(`Espera ~${Math.ceil(j.retryAfterMs / 1000)}s e inténtalo de nuevo.`);
+    }
+    throw new Error(j.error || `resend_${res.status}`);
+  }
+}
+
 export async function authLogout(signal?: AbortSignal): Promise<void> {
   const base = apiBase();
   await networkFetch(`${base}/api/auth/logout`, { method: "POST", credentials: cred, signal });
