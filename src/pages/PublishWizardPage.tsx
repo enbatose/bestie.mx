@@ -668,334 +668,371 @@ export function PublishWizardPage() {
       {
         title: "¿Qué quieres publicar?",
         body: (
-          <div className="space-y-4">
-            <p className="text-sm text-muted">
-              Empieza rápido con un solo cuarto o crea una propiedad con varios cuartos.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setDraft((d) => ({
-                    ...d,
-                    postMode: "room",
-                    publishMode: "rooms_in_shared",
-                    rooms: [defaultRoom()],
-                    roomImageUrls: [d.roomImageUrls[0] ?? []],
-                    propertySummary: "",
-                  }))
-                }
-                className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                  draft.postMode === "room"
-                    ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
-                    : "border-border bg-surface hover:bg-surface-elevated"
-                }`}
-              >
-                <div className="text-base font-bold text-primary">Solo un cuarto</div>
-                <p className="mt-2 text-xs text-muted">
-                  Publica un solo cuarto ahora. Luego puedes convertirlo en propiedad y agregar más cuartos.
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setDraft((d) => {
-                    if (d.postMode === "property" && d.publishMode === "rooms_in_shared") return d;
-                    return {
+          <form className="space-y-6">
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Modalidad de anuncio
+              </legend>
+              <p className="text-sm text-muted">
+                Empieza rápido con un solo cuarto o crea una propiedad con varios cuartos.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => ({
                       ...d,
-                      postMode: "property",
+                      postMode: "room",
                       publishMode: "rooms_in_shared",
                       rooms: [defaultRoom()],
-                      roomImageUrls: [[]],
-                    };
-                  })
-                }
-                className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                  draft.postMode === "property" && draft.publishMode === "rooms_in_shared"
-                    ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
-                    : "border-border bg-surface hover:bg-surface-elevated"
-                }`}
-              >
-                <div className="text-base font-bold text-primary">Ofrezco cuarto(s)</div>
-                <p className="mt-2 text-xs text-muted">Uno o más espacios en la misma dirección (roomies).</p>
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setDraft((d) => {
-                    if (d.postMode === "property" && d.publishMode === "whole_property") return d;
-                    return {
-                      ...d,
-                      postMode: "property",
-                      publishMode: "whole_property",
-                      rooms: [wholePropertyRoom()],
-                      roomImageUrls: [[]],
-                    };
-                  })
-                }
-                className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                  draft.postMode === "property" && draft.publishMode === "whole_property"
-                    ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
-                    : "border-border bg-surface hover:bg-surface-elevated"
-                }`}
-              >
-                <div className="text-base font-bold text-primary">Ofrezco la propiedad completa</div>
-                <p className="mt-2 text-xs text-muted">Un solo espacio tipo “vivienda completa” (sin sumar cuartos).</p>
-              </button>
-            </div>
-          </div>
+                      roomImageUrls: [d.roomImageUrls[0] ?? []],
+                      propertySummary: "",
+                    }))
+                  }
+                  className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
+                    draft.postMode === "room"
+                      ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
+                      : "border-border bg-surface hover:bg-surface-elevated"
+                  }`}
+                >
+                  <div className="text-base font-bold text-primary">Solo un cuarto</div>
+                  <p className="mt-2 text-xs text-muted">
+                    Publica un solo cuarto ahora. Luego puedes convertirlo en propiedad y agregar más cuartos.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => {
+                      if (d.postMode === "property" && d.publishMode === "rooms_in_shared") return d;
+                      return {
+                        ...d,
+                        postMode: "property",
+                        publishMode: "rooms_in_shared",
+                        rooms: [defaultRoom()],
+                        roomImageUrls: [[]],
+                      };
+                    })
+                  }
+                  className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
+                    draft.postMode === "property" && draft.publishMode === "rooms_in_shared"
+                      ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
+                      : "border-border bg-surface hover:bg-surface-elevated"
+                  }`}
+                >
+                  <div className="text-base font-bold text-primary">Ofrezco cuarto(s)</div>
+                  <p className="mt-2 text-xs text-muted">Uno o más espacios en la misma dirección (roomies).</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => {
+                      if (d.postMode === "property" && d.publishMode === "whole_property") return d;
+                      return {
+                        ...d,
+                        postMode: "property",
+                        publishMode: "whole_property",
+                        rooms: [wholePropertyRoom()],
+                        roomImageUrls: [[]],
+                      };
+                    })
+                  }
+                  className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
+                    draft.postMode === "property" && draft.publishMode === "whole_property"
+                      ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
+                      : "border-border bg-surface hover:bg-surface-elevated"
+                  }`}
+                >
+                  <div className="text-base font-bold text-primary">Ofrezco la propiedad completa</div>
+                  <p className="mt-2 text-xs text-muted">Un solo espacio tipo “vivienda completa” (sin sumar cuartos).</p>
+                </button>
+              </div>
+            </fieldset>
+          </form>
         ),
       },
       {
         title: "Ubicación",
         body: (
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-body">
-              Ciudad
-              <select
-                value={draft.city}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, city: e.target.value as Draft["city"] }))
-                }
-                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              >
-                {CITIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <span className="mt-2 block text-xs text-muted">
-                Todos los cuartos comparten esta ciudad. Haz clic en el mapa o arrastra el pin para la
-                ubicación exacta de la propiedad.
-              </span>
-            </label>
-            <div>
-              <p className="text-sm font-medium text-body">Ubicación en el mapa</p>
-              <p className="mt-1 text-xs text-muted">
-                Clic en el mapa o arrastra el marcador. Puedes volver al centro de la ciudad con el botón de
-                abajo.
-              </p>
-              <div className="mt-3">
-                <WizardLocationMap
-                  key={draft.city}
-                  center={[CITY_ANCHOR[draft.city].lat, CITY_ANCHOR[draft.city].lng]}
-                  position={(() => {
-                    const { lat, lng } = resolveLatLngForDraft(draft);
-                    return [lat, lng] as [number, number];
-                  })()}
-                  onPositionChange={(lat, lng) => {
+          <form className="space-y-6">
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Ciudad Base
+              </legend>
+              <label className="block text-sm font-medium text-body">
+                Ciudad Principal
+                <select
+                  value={draft.city}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, city: e.target.value as Draft["city"] }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                >
+                  {CITIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-2 block text-xs text-muted">
+                  Selecciona la ciudad donde se encuentra el inmueble.
+                </span>
+              </label>
+            </fieldset>
+
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Dirección en Mapa
+              </legend>
+              <div>
+                <p className="text-sm font-medium text-body">Arrastra el marcador para fijar la ubicación</p>
+                <div className="mt-3">
+                  <WizardLocationMap
+                    key={draft.city}
+                    center={[CITY_ANCHOR[draft.city].lat, CITY_ANCHOR[draft.city].lng]}
+                    position={(() => {
+                      const { lat, lng } = resolveLatLngForDraft(draft);
+                      return [lat, lng] as [number, number];
+                    })()}
+                    onPositionChange={(lat, lng) => {
+                      setDraft((d) => ({
+                        ...d,
+                        useCustomMapPin: true,
+                        customLat: String(lat),
+                        customLng: String(lng),
+                      }));
+                    }}
+                  />
+                </div>
+                {resolvedAddress && (
+                  <div className="mt-2 flex items-start gap-2 text-sm font-medium text-primary bg-surface-elevated rounded-lg p-3 border border-border">
+                    <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>{resolvedAddress}</span>
+                  </div>
+                )}
+                
+                <h3 className="text-sm font-bold text-primary mt-6 mb-2 border-b border-border pb-1">Nivel de privacidad</h3>
+                <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated outline-none focus-within:ring-2 ring-accent">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:ring-secondary"
+                    checked={draft.isApproximateLocation}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, isApproximateLocation: e.target.checked }))
+                    }
+                  />
+                  <div>
+                    <span className="block text-sm font-semibold text-primary">
+                      Ocultar dirección exacta en el anuncio
+                    </span>
+                    <span className="block text-xs text-muted">
+                      Los usuarios solo verán un círculo aproximado de 500m en el mapa. Útil si prefieres mayor privacidad hasta contactar con los interesados.
+                    </span>
+                  </div>
+                </label>
+
+                <button
+                  type="button"
+                  className="mt-3 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated text-center block w-full sm:w-auto"
+                  onClick={() =>
                     setDraft((d) => ({
                       ...d,
-                      useCustomMapPin: true,
-                      customLat: String(lat),
-                      customLng: String(lng),
-                    }));
-                  }}
-                />
-              </div>
-              {resolvedAddress && (
-                <div className="mt-2 flex items-start gap-2 text-sm font-medium text-primary bg-surface-elevated rounded-lg p-3 border border-border">
-                  <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span>{resolvedAddress}</span>
-                </div>
-              )}
-              <label className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:ring-secondary"
-                  checked={draft.isApproximateLocation}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, isApproximateLocation: e.target.checked }))
+                      useCustomMapPin: false,
+                      customLat: "",
+                      customLng: "",
+                    }))
                   }
-                />
-                <div>
-                  <span className="block text-sm font-semibold text-primary">
-                    Ocultar dirección exacta en el anuncio
-                  </span>
-                  <span className="block text-xs text-muted">
-                    Los usuarios solo verán un círculo aproximado de 500m en el mapa. Útil si prefieres mayor privacidad hasta contactar con los interesados.
-                  </span>
-                </div>
-              </label>
-              <button
-                type="button"
-                className="mt-3 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
-                onClick={() =>
-                  setDraft((d) => ({
-                    ...d,
-                    useCustomMapPin: false,
-                    customLat: "",
-                    customLng: "",
-                  }))
-                }
-              >
-                Usar centro de {draft.city} (quitar pin personalizado)
-              </button>
-            </div>
-            <details className="rounded-xl border border-border bg-surface-elevated/40 px-3 py-2 text-sm">
-              <summary className="cursor-pointer font-medium text-body">Ajustar con latitud / longitud</summary>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-body">
-                  Latitud
-                  <input
-                    value={draft.customLat}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        useCustomMapPin: true,
-                        customLat: e.target.value,
-                      }))
-                    }
-                    placeholder={String(CITY_ANCHOR[draft.city].lat)}
-                    inputMode="decimal"
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                  />
-                </label>
-                <label className="block text-sm font-medium text-body">
-                  Longitud
-                  <input
-                    value={draft.customLng}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        useCustomMapPin: true,
-                        customLng: e.target.value,
-                      }))
-                    }
-                    placeholder={String(CITY_ANCHOR[draft.city].lng)}
-                    inputMode="decimal"
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                  />
-                </label>
+                >
+                  Restablecer al centro de la ciudad
+                </button>
               </div>
-            </details>
-          </div>
+            </fieldset>
+
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Ajuste Seguro (Manual)
+              </legend>
+              <details className="rounded-xl border border-border bg-surface-elevated/40 px-3 py-2 text-sm">
+                <summary className="cursor-pointer font-medium text-body outline-none focus:ring-2 ring-accent rounded">Ajuste de coordenadas manuales (Avanzado)</summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm font-medium text-body">
+                    Latitud
+                    <input
+                      value={draft.customLat}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          useCustomMapPin: true,
+                          customLat: e.target.value,
+                        }))
+                      }
+                      placeholder={String(CITY_ANCHOR[draft.city].lat)}
+                      inputMode="decimal"
+                      className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-body">
+                    Longitud
+                    <input
+                      value={draft.customLng}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          useCustomMapPin: true,
+                          customLng: e.target.value,
+                        }))
+                      }
+                      placeholder={String(CITY_ANCHOR[draft.city].lng)}
+                      inputMode="decimal"
+                      className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                    />
+                  </label>
+                </div>
+              </details>
+            </fieldset>
+          </form>
         ),
       },
       {
         title: "Propiedad",
         body: (
-          <div className="grid gap-4">
-            <label className="block text-sm font-medium text-body">
-              Nombre de la propiedad
-              <input
-                value={draft.propertyTitle}
-                onChange={(e) => setDraft((d) => ({ ...d, propertyTitle: e.target.value }))}
-                placeholder="Ej. Casa compartida Chapalita / Depa zona Minerva"
-                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-            </label>
-            <label className="block text-sm font-medium text-body">
-              Colonia o zona
-              <input
-                value={draft.neighborhood}
-                onChange={(e) => setDraft((d) => ({ ...d, neighborhood: e.target.value }))}
-                placeholder="Ej. Chapultepec, Versalles…"
-                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-            </label>
-            <label className="block text-sm font-medium text-body">
-              Descripción de la propiedad
-              <span className="text-red-600"> *</span>
-              <textarea
-                value={draft.propertySummary}
-                onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
-                rows={5}
-                maxLength={2000}
-                placeholder="Reglas de la casa, áreas comunes, estacionamiento, convivencia… (mín. 20 caracteres, como en Roomix.)"
-                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-              <span className="mt-1 block text-xs text-muted">
-                Mínimo {PROPERTY_SUMMARY_MIN} caracteres · {draft.propertySummary.trim().length} ahora
-              </span>
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <form className="space-y-6">
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Datos Generales
+              </legend>
               <label className="block text-sm font-medium text-body">
-                Cuartos en la propiedad (total)
-                <span className="text-red-600"> *</span>
+                Nombre de la propiedad
                 <input
-                  type="number"
-                  min={1}
-                  max={35}
-                  step={1}
-                  value={draft.propertyBedroomsTotal}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      propertyBedroomsTotal: Math.min(35, Math.max(1, Number(e.target.value) || 1)),
-                    }))
-                  }
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-                />
-                <span className="mt-1 block text-xs text-muted">
-                  Incluye cuartos ocupados y libres (mismo criterio que Roomix).
-                </span>
-              </label>
-              <label className="block text-sm font-medium text-body">
-                Baños (total)
-                <span className="text-red-600"> *</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={99}
-                  step={0.5}
-                  value={draft.propertyBathrooms}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      propertyBathrooms: Math.min(
-                        99,
-                        Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
-                      ),
-                    }))
-                  }
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                  value={draft.propertyTitle}
+                  onChange={(e) => setDraft((d) => ({ ...d, propertyTitle: e.target.value }))}
+                  placeholder="Ej. Casa compartida Chapalita / Depa zona Minerva"
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-            </div>
-            <label className="flex cursor-pointer items-start gap-3 text-sm text-body">
-              <input
-                type="checkbox"
-                checked={draft.showWhatsApp}
-                onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
-                className="mt-1 size-4 rounded border-border text-primary"
-              />
-              <span>Mostrar WhatsApp en el anuncio público (equivalente a “Visible en anuncio” en Roomix).</span>
-            </label>
-            <label className="block text-sm font-medium text-body">
-              Tipo de vivienda
-              <select
-                value={draft.propertyKind}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, propertyKind: e.target.value as PropertyKind }))
-                }
-                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              >
-                <option value="house">Casa</option>
-                <option value="apartment">Departamento</option>
-              </select>
-            </label>
-            <label className="block text-sm font-medium text-body">
-              WhatsApp de contacto (se muestra en cada cuarto al publicar)
-              <input
-                value={draft.contactWhatsApp}
-                onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
-                placeholder="Ej. 523312345678"
-                inputMode="tel"
-                className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-              {!apiOn ? (
+              <label className="block text-sm font-medium text-body">
+                Colonia o zona
+                <input
+                  value={draft.neighborhood}
+                  onChange={(e) => setDraft((d) => ({ ...d, neighborhood: e.target.value }))}
+                  placeholder="Ej. Chapultepec, Versalles…"
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
+              </label>
+              <label className="block text-sm font-medium text-body">
+                Descripción de la propiedad
+                <span className="text-red-600"> *</span>
+                <textarea
+                  value={draft.propertySummary}
+                  onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
+                  rows={5}
+                  maxLength={2000}
+                  placeholder="Reglas de la casa, áreas comunes, estacionamiento, convivencia… (mín. 20 caracteres, como en Roomix.)"
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
                 <span className="mt-1 block text-xs text-muted">
-                  Sin API configurada, el número solo se guarda en este navegador hasta que conectes el
-                  servidor.
+                  Mínimo {PROPERTY_SUMMARY_MIN} caracteres · {draft.propertySummary.trim().length} ahora
                 </span>
-              ) : null}
-            </label>
-          </div>
+              </label>
+            </fieldset>
+
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Características Físicas
+              </legend>
+              <label className="block text-sm font-medium text-body">
+                Tipo de vivienda
+                <select
+                  value={draft.propertyKind}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, propertyKind: e.target.value as PropertyKind }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                >
+                  <option value="house">Casa</option>
+                  <option value="apartment">Departamento</option>
+                </select>
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-body">
+                  Cuartos en la propiedad (total)
+                  <span className="text-red-600"> *</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={35}
+                    step={1}
+                    value={draft.propertyBedroomsTotal}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        propertyBedroomsTotal: Math.min(35, Math.max(1, Number(e.target.value) || 1)),
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                  <span className="mt-1 block text-xs text-muted">
+                    Incluye cuartos ocupados y libres.
+                  </span>
+                </label>
+                <label className="block text-sm font-medium text-body">
+                  Baños (total)
+                  <span className="text-red-600"> *</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={99}
+                    step={0.5}
+                    value={draft.propertyBathrooms}
+                    onChange={(e) =>
+                      setDraft((d) => ({
+                        ...d,
+                        propertyBathrooms: Math.min(
+                          99,
+                          Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
+                        ),
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Contacto
+              </legend>
+              <label className="block text-sm font-medium text-body">
+                WhatsApp de contacto (se muestra en cada cuarto al publicar)
+                <input
+                  value={draft.contactWhatsApp}
+                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
+                  placeholder="Ej. 523312345678"
+                  inputMode="tel"
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
+                {!apiOn ? (
+                  <span className="mt-1 block text-xs text-muted">
+                    Sin API configurada, el número solo se guarda en este navegador hasta que conectes el
+                    servidor.
+                  </span>
+                ) : null}
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 text-sm text-body mt-2">
+                <input
+                  type="checkbox"
+                  checked={draft.showWhatsApp}
+                  onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
+                  className="mt-1 size-4 rounded border-border text-primary"
+                />
+                <span>Mostrar WhatsApp en el anuncio público (equivalente a “Visible en anuncio” en Roomix).</span>
+              </label>
+            </fieldset>
+          </form>
         ),
       },
       {
@@ -1021,209 +1058,232 @@ export function PublishWizardPage() {
                     </button>
                   ) : null}
                 </div>
-                <label className="mt-3 block text-sm font-medium text-body">
-                  Título del espacio
-                  <input
-                    value={room.title}
-                    onChange={(e) => updateRoom(i, { title: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                  />
-                </label>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <fieldset className="mt-2 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
+                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                    Información Principal
+                  </legend>
                   <label className="block text-sm font-medium text-body">
-                    Renta (MXN / mes)
-                    <span className="text-red-600"> *</span>
+                    Título del espacio
                     <input
-                      type="number"
-                      min={0}
-                      step={100}
-                      value={room.rentMxn}
-                      onChange={(e) =>
-                        updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
-                      }
+                      value={room.title}
+                      onChange={(e) => updateRoom(i, { title: e.target.value })}
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                     />
                   </label>
-                  <label className="block text-sm font-medium text-body">
-                    Depósito (MXN)
-                    <span className="text-red-600"> *</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={100}
-                      value={room.depositMxn}
-                      onChange={(e) =>
-                        updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-body">
-                    Plazas / espacios
-                    <input
-                      type="number"
-                      min={1}
-                      max={12}
-                      value={room.roomsAvailable}
-                      onChange={(e) =>
-                        updateRoom(i, {
-                          roomsAvailable: Math.max(1, Number(e.target.value) || 1),
-                        })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-body">
-                    Disponible desde
-                    <span className="text-red-600"> *</span>
-                    <input
-                      type="date"
-                      value={room.availableFrom}
-                      onChange={(e) => updateRoom(i, { availableFrom: e.target.value })}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-body">
-                    Estancia mínima (meses)
-                    <span className="text-red-600"> *</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={36}
-                      value={room.minimalStayMonths}
-                      onChange={(e) =>
-                        updateRoom(i, {
-                          minimalStayMonths: Math.min(
-                            36,
-                            Math.max(1, Math.floor(Number(e.target.value) || 1)),
-                          ),
-                        })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-body">
-                    Tamaño del cuarto
-                    <span className="text-red-600"> *</span>
-                    <select
-                      value={room.roomDimension}
-                      onChange={(e) =>
-                        updateRoom(i, { roomDimension: e.target.value as RoomDimension })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    >
-                      <option value="small">Pequeño</option>
-                      <option value="medium">Mediano</option>
-                      <option value="large">Grande</option>
-                    </select>
-                  </label>
-                </div>
-                <label className="mt-3 block text-sm font-medium text-body">
-                  Descripción del cuarto
-                  <textarea
-                    value={room.summary}
-                    onChange={(e) => updateRoom(i, { summary: e.target.value })}
-                    rows={3}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                  />
-                </label>
-                <fieldset className="mt-3">
-                  <legend className="text-sm font-medium text-body">Etiquetas del cuarto</legend>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {ALL_TAGS.map((tag) => (
-                      <label
-                        key={tag}
-                        className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-body"
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="block text-sm font-medium text-body">
+                      Tipo de espacio
+                      <select
+                        value={room.lodgingType}
+                        onChange={(e) =>
+                          updateRoom(i, { lodgingType: e.target.value as LodgingType })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                       >
-                        <input
-                          type="checkbox"
-                          checked={room.tags.includes(tag)}
-                          onChange={() =>
-                            setDraft((d) => ({
-                              ...d,
-                              rooms: d.rooms.map((r, j) =>
-                                j === i
-                                  ? {
-                                      ...r,
-                                      tags: r.tags.includes(tag)
-                                        ? r.tags.filter((t) => t !== tag)
-                                        : [...r.tags, tag],
-                                    }
-                                  : r,
-                              ),
-                            }))
-                          }
-                          className="size-3.5 rounded border-border text-primary"
-                        />
-                        {TAG_LABELS[tag]}
-                      </label>
-                    ))}
+                        <option value="private_room">Cuarto privado</option>
+                        <option value="shared_room">Cuarto compartido</option>
+                        <option value="whole_home">Vivienda completa</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Tamaño del cuarto
+                      <span className="text-red-600"> *</span>
+                      <select
+                        value={room.roomDimension}
+                        onChange={(e) =>
+                          updateRoom(i, { roomDimension: e.target.value as RoomDimension })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      >
+                        <option value="small">Pequeño</option>
+                        <option value="medium">Mediano</option>
+                        <option value="large">Grande</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Renta (MXN / mes)
+                      <span className="text-red-600"> *</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={room.rentMxn}
+                        onChange={(e) =>
+                          updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Depósito (MXN)
+                      <span className="text-red-600"> *</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={room.depositMxn}
+                        onChange={(e) =>
+                          updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
                   </div>
                 </fieldset>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+                <fieldset className="mt-4 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
+                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                    Disponibilidad
+                  </legend>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="block text-sm font-medium text-body">
+                      Plazas / espacios
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        value={room.roomsAvailable}
+                        onChange={(e) =>
+                          updateRoom(i, {
+                            roomsAvailable: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Disponible desde
+                      <span className="text-red-600"> *</span>
+                      <input
+                        type="date"
+                        value={room.availableFrom}
+                        onChange={(e) => updateRoom(i, { availableFrom: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Estancia min. (meses)
+                      <span className="text-red-600"> *</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={36}
+                        value={room.minimalStayMonths}
+                        onChange={(e) =>
+                          updateRoom(i, {
+                            minimalStayMonths: Math.min(
+                              36,
+                              Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                            ),
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset className="mt-4 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
+                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                    Perfil Buscado
+                  </legend>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="block text-sm font-medium text-body">
+                      Prefieren
+                      <select
+                        value={room.roommateGenderPref}
+                        onChange={(e) =>
+                          updateRoom(i, {
+                            roommateGenderPref: e.target.value as RoommateGenderPref,
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      >
+                        <option value="any">Sin preferencia</option>
+                        <option value="female">Mujer</option>
+                        <option value="male">Hombre</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Edad mín.
+                      <input
+                        type="number"
+                        min={18}
+                        max={99}
+                        value={room.ageMin}
+                        onChange={(e) =>
+                          updateRoom(i, {
+                            ageMin: Math.min(99, Math.max(18, Number(e.target.value) || 18)),
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-body">
+                      Edad máx.
+                      <input
+                        type="number"
+                        min={18}
+                        max={99}
+                        value={room.ageMax}
+                        onChange={(e) =>
+                          updateRoom(i, {
+                            ageMax: Math.min(99, Math.max(18, Number(e.target.value) || 99)),
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset className="mt-4 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
+                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                    Detalles del Espacio
+                  </legend>
                   <label className="block text-sm font-medium text-body">
-                    Tipo de espacio
-                    <select
-                      value={room.lodgingType}
-                      onChange={(e) =>
-                        updateRoom(i, { lodgingType: e.target.value as LodgingType })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    >
-                      <option value="private_room">Cuarto privado</option>
-                      <option value="shared_room">Cuarto compartido</option>
-                      <option value="whole_home">Vivienda completa</option>
-                    </select>
-                  </label>
-                  <label className="block text-sm font-medium text-body">
-                    Roomies prefieren
-                    <select
-                      value={room.roommateGenderPref}
-                      onChange={(e) =>
-                        updateRoom(i, {
-                          roommateGenderPref: e.target.value as RoommateGenderPref,
-                        })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    >
-                      <option value="any">Sin preferencia</option>
-                      <option value="female">Mujer</option>
-                      <option value="male">Hombre</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <label className="block text-sm font-medium text-body">
-                    Edad mín.
-                    <input
-                      type="number"
-                      min={18}
-                      max={99}
-                      value={room.ageMin}
-                      onChange={(e) =>
-                        updateRoom(i, {
-                          ageMin: Math.min(99, Math.max(18, Number(e.target.value) || 18)),
-                        })
-                      }
+                    Descripción del cuarto
+                    <textarea
+                      value={room.summary}
+                      onChange={(e) => updateRoom(i, { summary: e.target.value })}
+                      rows={3}
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                     />
                   </label>
-                  <label className="block text-sm font-medium text-body">
-                    Edad máx.
-                    <input
-                      type="number"
-                      min={18}
-                      max={99}
-                      value={room.ageMax}
-                      onChange={(e) =>
-                        updateRoom(i, {
-                          ageMax: Math.min(99, Math.max(18, Number(e.target.value) || 99)),
-                        })
-                      }
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                    />
-                  </label>
-                </div>
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-body">Etiquetas del cuarto</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {ALL_TAGS.map((tag) => (
+                        <label
+                          key={tag}
+                          className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-body"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={room.tags.includes(tag)}
+                            onChange={() =>
+                              setDraft((d) => ({
+                                ...d,
+                                rooms: d.rooms.map((r, j) =>
+                                  j === i
+                                    ? {
+                                        ...r,
+                                        tags: r.tags.includes(tag)
+                                          ? r.tags.filter((t) => t !== tag)
+                                          : [...r.tags, tag],
+                                      }
+                                    : r,
+                                ),
+                              }))
+                            }
+                            className="size-3.5 rounded border-border text-primary"
+                          />
+                          {TAG_LABELS[tag]}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </fieldset>
               </div>
             ))}
             {draft.publishMode === "whole_property" ? (
@@ -1245,39 +1305,51 @@ export function PublishWizardPage() {
       {
         title: "Fotos",
         body: (
-          <div className="space-y-6">
-            <p className="text-sm text-muted">
-              Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después podrás
-              etiquetarlas por cuarto/áreas compartidas/fachada.
-            </p>
-            {draft.postMode === "property" ? (
-              <BulkImageUploader
-                title="Fotos sin categorizar (propiedad)"
-                urls={draft.unassignedImageUrls}
-                maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
-                apiOn={apiOn}
-                onChange={(next) => {
-                  setDraft((d) => ({ ...d, unassignedImageUrls: next }));
-                }}
-                hint="Luego las etiquetas por cuarto / áreas compartidas / fachada."
-              />
-            ) : null}
+          <form className="space-y-6">
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Galería Principal
+              </legend>
+              <p className="text-sm text-muted">
+                Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después podrás
+                etiquetarlas por cuarto/áreas compartidas/fachada.
+              </p>
+              {draft.postMode === "property" ? (
+                <div className="mt-4">
+                  <BulkImageUploader
+                    title="Fotos a categorizar (propiedad general)"
+                    urls={draft.unassignedImageUrls}
+                    maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
+                    apiOn={apiOn}
+                    onChange={(next) => {
+                      setDraft((d) => ({ ...d, unassignedImageUrls: next }));
+                    }}
+                    hint="Luego las etiquetas por cuarto / áreas compartidas / fachada."
+                  />
+                </div>
+              ) : null}
+            </fieldset>
+
             {draft.rooms.map((room, i) => (
-              <BulkImageUploader
-                key={i}
-                title={`Cuarto ${i + 1}: ${room.title.trim() || "Sin título"}`}
-                urls={draft.roomImageUrls[i] ?? []}
-                maxCount={20}
-                apiOn={apiOn}
-                onChange={(next) => {
-                  setDraft((d) => ({
-                    ...d,
-                    roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
-                  }));
-                }}
-              />
+              <fieldset key={i} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                  {`Galería: Cuarto ${i + 1}`}
+                </legend>
+                <BulkImageUploader
+                  title={room.title.trim() || "Sin título"}
+                  urls={draft.roomImageUrls[i] ?? []}
+                  maxCount={20}
+                  apiOn={apiOn}
+                  onChange={(next) => {
+                    setDraft((d) => ({
+                      ...d,
+                      roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
+                    }));
+                  }}
+                />
+              </fieldset>
             ))}
-          </div>
+          </form>
         ),
       },
       ...(draft.postMode === "property"
@@ -1285,108 +1357,121 @@ export function PublishWizardPage() {
             {
               title: "Etiquetar fotos",
               body: (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted">
-                    Para una publicación de propiedad, las fotos deben estar etiquetadas antes de publicar. Puedes
-                    dejar fotos “Sin categorizar” mientras editas, pero no al momento de publicar.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                    <span>
-                      Sin categorizar: <strong className="text-body">{draft.unassignedImageUrls.length}</strong>
-                    </span>
-                    <span aria-hidden>·</span>
-                    <span>
-                      Propiedad: <strong className="text-body">{draft.propertyImageUrls.length}</strong>
-                    </span>
-                    <span aria-hidden>·</span>
-                    <span>
-                      Cuartos:{" "}
-                      <strong className="text-body">
-                        {draft.roomImageUrls.reduce((a, r) => a + (r?.length ?? 0), 0)}
-                      </strong>
-                    </span>
-                  </div>
-                  {draft.unassignedImageUrls.length ? (
-                    <button
-                      type="button"
-                      className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body hover:bg-surface-elevated"
-                      onClick={() => {
-                        setDraft((d) => ({
-                          ...d,
-                          propertyImageUrls: [...d.propertyImageUrls, ...d.unassignedImageUrls].slice(0, 20),
-                          unassignedImageUrls: [],
-                        }));
-                      }}
-                    >
-                      Etiquetar todo como “Áreas compartidas”
-                    </button>
-                  ) : null}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {draft.unassignedImageUrls.map((u) => (
-                      <div key={u} className="rounded-xl border border-border bg-surface p-3">
-                        <div className="flex items-start gap-3">
-                          <img
-                            src={apiAbsoluteUrl(u)}
-                            alt=""
-                            className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
-                            loading="lazy"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
-                              Etiqueta
-                              <select
-                                className="mt-1 w-full rounded-lg border border-border bg-bg-light px-2 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                                defaultValue="uncat"
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setDraft((d) => {
-                                    const nextUnassigned = d.unassignedImageUrls.filter((x) => x !== u);
-                                    if (v === "shared") {
-                                      return {
-                                        ...d,
-                                        unassignedImageUrls: nextUnassigned,
-                                        propertyImageUrls: [...d.propertyImageUrls, u].slice(0, 20),
-                                      };
-                                    }
-                                    if (v === "facade") {
-                                      const without = d.propertyImageUrls.filter((x) => x !== u);
-                                      return {
-                                        ...d,
-                                        unassignedImageUrls: nextUnassigned,
-                                        propertyImageUrls: [u, ...without].slice(0, 20),
-                                      };
-                                    }
-                                    if (v.startsWith("room:")) {
-                                      const idx = Number(v.split(":")[1] ?? "1") - 1;
-                                      if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
-                                      return {
-                                        ...d,
-                                        unassignedImageUrls: nextUnassigned,
-                                        roomImageUrls: d.roomImageUrls.map((row, ri) =>
-                                          ri === idx ? [...row, u].slice(0, 20) : row,
-                                        ),
-                                      };
-                                    }
-                                    return d;
-                                  });
-                                }}
-                              >
-                                <option value="uncat">Sin categorizar</option>
-                                <option value="shared">Áreas compartidas</option>
-                                <option value="facade">Fachada</option>
-                                {draft.rooms.map((r, idx) => (
-                                  <option key={idx} value={`room:${idx + 1}`}>
-                                    Cuarto {idx + 1}: {r.title.trim() || "Sin título"}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
+                <form className="space-y-6">
+                  <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                    <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                      Distribución de Fotos
+                    </legend>
+                    <p className="text-sm text-muted">
+                      Para una publicación de propiedad, las fotos deben estar etiquetadas antes de publicar. Puedes
+                      dejar fotos “Sin categorizar” mientras editas, pero no al momento de publicar.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <span>
+                        Sin categorizar: <strong className="text-body">{draft.unassignedImageUrls.length}</strong>
+                      </span>
+                      <span aria-hidden>·</span>
+                      <span>
+                        Propiedad: <strong className="text-body">{draft.propertyImageUrls.length}</strong>
+                      </span>
+                      <span aria-hidden>·</span>
+                      <span>
+                        Cuartos:{" "}
+                        <strong className="text-body">
+                          {draft.roomImageUrls.reduce((a, r) => a + (r?.length ?? 0), 0)}
+                        </strong>
+                      </span>
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                    <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                      Fotos Sin Categorizar
+                    </legend>
+                    {draft.unassignedImageUrls.length ? (
+                      <button
+                        type="button"
+                        className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body hover:bg-surface-elevated mb-2"
+                        onClick={() => {
+                          setDraft((d) => ({
+                            ...d,
+                            propertyImageUrls: [...d.propertyImageUrls, ...d.unassignedImageUrls].slice(0, 20),
+                            unassignedImageUrls: [],
+                          }));
+                        }}
+                      >
+                        Etiquetar todo como “Áreas compartidas”
+                      </button>
+                    ) : (
+                      <p className="text-sm text-muted italic">No hay fotos sin categorizar. ¡Todo listo!</p>
+                    )}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {draft.unassignedImageUrls.map((u) => (
+                        <div key={u} className="rounded-xl border border-border bg-surface p-3">
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={apiAbsoluteUrl(u)}
+                              alt=""
+                              className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
+                              loading="lazy"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
+                                Asignar a...
+                                <select
+                                  className="mt-1 w-full rounded-lg border border-border bg-bg-light px-2 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                                  defaultValue="uncat"
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setDraft((d) => {
+                                      const nextUnassigned = d.unassignedImageUrls.filter((x) => x !== u);
+                                      if (v === "shared") {
+                                        return {
+                                          ...d,
+                                          unassignedImageUrls: nextUnassigned,
+                                          propertyImageUrls: [...d.propertyImageUrls, u].slice(0, 20),
+                                        };
+                                      }
+                                      if (v === "facade") {
+                                        const without = d.propertyImageUrls.filter((x) => x !== u);
+                                        return {
+                                          ...d,
+                                          unassignedImageUrls: nextUnassigned,
+                                          propertyImageUrls: [u, ...without].slice(0, 20),
+                                        };
+                                      }
+                                      if (v.startsWith("room:")) {
+                                        const idx = Number(v.split(":")[1] ?? "1") - 1;
+                                        if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
+                                        return {
+                                          ...d,
+                                          unassignedImageUrls: nextUnassigned,
+                                          roomImageUrls: d.roomImageUrls.map((row, ri) =>
+                                            ri === idx ? [...row, u].slice(0, 20) : row,
+                                          ),
+                                        };
+                                      }
+                                      return d;
+                                    });
+                                  }}
+                                >
+                                  <option value="uncat">Sin categorizar</option>
+                                  <option value="shared">Áreas compartidas</option>
+                                  <option value="facade">Fachada</option>
+                                  {draft.rooms.map((r, idx) => (
+                                    <option key={idx} value={`room:${idx + 1}`}>
+                                      Cuarto {idx + 1}: {r.title.trim() || "Sin título"}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      ))}
+                    </div>
+                  </fieldset>
+                </form>
               ),
             },
           ] as const)
@@ -1394,16 +1479,23 @@ export function PublishWizardPage() {
       {
         title: "Publicar",
         body: (
-          <div className="space-y-3 text-sm text-muted">
-            <p>
-              Revisa los pasos anteriores. Puedes <strong className="text-body">publicar el anuncio ya</strong> o
-              seguir guardando borrador desde el panel inferior: no hace falta llegar a este paso para publicar.
-            </p>
-            <p>
-              Con la API activa, los datos se sincronizan solos en segundo plano; el botón &quot;Guardar borrador en
-              servidor&quot; solo fuerza una sincronización inmediata.
-            </p>
-          </div>
+          <form className="space-y-6">
+            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                Revisión Final
+              </legend>
+              <div className="space-y-3 text-sm text-muted">
+                <p>
+                  Revisa los pasos anteriores. Puedes <strong className="text-body">publicar el anuncio ya</strong> o
+                  seguir guardando borrador desde el panel inferior: no hace falta llegar a este paso para publicar.
+                </p>
+                <p>
+                  Con la API activa, los datos se sincronizan solos en segundo plano; el botón &quot;Guardar borrador en
+                  servidor&quot; solo fuerza una sincronización inmediata.
+                </p>
+              </div>
+            </fieldset>
+          </form>
         ),
       },
     ],
