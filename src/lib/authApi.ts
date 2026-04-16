@@ -19,6 +19,15 @@ export function isAuthApiConfigured(): boolean {
   return true;
 }
 
+export class AuthApiError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "AuthApiError";
+    this.code = code;
+  }
+}
+
 export type AuthMe = {
   id: string;
   email: string | null;
@@ -39,7 +48,10 @@ export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
 }
 
 export type RegisterResult = {
-  me: AuthMe;
+  me: AuthMe | null;
+  /** Present when the server created the account but did not start a session (production email flow). */
+  verificationPending?: boolean;
+  registeredEmail?: string;
   devVerificationUrl?: string;
 };
 
@@ -64,7 +76,21 @@ export async function authRegister(
     }
     throw new Error(j.message || j.error || `register_${res.status}`);
   }
-  const created = (await res.json()) as { devVerificationUrl?: string };
+  const created = (await res.json()) as {
+    email?: string;
+    devVerificationUrl?: string;
+    verificationPending?: boolean;
+  };
+  if (created.verificationPending) {
+    return {
+      me: null,
+      verificationPending: true,
+      registeredEmail: typeof created.email === "string" ? created.email : undefined,
+      ...(typeof created.devVerificationUrl === "string"
+        ? { devVerificationUrl: created.devVerificationUrl }
+        : {}),
+    };
+  }
   const me = await authMe(signal);
   if (!me) throw new Error("register_session_missing");
   return {
@@ -97,6 +123,12 @@ export async function authLogin(
     }
     if (j.error === "wa_only_account") {
       throw new Error("Esta cuenta fue creada con WhatsApp OTP. Entra con WhatsApp desde la página completa.");
+    }
+    if (j.error === "email_not_verified") {
+      throw new AuthApiError(
+        "email_not_verified",
+        "Tu correo aún no está verificado. Abre el enlace que te enviamos (revisa spam) o reenvía el enlace abajo.",
+      );
     }
     throw new Error(j.error || `login_${res.status}`);
   }

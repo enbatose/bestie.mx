@@ -8,6 +8,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
+import { createEmailVerificationToken } from "./emailVerification.js";
 
 describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   const testId = randomUUID().slice(0, 8);
@@ -105,6 +106,44 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   it("GET /api/analytics/featured-cities", async () => {
     const res = await request(app).get("/api/analytics/featured-cities").expect(200);
     expect(Array.isArray(res.body.cities)).toBe(true);
+  });
+
+  it("production: register without session; login blocked until verify", async () => {
+    const prevEnv = process.env.NODE_ENV;
+    const prevCookie = process.env.TEST_DISABLE_SECURE_COOKIE;
+    process.env.NODE_ENV = "production";
+    process.env.TEST_DISABLE_SECURE_COOKIE = "1";
+    const dir2 = mkdtempSync(join(tmpdir(), "bestie-prodauth-"));
+    const dbPath2 = join(dir2, "prod.db");
+    const db2 = openDb(dbPath2);
+    const app2 = createApp(db2, { databaseLabel: "prod.db", corsOrigins: ["http://localhost"] });
+    try {
+      const em = `prodverify-${testId}@test.mx`;
+      const agent = request.agent(app2);
+      const reg = await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+      expect(reg.body.verificationPending).toBe(true);
+      await agent.get("/api/auth/me").expect(401);
+      await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(403);
+      const userId = reg.body.id as string;
+      const rawToken = createEmailVerificationToken(db2, userId);
+      await request(app2)
+        .get(`/api/auth/verify-email?token=${encodeURIComponent(rawToken)}`)
+        .redirects(0)
+        .expect(302);
+      await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
+      const me = await agent.get("/api/auth/me").expect(200);
+      expect(me.body.emailVerified).toBe(true);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+      if (prevCookie === undefined) delete process.env.TEST_DISABLE_SECURE_COOKIE;
+      else process.env.TEST_DISABLE_SECURE_COOKIE = prevCookie;
+      db2.close();
+      try {
+        rmSync(dir2, { recursive: true, force: true });
+      } catch {
+        /* Windows */
+      }
+    }
   });
 
   it("email verification link verifies user", async () => {

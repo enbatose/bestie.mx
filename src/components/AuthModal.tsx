@@ -1,21 +1,27 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { authLogin, authRegister } from "@/lib/authApi";
+import { Link, useNavigate } from "react-router-dom";
+import { authLogin, authRegister, authResendVerification, AuthApiError } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export function AuthModal() {
+  const navigate = useNavigate();
   const { open, tab, close, openLogin, openRegister } = useAuthModal();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [loginNeedsVerify, setLoginNeedsVerify] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendOk, setResendOk] = useState<string | null>(null);
 
   if (!open) return null;
 
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    setResendOk(null);
+    setLoginNeedsVerify(false);
     setBusy(true);
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
@@ -23,6 +29,7 @@ export function AuthModal() {
       window.location.assign("/mis-anuncios");
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
+      setLoginNeedsVerify(x instanceof AuthApiError && x.code === "email_not_verified");
     } finally {
       setBusy(false);
     }
@@ -33,11 +40,20 @@ export function AuthModal() {
     setErr(null);
     setBusy(true);
     try {
-      await authRegister({
+      const r = await authRegister({
         email: email.trim().toLowerCase(),
         password,
         displayName: displayName.trim() || undefined,
       });
+      if (r.verificationPending) {
+        const registrationNotice = r.devVerificationUrl
+          ? `Cuenta creada. Verifica tu correo (dev): ${r.devVerificationUrl}`
+          : "Cuenta creada. Te enviamos un enlace de verificación. Ábrelo y luego entra con tu correo y contraseña.";
+        close();
+        navigate("/entrar", { replace: true, state: { registrationNotice } });
+        return;
+      }
+      if (!r.me) throw new Error("register_session_missing");
       close();
       window.location.assign("/mis-anuncios");
     } catch (x) {
@@ -79,6 +95,8 @@ export function AuthModal() {
             onClick={() => {
               openLogin();
               setErr(null);
+              setLoginNeedsVerify(false);
+              setResendOk(null);
             }}
           >
             Entrar
@@ -89,6 +107,8 @@ export function AuthModal() {
             onClick={() => {
               openRegister();
               setErr(null);
+              setLoginNeedsVerify(false);
+              setResendOk(null);
             }}
           >
             Registro
@@ -96,6 +116,7 @@ export function AuthModal() {
         </div>
 
         {err ? <p className="mt-3 text-sm text-error">{err}</p> : null}
+        {resendOk ? <p className="mt-2 text-xs text-muted">{resendOk}</p> : null}
 
         {tab === "login" ? (
           <form className="mt-4 space-y-3" onSubmit={submitLogin}>
@@ -128,6 +149,27 @@ export function AuthModal() {
             >
               {busy ? "Entrando…" : "Entrar"}
             </button>
+            {loginNeedsVerify ? (
+              <button
+                type="button"
+                disabled={resendBusy || !email.trim()}
+                className="w-full rounded-full border border-border py-2 text-xs font-semibold text-body disabled:opacity-50"
+                onClick={async () => {
+                  setResendOk(null);
+                  setResendBusy(true);
+                  try {
+                    await authResendVerification(email.trim().toLowerCase());
+                    setResendOk("Si el servidor tiene SMTP configurado, revisa tu correo (y spam).");
+                  } catch (x) {
+                    setErr(x instanceof Error ? x.message : "Error");
+                  } finally {
+                    setResendBusy(false);
+                  }
+                }}
+              >
+                {resendBusy ? "Enviando…" : "Reenviar enlace de verificación"}
+              </button>
+            ) : null}
           </form>
         ) : (
           <form className="mt-4 space-y-3" onSubmit={submitRegister}>

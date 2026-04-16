@@ -81,11 +81,16 @@ export function readAuthUserId(req: Request): string | null {
   return p?.sub ?? null;
 }
 
+function cookieSecureFlag(): boolean {
+  if (process.env.TEST_DISABLE_SECURE_COOKIE === "1") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 export function issueAuthCookie(res: Response, userId: string): void {
   const ttl = Number(process.env.AUTH_SESSION_TTL_SEC);
   const ttlSec = Number.isFinite(ttl) && ttl > 60 ? ttl : 60 * 60 * 24 * 14;
   const token = signAuthToken(userId, ttlSec);
-  const secure = process.env.NODE_ENV === "production";
+  const secure = cookieSecureFlag();
   const parts = [
     `${AUTH_COOKIE}=${encodeURIComponent(token)}`,
     "Path=/",
@@ -98,7 +103,7 @@ export function issueAuthCookie(res: Response, userId: string): void {
 }
 
 export function clearAuthCookie(res: Response): void {
-  const secure = process.env.NODE_ENV === "production";
+  const secure = cookieSecureFlag();
   const parts = [`${AUTH_COOKIE}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
   if (secure) parts.push("Secure");
   res.appendHeader("Set-Cookie", parts.join("; "));

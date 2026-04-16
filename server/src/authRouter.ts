@@ -6,7 +6,7 @@ import { sendWhatsAppOtpTemplate } from "./whatsappMeta.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.js";
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
-import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
+import { createPublishHandoff, publicApiOrigin, publicWebOrigin } from "./handoffTokens.js";
 import { createEmailVerificationToken, verifyEmailWithToken } from "./emailVerification.js";
 import { sendVerificationEmail } from "./mailer.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
@@ -39,6 +39,14 @@ function phoneE164FromDigits(d: string): string {
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
+}
+
+function authProductionStrict(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+function verificationLinkBase(): string {
+  return publicApiOrigin();
 }
 
 export function authRouter(db: DatabaseSync) {
@@ -82,9 +90,12 @@ export function authRouter(db: DatabaseSync) {
       res.status(409).json({ error: "email_taken" });
       return;
     }
-    issueAuthCookie(res, id);
+    const strict = authProductionStrict();
+    if (!strict) {
+      issueAuthCookie(res, id);
+    }
     const rawVerify = createEmailVerificationToken(db, id);
-    const verifyUrl = `${publicWebOrigin()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
+    const verifyUrl = `${verificationLinkBase()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
     void sendVerificationEmail(email, verifyUrl).catch((e) => {
       console.warn(`[email] verification send failed: ${e instanceof Error ? e.message : String(e)}`);
     });
@@ -93,6 +104,7 @@ export function authRouter(db: DatabaseSync) {
       id,
       email,
       displayName: displayName || email.split("@")[0],
+      ...(strict ? { verificationPending: true } : {}),
       ...(devVerificationUrl ? { devVerificationUrl } : {}),
     });
   });
@@ -122,7 +134,7 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     const rawVerify = createEmailVerificationToken(db, u.id);
-    const verifyUrl = `${publicWebOrigin()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
+    const verifyUrl = `${verificationLinkBase()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
     void sendVerificationEmail(email, verifyUrl).catch((e) => {
       console.warn(`[email] verification resend failed: ${e instanceof Error ? e.message : String(e)}`);
     });
@@ -133,8 +145,8 @@ export function authRouter(db: DatabaseSync) {
     const body = req.body as { email?: unknown; password?: unknown };
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
-    const row = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
-      | { id: string; password_hash: string }
+    const row = db.prepare("SELECT id, password_hash, email_verified_at FROM users WHERE email = ?").get(email) as
+      | { id: string; password_hash: string; email_verified_at: string | null }
       | undefined;
     if (!row) {
       res.status(401).json({ error: "user_not_found" });
@@ -146,6 +158,11 @@ export function authRouter(db: DatabaseSync) {
     }
     if (!verifyPassword(password, row.password_hash)) {
       res.status(401).json({ error: "invalid_password" });
+      return;
+    }
+    const verified = row.email_verified_at != null && String(row.email_verified_at).trim() !== "";
+    if (authProductionStrict() && !verified) {
+      res.status(403).json({ error: "email_not_verified" });
       return;
     }
     issueAuthCookie(res, row.id);

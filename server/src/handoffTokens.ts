@@ -5,6 +5,13 @@ export function publicWebOrigin(): string {
   return process.env.PUBLIC_WEB_ORIGIN?.replace(/\/$/, "") || "https://bestie.mx";
 }
 
+/** Base URL for API routes embedded in emails (e.g. verify-email). Defaults to {@link publicWebOrigin} when API and web share one host. */
+export function publicApiOrigin(): string {
+  const o = process.env.PUBLIC_API_ORIGIN?.replace(/\/$/, "").trim();
+  if (o) return o;
+  return publicWebOrigin();
+}
+
 /**
  * Creates a single-use Messenger → web publish handoff URL for the given publisher.
  */

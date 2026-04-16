@@ -13,7 +13,9 @@ export function RegisterPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Crear cuenta</h1>
-      <p className="mt-2 text-sm text-muted">Correo y contraseña (mínimo 8 caracteres).</p>
+      <p className="mt-2 text-sm text-muted">
+        Correo y contraseña (mínimo 8 caracteres). Recibirás un enlace para validar el correo; después podrás entrar.
+      </p>
 
       {err ? (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
@@ -25,11 +27,20 @@ export function RegisterPage() {
           setErr(null);
           setBusy(true);
           try {
-            const { me, devVerificationUrl } = await authRegister({
+            const r = await authRegister({
               email: email.trim().toLowerCase(),
               password,
               displayName: displayName.trim() || undefined,
             });
+            if (r.verificationPending) {
+              const registrationNotice = r.devVerificationUrl
+                ? `Cuenta creada. Verifica tu correo con este enlace (solo desarrollo): ${r.devVerificationUrl}`
+                : "Cuenta creada. Te enviamos un enlace de verificación al correo (revisa spam). Ábrelo y luego vuelve aquí para iniciar sesión.";
+              navigate("/entrar", { replace: true, state: { registrationNotice } });
+              return;
+            }
+            const { me, devVerificationUrl } = r;
+            if (!me) throw new Error("register_session_missing");
             const registrationNotice = devVerificationUrl
               ? `Verifica tu correo con este enlace (entorno no productivo): ${devVerificationUrl}`
               : me.email && !me.emailVerified
