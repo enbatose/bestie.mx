@@ -10,15 +10,11 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
+import { apiBase, isApiReachable } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
 
-function apiBase(): string {
-  const raw = import.meta.env.VITE_API_URL?.trim() ?? "";
-  return raw.replace(/\/$/, "");
-}
-
 export function isListingsApiConfigured(): boolean {
-  return apiBase().length > 0;
+  return isApiReachable();
 }
 
 const cred: RequestCredentials = "include";

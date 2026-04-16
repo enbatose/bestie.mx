@@ -18,7 +18,9 @@ export function AuthModal() {
     e.preventDefault();
     setErr(null);
     if (!apiOn) {
-      setErr("Configura VITE_API_URL.");
+      setErr(
+        "No hay API configurada. En producción define VITE_API_URL; en local ejecuta el servidor en el puerto 3000 y usa npm run dev (proxy /api).",
+      );
       return;
     }
     setBusy(true);
@@ -37,7 +39,9 @@ export function AuthModal() {
     e.preventDefault();
     setErr(null);
     if (!apiOn) {
-      setErr("Configura VITE_API_URL.");
+      setErr(
+        "No hay API configurada. En producción define VITE_API_URL; en local ejecuta el servidor en el puerto 3000 y usa npm run dev (proxy /api).",
+      );
       return;
     }
     setBusy(true);

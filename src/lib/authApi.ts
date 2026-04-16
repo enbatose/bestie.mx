@@ -1,14 +1,10 @@
+import { apiBase, isApiReachable } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
-
-function apiBase(): string {
-  const raw = import.meta.env.VITE_API_URL?.trim() ?? "";
-  return raw.replace(/\/$/, "");
-}
 
 const cred: RequestCredentials = "include";
 
 export function isAuthApiConfigured(): boolean {
-  return apiBase().length > 0;
+  return isApiReachable();
 }
 
 export type AuthMe = {
@@ -23,8 +19,8 @@ export type AuthMe = {
 };
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
+  if (!isApiReachable()) return null;
   const base = apiBase();
-  if (!base) return null;
   const res = await fetch(`${base}/api/auth/me`, { credentials: cred, signal });
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`auth_me_${res.status}`);
@@ -178,8 +174,8 @@ export async function consumeHandoffToken(
 }
 
 export async function analyticsHeartbeat(signal?: AbortSignal): Promise<void> {
+  if (!isApiReachable()) return;
   const base = apiBase();
-  if (!base) return;
   await fetch(`${base}/api/analytics/heartbeat`, {
     method: "POST",
     credentials: cred,
@@ -192,8 +188,8 @@ export async function analyticsEvent(
   payload: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<void> {
+  if (!isApiReachable()) return;
   const base = apiBase();
-  if (!base) return;
   await fetch(`${base}/api/analytics/event`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
@@ -204,8 +200,8 @@ export async function analyticsEvent(
 }
 
 export async function fetchFeaturedCities(signal?: AbortSignal): Promise<string[]> {
+  if (!isApiReachable()) return [];
   const base = apiBase();
-  if (!base) return [];
   const res = await fetch(`${base}/api/analytics/featured-cities`, { signal });
   if (!res.ok) return [];
   const j = (await res.json()) as { cities?: unknown };
