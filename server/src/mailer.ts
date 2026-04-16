@@ -36,12 +36,53 @@ export function getSmtpDiagnostics(): SmtpDiagnostics {
   };
 }
 
-/** True when generic SMTP host is set, or Gmail credentials are set for `SMTP_SERVICE=gmail`. */
+/** Login / from address (supports common Railway-style `GMAIL_*` names). */
+export function resolveSmtpUser(): string | undefined {
+  const u =
+    process.env.SMTP_USER?.trim() ||
+    process.env.GMAIL_USER?.trim() ||
+    process.env.GMAIL_ADDRESS?.trim();
+  return u || undefined;
+}
+
+/** Password or Google app password (spaces stripped). */
+export function resolveSmtpPass(): string | undefined {
+  const raw =
+    process.env.SMTP_PASS ?? process.env.GMAIL_APP_PASSWORD ?? process.env.GMAIL_PASSWORD ?? "";
+  const n = normalizeSmtpPassword(raw);
+  return n || undefined;
+}
+
+/** Use Gmail SMTP (implicit) when no `SMTP_HOST` but app-password style env is set or service says gmail. */
+export function wantsImplicitGmail(): boolean {
+  const svc = process.env.SMTP_SERVICE?.trim().toLowerCase();
+  if (svc === "gmail" || svc === "google") return true;
+  if (process.env.GMAIL_APP_PASSWORD?.trim() || process.env.GMAIL_PASSWORD?.trim()) return true;
+  const u = resolveSmtpUser()?.toLowerCase() ?? "";
+  if (u.endsWith("@gmail.com") || u.endsWith("@googlemail.com")) return true;
+  return false;
+}
+
+/** For `/api/health` — how outbound mail is configured (no secrets). */
+export function getSmtpMode(): "off" | "gmail_implicit" | "gmail_host" | "smtp_host" {
+  if (!smtpConfigured()) return "off";
+  const h = process.env.SMTP_HOST?.trim().toLowerCase() ?? "";
+  if (h.includes("gmail.com")) return "gmail_host";
+  if (process.env.SMTP_HOST?.trim()) return "smtp_host";
+  return "gmail_implicit";
+}
+
+/**
+ * True when mail can be attempted:
+ * - any `SMTP_HOST`, or
+ * - Gmail-style credentials without host (`GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_SERVICE=gmail`, etc.).
+ */
 export function smtpConfigured(): boolean {
-  if (process.env.SMTP_SERVICE?.trim().toLowerCase() === "gmail") {
-    return Boolean(process.env.SMTP_USER?.trim() && normalizeSmtpPassword(process.env.SMTP_PASS ?? ""));
-  }
-  return Boolean(process.env.SMTP_HOST?.trim());
+  if (process.env.SMTP_HOST?.trim()) return true;
+  const user = resolveSmtpUser();
+  const pass = resolveSmtpPass();
+  if (!user || !pass) return false;
+  return wantsImplicitGmail();
 }
 
 function requireEnv(name: string): string {
@@ -68,8 +109,12 @@ function isRetriableSmtpError(err: unknown): boolean {
 }
 
 function createGmailTransporter(): nodemailer.Transporter {
-  const user = requireEnv("SMTP_USER");
-  const pass = normalizeSmtpPassword(requireEnv("SMTP_PASS"));
+  const user = resolveSmtpUser();
+  const pass = resolveSmtpPass();
+  if (!user || !pass) {
+    throw new Error("Missing SMTP_USER/GMAIL_USER or SMTP_PASS/GMAIL_APP_PASSWORD");
+  }
+  const authPass = normalizeSmtpPassword(pass);
   const rawPort = Number(process.env.SMTP_PORT);
   const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : 465;
   if (port === 465) {
@@ -77,7 +122,7 @@ function createGmailTransporter(): nodemailer.Transporter {
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
-      auth: { user, pass },
+      auth: { user, pass: authPass },
       connectionTimeout: 25_000,
       greetingTimeout: 20_000,
       socketTimeout: 40_000,
@@ -88,7 +133,7 @@ function createGmailTransporter(): nodemailer.Transporter {
     port: 587,
     secure: false,
     requireTLS: true,
-    auth: { user, pass },
+    auth: { user, pass: authPass },
     connectionTimeout: 25_000,
     greetingTimeout: 20_000,
     socketTimeout: 40_000,
@@ -98,15 +143,15 @@ function createGmailTransporter(): nodemailer.Transporter {
 function createGenericTransporter(): nodemailer.Transporter {
   const host = requireEnv("SMTP_HOST");
   const port = Number(process.env.SMTP_PORT) || 587;
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim() ? normalizeSmtpPassword(process.env.SMTP_PASS!) : "";
+  const user = resolveSmtpUser();
+  const pass = resolveSmtpPass();
 
   return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
     ...(port === 587 ? { requireTLS: true } : {}),
-    ...(user && pass ? { auth: { user, pass } } : {}),
+    ...(user && pass ? { auth: { user, pass: normalizeSmtpPassword(pass) } } : {}),
     connectionTimeout: 25_000,
     greetingTimeout: 20_000,
     socketTimeout: 40_000,
@@ -114,16 +159,23 @@ function createGenericTransporter(): nodemailer.Transporter {
 }
 
 function createTransporter(): nodemailer.Transporter {
-  const service = process.env.SMTP_SERVICE?.trim().toLowerCase();
-  if (service === "gmail") {
+  const host = process.env.SMTP_HOST?.trim();
+  if (host && host.toLowerCase().includes("gmail.com")) {
     return createGmailTransporter();
   }
-  return createGenericTransporter();
+  if (host) {
+    return createGenericTransporter();
+  }
+  if (wantsImplicitGmail()) {
+    return createGmailTransporter();
+  }
+  throw new Error("SMTP transporter: missing configuration");
 }
 
 function resolveFromAddress(): string {
-  const gmailUser = process.env.SMTP_SERVICE?.trim().toLowerCase() === "gmail" ? requireEnv("SMTP_USER") : null;
-  const fromDefault = gmailUser ? `Bestie <${gmailUser}>` : "Bestie <no-reply@bestie.mx>";
+  const u = resolveSmtpUser();
+  const gmailish = wantsImplicitGmail() || u?.toLowerCase().endsWith("@gmail.com");
+  const fromDefault = u && gmailish ? `Bestie <${u}>` : "Bestie <no-reply@bestie.mx>";
   return (process.env.SMTP_FROM ?? fromDefault).trim();
 }
 
@@ -184,7 +236,7 @@ export async function sendVerificationEmail(toEmail: string, verifyUrl: string):
   }
 
   const from = resolveFromAddress();
-  const replyTo = process.env.SMTP_REPLY_TO?.trim() || (process.env.SMTP_USER?.trim() ?? undefined);
+  const replyTo = process.env.SMTP_REPLY_TO?.trim() || resolveSmtpUser();
 
   const subject = "Confirma tu correo — Bestie";
   const text =

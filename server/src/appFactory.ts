@@ -14,7 +14,7 @@ import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { uploadsRouter } from "./uploadsRouter.js";
-import { getSmtpDiagnostics, smtpConfigured } from "./mailer.js";
+import { getSmtpDiagnostics, getSmtpMode, smtpConfigured } from "./mailer.js";
 
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
@@ -73,6 +73,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
       database: databaseLabel,
       smtpConfigured: smtpConfigured(),
       smtp: {
+        mode: getSmtpMode(),
         configured: smtp.configured,
         verifyOk: smtp.verifyOk,
         verifiedAt: smtp.verifiedAt,
