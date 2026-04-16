@@ -89,6 +89,15 @@ export async function authLogin(
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: string };
+    if (j.error === "user_not_found") {
+      throw new Error("No existe una cuenta con ese correo (o estás pegándole a otra API / otra base).");
+    }
+    if (j.error === "invalid_password" || j.error === "invalid_credentials") {
+      throw new Error("Correo o contraseña incorrectos.");
+    }
+    if (j.error === "wa_only_account") {
+      throw new Error("Esta cuenta fue creada con WhatsApp OTP. Entra con WhatsApp desde la página completa.");
+    }
     throw new Error(j.error || `login_${res.status}`);
   }
 }

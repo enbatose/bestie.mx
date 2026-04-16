@@ -101,8 +101,16 @@ export function authRouter(db: DatabaseSync) {
     const row = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
       | { id: string; password_hash: string }
       | undefined;
-    if (!row || isWaOnlyPasswordHash(row.password_hash) || !verifyPassword(password, row.password_hash)) {
-      res.status(401).json({ error: "invalid_credentials" });
+    if (!row) {
+      res.status(401).json({ error: "user_not_found" });
+      return;
+    }
+    if (isWaOnlyPasswordHash(row.password_hash)) {
+      res.status(401).json({ error: "wa_only_account" });
+      return;
+    }
+    if (!verifyPassword(password, row.password_hash)) {
+      res.status(401).json({ error: "invalid_password" });
       return;
     }
     issueAuthCookie(res, row.id);
