@@ -1210,10 +1210,10 @@ export function PublishWizardPage() {
                         type="number"
                         min={18}
                         max={99}
-                        value={room.ageMin}
+                        value={room.ageMin || ""}
                         onChange={(e) =>
                           updateRoom(i, {
-                            ageMin: Math.min(99, Math.max(18, Number(e.target.value) || 18)),
+                            ageMin: Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0)),
                           })
                         }
                         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
@@ -1225,10 +1225,10 @@ export function PublishWizardPage() {
                         type="number"
                         min={18}
                         max={99}
-                        value={room.ageMax}
+                        value={room.ageMax || ""}
                         onChange={(e) =>
                           updateRoom(i, {
-                            ageMax: Math.min(99, Math.max(18, Number(e.target.value) || 99)),
+                            ageMax: Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0)),
                           })
                         }
                         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
@@ -1509,6 +1509,9 @@ export function PublishWizardPage() {
     for (const r of d.rooms) {
       if (!r.title.trim() || !r.summary.trim()) {
         return "Cada cuarto necesita título y descripción.";
+      }
+      if (r.ageMin < 18 || r.ageMax > 99) {
+        return "La edad debe estar entre 18 y 99 años.";
       }
       if (r.ageMin > r.ageMax) {
         return "En cada cuarto la edad mínima no puede ser mayor que la máxima.";
