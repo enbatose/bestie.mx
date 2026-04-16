@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run server:build && vite build",
+    "build": "npm install --no-audit --no-fund --prefix server && npm run server:build && vite build",
     "preview": "vite preview",
     "start": "npm run server:start",
     "server:dev": "npm run dev --prefix server",
