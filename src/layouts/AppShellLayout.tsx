@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
-import { analyticsHeartbeat, authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
+import { analyticsHeartbeat, authMe, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 
 export function AppShellLayout() {
@@ -16,10 +16,6 @@ export function AppShellLayout() {
     me != null && me.id && Boolean(me.email && (me.emailVerified !== true || !me.phoneE164));
 
   useEffect(() => {
-    if (!isAuthApiConfigured()) {
-      setMe(null);
-      return;
-    }
     void analyticsHeartbeat();
     void authMe()
       .then(setMe)
@@ -27,7 +23,7 @@ export function AppShellLayout() {
   }, []);
 
   useEffect(() => {
-    if (!me?.id || !isAuthApiConfigured()) {
+    if (!me?.id) {
       setUnread(0);
       return;
     }

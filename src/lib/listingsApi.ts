@@ -10,11 +10,12 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
-import { apiBase, isApiReachable } from "@/lib/apiBase";
+import { apiBase } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
 
+/** Always true: same-origin `/api` is valid; set `VITE_API_URL` only for a separate API host. */
 export function isListingsApiConfigured(): boolean {
-  return isApiReachable();
+  return true;
 }
 
 const cred: RequestCredentials = "include";

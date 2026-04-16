@@ -6,12 +6,11 @@ import {
   adminListUsers,
   adminPatchPropertyStatus,
   adminPutFeaturedCities,
-  isAuthApiConfigured,
   type AdminUserRow,
 } from "@/lib/authApi";
+import { apiBase } from "@/lib/apiBase";
 
 export function AdminPage() {
-  const apiOn = isAuthApiConfigured();
   const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property">("users");
   const [err, setErr] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -40,7 +39,6 @@ export function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!apiOn) return;
     void (async () => {
       try {
         await loadUsers();
@@ -51,38 +49,22 @@ export function AdminPage() {
         setErr(x instanceof Error ? x.message : "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).");
       }
     })();
-  }, [apiOn, loadUsers, loadCities, loadSummary]);
-
-  if (!apiOn) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-2xl font-bold text-primary">Admin</h1>
-        <p className="mt-2 text-sm text-muted">Configura VITE_API_URL.</p>
-      </div>
-    );
-  }
+  }, [loadUsers, loadCities, loadSummary]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
       <p className="mt-2 text-sm text-muted">
-        Solo cuentas listadas en <span className="font-mono">ADMIN_EMAILS</span>. No hay impersonación
-        {apiOn ? (
-          <>
-            :{" "}
-            <a
-              href={`${(import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "")}/api/compliance/no-impersonation`}
-              className="font-medium text-primary underline-offset-2 hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              política JSON
-            </a>
-            .
-          </>
-        ) : (
-          "."
-        )}
+        Solo cuentas listadas en <span className="font-mono">ADMIN_EMAILS</span>. No hay impersonación:{" "}
+        <a
+          href={`${apiBase()}/api/compliance/no-impersonation`}
+          className="font-medium text-primary underline-offset-2 hover:underline"
+          target="_blank"
+          rel="noreferrer"
+        >
+          política JSON
+        </a>
+        .
       </p>
 
       {err ? (

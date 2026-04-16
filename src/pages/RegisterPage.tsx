@@ -1,27 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authRegister, isAuthApiConfigured } from "@/lib/authApi";
+import { authRegister } from "@/lib/authApi";
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const apiOn = isAuthApiConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  if (!apiOn) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-2xl font-bold tracking-tight text-primary">Registro</h1>
-        <p className="mt-2 text-sm text-muted">Configura VITE_API_URL para registrar usuarios contra la API.</p>
-        <Link to="/entrar" className="mt-6 inline-block text-sm font-semibold text-primary underline-offset-2 hover:underline">
-          Volver a entrar
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">

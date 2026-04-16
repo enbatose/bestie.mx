@@ -1,9 +1,5 @@
 import { deviceHeaders } from "@/lib/deviceFingerprint";
-
-function apiBase(): string {
-  const raw = import.meta.env.VITE_API_URL?.trim() ?? "";
-  return raw.replace(/\/$/, "");
-}
+import { apiBase } from "@/lib/apiBase";
 
 const cred: RequestCredentials = "include";
 
@@ -28,7 +24,6 @@ export type ChatMessage = {
 
 export async function fetchUnreadMessageCount(signal?: AbortSignal): Promise<number> {
   const base = apiBase();
-  if (!base) return 0;
   const res = await fetch(`${base}/api/messages/unread-count`, { credentials: cred, signal });
   if (res.status === 401) return 0;
   if (!res.ok) return 0;

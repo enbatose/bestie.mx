@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { groupsCreate, groupsJoin, groupsMine, isAuthApiConfigured, type GroupRow } from "@/lib/authApi";
+import { groupsCreate, groupsJoin, groupsMine, type GroupRow } from "@/lib/authApi";
 
 export function GroupsPage() {
-  const apiOn = isAuthApiConfigured();
   const [rows, setRows] = useState<GroupRow[] | null>(null);
   const [name, setName] = useState("");
   const [minAge, setMinAge] = useState<string>("");
@@ -14,27 +13,17 @@ export function GroupsPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (!apiOn) return;
     try {
       setRows(await groupsMine());
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
       setRows([]);
     }
-  }, [apiOn]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
-
-  if (!apiOn) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-2xl font-bold text-primary">Grupos</h1>
-        <p className="mt-2 text-sm text-muted">Configura VITE_API_URL para usar grupos de roomies.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6 sm:py-14">

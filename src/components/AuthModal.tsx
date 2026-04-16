@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { authLogin, authRegister, isAuthApiConfigured } from "@/lib/authApi";
+import { authLogin, authRegister } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export function AuthModal() {
   const { open, tab, close, openLogin, openRegister } = useAuthModal();
-  const apiOn = isAuthApiConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -17,12 +16,6 @@ export function AuthModal() {
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (!apiOn) {
-      setErr(
-        "No hay API configurada. En producción define VITE_API_URL; en local ejecuta el servidor en el puerto 3000 y usa npm run dev (proxy /api).",
-      );
-      return;
-    }
     setBusy(true);
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
@@ -38,12 +31,6 @@ export function AuthModal() {
   const submitRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (!apiOn) {
-      setErr(
-        "No hay API configurada. En producción define VITE_API_URL; en local ejecuta el servidor en el puerto 3000 y usa npm run dev (proxy /api).",
-      );
-      return;
-    }
     setBusy(true);
     try {
       await authRegister({

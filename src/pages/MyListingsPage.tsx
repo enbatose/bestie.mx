@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   fetchMyListings,
-  isListingsApiConfigured,
   updateListingStatus,
   updateProperty,
   fetchPropertyWithRooms,
@@ -36,7 +35,6 @@ function propertyStatusLabel(s: ListingStatus | undefined): string {
 }
 
 export function MyListingsPage() {
-  const apiOn = isListingsApiConfigured();
   const navigate = useNavigate();
   const location = useLocation();
   const [rows, setRows] = useState<PropertyListing[] | null>(null);
@@ -93,7 +91,6 @@ export function MyListingsPage() {
   }, [location.state, navigate]);
 
   const load = useCallback(async () => {
-    if (!apiOn) return;
     setBusy(true);
     setErr(null);
     try {
@@ -119,7 +116,7 @@ export function MyListingsPage() {
     } finally {
       setBusy(false);
     }
-  }, [apiOn, computeMissing]);
+  }, [computeMissing]);
 
   useEffect(() => {
     void load();
@@ -226,23 +223,6 @@ export function MyListingsPage() {
 
   function rowBusy(l: PropertyListing): boolean {
     return actionId === l.id || actionPropertyId === l.propertyId;
-  }
-
-  if (!apiOn) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-bold text-primary">Mis anuncios</h1>
-        <p className="mt-3 text-sm text-muted">
-          Configura <code className="rounded bg-surface-elevated px-1 py-0.5 text-xs">VITE_API_URL</code>{" "}
-          en tu entorno para ver anuncios vinculados a tu navegador (cookie de publicador).
-        </p>
-        <p className="mt-6 text-sm">
-          <Link to="/publicar" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Ir a publicar
-          </Link>
-        </p>
-      </div>
-    );
   }
 
   return (

@@ -1,10 +1,11 @@
-import { apiBase, isApiReachable } from "@/lib/apiBase";
+import { apiBase } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
 
 const cred: RequestCredentials = "include";
 
+/** Always true: same-origin `/api` is valid; set `VITE_API_URL` only for a separate API host. */
 export function isAuthApiConfigured(): boolean {
-  return isApiReachable();
+  return true;
 }
 
 export type AuthMe = {
@@ -19,7 +20,6 @@ export type AuthMe = {
 };
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
-  if (!isApiReachable()) return null;
   const base = apiBase();
   const res = await fetch(`${base}/api/auth/me`, { credentials: cred, signal });
   if (res.status === 401) return null;
@@ -174,7 +174,6 @@ export async function consumeHandoffToken(
 }
 
 export async function analyticsHeartbeat(signal?: AbortSignal): Promise<void> {
-  if (!isApiReachable()) return;
   const base = apiBase();
   await fetch(`${base}/api/analytics/heartbeat`, {
     method: "POST",
@@ -188,7 +187,6 @@ export async function analyticsEvent(
   payload: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (!isApiReachable()) return;
   const base = apiBase();
   await fetch(`${base}/api/analytics/event`, {
     method: "POST",
@@ -200,7 +198,6 @@ export async function analyticsEvent(
 }
 
 export async function fetchFeaturedCities(signal?: AbortSignal): Promise<string[]> {
-  if (!isApiReachable()) return [];
   const base = apiBase();
   const res = await fetch(`${base}/api/analytics/featured-cities`, { signal });
   if (!res.ok) return [];

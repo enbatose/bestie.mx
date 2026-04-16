@@ -1,31 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
+import { authMe, type AuthMe } from "@/lib/authApi";
 
 export function ProfilePage() {
-  const apiOn = isAuthApiConfigured();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
 
   const load = useCallback(async () => {
-    if (!apiOn) {
-      setMe(null);
-      return;
-    }
     setMe(await authMe().catch(() => null));
-  }, [apiOn]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
-
-  if (!apiOn) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <h1 className="text-2xl font-bold text-primary">Perfil</h1>
-        <p className="mt-2 text-sm text-muted">Configura VITE_API_URL.</p>
-      </div>
-    );
-  }
 
   if (me === undefined) {
     return (

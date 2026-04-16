@@ -7,7 +7,6 @@ import {
   authMe,
   authWhatsAppRequest,
   authWhatsAppVerify,
-  isAuthApiConfigured,
   type AuthMe,
 } from "@/lib/authApi";
 
@@ -15,7 +14,6 @@ export function SignInPage() {
   const location = useLocation() as { state?: { registrationNotice?: string } };
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const apiOn = isAuthApiConfigured();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [tab, setTab] = useState<"wa" | "email">("wa");
 
@@ -32,16 +30,12 @@ export function SignInPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
-    if (!apiOn) {
-      setMe(null);
-      return;
-    }
     try {
       setMe(await authMe());
     } catch {
       setMe(null);
     }
-  }, [apiOn]);
+  }, []);
 
   useEffect(() => {
     void refreshMe();
@@ -59,7 +53,6 @@ export function SignInPage() {
     setErr(null);
     setMsg(null);
     setWaDevHint(null);
-    if (!apiOn) return;
     setWaBusy(true);
     try {
       const r = await authWhatsAppRequest(phone);
@@ -83,7 +76,6 @@ export function SignInPage() {
     e.preventDefault();
     setErr(null);
     setMsg(null);
-    if (!apiOn) return;
     setWaBusy(true);
     try {
       await authWhatsAppVerify({ phone, code: otpCode });
@@ -102,7 +94,6 @@ export function SignInPage() {
     e.preventDefault();
     setErr(null);
     setMsg(null);
-    if (!apiOn) return;
     setEmailBusy(true);
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
@@ -123,23 +114,6 @@ export function SignInPage() {
     await authLogout();
     await refreshMe();
   };
-
-  if (!apiOn) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-2xl font-bold tracking-tight text-primary">Entrar</h1>
-        <p className="mt-2 text-sm text-muted">
-          Configura <span className="font-mono text-body">VITE_API_URL</span> en el front para usar correo,
-          WhatsApp OTP y la cuenta vinculada al publicador anónimo.
-        </p>
-        <p className="mt-6 text-sm text-muted">
-          <Link to="/buscar" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Ir a buscar
-          </Link>
-        </p>
-      </div>
-    );
-  }
 
   if (me === undefined) {
     return (
