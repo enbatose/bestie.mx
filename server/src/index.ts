@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 
@@ -41,6 +42,11 @@ function resolveWritableDatabasePath(): string {
 }
 
 const databasePath = resolveWritableDatabasePath();
+const instanceId =
+  process.env.RAILWAY_SERVICE_INSTANCE_ID?.trim() ||
+  process.env.RENDER_INSTANCE_ID?.trim() ||
+  process.env.FLY_ALLOC_ID?.trim() ||
+  randomUUID().slice(0, 12);
 
 const corsOrigins = (process.env.CORS_ORIGINS ??
   "http://localhost:5173,https://bestie.mx,https://www.bestie.mx")
@@ -55,6 +61,8 @@ const webDistDir = resolveWebDistDir();
 const app = createApp(db, {
   corsOrigins,
   databaseLabel: path.basename(databasePath),
+  databasePath,
+  instanceId,
   ...(webDistDir ? { webDistDir } : {}),
 });
 

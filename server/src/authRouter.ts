@@ -8,6 +8,7 @@ import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.j
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
 import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
 import { createEmailVerificationToken, verifyEmailWithToken } from "./emailVerification.js";
+import { sendVerificationEmail } from "./mailer.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
 
@@ -16,6 +17,7 @@ const OTP_MAX_ATTEMPTS = 8;
 
 const otpRequestLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
 const otpVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
+const emailVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 10 });
 
 function otpPepper(): string {
   return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
@@ -82,16 +84,49 @@ export function authRouter(db: DatabaseSync) {
     }
     issueAuthCookie(res, id);
     const rawVerify = createEmailVerificationToken(db, id);
-    const devVerificationUrl =
-      process.env.NODE_ENV !== "production"
-        ? `${publicWebOrigin()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`
-        : undefined;
+    const verifyUrl = `${publicWebOrigin()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
+    void sendVerificationEmail(email, verifyUrl).catch((e) => {
+      console.warn(`[email] verification send failed: ${e instanceof Error ? e.message : String(e)}`);
+    });
+    const devVerificationUrl = process.env.NODE_ENV !== "production" ? verifyUrl : undefined;
     res.status(201).json({
       id,
       email,
       displayName: displayName || email.split("@")[0],
       ...(devVerificationUrl ? { devVerificationUrl } : {}),
     });
+  });
+
+  r.post("/resend-verification", jsonMw(), (req: Request, res: Response) => {
+    const lim = emailVerifyLimiter(`${req.ip ?? "ip"}:${String((req.body as { email?: string }).email ?? "")}`);
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const body = req.body as { email?: unknown };
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (!email.includes("@") || email.length > 200) {
+      res.status(400).json({ error: "invalid_email" });
+      return;
+    }
+    const u = db
+      .prepare("SELECT id, email_verified_at FROM users WHERE email = ?")
+      .get(email) as { id: string; email_verified_at: string | null } | undefined;
+    if (!u) {
+      // Avoid leaking account existence too strongly in prod, but still return ok so UI can proceed.
+      res.json({ ok: true });
+      return;
+    }
+    if (u.email_verified_at != null && String(u.email_verified_at).trim() !== "") {
+      res.json({ ok: true, alreadyVerified: true });
+      return;
+    }
+    const rawVerify = createEmailVerificationToken(db, u.id);
+    const verifyUrl = `${publicWebOrigin()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
+    void sendVerificationEmail(email, verifyUrl).catch((e) => {
+      console.warn(`[email] verification resend failed: ${e instanceof Error ? e.message : String(e)}`);
+    });
+    res.json({ ok: true });
   });
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {

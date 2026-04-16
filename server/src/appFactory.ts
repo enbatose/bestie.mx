@@ -20,6 +20,10 @@ export type CreateAppOptions = {
   corsOrigins?: string[];
   /** Shown in `GET /api/health` (e.g. SQLite file name). */
   databaseLabel?: string;
+  /** Full database path for debugging (safe, no secrets). */
+  databasePath?: string;
+  /** Instance identifier (helps diagnose multi-instance / non-persistent DB). */
+  instanceId?: string;
   /**
    * Absolute path to the Vite `dist` folder (must contain `index.html`).
    * When set, the API process also serves the SPA and assets on the same origin so
@@ -30,6 +34,8 @@ export type CreateAppOptions = {
 
 export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): express.Application {
   const databaseLabel = opts.databaseLabel ?? "in-process";
+  const databasePath = opts.databasePath;
+  const instanceId = opts.instanceId;
   const corsOrigins =
     opts.corsOrigins ??
     (process.env.CORS_ORIGINS ?? "http://localhost:5173,https://bestie.mx,https://www.bestie.mx")
@@ -59,7 +65,13 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   );
 
   app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({ ok: true, service: "bestie-mx-api", database: databaseLabel });
+    res.json({
+      ok: true,
+      service: "bestie-mx-api",
+      database: databaseLabel,
+      ...(databasePath ? { databasePath } : {}),
+      ...(instanceId ? { instanceId } : {}),
+    });
   });
 
   app.get("/api/messenger/webhook", messengerWebhookVerify);
