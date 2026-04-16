@@ -3,6 +3,17 @@ import { deviceHeaders } from "@/lib/deviceFingerprint";
 
 const cred: RequestCredentials = "include";
 
+const API_NET_ERR =
+  "No se pudo contactar la API. Si el sitio está en GitHub Pages, añade el secreto del repositorio VITE_API_URL con la URL pública del servidor (sin / al final; p. ej. https://tu-app.up.railway.app).";
+
+async function networkFetch(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(API_NET_ERR);
+  }
+}
+
 /** Always true: same-origin `/api` is valid; set `VITE_API_URL` only for a separate API host. */
 export function isAuthApiConfigured(): boolean {
   return true;
@@ -21,7 +32,7 @@ export type AuthMe = {
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/me`, { credentials: cred, signal });
+  const res = await networkFetch(`${base}/api/auth/me`, { credentials: cred, signal });
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`auth_me_${res.status}`);
   return (await res.json()) as AuthMe;
@@ -37,7 +48,7 @@ export async function authRegister(
   signal?: AbortSignal,
 ): Promise<RegisterResult> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/register`, {
+  const res = await networkFetch(`${base}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -69,7 +80,7 @@ export async function authLogin(
   signal?: AbortSignal,
 ): Promise<void> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/login`, {
+  const res = await networkFetch(`${base}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -84,12 +95,12 @@ export async function authLogin(
 
 export async function authLogout(signal?: AbortSignal): Promise<void> {
   const base = apiBase();
-  await fetch(`${base}/api/auth/logout`, { method: "POST", credentials: cred, signal });
+  await networkFetch(`${base}/api/auth/logout`, { method: "POST", credentials: cred, signal });
 }
 
 export async function authLinkPublisher(signal?: AbortSignal): Promise<boolean> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/link-publisher`, {
+  const res = await networkFetch(`${base}/api/auth/link-publisher`, {
     method: "POST",
     credentials: cred,
     signal,
@@ -109,7 +120,7 @@ export async function authWhatsAppRequest(
   signal?: AbortSignal,
 ): Promise<WaRequestResult> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/whatsapp/request`, {
+  const res = await networkFetch(`${base}/api/auth/whatsapp/request`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -136,7 +147,7 @@ export async function authWhatsAppVerify(
   signal?: AbortSignal,
 ): Promise<void> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/whatsapp/verify`, {
+  const res = await networkFetch(`${base}/api/auth/whatsapp/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -159,7 +170,7 @@ export async function consumeHandoffToken(
   signal?: AbortSignal,
 ): Promise<HandoffConsumeResult> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/auth/handoff/consume`, {
+  const res = await networkFetch(`${base}/api/auth/handoff/consume`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -180,11 +191,15 @@ export async function consumeHandoffToken(
 
 export async function analyticsHeartbeat(signal?: AbortSignal): Promise<void> {
   const base = apiBase();
-  await fetch(`${base}/api/analytics/heartbeat`, {
-    method: "POST",
-    credentials: cred,
-    signal,
-  });
+  try {
+    await networkFetch(`${base}/api/analytics/heartbeat`, {
+      method: "POST",
+      credentials: cred,
+      signal,
+    });
+  } catch {
+    /* offline / misconfigured API — ignore */
+  }
 }
 
 export async function analyticsEvent(
@@ -204,10 +219,14 @@ export async function analyticsEvent(
 
 export async function fetchFeaturedCities(signal?: AbortSignal): Promise<string[]> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/analytics/featured-cities`, { signal });
-  if (!res.ok) return [];
-  const j = (await res.json()) as { cities?: unknown };
-  return Array.isArray(j.cities) ? j.cities.filter((x): x is string => typeof x === "string") : [];
+  try {
+    const res = await networkFetch(`${base}/api/analytics/featured-cities`, { signal });
+    if (!res.ok) return [];
+    const j = (await res.json()) as { cities?: unknown };
+    return Array.isArray(j.cities) ? j.cities.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 export type AdminUserRow = {
@@ -226,7 +245,7 @@ export async function adminListUsers(
   const q = new URLSearchParams();
   if (opts.limit != null) q.set("limit", String(opts.limit));
   if (opts.offset != null) q.set("offset", String(opts.offset));
-  const res = await fetch(`${base}/api/admin/users?${q}`, { credentials: cred, signal });
+  const res = await networkFetch(`${base}/api/admin/users?${q}`, { credentials: cred, signal });
   if (!res.ok) throw new Error(`admin_users_${res.status}`);
   return (await res.json()) as { users: AdminUserRow[]; total: number };
 }
@@ -237,7 +256,7 @@ export async function adminPatchPropertyStatus(
   signal?: AbortSignal,
 ): Promise<void> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/admin/properties/${encodeURIComponent(propertyId)}/status`, {
+  const res = await networkFetch(`${base}/api/admin/properties/${encodeURIComponent(propertyId)}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -249,7 +268,7 @@ export async function adminPatchPropertyStatus(
 
 export async function adminGetFeaturedCities(signal?: AbortSignal): Promise<string[]> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/admin/settings/featured-cities`, { credentials: cred, signal });
+  const res = await networkFetch(`${base}/api/admin/settings/featured-cities`, { credentials: cred, signal });
   if (!res.ok) throw new Error(`admin_fc_get_${res.status}`);
   const j = (await res.json()) as { cities: string[] };
   return j.cities ?? [];
@@ -260,7 +279,7 @@ export async function adminPutFeaturedCities(
   signal?: AbortSignal,
 ): Promise<void> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/admin/settings/featured-cities`, {
+  const res = await networkFetch(`${base}/api/admin/settings/featured-cities`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -276,7 +295,7 @@ export async function adminAnalyticsSummary(signal?: AbortSignal): Promise<{
   day: string;
 }> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/admin/analytics/summary`, { credentials: cred, signal });
+  const res = await networkFetch(`${base}/api/admin/analytics/summary`, { credentials: cred, signal });
   if (!res.ok) throw new Error(`admin_analytics_${res.status}`);
   return (await res.json()) as {
     publishedPropertyCount: number;
@@ -298,7 +317,7 @@ export type GroupRow = {
 
 export async function groupsMine(signal?: AbortSignal): Promise<GroupRow[]> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/groups/mine`, { credentials: cred, signal });
+  const res = await networkFetch(`${base}/api/groups/mine`, { credentials: cred, signal });
   if (res.status === 401) return [];
   if (!res.ok) throw new Error(`groups_mine_${res.status}`);
   return (await res.json()) as GroupRow[];
@@ -309,7 +328,7 @@ export async function groupsCreate(
   signal?: AbortSignal,
 ): Promise<{ id: string; name: string; inviteCode: string }> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/groups/`, {
+  const res = await networkFetch(`${base}/api/groups/`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
@@ -322,7 +341,7 @@ export async function groupsCreate(
 
 export async function groupsJoin(inviteCode: string, signal?: AbortSignal): Promise<void> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/groups/join`, {
+  const res = await networkFetch(`${base}/api/groups/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
