@@ -39,8 +39,9 @@ export function RegisterPage() {
               if (r.emailDispatch === "failed") {
                 registrationNotice = `Cuenta creada, pero el correo no se pudo enviar: ${r.emailError ?? "error SMTP"}. Revisa en el servidor SMTP_SERVICE=gmail, SMTP_USER y contraseña de aplicación; consulta GET /api/health (campo smtp).`;
               } else if (r.emailDispatch === "skipped_no_smtp") {
-                registrationNotice =
-                  "Cuenta creada, pero el servidor no tiene SMTP configurado: no se envió ningún correo. Configura Gmail u otro SMTP en las variables de entorno.";
+                registrationNotice = r.smtpSetupHint
+                  ? `Cuenta creada, pero el API no tiene correo saliente configurado. ${r.smtpSetupHint}`
+                  : "Cuenta creada, pero el servidor no tiene SMTP configurado: no se envió ningún correo. Configura Gmail u otro SMTP en las variables de entorno del **servicio Node** (no en el build del sitio estático).";
               }
               navigate("/entrar", { replace: true, state: { registrationNotice } });
               return;

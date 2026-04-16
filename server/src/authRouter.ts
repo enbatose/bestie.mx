@@ -8,7 +8,7 @@ import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.j
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
 import { createPublishHandoff, publicApiOrigin, publicWebOrigin } from "./handoffTokens.js";
 import { createEmailVerificationToken, verifyEmailWithToken } from "./emailVerification.js";
-import { sendVerificationEmail } from "./mailer.js";
+import { OUTBOUND_SMTP_SETUP_HINT, sendVerificationEmail } from "./mailer.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
 
@@ -107,6 +107,7 @@ export function authRouter(db: DatabaseSync) {
       displayName: displayName || email.split("@")[0],
       emailDispatch: emailResult.status,
       ...(emailResult.status === "failed" && emailResult.detail ? { emailError: emailResult.detail } : {}),
+      ...(emailResult.status === "skipped_no_smtp" ? { smtpSetupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
       ...(strict ? { verificationPending: true } : {}),
       ...(devVerificationUrl ? { devVerificationUrl } : {}),
     });
@@ -146,6 +147,7 @@ export function authRouter(db: DatabaseSync) {
       ok: true,
       emailDispatch: emailResult.status,
       ...(emailResult.status === "failed" && emailResult.detail ? { emailError: emailResult.detail } : {}),
+      ...(emailResult.status === "skipped_no_smtp" ? { smtpSetupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
     });
   });
 

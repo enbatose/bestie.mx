@@ -52,7 +52,9 @@ export function AuthModal() {
         if (r.emailDispatch === "failed") {
           registrationNotice = `Cuenta creada, pero el correo no se envió: ${r.emailError ?? "SMTP"}. Revisa GET /api/health → smtp.`;
         } else if (r.emailDispatch === "skipped_no_smtp") {
-          registrationNotice = "Cuenta creada, pero el servidor no tiene SMTP: no se envió correo.";
+          registrationNotice = r.smtpSetupHint
+            ? `Cuenta creada, pero no hay correo saliente. ${r.smtpSetupHint}`
+            : "Cuenta creada, pero el servidor no tiene SMTP: no se envió correo. Configura GMAIL_USER + GMAIL_APP_PASSWORD o SMTP_URL en el proceso del API.";
         }
         close();
         navigate("/entrar", { replace: true, state: { registrationNotice } });
@@ -175,7 +177,7 @@ export function AuthModal() {
                     if (dr.emailDispatch === "failed") {
                       setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP en el servidor.");
                     } else if (dr.emailDispatch === "skipped_no_smtp") {
-                      setErr("El servidor no tiene SMTP configurado.");
+                      setErr(dr.smtpSetupHint ?? "El servidor no tiene SMTP configurado en el API.");
                     } else {
                       setResendOk("Revisa tu correo (y spam).");
                     }

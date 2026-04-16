@@ -155,7 +155,7 @@ export function SignInPage() {
                   if (dr.emailDispatch === "failed") {
                     setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP en el servidor (GET /api/health).");
                   } else if (dr.emailDispatch === "skipped_no_smtp") {
-                    setErr("El servidor no tiene envío de correo configurado (SMTP).");
+                    setErr(dr.smtpSetupHint ?? "El servidor no tiene envío de correo configurado (SMTP) en el proceso del API.");
                   } else {
                     setMsg("Listo. Revisa tu bandeja (y spam).");
                   }
@@ -349,7 +349,7 @@ export function SignInPage() {
                     if (dr.emailDispatch === "failed") {
                       setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP (GET /api/health).");
                     } else if (dr.emailDispatch === "skipped_no_smtp") {
-                      setErr("El servidor no tiene SMTP configurado.");
+                      setErr(dr.smtpSetupHint ?? "El servidor no tiene SMTP configurado en el API.");
                     } else {
                       setMsg("Listo. Revisa tu bandeja (y spam).");
                     }

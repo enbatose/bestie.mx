@@ -19,6 +19,10 @@ export type SmtpDiagnostics = {
   lastSendError: string | null;
 };
 
+/** Shown in `GET /api/health` when outbound mail is off (no secrets). */
+export const OUTBOUND_SMTP_SETUP_HINT =
+  "Set GMAIL_USER + GMAIL_APP_PASSWORD, or SMTP_URL (e.g. smtps://user:pass@smtp.gmail.com:465), on the **Node/API** service — not on the static front-end build.";
+
 const diagnostics: SmtpDiagnostics = {
   configured: false,
   verifiedAt: null,
@@ -36,49 +40,100 @@ export function getSmtpDiagnostics(): SmtpDiagnostics {
   };
 }
 
-/** Login / from address (supports common Railway-style `GMAIL_*` names). */
-export function resolveSmtpUser(): string | undefined {
+/** Trim + strip UTF-8 BOM (sometimes pasted into hosting env UIs). */
+export function cleanEnv(v: string | undefined | null): string {
+  if (v == null) return "";
+  return String(v).replace(/^\uFEFF/, "").trim();
+}
+
+/** First non-empty connection URI (Nodemailer accepts these directly). */
+export function getRawSmtpUrl(): string | undefined {
   const u =
-    process.env.SMTP_USER?.trim() ||
-    process.env.GMAIL_USER?.trim() ||
-    process.env.GMAIL_ADDRESS?.trim();
+    cleanEnv(process.env.SMTP_URL) ||
+    cleanEnv(process.env.EMAIL_URL) ||
+    cleanEnv(process.env.MAILER_DSN) ||
+    cleanEnv(process.env.MAIL_URL);
   return u || undefined;
 }
 
-/** Password or Google app password (spaces stripped). */
+function tryParseUserFromSmtpUrl(): string | undefined {
+  const url = getRawSmtpUrl();
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    if (u.username) return decodeURIComponent(u.username);
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+function tryParsePassFromSmtpUrl(): string {
+  const url = getRawSmtpUrl();
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    if (u.password) return decodeURIComponent(u.password);
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+/** Login / from address (supports common Railway-style `GMAIL_*` names and user embedded in `SMTP_URL`). */
+export function resolveSmtpUser(): string | undefined {
+  const u =
+    cleanEnv(process.env.SMTP_USER) ||
+    cleanEnv(process.env.GMAIL_USER) ||
+    cleanEnv(process.env.GMAIL_ADDRESS) ||
+    cleanEnv(process.env.GMAIL_EMAIL) ||
+    tryParseUserFromSmtpUrl();
+  return u || undefined;
+}
+
+/** Password or Google app password (spaces stripped); can come from `SMTP_URL` auth segment. */
 export function resolveSmtpPass(): string | undefined {
   const raw =
-    process.env.SMTP_PASS ?? process.env.GMAIL_APP_PASSWORD ?? process.env.GMAIL_PASSWORD ?? "";
+    cleanEnv(process.env.SMTP_PASS) ||
+    cleanEnv(process.env.GMAIL_APP_PASSWORD) ||
+    cleanEnv(process.env.GMAIL_PASSWORD) ||
+    cleanEnv(process.env.EMAIL_PASSWORD) ||
+    cleanEnv(process.env.MAIL_PASSWORD) ||
+    tryParsePassFromSmtpUrl();
   const n = normalizeSmtpPassword(raw);
   return n || undefined;
 }
 
 /** Use Gmail SMTP (implicit) when no `SMTP_HOST` but app-password style env is set or service says gmail. */
 export function wantsImplicitGmail(): boolean {
-  const svc = process.env.SMTP_SERVICE?.trim().toLowerCase();
+  if ((getRawSmtpUrl()?.toLowerCase() ?? "").includes("gmail")) return true;
+  const svc = cleanEnv(process.env.SMTP_SERVICE).toLowerCase();
   if (svc === "gmail" || svc === "google") return true;
-  if (process.env.GMAIL_APP_PASSWORD?.trim() || process.env.GMAIL_PASSWORD?.trim()) return true;
+  if (cleanEnv(process.env.GMAIL_APP_PASSWORD) || cleanEnv(process.env.GMAIL_PASSWORD)) return true;
   const u = resolveSmtpUser()?.toLowerCase() ?? "";
   if (u.endsWith("@gmail.com") || u.endsWith("@googlemail.com")) return true;
   return false;
 }
 
 /** For `/api/health` — how outbound mail is configured (no secrets). */
-export function getSmtpMode(): "off" | "gmail_implicit" | "gmail_host" | "smtp_host" {
+export function getSmtpMode(): "off" | "smtp_url" | "gmail_implicit" | "gmail_host" | "smtp_host" {
   if (!smtpConfigured()) return "off";
-  const h = process.env.SMTP_HOST?.trim().toLowerCase() ?? "";
+  if (getRawSmtpUrl()) return "smtp_url";
+  const h = cleanEnv(process.env.SMTP_HOST).toLowerCase();
   if (h.includes("gmail.com")) return "gmail_host";
-  if (process.env.SMTP_HOST?.trim()) return "smtp_host";
+  if (cleanEnv(process.env.SMTP_HOST)) return "smtp_host";
   return "gmail_implicit";
 }
 
 /**
  * True when mail can be attempted:
+ * - `SMTP_URL` / `EMAIL_URL` / etc., or
  * - any `SMTP_HOST`, or
  * - Gmail-style credentials without host (`GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_SERVICE=gmail`, etc.).
  */
 export function smtpConfigured(): boolean {
-  if (process.env.SMTP_HOST?.trim()) return true;
+  if (getRawSmtpUrl()) return true;
+  if (cleanEnv(process.env.SMTP_HOST)) return true;
   const user = resolveSmtpUser();
   const pass = resolveSmtpPass();
   if (!user || !pass) return false;
@@ -86,7 +141,7 @@ export function smtpConfigured(): boolean {
 }
 
 function requireEnv(name: string): string {
-  const v = process.env[name]?.trim();
+  const v = cleanEnv(process.env[name]);
   if (!v) throw new Error(`Missing ${name}`);
   return v;
 }
@@ -159,7 +214,11 @@ function createGenericTransporter(): nodemailer.Transporter {
 }
 
 function createTransporter(): nodemailer.Transporter {
-  const host = process.env.SMTP_HOST?.trim();
+  const url = getRawSmtpUrl();
+  if (url) {
+    return nodemailer.createTransport(url);
+  }
+  const host = cleanEnv(process.env.SMTP_HOST);
   if (host && host.toLowerCase().includes("gmail.com")) {
     return createGmailTransporter();
   }
@@ -176,7 +235,14 @@ function resolveFromAddress(): string {
   const u = resolveSmtpUser();
   const gmailish = wantsImplicitGmail() || u?.toLowerCase().endsWith("@gmail.com");
   const fromDefault = u && gmailish ? `Bestie <${u}>` : "Bestie <no-reply@bestie.mx>";
-  return (process.env.SMTP_FROM ?? fromDefault).trim();
+  const explicit = cleanEnv(process.env.SMTP_FROM);
+  return explicit || fromDefault;
+}
+
+/** Log once at boot when verification email cannot be sent (helps misconfigured PaaS env). */
+export function logOutboundMailHintIfDisabled(): void {
+  if (smtpConfigured()) return;
+  console.warn(`[email] ${OUTBOUND_SMTP_SETUP_HINT}`);
 }
 
 /**
@@ -236,7 +302,7 @@ export async function sendVerificationEmail(toEmail: string, verifyUrl: string):
   }
 
   const from = resolveFromAddress();
-  const replyTo = process.env.SMTP_REPLY_TO?.trim() || resolveSmtpUser();
+  const replyTo = cleanEnv(process.env.SMTP_REPLY_TO) || resolveSmtpUser();
 
   const subject = "Confirma tu correo — Bestie";
   const text =

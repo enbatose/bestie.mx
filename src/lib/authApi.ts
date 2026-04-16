@@ -58,11 +58,14 @@ export type RegisterResult = {
   /** Whether the verification email was accepted by SMTP (see /api/health if failed). */
   emailDispatch?: EmailDispatch;
   emailError?: string;
+  /** When email was not sent because SMTP is off, server explains which env vars to set on the API. */
+  smtpSetupHint?: string;
 };
 
 export type ResendVerificationResult = {
   emailDispatch?: EmailDispatch;
   emailError?: string;
+  smtpSetupHint?: string;
 };
 
 export async function authRegister(
@@ -92,6 +95,7 @@ export async function authRegister(
     verificationPending?: boolean;
     emailDispatch?: EmailDispatch;
     emailError?: string;
+    smtpSetupHint?: string;
   };
   if (created.verificationPending) {
     return {
@@ -100,6 +104,7 @@ export async function authRegister(
       registeredEmail: typeof created.email === "string" ? created.email : undefined,
       ...(typeof created.emailDispatch === "string" ? { emailDispatch: created.emailDispatch } : {}),
       ...(typeof created.emailError === "string" ? { emailError: created.emailError } : {}),
+      ...(typeof created.smtpSetupHint === "string" ? { smtpSetupHint: created.smtpSetupHint } : {}),
       ...(typeof created.devVerificationUrl === "string"
         ? { devVerificationUrl: created.devVerificationUrl }
         : {}),
@@ -111,6 +116,7 @@ export async function authRegister(
     me,
     ...(typeof created.emailDispatch === "string" ? { emailDispatch: created.emailDispatch } : {}),
     ...(typeof created.emailError === "string" ? { emailError: created.emailError } : {}),
+    ...(typeof created.smtpSetupHint === "string" ? { smtpSetupHint: created.smtpSetupHint } : {}),
     ...(typeof created.devVerificationUrl === "string"
       ? { devVerificationUrl: created.devVerificationUrl }
       : {}),
@@ -172,10 +178,12 @@ export async function authResendVerification(
   const j = (await res.json().catch(() => ({}))) as {
     emailDispatch?: EmailDispatch;
     emailError?: string;
+    smtpSetupHint?: string;
   };
   return {
     ...(typeof j.emailDispatch === "string" ? { emailDispatch: j.emailDispatch } : {}),
     ...(typeof j.emailError === "string" ? { emailError: j.emailError } : {}),
+    ...(typeof j.smtpSetupHint === "string" ? { smtpSetupHint: j.smtpSetupHint } : {}),
   };
 }
 
