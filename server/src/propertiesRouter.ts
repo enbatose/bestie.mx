@@ -853,8 +853,12 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
     const prop = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown> | undefined;
-    if (!prop || String(prop.publisher_id) !== publisherId) {
+    if (!prop) {
       res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (String(prop.publisher_id) !== publisherId) {
+      res.status(403).json({ error: "not_owner" });
       return;
     }
 

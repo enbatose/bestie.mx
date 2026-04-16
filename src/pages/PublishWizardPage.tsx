@@ -515,84 +515,100 @@ export function PublishWizardPage() {
       const { lat, lng } = resolveLatLngForDraft(d);
       const wa = wizardContactDigits(d.contactWhatsApp);
 
-      let propertyId = serverSyncRef.current.propertyId;
-      let roomIds = [...serverSyncRef.current.roomIds];
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let propertyId = serverSyncRef.current.propertyId;
+        let roomIds = [...serverSyncRef.current.roomIds];
 
-      if (!propertyId) {
-        const prop = await createDraftProperty({
-          title: d.propertyTitle.trim() || "Sin título",
-          city: d.city,
-          neighborhood,
-          lat,
-          lng,
-          summary: d.propertySummary.trim(),
-          contactWhatsApp: wa,
-          propertyKind: d.propertyKind,
-          bedroomsTotal: d.propertyBedroomsTotal,
-          bathrooms: d.propertyBathrooms,
-          showWhatsApp: d.showWhatsApp,
-          imageUrls: d.propertyImageUrls,
-          isApproximateLocation: d.isApproximateLocation,
-        });
-        propertyId = prop.id;
-        roomIds = d.rooms.map(() => "");
-      }
-
-      while (roomIds.length < d.rooms.length) roomIds.push("");
-      roomIds = roomIds.slice(0, d.rooms.length);
-
-      for (let i = 0; i < d.rooms.length; i++) {
-        const r = d.rooms[i]!;
-        const payload = {
-          title: r.title.trim() || "Cuarto en borrador",
-          rentMxn: r.rentMxn,
-          roomsAvailable: r.roomsAvailable,
-          tags: r.tags,
-          roommateGenderPref: r.roommateGenderPref,
-          ageMin: r.ageMin,
-          ageMax: r.ageMax,
-          summary: r.summary.trim(),
-          lodgingType: r.lodgingType,
-          availableFrom: r.availableFrom.trim(),
-          minimalStayMonths: r.minimalStayMonths,
-          roomDimension: r.roomDimension,
-          depositMxn: r.depositMxn,
-          imageUrls: d.roomImageUrls[i] ?? [],
-        };
-        const rid = roomIds[i];
-        if (!rid) {
-          const created = await addDraftRoomToProperty(propertyId!, payload);
-          roomIds[i] = created.id;
-        } else {
-          await patchDraftRoom(propertyId!, rid, payload);
+        if (!propertyId) {
+          const prop = await createDraftProperty({
+            title: d.propertyTitle.trim() || "Sin título",
+            city: d.city,
+            neighborhood,
+            lat,
+            lng,
+            summary: d.propertySummary.trim(),
+            contactWhatsApp: wa,
+            propertyKind: d.propertyKind,
+            bedroomsTotal: d.propertyBedroomsTotal,
+            bathrooms: d.propertyBathrooms,
+            showWhatsApp: d.showWhatsApp,
+            imageUrls: d.propertyImageUrls,
+            isApproximateLocation: d.isApproximateLocation,
+          });
+          propertyId = prop.id;
+          roomIds = d.rooms.map(() => "");
         }
+
+        while (roomIds.length < d.rooms.length) roomIds.push("");
+        roomIds = roomIds.slice(0, d.rooms.length);
+
+        for (let i = 0; i < d.rooms.length; i++) {
+          const r = d.rooms[i]!;
+          const payload = {
+            title: r.title.trim() || "Cuarto en borrador",
+            rentMxn: r.rentMxn,
+            roomsAvailable: r.roomsAvailable,
+            tags: r.tags,
+            roommateGenderPref: r.roommateGenderPref,
+            ageMin: r.ageMin,
+            ageMax: r.ageMax,
+            summary: r.summary.trim(),
+            lodgingType: r.lodgingType,
+            availableFrom: r.availableFrom.trim(),
+            minimalStayMonths: r.minimalStayMonths,
+            roomDimension: r.roomDimension,
+            depositMxn: r.depositMxn,
+            imageUrls: d.roomImageUrls[i] ?? [],
+          };
+          const rid = roomIds[i];
+          if (!rid) {
+            const created = await addDraftRoomToProperty(propertyId!, payload);
+            roomIds[i] = created.id;
+          } else {
+            await patchDraftRoom(propertyId!, rid, payload);
+          }
+        }
+
+        try {
+          await updateProperty(propertyId!, {
+            postMode: d.postMode,
+            title: d.propertyTitle.trim() || "Sin título",
+            summary: d.propertySummary.trim(),
+            city: d.city,
+            neighborhood,
+            lat,
+            lng,
+            contactWhatsApp: wa,
+            propertyKind: d.propertyKind,
+            bedroomsTotal: d.propertyBedroomsTotal,
+            bathrooms: d.propertyBathrooms,
+            showWhatsApp: d.showWhatsApp,
+            imageUrls: d.propertyImageUrls,
+            isApproximateLocation: d.isApproximateLocation,
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (attempt === 0 && (msg.includes("update_property_http_404") || msg.includes("update_property_http_403"))) {
+            // Draft no longer exists on server or publisher cookie changed; recreate once.
+            serverSyncRef.current = { propertyId: "", roomIds: [] };
+            setServerSync({ propertyId: "", roomIds: [] });
+            continue;
+          }
+          throw e;
+        }
+
+        const next: ServerSync = { propertyId, roomIds };
+        serverSyncRef.current = next;
+        setServerSync(next);
+        setAutosaveNote("saved");
+        window.setTimeout(() => {
+          setAutosaveNote((n) => (n === "saved" ? "idle" : n));
+        }, 2000);
+        return next;
       }
 
-      await updateProperty(propertyId!, {
-        postMode: d.postMode,
-        title: d.propertyTitle.trim() || "Sin título",
-        summary: d.propertySummary.trim(),
-        city: d.city,
-        neighborhood,
-        lat,
-        lng,
-        contactWhatsApp: wa,
-        propertyKind: d.propertyKind,
-        bedroomsTotal: d.propertyBedroomsTotal,
-        bathrooms: d.propertyBathrooms,
-        showWhatsApp: d.showWhatsApp,
-        imageUrls: d.propertyImageUrls,
-        isApproximateLocation: d.isApproximateLocation,
-      });
-
-      const next: ServerSync = { propertyId, roomIds };
-      serverSyncRef.current = next;
-      setServerSync(next);
-      setAutosaveNote("saved");
-      window.setTimeout(() => {
-        setAutosaveNote((n) => (n === "saved" ? "idle" : n));
-      }, 2000);
-      return next;
+      setAutosaveNote("error");
+      return null;
     } catch {
       setAutosaveNote("error");
       return null;
