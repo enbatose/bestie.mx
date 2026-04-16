@@ -169,6 +169,12 @@ function migratePropertyPostMode(db: DatabaseSync): void {
   }
 }
 
+function migratePropertyApproximateLocation(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "is_approximate_location")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN is_approximate_location INTEGER NOT NULL DEFAULT 0`);
+  }
+}
+
 function ensurePhaseBSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS properties (
@@ -187,7 +193,8 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       bedrooms_total INTEGER NOT NULL DEFAULT 1,
       bathrooms REAL NOT NULL DEFAULT 1,
       show_whatsapp INTEGER NOT NULL DEFAULT 1,
-      image_urls_json TEXT NOT NULL DEFAULT '[]'
+      image_urls_json TEXT NOT NULL DEFAULT '[]',
+      is_approximate_location INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS rooms (
       id TEXT PRIMARY KEY,
@@ -222,16 +229,17 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migratePhaseBRoomixColumns(db);
   migrateImageUrlsJson(db);
   migratePropertyPostMode(db);
+  migratePropertyApproximateLocation(db);
 }
 
 function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
   const insertProp = db.prepare(`
     INSERT INTO properties (
       id, publisher_id, status, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-      bedrooms_total, bathrooms, show_whatsapp, image_urls_json
+      bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location
     ) VALUES (
       @id, @publisherId, 'published', @title, @city, @neighborhood, @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
-      @bedroomsTotal, @bathrooms, @showWhatsapp, @imageUrlsJson
+      @bedroomsTotal, @bathrooms, @showWhatsapp, @imageUrlsJson, 0
     )
   `);
   const insertRoom = db.prepare(`

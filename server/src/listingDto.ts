@@ -123,6 +123,7 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ...(subletAllowed !== undefined ? { subletAllowed } : {}),
     ...(propertyImageUrls.length ? { propertyImageUrls } : {}),
     ...(roomImageUrls.length ? { roomImageUrls } : {}),
+    ...(int01(row.is_approximate_location) ? { isApproximateLocation: true } : {}),
   };
 }
 
@@ -160,7 +161,8 @@ SELECT
   p.show_whatsapp AS show_whatsapp,
   r.deposit_mxn AS deposit_mxn,
   p.image_urls_json AS property_image_urls_json,
-  r.image_urls_json AS room_image_urls_json
+  r.image_urls_json AS room_image_urls_json,
+  p.is_approximate_location AS is_approximate_location
 FROM rooms r
 INNER JOIN properties p ON p.id = r.property_id
 `;

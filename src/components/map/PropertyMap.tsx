@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle } from "react-leaflet";
 import L from "leaflet";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import type { Bbox } from "@/lib/searchFilters";
@@ -173,6 +173,44 @@ export function PropertyMap({
         <MapSelectionSync selectedId={selectedId} listings={listings} />
         {listings.map((l) => {
           const selected = l.id === selectedId;
+          const popupContent = (
+            <Popup>
+              <div className="max-w-[220px] text-body">
+                <p className="text-sm font-semibold text-primary">{l.title}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {l.neighborhood}, {l.city}
+                </p>
+                <p className="mt-2 text-sm font-semibold">
+                  {new Intl.NumberFormat("es-MX", {
+                    style: "currency",
+                    currency: "MXN",
+                    maximumFractionDigits: 0,
+                  }).format(l.rentMxn)}
+                  <span className="text-xs font-normal text-muted"> / mes</span>
+                </p>
+              </div>
+            </Popup>
+          );
+
+          if (l.isApproximateLocation) {
+            return (
+              <Circle
+                key={l.id}
+                center={[l.lat, l.lng]}
+                radius={500}
+                pathOptions={{ 
+                  color: selected ? "var(--color-primary)" : "#84CC16", 
+                  fillColor: selected ? "var(--color-primary)" : "#84CC16", 
+                  fillOpacity: 0.25, 
+                  weight: selected ? 3 : 2 
+                }}
+                eventHandlers={{ click: () => onSelect(l.id) }}
+              >
+                {popupContent}
+              </Circle>
+            );
+          }
+
           return (
             <Marker
               key={l.id}
@@ -181,22 +219,7 @@ export function PropertyMap({
               zIndexOffset={selected ? 700 : 0}
               icon={selected ? selectedMarkerIcon : standardMarkerIcon}
             >
-              <Popup>
-                <div className="max-w-[220px] text-body">
-                  <p className="text-sm font-semibold text-primary">{l.title}</p>
-                  <p className="mt-1 text-xs text-muted">
-                    {l.neighborhood}, {l.city}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold">
-                    {new Intl.NumberFormat("es-MX", {
-                      style: "currency",
-                      currency: "MXN",
-                      maximumFractionDigits: 0,
-                    }).format(l.rentMxn)}
-                    <span className="text-xs font-normal text-muted"> / mes</span>
-                  </p>
-                </div>
-              </Popup>
+              {popupContent}
             </Marker>
           );
         })}

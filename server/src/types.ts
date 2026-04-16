@@ -42,6 +42,7 @@ export type Property = {
   showWhatsApp: boolean;
   /** Gallery paths from `POST /api/uploads` (same-origin `/api/uploads/...`). */
   imageUrls?: string[];
+  isApproximateLocation?: boolean;
 };
 
 /** Rentable unit / space inside a property; search pins are per room. */

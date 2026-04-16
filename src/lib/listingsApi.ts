@@ -77,6 +77,7 @@ export type PublishBundlePayload = {
     /** Default true — same idea as Roomix “Visible en anuncio” for phone. */
     showWhatsApp?: boolean;
     imageUrls?: string[];
+    isApproximateLocation?: boolean;
   };
   rooms: Array<{
     id?: string;
@@ -153,6 +154,7 @@ export type CreateDraftPropertyPayload = {
   bathrooms?: number;
   showWhatsApp?: boolean;
   imageUrls?: string[];
+  isApproximateLocation?: boolean;
 };
 
 export type AddDraftRoomPayload = {
@@ -190,6 +192,7 @@ export type UpdatePropertyPayload = {
   bathrooms?: number;
   showWhatsApp?: boolean;
   imageUrls?: string[];
+  isApproximateLocation?: boolean;
 };
 
 export type PatchDraftRoomPayload = Partial<Omit<AddDraftRoomPayload, "id">>;

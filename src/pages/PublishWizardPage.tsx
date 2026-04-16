@@ -114,6 +114,7 @@ type Draft = {
   roomImageUrls: string[][];
   rooms: RoomDraft[];
   legalAccepted: boolean;
+  isApproximateLocation: boolean;
 };
 
 const defaultRoom = (): RoomDraft => ({
@@ -162,6 +163,7 @@ const defaultDraft = (): Draft => ({
   roomImageUrls: [[]],
   rooms: [defaultRoom()],
   legalAccepted: false,
+  isApproximateLocation: false,
 });
 
 function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
@@ -214,6 +216,7 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
     propertyImageUrls,
     unassignedImageUrls,
     roomImageUrls,
+    isApproximateLocation: Boolean(parsed.isApproximateLocation),
   };
 }
 
@@ -329,6 +332,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     roomImageUrls: srvRooms.length > 0 ? srvRooms.map((r) => r.imageUrls ?? []) : [[]],
     rooms: roomDrafts,
     legalAccepted: false,
+    isApproximateLocation: Boolean((p as { isApproximateLocation?: unknown }).isApproximateLocation),
   };
   return {
     draft,
@@ -528,6 +532,7 @@ export function PublishWizardPage() {
           bathrooms: d.propertyBathrooms,
           showWhatsApp: d.showWhatsApp,
           imageUrls: d.propertyImageUrls,
+          isApproximateLocation: d.isApproximateLocation,
         });
         propertyId = prop.id;
         roomIds = d.rooms.map(() => "");
@@ -577,6 +582,7 @@ export function PublishWizardPage() {
         bathrooms: d.propertyBathrooms,
         showWhatsApp: d.showWhatsApp,
         imageUrls: d.propertyImageUrls,
+        isApproximateLocation: d.isApproximateLocation,
       });
 
       const next: ServerSync = { propertyId, roomIds };
@@ -797,6 +803,24 @@ export function PublishWizardPage() {
                   <span>{resolvedAddress}</span>
                 </div>
               )}
+              <label className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:ring-secondary"
+                  checked={draft.isApproximateLocation}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, isApproximateLocation: e.target.checked }))
+                  }
+                />
+                <div>
+                  <span className="block text-sm font-semibold text-primary">
+                    Ocultar dirección exacta en el anuncio
+                  </span>
+                  <span className="block text-xs text-muted">
+                    Los usuarios solo verán un círculo aproximado de 500m en el mapa. Útil si prefieres mayor privacidad hasta contactar con los interesados.
+                  </span>
+                </div>
+              </label>
               <button
                 type="button"
                 className="mt-3 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"

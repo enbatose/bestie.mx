@@ -126,6 +126,7 @@ function rowToProperty(row: Record<string, unknown>): Property {
     showWhatsApp,
     ...(pk ? { propertyKind: pk } : {}),
     ...(imageUrls.length ? { imageUrls } : {}),
+    ...(row.is_approximate_location ? { isApproximateLocation: true } : {}),
   };
 }
 
@@ -361,8 +362,8 @@ export function propertiesRouter(db: DatabaseSync) {
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertRoom = db.prepare(`
       INSERT INTO rooms (
@@ -390,6 +391,7 @@ export function propertiesRouter(db: DatabaseSync) {
         bathTotal,
         showWhatsappInt,
         propImagesJson,
+        optBool((p as { isApproximateLocation?: unknown }).isApproximateLocation) ? 1 : 0,
       );
 
       let order = 0;
@@ -546,8 +548,8 @@ export function propertiesRouter(db: DatabaseSync) {
     db.prepare(
       `INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
@@ -564,6 +566,7 @@ export function propertiesRouter(db: DatabaseSync) {
       bath,
       showInt,
       draftPropImagesJson,
+      optBool(body.isApproximateLocation) ? 1 : 0,
     );
     const created = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
     res.status(201).json(rowToProperty(created));
@@ -870,6 +873,7 @@ export function propertiesRouter(db: DatabaseSync) {
       bathrooms?: unknown;
       showWhatsApp?: unknown;
       imageUrls?: unknown;
+      isApproximateLocation?: unknown;
     };
 
     const curStatus = String(prop.status) as ListingStatus;
@@ -1002,6 +1006,13 @@ export function propertiesRouter(db: DatabaseSync) {
         ? JSON.stringify(clampListingImageUrls(patch.imageUrls))
         : String(prop.image_urls_json ?? "[]");
 
+    const nextIsApprox =
+      patch.isApproximateLocation !== undefined
+        ? optBool(patch.isApproximateLocation)
+          ? 1
+          : 0
+        : Number(prop.is_approximate_location) ? 1 : 0;
+
     const curMode = String(prop.post_mode ?? "property") === "room" ? "room" : "property";
     const nextMode =
       patch.postMode != null && typeof patch.postMode === "string"
@@ -1018,7 +1029,7 @@ export function propertiesRouter(db: DatabaseSync) {
         post_mode = ?,
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
-        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?
+        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?
       WHERE id = ?`,
     ).run(
       nextStatus,
@@ -1035,6 +1046,7 @@ export function propertiesRouter(db: DatabaseSync) {
       nextBath,
       nextShowWhatsapp,
       nextImageUrlsJson,
+      nextIsApprox,
       propertyId,
     );
 
