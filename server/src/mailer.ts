@@ -1,6 +1,10 @@
 import nodemailer from "nodemailer";
 
+/** True when generic SMTP host is set, or Gmail credentials are set for `SMTP_SERVICE=gmail`. */
 export function smtpConfigured(): boolean {
+  if (process.env.SMTP_SERVICE?.trim().toLowerCase() === "gmail") {
+    return Boolean(process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim());
+  }
   return Boolean(process.env.SMTP_HOST?.trim());
 }
 
@@ -10,21 +14,38 @@ function requireEnv(name: string): string {
   return v;
 }
 
-export async function sendVerificationEmail(toEmail: string, verifyUrl: string): Promise<void> {
-  if (!smtpConfigured()) return;
+function createTransporter(): nodemailer.Transporter {
+  const service = process.env.SMTP_SERVICE?.trim().toLowerCase();
+  if (service === "gmail") {
+    const user = requireEnv("SMTP_USER");
+    const pass = requireEnv("SMTP_PASS");
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
+  }
 
   const host = requireEnv("SMTP_HOST");
   const port = Number(process.env.SMTP_PORT) || 587;
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
-  const from = (process.env.SMTP_FROM ?? "Bestie <no-reply@bestie.mx>").trim();
 
-  const transporter = nodemailer.createTransport({
+  return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
+    ...(port === 587 ? { requireTLS: true } : {}),
     ...(user && pass ? { auth: { user, pass } } : {}),
   });
+}
+
+export async function sendVerificationEmail(toEmail: string, verifyUrl: string): Promise<void> {
+  if (!smtpConfigured()) return;
+
+  const transporter = createTransporter();
+  const gmailUser = process.env.SMTP_SERVICE?.trim().toLowerCase() === "gmail" ? requireEnv("SMTP_USER") : null;
+  const fromDefault = gmailUser ? `Bestie <${gmailUser}>` : "Bestie <no-reply@bestie.mx>";
+  const from = (process.env.SMTP_FROM ?? fromDefault).trim();
 
   const subject = "Confirma tu correo — Bestie";
   const text =
@@ -47,4 +68,3 @@ export async function sendVerificationEmail(toEmail: string, verifyUrl: string):
     html,
   });
 }
-
