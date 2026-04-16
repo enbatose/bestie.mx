@@ -1,7 +1,8 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import cors from "cors";
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { adminRouter } from "./adminRouter.js";
 import { analyticsRouter } from "./analyticsRouter.js";
 import { authRouter } from "./authRouter.js";
@@ -19,6 +20,12 @@ export type CreateAppOptions = {
   corsOrigins?: string[];
   /** Shown in `GET /api/health` (e.g. SQLite file name). */
   databaseLabel?: string;
+  /**
+   * Absolute path to the Vite `dist` folder (must contain `index.html`).
+   * When set, the API process also serves the SPA and assets on the same origin so
+   * `POST /api/...` hits Express instead of a static CDN returning 405.
+   */
+  webDistDir?: string;
 };
 
 export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): express.Application {
@@ -80,6 +87,28 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));
   app.use("/api/compliance", complianceRouter());
+
+  const spaDist = opts.webDistDir?.trim();
+  if (spaDist) {
+    const absDist = path.resolve(spaDist);
+    const indexHtml = path.join(absDist, "index.html");
+    if (fs.existsSync(indexHtml)) {
+      app.use(express.static(absDist, { index: false }));
+      app.use((req: Request, res: Response, next: NextFunction) => {
+        if (req.method !== "GET" && req.method !== "HEAD") {
+          next();
+          return;
+        }
+        if (req.path.startsWith("/api") || req.path === "/health") {
+          next();
+          return;
+        }
+        res.sendFile(indexHtml, (err) => {
+          if (err) next(err);
+        });
+      });
+    }
+  }
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: "not_found" });

@@ -46,6 +46,11 @@ export async function authRegister(
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    if (res.status === 405) {
+      throw new Error(
+        "El servidor no acepta POST en /api (405). Sirve el front desde el mismo proceso que la API o configura un proxy /api hacia Node.",
+      );
+    }
     throw new Error(j.message || j.error || `register_${res.status}`);
   }
   const created = (await res.json()) as { devVerificationUrl?: string };

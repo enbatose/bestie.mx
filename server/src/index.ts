@@ -3,6 +3,17 @@ import path from "node:path";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 
+/** When `index.html` exists, API + SPA share one origin (see `createApp` `webDistDir`). */
+function resolveWebDistDir(): string | undefined {
+  const raw = process.env.WEB_DIST_DIR?.trim();
+  const candidate = raw
+    ? path.isAbsolute(raw)
+      ? raw
+      : path.resolve(process.cwd(), raw)
+    : path.resolve(process.cwd(), "..", "dist");
+  return fs.existsSync(path.join(candidate, "index.html")) ? candidate : undefined;
+}
+
 const PORT = Number(process.env.PORT) || 3000;
 
 /** Prefer env path; if that directory is not writable (e.g. /data without a volume), use ./data/bestie.db */
@@ -39,12 +50,18 @@ const corsOrigins = (process.env.CORS_ORIGINS ??
 
 const db = openDb(databasePath);
 
+const webDistDir = resolveWebDistDir();
+
 const app = createApp(db, {
   corsOrigins,
   databaseLabel: path.basename(databasePath),
+  ...(webDistDir ? { webDistDir } : {}),
 });
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`bestie.mx API listening on 0.0.0.0:${PORT}`);
   console.log(`SQLite: ${databasePath}`);
+  if (webDistDir) {
+    console.log(`[web] SPA + API same origin from ${webDistDir}`);
+  }
 });
