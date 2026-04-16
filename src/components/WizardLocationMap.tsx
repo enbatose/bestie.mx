@@ -1,4 +1,4 @@
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, useMapEvents, Circle } from "react-leaflet";
 import L from "leaflet";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -46,6 +46,11 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
             onPositionChange(ll.lat, ll.lng);
           },
         }}
+      />
+      <Circle
+        center={position}
+        radius={500}
+        pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
       />
     </MapContainer>
   );
