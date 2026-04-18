@@ -14,8 +14,8 @@ type Props = {
   onPositionChange: (lat: number, lng: number) => void;
 };
 
-/** Opens Google Street View at the pin (Leaflet/OSM tiles have no street-level imagery). */
-function googleStreetViewUrl(lat: number, lng: number): string {
+/** External Street View tab only — the embedded map stays Leaflet/OSM (no Maps JavaScript API). */
+function streetViewExternalUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
 
@@ -64,7 +64,7 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
       </MapContainer>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
         <span className="text-xs text-muted">
-          Vista de calle (abre Google en una pestaña nueva; no requiere API key).
+          El mapa es OpenStreetMap. Vista de calle: enlace a una pestaña nueva (sin API key).
         </span>
         <a
           href={streetViewHref}

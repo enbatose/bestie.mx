@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 /**
- * Writes/merges bestie.mx/.env.local: always sets VITE_API_URL; preserves other keys
- * (e.g. VITE_GOOGLE_MAPS_API_KEY) so running this script does not wipe them.
+ * Writes/merges bestie.mx/.env.local: always sets VITE_API_URL; preserves any other
+ * variables already in the file (secrets, feature flags, etc.).
  *
  * Usage:
  *   npm run env:local              → http://localhost:3000
  *   npm run env:local -- 3011      → http://localhost:3011
- *
- * Optional — also set the Google browser key when merging (PowerShell):
- *   $env:VITE_GOOGLE_MAPS_API_KEY="AIza..."; npm run env:local
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -94,10 +91,6 @@ function setKey(k, v) {
 
 setKey("VITE_API_URL", `http://localhost:${port}`);
 
-const googleKey = process.env.VITE_GOOGLE_MAPS_API_KEY?.trim();
-if (googleKey) setKey("VITE_GOOGLE_MAPS_API_KEY", googleKey);
-
 writeFileSync(outFile, serializeEnv(map, order), "utf8");
 console.log(`Wrote ${outFile}`);
 console.log(`VITE_API_URL=http://localhost:${port}`);
-if (googleKey) console.log("VITE_GOOGLE_MAPS_API_KEY=(set from environment)");
