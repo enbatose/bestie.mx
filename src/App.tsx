@@ -1,3 +1,4 @@
+import { APIProvider } from "@vis.gl/react-google-maps";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppShellLayout } from "@/layouts/AppShellLayout";
 import { AdminPage } from "@/pages/AdminPage";
@@ -38,6 +39,14 @@ const router = createBrowserRouter([
   },
 ]);
 
+const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? "";
+
 export function App() {
-  return <RouterProvider router={router} />;
+  const routerNode = <RouterProvider router={router} />;
+  if (!googleMapsApiKey) return routerNode;
+  return (
+    <APIProvider apiKey={googleMapsApiKey} language="es" region="MX">
+      {routerNode}
+    </APIProvider>
+  );
 }

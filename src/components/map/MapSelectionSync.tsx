@@ -1,5 +1,5 @@
+import { useMap } from "@vis.gl/react-google-maps";
 import { useEffect } from "react";
-import { useMap } from "react-leaflet";
 import type { PropertyListing } from "@/types/listing";
 
 type Props = {
@@ -11,12 +11,15 @@ export function MapSelectionSync({ selectedId, listings }: Props) {
   const map = useMap();
 
   useEffect(() => {
+    if (!map) return;
     const hit = listings.find((l) => l.id === selectedId);
     if (!hit) return;
     try {
-      const el = map.getContainer();
+      const el = map.getDiv();
       if (!el.isConnected) return;
-      map.flyTo([hit.lat, hit.lng], Math.max(map.getZoom(), 12), { duration: 0.45 });
+      map.panTo({ lat: hit.lat, lng: hit.lng });
+      const z = map.getZoom();
+      if (z != null && z < 12) map.setZoom(12);
     } catch {
       /* map/markers may be mid-teardown (StrictMode / navigation) */
     }
