@@ -1502,12 +1502,13 @@ export function PublishWizardPage() {
               </legend>
               <div className="space-y-3 text-sm text-muted">
                 <p>
-                  Revisa los pasos anteriores. Puedes <strong className="text-body">publicar el anuncio ya</strong> o
-                  seguir guardando borrador desde el panel inferior: no hace falta llegar a este paso para publicar.
+                  Revisa los pasos anteriores: ciudad, precios, fotos y WhatsApp. Cuando todo esté listo, usa la
+                  sección <strong className="text-body">Publicación</strong> debajo para marcar la confirmación legal y
+                  publicar en vivo o guardar borrador en el servidor.
                 </p>
                 <p>
-                  Con la API activa, los datos se sincronizan solos en segundo plano; el botón &quot;Guardar borrador en
-                  servidor&quot; solo fuerza una sincronización inmediata.
+                  Con la API activa, los datos se sincronizan solos en segundo plano; &quot;Guardar borrador en
+                  servidor&quot; también fuerza una sincronización inmediata.
                 </p>
               </div>
             </fieldset>
@@ -1853,11 +1854,13 @@ export function PublishWizardPage() {
         </div>
       </div>
 
+      {step === steps.length - 1 ? (
       <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
         <h2 className="text-base font-semibold text-body">Publicación</h2>
         <p className="mt-1 text-sm text-muted">
-          Desde aquí puedes <strong className="font-medium text-body">publicar en vivo</strong> (anuncio visible en
-          búsqueda) o guardar borrador en el servidor, en cualquier paso del asistente.
+          <strong className="font-medium text-body">Publicar en vivo</strong> (anuncio visible en búsqueda) o{" "}
+          <strong className="font-medium text-body">guardar borrador</strong> en el servidor. Solo disponible en este
+          último paso del asistente.
         </p>
         <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-body">
           <input
@@ -1907,6 +1910,7 @@ export function PublishWizardPage() {
           )}
         </div>
       </section>
+      ) : null}
 
       <p className="mt-6 text-sm text-muted">
         <Link to="/buscar" className="font-semibold text-primary underline-offset-2 hover:underline">
