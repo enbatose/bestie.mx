@@ -24,13 +24,13 @@ function statusLabel(s: ListingStatus | undefined): string {
 function propertyStatusLabel(s: ListingStatus | undefined): string {
   switch (s) {
     case "draft":
-      return "Propiedad: borrador";
+      return "Borrador";
     case "paused":
-      return "Propiedad: pausada";
+      return "Pausada";
     case "archived":
-      return "Propiedad: archivada";
+      return "Archivada";
     default:
-      return "Propiedad: publicada";
+      return "Publicada";
   }
 }
 
@@ -278,44 +278,43 @@ export function MyListingsPage() {
                 key={propertyId}
                 className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
               >
-                <div className="flex flex-col gap-3 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
+                <div className="flex flex-col gap-4 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                       {propertyStatusLabel(head.propertyStatus)}
                     </p>
-                    <h2 className="mt-1 text-base font-semibold text-body">
+                    <h2 className="mt-1 text-lg font-semibold text-body">
                       {head.propertyTitle ?? head.title}
                     </h2>
-                    <p className="mt-0.5 font-mono text-xs text-muted">{propertyId}</p>
                     {propSt === "draft" && missingByProperty[propertyId] ? (
-                      <p className="mt-2 text-xs text-amber-900">
+                      <p className="mt-2 text-xs text-amber-900 dark:text-amber-200">
                         Falta: <span className="font-medium">{missingByProperty[propertyId]}</span>
                       </p>
                     ) : null}
-                    {head.propertyPostMode === "room" ? (
-                      <p className="mt-2 text-xs text-muted">
-                        Tipo: <span className="font-medium text-body">solo un cuarto</span> (puedes convertirlo a propiedad).
-                      </p>
+                    {propSt === "draft" && head.propertyPostMode === "room" ? (
+                      <p className="mt-1 text-xs text-muted">Publicación de un solo cuarto</p>
                     ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px] sm:items-stretch">
                     {propSt === "draft" ? (
                       <>
-                        <Link
-                          to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                          className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface-elevated"
-                        >
-                          Editar
-                        </Link>
-                        {head.propertyPostMode === "room" ? (
+                        <div className="flex flex-wrap gap-2">
                           <Link
-                            to={`/publicar?edit=${encodeURIComponent(propertyId)}&upgrade=1`}
-                            className="rounded-full bg-secondary px-4 py-2 text-xs font-semibold text-primary transition hover:brightness-95"
+                            to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                            className="inline-flex flex-1 justify-center rounded-full border border-border bg-surface px-4 py-2 text-center text-sm font-semibold text-body transition hover:bg-surface-elevated sm:flex-none"
                           >
-                            Convertir a propiedad
+                            Editar borrador
                           </Link>
-                        ) : null}
-                        <label className="flex max-w-full cursor-pointer items-center gap-2 text-xs text-body">
+                          {head.propertyPostMode === "room" ? (
+                            <Link
+                              to={`/publicar?edit=${encodeURIComponent(propertyId)}&upgrade=1`}
+                              className="inline-flex flex-1 justify-center rounded-full border border-secondary/60 bg-secondary/15 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-secondary/25 sm:flex-none"
+                            >
+                              Pasar a propiedad
+                            </Link>
+                          ) : null}
+                        </div>
+                        <label className="flex cursor-pointer items-start gap-2 text-xs leading-snug text-body">
                           <input
                             type="checkbox"
                             checked={Boolean(legalPublishByProperty[propertyId])}
@@ -325,17 +324,17 @@ export function MyListingsPage() {
                                 [propertyId]: e.target.checked,
                               }))
                             }
-                            className="size-4 shrink-0 rounded border-border text-primary"
+                            className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
                           />
-                          <span>Confirmo datos verídicos y acepto publicar (v1)</span>
+                          <span>Confirmo que la información es verídica y acepto publicar (v1).</span>
                         </label>
                         <button
                           type="button"
                           disabled={propActing}
                           onClick={() => void publishDraftProperty(propertyId)}
-                          className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
+                          className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50 sm:py-2"
                         >
-                          {propActing ? "…" : "Publicar propiedad"}
+                          {propActing ? "Publicando…" : "Publicar"}
                         </button>
                       </>
                     ) : null}
