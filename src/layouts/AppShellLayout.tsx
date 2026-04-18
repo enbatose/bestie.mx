@@ -12,8 +12,7 @@ export function AppShellLayout() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
 
-  const profileIncomplete =
-    me != null && me.id && Boolean(me.email && (me.emailVerified !== true || !me.phoneE164));
+  const profileIncomplete = me != null && me.id && Boolean(me.email && !me.phoneE164);
 
   useEffect(() => {
     void analyticsHeartbeat();

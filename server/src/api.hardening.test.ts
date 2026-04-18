@@ -21,6 +21,19 @@ function cookiePairFromSetCookie(res: { headers: Record<string, unknown> }): str
     .join("; ");
 }
 
+function uniqueTestEmail(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}@test.mx`;
+}
+
+/** Call after an anonymous publisher cookie exists on `agent` (e.g. after POST /api/properties). */
+async function registerAndLinkAnonymousPublisher(agent: ReturnType<typeof request.agent>): Promise<void> {
+  await agent
+    .post("/api/auth/register")
+    .send({ email: uniqueTestEmail("harden"), password: "longenough1", displayName: "Hardening" })
+    .expect(201);
+  await agent.post("/api/auth/link-publisher").expect(200);
+}
+
 describe("Phase B API hardening", () => {
   let dir: string;
   let dbPath: string;
@@ -56,7 +69,13 @@ describe("Phase B API hardening", () => {
   });
 
   it("publish-bundle rejects all-zero WhatsApp", async () => {
-    const res = await request(app)
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: uniqueTestEmail("bundle-wa"), password: "longenough1", displayName: "Bundle" })
+      .expect(201);
+    await agent.post("/api/auth/link-publisher").expect(200);
+    const res = await agent
       .post("/api/properties/publish-bundle")
       .send({
         legalAccepted: true,
@@ -91,7 +110,13 @@ describe("Phase B API hardening", () => {
   });
 
   it("publish-bundle requires legalAccepted", async () => {
-    await request(app)
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: uniqueTestEmail("bundle-legal"), password: "longenough1", displayName: "Bundle" })
+      .expect(201);
+    await agent.post("/api/auth/link-publisher").expect(200);
+    await agent
       .post("/api/properties/publish-bundle")
       .send({
         legalAccepted: false,
@@ -120,7 +145,8 @@ describe("Phase B API hardening", () => {
   });
 
   it("blocks publishing a room until the property is published", async () => {
-    const r1 = await request(app)
+    const agent = request.agent(app);
+    const r1 = await agent
       .post("/api/properties")
       .send({
         title: "Casa prueba API",
@@ -132,12 +158,10 @@ describe("Phase B API hardening", () => {
         summary: PROP_SUMMARY_OK,
       })
       .expect(201);
-    const cookie = cookiePairFromSetCookie(r1);
     const propertyId = (r1.body as { id: string }).id;
 
-    const r2 = await request(app)
+    const r2 = await agent
       .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
-      .set("Cookie", cookie)
       .send({
         title: "Cuarto 1",
         rentMxn: 4500,
@@ -151,24 +175,20 @@ describe("Phase B API hardening", () => {
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
 
-    const r3 = await request(app)
+    const r3 = await agent
       .patch(`/api/listings/${encodeURIComponent(roomId)}`)
-      .set("Cookie", cookie)
       .send({ status: "published" })
       .expect(400);
     expect((r3.body as { error?: string }).error).toBe("property_not_published");
 
-    await request(app)
+    await registerAndLinkAnonymousPublisher(agent);
+
+    await agent
       .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
-      .set("Cookie", cookie)
       .send({ status: "published" })
       .expect(200);
 
-    await request(app)
-      .patch(`/api/listings/${encodeURIComponent(roomId)}`)
-      .set("Cookie", cookie)
-      .send({ status: "published" })
-      .expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
   });
 
   it("GET /api/listings/:id returns draft room for owner cookie, 404 for anonymous", async () => {
@@ -213,7 +233,8 @@ describe("Phase B API hardening", () => {
   });
 
   it("publishing draft property cascades draft rooms to published", async () => {
-    const r1 = await request(app)
+    const agent = request.agent(app);
+    const r1 = await agent
       .post("/api/properties")
       .send({
         title: "Casa cascada",
@@ -225,12 +246,10 @@ describe("Phase B API hardening", () => {
         summary: PROP_SUMMARY_OK,
       })
       .expect(201);
-    const cookie = cookiePairFromSetCookie(r1);
     const propertyId = (r1.body as { id: string }).id;
 
-    const rRoom1 = await request(app)
+    const rRoom1 = await agent
       .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
-      .set("Cookie", cookie)
       .send({
         title: "C1",
         rentMxn: 3000,
@@ -244,19 +263,16 @@ describe("Phase B API hardening", () => {
       .expect(201);
     const room1Id = (rRoom1.body as { id: string }).id;
 
-    await request(app)
-      .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
-      .set("Cookie", cookie)
-      .send({ status: "published" })
-      .expect(200);
+    await registerAndLinkAnonymousPublisher(agent);
+
+    await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
 
     const catalog = await request(app).get("/api/listings").expect(200);
     const idsAfterPublish = (catalog.body as { id: string }[]).map((x) => x.id);
     expect(idsAfterPublish).toContain(room1Id);
 
-    const rRoom2 = await request(app)
+    const rRoom2 = await agent
       .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
-      .set("Cookie", cookie)
       .send({
         title: "C2",
         rentMxn: 3200,
@@ -271,11 +287,7 @@ describe("Phase B API hardening", () => {
     const room2Id = (rRoom2.body as { id: string }).id;
     expect(idsAfterPublish).not.toContain(room2Id);
 
-    await request(app)
-      .patch(`/api/listings/${encodeURIComponent(room2Id)}`)
-      .set("Cookie", cookie)
-      .send({ status: "published" })
-      .expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(room2Id)}`).send({ status: "published" }).expect(200);
 
     const catalog2 = await request(app).get("/api/listings").expect(200);
     const ids2 = (catalog2.body as { id: string }[]).map((x) => x.id);
@@ -341,7 +353,8 @@ describe("Phase B API hardening", () => {
   });
 
   it("rejects publishing with placeholder WhatsApp", async () => {
-    const r1 = await request(app)
+    const agent = request.agent(app);
+    const r1 = await agent
       .post("/api/properties")
       .send({
         title: "Casa placeholder",
@@ -353,12 +366,10 @@ describe("Phase B API hardening", () => {
         summary: PROP_SUMMARY_OK,
       })
       .expect(201);
-    const cookie = cookiePairFromSetCookie(r1);
     const propertyId = (r1.body as { id: string }).id;
 
-    await request(app)
+    await agent
       .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
-      .set("Cookie", cookie)
       .send({
         title: "C1",
         rentMxn: 3000,
@@ -371,16 +382,18 @@ describe("Phase B API hardening", () => {
       })
       .expect(201);
 
-    const bad = await request(app)
+    await registerAndLinkAnonymousPublisher(agent);
+
+    const bad = await agent
       .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
-      .set("Cookie", cookie)
       .send({ status: "published" })
       .expect(400);
     expect((bad.body as { error?: string }).error).toBe("invalid_whatsapp");
   });
 
   it("rejects publishing a draft property that has no rooms", async () => {
-    const r1 = await request(app)
+    const agent = request.agent(app);
+    const r1 = await agent
       .post("/api/properties")
       .send({
         title: "Sin cuartos",
@@ -392,12 +405,12 @@ describe("Phase B API hardening", () => {
         summary: PROP_SUMMARY_OK,
       })
       .expect(201);
-    const cookie = cookiePairFromSetCookie(r1);
     const propertyId = (r1.body as { id: string }).id;
 
-    await request(app)
+    await registerAndLinkAnonymousPublisher(agent);
+
+    await agent
       .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
-      .set("Cookie", cookie)
       .send({ status: "published" })
       .expect(400);
   });

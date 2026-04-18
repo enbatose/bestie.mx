@@ -6,9 +6,7 @@ import { sendWhatsAppOtpTemplate } from "./whatsappMeta.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.js";
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
-import { createPublishHandoff, publicApiOrigin, publicWebOrigin } from "./handoffTokens.js";
-import { createEmailVerificationToken, verifyEmailWithToken } from "./emailVerification.js";
-import { OUTBOUND_SMTP_SETUP_HINT, sendVerificationEmail } from "./mailer.js";
+import { createPublishHandoff } from "./handoffTokens.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
 
@@ -17,8 +15,6 @@ const OTP_MAX_ATTEMPTS = 8;
 
 const otpRequestLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
 const otpVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
-const emailVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 10 });
-
 function otpPepper(): string {
   return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
 }
@@ -41,33 +37,10 @@ function jsonMw() {
   return express.json({ limit: "256kb" });
 }
 
-function authProductionStrict(): boolean {
-  return process.env.NODE_ENV === "production";
-}
-
-function verificationLinkBase(): string {
-  return publicApiOrigin();
-}
-
 export function authRouter(db: DatabaseSync) {
   const r = express.Router();
 
-  r.get("/verify-email", (req: Request, res: Response) => {
-    const token = typeof req.query.token === "string" ? req.query.token : "";
-    if (!token) {
-      res.status(400).type("text/plain").send("Missing token");
-      return;
-    }
-    const result = verifyEmailWithToken(db, token);
-    if (!result.ok) {
-      res.status(400).type("text/plain").send("Invalid or expired verification link");
-      return;
-    }
-    const base = publicWebOrigin();
-    res.redirect(302, `${base}/entrar?verified=1`);
-  });
-
-  r.post("/register", jsonMw(), async (req: Request, res: Response) => {
+  r.post("/register", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
@@ -82,72 +55,20 @@ export function authRouter(db: DatabaseSync) {
     }
     const id = randomUUID();
     const ph = hashPassword(password);
+    const createdAt = isoNow();
     try {
       db.prepare(
-        `INSERT INTO users (id, email, phone_e164, password_hash, display_name, created_at) VALUES (?, ?, NULL, ?, ?, ?)`,
-      ).run(id, email, ph, displayName || email.split("@")[0]!, isoNow());
+        `INSERT INTO users (id, email, phone_e164, password_hash, display_name, created_at, email_verified_at) VALUES (?, ?, NULL, ?, ?, ?, ?)`,
+      ).run(id, email, ph, displayName || email.split("@")[0]!, createdAt, createdAt);
     } catch {
       res.status(409).json({ error: "email_taken" });
       return;
     }
-    const strict = authProductionStrict();
-    if (!strict) {
-      issueAuthCookie(res, id);
-    }
-    const rawVerify = createEmailVerificationToken(db, id);
-    const verifyUrl = `${verificationLinkBase()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
-    const emailResult = await sendVerificationEmail(email, verifyUrl);
-    if (emailResult.status === "failed") {
-      console.error(`[email] registration verify mail failed for ${email}: ${emailResult.detail ?? "unknown"}`);
-    }
-    const devVerificationUrl = process.env.NODE_ENV !== "production" ? verifyUrl : undefined;
+    issueAuthCookie(res, id);
     res.status(201).json({
       id,
       email,
       displayName: displayName || email.split("@")[0],
-      emailDispatch: emailResult.status,
-      ...(emailResult.status === "failed" && emailResult.detail ? { emailError: emailResult.detail } : {}),
-      ...(emailResult.status === "skipped_no_smtp" ? { smtpSetupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
-      ...(strict ? { verificationPending: true } : {}),
-      ...(devVerificationUrl ? { devVerificationUrl } : {}),
-    });
-  });
-
-  r.post("/resend-verification", jsonMw(), async (req: Request, res: Response) => {
-    const lim = emailVerifyLimiter(`${req.ip ?? "ip"}:${String((req.body as { email?: string }).email ?? "")}`);
-    if (!lim.ok) {
-      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
-      return;
-    }
-    const body = req.body as { email?: unknown };
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    if (!email.includes("@") || email.length > 200) {
-      res.status(400).json({ error: "invalid_email" });
-      return;
-    }
-    const u = db
-      .prepare("SELECT id, email_verified_at FROM users WHERE email = ?")
-      .get(email) as { id: string; email_verified_at: string | null } | undefined;
-    if (!u) {
-      // Avoid leaking account existence too strongly in prod, but still return ok so UI can proceed.
-      res.json({ ok: true });
-      return;
-    }
-    if (u.email_verified_at != null && String(u.email_verified_at).trim() !== "") {
-      res.json({ ok: true, alreadyVerified: true });
-      return;
-    }
-    const rawVerify = createEmailVerificationToken(db, u.id);
-    const verifyUrl = `${verificationLinkBase()}/api/auth/verify-email?token=${encodeURIComponent(rawVerify)}`;
-    const emailResult = await sendVerificationEmail(email, verifyUrl);
-    if (emailResult.status === "failed") {
-      console.error(`[email] resend verify mail failed for ${email}: ${emailResult.detail ?? "unknown"}`);
-    }
-    res.json({
-      ok: true,
-      emailDispatch: emailResult.status,
-      ...(emailResult.status === "failed" && emailResult.detail ? { emailError: emailResult.detail } : {}),
-      ...(emailResult.status === "skipped_no_smtp" ? { smtpSetupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
     });
   });
 
@@ -155,8 +76,8 @@ export function authRouter(db: DatabaseSync) {
     const body = req.body as { email?: unknown; password?: unknown };
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
-    const row = db.prepare("SELECT id, password_hash, email_verified_at FROM users WHERE email = ?").get(email) as
-      | { id: string; password_hash: string; email_verified_at: string | null }
+    const row = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
+      | { id: string; password_hash: string }
       | undefined;
     if (!row) {
       res.status(401).json({ error: "user_not_found" });
@@ -168,11 +89,6 @@ export function authRouter(db: DatabaseSync) {
     }
     if (!verifyPassword(password, row.password_hash)) {
       res.status(401).json({ error: "invalid_password" });
-      return;
-    }
-    const verified = row.email_verified_at != null && String(row.email_verified_at).trim() !== "";
-    if (authProductionStrict() && !verified) {
-      res.status(403).json({ error: "email_not_verified" });
       return;
     }
     issueAuthCookie(res, row.id);

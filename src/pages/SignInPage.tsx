@@ -1,21 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   authLinkPublisher,
   authLogin,
   authLogout,
   authMe,
-  authResendVerification,
   authWhatsAppRequest,
   authWhatsAppVerify,
-  AuthApiError,
   type AuthMe,
 } from "@/lib/authApi";
 
 export function SignInPage() {
   const location = useLocation() as { state?: { registrationNotice?: string } };
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [tab, setTab] = useState<"wa" | "email">("wa");
 
@@ -30,8 +27,6 @@ export function SignInPage() {
 
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [resendBusy, setResendBusy] = useState(false);
-  const [loginUnverifiedEmail, setLoginUnverifiedEmail] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -44,13 +39,6 @@ export function SignInPage() {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
-
-  useEffect(() => {
-    if (searchParams.get("verified") === "1") {
-      setMsg("Correo verificado. Ahora inicia sesión con tu correo y contraseña.");
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   const onWaRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +86,6 @@ export function SignInPage() {
     e.preventDefault();
     setErr(null);
     setMsg(null);
-    setLoginUnverifiedEmail(null);
     setEmailBusy(true);
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
@@ -107,9 +94,6 @@ export function SignInPage() {
       await refreshMe();
       navigate("/mis-anuncios", { replace: true });
     } catch (x) {
-      if (x instanceof AuthApiError && x.code === "email_not_verified") {
-        setLoginUnverifiedEmail(email.trim().toLowerCase());
-      }
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
       setEmailBusy(false);
@@ -135,41 +119,6 @@ export function SignInPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tu cuenta</h1>
-        {me.email && me.emailVerified !== true ? (
-          <div className="mt-3 space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-            <p>
-              Tu correo aún no está verificado. Revisa tu bandeja (y spam). Si no recibiste el enlace, puedes
-              reenviarlo.
-            </p>
-            <button
-              type="button"
-              disabled={resendBusy}
-              className="rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-950 disabled:opacity-50"
-              onClick={async () => {
-                if (!me.email) return;
-                setErr(null);
-                setMsg(null);
-                setResendBusy(true);
-                try {
-                  const dr = await authResendVerification(me.email);
-                  if (dr.emailDispatch === "failed") {
-                    setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP en el servidor (GET /api/health).");
-                  } else if (dr.emailDispatch === "skipped_no_smtp") {
-                    setErr(dr.smtpSetupHint ?? "El servidor no tiene envío de correo configurado (SMTP) en el proceso del API.");
-                  } else {
-                    setMsg("Listo. Revisa tu bandeja (y spam).");
-                  }
-                } catch (x) {
-                  setErr(x instanceof Error ? x.message : "Error");
-                } finally {
-                  setResendBusy(false);
-                }
-              }}
-            >
-              {resendBusy ? "Reenviando…" : "Reenviar correo de verificación"}
-            </button>
-          </div>
-        ) : null}
         <p className="mt-2 text-sm text-muted">
           <span className="font-medium text-body">{me.displayName}</span>
           {me.email ? (
@@ -226,18 +175,15 @@ export function SignInPage() {
         </p>
       ) : null}
       <p className="mt-2 text-sm text-muted">
-        WhatsApp: código de 6 dígitos en el chat. Correo: enlace de verificación al registrarte; luego inicia sesión aquí.
-        La sesión usa cookies seguras con la API.
+        WhatsApp: código de 6 dígitos en el chat. Correo: regístrate y entra con la misma contraseña. La sesión usa
+        cookies seguras con la API.
       </p>
 
       <div className="mt-6 flex rounded-full border border-border bg-bg-light p-1 text-sm font-medium">
         <button
           type="button"
           className={`flex-1 rounded-full py-2 transition ${tab === "wa" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-          onClick={() => {
-            setTab("wa");
-            setLoginUnverifiedEmail(null);
-          }}
+          onClick={() => setTab("wa")}
         >
           WhatsApp
         </button>
@@ -333,37 +279,6 @@ export function SignInPage() {
           >
             {emailBusy ? "Entrando…" : "Entrar"}
           </button>
-          {loginUnverifiedEmail ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
-              <p className="font-medium">¿No llegó el correo?</p>
-              <button
-                type="button"
-                disabled={resendBusy}
-                className="mt-2 w-full rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-950 disabled:opacity-50 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-50"
-                onClick={async () => {
-                  setErr(null);
-                  setMsg(null);
-                  setResendBusy(true);
-                  try {
-                    const dr = await authResendVerification(loginUnverifiedEmail);
-                    if (dr.emailDispatch === "failed") {
-                      setErr(dr.emailError ?? "No se pudo enviar el correo. Revisa SMTP (GET /api/health).");
-                    } else if (dr.emailDispatch === "skipped_no_smtp") {
-                      setErr(dr.smtpSetupHint ?? "El servidor no tiene SMTP configurado en el API.");
-                    } else {
-                      setMsg("Listo. Revisa tu bandeja (y spam).");
-                    }
-                  } catch (x) {
-                    setErr(x instanceof Error ? x.message : "Error");
-                  } finally {
-                    setResendBusy(false);
-                  }
-                }}
-              >
-                {resendBusy ? "Reenviando…" : "Reenviar enlace de verificación"}
-              </button>
-            </div>
-          ) : null}
         </form>
       )}
 

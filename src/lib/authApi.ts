@@ -19,15 +19,6 @@ export function isAuthApiConfigured(): boolean {
   return true;
 }
 
-export class AuthApiError extends Error {
-  readonly code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "AuthApiError";
-    this.code = code;
-  }
-}
-
 export type AuthMe = {
   id: string;
   email: string | null;
@@ -47,25 +38,8 @@ export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
   return (await res.json()) as AuthMe;
 }
 
-export type EmailDispatch = "sent" | "skipped_no_smtp" | "failed";
-
 export type RegisterResult = {
-  me: AuthMe | null;
-  /** Present when the server created the account but did not start a session (production email flow). */
-  verificationPending?: boolean;
-  registeredEmail?: string;
-  devVerificationUrl?: string;
-  /** Whether the verification email was accepted by SMTP (see /api/health if failed). */
-  emailDispatch?: EmailDispatch;
-  emailError?: string;
-  /** When email was not sent because SMTP is off, server explains which env vars to set on the API. */
-  smtpSetupHint?: string;
-};
-
-export type ResendVerificationResult = {
-  emailDispatch?: EmailDispatch;
-  emailError?: string;
-  smtpSetupHint?: string;
+  me: AuthMe;
 };
 
 export async function authRegister(
@@ -89,38 +63,10 @@ export async function authRegister(
     }
     throw new Error(j.message || j.error || `register_${res.status}`);
   }
-  const created = (await res.json()) as {
-    email?: string;
-    devVerificationUrl?: string;
-    verificationPending?: boolean;
-    emailDispatch?: EmailDispatch;
-    emailError?: string;
-    smtpSetupHint?: string;
-  };
-  if (created.verificationPending) {
-    return {
-      me: null,
-      verificationPending: true,
-      registeredEmail: typeof created.email === "string" ? created.email : undefined,
-      ...(typeof created.emailDispatch === "string" ? { emailDispatch: created.emailDispatch } : {}),
-      ...(typeof created.emailError === "string" ? { emailError: created.emailError } : {}),
-      ...(typeof created.smtpSetupHint === "string" ? { smtpSetupHint: created.smtpSetupHint } : {}),
-      ...(typeof created.devVerificationUrl === "string"
-        ? { devVerificationUrl: created.devVerificationUrl }
-        : {}),
-    };
-  }
+  await res.json().catch(() => ({}));
   const me = await authMe(signal);
   if (!me) throw new Error("register_session_missing");
-  return {
-    me,
-    ...(typeof created.emailDispatch === "string" ? { emailDispatch: created.emailDispatch } : {}),
-    ...(typeof created.emailError === "string" ? { emailError: created.emailError } : {}),
-    ...(typeof created.smtpSetupHint === "string" ? { smtpSetupHint: created.smtpSetupHint } : {}),
-    ...(typeof created.devVerificationUrl === "string"
-      ? { devVerificationUrl: created.devVerificationUrl }
-      : {}),
-  };
+  return { me };
 }
 
 export async function authLogin(
@@ -146,45 +92,8 @@ export async function authLogin(
     if (j.error === "wa_only_account") {
       throw new Error("Esta cuenta fue creada con WhatsApp OTP. Entra con WhatsApp desde la página completa.");
     }
-    if (j.error === "email_not_verified") {
-      throw new AuthApiError(
-        "email_not_verified",
-        "Tu correo aún no está verificado. Abre el enlace que te enviamos (revisa spam) o reenvía el enlace abajo.",
-      );
-    }
     throw new Error(j.error || `login_${res.status}`);
   }
-}
-
-export async function authResendVerification(
-  email: string,
-  signal?: AbortSignal,
-): Promise<ResendVerificationResult> {
-  const base = apiBase();
-  const res = await networkFetch(`${base}/api/auth/resend-verification`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...deviceHeaders() },
-    credentials: cred,
-    body: JSON.stringify({ email }),
-    signal,
-  });
-  if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { error?: string; retryAfterMs?: number };
-    if (j.error === "rate_limited" && typeof j.retryAfterMs === "number") {
-      throw new Error(`Espera ~${Math.ceil(j.retryAfterMs / 1000)}s e inténtalo de nuevo.`);
-    }
-    throw new Error(j.error || `resend_${res.status}`);
-  }
-  const j = (await res.json().catch(() => ({}))) as {
-    emailDispatch?: EmailDispatch;
-    emailError?: string;
-    smtpSetupHint?: string;
-  };
-  return {
-    ...(typeof j.emailDispatch === "string" ? { emailDispatch: j.emailDispatch } : {}),
-    ...(typeof j.emailError === "string" ? { emailError: j.emailError } : {}),
-    ...(typeof j.smtpSetupHint === "string" ? { smtpSetupHint: j.smtpSetupHint } : {}),
-  };
 }
 
 export async function authLogout(signal?: AbortSignal): Promise<void> {

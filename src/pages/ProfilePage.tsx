@@ -36,7 +36,7 @@ export function ProfilePage() {
     );
   }
 
-  const emailOk = !me.email || me.emailVerified === true;
+  const hasEmail = Boolean(me.email);
   const phoneOk = Boolean(me.phoneE164);
 
   return (
@@ -54,10 +54,10 @@ export function ProfilePage() {
         </li>
         <li className="flex items-center justify-between gap-2">
           <span className="text-body">Correo verificado</span>
-          {emailOk ? (
+          {hasEmail ? (
             <span className="text-primary">Listo</span>
           ) : (
-            <span className="rounded-full bg-error/15 px-2 py-0.5 text-xs font-semibold text-error">Pendiente</span>
+            <span className="text-muted">— (cuenta solo WhatsApp)</span>
           )}
         </li>
         <li className="flex items-center justify-between gap-2">
@@ -74,20 +74,17 @@ export function ProfilePage() {
         </li>
       </ul>
 
-      {!emailOk || !phoneOk ? (
+      {!phoneOk ? (
         <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <p className="font-medium">Completa tu perfil</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
-            {!emailOk ? <li>Abre el enlace de verificación que enviamos a tu correo (o revisa spam).</li> : null}
-            {!phoneOk ? (
-              <li>
-                Vincula WhatsApp desde{" "}
-                <Link to="/entrar" className="font-semibold underline">
-                  Entrar → pestaña WhatsApp
-                </Link>
-                .
-              </li>
-            ) : null}
+            <li>
+              Vincula WhatsApp desde{" "}
+              <Link to="/entrar" className="font-semibold underline">
+                Entrar → pestaña WhatsApp
+              </Link>
+              .
+            </li>
           </ul>
         </div>
       ) : null}

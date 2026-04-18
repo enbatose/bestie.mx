@@ -8,7 +8,6 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
-import { createEmailVerificationToken } from "./emailVerification.js";
 
 describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   const testId = randomUUID().slice(0, 8);
@@ -54,14 +53,13 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
 
   it("register, logout, login, /me includes isAdmin", async () => {
     const agent = request.agent(app);
-    const reg = await agent
+    await agent
       .post("/api/auth/register")
       .send({ email: userEmail, password: "longenough1", displayName: "U" })
       .expect(201);
-    expect(typeof reg.body.devVerificationUrl).toBe("string");
     const me1 = await agent.get("/api/auth/me").expect(200);
     expect(me1.body.isAdmin).toBe(false);
-    expect(me1.body.emailVerified).toBe(false);
+    expect(me1.body.emailVerified).toBe(true);
     await agent.post("/api/auth/logout").expect(200);
     await agent.get("/api/auth/me").expect(401);
     await agent.post("/api/auth/login").send({ email: userEmail, password: "longenough1" }).expect(200);
@@ -108,7 +106,7 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(Array.isArray(res.body.cities)).toBe(true);
   });
 
-  it("production: register without session; login blocked until verify", async () => {
+  it("production: register starts session; login works immediately", async () => {
     const prevEnv = process.env.NODE_ENV;
     const prevCookie = process.env.TEST_DISABLE_SECURE_COOKIE;
     process.env.NODE_ENV = "production";
@@ -120,16 +118,11 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     try {
       const em = `prodverify-${testId}@test.mx`;
       const agent = request.agent(app2);
-      const reg = await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
-      expect(reg.body.verificationPending).toBe(true);
+      await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+      const meAfterReg = await agent.get("/api/auth/me").expect(200);
+      expect(meAfterReg.body.emailVerified).toBe(true);
+      await agent.post("/api/auth/logout").expect(200);
       await agent.get("/api/auth/me").expect(401);
-      await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(403);
-      const userId = reg.body.id as string;
-      const rawToken = createEmailVerificationToken(db2, userId);
-      await request(app2)
-        .get(`/api/auth/verify-email?token=${encodeURIComponent(rawToken)}`)
-        .redirects(0)
-        .expect(302);
       await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
       const me = await agent.get("/api/auth/me").expect(200);
       expect(me.body.emailVerified).toBe(true);
@@ -144,24 +137,5 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
         /* Windows */
       }
     }
-  });
-
-  it("email verification link verifies user", async () => {
-    const em = `verify-${testId}@test.mx`;
-    const reg = await request(app)
-      .post("/api/auth/register")
-      .send({ email: em, password: "longenough1", displayName: "V" })
-      .expect(201);
-    const vUrl = reg.body.devVerificationUrl as string;
-    const token = new URL(vUrl).searchParams.get("token");
-    expect(token).toBeTruthy();
-    await request(app)
-      .get(`/api/auth/verify-email?token=${encodeURIComponent(token!)}`)
-      .redirects(0)
-      .expect(302);
-    const agent = request.agent(app);
-    await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
-    const me = await agent.get("/api/auth/me").expect(200);
-    expect(me.body.emailVerified).toBe(true);
   });
 });

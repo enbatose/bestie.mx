@@ -109,15 +109,8 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
       draft_json TEXT NOT NULL DEFAULT '{}',
       updated_at INTEGER NOT NULL
     );
-
-    CREATE TABLE IF NOT EXISTS email_verification_tokens (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      token_hash TEXT NOT NULL UNIQUE,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_email_verify_user ON email_verification_tokens(user_id);
   `);
+  db.prepare(
+    `UPDATE users SET email_verified_at = created_at WHERE email IS NOT NULL AND (email_verified_at IS NULL OR trim(email_verified_at) = '')`,
+  ).run();
 }

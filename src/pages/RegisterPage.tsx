@@ -14,7 +14,7 @@ export function RegisterPage() {
     <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Crear cuenta</h1>
       <p className="mt-2 text-sm text-muted">
-        Correo y contraseña (mínimo 8 caracteres). Recibirás un enlace para validar el correo; después podrás entrar.
+        Correo y contraseña (mínimo 8 caracteres). Al terminar el registro iniciarás sesión de inmediato.
       </p>
 
       {err ? (
@@ -27,33 +27,12 @@ export function RegisterPage() {
           setErr(null);
           setBusy(true);
           try {
-            const r = await authRegister({
+            await authRegister({
               email: email.trim().toLowerCase(),
               password,
               displayName: displayName.trim() || undefined,
             });
-            if (r.verificationPending) {
-              let registrationNotice = r.devVerificationUrl
-                ? `Cuenta creada. Verifica tu correo con este enlace (solo desarrollo): ${r.devVerificationUrl}`
-                : "Cuenta creada. Te enviamos un enlace de verificación al correo (revisa spam). Ábrelo y luego vuelve aquí para iniciar sesión.";
-              if (r.emailDispatch === "failed") {
-                registrationNotice = `Cuenta creada, pero el correo no se pudo enviar: ${r.emailError ?? "error SMTP"}. Revisa en el servidor SMTP_SERVICE=gmail, SMTP_USER y contraseña de aplicación; consulta GET /api/health (campo smtp).`;
-              } else if (r.emailDispatch === "skipped_no_smtp") {
-                registrationNotice = r.smtpSetupHint
-                  ? `Cuenta creada, pero el API no tiene correo saliente configurado. ${r.smtpSetupHint}`
-                  : "Cuenta creada, pero el servidor no tiene SMTP configurado: no se envió ningún correo. Configura Gmail u otro SMTP en las variables de entorno del **servicio Node** (no en el build del sitio estático).";
-              }
-              navigate("/entrar", { replace: true, state: { registrationNotice } });
-              return;
-            }
-            const { me, devVerificationUrl } = r;
-            if (!me) throw new Error("register_session_missing");
-            const registrationNotice = devVerificationUrl
-              ? `Verifica tu correo con este enlace (entorno no productivo): ${devVerificationUrl}`
-              : me.email && !me.emailVerified
-                ? "Te enviamos un enlace de verificación al correo (revisa spam)."
-                : undefined;
-            navigate("/entrar", { replace: true, state: registrationNotice ? { registrationNotice } : undefined });
+            navigate("/mis-anuncios", { replace: true });
           } catch (x) {
             setErr(x instanceof Error ? x.message : "Error");
           } finally {
