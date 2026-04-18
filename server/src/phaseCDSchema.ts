@@ -1,5 +1,14 @@
 import type { DatabaseSync } from "node:sqlite";
 
+function usersTableHasColumn(db: DatabaseSync, column: string): boolean {
+  const row = db
+    .prepare("SELECT 1 AS x FROM sqlite_master WHERE type='table' AND name='users' LIMIT 1")
+    .get() as { x: number } | undefined;
+  if (!row) return false;
+  const cols = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  return cols.some((c) => c.name === column);
+}
+
 /**
  * Phase C/D: auth (email + WhatsApp OTP), Messenger webhook, handoff tokens,
  * renter groups, admin settings, analytics counters, audit log (no impersonation).
@@ -110,6 +119,10 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
       updated_at INTEGER NOT NULL
     );
   `);
+  /** Older DBs: `CREATE TABLE IF NOT EXISTS` does not add new columns; register INSERT would fail otherwise. */
+  if (!usersTableHasColumn(db, "email_verified_at")) {
+    db.exec("ALTER TABLE users ADD COLUMN email_verified_at TEXT");
+  }
   db.prepare(
     `UPDATE users SET email_verified_at = created_at WHERE email IS NOT NULL AND (email_verified_at IS NULL OR trim(email_verified_at) = '')`,
   ).run();

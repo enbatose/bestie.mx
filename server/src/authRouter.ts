@@ -37,12 +37,17 @@ function jsonMw() {
   return express.json({ limit: "256kb" });
 }
 
+/** Trim, lowercase, strip invisible chars (common paste glitches). */
+function normalizeEmail(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
 export function authRouter(db: DatabaseSync) {
   const r = express.Router();
 
   r.post("/register", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
     const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 120) : "";
     if (!email.includes("@") || email.length > 200) {
@@ -60,8 +65,17 @@ export function authRouter(db: DatabaseSync) {
       db.prepare(
         `INSERT INTO users (id, email, phone_e164, password_hash, display_name, created_at, email_verified_at) VALUES (?, ?, NULL, ?, ?, ?, ?)`,
       ).run(id, email, ph, displayName || email.split("@")[0]!, createdAt, createdAt);
-    } catch {
-      res.status(409).json({ error: "email_taken" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("UNIQUE constraint failed") && msg.includes("email")) {
+        res.status(409).json({ error: "email_taken" });
+        return;
+      }
+      console.error("[auth] register insert failed:", msg);
+      res.status(500).json({
+        error: "register_failed",
+        message: "No se pudo crear la cuenta (error del servidor). Reintenta en unos minutos o contacta soporte.",
+      });
       return;
     }
     issueAuthCookie(res, id);
@@ -74,7 +88,7 @@ export function authRouter(db: DatabaseSync) {
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown };
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
     const row = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
       | { id: string; password_hash: string }
