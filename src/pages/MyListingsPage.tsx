@@ -443,13 +443,6 @@ export function MyListingsPage() {
           })
         )}
       </div>
-
-      <p className="mt-8 text-xs text-muted">
-        Cuartos:{" "}
-        <code className="rounded bg-surface-elevated px-1">PATCH /api/listings/:id</code> con{" "}
-        <code className="rounded bg-surface-elevated px-1">{"{ \"status\" }"}</code>. Propiedad:{" "}
-        <code className="rounded bg-surface-elevated px-1">PATCH /api/properties/:id</code>.
-      </p>
     </div>
   );
 }
