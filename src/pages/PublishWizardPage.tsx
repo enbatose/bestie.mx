@@ -33,6 +33,7 @@ function isoToday(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Legacy global keys (pre per-user drafts). Removed when saving v4. */
 const STORAGE_KEY_V3 = "bestie-publish-draft-v3";
 const STORAGE_KEY_V2 = "bestie-publish-draft-v2";
 
@@ -220,44 +221,6 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
   };
 }
 
-function loadPersisted(): { draft: Draft; serverSync: ServerSync } {
-  try {
-    const rawV3 = localStorage.getItem(STORAGE_KEY_V3);
-    if (rawV3) {
-      const root = JSON.parse(rawV3) as {
-        draft?: Partial<Draft>;
-        serverSync?: { propertyId?: unknown; roomIds?: unknown };
-      };
-      if (root.draft) {
-        const draft = normalizeParsedDraft(root.draft);
-        let roomIds = Array.isArray(root.serverSync?.roomIds)
-          ? (root.serverSync!.roomIds as unknown[]).filter((x): x is string => typeof x === "string")
-          : [];
-        while (roomIds.length < draft.rooms.length) roomIds.push("");
-        roomIds = roomIds.slice(0, draft.rooms.length);
-        const propertyId =
-          typeof root.serverSync?.propertyId === "string" && root.serverSync.propertyId.trim()
-            ? root.serverSync.propertyId.trim()
-            : null;
-        return {
-          draft,
-          serverSync: propertyId ? { propertyId, roomIds } : { propertyId: null, roomIds: [] },
-        };
-      }
-    }
-    const rawV2 = localStorage.getItem(STORAGE_KEY_V2);
-    if (rawV2) {
-      return {
-        draft: normalizeParsedDraft(JSON.parse(rawV2) as Partial<Draft>),
-        serverSync: { propertyId: null, roomIds: [] },
-      };
-    }
-  } catch {
-    /* ignore */
-  }
-  return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
-}
-
 function isFreshDefaultDraft(d: Draft): boolean {
   return (
     JSON.stringify({ ...d, legalAccepted: false }) === JSON.stringify({ ...defaultDraft(), legalAccepted: false })
@@ -343,6 +306,62 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
   };
 }
 
+function draftStorageKey(userId: string) {
+  return `bestie-publish-draft-v4:${userId}`;
+}
+
+type PersistedDraftRoot = {
+  version?: number;
+  ownerUserId?: string;
+  draft?: Partial<Draft>;
+  serverSync?: { propertyId?: unknown; roomIds?: unknown };
+};
+
+function parseServerSyncFromRoot(root: PersistedDraftRoot, draft: Draft): ServerSync {
+  let roomIds = Array.isArray(root.serverSync?.roomIds)
+    ? (root.serverSync!.roomIds as unknown[]).filter((x): x is string => typeof x === "string")
+    : [];
+  while (roomIds.length < draft.rooms.length) roomIds.push("");
+  roomIds = roomIds.slice(0, draft.rooms.length);
+  const propertyId =
+    typeof root.serverSync?.propertyId === "string" && root.serverSync.propertyId.trim()
+      ? root.serverSync.propertyId.trim()
+      : null;
+  return propertyId ? { propertyId, roomIds } : { propertyId: null, roomIds: [] };
+}
+
+function loadPersistedForUser(userId: string): { draft: Draft; serverSync: ServerSync } {
+  try {
+    const raw = localStorage.getItem(draftStorageKey(userId));
+    if (!raw) return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
+    const root = JSON.parse(raw) as PersistedDraftRoot;
+    if (root.ownerUserId && root.ownerUserId !== userId) {
+      return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
+    }
+    if (!root.draft) return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
+    const draft = normalizeParsedDraft(root.draft);
+    return { draft, serverSync: parseServerSyncFromRoot(root, draft) };
+  } catch {
+    return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
+  }
+}
+
+function savePersistedForUser(userId: string, draft: Draft, serverSync: ServerSync) {
+  const root: PersistedDraftRoot = {
+    version: 4,
+    ownerUserId: userId,
+    draft,
+    serverSync,
+  };
+  localStorage.setItem(draftStorageKey(userId), JSON.stringify(root));
+  try {
+    localStorage.removeItem(STORAGE_KEY_V3);
+    localStorage.removeItem(STORAGE_KEY_V2);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -352,14 +371,15 @@ export function PublishWizardPage() {
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
   const apiOn = isListingsApiConfigured();
-  const persistedInit = useMemo(() => loadPersisted(), []);
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(() => persistedInit.draft);
-  const [serverSync, setServerSync] = useState<ServerSync>(() => persistedInit.serverSync);
+  const [draft, setDraft] = useState<Draft>(() => defaultDraft());
+  const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
+  /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
+  const [storageReady, setStorageReady] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
 
   useEffect(() => {
@@ -374,13 +394,52 @@ export function PublishWizardPage() {
   draftRef.current = draft;
   const serverSyncRef = useRef(serverSync);
   serverSyncRef.current = serverSync;
+  const meRef = useRef(me);
+  meRef.current = me;
+  const storageReadyRef = useRef(storageReady);
+  storageReadyRef.current = storageReady;
+  const prevUserIdRef = useRef<string | null>(undefined);
+  const didHydrateLocalForUserRef = useRef<string | null>(null);
 
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_V3, JSON.stringify({ draft, serverSync }));
-  }, [draft, serverSync]);
+    if (me === undefined) return;
+    if (!me) {
+      prevUserIdRef.current = null;
+      didHydrateLocalForUserRef.current = null;
+      setStorageReady(false);
+      setDraft(defaultDraft());
+      setServerSync({ propertyId: null, roomIds: [] });
+      setStep(0);
+      setAutosaveNote("idle");
+      return;
+    }
+    const uid = me.id;
+    const prevUid = prevUserIdRef.current;
+    if (prevUid != null && prevUid !== uid) {
+      didHydrateLocalForUserRef.current = null;
+    }
+    if (prevUid !== uid) {
+      prevUserIdRef.current = uid;
+      void authLinkPublisher().catch(() => undefined);
+    }
+    if (editPropertyId || handoffToken) return;
+    if (didHydrateLocalForUserRef.current === uid) return;
+    didHydrateLocalForUserRef.current = uid;
+    const loaded = loadPersistedForUser(uid);
+    setDraft(loaded.draft);
+    setServerSync(loaded.serverSync);
+    setStep(0);
+    setAutosaveNote("idle");
+    setStorageReady(true);
+  }, [me, editPropertyId, handoffToken]);
+
+  useEffect(() => {
+    if (!me?.id || !storageReady) return;
+    savePersistedForUser(me.id, draft, serverSync);
+  }, [draft, serverSync, me?.id, storageReady]);
 
   useEffect(() => {
     if (!handoffToken) {
@@ -406,6 +465,9 @@ export function PublishWizardPage() {
           setHandoffBanner("Sesión de publicación restaurada. Continúa donde la dejaste.");
         }
         if (!cancelled) {
+          const session = await authMe();
+          if (session?.id) didHydrateLocalForUserRef.current = session.id;
+          setStorageReady(true);
           setSearchParams(
             (prev) => {
               const n = new URLSearchParams(prev);
@@ -419,6 +481,15 @@ export function PublishWizardPage() {
         if (!cancelled) {
           setPublishErr(e instanceof Error ? e.message : "No se pudo abrir el enlace de Messenger.");
           handoffLock.current = false;
+          setStorageReady(true);
+          setSearchParams(
+            (prev) => {
+              const n = new URLSearchParams(prev);
+              n.delete("handoff");
+              return n;
+            },
+            { replace: true },
+          );
         }
       }
     })();
@@ -443,11 +514,14 @@ export function PublishWizardPage() {
           } else {
             setHandoffBanner("Borrador cargado para editar.");
           }
+          const session = await authMe();
+          if (session?.id) didHydrateLocalForUserRef.current = session.id;
         }
       } catch (e) {
         if (!cancelled) setPublishErr(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
       } finally {
         if (!cancelled) {
+          setStorageReady(true);
           setSearchParams(
             (prev) => {
               const n = new URLSearchParams(prev);
@@ -498,6 +572,10 @@ export function PublishWizardPage() {
 
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
     if (!isListingsApiConfigured()) return null;
+    if (!meRef.current?.id || !storageReadyRef.current) {
+      setAutosaveNote("idle");
+      return null;
+    }
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       setAutosaveNote("idle");
       return null;
@@ -629,7 +707,8 @@ export function PublishWizardPage() {
   }, [apiOn]);
 
   useEffect(() => {
-    if (!apiOn) return;
+    if (!apiOn || !storageReady) return;
+    if (!meRef.current?.id) return;
     if (isFreshDefaultDraft(draftRef.current)) return;
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(() => {
@@ -639,7 +718,7 @@ export function PublishWizardPage() {
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [draft, apiOn]);
+  }, [draft, apiOn, me?.id, storageReady]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -1651,13 +1730,7 @@ export function PublishWizardPage() {
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
         });
-        localStorage.setItem(
-          STORAGE_KEY_V3,
-          JSON.stringify({
-            draft: { ...defaultDraft(), city: draft.city },
-            serverSync: { propertyId: null, roomIds: [] },
-          }),
-        );
+        savePersistedForUser(me.id, { ...defaultDraft(), city: draft.city }, { propertyId: null, roomIds: [] });
         setServerSync({ propertyId: null, roomIds: [] });
         navigate(`/anuncio/${firstRoomId}`);
         return;
@@ -1702,13 +1775,7 @@ export function PublishWizardPage() {
         setPublishErr("La API no devolvió cuartos.");
         return;
       }
-      localStorage.setItem(
-        STORAGE_KEY_V3,
-        JSON.stringify({
-          draft: { ...defaultDraft(), city: draft.city },
-          serverSync: { propertyId: null, roomIds: [] },
-        }),
-      );
+      savePersistedForUser(me.id, { ...defaultDraft(), city: draft.city }, { propertyId: null, roomIds: [] });
       setServerSync({ propertyId: null, roomIds: [] });
       navigate(`/anuncio/${first.id}`);
     } catch (e) {
@@ -1760,6 +1827,15 @@ export function PublishWizardPage() {
         <strong className="font-medium text-body">un solo cuarto</strong> (rápido) o{" "}
         <strong className="font-medium text-body">una propiedad con varios cuartos</strong>.
       </p>
+      {apiOn && me === null ? (
+        <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-50 p-3 text-sm text-body dark:border-amber-800/60 dark:bg-amber-950/40">
+          <Link className="font-semibold text-primary underline" to="/entrar">
+            Inicia sesión
+          </Link>{" "}
+          para sincronizar el borrador con el servidor y publicar. Sin sesión, los datos solo viven en este navegador y
+          no se vinculan a una cuenta.
+        </p>
+      ) : null}
       {handoffBanner ? (
         <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
           {handoffBanner}
@@ -1831,9 +1907,9 @@ export function PublishWizardPage() {
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  localStorage.setItem(STORAGE_KEY_V3, JSON.stringify({ draft, serverSync }))
-                }
+                onClick={() => {
+                  if (me?.id) savePersistedForUser(me.id, draft, serverSync);
+                }}
                 className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
               >
                 Guardar borrador
