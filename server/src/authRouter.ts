@@ -8,6 +8,7 @@ import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.j
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
 import { createPublishHandoff } from "./handoffTokens.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
+import { authEmailForDb } from "./authEmail.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -37,17 +38,12 @@ function jsonMw() {
   return express.json({ limit: "256kb" });
 }
 
-/** Trim, lowercase, strip invisible chars (common paste glitches). */
-function normalizeEmail(raw: string): string {
-  return raw.trim().toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g, "");
-}
-
 export function authRouter(db: DatabaseSync) {
   const r = express.Router();
 
   r.post("/register", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
-    const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
+    const email = typeof body.email === "string" ? authEmailForDb(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
     const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 120) : "";
     if (!email.includes("@") || email.length > 200) {
@@ -88,7 +84,7 @@ export function authRouter(db: DatabaseSync) {
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown };
-    const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
+    const email = typeof body.email === "string" ? authEmailForDb(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
     const row = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
       | { id: string; password_hash: string }
