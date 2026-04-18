@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
@@ -1519,7 +1519,16 @@ export function PublishWizardPage() {
     [draft, apiOn, resolveLatLngForDraft],
   );
 
-  const current = steps[step]!;
+  const maxStepIndex = Math.max(0, steps.length - 1);
+  const safeStep = Math.min(Math.max(0, step), maxStepIndex);
+  const current = steps[safeStep]!;
+  const isPublishStep = current.title === "Publicar";
+
+  useLayoutEffect(() => {
+    if (step !== safeStep) {
+      setStep(safeStep);
+    }
+  }, [step, safeStep]);
 
   function validateRoomsForSubmit(d: Draft): string | null {
     const iso = /^\d{4}-\d{2}-\d{2}$/;
@@ -1791,7 +1800,7 @@ export function PublishWizardPage() {
 
       <div className="mt-8 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Paso {step + 1} de {steps.length}
+          Paso {safeStep + 1} de {steps.length}
         </p>
         <h2 className="mt-2 text-lg font-semibold text-body">{current.title}</h2>
         <div className="mt-4">{current.body}</div>
@@ -1810,7 +1819,7 @@ export function PublishWizardPage() {
           >
             Atrás
           </button>
-          {step < steps.length - 1 ? (
+          {!isPublishStep ? (
             <button
               type="button"
               onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
@@ -1854,7 +1863,7 @@ export function PublishWizardPage() {
         </div>
       </div>
 
-      {step === steps.length - 1 ? (
+      {isPublishStep ? (
       <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
         <h2 className="text-base font-semibold text-body">Publicación</h2>
         <p className="mt-1 text-sm text-muted">
