@@ -13,7 +13,6 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
-import { reverseGeocodeGoogle } from "@/lib/googleReverseGeocode";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
@@ -477,32 +476,24 @@ export function PublishWizardPage() {
 
   useEffect(() => {
     const { lat, lng } = resolveLatLngForDraft(draft);
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? "";
-    if (!apiKey) {
-      setResolvedAddress(
-        "Configura VITE_GOOGLE_MAPS_API_KEY en .env.local y habilita la Geocoding API para esa clave (además de Maps JavaScript API) para ver la dirección formateada.",
-      );
-      return;
-    }
-
     setResolvedAddress("Buscando dirección...");
-    let alive = true;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        const result = await reverseGeocodeGoogle(lat, lng, apiKey);
-        if (!alive) return;
-        if (result.ok) setResolvedAddress(result.address);
-        else if (result.reason === "api")
-          setResolvedAddress(
-            "No se pudo obtener la dirección. Comprueba que la Geocoding API esté habilitada para tu clave y que las restricciones permitan este origen.",
-          );
-        else setResolvedAddress("Ubicación aproximada");
-      })();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+          { headers: { "User-Agent": "bestie.mx-publish-wizard" } }
+        );
+        if (res.ok) {
+          const data = await res.json() as { display_name?: string };
+          setResolvedAddress(data.display_name || "Dirección aproximada");
+        } else {
+          setResolvedAddress("Ubicación aproximada");
+        }
+      } catch {
+        setResolvedAddress("Ubicación aproximada");
+      }
     }, 800);
-    return () => {
-      alive = false;
-      window.clearTimeout(timer);
-    };
+    return () => clearTimeout(timer);
   }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin, resolveLatLngForDraft]);
 
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {

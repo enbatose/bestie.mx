@@ -1,5 +1,12 @@
-import { Circle, Map, Marker } from "@vis.gl/react-google-maps";
-import { useMemo } from "react";
+import { MapContainer, Marker, TileLayer, useMapEvents, Circle } from "react-leaflet";
+import L from "leaflet";
+
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
 
 type Props = {
   center: [number, number];
@@ -7,68 +14,68 @@ type Props = {
   onPositionChange: (lat: number, lng: number) => void;
 };
 
-export function WizardLocationMap({ center, position, onPositionChange }: Props) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? "";
-  const defaultCenter = useMemo(() => ({ lat: center[0], lng: center[1] }), [center[0], center[1]]);
-  const markerPosition = useMemo(() => ({ lat: position[0], lng: position[1] }), [position[0], position[1]]);
+/** Opens Google Street View at the pin (Leaflet/OSM tiles have no street-level imagery). */
+function googleStreetViewUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+}
 
-  if (!apiKey) {
-    return (
-      <div
-        className="flex w-full flex-col justify-center gap-2 rounded-xl border border-border bg-surface-elevated/60 px-4 py-6 text-center text-sm text-muted"
-        style={{ minHeight: 288 }}
-      >
-        <p className="font-medium text-body">Mapa de Google no disponible</p>
-        <p>
-          Agrega <code className="rounded bg-surface px-1 font-mono text-xs">VITE_GOOGLE_MAPS_API_KEY</code> en{" "}
-          <code className="rounded bg-surface px-1 font-mono text-xs">.env.local</code> (clave de navegador con{" "}
-          <span className="font-medium text-body">Maps JavaScript API</span> y{" "}
-          <span className="font-medium text-body">Geocoding API</span> habilitadas) y reinicia{" "}
-          <code className="rounded bg-surface px-1 font-mono text-xs">npm run dev</code>.{" "}
-          <code className="rounded bg-surface px-1 font-mono text-xs">npm run env:local</code> conserva esta variable si
-          ya estaba en el archivo.
-        </p>
-      </div>
-    );
-  }
+function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+export function WizardLocationMap({ center, position, onPositionChange }: Props) {
+  const [lat, lng] = position;
+  const streetViewHref = googleStreetViewUrl(lat, lng);
 
   return (
     <div className="space-y-2">
-      <Map
-        defaultCenter={defaultCenter}
-        defaultZoom={13}
-        gestureHandling="greedy"
-        streetViewControl
-        zoomControl
-        mapTypeControl={false}
+      <MapContainer
+        center={center}
+        zoom={13}
         className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm"
         style={{ height: 288 }}
-        onClick={(e) => {
-          const ll = e.detail.latLng;
-          if (ll) onPositionChange(ll.lat, ll.lng);
-        }}
+        scrollWheelZoom
       >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ClickToPlace onPick={onPositionChange} />
         <Marker
-          position={markerPosition}
+          position={position}
           draggable
-          onDragEnd={(e) => {
-            const ll = e.detail.latLng;
-            if (ll) onPositionChange(ll.lat, ll.lng);
+          eventHandlers={{
+            dragend: (e) => {
+              const ll = (e.target as L.Marker).getLatLng();
+              onPositionChange(ll.lat, ll.lng);
+            },
           }}
         />
         <Circle
-          center={markerPosition}
+          center={position}
           radius={500}
-          strokeColor="#84CC16"
-          strokeOpacity={1}
-          strokeWeight={2}
-          fillColor="#84CC16"
-          fillOpacity={0.15}
+          pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
         />
-      </Map>
-      <p className="text-xs text-muted">
-        Usa el control de Street View (figura amarilla) o arrastra el pin para ajustar la ubicación.
-      </p>
+      </MapContainer>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
+        <span className="text-xs text-muted">
+          Vista de calle (abre Google en una pestaña nueva; no requiere API key).
+        </span>
+        <a
+          href={streetViewHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+          aria-label="Abrir Street View en la ubicación del pin"
+        >
+          Ver vista de calle
+        </a>
+      </div>
     </div>
   );
 }
