@@ -14,6 +14,11 @@ type Props = {
   onPositionChange: (lat: number, lng: number) => void;
 };
 
+/** Opens Google Street View at the pin (Leaflet/OSM tiles have no street-level imagery). */
+function googleStreetViewUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+}
+
 function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -24,34 +29,53 @@ function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }
 }
 
 export function WizardLocationMap({ center, position, onPositionChange }: Props) {
+  const [lat, lng] = position;
+  const streetViewHref = googleStreetViewUrl(lat, lng);
+
   return (
-    <MapContainer
-      center={center}
-      zoom={13}
-      className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm"
-      style={{ height: 288 }}
-      scrollWheelZoom
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <ClickToPlace onPick={onPositionChange} />
-      <Marker
-        position={position}
-        draggable
-        eventHandlers={{
-          dragend: (e) => {
-            const ll = (e.target as L.Marker).getLatLng();
-            onPositionChange(ll.lat, ll.lng);
-          },
-        }}
-      />
-      <Circle
-        center={position}
-        radius={500}
-        pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
-      />
-    </MapContainer>
+    <div className="space-y-2">
+      <MapContainer
+        center={center}
+        zoom={13}
+        className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm"
+        style={{ height: 288 }}
+        scrollWheelZoom
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ClickToPlace onPick={onPositionChange} />
+        <Marker
+          position={position}
+          draggable
+          eventHandlers={{
+            dragend: (e) => {
+              const ll = (e.target as L.Marker).getLatLng();
+              onPositionChange(ll.lat, ll.lng);
+            },
+          }}
+        />
+        <Circle
+          center={position}
+          radius={500}
+          pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
+        />
+      </MapContainer>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
+        <span className="text-xs text-muted">
+          Vista de calle (abre Google en una pestaña nueva; no requiere API key).
+        </span>
+        <a
+          href={streetViewHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+          aria-label="Abrir Street View en la ubicación del pin"
+        >
+          Ver vista de calle
+        </a>
+      </div>
+    </div>
   );
 }
