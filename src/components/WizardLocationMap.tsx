@@ -30,7 +30,7 @@ function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }
 
 export function WizardLocationMap({ center, position, onPositionChange }: Props) {
   const [lat, lng] = position;
-  const streetViewHref = googleStreetViewUrl(lat, lng);
+  const streetViewHref = streetViewExternalUrl(lat, lng);
 
   return (
     <div className="space-y-2">
