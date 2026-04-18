@@ -29,16 +29,47 @@ export function readPublisherIdFromRequest(req: Request): string | null {
   return raw && UUID_RE.test(raw) ? raw : null;
 }
 
+/**
+ * Cookie shape for `bestie_auth` and `bestie_pub` when the SPA and API are on different hosts
+ * (set AUTH_CROSS_SITE_COOKIES=1 or AUTH_COOKIE_SAME_SITE=None, and optional AUTH_COOKIE_DOMAIN).
+ */
+export function resolveSessionCookieAttrs(): {
+  sameSite: "Lax" | "None" | "Strict";
+  secure: boolean;
+  domain?: string;
+} {
+  if (process.env.TEST_DISABLE_SECURE_COOKIE === "1") {
+    return { sameSite: "Lax", secure: false };
+  }
+
+  const explicit = process.env.AUTH_COOKIE_SAME_SITE?.trim().toLowerCase();
+  let sameSite: "Lax" | "None" | "Strict" = "Lax";
+  if (explicit === "none") sameSite = "None";
+  else if (explicit === "strict") sameSite = "Strict";
+  else if (explicit === "lax") sameSite = "Lax";
+  else if (
+    process.env.AUTH_CROSS_SITE_COOKIES === "1" ||
+    /^true$/i.test(process.env.AUTH_CROSS_SITE_COOKIES ?? "")
+  ) {
+    sameSite = "None";
+  }
+
+  const secure = sameSite === "None" ? true : process.env.NODE_ENV === "production";
+  const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+  return { sameSite, secure, ...(domain ? { domain } : {}) };
+}
+
 export function issuePublisherCookie(res: Response, publisherId: string): void {
-  const secure = process.env.NODE_ENV === "production";
+  const opts = resolveSessionCookieAttrs();
   const parts = [
     `${PUBLISHER_COOKIE}=${encodeURIComponent(publisherId)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${opts.sameSite}`,
     "Max-Age=31536000",
   ];
-  if (secure) parts.push("Secure");
+  if (opts.domain) parts.push(`Domain=${opts.domain}`);
+  if (opts.secure) parts.push("Secure");
   res.appendHeader("Set-Cookie", parts.join("; "));
 }
 

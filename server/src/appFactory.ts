@@ -21,6 +21,18 @@ import {
   smtpConfigured,
 } from "./mailer.js";
 
+function normalizeCorsOrigins(origins: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of origins) {
+    const o = raw.trim().replace(/\/+$/, "");
+    if (!o || seen.has(o)) continue;
+    seen.add(o);
+    out.push(o);
+  }
+  return out;
+}
+
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
   corsOrigins?: string[];
@@ -42,12 +54,14 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   const databaseLabel = opts.databaseLabel ?? "in-process";
   const databasePath = opts.databasePath;
   const instanceId = opts.instanceId;
-  const corsOrigins =
+  const corsOrigins = normalizeCorsOrigins(
     opts.corsOrigins ??
-    (process.env.CORS_ORIGINS ?? "http://localhost:5173,https://bestie.mx,https://www.bestie.mx")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+      (process.env.CORS_ORIGINS ??
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://bestie.mx,https://www.bestie.mx")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+  );
 
   const app = express();
   app.set("trust proxy", 1);
@@ -64,7 +78,10 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
           callback(null, true);
           return;
         }
-        callback(new Error(`CORS blocked origin: ${origin}`));
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[cors] blocked origin: ${origin}; allowed: ${corsOrigins.join(", ")}`);
+        }
+        callback(null, false);
       },
       credentials: true,
     }),
