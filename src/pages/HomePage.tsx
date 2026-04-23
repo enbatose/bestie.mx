@@ -132,7 +132,7 @@ export function HomePage() {
           </ul>
           <p className="mt-4 text-sm text-muted">
             Tip: elige una ciudad y luego <span className="font-medium text-body">Buscar</span>{" "}
-            para ver el mapa y la lista con filtros obligatorios (v1).
+            para ver el mapa y la lista con filtros obligatorios.
           </p>
         </div>
       </section>
