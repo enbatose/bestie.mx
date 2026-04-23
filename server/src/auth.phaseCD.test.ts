@@ -51,6 +51,29 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     await request(app).post("/api/auth/impersonate").expect(410);
   });
 
+  it("register preserves dots in the stored email and logs in via any Gmail alias", async () => {
+    const em = `dotty.enrique-${testId}@gmail.com`;
+    const atIdx = em.indexOf("@");
+    const emNoDots = em.slice(0, atIdx).replace(/\./g, "") + em.slice(atIdx);
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+    const meAfterReg = await agent.get("/api/auth/me").expect(200);
+    expect(meAfterReg.body.email).toBe(em);
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
+    const me1 = await agent.get("/api/auth/me").expect(200);
+    expect(me1.body.email).toBe(em);
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: emNoDots, password: "longenough1" }).expect(200);
+    const me2 = await agent.get("/api/auth/me").expect(200);
+    expect(me2.body.email).toBe(em);
+    const dup = request.agent(app);
+    await dup
+      .post("/api/auth/register")
+      .send({ email: emNoDots, password: "longenough1" })
+      .expect(409);
+  });
+
   it("register, logout, login, /me includes isAdmin", async () => {
     const agent = request.agent(app);
     await agent
@@ -78,7 +101,7 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
 
   it("PATCH /api/auth/me requires current password to change email", async () => {
     const em1 = `edit-em1-${testId}@test.mx`;
-    const em2 = `edit-em2-${testId}@test.mx`;
+    const em2 = `edit.em2-${testId}@gmail.com`;
     const agent = request.agent(app);
     await agent.post("/api/auth/register").send({ email: em1, password: "longenough1" }).expect(201);
     await agent.patch("/api/auth/me").send({ email: em2 }).expect(401);
@@ -95,6 +118,12 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(me.body.emailVerified).toBe(true);
     await agent.post("/api/auth/logout").expect(200);
     await agent.post("/api/auth/login").send({ email: em2, password: "longenough1" }).expect(200);
+    await agent.post("/api/auth/logout").expect(200);
+    const em2NoDots = (() => {
+      const at = em2.indexOf("@");
+      return em2.slice(0, at).replace(/\./g, "") + em2.slice(at);
+    })();
+    await agent.post("/api/auth/login").send({ email: em2NoDots, password: "longenough1" }).expect(200);
   });
 
   it("PATCH /api/auth/me rejects duplicate email", async () => {
@@ -108,6 +137,28 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
       .patch("/api/auth/me")
       .send({ email: emA, currentPassword: "longenough1" })
       .expect(409);
+  });
+
+  it("user whose email was stored dotless can restore the original via PATCH /me", async () => {
+    const original = `batani.enrique-${testId}@gmail.com`;
+    const dotless = `batanienrique-${testId}@gmail.com`;
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: dotless, password: "longenough1" })
+      .expect(201);
+    const meOld = await agent.get("/api/auth/me").expect(200);
+    expect(meOld.body.email).toBe(dotless);
+    await agent
+      .patch("/api/auth/me")
+      .send({ email: original, currentPassword: "longenough1" })
+      .expect(200);
+    const meNew = await agent.get("/api/auth/me").expect(200);
+    expect(meNew.body.email).toBe(original);
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: original, password: "longenough1" }).expect(200);
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: dotless, password: "longenough1" }).expect(200);
   });
 
   it("POST /api/auth/change-password rotates the password", async () => {

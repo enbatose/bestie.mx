@@ -8,7 +8,7 @@ import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.j
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
 import { createPublishHandoff } from "./handoffTokens.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
-import { authEmailForDb } from "./authEmail.js";
+import { canonicalLookupEmail, displayStorageEmail } from "./authEmail.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -43,10 +43,11 @@ export function authRouter(db: DatabaseSync) {
 
   r.post("/register", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
-    const email = typeof body.email === "string" ? authEmailForDb(body.email) : "";
+    const emailDisplay = typeof body.email === "string" ? displayStorageEmail(body.email) : "";
+    const emailCanonical = typeof body.email === "string" ? canonicalLookupEmail(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
     const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 120) : "";
-    if (!email.includes("@") || email.length > 200) {
+    if (!emailDisplay.includes("@") || emailDisplay.length > 200) {
       res.status(400).json({ error: "invalid_email" });
       return;
     }
@@ -59,11 +60,19 @@ export function authRouter(db: DatabaseSync) {
     const createdAt = isoNow();
     try {
       db.prepare(
-        `INSERT INTO users (id, email, phone_e164, password_hash, display_name, created_at, email_verified_at) VALUES (?, ?, NULL, ?, ?, ?, ?)`,
-      ).run(id, email, ph, displayName || email.split("@")[0]!, createdAt, createdAt);
+        `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
+      ).run(
+        id,
+        emailDisplay,
+        emailCanonical,
+        ph,
+        displayName || emailDisplay.split("@")[0]!,
+        createdAt,
+        createdAt,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("UNIQUE constraint failed") && msg.includes("email")) {
+      if (msg.includes("UNIQUE constraint failed") && (msg.includes("email_canonical") || msg.includes("email"))) {
         res.status(409).json({ error: "email_taken" });
         return;
       }
@@ -77,18 +86,20 @@ export function authRouter(db: DatabaseSync) {
     issueAuthCookie(res, id);
     res.status(201).json({
       id,
-      email,
-      displayName: displayName || email.split("@")[0],
+      email: emailDisplay,
+      displayName: displayName || emailDisplay.split("@")[0],
     });
   });
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown };
-    const email = typeof body.email === "string" ? authEmailForDb(body.email) : "";
+    const emailCanonical = typeof body.email === "string" ? canonicalLookupEmail(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
-    const row = db.prepare("SELECT id, password_hash FROM users WHERE email = ?").get(email) as
-      | { id: string; password_hash: string }
-      | undefined;
+    const row = db
+      .prepare(
+        "SELECT id, password_hash FROM users WHERE email_canonical = ? OR (email_canonical IS NULL AND email = ?)",
+      )
+      .get(emailCanonical, emailCanonical) as { id: string; password_hash: string } | undefined;
     if (!row) {
       res.status(401).json({ error: "user_not_found" });
       return;
@@ -158,12 +169,13 @@ export function authRouter(db: DatabaseSync) {
     let emailChanged = false;
     let nextEmail: string | null = null;
     if (typeof body.email === "string") {
-      const e = authEmailForDb(body.email);
-      if (!e.includes("@") || e.length > 200) {
+      const emailDisplay = displayStorageEmail(body.email);
+      const emailCanonical = canonicalLookupEmail(body.email);
+      if (!emailDisplay.includes("@") || emailDisplay.length > 200) {
         res.status(400).json({ error: "invalid_email" });
         return;
       }
-      if (e !== row.email) {
+      if (emailDisplay !== (row.email ?? "")) {
         if (!isWaOnlyPasswordHash(row.password_hash)) {
           const cp = typeof body.currentPassword === "string" ? body.currentPassword : "";
           if (!cp || !verifyPassword(cp, row.password_hash)) {
@@ -172,9 +184,11 @@ export function authRouter(db: DatabaseSync) {
           }
         }
         emailChanged = true;
-        nextEmail = e;
+        nextEmail = emailDisplay;
         sets.push("email = ?");
-        params.push(e);
+        params.push(emailDisplay);
+        sets.push("email_canonical = ?");
+        params.push(emailCanonical);
         sets.push("email_verified_at = ?");
         params.push(isoNow());
       }
@@ -190,7 +204,11 @@ export function authRouter(db: DatabaseSync) {
       db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...(params as never[]));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (emailChanged && msg.includes("UNIQUE constraint failed") && msg.includes("email")) {
+      if (
+        emailChanged &&
+        msg.includes("UNIQUE constraint failed") &&
+        (msg.includes("email_canonical") || msg.includes("email"))
+      ) {
         res.status(409).json({ error: "email_taken" });
         return;
       }
