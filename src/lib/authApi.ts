@@ -96,6 +96,85 @@ export async function authLogin(
   }
 }
 
+export type UpdateMeBody = {
+  displayName?: string;
+  email?: string;
+  currentPassword?: string;
+};
+
+export type UpdateMeResult = {
+  ok: true;
+  changed: boolean;
+  emailChanged?: boolean;
+  email?: string | null;
+};
+
+export async function authUpdateMe(body: UpdateMeBody, signal?: AbortSignal): Promise<UpdateMeResult> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const err = typeof j.error === "string" ? j.error : `update_${res.status}`;
+    if (err === "email_taken") {
+      throw new Error("Ese correo ya está en uso en otra cuenta.");
+    }
+    if (err === "invalid_email") {
+      throw new Error("Correo inválido.");
+    }
+    if (err === "invalid_display_name") {
+      throw new Error("Nombre inválido.");
+    }
+    if (err === "invalid_password") {
+      throw new Error("Contraseña actual incorrecta.");
+    }
+    if (err === "unauthorized") {
+      throw new Error("Tu sesión expiró. Inicia sesión de nuevo.");
+    }
+    throw new Error(typeof j.message === "string" ? j.message : err);
+  }
+  return {
+    ok: true,
+    changed: Boolean(j.changed),
+    emailChanged: Boolean(j.emailChanged),
+    email: typeof j.email === "string" ? j.email : null,
+  };
+}
+
+export async function authChangePassword(
+  body: { currentPassword: string; newPassword: string },
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/change-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    if (j.error === "invalid_password") {
+      throw new Error("Contraseña actual incorrecta.");
+    }
+    if (j.error === "password_too_short") {
+      throw new Error("La nueva contraseña debe tener al menos 8 caracteres.");
+    }
+    if (j.error === "wa_only_account") {
+      throw new Error(
+        "Esta cuenta solo usa WhatsApp OTP; no tiene contraseña. Agrega un correo para poder usar contraseña.",
+      );
+    }
+    throw new Error(j.message || j.error || `change_password_${res.status}`);
+  }
+}
+
 export async function authLogout(signal?: AbortSignal): Promise<void> {
   const base = apiBase();
   await networkFetch(`${base}/api/auth/logout`, { method: "POST", credentials: cred, signal });

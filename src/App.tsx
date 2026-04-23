@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppShellLayout } from "@/layouts/AppShellLayout";
+import { AccountEditPage } from "@/pages/AccountEditPage";
 import { AdminPage } from "@/pages/AdminPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { FaqPage } from "@/pages/FaqPage";
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       { path: "publicar", element: <PublishWizardPage /> },
       { path: "mis-anuncios", element: <MyListingsPage /> },
       { path: "perfil", element: <ProfilePage /> },
+      { path: "perfil/editar", element: <AccountEditPage /> },
       { path: "mensajes", element: <MessagesPage /> },
       { path: "contacto", element: <ContactPage /> },
       { path: "faq", element: <FaqPage /> },
