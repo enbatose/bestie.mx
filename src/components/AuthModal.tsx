@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { PasswordField } from "@/components/PasswordField";
 import { authLogin, authRegister } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -120,8 +121,7 @@ export function AuthModal() {
               </label>
               <label className="block text-sm font-medium text-body">
                 Contraseña
-                <input
-                  type="password"
+                <PasswordField
                   required
                   autoComplete="current-password"
                   value={password}
@@ -160,8 +160,7 @@ export function AuthModal() {
               </label>
               <label className="block text-sm font-medium text-body">
                 Contraseña (mín. 8)
-                <input
-                  type="password"
+                <PasswordField
                   required
                   minLength={8}
                   value={password}

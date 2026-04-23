@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { PasswordField } from "@/components/PasswordField";
 import {
   authLinkPublisher,
   authLogin,
@@ -264,8 +265,7 @@ export function SignInPage() {
           </label>
           <label className="block text-sm font-medium text-body">
             Contraseña
-            <input
-              type="password"
+            <PasswordField
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

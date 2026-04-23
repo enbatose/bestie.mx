@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { PasswordField } from "@/components/PasswordField";
 import { authRegister } from "@/lib/authApi";
 
 export function RegisterPage() {
@@ -62,8 +63,7 @@ export function RegisterPage() {
         </label>
         <label className="block text-sm font-medium text-body">
           Contraseña
-          <input
-            type="password"
+          <PasswordField
             required
             minLength={8}
             autoComplete="new-password"
