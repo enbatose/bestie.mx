@@ -3,7 +3,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import legacySeed from "./seedListings.json" with { type: "json" };
 import type { ListingStatus } from "./types.js";
-import { migrateUserEmailsToCanonicalForm } from "./authEmail.js";
+import { backfillUserEmailCanonical } from "./authEmail.js";
 import { ensurePhaseCDSchema } from "./phaseCDSchema.js";
 import { ensureMessagingSchema } from "./messagingSchema.js";
 
@@ -378,7 +378,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensurePhaseBSchema(db);
   migrateLegacyListingsTableIfPresent(db);
   ensurePhaseCDSchema(db);
-  migrateUserEmailsToCanonicalForm(db);
+  backfillUserEmailCanonical(db);
   ensureMessagingSchema(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
