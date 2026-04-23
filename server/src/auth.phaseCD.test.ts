@@ -66,6 +66,71 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     await agent.get("/api/auth/me").expect(200);
   });
 
+  it("PATCH /api/auth/me updates display name without password", async () => {
+    const em = `edit-dn-${testId}@test.mx`;
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+    const r = await agent.patch("/api/auth/me").send({ displayName: "Nuevo Nombre" }).expect(200);
+    expect(r.body).toMatchObject({ ok: true, changed: true });
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.displayName).toBe("Nuevo Nombre");
+  });
+
+  it("PATCH /api/auth/me requires current password to change email", async () => {
+    const em1 = `edit-em1-${testId}@test.mx`;
+    const em2 = `edit-em2-${testId}@test.mx`;
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em1, password: "longenough1" }).expect(201);
+    await agent.patch("/api/auth/me").send({ email: em2 }).expect(401);
+    await agent
+      .patch("/api/auth/me")
+      .send({ email: em2, currentPassword: "WRONG" })
+      .expect(401);
+    await agent
+      .patch("/api/auth/me")
+      .send({ email: em2, currentPassword: "longenough1" })
+      .expect(200);
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.email).toBe(em2);
+    expect(me.body.emailVerified).toBe(true);
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: em2, password: "longenough1" }).expect(200);
+  });
+
+  it("PATCH /api/auth/me rejects duplicate email", async () => {
+    const emA = `edit-emA-${testId}@test.mx`;
+    const emB = `edit-emB-${testId}@test.mx`;
+    const a1 = request.agent(app);
+    await a1.post("/api/auth/register").send({ email: emA, password: "longenough1" }).expect(201);
+    const a2 = request.agent(app);
+    await a2.post("/api/auth/register").send({ email: emB, password: "longenough1" }).expect(201);
+    await a2
+      .patch("/api/auth/me")
+      .send({ email: emA, currentPassword: "longenough1" })
+      .expect(409);
+  });
+
+  it("POST /api/auth/change-password rotates the password", async () => {
+    const em = `edit-pw-${testId}@test.mx`;
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+    await agent
+      .post("/api/auth/change-password")
+      .send({ currentPassword: "WRONG", newPassword: "newlongenough1" })
+      .expect(401);
+    await agent
+      .post("/api/auth/change-password")
+      .send({ currentPassword: "longenough1", newPassword: "short" })
+      .expect(400);
+    await agent
+      .post("/api/auth/change-password")
+      .send({ currentPassword: "longenough1", newPassword: "newlongenough1" })
+      .expect(200);
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(401);
+    await agent.post("/api/auth/login").send({ email: em, password: "newlongenough1" }).expect(200);
+  });
+
   it("admin can list users", async () => {
     const agent = request.agent(app);
     await agent.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" }).expect(201);

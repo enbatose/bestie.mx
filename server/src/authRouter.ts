@@ -110,6 +110,132 @@ export function authRouter(db: DatabaseSync) {
     res.json({ ok: true });
   });
 
+  /** Update profile fields for the logged-in user (display name and/or email). */
+  r.patch("/me", jsonMw(), (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const row = db
+      .prepare("SELECT id, email, phone_e164, password_hash, display_name FROM users WHERE id = ?")
+      .get(uid) as
+      | {
+          id: string;
+          email: string | null;
+          phone_e164: string | null;
+          password_hash: string;
+          display_name: string;
+        }
+      | undefined;
+    if (!row) {
+      clearAuthCookie(res);
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    const body = req.body as {
+      displayName?: unknown;
+      email?: unknown;
+      currentPassword?: unknown;
+    };
+
+    const sets: string[] = [];
+    const params: unknown[] = [];
+
+    if (typeof body.displayName === "string") {
+      const dn = body.displayName.trim().slice(0, 120);
+      if (!dn) {
+        res.status(400).json({ error: "invalid_display_name" });
+        return;
+      }
+      if (dn !== row.display_name) {
+        sets.push("display_name = ?");
+        params.push(dn);
+      }
+    }
+
+    let emailChanged = false;
+    let nextEmail: string | null = null;
+    if (typeof body.email === "string") {
+      const e = authEmailForDb(body.email);
+      if (!e.includes("@") || e.length > 200) {
+        res.status(400).json({ error: "invalid_email" });
+        return;
+      }
+      if (e !== row.email) {
+        if (!isWaOnlyPasswordHash(row.password_hash)) {
+          const cp = typeof body.currentPassword === "string" ? body.currentPassword : "";
+          if (!cp || !verifyPassword(cp, row.password_hash)) {
+            res.status(401).json({ error: "invalid_password" });
+            return;
+          }
+        }
+        emailChanged = true;
+        nextEmail = e;
+        sets.push("email = ?");
+        params.push(e);
+        sets.push("email_verified_at = ?");
+        params.push(isoNow());
+      }
+    }
+
+    if (sets.length === 0) {
+      res.json({ ok: true, changed: false });
+      return;
+    }
+
+    params.push(uid);
+    try {
+      db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).run(...(params as never[]));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (emailChanged && msg.includes("UNIQUE constraint failed") && msg.includes("email")) {
+        res.status(409).json({ error: "email_taken" });
+        return;
+      }
+      console.error("[auth] patch /me failed:", msg);
+      res.status(500).json({ error: "update_failed" });
+      return;
+    }
+    res.json({ ok: true, changed: true, emailChanged, email: nextEmail ?? row.email });
+  });
+
+  /** Change the password for the logged-in user (email accounts only). */
+  r.post("/change-password", jsonMw(), (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const row = db
+      .prepare("SELECT id, password_hash FROM users WHERE id = ?")
+      .get(uid) as { id: string; password_hash: string } | undefined;
+    if (!row) {
+      clearAuthCookie(res);
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (isWaOnlyPasswordHash(row.password_hash)) {
+      res.status(400).json({ error: "wa_only_account" });
+      return;
+    }
+    const body = req.body as { currentPassword?: unknown; newPassword?: unknown };
+    const current = typeof body.currentPassword === "string" ? body.currentPassword : "";
+    const next = typeof body.newPassword === "string" ? body.newPassword : "";
+    if (next.length < 8) {
+      res.status(400).json({ error: "password_too_short", message: "Use at least 8 characters." });
+      return;
+    }
+    if (!verifyPassword(current, row.password_hash)) {
+      res.status(401).json({ error: "invalid_password" });
+      return;
+    }
+    const ph = hashPassword(next);
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(ph, uid);
+    res.json({ ok: true });
+  });
+
   r.get("/me", (req: Request, res: Response) => {
     const uid = readAuthUserId(req);
     if (!uid) {

@@ -91,6 +91,12 @@ export function ProfilePage() {
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
+          to="/perfil/editar"
+          className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+        >
+          Editar datos
+        </Link>
+        <Link
           to="/mis-anuncios"
           className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
         >
