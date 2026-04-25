@@ -1216,10 +1216,11 @@ export function PublishWizardPage() {
                         type="number"
                         min={0}
                         step={100}
-                        value={room.depositMxn}
+                        value={room.depositMxn === 0 ? "" : room.depositMxn}
                         onChange={(e) =>
                           updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
                         }
+                        placeholder="0"
                         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                       />
                     </label>
