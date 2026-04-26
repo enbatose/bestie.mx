@@ -136,6 +136,8 @@ const defaultRoom = (): RoomDraft => ({
 
 const DEFAULT_PROPERTY_SUMMARY =
   "Describe la propiedad y áreas compartidas: reglas de convivencia, baños, cocina, estacionamiento y lo que hace único el espacio.";
+const AUTO_REPLACE_ROOM_TITLES = ["Cuarto disponible", "Vivienda completa"] as const;
+const AUTO_REPLACE_PROPERTY_SUMMARIES = [DEFAULT_PROPERTY_SUMMARY] as const;
 
 const wholePropertyRoom = (): RoomDraft => ({
   ...defaultRoom(),
@@ -166,6 +168,27 @@ const defaultDraft = (): Draft => ({
   legalAccepted: false,
   isApproximateLocation: false,
 });
+
+function isAutoReplaceSeed(value: string, seededValues: readonly string[]) {
+  return seededValues.includes(value);
+}
+
+function overwriteAutoReplaceSeed(currentValue: string, nextValue: string, seededValues: readonly string[]) {
+  if (!isAutoReplaceSeed(currentValue, seededValues) || nextValue === currentValue) return nextValue;
+  if (nextValue.startsWith(currentValue)) return nextValue.slice(currentValue.length);
+  if (nextValue.endsWith(currentValue)) return nextValue.slice(0, nextValue.length - currentValue.length);
+  return nextValue;
+}
+
+function selectAutoReplaceSeed(
+  target: HTMLInputElement | HTMLTextAreaElement,
+  seededValues: readonly string[],
+) {
+  if (!isAutoReplaceSeed(target.value, seededValues)) return;
+  requestAnimationFrame(() => {
+    if (document.activeElement === target) target.select();
+  });
+}
 
 function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
   const baseRooms = Array.isArray(parsed.rooms) && parsed.rooms.length ? parsed.rooms : [defaultRoom()];
@@ -1022,7 +1045,18 @@ export function PublishWizardPage() {
                 <span className="text-red-600"> *</span>
                 <textarea
                   value={draft.propertySummary}
-                  onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setDraft((d) => ({
+                      ...d,
+                      propertySummary: overwriteAutoReplaceSeed(
+                        d.propertySummary,
+                        nextValue,
+                        AUTO_REPLACE_PROPERTY_SUMMARIES,
+                      ),
+                    }));
+                  }}
+                  onFocus={(e) => selectAutoReplaceSeed(e.currentTarget, AUTO_REPLACE_PROPERTY_SUMMARIES)}
                   rows={5}
                   maxLength={2000}
                   placeholder="Reglas de la casa, áreas comunes, estacionamiento, convivencia… (mín. 20 caracteres, como en Roomix.)"
@@ -1161,7 +1195,13 @@ export function PublishWizardPage() {
                     Título del espacio
                     <input
                       value={room.title}
-                      onChange={(e) => updateRoom(i, { title: e.target.value })}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        updateRoom(i, {
+                          title: overwriteAutoReplaceSeed(room.title, nextValue, AUTO_REPLACE_ROOM_TITLES),
+                        });
+                      }}
+                      onFocus={(e) => selectAutoReplaceSeed(e.currentTarget, AUTO_REPLACE_ROOM_TITLES)}
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                     />
                   </label>
