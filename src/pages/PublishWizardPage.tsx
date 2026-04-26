@@ -119,7 +119,7 @@ type Draft = {
 };
 
 const defaultRoom = (): RoomDraft => ({
-  title: "Cuarto disponible",
+  title: "",
   rentMxn: 5000,
   depositMxn: 0,
   roomsAvailable: 1,
@@ -136,12 +136,10 @@ const defaultRoom = (): RoomDraft => ({
 
 const DEFAULT_PROPERTY_SUMMARY =
   "Describe la propiedad y áreas compartidas: reglas de convivencia, baños, cocina, estacionamiento y lo que hace único el espacio.";
-const AUTO_REPLACE_ROOM_TITLES = ["Cuarto disponible", "Vivienda completa"] as const;
-const AUTO_REPLACE_PROPERTY_SUMMARIES = [DEFAULT_PROPERTY_SUMMARY] as const;
+const DRAFT_ONLY_ROOM_TITLE_SEEDS = ["Cuarto disponible", "Vivienda completa", "Cuarto en borrador"] as const;
 
 const wholePropertyRoom = (): RoomDraft => ({
   ...defaultRoom(),
-  title: "Vivienda completa",
   lodgingType: "whole_home",
   summary: "",
 });
@@ -153,7 +151,7 @@ const defaultDraft = (): Draft => ({
   propertyTitle: "",
   neighborhood: "",
   contactWhatsApp: "",
-  propertySummary: DEFAULT_PROPERTY_SUMMARY,
+  propertySummary: "",
   propertyKind: "house",
   propertyBedroomsTotal: 1,
   propertyBathrooms: 1,
@@ -169,30 +167,25 @@ const defaultDraft = (): Draft => ({
   isApproximateLocation: false,
 });
 
-function isAutoReplaceSeed(value: string, seededValues: readonly string[]) {
-  return seededValues.includes(value);
+function isDraftOnlyRoomTitleSeed(value: string) {
+  return DRAFT_ONLY_ROOM_TITLE_SEEDS.includes(value.trim() as (typeof DRAFT_ONLY_ROOM_TITLE_SEEDS)[number]);
 }
 
-function overwriteAutoReplaceSeed(currentValue: string, nextValue: string, seededValues: readonly string[]) {
-  if (!isAutoReplaceSeed(currentValue, seededValues) || nextValue === currentValue) return nextValue;
-  if (nextValue.startsWith(currentValue)) return nextValue.slice(currentValue.length);
-  if (nextValue.endsWith(currentValue)) return nextValue.slice(0, nextValue.length - currentValue.length);
-  return nextValue;
+function isDefaultPropertySummarySeed(value: string) {
+  return value.trim() === DEFAULT_PROPERTY_SUMMARY;
 }
 
-function selectAutoReplaceSeed(
-  target: HTMLInputElement | HTMLTextAreaElement,
-  seededValues: readonly string[],
-) {
-  if (!isAutoReplaceSeed(target.value, seededValues)) return;
-  requestAnimationFrame(() => {
-    if (document.activeElement === target) target.select();
-  });
+function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
+  return room.lodgingType === "whole_home" ? "Vivienda completa" : "Cuarto disponible";
 }
 
 function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
   const baseRooms = Array.isArray(parsed.rooms) && parsed.rooms.length ? parsed.rooms : [defaultRoom()];
-  const rooms = baseRooms.map((r) => ({ ...defaultRoom(), ...r }));
+  const rooms = baseRooms.map((r) => ({
+    ...defaultRoom(),
+    ...r,
+    title: typeof r.title === "string" && isDraftOnlyRoomTitleSeed(r.title) ? "" : typeof r.title === "string" ? r.title : "",
+  }));
   const postMode: Draft["postMode"] = parsed.postMode === "room" || parsed.postMode === "property" ? parsed.postMode : "property";
   const publishMode: PublishOfferMode =
     parsed.publishMode === "whole_property" || parsed.publishMode === "rooms_in_shared"
@@ -236,6 +229,12 @@ function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
     useCustomMapPin: Boolean(parsed.useCustomMapPin),
     customLat: typeof parsed.customLat === "string" ? parsed.customLat : "",
     customLng: typeof parsed.customLng === "string" ? parsed.customLng : "",
+    propertySummary:
+      typeof parsed.propertySummary === "string" && isDefaultPropertySummarySeed(parsed.propertySummary)
+        ? ""
+        : typeof parsed.propertySummary === "string"
+          ? parsed.propertySummary
+          : "",
     rooms,
     propertyImageUrls,
     unassignedImageUrls,
@@ -280,7 +279,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     srvRooms.length > 0
       ? srvRooms.map((r) => ({
           ...defaultRoom(),
-          title: r.title,
+          title: r.status === "draft" && isDraftOnlyRoomTitleSeed(r.title) ? "" : r.title,
           rentMxn: r.rentMxn,
           depositMxn: r.depositMxn,
           roomsAvailable: r.roomsAvailable,
@@ -305,7 +304,8 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     propertyTitle: p.title,
     neighborhood: p.neighborhood,
     contactWhatsApp: p.contactWhatsApp || "",
-    propertySummary: p.summary?.trim() ? p.summary : DEFAULT_PROPERTY_SUMMARY,
+    propertySummary:
+      p.status === "draft" && isDefaultPropertySummarySeed(p.summary) ? "" : p.summary?.trim() ? p.summary : "",
     propertyKind: p.propertyKind ?? "house",
     propertyBedroomsTotal: p.bedroomsTotal,
     propertyBathrooms: p.bathrooms,
@@ -1045,21 +1045,10 @@ export function PublishWizardPage() {
                 <span className="text-red-600"> *</span>
                 <textarea
                   value={draft.propertySummary}
-                  onChange={(e) => {
-                    const nextValue = e.target.value;
-                    setDraft((d) => ({
-                      ...d,
-                      propertySummary: overwriteAutoReplaceSeed(
-                        d.propertySummary,
-                        nextValue,
-                        AUTO_REPLACE_PROPERTY_SUMMARIES,
-                      ),
-                    }));
-                  }}
-                  onFocus={(e) => selectAutoReplaceSeed(e.currentTarget, AUTO_REPLACE_PROPERTY_SUMMARIES)}
+                  onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
                   rows={5}
                   maxLength={2000}
-                  placeholder="Reglas de la casa, áreas comunes, estacionamiento, convivencia… (mín. 20 caracteres, como en Roomix.)"
+                  placeholder={DEFAULT_PROPERTY_SUMMARY}
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
                 <span className="mt-1 block text-xs text-muted">
@@ -1195,13 +1184,8 @@ export function PublishWizardPage() {
                     Título del espacio
                     <input
                       value={room.title}
-                      onChange={(e) => {
-                        const nextValue = e.target.value;
-                        updateRoom(i, {
-                          title: overwriteAutoReplaceSeed(room.title, nextValue, AUTO_REPLACE_ROOM_TITLES),
-                        });
-                      }}
-                      onFocus={(e) => selectAutoReplaceSeed(e.currentTarget, AUTO_REPLACE_ROOM_TITLES)}
+                      onChange={(e) => updateRoom(i, { title: e.target.value })}
+                      placeholder={roomTitlePlaceholder(room)}
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                     />
                   </label>
@@ -1894,7 +1878,7 @@ export function PublishWizardPage() {
               setDraft((d) => ({
                 ...d,
                 postMode: "property",
-                propertySummary: d.propertySummary.trim() ? d.propertySummary : DEFAULT_PROPERTY_SUMMARY,
+                propertySummary: d.propertySummary,
               }))
             }
             className="mt-3 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary transition hover:brightness-95"
