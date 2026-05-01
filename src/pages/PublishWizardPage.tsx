@@ -630,7 +630,7 @@ export function PublishWizardPage() {
     return { lat: anchor.lat, lng: anchor.lng };
   }, []);
 
-  /** Drop any prior label as soon as coords/city/pin mode change (no “Buscando…” — box stays hidden until Nominatim returns). */
+  /** Drop any stale reverse-geocode label; the UI shows a coordinate fallback until Nominatim returns. */
   useLayoutEffect(() => {
     if (!draft.useCustomMapPin) return;
     setMapGeocode(null);
@@ -692,8 +692,17 @@ export function PublishWizardPage() {
     const { lat, lng } = resolveLatLngForDraft(draft);
     const latKey = lat.toFixed(6);
     const lngKey = lng.toFixed(6);
+    const hasValidCustomCoords =
+      Number.isFinite(Number(String(draft.customLat).replace(",", "."))) &&
+      Number.isFinite(Number(String(draft.customLng).replace(",", ".")));
 
-    if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return null;
+    if (!hasValidCustomCoords) return null;
+
+    if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) {
+      return draft.isApproximateLocation
+        ? `${nbh}, ${draft.city}`
+        : `Ubicación seleccionada (${latKey}, ${lngKey})`;
+    }
 
     if (draft.isApproximateLocation) {
       return privacyLocationFromNominatim(mapGeocode.address, nbh, draft.city);
