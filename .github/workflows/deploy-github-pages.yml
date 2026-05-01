@@ -29,12 +29,14 @@ jobs:
 
       - name: Install and build
         env:
-          # Required for static hosting: POST /api on Pages returns 405. Set in repo Settings → Secrets.
+          # Static hosting cannot answer POST /api itself. The secret can override this if the API host moves.
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           npm ci
           if [ -z "$VITE_API_URL" ]; then
-            echo "::warning::VITE_API_URL is empty. Add repository secret VITE_API_URL with your public API origin (no trailing slash), then redeploy."
+            echo "::notice::VITE_API_URL is empty; defaulting static build to https://www.bestie.mx."
+            export VITE_API_URL="https://www.bestie.mx"
+            echo "VITE_API_URL=https://www.bestie.mx" >> "$GITHUB_ENV"
           fi
           npm run build
 
