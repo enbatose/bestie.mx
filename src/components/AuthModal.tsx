@@ -7,6 +7,7 @@ export function AuthModal() {
   const { open, tab, close, openLogin, openRegister } = useAuthModal();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -31,6 +32,10 @@ export function AuthModal() {
   const submitRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    if (password !== passwordConfirm) {
+      setErr("Las contraseñas no coinciden.");
+      return;
+    }
     setBusy(true);
     try {
       await authRegister({
@@ -87,6 +92,7 @@ export function AuthModal() {
               onClick={() => {
                 openLogin();
                 setErr(null);
+                setPasswordConfirm("");
               }}
             >
               Entrar
@@ -97,6 +103,7 @@ export function AuthModal() {
               onClick={() => {
                 openRegister();
                 setErr(null);
+                setPasswordConfirm("");
               }}
             >
               Registro
@@ -162,11 +169,33 @@ export function AuthModal() {
                 <PasswordField
                   required
                   minLength={8}
+                  name="password"
+                  autoComplete="new-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setPasswordConfirm("");
+                  }}
+                  onCopy={(e) => e.preventDefault()}
+                  onCut={(e) => e.preventDefault()}
                   className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
+              <label className="block text-sm font-medium text-body">
+                Confirmar contraseña
+                <PasswordField
+                  required
+                  minLength={8}
+                  name="password_confirm"
+                  autoComplete="off"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  onPaste={(e) => e.preventDefault()}
+                  onDrop={(e) => e.preventDefault()}
+                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
+              </label>
+              <p className="text-xs text-muted">Escribe la confirmación a mano; no se admite pegar en este campo.</p>
               <button
                 type="submit"
                 disabled={busy}

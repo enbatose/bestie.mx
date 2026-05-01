@@ -7,6 +7,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -15,7 +16,8 @@ export function RegisterPage() {
     <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Crear cuenta</h1>
       <p className="mt-2 text-sm text-muted">
-        Correo y contraseña (mínimo 8 caracteres). Al terminar el registro iniciarás sesión de inmediato.
+        Correo y contraseña (mínimo 8 caracteres). Debes escribir la contraseña dos veces; no se puede pegar en la
+        confirmación. Al terminar iniciarás sesión de inmediato.
       </p>
 
       {err ? (
@@ -26,6 +28,10 @@ export function RegisterPage() {
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
+          if (password !== passwordConfirm) {
+            setErr("Las contraseñas no coinciden.");
+            return;
+          }
           setBusy(true);
           try {
             await authRegister({
@@ -66,9 +72,29 @@ export function RegisterPage() {
           <PasswordField
             required
             minLength={8}
+            name="password"
             autoComplete="new-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setPasswordConfirm("");
+            }}
+            onCopy={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
+            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+          />
+        </label>
+        <label className="block text-sm font-medium text-body">
+          Confirmar contraseña
+          <PasswordField
+            required
+            minLength={8}
+            name="password_confirm"
+            autoComplete="off"
+            value={passwordConfirm}
+            onChange={(e) => setPasswordConfirm(e.target.value)}
+            onPaste={(e) => e.preventDefault()}
+            onDrop={(e) => e.preventDefault()}
             className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
           />
         </label>
