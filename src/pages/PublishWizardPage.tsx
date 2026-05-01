@@ -45,8 +45,8 @@ function pickAddrPart(addr: NominatimAddress | undefined, keys: readonly string[
 }
 
 /**
- * Area-level label from the same reverse-geocode result as the full address (no new fetch).
- * Omits house number, road, POIs — suitable for “approximate location” preview.
+ * Privacy preview from the same Nominatim `address` object as the full line (no extra fetch).
+ * Keeps colonia + calle + código postal + ciudad/estado; omits número exterior, interior y POIs tipo negocio.
  */
 function privacyLocationFromNominatim(
   addr: NominatimAddress | undefined,
@@ -62,20 +62,26 @@ function privacyLocationFromNominatim(
     "city_district",
     "hamlet",
   ]);
+  const road = pickAddrPart(addr, ["road", "pedestrian", "footway", "residential", "path"]);
+  const postcode = pickAddrPart(addr, ["postcode"]);
   const city =
     pickAddrPart(addr, ["city", "town", "village", "municipality"]) || fallbackCity.trim();
   const state = pickAddrPart(addr, ["state", "region"]);
-  const postcode = pickAddrPart(addr, ["postcode"]);
   const country = pickAddrPart(addr, ["country"]);
+
   const parts: string[] = [];
   if (area) parts.push(area);
-  if (city && city !== area) parts.push(city);
-  if (state) parts.push(state);
+  if (road) parts.push(road);
   if (postcode) parts.push(postcode);
+  if (city && city !== area && city !== road) parts.push(city);
+  if (state && state !== city) parts.push(state);
   if (country) parts.push(country);
+
   if (parts.length > 0) return parts.join(", ");
+
   const fb = [fallbackNeighborhood.trim(), fallbackCity.trim()].filter(Boolean);
-  return fb.length ? fb.join(", ") : fallbackCity;
+  const fbPost = postcode ? `${fb.join(", ")}${fb.length ? ", " : ""}${postcode}` : fb.join(", ");
+  return fbPost.trim() || postcode || fallbackCity;
 }
 
 /** Legacy global keys (pre per-user drafts). Removed when saving v4. */
@@ -625,9 +631,13 @@ export function PublishWizardPage() {
     return { lat: anchor.lat, lng: anchor.lng };
   }, []);
 
-  /** Before paint: show the address card + loading immediately after tap/drag (useEffect runs too late for first frame). */
+  /**
+   * Before paint: invalidate any in-flight reverse-geocode (generation bump) and show loading immediately.
+   * Bumping here avoids a stale Nominatim response committing after a map click before passive effect cleanup runs.
+   */
   useLayoutEffect(() => {
     if (!draft.useCustomMapPin) return;
+    reverseGeoGenRef.current += 1;
     setMapGeocode(null);
     setMapGeocodeLoading(true);
   }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin]);
@@ -642,7 +652,7 @@ export function PublishWizardPage() {
     const { lat, lng } = resolveLatLngForDraft(draft);
     const latKey = lat.toFixed(6);
     const lngKey = lng.toFixed(6);
-    const requestId = (reverseGeoGenRef.current += 1);
+    const requestId = reverseGeoGenRef.current;
     const ac = new AbortController();
     const REVERSE_DEBOUNCE_MS = 180;
 
@@ -1035,8 +1045,8 @@ export function PublishWizardPage() {
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
-                        customLat: String(lat),
-                        customLng: String(lng),
+                        customLat: lat.toFixed(7),
+                        customLng: lng.toFixed(7),
                       }));
                     }}
                   />
@@ -1052,8 +1062,8 @@ export function PublishWizardPage() {
                     </div>
                     {draft.isApproximateLocation && mapGeocode && !mapGeocodeLoading ? (
                       <p className="pl-6 text-xs text-muted">
-                        Misma ubicación en el mapa; en el anuncio público solo se mostrará esta zona aproximada (sin
-                        calle ni número).
+                        Misma ubicación en el mapa; en público se muestra colonia, calle y código postal (sin número
+                        exacto ni nombre de negocio).
                       </p>
                     ) : null}
                   </div>
@@ -1074,7 +1084,8 @@ export function PublishWizardPage() {
                       Ocultar dirección exacta en el anuncio
                     </span>
                     <span className="block text-xs text-muted">
-                      Los usuarios solo verán un círculo aproximado de 200 m en el mapa. Útil si prefieres mayor privacidad hasta contactar con los interesados.
+                      En el mapa verán un círculo ~200 m y una dirección sin número exacto (sí calle y CP cuando el
+                      servicio lo permita). Útil hasta que contactes interesados.
                     </span>
                   </div>
                 </label>

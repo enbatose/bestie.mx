@@ -1,4 +1,5 @@
-import { MapContainer, Marker, TileLayer, useMapEvents, Circle } from "react-leaflet";
+import { useEffect, useRef } from "react";
+import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -19,12 +20,23 @@ function streetViewExternalUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
 
-function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click(e) {
-      onPick(e.latlng.lat, e.latlng.lng);
-    },
-  });
+/**
+ * Listen on the Leaflet map instance so clicks reliably move the pin (useMapEvents can miss edge cases
+ * with overlay layer ordering).
+ */
+function MapPickClick({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
+  useEffect(() => {
+    const handleClick = (ev: L.LeafletMouseEvent) => {
+      onPickRef.current(ev.latlng.lat, ev.latlng.lng);
+    };
+    map.on("click", handleClick);
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [map]);
   return null;
 }
 
@@ -45,7 +57,13 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <ClickToPlace onPick={onPositionChange} />
+        <Circle
+          center={position}
+          radius={200}
+          pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
+          interactive={false}
+        />
+        <MapPickClick onPick={onPositionChange} />
         <Marker
           position={position}
           draggable
@@ -57,12 +75,6 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
               onPositionChange(ll.lat, ll.lng);
             },
           }}
-        />
-        <Circle
-          center={position}
-          radius={200}
-          pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
-          interactive={false}
         />
       </MapContainer>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
