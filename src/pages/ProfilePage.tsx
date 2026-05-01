@@ -43,8 +43,8 @@ export function ProfilePage() {
     <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
       <h1 className="text-2xl font-bold text-primary">Perfil</h1>
       <p className="mt-2 text-sm text-muted">
-        Hola, <span className="font-medium text-body">{me.displayName}</span>. Aquí ves el estado de tu cuenta (flujo
-        tipo Roomix: completar datos de confianza).
+        Hola, <span className="font-medium text-body">{me.displayName}</span>. Aquí ves el estado de tu cuenta y tus
+        datos de confianza.
       </p>
 
       <ul className="mt-8 space-y-3 rounded-2xl border border-border bg-surface p-4 text-sm">
