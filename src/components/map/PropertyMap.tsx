@@ -197,7 +197,7 @@ export function PropertyMap({
               <Circle
                 key={l.id}
                 center={[l.lat, l.lng]}
-                radius={500}
+                radius={200}
                 pathOptions={{ 
                   color: selected ? "var(--color-primary)" : "#84CC16", 
                   fillColor: selected ? "var(--color-primary)" : "#84CC16", 

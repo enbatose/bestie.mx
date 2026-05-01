@@ -33,6 +33,51 @@ function isoToday(): string {
   return d.toISOString().slice(0, 10);
 }
 
+type NominatimAddress = Record<string, string>;
+
+function pickAddrPart(addr: NominatimAddress | undefined, keys: readonly string[]): string {
+  if (!addr) return "";
+  for (const k of keys) {
+    const v = addr[k]?.trim();
+    if (v) return v;
+  }
+  return "";
+}
+
+/**
+ * Area-level label from the same reverse-geocode result as the full address (no new fetch).
+ * Omits house number, road, POIs — suitable for “approximate location” preview.
+ */
+function privacyLocationFromNominatim(
+  addr: NominatimAddress | undefined,
+  fallbackNeighborhood: string,
+  fallbackCity: string,
+): string {
+  const area = pickAddrPart(addr, [
+    "neighbourhood",
+    "suburb",
+    "quarter",
+    "city_block",
+    "district",
+    "city_district",
+    "hamlet",
+  ]);
+  const city =
+    pickAddrPart(addr, ["city", "town", "village", "municipality"]) || fallbackCity.trim();
+  const state = pickAddrPart(addr, ["state", "region"]);
+  const postcode = pickAddrPart(addr, ["postcode"]);
+  const country = pickAddrPart(addr, ["country"]);
+  const parts: string[] = [];
+  if (area) parts.push(area);
+  if (city && city !== area) parts.push(city);
+  if (state) parts.push(state);
+  if (postcode) parts.push(postcode);
+  if (country) parts.push(country);
+  if (parts.length > 0) return parts.join(", ");
+  const fb = [fallbackNeighborhood.trim(), fallbackCity.trim()].filter(Boolean);
+  return fb.length ? fb.join(", ") : fallbackCity;
+}
+
 /** Legacy global keys (pre per-user drafts). Removed when saving v4. */
 const STORAGE_KEY_V3 = "bestie-publish-draft-v3";
 const STORAGE_KEY_V2 = "bestie-publish-draft-v2";
@@ -403,7 +448,12 @@ export function PublishWizardPage() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
   const [storageReady, setStorageReady] = useState(false);
-  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  /** Single reverse-geocode result for the pin; privacy mode derives a shorter label from `address`, same coordinates. */
+  const [mapGeocode, setMapGeocode] = useState<{
+    displayFull: string;
+    address?: NominatimAddress;
+  } | null>(null);
+  const [mapGeocodeLoading, setMapGeocodeLoading] = useState(false);
 
   useEffect(() => {
     if (!apiOn) {
@@ -573,29 +623,60 @@ export function PublishWizardPage() {
 
   useEffect(() => {
     if (!draft.useCustomMapPin) {
-      setResolvedAddress(null);
+      setMapGeocode(null);
+      setMapGeocodeLoading(false);
       return;
     }
     const { lat, lng } = resolveLatLngForDraft(draft);
-    setResolvedAddress("Buscando dirección...");
+    setMapGeocode(null);
+    setMapGeocodeLoading(true);
+    let cancelled = false;
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-          { headers: { "User-Agent": "bestie.mx-publish-wizard" } }
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+          { headers: { "User-Agent": "bestie.mx-publish-wizard" } },
         );
+        if (cancelled) return;
         if (res.ok) {
-          const data = await res.json() as { display_name?: string };
-          setResolvedAddress(data.display_name || "Dirección aproximada");
+          const data = await res.json() as {
+            display_name?: string;
+            address?: NominatimAddress;
+          };
+          const displayFull = (data.display_name ?? "").trim() || "Dirección aproximada";
+          setMapGeocode({ displayFull, address: data.address });
         } else {
-          setResolvedAddress("Ubicación aproximada");
+          setMapGeocode({ displayFull: "Ubicación aproximada" });
         }
       } catch {
-        setResolvedAddress("Ubicación aproximada");
+        if (!cancelled) setMapGeocode({ displayFull: "Ubicación aproximada" });
+      } finally {
+        if (!cancelled) setMapGeocodeLoading(false);
       }
     }, 800);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin, resolveLatLngForDraft]);
+
+  const mapAddressShown = useMemo(() => {
+    if (!draft.useCustomMapPin || (!mapGeocode && !mapGeocodeLoading)) return null;
+    const anchor = CITY_ANCHOR[draft.city];
+    const nbh = draft.neighborhood.trim() || anchor.neighborhood;
+    if (mapGeocodeLoading || !mapGeocode) return "Buscando dirección…";
+    if (draft.isApproximateLocation) {
+      return privacyLocationFromNominatim(mapGeocode.address, nbh, draft.city);
+    }
+    return mapGeocode.displayFull;
+  }, [
+    draft.city,
+    draft.isApproximateLocation,
+    draft.neighborhood,
+    draft.useCustomMapPin,
+    mapGeocode,
+    mapGeocodeLoading,
+  ]);
 
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
     if (!isListingsApiConfigured()) return null;
@@ -926,15 +1007,23 @@ export function PublishWizardPage() {
                     }}
                   />
                 </div>
-                {resolvedAddress && (
-                  <div className="mt-2 flex items-start gap-2 text-sm font-medium text-primary bg-surface-elevated rounded-lg p-3 border border-border">
-                    <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>{resolvedAddress}</span>
+                {mapAddressShown ? (
+                  <div className="mt-2 flex flex-col gap-1 rounded-lg border border-border bg-surface-elevated p-3 text-sm">
+                    <div className="flex items-start gap-2 font-medium text-primary">
+                      <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span>{mapAddressShown}</span>
+                    </div>
+                    {draft.isApproximateLocation && mapGeocode && !mapGeocodeLoading ? (
+                      <p className="pl-6 text-xs text-muted">
+                        Misma ubicación en el mapa; en el anuncio público solo se mostrará esta zona aproximada (sin
+                        calle ni número).
+                      </p>
+                    ) : null}
                   </div>
-                )}
+                ) : null}
                 
                 <h3 className="text-sm font-bold text-primary mt-6 mb-2 border-b border-border pb-1">Nivel de privacidad</h3>
                 <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated outline-none focus-within:ring-2 ring-accent">
