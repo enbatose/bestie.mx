@@ -50,6 +50,17 @@ npm run server:dev
 
 Default **http://localhost:3000**. Point the web app at it with `VITE_API_URL` (see `scripts/write-env-local.mjs`).
 
+## Production API routing
+
+- The canonical production API origin is **https://www.bestie.mx**.
+- For static/GitHub Pages builds, set repository secret `VITE_API_URL=https://www.bestie.mx`
+  (or the current Railway API origin if it changes). The workflow defaults to `https://www.bestie.mx`
+  when the secret is missing so login/register do not post to static hosting.
+- Railway/API must keep `CORS_ORIGINS=https://bestie.mx,https://www.bestie.mx`, a persistent
+  `DATABASE_PATH` such as `/data/bestie.db`, and a stable `AUTH_JWT_SECRET`.
+- To debug login, check DevTools -> Network -> `POST /api/auth/login`. Register and login must hit
+  the same host/database; otherwise the API legitimately returns `user_not_found`.
+
 ### Listing writes — v1 security model
 
 - **Publisher identity:** first successful `POST /api/listings` or `POST /api/properties/publish-bundle` sets an **httpOnly** cookie `bestie_pub` (UUID). That id is stored as `publisher_id` on **properties**. It is **not** a full account system; clearing cookies starts a new publisher id. WhatsApp OTP is planned later (Phase C).
