@@ -26,6 +26,7 @@ type BusyRow = {
 
 const MAX_SKIP_BYTES = 500_000;
 const MAX_EDGE = 1920;
+const WEB_SAFE_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
 
 function supportsWebpCanvas(): boolean {
   try {
@@ -66,8 +67,8 @@ async function convertIfNeeded(file: File): Promise<{
   const { w: inputW, h: inputH } = await getImageDims(file);
   const { w: outputW, h: outputH } = clampResize(inputW, inputH, MAX_EDGE);
 
-  // Skip recompress if already small and not larger than our desired max edge.
-  if (file.size <= MAX_SKIP_BYTES && outputW === inputW && outputH === inputH) {
+  // Skip recompress only for formats the API accepts and browsers render reliably.
+  if (WEB_SAFE_UPLOAD_TYPES.has(file.type) && file.size <= MAX_SKIP_BYTES && outputW === inputW && outputH === inputH) {
     return {
       outFile: file,
       inputW,
@@ -103,7 +104,7 @@ async function convertIfNeeded(file: File): Promise<{
       );
     });
 
-    const nameBase = (file.name || "foto").replace(/\.(jpe?g|png|webp|heic|heif)$/i, "");
+    const nameBase = (file.name || "foto").replace(/\.[^.]+$/i, "");
     const ext = preferWebp ? "webp" : "jpg";
     const outFile = new File([blob], `${nameBase}.${ext}`, { type });
     return {
@@ -167,7 +168,7 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
               error: e instanceof Error ? e.message : "convert_error",
               ...perfSampleImageInput(f),
             });
-            throw e;
+            throw new Error("No se pudo preparar esa imagen. Intenta con otra foto o conviértela a JPG/PNG.");
           }
 
           const convertSpan = perfEnd(m1);
@@ -279,7 +280,9 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          const files = Array.from(e.dataTransfer.files ?? []).filter((f) => f.type.startsWith("image/"));
+          const files = Array.from(e.dataTransfer.files ?? []).filter(
+            (f) => f.type.startsWith("image/") || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(f.name),
+          );
           void addFiles(files);
         }}
       >

@@ -5,5 +5,9 @@
  */
 export function apiBase(): string {
   const raw = (import.meta.env.VITE_API_URL ?? "").trim();
-  return raw.replace(/\/$/, "");
+  if (raw) return raw.replace(/\/$/, "");
+  if (typeof window !== "undefined" && window.location.hostname.endsWith("bestie.mx")) {
+    return window.location.origin;
+  }
+  return "";
 }

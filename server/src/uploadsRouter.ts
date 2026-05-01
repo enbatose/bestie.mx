@@ -6,16 +6,20 @@ import express, { type Request, type Response } from "express";
 import multer from "multer";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml", "image/bmp"]);
 
 function extForMime(m: string): string {
   if (m === "image/jpeg") return ".jpg";
   if (m === "image/png") return ".png";
   if (m === "image/webp") return ".webp";
+  if (m === "image/gif") return ".gif";
+  if (m === "image/avif") return ".avif";
+  if (m === "image/svg+xml") return ".svg";
+  if (m === "image/bmp") return ".bmp";
   return ".bin";
 }
 
-const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp)$/i;
+const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|svg|bmp)$/i;
 
 export type UploadsRouterOptions = {
   uploadDir: string;
@@ -78,7 +82,19 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
       return;
     }
     const lower = filename.toLowerCase();
-    const fallbackType = lower.endsWith(".png") ? "image/png" : lower.endsWith(".webp") ? "image/webp" : "image/jpeg";
+    const fallbackType = lower.endsWith(".png")
+      ? "image/png"
+      : lower.endsWith(".webp")
+        ? "image/webp"
+        : lower.endsWith(".gif")
+          ? "image/gif"
+          : lower.endsWith(".avif")
+            ? "image/avif"
+            : lower.endsWith(".svg")
+              ? "image/svg+xml"
+              : lower.endsWith(".bmp")
+                ? "image/bmp"
+                : "image/jpeg";
     if (fs.existsSync(fp)) {
       res.type(fallbackType);
       res.sendFile(fp);
