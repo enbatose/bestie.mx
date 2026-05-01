@@ -9,6 +9,12 @@ import {
 import { authMe, type AuthMe } from "@/lib/authApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
+type FlashMessage = {
+  text: string;
+  to?: string;
+  linkText?: string;
+};
+
 function statusLabel(s: ListingStatus | undefined): string {
   switch (s) {
     case "paused":
@@ -43,7 +49,7 @@ export function MyListingsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [actionPropertyId, setActionPropertyId] = useState<string | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [flash, setFlash] = useState<FlashMessage | null>(null);
   const [legalPublishByProperty, setLegalPublishByProperty] = useState<Record<string, boolean>>({});
   const [missingByProperty, setMissingByProperty] = useState<Record<string, string>>({});
   const [me, setMe] = useState<AuthMe | null>(null);
@@ -88,7 +94,7 @@ export function MyListingsPage() {
   useEffect(() => {
     const st = location.state as { draftSaved?: boolean } | null;
     if (st?.draftSaved) {
-      setFlash("Borrador guardado en el servidor. Puedes publicar la propiedad cuando estés listo.");
+      setFlash({ text: "Borrador guardado en el servidor. Puedes publicarlo cuando esté listo." });
       navigate(".", { replace: true, state: {} });
     }
   }, [location.state, navigate]);
@@ -148,6 +154,11 @@ export function MyListingsPage() {
     try {
       await updateListingStatus(id, "published");
       await load();
+      setFlash({
+        text: "El anuncio ya está publicado.",
+        to: `/anuncio/${id}`,
+        linkText: "Ver anuncio publicado",
+      });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo republicar.");
     } finally {
@@ -184,9 +195,15 @@ export function MyListingsPage() {
   async function republishProperty(propertyId: string) {
     setActionPropertyId(propertyId);
     setErr(null);
+    const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
     try {
       await updateProperty(propertyId, { status: "published" });
       await load();
+      setFlash({
+        text: "La propiedad ya está publicada.",
+        to: publicListingId ? `/anuncio/${publicListingId}` : undefined,
+        linkText: "Ver publicación",
+      });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo republicar la propiedad.");
     } finally {
@@ -218,9 +235,16 @@ export function MyListingsPage() {
     }
     setActionPropertyId(propertyId);
     setErr(null);
+    const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
     try {
       await updateProperty(propertyId, { status: "published" });
       await load();
+      setLegalPublishByProperty((m) => ({ ...m, [propertyId]: false }));
+      setFlash({
+        text: "Ya está publicado.",
+        to: publicListingId ? `/anuncio/${publicListingId}` : undefined,
+        linkText: "Ver publicación",
+      });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo publicar la propiedad.");
     } finally {
@@ -259,7 +283,15 @@ export function MyListingsPage() {
 
       {flash ? (
         <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-body">
-          {flash}
+          {flash.text}
+          {flash.to ? (
+            <>
+              {" "}
+              <Link to={flash.to} className="font-semibold text-primary underline-offset-2 hover:underline">
+                {flash.linkText ?? "Ver publicación"}
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
 
