@@ -1,5 +1,6 @@
 import { MapContainer, Marker, TileLayer, Circle } from "react-leaflet";
 import L from "leaflet";
+import { useCallback, useMemo, useRef } from "react";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -22,6 +23,40 @@ function streetViewExternalUrl(lat: number, lng: number): string {
 export function WizardLocationMap({ center, position, onPositionChange }: Props) {
   const [lat, lng] = position;
   const streetViewHref = streetViewExternalUrl(lat, lng);
+  const markerRef = useRef<L.Marker | null>(null);
+  const markerWasDraggedRef = useRef(false);
+
+  const commitMarkerPosition = useCallback(
+    (marker?: L.Marker | null) => {
+      const ll = (marker ?? markerRef.current)?.getLatLng();
+      if (!ll) return;
+      onPositionChange(ll.lat, ll.lng);
+    },
+    [onPositionChange],
+  );
+
+  const markerEventHandlers = useMemo(
+    () => ({
+      dragstart: () => {
+        markerWasDraggedRef.current = true;
+      },
+      dragend: (e: L.LeafletEvent) => {
+        markerWasDraggedRef.current = false;
+        commitMarkerPosition(e.target as L.Marker);
+      },
+      mouseup: (e: L.LeafletEvent) => {
+        if (!markerWasDraggedRef.current) return;
+        markerWasDraggedRef.current = false;
+        commitMarkerPosition(e.target as L.Marker);
+      },
+      touchend: (e: L.LeafletEvent) => {
+        if (!markerWasDraggedRef.current) return;
+        markerWasDraggedRef.current = false;
+        commitMarkerPosition(e.target as L.Marker);
+      },
+    }),
+    [commitMarkerPosition],
+  );
 
   return (
     <div className="space-y-2">
@@ -43,16 +78,12 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
           interactive={false}
         />
         <Marker
+          ref={markerRef}
           position={position}
           draggable
           riseOnHover
           zIndexOffset={1000}
-          eventHandlers={{
-            dragend: (e) => {
-              const ll = (e.target as L.Marker).getLatLng();
-              onPositionChange(ll.lat, ll.lng);
-            },
-          }}
+          eventHandlers={markerEventHandlers}
         />
       </MapContainer>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">

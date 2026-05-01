@@ -1755,7 +1755,7 @@ export function PublishWizardPage() {
         ),
       },
     ],
-    [draft, apiOn, resolveLatLngForDraft],
+    [draft, apiOn, mapAddressShown, mapGeocode, resolveLatLngForDraft],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
