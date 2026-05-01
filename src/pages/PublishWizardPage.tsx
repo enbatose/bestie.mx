@@ -452,8 +452,12 @@ export function PublishWizardPage() {
   const [mapGeocode, setMapGeocode] = useState<{
     displayFull: string;
     address?: NominatimAddress;
+    latKey: string;
+    lngKey: string;
   } | null>(null);
   const [mapGeocodeLoading, setMapGeocodeLoading] = useState(false);
+  /** Invalidates in-flight Nominatim responses when the pin moves again or privacy mode toggles off fetch. */
+  const reverseGeoGenRef = useRef(0);
 
   useEffect(() => {
     if (!apiOn) {
@@ -621,50 +625,77 @@ export function PublishWizardPage() {
     return { lat: anchor.lat, lng: anchor.lng };
   }, []);
 
+  /** Before paint: show the address card + loading immediately after tap/drag (useEffect runs too late for first frame). */
+  useLayoutEffect(() => {
+    if (!draft.useCustomMapPin) return;
+    setMapGeocode(null);
+    setMapGeocodeLoading(true);
+  }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin]);
+
   useEffect(() => {
     if (!draft.useCustomMapPin) {
+      reverseGeoGenRef.current += 1;
       setMapGeocode(null);
       setMapGeocodeLoading(false);
       return;
     }
     const { lat, lng } = resolveLatLngForDraft(draft);
-    setMapGeocode(null);
-    setMapGeocodeLoading(true);
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-          { headers: { "User-Agent": "bestie.mx-publish-wizard" } },
-        );
-        if (cancelled) return;
-        if (res.ok) {
-          const data = await res.json() as {
-            display_name?: string;
-            address?: NominatimAddress;
-          };
-          const displayFull = (data.display_name ?? "").trim() || "Dirección aproximada";
-          setMapGeocode({ displayFull, address: data.address });
-        } else {
-          setMapGeocode({ displayFull: "Ubicación aproximada" });
+    const latKey = lat.toFixed(6);
+    const lngKey = lng.toFixed(6);
+    const requestId = (reverseGeoGenRef.current += 1);
+    const ac = new AbortController();
+    const REVERSE_DEBOUNCE_MS = 180;
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            {
+              signal: ac.signal,
+              headers: { "User-Agent": "bestie.mx-publish-wizard" },
+            },
+          );
+          if (requestId !== reverseGeoGenRef.current) return;
+          if (res.ok) {
+            const data = (await res.json()) as {
+              display_name?: string;
+              address?: NominatimAddress;
+            };
+            if (requestId !== reverseGeoGenRef.current) return;
+            const displayFull = (data.display_name ?? "").trim() || "Dirección aproximada";
+            setMapGeocode({ displayFull, address: data.address, latKey, lngKey });
+          } else {
+            setMapGeocode({ displayFull: "Ubicación aproximada", latKey, lngKey });
+          }
+        } catch (e) {
+          if (ac.signal.aborted) return;
+          if (requestId !== reverseGeoGenRef.current) return;
+          setMapGeocode({ displayFull: "Ubicación aproximada", latKey, lngKey });
+        } finally {
+          if (requestId === reverseGeoGenRef.current) setMapGeocodeLoading(false);
         }
-      } catch {
-        if (!cancelled) setMapGeocode({ displayFull: "Ubicación aproximada" });
-      } finally {
-        if (!cancelled) setMapGeocodeLoading(false);
-      }
-    }, 800);
+      })();
+    }, REVERSE_DEBOUNCE_MS);
+
     return () => {
-      cancelled = true;
-      clearTimeout(timer);
+      window.clearTimeout(timer);
+      ac.abort();
     };
   }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin, resolveLatLngForDraft]);
 
   const mapAddressShown = useMemo(() => {
-    if (!draft.useCustomMapPin || (!mapGeocode && !mapGeocodeLoading)) return null;
+    if (!draft.useCustomMapPin) return null;
     const anchor = CITY_ANCHOR[draft.city];
     const nbh = draft.neighborhood.trim() || anchor.neighborhood;
+    const { lat, lng } = resolveLatLngForDraft(draft);
+    const latKey = lat.toFixed(6);
+    const lngKey = lng.toFixed(6);
+
+    if (!mapGeocodeLoading && !mapGeocode) return null;
     if (mapGeocodeLoading || !mapGeocode) return "Buscando dirección…";
+    if (mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return "Buscando dirección…";
+
     if (draft.isApproximateLocation) {
       return privacyLocationFromNominatim(mapGeocode.address, nbh, draft.city);
     }
@@ -676,6 +707,9 @@ export function PublishWizardPage() {
     draft.useCustomMapPin,
     mapGeocode,
     mapGeocodeLoading,
+    resolveLatLngForDraft,
+    draft.customLat,
+    draft.customLng,
   ]);
 
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
