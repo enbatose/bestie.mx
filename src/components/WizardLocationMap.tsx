@@ -26,8 +26,6 @@ export function WizardLocationMap({ center, position, hasDefinedLocation, locati
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
   const [lat, lng] = localPosition;
-  const latKey = lat.toFixed(6);
-  const lngKey = lng.toFixed(6);
   const streetViewHref = streetViewExternalUrl(lat, lng);
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
@@ -108,7 +106,7 @@ export function WizardLocationMap({ center, position, hasDefinedLocation, locati
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span className="min-w-0 break-words">
-                {locationLabel ?? `Ubicación seleccionada (${latKey}, ${lngKey})`}
+                {locationLabel ?? "Buscando dirección para la ubicación seleccionada..."}
               </span>
             </div>
           ) : null}

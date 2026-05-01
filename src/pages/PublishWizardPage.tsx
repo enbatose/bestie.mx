@@ -698,11 +698,7 @@ export function PublishWizardPage() {
 
     if (!hasValidCustomCoords) return null;
 
-    if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) {
-      return draft.isApproximateLocation
-        ? `${nbh}, ${draft.city}`
-        : `Ubicación seleccionada (${latKey}, ${lngKey})`;
-    }
+    if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return null;
 
     if (draft.isApproximateLocation) {
       return privacyLocationFromNominatim(mapGeocode.address, nbh, draft.city);
