@@ -871,10 +871,10 @@ export function PublishWizardPage() {
         title: "Ubicación",
         body: (
           <form className="space-y-6">
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Ciudad Base
-              </legend>
+              </h3>
               <label className="block text-sm font-medium text-body">
                 Ciudad Principal
                 <select
@@ -894,12 +894,12 @@ export function PublishWizardPage() {
                   Selecciona la ciudad donde se encuentra el inmueble.
                 </span>
               </label>
-            </fieldset>
+            </div>
 
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Dirección en Mapa
-              </legend>
+              </h3>
               <div>
                 <p className="text-sm font-medium text-body">Arrastra el marcador para fijar la ubicación</p>
                 <div className="mt-3">
@@ -965,12 +965,12 @@ export function PublishWizardPage() {
                   Restablecer al centro de la ciudad
                 </button>
               </div>
-            </fieldset>
+            </div>
 
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Ajuste Seguro (Manual)
-              </legend>
+              </h3>
               <details className="rounded-xl border border-border bg-surface-elevated/40 px-3 py-2 text-sm">
                 <summary className="cursor-pointer font-medium text-body outline-none focus:ring-2 ring-accent rounded">Ajuste de coordenadas manuales (Avanzado)</summary>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -1008,7 +1008,7 @@ export function PublishWizardPage() {
                   </label>
                 </div>
               </details>
-            </fieldset>
+            </div>
           </form>
         ),
       },
@@ -1016,10 +1016,10 @@ export function PublishWizardPage() {
         title: "Propiedad",
         body: (
           <form className="space-y-6">
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Datos Generales
-              </legend>
+              </h3>
               <label className="block text-sm font-medium text-body">
                 Nombre de la propiedad
                 <input
@@ -1053,12 +1053,12 @@ export function PublishWizardPage() {
                   Mínimo {PROPERTY_SUMMARY_MIN} caracteres · {draft.propertySummary.trim().length} ahora
                 </span>
               </label>
-            </fieldset>
+            </div>
 
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Características Físicas
-              </legend>
+              </h3>
               <label className="block text-sm font-medium text-body">
                 Tipo de vivienda
                 <select
@@ -1116,12 +1116,12 @@ export function PublishWizardPage() {
                   />
                 </label>
               </div>
-            </fieldset>
+            </div>
 
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Contacto
-              </legend>
+              </h3>
               <label className="block text-sm font-medium text-body">
                 WhatsApp de contacto (se muestra en cada cuarto al publicar)
                 <input
@@ -1147,7 +1147,7 @@ export function PublishWizardPage() {
                 />
                 <span>Mostrar WhatsApp en el anuncio público (equivalente a “Visible en anuncio” en Roomix).</span>
               </label>
-            </fieldset>
+            </div>
           </form>
         ),
       },
@@ -1174,10 +1174,10 @@ export function PublishWizardPage() {
                     </button>
                   ) : null}
                 </div>
-                <fieldset className="mt-2 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
-                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-primary">
                     Información Principal
-                  </legend>
+                  </h3>
                   <label className="block text-sm font-medium text-body">
                     Título del espacio
                     <input
@@ -1247,12 +1247,12 @@ export function PublishWizardPage() {
                       />
                     </label>
                   </div>
-                </fieldset>
+                </div>
 
-                <fieldset className="mt-4 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
-                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-primary">
                     Disponibilidad
-                  </legend>
+                  </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
                       Plazas / espacios
@@ -1299,12 +1299,12 @@ export function PublishWizardPage() {
                       />
                     </label>
                   </div>
-                </fieldset>
+                </div>
 
-                <fieldset className="mt-4 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
-                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-primary">
                     Perfil Buscado
-                  </legend>
+                  </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
                       Prefieren
@@ -1353,12 +1353,12 @@ export function PublishWizardPage() {
                       />
                     </label>
                   </div>
-                </fieldset>
+                </div>
 
-                <fieldset className="mt-4 rounded-xl border border-border bg-surface p-4 pt-5 shadow-sm">
-                  <legend className="text-sm font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-primary">
                     Detalles del Espacio
-                  </legend>
+                  </h3>
                   <label className="block text-sm font-medium text-body">
                     Descripción del cuarto
                     <textarea
@@ -1401,7 +1401,7 @@ export function PublishWizardPage() {
                       ))}
                     </div>
                   </div>
-                </fieldset>
+                </div>
               </div>
             ))}
             {draft.publishMode === "whole_property" ? (
@@ -1424,10 +1424,10 @@ export function PublishWizardPage() {
         title: "Fotos",
         body: (
           <form className="space-y-6">
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Galería Principal
-              </legend>
+              </h3>
               <p className="text-sm text-muted">
                 Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después podrás
                 etiquetarlas por cuarto/áreas compartidas/fachada.
@@ -1446,13 +1446,13 @@ export function PublishWizardPage() {
                   />
                 </div>
               ) : null}
-            </fieldset>
+            </div>
 
             {draft.rooms.map((room, i) => (
-              <fieldset key={i} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+              <div key={i} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                <h3 className="text-[15px] font-bold text-primary">
                   {`Galería: Cuarto ${i + 1}`}
-                </legend>
+                </h3>
                 <BulkImageUploader
                   title={room.title.trim() || "Sin título"}
                   urls={draft.roomImageUrls[i] ?? []}
@@ -1465,7 +1465,7 @@ export function PublishWizardPage() {
                     }));
                   }}
                 />
-              </fieldset>
+              </div>
             ))}
           </form>
         ),
@@ -1476,10 +1476,10 @@ export function PublishWizardPage() {
               title: "Etiquetar fotos",
               body: (
                 <form className="space-y-6">
-                  <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                    <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                  <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                    <h3 className="text-[15px] font-bold text-primary">
                       Distribución de Fotos
-                    </legend>
+                    </h3>
                     <p className="text-sm text-muted">
                       Para una publicación de propiedad, las fotos deben estar etiquetadas antes de publicar. Puedes
                       dejar fotos “Sin categorizar” mientras editas, pero no al momento de publicar.
@@ -1500,12 +1500,12 @@ export function PublishWizardPage() {
                         </strong>
                       </span>
                     </div>
-                  </fieldset>
+                  </div>
 
-                  <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                    <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+                  <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                    <h3 className="text-[15px] font-bold text-primary">
                       Fotos Sin Categorizar
-                    </legend>
+                    </h3>
                     {draft.unassignedImageUrls.length ? (
                       <button
                         type="button"
@@ -1588,7 +1588,7 @@ export function PublishWizardPage() {
                         </div>
                       ))}
                     </div>
-                  </fieldset>
+                  </div>
                 </form>
               ),
             },
@@ -1598,10 +1598,10 @@ export function PublishWizardPage() {
         title: "Publicar",
         body: (
           <form className="space-y-6">
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
                 Revisión Final
-              </legend>
+              </h3>
               <div className="space-y-3 text-sm text-muted">
                 <p>
                   Revisa los pasos anteriores: ciudad, precios, fotos y WhatsApp. Cuando todo esté listo, usa la
@@ -1613,7 +1613,7 @@ export function PublishWizardPage() {
                   servidor&quot; también fuerza una sincronización inmediata.
                 </p>
               </div>
-            </fieldset>
+            </div>
           </form>
         ),
       },

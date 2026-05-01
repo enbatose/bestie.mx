@@ -93,13 +93,14 @@ export function authRouter(db: DatabaseSync) {
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown };
-    const emailCanonical = typeof body.email === "string" ? canonicalLookupEmail(body.email) : "";
+    const rawEmail = typeof body.email === "string" ? body.email : "";
+    const emailCanonical = rawEmail ? canonicalLookupEmail(rawEmail) : "";
+    const emailDisplay = rawEmail ? displayStorageEmail(rawEmail) : "";
     const password = typeof body.password === "string" ? body.password : "";
+    /** Match canonical (Gmail aliases) or stored display email; avoids legacy NULL-canonical rows comparing email to the wrong form. */
     const row = db
-      .prepare(
-        "SELECT id, password_hash FROM users WHERE email_canonical = ? OR (email_canonical IS NULL AND email = ?)",
-      )
-      .get(emailCanonical, emailCanonical) as { id: string; password_hash: string } | undefined;
+      .prepare("SELECT id, password_hash FROM users WHERE email_canonical = ? OR email = ?")
+      .get(emailCanonical, emailDisplay) as { id: string; password_hash: string } | undefined;
     if (!row) {
       res.status(401).json({ error: "user_not_found" });
       return;
