@@ -236,10 +236,6 @@ export function ListingPage() {
             : `prefieren ${listing.roommateGenderPref === "female" ? "mujer" : "hombre"}`}{" "}
           · Edad anuncio {listing.ageMin}–{listing.ageMax}
         </p>
-        <p className="mt-2 text-xs text-muted">
-          Anuncio (cuarto) <span className="font-mono">{listing.id}</span> · Propiedad{" "}
-          <span className="font-mono">{listing.propertyId}</span>
-        </p>
       </header>
 
       {galleryUrls.length ? (
