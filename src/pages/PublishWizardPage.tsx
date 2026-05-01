@@ -1112,21 +1112,6 @@ export function PublishWizardPage() {
                     </span>
                   </div>
                 </label>
-
-                <button
-                  type="button"
-                  className="mt-3 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated text-center block w-full sm:w-auto"
-                  onClick={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      useCustomMapPin: false,
-                      customLat: "",
-                      customLng: "",
-                    }))
-                  }
-                >
-                  Restablecer al centro de la ciudad
-                </button>
               </div>
             </div>
 
