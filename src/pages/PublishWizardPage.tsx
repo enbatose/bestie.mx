@@ -309,6 +309,44 @@ function normalizeWhatsApp(s: string): string {
   return s.replace(/\D/g, "");
 }
 
+function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
+  if (opts.upgrade) return 0;
+
+  const propertyDetailsMissing =
+    !draft.neighborhood.trim() ||
+    normalizeWhatsApp(draft.contactWhatsApp).length < 10 ||
+    !Number.isFinite(draft.propertyBedroomsTotal) ||
+    draft.propertyBedroomsTotal < 1 ||
+    !Number.isFinite(draft.propertyBathrooms) ||
+    draft.propertyBathrooms < 0 ||
+    (draft.postMode !== "room" &&
+      (!draft.propertyTitle.trim() || draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN));
+
+  if (propertyDetailsMissing) return 2;
+
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  const roomsMissing =
+    draft.rooms.length === 0 ||
+    draft.rooms.some(
+      (room) =>
+        !room.title.trim() ||
+        !room.summary.trim() ||
+        room.rentMxn < 0 ||
+        room.depositMxn < 0 ||
+        room.ageMin < 18 ||
+        room.ageMax > 99 ||
+        room.ageMin > room.ageMax ||
+        !isoDate.test(room.availableFrom.trim()) ||
+        room.minimalStayMonths < 1,
+    );
+
+  if (roomsMissing) return 3;
+
+  if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) return 5;
+
+  return draft.postMode === "property" ? 6 : 5;
+}
+
 function pickCity(city: string): (typeof CITIES)[number] {
   return (CITIES as readonly string[]).includes(city) ? (city as (typeof CITIES)[number]) : "Guadalajara";
 }
@@ -591,6 +629,7 @@ export function PublishWizardPage() {
           const mapped = draftFromPropertyBundle(bundle);
           setDraft(mapped.draft);
           setServerSync(mapped.serverSync);
+          setStep(resumeStepForDraft(mapped.draft, { upgrade }));
           if (upgrade && mapped.draft.postMode === "room") {
             setHandoffBanner("Borrador cargado. Puedes convertir este cuarto en una propiedad con varios cuartos.");
           } else {
