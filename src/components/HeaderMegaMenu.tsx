@@ -40,6 +40,12 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
 
   const linkCol = "flex flex-col gap-1";
   const h = "text-xs font-semibold uppercase tracking-wide text-muted";
+  const firstName = me?.displayName.split(/\s+/)[0] ?? "…";
+  const greeting = me?.id ? (
+    <span className="px-3 text-xs font-medium text-muted">
+      Hola, <span className="font-semibold text-body">{firstName}</span>
+    </span>
+  ) : null;
 
   const megaPanel = (
     <div className="grid gap-6 sm:grid-cols-3">
@@ -57,6 +63,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         <NavLink to="/publicar" className={navClass} onClick={dismissNav}>
           Publicar anuncio
         </NavLink>
+        {greeting}
         <NavLink to="/mis-anuncios" className={navClass} onClick={dismissNav}>
           Mis anuncios
         </NavLink>
@@ -143,14 +150,14 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         <NavLink to="/publicar" className={navClass}>
           Publicar
         </NavLink>
-        <NavLink to="/mis-anuncios" className={navClass}>
-          Mis anuncios
-        </NavLink>
+        <div className="flex flex-col items-center gap-0.5">
+          {greeting}
+          <NavLink to="/mis-anuncios" className={navClass}>
+            Mis anuncios
+          </NavLink>
+        </div>
         {me?.id ? (
           <>
-            <span className="hidden text-sm text-muted lg:inline">
-              Hola, <span className="font-semibold text-body">{me.displayName.split(/\s+/)[0] ?? "…"}</span>
-            </span>
             <NavLink to="/perfil" className={navClass}>
               <span className="inline-flex items-center gap-1">
                 Perfil
