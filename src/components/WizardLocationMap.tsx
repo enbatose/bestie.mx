@@ -49,6 +49,8 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
         <Marker
           position={position}
           draggable
+          riseOnHover
+          zIndexOffset={1000}
           eventHandlers={{
             dragend: (e) => {
               const ll = (e.target as L.Marker).getLatLng();
@@ -58,8 +60,9 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
         />
         <Circle
           center={position}
-          radius={500}
+          radius={200}
           pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
+          interactive={false}
         />
       </MapContainer>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">

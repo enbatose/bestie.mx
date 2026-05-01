@@ -572,6 +572,10 @@ export function PublishWizardPage() {
   }, []);
 
   useEffect(() => {
+    if (!draft.useCustomMapPin) {
+      setResolvedAddress(null);
+      return;
+    }
     const { lat, lng } = resolveLatLngForDraft(draft);
     setResolvedAddress("Buscando dirección...");
     const timer = setTimeout(async () => {
@@ -901,7 +905,9 @@ export function PublishWizardPage() {
                 Dirección en Mapa
               </h3>
               <div>
-                <p className="text-sm font-medium text-body">Arrastra el marcador para fijar la ubicación</p>
+                <p className="text-sm font-medium text-body">
+                  Toca el mapa o arrastra el marcador para definir la ubicación exacta.
+                </p>
                 <div className="mt-3">
                   <WizardLocationMap
                     key={draft.city}
@@ -945,7 +951,7 @@ export function PublishWizardPage() {
                       Ocultar dirección exacta en el anuncio
                     </span>
                     <span className="block text-xs text-muted">
-                      Los usuarios solo verán un círculo aproximado de 500m en el mapa. Útil si prefieres mayor privacidad hasta contactar con los interesados.
+                      Los usuarios solo verán un círculo aproximado de 200 m en el mapa. Útil si prefieres mayor privacidad hasta contactar con los interesados.
                     </span>
                   </div>
                 </label>
