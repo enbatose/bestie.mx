@@ -1038,6 +1038,8 @@ export function PublishWizardPage() {
                       const { lat, lng } = resolveLatLngForDraft(draft);
                       return [lat, lng] as [number, number];
                     })()}
+                    hasDefinedLocation={draft.useCustomMapPin}
+                    locationLabel={mapAddressShown}
                     onPositionChange={(lat, lng) => {
                       setDraft((d) => ({
                         ...d,
@@ -1048,22 +1050,11 @@ export function PublishWizardPage() {
                     }}
                   />
                 </div>
-                {mapAddressShown ? (
-                  <div className="mt-2 flex flex-col gap-1 rounded-lg border border-border bg-surface-elevated p-3 text-sm">
-                    <div className="flex items-start gap-2 font-medium text-primary">
-                      <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span>{mapAddressShown}</span>
-                    </div>
-                    {draft.isApproximateLocation && mapGeocode ? (
-                      <p className="pl-6 text-xs text-muted">
-                        Misma ubicación en el mapa; en público se muestra colonia, calle y código postal (sin número
-                        exacto ni nombre de negocio).
-                      </p>
-                    ) : null}
-                  </div>
+                {draft.isApproximateLocation && mapGeocode ? (
+                  <p className="mt-2 rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
+                    Misma ubicación en el mapa; en público se muestra colonia, calle y código postal (sin número exacto
+                    ni nombre de negocio).
+                  </p>
                 ) : null}
                 
                 <h3 className="text-sm font-bold text-primary mt-6 mb-2 border-b border-border pb-1">Nivel de privacidad</h3>

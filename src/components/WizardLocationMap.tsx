@@ -1,6 +1,6 @@
 import { MapContainer, Marker, TileLayer, Circle } from "react-leaflet";
 import L from "leaflet";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -12,6 +12,8 @@ L.Icon.Default.mergeOptions({
 type Props = {
   center: [number, number];
   position: [number, number];
+  hasDefinedLocation: boolean;
+  locationLabel: string | null;
   onPositionChange: (lat: number, lng: number) => void;
 };
 
@@ -20,16 +22,27 @@ function streetViewExternalUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
 
-export function WizardLocationMap({ center, position, onPositionChange }: Props) {
-  const [lat, lng] = position;
+export function WizardLocationMap({ center, position, hasDefinedLocation, locationLabel, onPositionChange }: Props) {
+  const [localPosition, setLocalPosition] = useState(position);
+  const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
+  const [lat, lng] = localPosition;
+  const latKey = lat.toFixed(6);
+  const lngKey = lng.toFixed(6);
   const streetViewHref = streetViewExternalUrl(lat, lng);
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
+
+  useEffect(() => {
+    setLocalPosition(position);
+    setLocalLocationSelected(hasDefinedLocation);
+  }, [position, hasDefinedLocation]);
 
   const commitMarkerPosition = useCallback(
     (marker?: L.Marker | null) => {
       const ll = (marker ?? markerRef.current)?.getLatLng();
       if (!ll) return;
+      setLocalPosition([ll.lat, ll.lng]);
+      setLocalLocationSelected(true);
       onPositionChange(ll.lat, ll.lng);
     },
     [onPositionChange],
@@ -72,14 +85,14 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <Circle
-          center={position}
+          center={localPosition}
           radius={200}
           pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
           interactive={false}
         />
         <Marker
           ref={markerRef}
-          position={position}
+          position={localPosition}
           draggable
           riseOnHover
           zIndexOffset={1000}
@@ -87,9 +100,22 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
         />
       </MapContainer>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
-        <span className="text-xs text-muted">
-          El mapa es OpenStreetMap. Vista de calle: enlace a una pestaña nueva.
-        </span>
+        <div className="min-w-0 space-y-1">
+          {localLocationSelected ? (
+            <div className="flex items-start gap-2 font-medium text-primary">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="min-w-0 break-words">
+                {locationLabel ?? `Ubicación seleccionada (${latKey}, ${lngKey})`}
+              </span>
+            </div>
+          ) : null}
+          <span className="block text-xs text-muted">
+            El mapa es OpenStreetMap. Vista de calle: enlace a una pestaña nueva.
+          </span>
+        </div>
         <a
           href={streetViewHref}
           target="_blank"
