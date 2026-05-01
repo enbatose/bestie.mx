@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
@@ -106,7 +107,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
                 openRegister();
               }}
             >
-              Registro (modal)
+              Registro
             </button>
             <button
               type="button"
@@ -123,6 +124,9 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
       </div>
       <div className={linkCol}>
         <p className={h}>Ayuda</p>
+        <div className="px-1 py-1">
+          <ThemeToggle />
+        </div>
         <NavLink to="/contacto" className={navClass} onClick={dismissNav}>
           Contacto
         </NavLink>
@@ -150,12 +154,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         <NavLink to="/publicar" className={navClass}>
           Publicar
         </NavLink>
-        <div className="flex flex-col items-center gap-0.5">
-          {greeting}
-          <NavLink to="/mis-anuncios" className={navClass}>
-            Mis anuncios
-          </NavLink>
-        </div>
+        {me?.id ? greeting : null}
         {me?.id ? (
           <>
             <NavLink to="/perfil" className={navClass}>
@@ -186,22 +185,13 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
             ) : null}
           </>
         ) : (
-          <>
-            <button
-              type="button"
-              onClick={openRegister}
-              className="rounded-full px-3 py-2 text-sm font-semibold text-primary hover:bg-surface-elevated"
-            >
-              Registro
-            </button>
-            <button
-              type="button"
-              onClick={openLogin}
-              className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
-            >
-              Entrar
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={openLogin}
+            className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+          >
+            Entrar
+          </button>
         )}
         <div className="relative" ref={megaRef}>
           <button

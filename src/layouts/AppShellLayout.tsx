@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
@@ -39,7 +38,6 @@ export function AppShellLayout() {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <BrandLogo />
             <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-              <ThemeToggle />
               <HeaderMegaMenu me={me} profileIncomplete={profileIncomplete} unreadCount={unread} />
             </div>
           </div>
