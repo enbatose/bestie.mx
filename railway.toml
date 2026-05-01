@@ -1,3 +1,6 @@
+# Production: add a volume (e.g. mount at /data) and set DATABASE_PATH=/data/bestie.db on the API service.
+# Uploads default to /data/uploads/ next to the DB (or set UPLOAD_DIR). See README → "Production — SQLite + image uploads".
+
 [deploy]
 startCommand = "npm run start"
 healthcheckPath = "/health"

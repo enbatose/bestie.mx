@@ -50,6 +50,22 @@ npm run server:dev
 
 Default **http://localhost:3000**. Point the web app at it with `VITE_API_URL` (see `scripts/write-env-local.mjs`).
 
+### Production — SQLite + image uploads (must persist)
+
+Listing photos are stored as files (and duplicated in SQLite `upload_blobs`). If the **database file** lives on a **mounted volume** but **uploads** stay on the container’s ephemeral filesystem, images **404 after redeploy**.
+
+**Do this on the API host (e.g. Railway):**
+
+1. **Add a persistent volume** (Railway: *Settings → Volumes*) mounted where the app can write, e.g. mount path **`/data`**.
+2. **Set environment variables** on the **API** service (same service that runs `server` / `npm run start`):
+   - **`DATABASE_PATH=/data/bestie.db`** — absolute path on the volume (matches `server/.env.example`).
+   - **`UPLOAD_DIR`** — optional. If **unset**, the server stores uploads in **`/data/uploads/`** (sibling of the DB file) when `DATABASE_PATH` is under `/data`. Set **`UPLOAD_DIR=/data/uploads`** explicitly if you prefer being obvious in the dashboard.
+3. **Redeploy** so the new paths take effect.
+
+**Verify:** upload an image in the publish flow, open the returned `/api/uploads/...` URL, confirm **200**. After a redeploy, the same URL should still work.
+
+**Already broken URLs** (404 with no backup): re-upload images for those listings; the server cannot invent missing bytes.
+
 ### Listing writes — v1 security model
 
 - **Publisher identity:** first successful `POST /api/listings` or `POST /api/properties/publish-bundle` sets an **httpOnly** cookie `bestie_pub` (UUID). That id is stored as `publisher_id` on **properties**. It is **not** a full account system; clearing cookies starts a new publisher id. WhatsApp OTP is planned later (Phase C).
