@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import { authLogin, authRegister } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -178,13 +177,6 @@ export function AuthModal() {
             </form>
           )}
 
-          <p className="mt-4 text-center text-xs text-muted">
-            WhatsApp OTP y más opciones en{" "}
-            <Link to="/entrar" className="font-semibold text-primary underline" onClick={close}>
-              la página completa
-            </Link>
-            .
-          </p>
         </div>
       </div>
     </div>
