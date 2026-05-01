@@ -1,5 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 
+/** Always treated as admins (plus any emails in `ADMIN_EMAILS`). Lowercased at runtime. */
+const BUILTIN_ADMIN_EMAILS: readonly string[] = ["saava.iren@gmail.com", "batani.enrique@gmail.com"];
+
 const WA_ONLY_MARKER = "wa-only-no-password";
 
 export function isWaOnlyPasswordHash(stored: string): boolean {
@@ -11,8 +14,12 @@ export function waOnlyPasswordPlaceholder(): string {
 }
 
 export function parseAdminEmails(): Set<string> {
-  const raw = process.env.ADMIN_EMAILS ?? "";
   const set = new Set<string>();
+  for (const builtin of BUILTIN_ADMIN_EMAILS) {
+    const e = builtin.trim().toLowerCase();
+    if (e.includes("@")) set.add(e);
+  }
+  const raw = process.env.ADMIN_EMAILS ?? "";
   for (const part of raw.split(",")) {
     const e = part.trim().toLowerCase();
     if (e.includes("@")) set.add(e);

@@ -55,7 +55,8 @@ export function AdminPage() {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
       <p className="mt-2 text-sm text-muted">
-        Solo cuentas listadas en <span className="font-mono">ADMIN_EMAILS</span>. No hay impersonación:{" "}
+        Solo cuentas cuyo correo está en la lista de administradores del servidor (integrada +{" "}
+        <span className="font-mono">ADMIN_EMAILS</span>). No hay impersonación:{" "}
         <a
           href={`${apiBase()}/api/compliance/no-impersonation`}
           className="font-medium text-primary underline-offset-2 hover:underline"
