@@ -84,10 +84,6 @@ function privacyLocationFromNominatim(
   return fbPost.trim() || postcode || fallbackCity;
 }
 
-/** Legacy global keys (pre per-user drafts). Removed when saving v4. */
-const STORAGE_KEY_V3 = "bestie-publish-draft-v3";
-const STORAGE_KEY_V2 = "bestie-publish-draft-v2";
-
 /** Valid-length placeholder until the user enters a real number; publishing rejects all-zero contacts server-side. */
 const DRAFT_WA_PLACEHOLDER = "0000000000000";
 
@@ -171,17 +167,17 @@ type Draft = {
 
 const defaultRoom = (): RoomDraft => ({
   title: "",
-  rentMxn: 5000,
+  rentMxn: 0,
   depositMxn: 0,
-  roomsAvailable: 1,
+  roomsAvailable: 0,
   summary: "",
   tags: [],
   roommateGenderPref: "any",
-  ageMin: 18,
-  ageMax: 99,
+  ageMin: 0,
+  ageMax: 0,
   lodgingType: "private_room",
-  availableFrom: isoToday(),
-  minimalStayMonths: 1,
+  availableFrom: "",
+  minimalStayMonths: 0,
   roomDimension: "medium",
 });
 
@@ -204,8 +200,8 @@ const defaultDraft = (): Draft => ({
   contactWhatsApp: "",
   propertySummary: "",
   propertyKind: "house",
-  propertyBedroomsTotal: 1,
-  propertyBathrooms: 1,
+  propertyBedroomsTotal: 0,
+  propertyBathrooms: 0,
   showWhatsApp: true,
   useCustomMapPin: false,
   customLat: "",
@@ -230,74 +226,24 @@ function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
   return room.lodgingType === "whole_home" ? "Vivienda completa" : "Cuarto disponible";
 }
 
-function normalizeParsedDraft(parsed: Partial<Draft>): Draft {
-  const baseRooms = Array.isArray(parsed.rooms) && parsed.rooms.length ? parsed.rooms : [defaultRoom()];
-  const rooms = baseRooms.map((r) => ({
-    ...defaultRoom(),
-    ...r,
-    title: typeof r.title === "string" && isDraftOnlyRoomTitleSeed(r.title) ? "" : typeof r.title === "string" ? r.title : "",
-  }));
-  const postMode: Draft["postMode"] = parsed.postMode === "room" || parsed.postMode === "property" ? parsed.postMode : "property";
-  const publishMode: PublishOfferMode =
-    parsed.publishMode === "whole_property" || parsed.publishMode === "rooms_in_shared"
-      ? parsed.publishMode
-      : "rooms_in_shared";
-  const pk =
-    parsed.propertyKind === "apartment" || parsed.propertyKind === "house"
-      ? parsed.propertyKind
-      : defaultDraft().propertyKind;
-  const bed =
-    typeof parsed.propertyBedroomsTotal === "number" && Number.isFinite(parsed.propertyBedroomsTotal)
-      ? Math.min(35, Math.max(1, Math.floor(parsed.propertyBedroomsTotal)))
-      : defaultDraft().propertyBedroomsTotal;
-  const bath =
-    typeof parsed.propertyBathrooms === "number" && Number.isFinite(parsed.propertyBathrooms)
-      ? Math.min(99, Math.max(0, Math.round(parsed.propertyBathrooms * 2) / 2))
-      : defaultDraft().propertyBathrooms;
-  const propertyImageUrls = Array.isArray(parsed.propertyImageUrls)
-    ? parsed.propertyImageUrls.filter((x): x is string => typeof x === "string")
-    : [];
-  const unassignedImageUrls = Array.isArray(parsed.unassignedImageUrls)
-    ? parsed.unassignedImageUrls.filter((x): x is string => typeof x === "string")
-    : [];
-  let roomImageUrls: string[][] = [];
-  if (Array.isArray(parsed.roomImageUrls)) {
-    roomImageUrls = parsed.roomImageUrls.map((row) =>
-      Array.isArray(row) ? row.filter((x): x is string => typeof x === "string") : [],
-    );
-  }
-  while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
-  roomImageUrls = roomImageUrls.slice(0, rooms.length);
-  return {
-    ...defaultDraft(),
-    ...parsed,
-    postMode,
-    publishMode,
-    propertyKind: pk,
-    propertyBedroomsTotal: bed,
-    propertyBathrooms: bath,
-    showWhatsApp: parsed.showWhatsApp !== false,
-    useCustomMapPin: Boolean(parsed.useCustomMapPin),
-    customLat: typeof parsed.customLat === "string" ? parsed.customLat : "",
-    customLng: typeof parsed.customLng === "string" ? parsed.customLng : "",
-    propertySummary:
-      typeof parsed.propertySummary === "string" && isDefaultPropertySummarySeed(parsed.propertySummary)
-        ? ""
-        : typeof parsed.propertySummary === "string"
-          ? parsed.propertySummary
-          : "",
-    rooms,
-    propertyImageUrls,
-    unassignedImageUrls,
-    roomImageUrls,
-    isApproximateLocation: Boolean(parsed.isApproximateLocation),
-  };
-}
-
 function isFreshDefaultDraft(d: Draft): boolean {
   return (
     JSON.stringify({ ...d, legalAccepted: false }) === JSON.stringify({ ...defaultDraft(), legalAccepted: false })
   );
+}
+
+/** Autosave must not create server rows until required numbers are set (defaults are empty/zero). */
+function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
+  if (!Number.isFinite(d.propertyBedroomsTotal) || d.propertyBedroomsTotal < 1) return false;
+  if (!Number.isFinite(d.propertyBathrooms) || d.propertyBathrooms <= 0) return false;
+  for (const r of d.rooms) {
+    if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) return false;
+    if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) return false;
+    if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99 || r.ageMin > r.ageMax) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.availableFrom.trim())) return false;
+    if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) return false;
+  }
+  return true;
 }
 
 function wizardContactDigits(contactWhatsApp: string): string {
@@ -318,7 +264,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
     !Number.isFinite(draft.propertyBedroomsTotal) ||
     draft.propertyBedroomsTotal < 1 ||
     !Number.isFinite(draft.propertyBathrooms) ||
-    draft.propertyBathrooms < 0 ||
+    draft.propertyBathrooms <= 0 ||
     (draft.postMode !== "room" &&
       (!draft.propertyTitle.trim() || draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN));
 
@@ -331,9 +277,11 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
       (room) =>
         !room.title.trim() ||
         !room.summary.trim() ||
-        room.rentMxn < 0 ||
+        room.rentMxn <= 0 ||
+        room.roomsAvailable < 1 ||
         room.depositMxn < 0 ||
         room.ageMin < 18 ||
+        room.ageMax < 18 ||
         room.ageMax > 99 ||
         room.ageMin > room.ageMax ||
         !isoDate.test(room.availableFrom.trim()) ||
@@ -418,57 +366,17 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
   };
 }
 
-function draftStorageKey(userId: string) {
-  return `bestie-publish-draft-v4:${userId}`;
-}
-
-type PersistedDraftRoot = {
-  version?: number;
-  ownerUserId?: string;
-  draft?: Partial<Draft>;
-  serverSync?: { propertyId?: unknown; roomIds?: unknown };
-};
-
-function parseServerSyncFromRoot(root: PersistedDraftRoot, draft: Draft): ServerSync {
-  let roomIds = Array.isArray(root.serverSync?.roomIds)
-    ? (root.serverSync!.roomIds as unknown[]).filter((x): x is string => typeof x === "string")
-    : [];
-  while (roomIds.length < draft.rooms.length) roomIds.push("");
-  roomIds = roomIds.slice(0, draft.rooms.length);
-  const propertyId =
-    typeof root.serverSync?.propertyId === "string" && root.serverSync.propertyId.trim()
-      ? root.serverSync.propertyId.trim()
-      : null;
-  return propertyId ? { propertyId, roomIds } : { propertyId: null, roomIds: [] };
-}
-
-function loadPersistedForUser(userId: string): { draft: Draft; serverSync: ServerSync } {
+/** Drop old per-browser wizard caches so a new publication never restores prior fields. */
+function clearLegacyWizardDraftStorage(): void {
   try {
-    const raw = localStorage.getItem(draftStorageKey(userId));
-    if (!raw) return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
-    const root = JSON.parse(raw) as PersistedDraftRoot;
-    if (root.ownerUserId && root.ownerUserId !== userId) {
-      return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("bestie-publish-draft-v4:")) toRemove.push(k);
     }
-    if (!root.draft) return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
-    const draft = normalizeParsedDraft(root.draft);
-    return { draft, serverSync: parseServerSyncFromRoot(root, draft) };
-  } catch {
-    return { draft: defaultDraft(), serverSync: { propertyId: null, roomIds: [] } };
-  }
-}
-
-function savePersistedForUser(userId: string, draft: Draft, serverSync: ServerSync) {
-  const root: PersistedDraftRoot = {
-    version: 4,
-    ownerUserId: userId,
-    draft,
-    serverSync,
-  };
-  localStorage.setItem(draftStorageKey(userId), JSON.stringify(root));
-  try {
-    localStorage.removeItem(STORAGE_KEY_V3);
-    localStorage.removeItem(STORAGE_KEY_V2);
+    for (const k of toRemove) localStorage.removeItem(k);
+    localStorage.removeItem("bestie-publish-draft-v3");
+    localStorage.removeItem("bestie-publish-draft-v2");
   } catch {
     /* ignore */
   }
@@ -548,18 +456,13 @@ export function PublishWizardPage() {
     if (editPropertyId || handoffToken) return;
     if (didHydrateLocalForUserRef.current === uid) return;
     didHydrateLocalForUserRef.current = uid;
-    const loaded = loadPersistedForUser(uid);
-    setDraft(loaded.draft);
-    setServerSync(loaded.serverSync);
+    clearLegacyWizardDraftStorage();
+    setDraft(defaultDraft());
+    setServerSync({ propertyId: null, roomIds: [] });
     setStep(0);
     setAutosaveNote("idle");
     setStorageReady(true);
   }, [me, editPropertyId, handoffToken]);
-
-  useEffect(() => {
-    if (!me?.id || !storageReady) return;
-    savePersistedForUser(me.id, draft, serverSync);
-  }, [draft, serverSync, me?.id, storageReady]);
 
   useEffect(() => {
     if (!handoffToken) {
@@ -765,7 +668,7 @@ export function PublishWizardPage() {
       return null;
     }
     const d = draftRef.current;
-    if (isFreshDefaultDraft(d)) {
+    if (isFreshDefaultDraft(d) || !wizardHasMinimumFieldsForAutosave(d)) {
       setAutosaveNote("idle");
       return null;
     }
@@ -1229,11 +1132,14 @@ export function PublishWizardPage() {
                     min={1}
                     max={35}
                     step={1}
-                    value={draft.propertyBedroomsTotal}
+                    value={draft.propertyBedroomsTotal === 0 ? "" : draft.propertyBedroomsTotal}
                     onChange={(e) =>
                       setDraft((d) => ({
                         ...d,
-                        propertyBedroomsTotal: Math.min(35, Math.max(1, Number(e.target.value) || 1)),
+                        propertyBedroomsTotal: Math.min(
+                          35,
+                          Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                        ),
                       }))
                     }
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
@@ -1250,7 +1156,7 @@ export function PublishWizardPage() {
                     min={0}
                     max={99}
                     step={0.5}
-                    value={draft.propertyBathrooms}
+                    value={draft.propertyBathrooms === 0 ? "" : draft.propertyBathrooms}
                     onChange={(e) =>
                       setDraft((d) => ({
                         ...d,
@@ -1372,7 +1278,7 @@ export function PublishWizardPage() {
                         type="number"
                         min={0}
                         step={100}
-                        value={room.rentMxn}
+                        value={room.rentMxn === 0 ? "" : room.rentMxn}
                         onChange={(e) =>
                           updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
                         }
@@ -1406,12 +1312,12 @@ export function PublishWizardPage() {
                       Plazas / espacios
                       <input
                         type="number"
-                        min={1}
+                        min={0}
                         max={12}
-                        value={room.roomsAvailable}
+                        value={room.roomsAvailable === 0 ? "" : room.roomsAvailable}
                         onChange={(e) =>
                           updateRoom(i, {
-                            roomsAvailable: Math.max(1, Number(e.target.value) || 1),
+                            roomsAvailable: Math.max(0, Math.floor(Number(e.target.value) || 0)),
                           })
                         }
                         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
@@ -1432,14 +1338,14 @@ export function PublishWizardPage() {
                       <span className="text-red-600"> *</span>
                       <input
                         type="number"
-                        min={1}
+                        min={0}
                         max={36}
-                        value={room.minimalStayMonths}
+                        value={room.minimalStayMonths === 0 ? "" : room.minimalStayMonths}
                         onChange={(e) =>
                           updateRoom(i, {
                             minimalStayMonths: Math.min(
                               36,
-                              Math.max(1, Math.floor(Number(e.target.value) || 1)),
+                              Math.max(0, Math.floor(Number(e.target.value) || 0)),
                             ),
                           })
                         }
@@ -1786,8 +1692,14 @@ export function PublishWizardPage() {
       if (!r.title.trim() || !r.summary.trim()) {
         return "Cada cuarto necesita título y descripción.";
       }
-      if (r.ageMin < 18 || r.ageMax > 99) {
-        return "La edad debe estar entre 18 y 99 años.";
+      if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) {
+        return "En cada cuarto indica una renta mayor a 0.";
+      }
+      if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) {
+        return "En cada cuarto indica al menos 1 plaza o espacio disponible.";
+      }
+      if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99) {
+        return "La edad mínima y máxima debe estar entre 18 y 99 años.";
       }
       if (r.ageMin > r.ageMax) {
         return "En cada cuarto la edad mínima no puede ser mayor que la máxima.";
@@ -1798,8 +1710,8 @@ export function PublishWizardPage() {
       if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
         return "En cada cuarto la estancia mínima debe ser de al menos 1 mes.";
       }
-      if (r.rentMxn < 0 || r.depositMxn < 0) {
-        return "Renta y depósito no pueden ser negativos.";
+      if (r.depositMxn < 0) {
+        return "El depósito no puede ser negativo.";
       }
     }
     return null;
@@ -1809,6 +1721,12 @@ export function PublishWizardPage() {
     if (draft.postMode !== "room" && !draft.propertyTitle.trim()) return "Agrega el nombre de la propiedad.";
     if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
       return `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
+    }
+    if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
+      return "Indica cuántos cuartos tiene la propiedad (total, mínimo 1).";
+    }
+    if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
+      return "Indica cuántos baños tiene la propiedad (total, mayor a 0).";
     }
     if (normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
       return "Agrega un WhatsApp válido (al menos 10 dígitos).";
@@ -1839,6 +1757,14 @@ export function PublishWizardPage() {
     }
     if (digits.length < 10) {
       setPublishErr("Agrega un WhatsApp válido (al menos 10 dígitos).");
+      return;
+    }
+    if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
+      setPublishErr("Indica cuántos cuartos tiene la propiedad (total, mínimo 1).");
+      return;
+    }
+    if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
+      setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
       return;
     }
     if (!draft.legalAccepted) {
@@ -1901,7 +1827,6 @@ export function PublishWizardPage() {
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
         });
-        savePersistedForUser(me.id, { ...defaultDraft(), city: draft.city }, { propertyId: null, roomIds: [] });
         setServerSync({ propertyId: null, roomIds: [] });
         navigate(`/anuncio/${firstRoomId}`);
         return;
@@ -1926,8 +1851,8 @@ export function PublishWizardPage() {
         },
         rooms: draft.rooms.map((r, i) => ({
           title: r.title.trim(),
-          rentMxn: r.rentMxn,
-          roomsAvailable: r.roomsAvailable,
+          rentMxn: Math.max(1, r.rentMxn),
+          roomsAvailable: Math.max(1, r.roomsAvailable),
           tags: r.tags,
           roommateGenderPref: r.roommateGenderPref,
           ageMin: r.ageMin,
@@ -1946,7 +1871,6 @@ export function PublishWizardPage() {
         setPublishErr("La API no devolvió cuartos.");
         return;
       }
-      savePersistedForUser(me.id, { ...defaultDraft(), city: draft.city }, { propertyId: null, roomIds: [] });
       setServerSync({ propertyId: null, roomIds: [] });
       navigate(`/anuncio/${first.id}`);
     } catch (e) {
@@ -1971,6 +1895,14 @@ export function PublishWizardPage() {
     }
     if (digits.length < 10) {
       setPublishErr("Agrega un WhatsApp válido (al menos 10 dígitos).");
+      return;
+    }
+    if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
+      setPublishErr("Indica cuántos cuartos tiene la propiedad (total, mínimo 1).");
+      return;
+    }
+    if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
+      setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
       return;
     }
     const roomErr = validateRoomsForSubmit(draft);
@@ -2003,8 +1935,8 @@ export function PublishWizardPage() {
           <Link className="font-semibold text-primary underline" to="/entrar">
             Inicia sesión
           </Link>{" "}
-          para sincronizar el borrador con el servidor y publicar. Sin sesión, los datos solo viven en este navegador y
-          no se vinculan a una cuenta.
+          para guardar el borrador en el servidor y publicar. Cada vez que entras a Publicar empiezas con el formulario
+          vacío; sin sesión, al salir de la página no queda copia en el navegador.
         </p>
       ) : null}
       {handoffBanner ? (
@@ -2033,15 +1965,15 @@ export function PublishWizardPage() {
           </button>
         </div>
       ) : null}
-      {apiOn ? (
+      {apiOn && me ? (
         <p className="mt-2 text-xs text-muted" aria-live="polite">
           {autosaveNote === "saving"
             ? "Guardando borrador en el servidor…"
             : autosaveNote === "saved"
               ? "Borrador guardado en el servidor."
               : autosaveNote === "error"
-                ? "No se pudo sincronizar con el servidor (tus datos siguen en este navegador). Se reintentará al seguir editando."
-                : "Los cambios se guardan solos en el servidor unos segundos después de editar (y siempre en este navegador)."}
+                ? "No se pudo sincronizar con el servidor. Se reintentará al seguir editando."
+                : "Los cambios se guardan solos en el servidor unos segundos después de completar renta, plazas, fechas y datos básicos de la propiedad."}
         </p>
       ) : null}
 
