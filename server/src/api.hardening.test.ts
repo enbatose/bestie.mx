@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
@@ -66,6 +66,24 @@ describe("Phase B API hardening", () => {
 
   it("rejects malformed listing id", async () => {
     await request(app).get(`/api/listings/${encodeURIComponent("bad!id")}`).expect(400);
+  });
+
+  it("serves uploaded image bytes from durable storage if file cache is missing", async () => {
+    const agent = request.agent(app);
+    const up = await agent
+      .post("/api/uploads")
+      .attach("file", Buffer.from("fake-png-bytes"), { filename: "room.png", contentType: "image/png" })
+      .expect(201);
+
+    const url = String(up.body.url);
+    expect(url).toMatch(/^\/api\/uploads\/[\w-]+\.png$/);
+
+    const filename = url.split("/").pop()!;
+    unlinkSync(join(process.cwd(), "data", "uploads", filename));
+
+    const img = await request(app).get(url).expect(200);
+    expect(img.headers["content-type"]).toContain("image/png");
+    expect(Buffer.from(img.body).toString()).toBe("fake-png-bytes");
   });
 
   it("publish-bundle rejects all-zero WhatsApp", async () => {

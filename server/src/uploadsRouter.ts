@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import multer from "multer";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
@@ -18,6 +19,7 @@ const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jp
 
 export type UploadsRouterOptions = {
   uploadDir: string;
+  db?: DatabaseSync;
 };
 
 /**
@@ -51,6 +53,12 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
     const dest = path.join(uploadDir, name);
     try {
       fs.writeFileSync(dest, f.buffer);
+      opts.db
+        ?.prepare(
+          `INSERT OR REPLACE INTO upload_blobs (filename, mime_type, bytes, created_at)
+           VALUES (?, ?, ?, ?)`,
+        )
+        .run(name, f.mimetype, f.buffer, new Date().toISOString());
     } catch {
       res.status(500).json({ error: "write_failed" });
       return;
@@ -69,15 +77,23 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
       res.status(400).end();
       return;
     }
-    if (!fs.existsSync(fp)) {
+    const lower = filename.toLowerCase();
+    const fallbackType = lower.endsWith(".png") ? "image/png" : lower.endsWith(".webp") ? "image/webp" : "image/jpeg";
+    if (fs.existsSync(fp)) {
+      res.type(fallbackType);
+      res.sendFile(fp);
+      return;
+    }
+
+    const row = opts.db
+      ?.prepare(`SELECT mime_type, bytes FROM upload_blobs WHERE filename = ?`)
+      .get(filename) as { mime_type?: unknown; bytes?: unknown } | undefined;
+    if (!row?.bytes) {
       res.status(404).end();
       return;
     }
-    const lower = filename.toLowerCase();
-    if (lower.endsWith(".png")) res.type("image/png");
-    else if (lower.endsWith(".webp")) res.type("image/webp");
-    else res.type("image/jpeg");
-    res.sendFile(fp);
+    res.type(typeof row.mime_type === "string" ? row.mime_type : fallbackType);
+    res.send(Buffer.from(row.bytes as Uint8Array));
   });
 
   return r;

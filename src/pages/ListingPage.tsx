@@ -40,6 +40,7 @@ export function ListingPage() {
   );
   const [msgBusy, setMsgBusy] = useState(false);
   const [msgErr, setMsgErr] = useState<string | null>(null);
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(() => new Set());
 
   const refreshViewer = useCallback(async () => {
     if (!messagingOn) {
@@ -52,6 +53,7 @@ export function ListingPage() {
   useEffect(() => {
     setRevealed(false);
     setMsgErr(null);
+    setFailedImageUrls(new Set());
     void refreshViewer();
   }, [id, refreshViewer]);
 
@@ -107,6 +109,10 @@ export function ListingPage() {
     const room = propertyPack.rooms.find((r) => r.id === listing.id);
     return [...(propertyPack.property.imageUrls ?? []), ...(room?.imageUrls ?? [])];
   }, [apiOn, listing, propertyPack]);
+  const visibleGalleryUrls = useMemo(
+    () => galleryUrls.filter((u) => !failedImageUrls.has(u)),
+    [failedImageUrls, galleryUrls],
+  );
 
   const siblingLinks = useMemo(() => {
     if (apiOn && propertyPack && propertyPack.rooms.length > 1) {
@@ -238,11 +244,11 @@ export function ListingPage() {
         </p>
       </header>
 
-      {galleryUrls.length ? (
+      {visibleGalleryUrls.length ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-body">Fotos</h2>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {galleryUrls.map((u) => (
+            {visibleGalleryUrls.map((u) => (
               <a
                 key={u}
                 href={apiAbsoluteUrl(u)}
@@ -250,7 +256,20 @@ export function ListingPage() {
                 rel="noreferrer"
                 className="block overflow-hidden rounded-xl ring-1 ring-border transition hover:opacity-90"
               >
-                <img src={apiAbsoluteUrl(u)} alt="" className="aspect-square w-full object-cover" loading="lazy" />
+                <img
+                  src={apiAbsoluteUrl(u)}
+                  alt=""
+                  className="aspect-square w-full object-cover"
+                  loading="lazy"
+                  onError={() => {
+                    setFailedImageUrls((prev) => {
+                      if (prev.has(u)) return prev;
+                      const next = new Set(prev);
+                      next.add(u);
+                      return next;
+                    });
+                  }}
+                />
               </a>
             ))}
           </div>

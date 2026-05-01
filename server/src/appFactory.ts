@@ -124,7 +124,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
     process.env.UPLOAD_DIR != null && process.env.UPLOAD_DIR.trim() !== ""
       ? path.resolve(process.env.UPLOAD_DIR.trim())
       : path.resolve(process.cwd(), "data", "uploads");
-  app.use("/api/uploads", uploadsRouter({ uploadDir }));
+  app.use("/api/uploads", uploadsRouter({ db, uploadDir }));
 
   app.use("/api/auth", authRouter(db));
   app.use("/api/messages", messagesRouter(db));

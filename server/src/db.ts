@@ -176,6 +176,17 @@ function migratePropertyApproximateLocation(db: DatabaseSync): void {
   }
 }
 
+function ensureUploadBlobSchema(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS upload_blobs (
+      filename TEXT PRIMARY KEY,
+      mime_type TEXT NOT NULL,
+      bytes BLOB NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
 function ensurePhaseBSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS properties (
@@ -231,6 +242,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migrateImageUrlsJson(db);
   migratePropertyPostMode(db);
   migratePropertyApproximateLocation(db);
+  ensureUploadBlobSchema(db);
 }
 
 function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
