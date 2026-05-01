@@ -787,10 +787,8 @@ export function PublishWizardPage() {
         title: "¿Qué quieres publicar?",
         body: (
           <form className="space-y-6">
-            <fieldset className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <legend className="text-[15px] font-bold text-primary px-2 bg-bg-light -ml-2 rounded">
-                Modalidad de anuncio
-              </legend>
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">Modalidad de anuncio</h3>
               <p className="text-sm text-muted">
                 Empieza rápido con un solo cuarto o crea una propiedad con varios cuartos.
               </p>
@@ -865,7 +863,7 @@ export function PublishWizardPage() {
                   <p className="mt-2 text-xs text-muted">Un solo espacio tipo “vivienda completa” (sin sumar cuartos).</p>
                 </button>
               </div>
-            </fieldset>
+            </div>
           </form>
         ),
       },
@@ -1930,15 +1928,6 @@ export function PublishWizardPage() {
             </button>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (me?.id) savePersistedForUser(me.id, draft, serverSync);
-                }}
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
-              >
-                Guardar borrador
-              </button>
               {apiOn ? (
                 <button
                   type="button"
