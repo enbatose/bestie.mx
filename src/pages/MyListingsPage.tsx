@@ -59,10 +59,11 @@ export function MyListingsPage() {
     if (!p.contactWhatsApp?.trim() || p.contactWhatsApp.replace(/\D/g, "").length < 10) m.push("WhatsApp real");
     if (!isRoomPost && (!p.summary?.trim() || p.summary.trim().length < 20)) m.push("Descripción de la propiedad");
     if (!bundle.rooms?.length) m.push("Al menos 1 cuarto");
-    for (const r of bundle.rooms ?? []) {
-      if (!r.title?.trim()) m.push(`Título de cuarto (${r.id})`);
-      if (!r.summary?.trim()) m.push(`Descripción de cuarto (${r.id})`);
-      if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) m.push(`Renta (${r.id})`);
+    for (const [index, r] of (bundle.rooms ?? []).entries()) {
+      const roomSuffix = bundle.rooms.length > 1 ? ` ${index + 1}` : "";
+      if (!r.title?.trim()) m.push(`Título del cuarto${roomSuffix}`);
+      if (!r.summary?.trim()) m.push(`Descripción del cuarto${roomSuffix}`);
+      if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) m.push(`Renta del cuarto${roomSuffix}`);
     }
     return [...new Set(m)];
   }, []);
@@ -288,11 +289,8 @@ export function MyListingsPage() {
                     </h2>
                     {propSt === "draft" && missingByProperty[propertyId] ? (
                       <p className="mt-2 text-xs text-amber-900 dark:text-amber-200">
-                        Falta: <span className="font-medium">{missingByProperty[propertyId]}</span>
+                        Completa: <span className="font-medium">{missingByProperty[propertyId]}</span>
                       </p>
-                    ) : null}
-                    {propSt === "draft" && head.propertyPostMode === "room" ? (
-                      <p className="mt-1 text-xs text-muted">Publicación de un solo cuarto</p>
                     ) : null}
                   </div>
                   <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px] sm:items-stretch">
@@ -326,7 +324,7 @@ export function MyListingsPage() {
                             }
                             className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
                           />
-                          <span>Confirmo que la información es verídica y acepto publicar (v1).</span>
+                          <span>Confirmo que la información es verídica y acepto publicar.</span>
                         </label>
                         <button
                           type="button"
