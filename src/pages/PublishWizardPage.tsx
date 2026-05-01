@@ -461,8 +461,7 @@ export function PublishWizardPage() {
     latKey: string;
     lngKey: string;
   } | null>(null);
-  const [mapGeocodeLoading, setMapGeocodeLoading] = useState(false);
-  /** Invalidates in-flight Nominatim responses when the pin moves again or privacy mode toggles off fetch. */
+  /** Monotonic id so stale reverse-geocode responses never commit after a newer drag/coords change. */
   const reverseGeoGenRef = useRef(0);
 
   useEffect(() => {
@@ -631,28 +630,22 @@ export function PublishWizardPage() {
     return { lat: anchor.lat, lng: anchor.lng };
   }, []);
 
-  /**
-   * Before paint: invalidate any in-flight reverse-geocode (generation bump) and show loading immediately.
-   * Bumping here avoids a stale Nominatim response committing after a map click before passive effect cleanup runs.
-   */
+  /** Drop any prior label as soon as coords/city/pin mode change (no “Buscando…” — box stays hidden until Nominatim returns). */
   useLayoutEffect(() => {
     if (!draft.useCustomMapPin) return;
-    reverseGeoGenRef.current += 1;
     setMapGeocode(null);
-    setMapGeocodeLoading(true);
   }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin]);
 
   useEffect(() => {
     if (!draft.useCustomMapPin) {
       reverseGeoGenRef.current += 1;
       setMapGeocode(null);
-      setMapGeocodeLoading(false);
       return;
     }
     const { lat, lng } = resolveLatLngForDraft(draft);
     const latKey = lat.toFixed(6);
     const lngKey = lng.toFixed(6);
-    const requestId = reverseGeoGenRef.current;
+    const requestId = ++reverseGeoGenRef.current;
     const ac = new AbortController();
     const REVERSE_DEBOUNCE_MS = 180;
 
@@ -675,15 +668,13 @@ export function PublishWizardPage() {
             if (requestId !== reverseGeoGenRef.current) return;
             const displayFull = (data.display_name ?? "").trim() || "Dirección aproximada";
             setMapGeocode({ displayFull, address: data.address, latKey, lngKey });
-          } else {
+          } else if (requestId === reverseGeoGenRef.current) {
             setMapGeocode({ displayFull: "Ubicación aproximada", latKey, lngKey });
           }
         } catch (e) {
           if (ac.signal.aborted) return;
           if (requestId !== reverseGeoGenRef.current) return;
           setMapGeocode({ displayFull: "Ubicación aproximada", latKey, lngKey });
-        } finally {
-          if (requestId === reverseGeoGenRef.current) setMapGeocodeLoading(false);
         }
       })();
     }, REVERSE_DEBOUNCE_MS);
@@ -702,9 +693,7 @@ export function PublishWizardPage() {
     const latKey = lat.toFixed(6);
     const lngKey = lng.toFixed(6);
 
-    if (!mapGeocodeLoading && !mapGeocode) return null;
-    if (mapGeocodeLoading || !mapGeocode) return "Buscando dirección…";
-    if (mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return "Buscando dirección…";
+    if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return null;
 
     if (draft.isApproximateLocation) {
       return privacyLocationFromNominatim(mapGeocode.address, nbh, draft.city);
@@ -716,7 +705,6 @@ export function PublishWizardPage() {
     draft.neighborhood,
     draft.useCustomMapPin,
     mapGeocode,
-    mapGeocodeLoading,
     resolveLatLngForDraft,
     draft.customLat,
     draft.customLng,
@@ -1031,7 +1019,7 @@ export function PublishWizardPage() {
               </h3>
               <div>
                 <p className="text-sm font-medium text-body">
-                  Toca el mapa o arrastra el marcador para definir la ubicación exacta.
+                  Arrastra el marcador para colocar la ubicación exacta (los clics en el mapa no mueven el pin).
                 </p>
                 <div className="mt-3">
                   <WizardLocationMap
@@ -1060,7 +1048,7 @@ export function PublishWizardPage() {
                       </svg>
                       <span>{mapAddressShown}</span>
                     </div>
-                    {draft.isApproximateLocation && mapGeocode && !mapGeocodeLoading ? (
+                    {draft.isApproximateLocation && mapGeocode ? (
                       <p className="pl-6 text-xs text-muted">
                         Misma ubicación en el mapa; en público se muestra colonia, calle y código postal (sin número
                         exacto ni nombre de negocio).

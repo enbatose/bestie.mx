@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, Circle } from "react-leaflet";
 import L from "leaflet";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -18,26 +17,6 @@ type Props = {
 /** External Street View tab only — the embedded map stays Leaflet/OSM (no Maps JavaScript API). */
 function streetViewExternalUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
-}
-
-/**
- * Listen on the Leaflet map instance so clicks reliably move the pin (useMapEvents can miss edge cases
- * with overlay layer ordering).
- */
-function MapPickClick({ onPick }: { onPick: (lat: number, lng: number) => void }) {
-  const map = useMap();
-  const onPickRef = useRef(onPick);
-  onPickRef.current = onPick;
-  useEffect(() => {
-    const handleClick = (ev: L.LeafletMouseEvent) => {
-      onPickRef.current(ev.latlng.lat, ev.latlng.lng);
-    };
-    map.on("click", handleClick);
-    return () => {
-      map.off("click", handleClick);
-    };
-  }, [map]);
-  return null;
 }
 
 export function WizardLocationMap({ center, position, onPositionChange }: Props) {
@@ -63,7 +42,6 @@ export function WizardLocationMap({ center, position, onPositionChange }: Props)
           pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
           interactive={false}
         />
-        <MapPickClick onPick={onPositionChange} />
         <Marker
           position={position}
           draggable
