@@ -6,6 +6,7 @@ import {
   updateProperty,
   fetchPropertyWithRooms,
 } from "@/lib/listingsApi";
+import { authMe, type AuthMe } from "@/lib/authApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 function statusLabel(s: ListingStatus | undefined): string {
@@ -45,6 +46,7 @@ export function MyListingsPage() {
   const [flash, setFlash] = useState<string | null>(null);
   const [legalPublishByProperty, setLegalPublishByProperty] = useState<Record<string, boolean>>({});
   const [missingByProperty, setMissingByProperty] = useState<Record<string, string>>({});
+  const [me, setMe] = useState<AuthMe | null>(null);
 
   const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
     if (!bundle) return ["No se pudo leer la propiedad"];
@@ -122,6 +124,10 @@ export function MyListingsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void authMe().then(setMe).catch(() => setMe(null));
+  }, []);
 
   async function pause(id: string) {
     setActionId(id);
@@ -230,6 +236,11 @@ export function MyListingsPage() {
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          {me ? (
+            <p className="mb-1 text-sm text-muted">
+              Hola, <span className="font-semibold text-body">{me.displayName}</span>
+            </p>
+          ) : null}
           <h1 className="text-2xl font-bold text-primary">Mis anuncios</h1>
           <p className="mt-2 text-sm text-muted">
             Aquí puedes ver tus borradores y tus anuncios activos. Un borrador puede crearse sin cuenta, pero
