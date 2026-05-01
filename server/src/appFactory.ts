@@ -33,6 +33,21 @@ function normalizeCorsOrigins(origins: string[]): string[] {
   return out;
 }
 
+/**
+ * When `UPLOAD_DIR` is unset, store files next to the SQLite DB so a mounted DB volume
+ * keeps both listing data and image bytes (avoids ephemeral cwd vs persistent `/data/bestie.db`).
+ */
+function resolveUploadDir(databasePath: string | undefined): string {
+  const envDir = process.env.UPLOAD_DIR?.trim();
+  if (envDir) return path.resolve(envDir);
+  const rawDb = databasePath?.trim();
+  if (rawDb) {
+    const dbAbs = path.isAbsolute(rawDb) ? path.resolve(rawDb) : path.resolve(process.cwd(), rawDb);
+    return path.join(path.dirname(dbAbs), "uploads");
+  }
+  return path.resolve(process.cwd(), "data", "uploads");
+}
+
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
   corsOrigins?: string[];
@@ -120,10 +135,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
 
-  const uploadDir =
-    process.env.UPLOAD_DIR != null && process.env.UPLOAD_DIR.trim() !== ""
-      ? path.resolve(process.env.UPLOAD_DIR.trim())
-      : path.resolve(process.cwd(), "data", "uploads");
+  const uploadDir = resolveUploadDir(databasePath);
   app.use("/api/uploads", uploadsRouter({ db, uploadDir }));
 
   app.use("/api/auth", authRouter(db));

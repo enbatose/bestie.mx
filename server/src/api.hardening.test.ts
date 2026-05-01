@@ -44,7 +44,7 @@ describe("Phase B API hardening", () => {
     dir = mkdtempSync(join(tmpdir(), "bestie-api-hardening-"));
     dbPath = join(dir, "test.db");
     db = openDb(dbPath);
-    app = createApp(db, { databaseLabel: "test.db" });
+    app = createApp(db, { databaseLabel: "test.db", databasePath: dbPath });
   });
 
   afterAll(() => {
@@ -79,7 +79,7 @@ describe("Phase B API hardening", () => {
     expect(url).toMatch(/^\/api\/uploads\/[\w-]+\.png$/);
 
     const filename = url.split("/").pop()!;
-    unlinkSync(join(process.cwd(), "data", "uploads", filename));
+    unlinkSync(join(dir, "uploads", filename));
 
     const img = await request(app).get(url).expect(200);
     expect(img.headers["content-type"]).toContain("image/png");
