@@ -19,6 +19,7 @@ function buildSearchParams(query: string): URLSearchParams {
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { openLogin, openRegister } = useAuthModal();
   const [searchQuery, setSearchQuery] = useState("");
   const [cityChoices, setCityChoices] = useState<string[]>([...DEFAULT_CITIES]);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -70,8 +71,7 @@ export function HomePage() {
           </h1>
           <p className="mt-4 max-w-2xl text-base text-primary-fg/90 sm:text-lg">
             Mapa con pins, filtros por ubicación, presupuesto, etiquetas, preferencia de roomies y
-            edad. Publica por propiedad y cuarto — flujo inspirado en marketplaces de cuartos como
-            Roomix, con experiencia mobile-first.
+            edad. Publica por propiedad o por cuarto con un flujo claro, pensado mobile-first.
           </p>
           <div
             id="hero-busqueda"
@@ -141,7 +141,7 @@ export function HomePage() {
         <div className="mx-auto max-w-3xl">
           <h2 className="text-lg font-bold tracking-tight sm:text-xl">Publicar anuncio</h2>
           <p className="mt-2 text-sm text-primary-fg/90">
-            Mismo tipo de CTA que Roomix: publica cuarto(s) o vivienda completa con el asistente paso a paso.
+            Publica cuarto(s) o vivienda completa con el asistente paso a paso en Bestie.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -177,7 +177,7 @@ export function HomePage() {
             },
             {
               title: "Mapa + lista",
-              body: "Pins en mapa y tarjetas sincronizadas — similar a la búsqueda geográfica que conoces en Roomix, con datos de ejemplo hasta conectar API.",
+              body: "Pins en mapa y tarjetas sincronizadas para explorar por zona, con datos de ejemplo hasta conectar la API.",
             },
             {
               title: "Cuenta y comunidad",

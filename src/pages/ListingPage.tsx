@@ -330,7 +330,7 @@ export function ListingPage() {
             <a href="mailto:support@bestie.mx" className="font-medium text-primary underline-offset-2 hover:underline">
               support@bestie.mx
             </a>{" "}
-            si necesitas ayuda para contactar (misma idea que “no visible” en Roomix).
+            si necesitas ayuda para contactar cuando el anuncio no muestra el número públicamente.
           </p>
         ) : (
           <>

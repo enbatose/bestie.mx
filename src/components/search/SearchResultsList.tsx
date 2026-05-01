@@ -6,7 +6,7 @@ type Props = {
   listings: PropertyListing[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** Tighter cards for the Roomix-style narrow list column. */
+  /** Tighter cards for the narrow list column. */
   dense?: boolean;
 };
 

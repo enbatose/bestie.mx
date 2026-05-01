@@ -71,10 +71,10 @@ export type PublishBundlePayload = {
     summary?: string;
     contactWhatsApp: string;
     propertyKind?: PropertyListing["propertyKind"];
-    /** Total bedrooms in the home (Roomix `rooms_number`). */
+    /** Total bedrooms in the home. */
     bedroomsTotal?: number;
     bathrooms?: number;
-    /** Default true — same idea as Roomix “Visible en anuncio” for phone. */
+    /** Default true — show phone/WhatsApp on the public listing when true. */
     showWhatsApp?: boolean;
     imageUrls?: string[];
     isApproximateLocation?: boolean;
@@ -90,7 +90,7 @@ export type PublishBundlePayload = {
     ageMax: number;
     summary: string;
     lodgingType?: PropertyListing["lodgingType"];
-    /** ISO `YYYY-MM-DD` — Roomix “Disponible a partir de”. */
+    /** ISO `YYYY-MM-DD` — room available from this date. */
     availableFrom: string;
     minimalStayMonths: number;
     roomDimension: PropertyListing["roomDimension"];

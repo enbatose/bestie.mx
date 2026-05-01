@@ -22,14 +22,14 @@ export type SearchFilters = {
   ageMin: number | null;
   ageMax: number | null;
   bbox: Bbox | null;
-  /** Roomix: tipo de hospedaje. */
+  /** Lodging type filter. */
   lodgingType: LodgingType | null;
-  /** Roomix: casa / depa toggles (OR when both). */
+  /** House / apartment toggles (OR when both). */
   wantHouse: boolean;
   wantApartment: boolean;
-  /** Roomix advanced: disponible desde (YYYY-MM-DD). */
+  /** Advanced: available from (YYYY-MM-DD). */
   availableFrom: string | null;
-  /** Roomix: estancia mínima (meses) — el buscador ofrece al menos N meses. */
+  /** Minimum stay (months) — search returns rooms with at least N months. */
   minimalStayMonths: number | null;
   roomDimension: RoomDimension | null;
   avalRequired: boolean | null;

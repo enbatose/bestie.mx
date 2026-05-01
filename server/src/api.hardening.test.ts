@@ -9,7 +9,7 @@ import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 
 const PROP_SUMMARY_OK =
-  "Descripción de la propiedad lo bastante larga para pruebas API y criterio Roomix (≥20 caracteres).";
+  "Descripción de la propiedad lo bastante larga para pruebas API (≥20 caracteres).";
 
 function cookiePairFromSetCookie(res: { headers: Record<string, unknown> }): string {
   const sc = res.headers["set-cookie"] as string | string[] | undefined;

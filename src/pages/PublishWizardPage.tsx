@@ -25,7 +25,7 @@ import type {
 } from "@/types/listing";
 
 const ALL_TAGS = Object.keys(TAG_LABELS) as ListingTag[];
-/** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (Roomix-style property description). */
+/** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (minimum property description length). */
 const PROPERTY_SUMMARY_MIN = 20;
 
 function isoToday(): string {
@@ -127,13 +127,13 @@ type RoomDraft = {
   ageMin: number;
   ageMax: number;
   lodgingType: LodgingType;
-  /** ISO `YYYY-MM-DD` — Roomix “Disponible a partir de”. */
+  /** ISO `YYYY-MM-DD` — available-from date for the room. */
   availableFrom: string;
   minimalStayMonths: number;
   roomDimension: RoomDimension;
 };
 
-/** Roomix-style step 1: shared rooms vs entire home listing. */
+/** Step 1 offer mode: shared rooms vs entire home listing. */
 type PublishOfferMode = "rooms_in_shared" | "whole_property";
 
 type Draft = {
@@ -146,11 +146,11 @@ type Draft = {
   contactWhatsApp: string;
   propertySummary: string;
   propertyKind: PropertyKind;
-  /** Total bedrooms in the building (Roomix `rooms_number`). */
+  /** Total bedrooms in the building. */
   propertyBedroomsTotal: number;
-  /** Bathrooms count (Roomix allows medios baños). */
+  /** Bathrooms count (half baths allowed, 0.5 steps). */
   propertyBathrooms: number;
-  /** Roomix-style: show WhatsApp on the public listing. */
+  /** When true, show WhatsApp on the public listing. */
   showWhatsApp: boolean;
   useCustomMapPin: boolean;
   customLat: string;
@@ -1269,7 +1269,7 @@ export function PublishWizardPage() {
                   onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
                   className="mt-1 size-4 rounded border-border text-primary"
                 />
-                <span>Mostrar WhatsApp en el anuncio público (equivalente a “Visible en anuncio” en Roomix).</span>
+                <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
               </label>
             </div>
           </form>
@@ -1809,7 +1809,7 @@ export function PublishWizardPage() {
     }
     if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
       setPublishErr(
-        `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres (campos obligatorios alineados con Roomix).`,
+        `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres (requisito de Bestie).`,
       );
       return;
     }

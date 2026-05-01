@@ -97,7 +97,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
           <div>
             <p className="text-sm font-medium text-body">Convivencia (anuncio)</p>
             <p className="mt-0.5 text-xs text-muted">
-              Equivale a “sólo chicas / sólo chicos” en Roomix: filtra por preferencia de roomie del anuncio.
+              Filtra por la preferencia de convivencia del anuncio (por ejemplo sólo chicas o sólo chicos).
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(

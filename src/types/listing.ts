@@ -32,7 +32,7 @@ export type Property = {
   summary: string;
   contactWhatsApp: string;
   propertyKind?: PropertyKind;
-  /** Total bedrooms in the building (Roomix-style). */
+  /** Total bedrooms in the building. */
   bedroomsTotal: number;
   bathrooms: number;
   /** When false, do not show WhatsApp on the public listing. */
@@ -47,7 +47,7 @@ export type Room = {
   status: ListingStatus;
   title: string;
   rentMxn: number;
-  /** One-time deposit in MXN (Roomix `deposit`). */
+  /** One-time deposit in MXN. */
   depositMxn: number;
   roomsAvailable: number;
   tags: ListingTag[];

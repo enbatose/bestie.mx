@@ -2,7 +2,7 @@ import type { ListingTag, RoommateGenderPref } from "@/types/listing";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { TAG_LABELS } from "@/lib/searchFilters";
 
-/** Roomix-style order: amueblado, mascotas, fumar, estacionamiento, fiestas, baño, Wi‑Fi. */
+/** Chip order: muebles, mascotas, fumar, estacionamiento, fiestas, baño, Wi‑Fi. */
 const RAIL_TAG_ORDER: ListingTag[] = [
   "muebles",
   "mascotas",
@@ -131,7 +131,7 @@ function SlidersIcon({ className }: { className?: string }) {
 
 /**
  * Mobile: horizontal chip strip above the map.
- * Desktop: floating column on the **left margin of the map** (Roomix-style).
+ * Desktop: floating column on the **left margin of the map**.
  */
 export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
   function toggleTag(tag: ListingTag) {

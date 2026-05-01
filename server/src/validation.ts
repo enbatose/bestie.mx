@@ -8,7 +8,7 @@ export const ROOM_TITLE_MAX_LEN = 120;
 export const RENT_MXN_MAX = 2_000_000;
 export const DEPOSIT_MXN_MAX = 2_000_000;
 export const ROOMS_AVAILABLE_MAX = 99;
-/** Minimum property description length (Roomix-style “Descripción de propiedad”). */
+/** Minimum property description length (“Descripción de propiedad”). */
 export const PROPERTY_SUMMARY_MIN_LEN = 20;
 export const PROPERTY_BEDROOMS_MAX = 35;
 export const PROPERTY_BATHROOMS_MAX = 99;
@@ -63,13 +63,13 @@ export function clampAge(n: number, fallback: number): number {
   return Math.min(99, Math.max(16, Math.floor(n)));
 }
 
-/** Total bedrooms in the building (Roomix `rooms_number`). */
+/** Total bedrooms in the building. */
 export function clampBedroomsTotal(n: number): number {
   if (!Number.isFinite(n)) return 1;
   return Math.min(PROPERTY_BEDROOMS_MAX, Math.max(1, Math.floor(n)));
 }
 
-/** Bathrooms count; allows halves like Roomix (0.5 steps). */
+/** Bathrooms count; allows half increments (0.5 steps). */
 export function clampBathrooms(n: number): number {
   if (!Number.isFinite(n) || n < 0) return 0;
   const rounded = Math.round(n * 2) / 2;

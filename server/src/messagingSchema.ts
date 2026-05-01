@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-/** In-app 1:1 messaging (Roomix-style threads + read receipts). */
+/** In-app 1:1 messaging (threads + read receipts). */
 export function ensureMessagingSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS conversations (

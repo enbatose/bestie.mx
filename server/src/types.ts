@@ -2,7 +2,7 @@ export type RoommateGenderPref = "any" | "female" | "male";
 
 export type ListingStatus = "draft" | "published" | "paused" | "archived";
 
-/** Roomix-style lodging (Tipo de hospedaje). */
+/** Lodging type (tipo de hospedaje). */
 export type LodgingType = "whole_home" | "private_room" | "shared_room";
 
 /** Casa vs departamento (inmueble). */
@@ -35,10 +35,10 @@ export type Property = {
   summary: string;
   contactWhatsApp: string;
   propertyKind?: PropertyKind;
-  /** Total bedrooms in the home (Roomix `rooms_number`). */
+  /** Total bedrooms in the home. */
   bedroomsTotal: number;
   bathrooms: number;
-  /** When false, WhatsApp must not be shown publicly (Roomix `show_phone`). */
+  /** When false, WhatsApp must not be shown publicly. */
   showWhatsApp: boolean;
   /** Gallery paths from `POST /api/uploads` (same-origin `/api/uploads/...`). */
   imageUrls?: string[];

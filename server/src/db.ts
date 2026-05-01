@@ -139,8 +139,8 @@ function tableHasColumn(db: DatabaseSync, table: string, column: string): boolea
   return rows.some((r) => r.name === column);
 }
 
-/** Roomix-aligned: total bedrooms in building, bathrooms, WhatsApp visibility; per-room deposit. */
-function migratePhaseBRoomixColumns(db: DatabaseSync): void {
+/** Extended property/room fields: bedrooms total, bathrooms, WhatsApp visibility; per-room deposit. */
+function migratePhaseBExtendedPropertyColumns(db: DatabaseSync): void {
   if (!tableHasColumn(db, "properties", "bedrooms_total")) {
     db.exec("ALTER TABLE properties ADD COLUMN bedrooms_total INTEGER NOT NULL DEFAULT 1");
   }
@@ -227,7 +227,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
     CREATE INDEX IF NOT EXISTS idx_properties_lat_lng ON properties(lat, lng);
   `);
-  migratePhaseBRoomixColumns(db);
+  migratePhaseBExtendedPropertyColumns(db);
   migrateImageUrlsJson(db);
   migratePropertyPostMode(db);
   migratePropertyApproximateLocation(db);

@@ -111,7 +111,7 @@ export function MessagesPage() {
       <header>
         <h1 className="text-2xl font-bold text-primary">Mensajes</h1>
         <p className="mt-1 text-sm text-muted">
-          Conversaciones por anuncio (estilo Roomix). Los mensajes se guardan en Bestie; el anunciante debe tener
+          Conversaciones agrupadas por anuncio. Los mensajes se guardan en Bestie; el anunciante debe tener
           cuenta vinculada a la publicación.
         </p>
       </header>
