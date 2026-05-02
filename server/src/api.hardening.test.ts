@@ -529,4 +529,82 @@ describe("Phase B API hardening", () => {
       .send({ status: "published" })
       .expect(400);
   });
+
+  it("PATCH published property with status published still updates fields", async () => {
+    const agent = request.agent(app);
+    const r1 = await agent
+      .post("/api/properties")
+      .send({
+        title: "Edit same status",
+        city: "Mérida",
+        neighborhood: "Centro",
+        lat: 20.97,
+        lng: -89.59,
+        contactWhatsApp: "529991112233",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+    await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "R1",
+        rentMxn: 3000,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 99,
+        summary: "Descripción del cuarto.",
+      })
+      .expect(201);
+    await registerAndLinkAnonymousPublisher(agent);
+    await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
+
+    const r2 = await agent
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
+      .send({ status: "published", title: "Título actualizado" })
+      .expect(200);
+    expect((r2.body as { title?: string }).title).toBe("Título actualizado");
+  });
+
+  it("PATCH published room updates rent", async () => {
+    const agent = request.agent(app);
+    const r1 = await agent
+      .post("/api/properties")
+      .send({
+        title: "Room PATCH live",
+        city: "Mérida",
+        neighborhood: "Centro",
+        lat: 20.97,
+        lng: -89.59,
+        contactWhatsApp: "529991112233",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+    const rRoom = await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "C live",
+        rentMxn: 3000,
+        roomsAvailable: 1,
+        tags: ["wifi"],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 99,
+        summary: "Descripción del cuarto.",
+      })
+      .expect(201);
+    const roomId = (rRoom.body as { id: string }).id;
+    await registerAndLinkAnonymousPublisher(agent);
+    await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
+
+    const patched = await agent
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`)
+      .send({ rentMxn: 3100 })
+      .expect(200);
+    expect((patched.body as { rentMxn?: number }).rentMxn).toBe(3100);
+  });
 });

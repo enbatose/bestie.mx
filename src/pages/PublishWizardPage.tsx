@@ -17,6 +17,7 @@ import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { LISTING_TAG_SLUG_SET, TAG_CHIP_ORDER } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
+  ListingStatus,
   ListingTag,
   LodgingType,
   PropertyKind,
@@ -358,7 +359,8 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     unassignedImageUrls: [],
     roomImageUrls: srvRooms.length > 0 ? srvRooms.map((r) => r.imageUrls ?? []) : [[]],
     rooms: roomDrafts,
-    legalAccepted: false,
+    legalAccepted:
+      p.status === "published" || p.status === "paused",
     isApproximateLocation: Boolean((p as { isApproximateLocation?: unknown }).isApproximateLocation),
   };
   return {
@@ -394,6 +396,10 @@ export function PublishWizardPage() {
   const upgrade = searchParams.get("upgrade") === "1";
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
+  /** Loaded property was published or paused — save sends PATCH (not publish-bundle). */
+  const [editingLiveProperty, setEditingLiveProperty] = useState<{
+    status: Extract<ListingStatus, "published" | "paused">;
+  } | null>(null);
   const apiOn = isListingsApiConfigured();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => defaultDraft());
@@ -442,6 +448,7 @@ export function PublishWizardPage() {
       prevUserIdRef.current = null;
       didHydrateLocalForUserRef.current = null;
       setStorageReady(false);
+      setEditingLiveProperty(null);
       setDraft(defaultDraft());
       setServerSync({ propertyId: null, roomIds: [] });
       setStep(0);
@@ -534,11 +541,21 @@ export function PublishWizardPage() {
         const bundle = await fetchPropertyWithRooms(editPropertyId);
         if (bundle && !cancelled) {
           const mapped = draftFromPropertyBundle(bundle);
+          const ps = bundle.property.status;
+          setEditingLiveProperty(
+            ps === "published" || ps === "paused" ? { status: ps } : null,
+          );
           setDraft(mapped.draft);
           setServerSync(mapped.serverSync);
           setStep(resumeStepForDraft(mapped.draft, { upgrade }));
           if (upgrade && mapped.draft.postMode === "room") {
             setHandoffBanner("Borrador cargado. Puedes convertir este cuarto en una propiedad con varios cuartos.");
+          } else if (ps === "published" || ps === "paused") {
+            setHandoffBanner(
+              ps === "paused"
+                ? "Anuncio en pausa cargado. Guarda los cambios y usa “Publicar” para volver a activarlo en búsqueda."
+                : "Anuncio publicado cargado. Los cambios se aplican al guardar o al publicar de nuevo.",
+            );
           } else {
             setHandoffBanner("Borrador cargado para editar.");
           }
@@ -546,7 +563,10 @@ export function PublishWizardPage() {
           if (session?.id) didHydrateLocalForUserRef.current = session.id;
         }
       } catch (e) {
-        if (!cancelled) setPublishErr(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
+        if (!cancelled) {
+          setEditingLiveProperty(null);
+          setPublishErr(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
+        }
       } finally {
         if (!cancelled) {
           setStorageReady(true);
@@ -1825,8 +1845,7 @@ export function PublishWizardPage() {
         sync?.roomIds.find((id) => typeof id === "string" && id.length > 0) ?? null;
 
       if (apiOn && sync?.propertyId && firstRoomId) {
-        await updateProperty(sync.propertyId, {
-          status: "published",
+        const propPatch: Parameters<typeof updateProperty>[1] = {
           postMode: draft.postMode,
           title: draft.propertyTitle.trim(),
           summary: draft.propertySummary.trim(),
@@ -1840,7 +1859,15 @@ export function PublishWizardPage() {
           bathrooms: draft.propertyBathrooms,
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
-        });
+          isApproximateLocation: draft.isApproximateLocation,
+        };
+        if (editingLiveProperty?.status === "paused") {
+          propPatch.status = "published";
+        } else if (!editingLiveProperty) {
+          propPatch.status = "published";
+        }
+        await updateProperty(sync.propertyId, propPatch);
+        setEditingLiveProperty(null);
         setServerSync({ propertyId: null, roomIds: [] });
         navigate(`/anuncio/${firstRoomId}`);
         return;
