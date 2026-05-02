@@ -130,13 +130,9 @@ type RoomDraft = {
   roomDimension: RoomDimension;
 };
 
-/** Step 1 offer mode: shared rooms vs entire home listing. */
-type PublishOfferMode = "rooms_in_shared" | "whole_property";
-
 type Draft = {
   /** Strategy: 'room' = single-room post; 'property' = property/multi-room post. */
   postMode: "room" | "property";
-  publishMode: PublishOfferMode;
   city: (typeof CITIES)[number];
   propertyTitle: string;
   neighborhood: string;
@@ -186,15 +182,8 @@ const DEFAULT_PROPERTY_SUMMARY =
   "Describe la propiedad y áreas compartidas: reglas de convivencia, baños, cocina, estacionamiento y lo que hace único el espacio.";
 const DRAFT_ONLY_ROOM_TITLE_SEEDS = ["Cuarto disponible", "Vivienda completa", "Cuarto en borrador"] as const;
 
-const wholePropertyRoom = (): RoomDraft => ({
-  ...defaultRoom(),
-  lodgingType: "whole_home",
-  summary: "",
-});
-
 const defaultDraft = (): Draft => ({
   postMode: "property",
-  publishMode: "rooms_in_shared",
   city: "Guadalajara",
   propertyTitle: "",
   neighborhood: "",
@@ -225,6 +214,19 @@ function isDefaultPropertySummarySeed(value: string) {
 
 function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
   return room.lodgingType === "whole_home" ? "Vivienda completa" : "Cuarto disponible";
+}
+
+function convertRoomDraftToProperty(d: Draft): Draft {
+  if (d.postMode === "property") return d;
+  const rooms = d.rooms.length > 0 ? d.rooms : [defaultRoom()];
+  return {
+    ...d,
+    postMode: "property",
+    propertyTitle: d.propertyTitle.trim().toLowerCase() === "sin título" ? "" : d.propertyTitle,
+    propertySummary: isDefaultPropertySummarySeed(d.propertySummary) ? "" : d.propertySummary,
+    rooms,
+    roomImageUrls: rooms.map((_, i) => d.roomImageUrls[i] ?? []),
+  };
 }
 
 function isFreshDefaultDraft(d: Draft): boolean {
@@ -258,7 +260,7 @@ function normalizeWhatsApp(s: string): string {
 }
 
 function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
-  if (opts.upgrade) return 0;
+  if (opts.upgrade) return 2;
 
   const propertyDetailsMissing =
     !draft.neighborhood.trim() ||
@@ -333,12 +335,9 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           roomDimension: r.roomDimension ?? "medium",
         }))
       : [defaultRoom()];
-  const publishMode: PublishOfferMode =
-    srvRooms.length === 1 && srvRooms[0]?.lodgingType === "whole_home" ? "whole_property" : "rooms_in_shared";
   const draft: Draft = {
     ...defaultDraft(),
     postMode: p.postMode === "room" ? "room" : "property",
-    publishMode,
     city,
     propertyTitle: p.title,
     neighborhood: p.neighborhood,
@@ -545,11 +544,17 @@ export function PublishWizardPage() {
           setEditingLiveProperty(
             ps === "published" || ps === "paused" ? { status: ps } : null,
           );
-          setDraft(mapped.draft);
+          const nextDraft =
+            upgrade && mapped.draft.postMode === "room"
+              ? convertRoomDraftToProperty(mapped.draft)
+              : mapped.draft;
+          setDraft(nextDraft);
           setServerSync(mapped.serverSync);
-          setStep(resumeStepForDraft(mapped.draft, { upgrade }));
+          setStep(resumeStepForDraft(nextDraft, { upgrade }));
           if (upgrade && mapped.draft.postMode === "room") {
-            setHandoffBanner("Borrador cargado. Puedes convertir este cuarto en una propiedad con varios cuartos.");
+            setHandoffBanner(
+              "Borrador cargado como propiedad con múltiples cuartos. Completa la información faltante para agregar cuartos y publicar.",
+            );
           } else if (ps === "published" || ps === "paused") {
             setHandoffBanner(
               ps === "paused"
@@ -840,7 +845,6 @@ export function PublishWizardPage() {
 
   function addRoom() {
     if (draftRef.current.postMode === "room") return;
-    if (draftRef.current.publishMode === "whole_property") return;
     setDraft((d) => ({
       ...d,
       rooms: [...d.rooms, defaultRoom()],
@@ -851,7 +855,6 @@ export function PublishWizardPage() {
 
   function removeRoom(i: number) {
     if (draftRef.current.postMode === "room") return;
-    if (draftRef.current.publishMode === "whole_property" && draftRef.current.rooms.length <= 1) return;
     const pid = serverSyncRef.current.propertyId;
     const rid = serverSyncRef.current.roomIds[i];
     if (apiOn && pid && rid) {
@@ -887,7 +890,6 @@ export function PublishWizardPage() {
                     setDraft((d) => ({
                       ...d,
                       postMode: "room",
-                      publishMode: "rooms_in_shared",
                       rooms: [defaultRoom()],
                       roomImageUrls: [d.roomImageUrls[0] ?? []],
                       propertySummary: "",
@@ -908,47 +910,25 @@ export function PublishWizardPage() {
                   type="button"
                   onClick={() =>
                     setDraft((d) => {
-                      if (d.postMode === "property" && d.publishMode === "rooms_in_shared") return d;
+                      if (d.postMode === "property") return d;
                       return {
                         ...d,
                         postMode: "property",
-                        publishMode: "rooms_in_shared",
                         rooms: [defaultRoom()],
                         roomImageUrls: [[]],
                       };
                     })
                   }
                   className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                    draft.postMode === "property" && draft.publishMode === "rooms_in_shared"
+                    draft.postMode === "property"
                       ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
                       : "border-border bg-surface hover:bg-surface-elevated"
                   }`}
                 >
-                  <div className="text-base font-bold text-primary">Ofrezco cuarto(s)</div>
-                  <p className="mt-2 text-xs text-muted">Uno o más espacios en la misma dirección (roomies).</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setDraft((d) => {
-                      if (d.postMode === "property" && d.publishMode === "whole_property") return d;
-                      return {
-                        ...d,
-                        postMode: "property",
-                        publishMode: "whole_property",
-                        rooms: [wholePropertyRoom()],
-                        roomImageUrls: [[]],
-                      };
-                    })
-                  }
-                  className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
-                    draft.postMode === "property" && draft.publishMode === "whole_property"
-                      ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
-                      : "border-border bg-surface hover:bg-surface-elevated"
-                  }`}
-                >
-                  <div className="text-base font-bold text-primary">Ofrezco la propiedad completa</div>
-                  <p className="mt-2 text-xs text-muted">Un solo espacio tipo “vivienda completa” (sin sumar cuartos).</p>
+                  <div className="text-base font-bold text-primary">Propiedad con múltiples cuartos</div>
+                  <p className="mt-2 text-xs text-muted">
+                    Crea una propiedad/dirección y publica varios cuartos para roomies.
+                  </p>
                 </button>
               </div>
             </div>
@@ -1492,19 +1472,14 @@ export function PublishWizardPage() {
                 </div>
               </div>
             ))}
-            {draft.publishMode === "whole_property" ? (
-              <p className="rounded-xl border border-border bg-bg-light px-3 py-2 text-xs text-muted">
-                Modo “propiedad completa”: un solo espacio publicado. Cambia el paso 1 si necesitas varios cuartos.
-              </p>
-            ) : (
-              <button
-                type="button"
-                onClick={addRoom}
-                className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10"
-              >
-                + Agregar otro cuarto
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={addRoom}
+              disabled={draft.postMode === "room"}
+              className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {draft.postMode === "room" ? "Convierte a propiedad para agregar más cuartos" : "+ Agregar otro cuarto"}
+            </button>
           </div>
         ),
       },
@@ -1993,16 +1968,13 @@ export function PublishWizardPage() {
           </p>
           <button
             type="button"
-            onClick={() =>
-              setDraft((d) => ({
-                ...d,
-                postMode: "property",
-                propertySummary: d.propertySummary,
-              }))
-            }
+            onClick={() => {
+              setDraft(convertRoomDraftToProperty);
+              setStep(2);
+            }}
             className="mt-3 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary transition hover:brightness-95"
           >
-            Convertir a propiedad
+            Convertir a propiedad con múltiples cuartos
           </button>
         </div>
       ) : null}
