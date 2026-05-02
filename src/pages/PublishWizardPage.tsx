@@ -881,7 +881,7 @@ export function PublishWizardPage() {
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">Modalidad de anuncio</h3>
               <p className="text-sm text-muted">
-                Empieza rápido con un solo cuarto o crea una propiedad con varios cuartos.
+                Empieza rápido con un cuarto o loft, o crea una propiedad con varios cuartos.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
@@ -901,9 +901,9 @@ export function PublishWizardPage() {
                       : "border-border bg-surface hover:bg-surface-elevated"
                   }`}
                 >
-                  <div className="text-base font-bold text-primary">Solo un cuarto</div>
+                  <div className="text-base font-bold text-primary">Un cuarto o Loft</div>
                   <p className="mt-2 text-xs text-muted">
-                    Publica un solo cuarto ahora. Luego puedes convertirlo en propiedad y agregar más cuartos.
+                    Publica un cuarto o loft ahora. Luego puedes convertirlo en propiedad y agregar más cuartos.
                   </p>
                 </button>
                 <button
@@ -1943,7 +1943,7 @@ export function PublishWizardPage() {
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
       <p className="mt-2 text-sm text-muted">
         Elige cómo empezar:{" "}
-        <strong className="font-medium text-body">un solo cuarto</strong> (rápido) o{" "}
+        <strong className="font-medium text-body">un cuarto o loft</strong> (rápido) o{" "}
         <strong className="font-medium text-body">una propiedad con varios cuartos</strong>.
       </p>
       {apiOn && me === null ? (
@@ -1963,7 +1963,7 @@ export function PublishWizardPage() {
       {draft.postMode === "room" ? (
         <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4">
           <p className="text-sm text-body">
-            Estás publicando <strong>solo un cuarto</strong>. Si después quieres subir más fotos, agregar cuartos o
+            Estás publicando <strong>un cuarto o loft</strong>. Si después quieres subir más fotos, agregar cuartos o
             etiquetar fotos por cuarto/áreas compartidas/fachada, puedes convertirlo a propiedad.
           </p>
           <button
