@@ -2,8 +2,22 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+/** Injects Figma HTML-to-design capture script when `VITE_FIGMA_CAPTURE=1` (dev only). */
+function figmaCaptureInjectPlugin() {
+  return {
+    name: "figma-capture-inject",
+    transformIndexHtml(html: string) {
+      if (process.env.VITE_FIGMA_CAPTURE !== "1") return html;
+      return html.replace(
+        "</body>",
+        '    <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>\n  </body>',
+      );
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), figmaCaptureInjectPlugin()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "src") },
   },
