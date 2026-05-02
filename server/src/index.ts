@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -21,7 +22,11 @@ function resolveWebDistDir(): string | undefined {
 
 function resolveListenPort(): number {
   const raw = process.env.PORT?.trim();
-  if (!raw) return 3000;
+  if (!raw) {
+    // Railway injects PORT at runtime; if it is missing, web healthchecks still target 8080 by default.
+    const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_ID);
+    return onRailway ? 8080 : 3000;
+  }
   const n = Number(raw);
   return Number.isInteger(n) && n > 0 && n <= 65535 ? n : 3000;
 }
@@ -77,14 +82,30 @@ const app = createApp(db, {
   ...(webDistDir ? { webDistDir } : {}),
 });
 
-const listenHost = process.env.LISTEN_HOST?.trim() || "0.0.0.0";
+/** When set, bind this host; otherwise use Node’s default (dual-stack when the OS supports it). */
+const listenHost = process.env.LISTEN_HOST?.trim();
 
-app.listen(PORT, listenHost, () => {
-  console.log(`bestie.mx API listening on ${listenHost}:${PORT}`);
+const server = http.createServer(app);
+server.on("error", (err) => {
+  console.error("[boot] HTTP server failed to bind:", err);
+  process.exit(1);
+});
+if (listenHost) {
+  server.listen(PORT, listenHost, onListen);
+} else {
+  // No host → Node picks :: or 0.0.0.0; avoids IPv4-only bind missing Railway’s IPv6 probes.
+  server.listen(PORT, onListen);
+}
+
+function onListen() {
+  console.log(
+    `[boot] PORT env=${process.env.PORT ?? "(unset)"} bind=${listenHost ?? "(node default)"} → listening on ${PORT}`,
+  );
+  console.log(`bestie.mx API listening on port ${PORT}`);
   console.log(`SQLite: ${databasePath}`);
   if (webDistDir) {
     console.log(`[web] SPA + API same origin from ${webDistDir}`);
   }
   logOutboundMailHintIfDisabled();
   void verifySmtpConnection();
-});
+}

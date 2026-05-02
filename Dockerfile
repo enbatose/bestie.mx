@@ -12,6 +12,8 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Railway normally overrides at runtime; if PORT were ever missing, healthchecks default to 8080.
+ENV PORT=8080
 COPY --from=build /app/server/node_modules ./server/node_modules
 COPY --from=build /app/server/package.json ./server/package.json
 COPY --from=build /app/server/dist ./server/dist
