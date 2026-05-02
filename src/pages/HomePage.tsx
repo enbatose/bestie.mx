@@ -70,9 +70,9 @@ export function HomePage() {
             Tu depa, <span className="text-secondary">tus reglas</span>. Encuentra roomies en las
             ciudades donde vives o quieres estar.
           </h1>
-          <p className="mt-4 max-w-2xl text-base text-primary-fg/90 sm:text-lg">
+          <p className="mt-4 max-w-2xl text-lg leading-7 text-primary-fg/90">
             Mapa con pins, filtros por ubicación, presupuesto, etiquetas, preferencia de roomies y
-            edad. Publica por propiedad o por cuarto con un flujo claro, pensado mobile-first.
+            edad. Publica por propiedad o por cuarto con un flujo claro.
           </p>
           <div
             id="hero-busqueda"
