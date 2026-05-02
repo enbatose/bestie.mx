@@ -988,7 +988,7 @@ export function PublishWizardPage() {
                 {draft.isApproximateLocation ? (
                   <p className="mt-2 rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
                     Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
-                    búsqueda mostrará una ubicación aproximada en lugar del punto exacto.
+                    búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro mostrado en el mapa.
                   </p>
                 ) : null}
 
