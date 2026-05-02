@@ -47,7 +47,7 @@ export function HomePage() {
             />
           </div>
           <p className="text-sm font-medium uppercase tracking-wider text-accent">
-            México · depas compartidos
+            México · Vivienda compartida
           </p>
           <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
             Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
