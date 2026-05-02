@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { AuthModal } from "@/components/AuthModal";
@@ -8,17 +8,28 @@ import { analyticsHeartbeat, authMe, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 
 export function AppShellLayout() {
+  const location = useLocation();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
 
   const profileIncomplete = me != null && me.id && Boolean(me.email && !me.phoneE164);
 
+  const refreshMe = useCallback(async () => {
+    try {
+      setMe(await authMe());
+    } catch {
+      setMe(null);
+    }
+  }, []);
+
   useEffect(() => {
     void analyticsHeartbeat();
-    void authMe()
-      .then(setMe)
-      .catch(() => setMe(null));
   }, []);
+
+  /** Keep header badge and menu in sync after login, profile PATCH, etc. (without full page reload). */
+  useEffect(() => {
+    void refreshMe();
+  }, [location.pathname, refreshMe]);
 
   useEffect(() => {
     if (!me?.id) {
