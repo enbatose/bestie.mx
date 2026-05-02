@@ -65,12 +65,12 @@ export function HomePage() {
             México · depas compartidos
           </p>
           <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
-            Tu depa, <span className="text-secondary">tus reglas</span>. Encuentra roomies en las
+            Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
             ciudades donde vives o quieres estar.
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-7 text-primary-fg/90">
-            Mapa con pins, filtros por ubicación, presupuesto, etiquetas, preferencia de roomies y
-            edad. Publica por propiedad o por cuarto con un flujo claro.
+            Bestie.mx te permite encontrar roomies de forma rápida y segura. Priorizamos la búsqueda
+            por ubicación sin sacrificar los filtros que de verdad te importan.
           </p>
           <div
             id="hero-busqueda"
@@ -89,7 +89,7 @@ export function HomePage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") goSearch();
                 }}
-                placeholder="Ciudad, colonia o punto de interés…"
+                placeholder="Ciudad o colonia"
                 className="min-h-12 w-full flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-base text-primary-fg placeholder:text-primary-fg/60 backdrop-blur focus:border-accent focus:bg-white/15"
               />
               <button
@@ -129,9 +129,9 @@ export function HomePage() {
 
       <section className="border-t border-border bg-primary px-4 py-10 text-center text-primary-fg sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <h2 className="text-lg font-bold tracking-tight sm:text-xl">Publicar anuncio</h2>
+          <h2 className="text-lg font-bold tracking-tight sm:text-xl">Publicar anuncios</h2>
           <p className="mt-2 text-sm text-primary-fg/90">
-            Publica cuarto(s) o vivienda completa con el asistente paso a paso en Bestie.
+            Publica un cuarto o múltiples cuartos como parte de una propiedad completa.
           </p>
           <div className="mt-5 flex justify-center">
             <Link
@@ -149,15 +149,15 @@ export function HomePage() {
           {[
             {
               title: "Propiedad y cuartos",
-              body: "Un anuncio por propiedad; cada cuarto con su estado (borrador, publicado, pausado, archivado).",
+              body: "Publica un cuarto de forma rápida. Adicionalmente, ofrecemos publicaciones de propiedad, para mostrar múltiples cuartos y áreas comunes de forma clara.",
             },
             {
               title: "Mapa + lista",
-              body: "Pins en mapa y tarjetas sincronizadas para explorar por zona, con datos de ejemplo hasta conectar la API.",
+              body: "Interfaz de mapa con pins y listado de publicaciones para explorar por zona.",
             },
             {
-              title: "Cuenta y comunidad",
-              body: "WhatsApp OTP y correo vía API, webhook de Messenger con handoff a publicar, y grupos para rentar en equipo.",
+              title: "Filtros relevantes",
+              body: "Selecciona los filtros más relevantes como género de roomies buscados o existentes, rango de edad, baño privado, estacionamiento, entre muchos otros.",
             },
           ].map((card) => (
             <article
