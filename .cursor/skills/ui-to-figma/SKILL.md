@@ -56,6 +56,8 @@ Confirm port (e.g. Vite default **5173**) and that the home/route loads in a nor
 1. If the user has no file yet: **`create_new_file`** with `editorType: "design"` and `planKey` from **`whoami`** (`key` on the chosen plan).
 2. If adding to an existing file: use **`fileKey`** from `figma.com/design/{fileKey}/...`.
 
+**Avoid a common miss:** If the user already has a **user-flow / handoff** Figma (e.g. pages like `11 · Publicar` with placeholder frames from `docs/figma/flows/`), **do not** default to `create_new_file`. Ask for that file’s **design URL** (or `fileKey`) and pass **`nodeId`** for the target **page** so `generate_figma_design` drops captures **on that page**. Otherwise captures land in a new file and the user’s flow page still shows only placeholders.
+
 **Optional `nodeId`:** Figma **page** id (e.g. `2:4` for a page named `02 · Home`). Obtain via **`use_figma`** code such as:
 
 `figma.root.children.map((p) => p.name + '=' + p.id).join('|')`
