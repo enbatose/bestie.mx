@@ -39,32 +39,32 @@ export function HomePage() {
           className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-secondary/20 blur-3xl"
           aria-hidden
         />
-        <div className="relative z-10 mx-auto max-w-6xl">
-          <div className="mb-6 max-w-xl">
+        <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center text-center">
+          <div className="mb-6 flex w-full justify-center">
             <BrandLogo
               variant="onDark"
-              imgClassName="h-10 w-auto max-w-[min(100%,280px)] object-left sm:h-12 sm:max-w-[320px]"
+              imgClassName="h-10 w-auto max-w-[min(100%,280px)] object-center sm:h-12 sm:max-w-[320px]"
             />
           </div>
           <p className="text-sm font-medium uppercase tracking-wider text-accent">
             México · Vivienda compartida
           </p>
-          <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
+          <h1 className="mt-3 max-w-3xl text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
             Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
             ciudades donde vives o quieres estar.
           </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-7 text-primary-fg/90">
+          <p className="mt-4 max-w-2xl text-balance text-lg leading-7 text-primary-fg/90">
             Bestie.mx te permite encontrar roomies de forma rápida y segura. Priorizamos la búsqueda
             por ubicación sin sacrificar los filtros que de verdad te importan.
           </p>
           <div
             id="hero-busqueda"
-            className="mt-8 flex scroll-mt-24 flex-col gap-3 sm:flex-row sm:items-center"
+            className="mt-8 flex w-full max-w-xl scroll-mt-24 flex-col items-stretch gap-3"
           >
             <label className="sr-only" htmlFor="search-q">
               Buscar ciudad o colonia
             </label>
-            <div className="flex w-full max-w-xl flex-col gap-2 sm:flex-row">
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
               <input
                 ref={searchInputRef}
                 id="search-q"
