@@ -259,6 +259,7 @@ function convertRoomDraftToProperty(d: Draft): Draft {
   return {
     ...d,
     postMode: "property",
+    ...(d.propertyKind === "loft" ? { propertyBedroomsTotal: 1 } : {}),
     propertyTitle: d.propertyTitle.trim().toLowerCase() === "sin título" ? "" : d.propertyTitle,
     propertySummary: isDefaultPropertySummarySeed(d.propertySummary) ? "" : d.propertySummary,
     rooms,
@@ -275,7 +276,12 @@ function isFreshDefaultDraft(d: Draft): boolean {
 /** Autosave must not create server rows until required numbers are set (defaults are empty/zero). */
 function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   if (!Number.isFinite(d.propertyBedroomsTotal) || d.propertyBedroomsTotal < 1) return false;
-  if (!Number.isFinite(d.propertyBathrooms) || d.propertyBathrooms <= 0) return false;
+  if (
+    showWizardPropertyBathroomsField(d) &&
+    (!Number.isFinite(d.propertyBathrooms) || d.propertyBathrooms <= 0)
+  ) {
+    return false;
+  }
   for (const r of d.rooms) {
     if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) return false;
     if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) return false;
@@ -296,6 +302,18 @@ function normalizeWhatsApp(s: string): string {
   return s.replace(/\D/g, "");
 }
 
+/** Show "Baños (total)" for loft listings, or in full-property (multi-room) wizard mode. */
+function showWizardPropertyBathroomsField(d: Draft): boolean {
+  return d.propertyKind === "loft" || d.postMode === "property";
+}
+
+/** Bathrooms sent to the API (minimum 1 when the field is hidden we still persist a sensible default). */
+function effectiveWizardPropertyBathrooms(d: Draft): number {
+  const b = d.propertyBathrooms;
+  if (Number.isFinite(b) && b > 0) return b;
+  return 1;
+}
+
 function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
   if (opts.upgrade) return 2;
 
@@ -304,8 +322,8 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
     (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) ||
     !Number.isFinite(draft.propertyBedroomsTotal) ||
     draft.propertyBedroomsTotal < 1 ||
-    !Number.isFinite(draft.propertyBathrooms) ||
-    draft.propertyBathrooms <= 0;
+    (showWizardPropertyBathroomsField(draft) &&
+      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0));
 
   if (propertyDetailsMissing) return 2;
 
@@ -383,7 +401,8 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     propertySummary:
       p.status === "draft" && isDefaultPropertySummarySeed(p.summary) ? "" : p.summary?.trim() ? p.summary : "",
     propertyKind: p.propertyKind ?? "house",
-    propertyBedroomsTotal: p.bedroomsTotal,
+    propertyBedroomsTotal:
+      p.propertyKind === "loft" ? 1 : p.bedroomsTotal,
     propertyBathrooms: p.bathrooms,
     occupiedByWomenCount:
       p.occupiedByWomenCount != null && Number.isFinite(Number(p.occupiedByWomenCount))
@@ -787,7 +806,7 @@ export function PublishWizardPage() {
             contactWhatsApp: wa,
             propertyKind: d.propertyKind,
             bedroomsTotal: d.propertyBedroomsTotal,
-            bathrooms: d.propertyBathrooms,
+            bathrooms: effectiveWizardPropertyBathrooms(d),
             showWhatsApp: d.showWhatsApp,
             imageUrls: d.propertyImageUrls,
             isApproximateLocation: d.isApproximateLocation,
@@ -840,7 +859,7 @@ export function PublishWizardPage() {
             contactWhatsApp: wa,
             propertyKind: d.propertyKind,
             bedroomsTotal: d.propertyBedroomsTotal,
-            bathrooms: d.propertyBathrooms,
+            bathrooms: effectiveWizardPropertyBathrooms(d),
             showWhatsApp: d.showWhatsApp,
             imageUrls: d.propertyImageUrls,
             isApproximateLocation: d.isApproximateLocation,
@@ -1141,15 +1160,20 @@ export function PublishWizardPage() {
 
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">
-                Detalles del espacio
+                Detalles de la propiedad
               </h3>
               <label className="block text-sm font-medium text-body">
                 Tipo de vivienda
                 <select
                   value={draft.propertyKind}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, propertyKind: e.target.value as PropertyKind }))
-                  }
+                  onChange={(e) => {
+                    const kind = e.target.value as PropertyKind;
+                    setDraft((d) => ({
+                      ...d,
+                      propertyKind: kind,
+                      ...(kind === "loft" ? { propertyBedroomsTotal: 1 } : {}),
+                    }));
+                  }}
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 >
                   <option value="house">Casa</option>
@@ -1157,16 +1181,31 @@ export function PublishWizardPage() {
                   <option value="loft">Loft</option>
                 </select>
               </label>
-              <div className="grid gap-4 sm:grid-cols-2">
+              {draft.propertyKind === "loft" ? (
+                <p className="text-xs text-muted leading-relaxed">
+                  <strong className="text-body">Tip</strong>
+                  {": Un loft es una propiedad completa únicamente de un cuarto sin contar áreas como sala, comedor, o cocina."}
+                </p>
+              ) : null}
+              <div
+                className={`grid gap-4 ${showWizardPropertyBathroomsField(draft) ? "sm:grid-cols-2" : ""}`}
+              >
                 <label className="block text-sm font-medium text-body">
-                  ¿Cuántos cuartos tiene la vivienda completa?
+                  ¿Cuántos cuartos tiene la propiedad completa?
                   <span className="text-red-600"> *</span>
                   <input
                     type="number"
                     min={1}
                     max={35}
                     step={1}
-                    value={draft.propertyBedroomsTotal === 0 ? "" : draft.propertyBedroomsTotal}
+                    disabled={draft.propertyKind === "loft"}
+                    value={
+                      draft.propertyKind === "loft"
+                        ? 1
+                        : draft.propertyBedroomsTotal === 0
+                          ? ""
+                          : draft.propertyBedroomsTotal
+                    }
                     onChange={(e) =>
                       setDraft((d) => ({
                         ...d,
@@ -1176,33 +1215,40 @@ export function PublishWizardPage() {
                         ),
                       }))
                     }
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
                   />
                   <span className="mt-1 block text-xs text-muted">
                     Incluye cuartos ocupados y libres.
                   </span>
                 </label>
-                <label className="block text-sm font-medium text-body">
-                  Baños (total)
-                  <span className="text-red-600"> *</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={99}
-                    step={0.5}
-                    value={draft.propertyBathrooms === 0 ? "" : draft.propertyBathrooms}
-                    onChange={(e) =>
-                      setDraft((d) => ({
-                        ...d,
-                        propertyBathrooms: Math.min(
-                          99,
-                          Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
-                        ),
-                      }))
-                    }
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-                  />
-                </label>
+                {showWizardPropertyBathroomsField(draft) ? (
+                  <div>
+                    <label className="block text-sm font-medium text-body">
+                      Baños (total)
+                      <span className="text-red-600"> *</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={99}
+                        step={0.5}
+                        value={draft.propertyBathrooms === 0 ? "" : draft.propertyBathrooms}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            propertyBathrooms: Math.min(
+                              99,
+                              Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
+                            ),
+                          }))
+                        }
+                        className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                      />
+                    </label>
+                    {draft.propertyKind === "loft" ? (
+                      <span className="mt-1 block text-xs text-muted">Todos los baños del Loft</span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
@@ -1842,7 +1888,10 @@ export function PublishWizardPage() {
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
       return "Indica cuántos cuartos tiene la propiedad (total, mínimo 1).";
     }
-    if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
+    if (
+      showWizardPropertyBathroomsField(draft) &&
+      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
+    ) {
       return "Indica cuántos baños tiene la propiedad (total, mayor a 0).";
     }
     if (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
@@ -1875,7 +1924,10 @@ export function PublishWizardPage() {
       setPublishErr("Indica cuántos cuartos tiene la propiedad (total, mínimo 1).");
       return;
     }
-    if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
+    if (
+      showWizardPropertyBathroomsField(draft) &&
+      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
+    ) {
       setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
       return;
     }
@@ -1934,7 +1986,7 @@ export function PublishWizardPage() {
           contactWhatsApp: draft.showWhatsApp ? digits : "",
           propertyKind: draft.propertyKind,
           bedroomsTotal: draft.propertyBedroomsTotal,
-          bathrooms: draft.propertyBathrooms,
+          bathrooms: effectiveWizardPropertyBathrooms(draft),
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
           isApproximateLocation: draft.isApproximateLocation,
@@ -1966,7 +2018,7 @@ export function PublishWizardPage() {
           contactWhatsApp: draft.showWhatsApp ? digits : "",
           propertyKind: draft.propertyKind,
           bedroomsTotal: draft.propertyBedroomsTotal,
-          bathrooms: draft.propertyBathrooms,
+          bathrooms: effectiveWizardPropertyBathrooms(draft),
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
           isApproximateLocation: draft.isApproximateLocation,
@@ -2020,7 +2072,10 @@ export function PublishWizardPage() {
       setPublishErr("Indica cuántos cuartos tiene la propiedad (total, mínimo 1).");
       return;
     }
-    if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
+    if (
+      showWizardPropertyBathroomsField(draft) &&
+      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
+    ) {
       setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
       return;
     }
