@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
-import { useAuthModal } from "@/contexts/AuthModalContext";
 import { fetchFeaturedCities } from "@/lib/authApi";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 import { withDefaultSearchCity } from "@/lib/searchDefaults";
 
-const DEFAULT_CITIES = [
-  "Guadalajara",
+const DEFAULT_CITIES = ["Guadalajara"] as const;
+
+/** Cities removed from the home list (still allowed in search data if present). */
+const HOME_CITY_BLOCKLIST = new Set([
   "Mérida",
   "Puerto Vallarta",
   "Sayulita",
   "Bucerías",
-] as const;
+]);
+
+function filterHomeCities(list: string[]): string[] {
+  return [...new Set(list.map((c) => c.trim()).filter(Boolean))].filter((c) => !HOME_CITY_BLOCKLIST.has(c));
+}
 
 function buildSearchParams(query: string): URLSearchParams {
   return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: withDefaultSearchCity(query) });
@@ -20,14 +25,14 @@ function buildSearchParams(query: string): URLSearchParams {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { openLogin, openRegister } = useAuthModal();
   const [searchQuery, setSearchQuery] = useState("");
-  const [cityChoices, setCityChoices] = useState<string[]>([...DEFAULT_CITIES]);
+  const [cityChoices, setCityChoices] = useState<string[]>(filterHomeCities([...DEFAULT_CITIES]));
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void fetchFeaturedCities().then((fc) => {
-      if (fc.length) setCityChoices([...new Set([...fc, ...DEFAULT_CITIES])]);
+      const merged = filterHomeCities([...new Set([...fc, ...DEFAULT_CITIES])]);
+      setCityChoices(merged.length ? merged : [...DEFAULT_CITIES]);
     });
   }, []);
 
@@ -35,18 +40,11 @@ export function HomePage() {
     navigate({ pathname: "/buscar", search: `?${buildSearchParams(searchQuery).toString()}` });
   }, [navigate, searchQuery]);
 
-  const selectCity = useCallback(
+  const goSearchForCity = useCallback(
     (city: string) => {
-      setSearchQuery(city);
-      document.getElementById("hero-busqueda")?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      queueMicrotask(() => {
-        searchInputRef.current?.focus({ preventScroll: true });
-      });
+      navigate({ pathname: "/buscar", search: `?${buildSearchParams(city).toString()}` });
     },
-    [],
+    [navigate],
   );
 
   return (
@@ -108,32 +106,23 @@ export function HomePage() {
 
       <section className="border-b border-border bg-surface px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-lg font-semibold text-body sm:text-xl">Ciudades al inicio</h2>
+          <h2 className="text-lg font-semibold text-body sm:text-xl">Ciudades disponibles</h2>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {cityChoices.map((city) => {
-              const active = searchQuery.trim() === city;
-              return (
-                <li key={city}>
-                  <button
-                    type="button"
-                    aria-pressed={active}
-                    aria-label={`Buscar en ${city}`}
-                    onClick={() => selectCity(city)}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition hover:bg-surface-elevated ${
-                      active
-                        ? "border-secondary bg-surface-elevated text-primary ring-2 ring-secondary/40"
-                        : "border-border bg-bg-light text-body hover:border-secondary"
-                    }`}
-                  >
-                    {city}
-                  </button>
-                </li>
-              );
-            })}
+            {cityChoices.map((city) => (
+              <li key={city}>
+                <button
+                  type="button"
+                  aria-label={`Abrir mapa de búsqueda en ${city}`}
+                  onClick={() => goSearchForCity(city)}
+                  className="rounded-full border border-border bg-bg-light px-4 py-2 text-sm font-medium text-body transition hover:border-secondary hover:bg-surface-elevated"
+                >
+                  {city}
+                </button>
+              </li>
+            ))}
           </ul>
           <p className="mt-4 text-sm text-muted">
-            Tip: elige una ciudad y luego <span className="font-medium text-body">Buscar</span>{" "}
-            para ver el mapa y la lista con filtros obligatorios.
+            Toca una ciudad para ir al mapa y a la lista con filtros para esa zona.
           </p>
         </div>
       </section>
@@ -144,27 +133,13 @@ export function HomePage() {
           <p className="mt-2 text-sm text-primary-fg/90">
             Publica cuarto(s) o vivienda completa con el asistente paso a paso en Bestie.
           </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-5 flex justify-center">
             <Link
               to="/publicar"
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-secondary px-8 text-base font-bold text-primary shadow-md transition hover:brightness-95"
             >
               Publicar anuncio
             </Link>
-            <button
-              type="button"
-              onClick={() => openRegister()}
-              className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/40 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
-            >
-              Regístrate
-            </button>
-            <button
-              type="button"
-              onClick={() => openLogin()}
-              className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-white/40 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
-            >
-              Iniciar sesión
-            </button>
           </div>
         </div>
       </section>
@@ -201,27 +176,6 @@ export function HomePage() {
               <p className="mt-2 text-sm leading-relaxed text-muted">{card.body}</p>
             </article>
           ))}
-        </div>
-        <div className="mx-auto mt-10 max-w-6xl rounded-2xl border border-border bg-bg-light p-6 sm:p-8">
-          <h3 className="text-base font-semibold text-body sm:text-lg">Explora el MVP</h3>
-          <p className="mt-2 max-w-2xl text-sm text-muted">
-            Abre búsqueda con datos de muestra, revisa un anuncio y prueba el borrador de publicación
-            (se guarda en tu navegador).
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              to="/buscar"
-              className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-            >
-              Ir a buscar
-            </Link>
-            <Link
-              to="/publicar"
-              className="inline-flex items-center justify-center rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
-            >
-              Publicar cuarto
-            </Link>
-          </div>
         </div>
       </section>
     </>

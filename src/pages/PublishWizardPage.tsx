@@ -94,23 +94,13 @@ type ServerSync = {
   roomIds: string[];
 };
 
-const CITIES = [
-  "Guadalajara",
-  "Mérida",
-  "Puerto Vallarta",
-  "Sayulita",
-  "Bucerías",
-] as const;
+const CITIES = ["Guadalajara"] as const;
 
 const CITY_ANCHOR: Record<
   (typeof CITIES)[number],
   { neighborhood: string; lat: number; lng: number }
 > = {
   Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.675_138, lng: -103.347_345 },
-  Mérida: { neighborhood: "Centro", lat: 20.967_37, lng: -89.592_586 },
-  "Puerto Vallarta": { neighborhood: "Zona hotelera", lat: 20.653_4, lng: -105.225_331 },
-  Sayulita: { neighborhood: "Centro", lat: 20.870_789, lng: -105.440_849 },
-  Bucerías: { neighborhood: "Centro", lat: 20.755_056, lng: -105.333_056 },
 };
 
 type RoomDraft = {
@@ -1932,8 +1922,6 @@ export function PublishWizardPage() {
 
   async function submitServerDraft() {
     setPublishErr(null);
-    const anchor = CITY_ANCHOR[draft.city];
-    const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
     if (draft.postMode !== "room" && !draft.propertyTitle.trim()) {
       setPublishErr("Agrega el nombre de la propiedad.");

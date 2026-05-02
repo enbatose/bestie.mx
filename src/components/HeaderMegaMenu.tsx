@@ -138,9 +138,13 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         <div className="px-1 py-1">
           <ThemeToggle />
         </div>
-        <NavLink to="/contacto" className={navClass} onClick={dismissNav}>
+        <a
+          href="mailto:soporte@bestie.mx"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-body transition hover:bg-surface-elevated"
+          onClick={dismissNav}
+        >
           Contacto
-        </NavLink>
+        </a>
         <NavLink to="/legal" className={navClass} onClick={dismissNav}>
           Legal
         </NavLink>

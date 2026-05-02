@@ -14,7 +14,7 @@ import {
   sendMessengerText,
 } from "./messengerSend.js";
 
-const DEFAULT_FEATURED = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"];
+const DEFAULT_FEATURED = ["Guadalajara"];
 const DEFAULT_SEARCH_CITY = "Guadalajara";
 
 function featuredCitiesList(db: DatabaseSync): string[] {
@@ -54,7 +54,7 @@ async function sendHelp(psid: string, base: string): Promise<void> {
       "Puedes buscar cuarto con filtros guiados (ciudad, presupuesto, preferencia de roomies) y ver resultados aquí.",
       `Mapa y filtros avanzados: ${base}/buscar`,
       `Publicar (fotos y mapa en la web): usa “Publicar” o ${base}/publicar`,
-      "Soporte: support@bestie.mx",
+      "Soporte: soporte@bestie.mx",
     ].join("\n\n"),
   );
 }

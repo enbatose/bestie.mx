@@ -54,16 +54,19 @@ export function AppShellLayout() {
               <p className="text-sm text-muted">
                 © {new Date().getFullYear()} Bestie™ ·{" "}
                 <a
-                  href="mailto:support@bestie.mx"
+                  href="mailto:soporte@bestie.mx"
                   className="font-medium text-primary underline-offset-2 hover:underline"
                 >
-                  support@bestie.mx
+                  soporte@bestie.mx
                 </a>
               </p>
               <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-primary">
-                <Link to="/contacto" className="underline-offset-2 hover:underline">
+                <a
+                  href="mailto:soporte@bestie.mx"
+                  className="inline-flex items-center justify-center rounded-full border border-border bg-bg-light px-4 py-2 font-semibold text-body shadow-sm transition hover:bg-surface-elevated"
+                >
                   Contacto
-                </Link>
+                </a>
                 <Link to="/faq" className="underline-offset-2 hover:underline">
                   FAQ
                 </Link>
