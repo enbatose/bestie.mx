@@ -99,6 +99,29 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(me.body.displayName).toBe("Nuevo Nombre");
   });
 
+  it("PATCH /api/auth/me saves phone_e164 from phone string", async () => {
+    const em = `edit-ph-${testId}@test.mx`;
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+    const r = await agent.patch("/api/auth/me").send({ phone: "3312345678" }).expect(200);
+    expect(r.body).toMatchObject({ ok: true, changed: true });
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.phoneE164).toBe("+523312345678");
+    const r2 = await agent.patch("/api/auth/me").send({ phone: "3312345678" }).expect(200);
+    expect(r2.body).toMatchObject({ ok: true, changed: false });
+  });
+
+  it("PATCH /api/auth/me rejects phone already on another user", async () => {
+    const em1 = `ph-a-${testId}@test.mx`;
+    const em2 = `ph-b-${testId}@test.mx`;
+    const a1 = request.agent(app);
+    const a2 = request.agent(app);
+    await a1.post("/api/auth/register").send({ email: em1, password: "longenough1" }).expect(201);
+    await a2.post("/api/auth/register").send({ email: em2, password: "longenough1" }).expect(201);
+    await a1.patch("/api/auth/me").send({ phone: "5511112222" }).expect(200);
+    await a2.patch("/api/auth/me").send({ phone: "5511112222" }).expect(409);
+  });
+
   it("PATCH /api/auth/me requires current password to change email", async () => {
     const em1 = `edit-em1-${testId}@test.mx`;
     const em2 = `edit.em2-${testId}@gmail.com`;

@@ -90,7 +90,9 @@ export async function authLogin(
       throw new Error("Correo o contraseña incorrectos.");
     }
     if (j.error === "wa_only_account") {
-      throw new Error("Esta cuenta fue creada con WhatsApp OTP. Entra con WhatsApp desde la página completa.");
+      throw new Error(
+        "Esta cuenta no tiene contraseña y el acceso por código WhatsApp está desactivado. Contacta soporte si necesitas recuperarla.",
+      );
     }
     throw new Error(j.error || `login_${res.status}`);
   }
@@ -100,6 +102,8 @@ export type UpdateMeBody = {
   displayName?: string;
   email?: string;
   currentPassword?: string;
+  /** Celular en formato libre (+52… o 10 dígitos MX); se guarda como E.164 sin validación por WhatsApp. */
+  phone?: string;
 };
 
 export type UpdateMeResult = {
@@ -129,6 +133,14 @@ export async function authUpdateMe(body: UpdateMeBody, signal?: AbortSignal): Pr
     }
     if (err === "invalid_display_name") {
       throw new Error("Nombre inválido.");
+    }
+    if (err === "invalid_phone") {
+      throw new Error(
+        typeof j.message === "string" ? j.message : "Número inválido (usa 10 dígitos o +52…).",
+      );
+    }
+    if (err === "phone_taken") {
+      throw new Error(typeof j.message === "string" ? j.message : "Ese número ya está en otra cuenta.");
     }
     if (err === "invalid_password") {
       throw new Error("Contraseña actual incorrecta.");
@@ -191,55 +203,6 @@ export async function authLinkPublisher(signal?: AbortSignal): Promise<boolean> 
   if (res.status === 409) return true;
   if (!res.ok) throw new Error(`link_publisher_${res.status}`);
   return true;
-}
-
-export type WaRequestResult =
-  | { ok: true; devCode?: string; message?: string }
-  | { ok: false; error: string; retryAfterMs?: number };
-
-export async function authWhatsAppRequest(
-  phone: string,
-  signal?: AbortSignal,
-): Promise<WaRequestResult> {
-  const base = apiBase();
-  const res = await networkFetch(`${base}/api/auth/whatsapp/request`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...deviceHeaders() },
-    credentials: cred,
-    body: JSON.stringify({ phone }),
-    signal,
-  });
-  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) {
-    return {
-      ok: false,
-      error: String(j.error ?? "request_failed"),
-      retryAfterMs: typeof j.retryAfterMs === "number" ? j.retryAfterMs : undefined,
-    };
-  }
-  return {
-    ok: true,
-    devCode: typeof j.devCode === "string" ? j.devCode : undefined,
-    message: typeof j.message === "string" ? j.message : undefined,
-  };
-}
-
-export async function authWhatsAppVerify(
-  body: { phone: string; code: string },
-  signal?: AbortSignal,
-): Promise<void> {
-  const base = apiBase();
-  const res = await networkFetch(`${base}/api/auth/whatsapp/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...deviceHeaders() },
-    credentials: cred,
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(j.error || `verify_${res.status}`);
-  }
 }
 
 export type HandoffConsumeResult = {

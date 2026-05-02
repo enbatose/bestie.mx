@@ -84,7 +84,7 @@ export function ProfilePage() {
           <p className="font-medium">Completa tu perfil</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
             <li>
-              Vincula WhatsApp desde{" "}
+              Añade tu número (WhatsApp) desde{" "}
               <Link to="/entrar?tab=wa" className="font-semibold underline">
                 Entrar → pestaña WhatsApp
               </Link>

@@ -150,6 +150,7 @@ export function authRouter(db: DatabaseSync) {
       displayName?: unknown;
       email?: unknown;
       currentPassword?: unknown;
+      phone?: unknown;
     };
 
     const sets: string[] = [];
@@ -164,6 +165,29 @@ export function authRouter(db: DatabaseSync) {
       if (dn !== row.display_name) {
         sets.push("display_name = ?");
         params.push(dn);
+      }
+    }
+
+    if (typeof body.phone === "string") {
+      const digits = normalizeWhatsAppDigits(body.phone);
+      if (!digits) {
+        res.status(400).json({ error: "invalid_phone", message: "Número inválido (usa 10 dígitos o +52…)." });
+        return;
+      }
+      const phoneE164 = phoneE164FromDigits(digits);
+      if (phoneE164 !== (row.phone_e164 ?? "")) {
+        const taken = db
+          .prepare("SELECT id FROM users WHERE phone_e164 = ? AND id != ?")
+          .get(phoneE164, uid) as { id: string } | undefined;
+        if (taken) {
+          res.status(409).json({
+            error: "phone_taken",
+            message: "Ese número ya está vinculado a otra cuenta.",
+          });
+          return;
+        }
+        sets.push("phone_e164 = ?");
+        params.push(phoneE164);
       }
     }
 
