@@ -7,10 +7,10 @@
 buildCommand = "cd /app && npm run build"
 
 [deploy]
-# Run Node directly (not `npm run start`) so Railway SIGTERM reaches the app and
-# you avoid extra npm parent memory + misleading `npm error signal SIGTERM` on shutdown.
-# Prefer absolute path (Railway default root), fall back to relative when WORKDIR is already the repo root.
-startCommand = "sh -c 'if test -f /app/scripts/railway-start-api.sh; then exec sh /app/scripts/railway-start-api.sh; else exec sh scripts/railway-start-api.sh; fi'"
+# Run the compiled API directly. Do not rely on `scripts/` in the image — Railpack’s runtime
+# layer may omit non-essential paths, which would make a shell wrapper fail before Node starts.
+startCommand = "node /app/server/dist/index.js"
 healthcheckPath = "/health"
-healthcheckTimeout = 120
+# Default Railway window is 5m; allow slow volume/SQLite cold open before the HTTP server binds.
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

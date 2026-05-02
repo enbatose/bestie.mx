@@ -1,0 +1,2 @@
+# POSIX shell must use LF so Linux containers (Railway) never see CRLF line-end glitches.
+*.sh text eol=lf

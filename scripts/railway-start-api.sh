@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Resolve monorepo root from this script's path so we work regardless of container WORKDIR
-# (Railpack/Railway may not use /app at runtime).
+# Optional local / custom Docker entry (see `railway.toml` — production uses `node /app/server/dist/index.js`).
+# Resolve monorepo root from this script's path so we work regardless of container WORKDIR.
 set -e
 case "$0" in
   /*) SCRIPT_DIR="${0%/*}" ;;
