@@ -1689,6 +1689,40 @@ export function PublishWizardPage() {
   const current = steps[safeStep]!;
   const isPublishStep = current.title === "Publicar";
 
+  /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */
+  const publishModeParam = searchParams.get("publishMode");
+  const publishStepParam = searchParams.get("publishStep");
+
+  useEffect(() => {
+    if (publishModeParam !== "room" && publishModeParam !== "property") return;
+    setDraft((d) => {
+      if (publishModeParam === "room") {
+        if (d.postMode === "room") return d;
+        return {
+          ...d,
+          postMode: "room",
+          rooms: d.rooms.length ? [d.rooms[0] ?? defaultRoom()] : [defaultRoom()],
+          roomImageUrls: d.roomImageUrls.length ? [[...(d.roomImageUrls[0] ?? [])]] : [[]],
+          propertySummary: "",
+        };
+      }
+      if (d.postMode === "property") return d;
+      return {
+        ...d,
+        postMode: "property",
+        rooms: [defaultRoom()],
+        roomImageUrls: [[]],
+      };
+    });
+  }, [publishModeParam]);
+
+  useEffect(() => {
+    if (publishStepParam == null || publishStepParam === "") return;
+    const n = Number.parseInt(publishStepParam, 10);
+    if (!Number.isFinite(n) || n < 0) return;
+    setStep(Math.min(n, maxStepIndex));
+  }, [publishStepParam, maxStepIndex]);
+
   useLayoutEffect(() => {
     if (step !== safeStep) {
       setStep(safeStep);
