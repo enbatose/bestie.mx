@@ -6,6 +6,7 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
+import { LISTING_TAG_SLUGS } from "@/lib/listingTags";
 
 export type Bbox = {
   minLat: number;
@@ -33,15 +34,7 @@ export type SearchFilters = {
   subletAllowed: boolean | null;
 };
 
-const TAG_SET = new Set<ListingTag>([
-  "wifi",
-  "mascotas",
-  "estacionamiento",
-  "muebles",
-  "baño-privado",
-  "fumar",
-  "fiestas",
-]);
+const TAG_SET = new Set<ListingTag>(LISTING_TAG_SLUGS);
 
 function num(v: string | null): number | null {
   if (v == null || v === "") return null;
@@ -242,6 +235,17 @@ export const TAG_LABELS: Record<ListingTag, string> = {
   "baño-privado": "Baño privado",
   fumar: "Se permite fumar",
   fiestas: "Fiestas OK",
+  "aire-acondicionado": "Aire acondicionado",
+  "seguridad-acceso": "Seguridad / acceso controlado",
+  vigilancia: "Vigilancia o portería",
+  lavanderia: "Lavandería",
+  "cocina-equipada": "Cocina equipada",
+  terraza: "Terraza o balcón",
+  "lgbt-friendly": "LGBT+ friendly",
+  "servicios-incluidos": "Servicios incluidos",
+  "cerradura-cuarto": "Cerradura en el cuarto",
+  "agua-caliente": "Agua caliente",
+  "cerca-transporte": "Cerca de transporte",
 };
 
 export const DEFAULT_SEARCH_FILTERS: SearchFilters = {

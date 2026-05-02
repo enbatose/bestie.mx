@@ -1,17 +1,7 @@
 import type { ListingTag, RoommateGenderPref } from "@/types/listing";
+import { TAG_CHIP_ORDER } from "@/lib/listingTags";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { TAG_LABELS } from "@/lib/searchFilters";
-
-/** Chip order: muebles, mascotas, fumar, estacionamiento, fiestas, baño, Wi‑Fi. */
-const RAIL_TAG_ORDER: ListingTag[] = [
-  "muebles",
-  "mascotas",
-  "fumar",
-  "estacionamiento",
-  "fiestas",
-  "baño-privado",
-  "wifi",
-];
 
 type Props = {
   filters: SearchFilters;
@@ -90,8 +80,89 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
           <path strokeWidth="2" strokeLinecap="round" d="M14 10V8l2-2 2 2v2" />
         </svg>
       );
+    case "aire-acondicionado":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M12 3v2M5 6l1.5 1.5M3 12h2M5 18l1.5-1.5M12 19v2M18.5 16.5 20 18M19 12h2M18.5 7.5 20 6" />
+          <circle cx="12" cy="12" r="4" strokeWidth="2" />
+        </svg>
+      );
+    case "seguridad-acceso":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <rect x="5" y="11" width="14" height="10" rx="1" strokeWidth="2" />
+          <path strokeWidth="2" strokeLinecap="round" d="M9 11V8a3 3 0 0 1 6 0v3" />
+          <circle cx="12" cy="16" r="1.5" fill="currentColor" />
+        </svg>
+      );
+    case "vigilancia":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M12 3 4 8v1c0 5 3.5 9 8 10 4.5-1 8-5 8-10V8l-8-5Z" />
+          <circle cx="12" cy="11" r="2.5" strokeWidth="2" />
+        </svg>
+      );
+    case "lavanderia":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <circle cx="12" cy="13" r="6" strokeWidth="2" />
+          <path strokeWidth="2" strokeLinecap="round" d="M8 7h8M10 4h4" />
+        </svg>
+      );
+    case "cocina-equipada":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <rect x="4" y="6" width="16" height="14" rx="1" strokeWidth="2" />
+          <path strokeWidth="2" d="M8 10h8M8 14h5" />
+        </svg>
+      );
+    case "terraza":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M4 14h16M6 14V9h12v5M8 9V6M16 9V6" />
+          <path strokeWidth="2" strokeLinecap="round" d="M3 18h18" />
+        </svg>
+      );
+    case "lgbt-friendly":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M12 21a9 9 0 1 0-9-9" />
+          <path strokeWidth="2" strokeLinecap="round" d="M12 12v9M8 8l8 8M16 8l-8 8" />
+        </svg>
+      );
+    case "servicios-incluidos":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M4 12h3l2-6 4 12 2-6h5" />
+        </svg>
+      );
+    case "cerradura-cuarto":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <rect x="6" y="10" width="12" height="10" rx="1" strokeWidth="2" />
+          <path strokeWidth="2" strokeLinecap="round" d="M9 10V7a3 3 0 0 1 6 0v3" />
+        </svg>
+      );
+    case "agua-caliente":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M12 3c-2 4-5 5-5 9a5 5 0 0 0 10 0c0-4-3-5-5-9Z" />
+        </svg>
+      );
+    case "cerca-transporte":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <rect x="4" y="5" width="16" height="12" rx="1" strokeWidth="2" />
+          <circle cx="8" cy="18" r="1.5" fill="currentColor" />
+          <circle cx="16" cy="18" r="1.5" fill="currentColor" />
+        </svg>
+      );
     default:
-      return null;
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <circle cx="12" cy="12" r="4" strokeWidth="2" />
+        </svg>
+      );
   }
 }
 
@@ -222,7 +293,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
       <p className="mt-1 hidden w-full select-none text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-primary/80 lg:block">
         Detalle
       </p>
-      {RAIL_TAG_ORDER.map((tag) => {
+      {TAG_CHIP_ORDER.map((tag) => {
         const on = filters.tags.includes(tag);
         return (
           <button

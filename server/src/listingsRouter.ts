@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
+import { isListingTag } from "./listingTags.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
@@ -33,18 +34,6 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "./types.js";
-
-function isListingTag(t: string): t is ListingTag {
-  return (
-    t === "wifi" ||
-    t === "mascotas" ||
-    t === "estacionamiento" ||
-    t === "muebles" ||
-    t === "baño-privado" ||
-    t === "fumar" ||
-    t === "fiestas"
-  );
-}
 
 function optLodging(v: unknown): LodgingType | undefined {
   if (v !== "whole_home" && v !== "private_room" && v !== "shared_room") return undefined;
