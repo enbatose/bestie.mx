@@ -920,8 +920,8 @@ export function PublishWizardPage() {
                 </button>
               </div>
               <p className="text-xs text-muted">
-                <strong className="font-semibold text-body">Tip</strong>: Puedes cambiar la categoría de
-                &quot;Cuarto&quot; a &quot;Propiedad completa&quot; incluso después de haber publicado tu anuncio.
+                <strong className="font-semibold text-body">Tip</strong>: Puedes cambiar el tipo de espacio de
+                &quot;Cuarto&quot; a &quot;Propiedad&quot; incluso después de haber publicado tu anuncio.
               </p>
             </div>
           </form>
