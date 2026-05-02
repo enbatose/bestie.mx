@@ -6,6 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openDb } from "./db.js";
 import { getMessengerChat } from "./messengerSessionStore.js";
 import { processMessengerUserInput } from "./messengerFlows.js";
+import { fetchPublishedListings } from "./publishedListingsQuery.js";
+import { filterListings, parseFilters } from "./searchFilters.js";
 
 describe("Messenger flows (session + state)", () => {
   let dir: string;
@@ -39,5 +41,25 @@ describe("Messenger flows (session + state)", () => {
     await processMessengerUserInput(db, psid, { postback: "MB_SEARCH" });
     const s = getMessengerChat(db, psid);
     expect(s?.flow).toBe("search_city");
+  });
+
+  it("defaults any-city messenger search to Guadalajara", async () => {
+    const psid = "test-psid-3";
+    await processMessengerUserInput(db, psid, { postback: "MB_SEARCH" });
+    await processMessengerUserInput(db, psid, { quickReplyPayload: "MB_CITY:*" });
+    await processMessengerUserInput(db, psid, { quickReplyPayload: "MB_BD:*" });
+    await processMessengerUserInput(db, psid, { quickReplyPayload: "MB_PREF:any" });
+
+    const s = getMessengerChat(db, psid);
+    expect(s?.flow).toBe("idle");
+
+    const filters = parseFilters(
+      new URLSearchParams({
+        q: "Guadalajara",
+      }),
+    );
+    const results = filterListings(fetchPublishedListings(db), filters);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every((listing) => listing.city === "Guadalajara")).toBe(true);
   });
 });

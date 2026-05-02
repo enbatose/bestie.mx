@@ -15,6 +15,7 @@ import {
 } from "./messengerSend.js";
 
 const DEFAULT_FEATURED = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"];
+const DEFAULT_SEARCH_CITY = "Guadalajara";
 
 function featuredCitiesList(db: DatabaseSync): string[] {
   const row = db.prepare(`SELECT value_json FROM site_settings WHERE key = 'featured_cities'`).get() as
@@ -90,7 +91,7 @@ async function sendPrefStep(psid: string): Promise<void> {
 
 function searchParamsFromDraft(draft: MessengerSearchDraft): URLSearchParams {
   const p = new URLSearchParams();
-  const qparts = [draft.city, draft.q].filter(Boolean) as string[];
+  const qparts = [draft.city ?? DEFAULT_SEARCH_CITY, draft.q].filter(Boolean) as string[];
   const q = qparts.join(" ").trim();
   if (q) p.set("q", q);
   if (draft.budgetMax != null) p.set("max", String(draft.budgetMax));
@@ -214,7 +215,7 @@ export async function processMessengerUserInput(
     const c = getMessengerChat(db, psid)!;
     upsertMessengerChat(db, psid, {
       flow: "search_budget",
-      draft: { ...c.draft, city: v === "*" ? null : v },
+      draft: { ...c.draft, city: v === "*" ? DEFAULT_SEARCH_CITY : v },
     });
     await sendBudgetStep(psid);
     return;

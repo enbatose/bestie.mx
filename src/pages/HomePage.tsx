@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { fetchFeaturedCities } from "@/lib/authApi";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
+import { withDefaultSearchCity } from "@/lib/searchDefaults";
 
 const DEFAULT_CITIES = [
   "Guadalajara",
@@ -14,7 +15,7 @@ const DEFAULT_CITIES = [
 ] as const;
 
 function buildSearchParams(query: string): URLSearchParams {
-  return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: query.trim() });
+  return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: withDefaultSearchCity(query) });
 }
 
 export function HomePage() {

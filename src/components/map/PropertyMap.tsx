@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle } from "react-leaflet";
 import L from "leaflet";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
+import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
 import {
   ensureLeafletDefaultIcons,
@@ -20,6 +21,9 @@ type Props = {
   /** When true, debounced map `moveend` reports viewport bounds. */
   searchOnMapMove?: boolean;
   onViewportBbox?: (bbox: Bbox) => void;
+  defaultCenter?: [number, number];
+  defaultZoom?: number;
+  preferDefaultView?: boolean;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -100,22 +104,36 @@ function MapViewportReporter({
   return null;
 }
 
-function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
+function FitBounds({
+  bounds,
+  defaultCenter,
+  defaultZoom,
+  preferDefaultView = false,
+}: {
+  bounds: L.LatLngBounds | null;
+  defaultCenter?: [number, number];
+  defaultZoom?: number;
+  preferDefaultView?: boolean;
+}) {
   const map = useMap();
   useEffect(() => {
     const el = map.getContainer();
     if (!el?.isConnected) return;
     try {
       map.invalidateSize({ animate: false });
-      if (bounds?.isValid()) {
+      if (preferDefaultView && defaultCenter) {
+        map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
+      } else if (bounds?.isValid()) {
         map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
+      } else if (defaultCenter) {
+        map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
       } else {
         map.setView(MEXICO_CENTER, 5);
       }
     } catch {
       /* map may be tearing down (React StrictMode / route change) */
     }
-  }, [bounds, map]);
+  }, [bounds, defaultCenter, defaultZoom, map, preferDefaultView]);
   return null;
 }
 
@@ -127,6 +145,9 @@ export function PropertyMap({
   className = "",
   searchOnMapMove = false,
   onViewportBbox,
+  defaultCenter,
+  defaultZoom,
+  preferDefaultView = false,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -139,9 +160,13 @@ export function PropertyMap({
   }, [listings]);
 
   const center = useMemo((): [number, number] => {
+    if (preferDefaultView && defaultCenter) return defaultCenter;
     if (bounds) return bounds.getCenter();
+    if (defaultCenter) return defaultCenter;
     return MEXICO_CENTER;
-  }, [bounds]);
+  }, [bounds, defaultCenter, preferDefaultView]);
+
+  const zoom = preferDefaultView && defaultZoom != null ? defaultZoom : 11;
 
   const shell = embed
     ? `min-h-0 overflow-hidden bg-surface-elevated ${className}`
@@ -156,7 +181,7 @@ export function PropertyMap({
       <MapContainer
         key={embed ? "property-map-embed" : listings.map((l) => l.id).join("|") || "empty"}
         center={center}
-        zoom={11}
+        zoom={zoom}
         className={mapHeight}
         scrollWheelZoom
         aria-label="Mapa de anuncios"
@@ -166,7 +191,12 @@ export function PropertyMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapResizeInvalidate />
-        <FitBounds bounds={bounds} />
+        <FitBounds
+          bounds={bounds}
+          defaultCenter={defaultCenter}
+          defaultZoom={defaultZoom}
+          preferDefaultView={preferDefaultView}
+        />
         {searchOnMapMove && onViewportBbox ? (
           <MapViewportReporter enabled={searchOnMapMove} onBbox={onViewportBbox} />
         ) : null}
