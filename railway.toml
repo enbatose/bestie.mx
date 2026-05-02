@@ -1,15 +1,9 @@
 # Production: add a volume (e.g. mount at /data) and set DATABASE_PATH=/data/bestie.db on the API service.
 # Uploads default to /data/uploads/ next to the DB (or set UPLOAD_DIR). See README → "Production — SQLite + image uploads".
-
-[build]
-# Railpack may run the build step with cwd under `server/`, which only runs `tsc` and skips the root Vite SPA build.
-# Always run the monorepo's root `package.json` build from /app so `server/dist` + `/dist` exist.
-buildCommand = "cd /app && npm run build"
+#
+# Build + start are defined in `./Dockerfile` (Railway prefers Dockerfile over Railpack when both exist).
 
 [deploy]
-# Run the compiled API directly. Do not rely on `scripts/` in the image — Railpack’s runtime
-# layer may omit non-essential paths, which would make a shell wrapper fail before Node starts.
-startCommand = "node /app/server/dist/index.js"
 healthcheckPath = "/health"
 # Default Railway window is 5m; allow slow volume/SQLite cold open before the HTTP server binds.
 healthcheckTimeout = 300

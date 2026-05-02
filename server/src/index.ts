@@ -77,9 +77,10 @@ const app = createApp(db, {
   ...(webDistDir ? { webDistDir } : {}),
 });
 
-// Omit hostname so Node picks the default bind (dual-stack when supported); explicit `::` can fail if IPv6 is off in the image.
-app.listen(PORT, () => {
-  console.log(`bestie.mx API listening on port ${PORT}`);
+const listenHost = process.env.LISTEN_HOST?.trim() || "0.0.0.0";
+
+app.listen(PORT, listenHost, () => {
+  console.log(`bestie.mx API listening on ${listenHost}:${PORT}`);
   console.log(`SQLite: ${databasePath}`);
   if (webDistDir) {
     console.log(`[web] SPA + API same origin from ${webDistDir}`);
