@@ -5,7 +5,9 @@
 
 [deploy]
 # Overrides any stale “Custom start command” in the Railway UI (config-as-code wins on deploy).
-startCommand = "node server/dist/index.js"
+# Use paths relative to the service root. When the root directory is `server/` (common with Railpack),
+# the bundle is `dist/index.js`. The Dockerfile runner uses the same layout (WORKDIR /app/server).
+startCommand = "node dist/index.js"
 healthcheckPath = "/health"
 # Default Railway window is 5m; allow slow volume/SQLite cold open before the HTTP server binds.
 healthcheckTimeout = 300

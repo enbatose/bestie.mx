@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Optional local / custom Docker entry (see `railway.toml` — production uses `node /app/server/dist/index.js`).
+# Optional local / custom Docker entry (see `railway.toml` — production uses `WORKDIR /app/server` + `node dist/index.js`).
 # Resolve monorepo root from this script's path so we work regardless of container WORKDIR.
 set -e
 case "$0" in
