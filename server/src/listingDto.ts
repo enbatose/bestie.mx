@@ -113,6 +113,10 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     summary: String(row.summary),
     contactWhatsApp: String(row.contact_whatsapp),
     status: listingStatusFromRow(row.status),
+    ...(row.created_at ? { createdAt: String(row.created_at) } : {}),
+    ...(row.updated_at || row.created_at
+      ? { updatedAt: String(row.updated_at ?? row.created_at) }
+      : {}),
     ...(publisherId ? { publisherId } : {}),
     ...(lodgingType ? { lodgingType } : {}),
     ...(propertyKind ? { propertyKind } : {}),
@@ -162,6 +166,8 @@ SELECT
   r.deposit_mxn AS deposit_mxn,
   p.image_urls_json AS property_image_urls_json,
   r.image_urls_json AS room_image_urls_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
   p.is_approximate_location AS is_approximate_location
 FROM rooms r
 INNER JOIN properties p ON p.id = r.property_id

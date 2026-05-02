@@ -149,6 +149,8 @@ function rowToRoom(row: Record<string, unknown>): Room {
   const rstatus: ListingStatus = isListingStatus(rst) ? rst : "draft";
   const dep = row.deposit_mxn != null && Number.isFinite(Number(row.deposit_mxn)) ? clampDepositMxn(Number(row.deposit_mxn)) : 0;
   const imageUrls = imageUrlsFromRow(row.image_urls_json);
+  const createdAt = typeof row.created_at === "string" && row.created_at.trim() ? row.created_at.trim() : undefined;
+  const updatedAt = typeof row.updated_at === "string" && row.updated_at.trim() ? row.updated_at.trim() : createdAt;
   return {
     id: String(row.id),
     propertyId: String(row.property_id),
@@ -170,6 +172,8 @@ function rowToRoom(row: Record<string, unknown>): Room {
     ...(aval !== undefined ? { avalRequired: aval } : {}),
     ...(sub !== undefined ? { subletAllowed: sub } : {}),
     ...(imageUrls.length ? { imageUrls } : {}),
+    ...(createdAt ? { createdAt } : {}),
+    ...(updatedAt ? { updatedAt } : {}),
   };
 }
 
@@ -349,12 +353,13 @@ export function propertiesRouter(db: DatabaseSync) {
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location
       ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+    const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
       INSERT INTO rooms (
         id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-        aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
@@ -425,6 +430,8 @@ export function propertiesRouter(db: DatabaseSync) {
           order++,
           depositMxn,
           roomImagesJson,
+          createdAt,
+          createdAt,
         );
       }
       db.exec("COMMIT;");
@@ -634,12 +641,13 @@ export function propertiesRouter(db: DatabaseSync) {
     );
 
     try {
+      const createdAt = new Date().toISOString();
       db.prepare(
         `INSERT INTO rooms (
           id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
           age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-          aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
-        ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at
+        ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         roomId,
         propertyId,
@@ -660,6 +668,8 @@ export function propertiesRouter(db: DatabaseSync) {
         maxSort,
         depositMxn,
         draftRoomImagesJson,
+        createdAt,
+        createdAt,
       );
     } catch {
       res.status(409).json({ error: "conflict" });
@@ -762,7 +772,7 @@ export function propertiesRouter(db: DatabaseSync) {
         title = ?, rent_mxn = ?, rooms_available = ?, tags_json = ?, roommate_gender_pref = ?,
         age_min = ?, age_max = ?, summary = ?, lodging_type = ?, available_from = ?,
         minimal_stay_months = ?, room_dimension = ?, aval_required = ?, sublet_allowed = ?, deposit_mxn = ?,
-        image_urls_json = ?
+        image_urls_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
     ).run(
       title,
@@ -1024,20 +1034,20 @@ export function propertiesRouter(db: DatabaseSync) {
     );
 
     if (patch.status === "published" && curStatus === "draft") {
-      db.prepare(`UPDATE rooms SET status = 'published' WHERE property_id = ? AND status = 'draft'`).run(
+      db.prepare(`UPDATE rooms SET status = 'published', updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status = 'draft'`).run(
         propertyId,
       );
     }
 
     if (patch.status === "paused" || patch.status === "archived") {
       const rStatus = patch.status === "archived" ? "archived" : "paused";
-      db.prepare("UPDATE rooms SET status = ? WHERE property_id = ? AND status != 'archived'").run(
+      db.prepare("UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status != 'archived'").run(
         rStatus,
         propertyId,
       );
     }
     if (patch.status === "published" && curStatus === "paused") {
-      db.prepare("UPDATE rooms SET status = 'published' WHERE property_id = ? AND status = 'paused'").run(
+      db.prepare("UPDATE rooms SET status = 'published', updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status = 'paused'").run(
         propertyId,
       );
     }
@@ -1046,7 +1056,7 @@ export function propertiesRouter(db: DatabaseSync) {
       (curStatus === "published" || curStatus === "paused")
     ) {
       db.prepare(
-        `UPDATE rooms SET status = 'published' WHERE property_id = ? AND status IN ('draft', 'paused')`,
+        `UPDATE rooms SET status = 'published', updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status IN ('draft', 'paused')`,
       ).run(propertyId);
     }
 
