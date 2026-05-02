@@ -173,7 +173,7 @@ const DEFAULT_PROPERTY_SUMMARY =
 const DRAFT_ONLY_ROOM_TITLE_SEEDS = ["Cuarto disponible", "Vivienda completa", "Cuarto en borrador"] as const;
 
 const defaultDraft = (): Draft => ({
-  postMode: "property",
+  postMode: "room",
   city: "Guadalajara",
   propertyTitle: "",
   neighborhood: "",
@@ -865,11 +865,11 @@ export function PublishWizardPage() {
   const steps = useMemo(
     () => [
       {
-        title: "¿Qué quieres publicar?",
+        title: "¿Qué tipo de espacio deseas publicar?",
         body: (
           <form className="space-y-6">
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">Modalidad de anuncio</h3>
+              <h3 className="text-[15px] font-bold text-primary">Tipo de espacio</h3>
               <p className="text-sm text-muted">
                 Empieza rápido con un cuarto o loft, o crea una propiedad con varios cuartos.
               </p>
@@ -893,7 +893,7 @@ export function PublishWizardPage() {
                 >
                   <div className="text-base font-bold text-primary">Un cuarto o Loft</div>
                   <p className="mt-2 text-xs text-muted">
-                    Publica un cuarto o loft ahora. Luego puedes convertirlo en propiedad y agregar más cuartos.
+                    Publica un cuarto o Loft de forma rápida y sencilla. Ideal para la búsqueda ocasional de un roomie.
                   </p>
                 </button>
                 <button
@@ -917,10 +917,14 @@ export function PublishWizardPage() {
                 >
                   <div className="text-base font-bold text-primary">Propiedad con múltiples cuartos</div>
                   <p className="mt-2 text-xs text-muted">
-                    Crea una propiedad/dirección y publica varios cuartos para roomies.
+                    Publica varios cuartos dentro de una misma propiedad, separa fotografías por cuarto o áreas comunes.
+                    Ideal para viviendas con muchos roomies o alta rotación.
                   </p>
                 </button>
               </div>
+              <p className="text-xs text-muted">
+                Tip: Puedes convertir tu publicación de un cuarto a ser una propiedad posterior a su publicación.
+              </p>
             </div>
           </form>
         ),
@@ -2024,15 +2028,18 @@ export function PublishWizardPage() {
           </p>
         ) : null}
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            disabled={step === 0}
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition enabled:hover:bg-surface-elevated disabled:opacity-40"
-          >
-            Atrás
-          </button>
+        <div
+          className={`mt-8 flex flex-wrap items-center gap-3 ${step > 0 ? "justify-between" : "justify-end"}`}
+        >
+          {step > 0 ? (
+            <button
+              type="button"
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+            >
+              Atrás
+            </button>
+          ) : null}
           {!isPublishStep ? (
             <button
               type="button"
