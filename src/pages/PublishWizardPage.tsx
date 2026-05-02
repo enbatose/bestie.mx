@@ -1217,9 +1217,6 @@ export function PublishWizardPage() {
                     }
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
                   />
-                  <span className="mt-1 block text-xs text-muted">
-                    Incluye cuartos ocupados y libres.
-                  </span>
                 </label>
                 {showWizardPropertyBathroomsField(draft) ? (
                   <div>
