@@ -305,13 +305,14 @@ export function listingsRouter(db: DatabaseSync) {
       INSERT INTO rooms (
         id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-        aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
+        aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at
       ) VALUES (
         @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
         @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-        @avalRequired, @subletAllowed, 0, @depositMxn, @imageUrlsJson
+        @avalRequired, @subletAllowed, 0, @depositMxn, @imageUrlsJson, @createdAt, @updatedAt
       )
     `);
+    const createdAt = new Date().toISOString();
 
     try {
       db.exec("BEGIN IMMEDIATE;");
@@ -352,6 +353,8 @@ export function listingsRouter(db: DatabaseSync) {
         subletAllowed: subletAllowed === true ? 1 : subletAllowed === false ? 0 : null,
         depositMxn,
         imageUrlsJson: roomImagesJson,
+        createdAt,
+        updatedAt: createdAt,
       });
       db.exec("COMMIT;");
     } catch {
@@ -423,7 +426,7 @@ export function listingsRouter(db: DatabaseSync) {
       }
     }
 
-    db.prepare("UPDATE rooms SET status = ? WHERE id = ?").run(next, listing.id);
+    db.prepare("UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(next, listing.id);
     const updated = db.prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`).get(listing.id) as Record<string, unknown>;
     res.json(listingForPublic(joinRowToPropertyListing(updated)));
   });

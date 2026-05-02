@@ -53,11 +53,11 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
     INSERT INTO rooms (
       id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
       age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-      aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
+      aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at
     ) VALUES (
       @id, @propertyId, @status, @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
       @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-      @avalRequired, @subletAllowed, @sortOrder, @depositMxn, @imageUrlsJson
+      @avalRequired, @subletAllowed, @sortOrder, @depositMxn, @imageUrlsJson, @createdAt, @updatedAt
     )
   `);
 
@@ -124,6 +124,8 @@ function migrateLegacyListingsTableIfPresent(db: DatabaseSync): void {
         sortOrder: 0,
         depositMxn: 0,
         imageUrlsJson: "[]",
+        createdAt: String(r.created_at ?? new Date().toISOString()),
+        updatedAt: String(r.updated_at ?? r.created_at ?? new Date().toISOString()),
       });
     }
     db.exec("DROP TABLE listings");
@@ -174,6 +176,18 @@ function migratePropertyApproximateLocation(db: DatabaseSync): void {
   if (!tableHasColumn(db, "properties", "is_approximate_location")) {
     db.exec(`ALTER TABLE properties ADD COLUMN is_approximate_location INTEGER NOT NULL DEFAULT 0`);
   }
+}
+
+function migrateRoomTimestamps(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "rooms", "created_at")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+  }
+  if (!tableHasColumn(db, "rooms", "updated_at")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+  }
+  db.prepare(
+    `UPDATE rooms SET updated_at = created_at WHERE updated_at IS NULL OR trim(updated_at) = ''`,
+  ).run();
 }
 
 function ensureUploadBlobSchema(db: DatabaseSync): void {
@@ -229,6 +243,8 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       sort_order INTEGER NOT NULL DEFAULT 0,
       deposit_mxn INTEGER NOT NULL DEFAULT 0,
       image_urls_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_rooms_property ON rooms(property_id);
@@ -242,6 +258,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migrateImageUrlsJson(db);
   migratePropertyPostMode(db);
   migratePropertyApproximateLocation(db);
+  migrateRoomTimestamps(db);
   ensureUploadBlobSchema(db);
 }
 
@@ -259,11 +276,11 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
     INSERT INTO rooms (
       id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
       age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
-      aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json
+      aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at
     ) VALUES (
       @id, @propertyId, 'published', @title, @rentMxn, @roomsAvailable, @tagsJson, @roommateGenderPref,
       @ageMin, @ageMax, @summary, @lodgingType, @availableFrom, @minimalStayMonths, @roomDimension,
-      @avalRequired, @subletAllowed, 0, @depositMxn, @imageUrlsJson
+      @avalRequired, @subletAllowed, 0, @depositMxn, @imageUrlsJson, @createdAt, @updatedAt
     )
   `);
 
@@ -312,6 +329,8 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
         subletAllowed: row.subletAllowed === true ? 1 : row.subletAllowed === false ? 0 : null,
         depositMxn: 0,
         imageUrlsJson: "[]",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z",
       });
     }
 
@@ -352,6 +371,8 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       subletAllowed: 1,
       depositMxn: 2400,
       imageUrlsJson: "[]",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      updatedAt: "2025-01-01T00:00:00.000Z",
     });
     insertRoom.run({
       id: "buc-demo-b",
@@ -372,6 +393,8 @@ function seedFromLegacyJson(db: DatabaseSync, rows: LegacyListingRow[]): void {
       subletAllowed: 0,
       depositMxn: 2300,
       imageUrlsJson: "[]",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      updatedAt: "2025-01-01T00:00:00.000Z",
     });
 
     db.exec("COMMIT;");

@@ -74,6 +74,8 @@ export type Room = {
   subletAllowed?: boolean;
   sortOrder: number;
   imageUrls?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PropertyWithRooms = {
@@ -125,4 +127,6 @@ export type PropertyListing = {
   roomDimension?: RoomDimension;
   avalRequired?: boolean;
   subletAllowed?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };

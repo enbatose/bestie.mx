@@ -79,6 +79,8 @@ export type Room = {
   sortOrder: number;
   depositMxn: number;
   imageUrls?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type PropertyWithRooms = {
@@ -133,4 +135,8 @@ export type PropertyListing = {
   propertyImageUrls?: string[];
   /** From `rooms.image_urls_json`. */
   roomImageUrls?: string[];
+  /** Room creation timestamp from API responses. */
+  createdAt?: string;
+  /** Room update timestamp from API responses. */
+  updatedAt?: string;
 };

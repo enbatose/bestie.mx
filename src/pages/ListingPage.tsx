@@ -21,6 +21,19 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
+const MONTH_ABBREVIATIONS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+function formatListingDate(value?: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = MONTH_ABBREVIATIONS[date.getUTCMonth()];
+  const year = String(date.getUTCFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
 async function copyToClipboard(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     try {
@@ -359,6 +372,8 @@ export function ListingPage() {
   const listingStatus = listing.status ?? "published";
   const showWhatsApp = listing.showWhatsApp !== false && waDigits.length >= 10;
   const depositMxn = listing.depositMxn ?? 0;
+  const createdAtLabel = formatListingDate(listing.createdAt);
+  const updatedAtLabel = formatListingDate(listing.updatedAt);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
@@ -408,13 +423,17 @@ export function ListingPage() {
             baño(s)
           </p>
         ) : null}
-        <p className="mt-1 text-sm text-muted">
-          {listing.roomsAvailable} cuarto(s) disponible(s) · Roomies{" "}
-          {listing.roommateGenderPref === "any"
-            ? "sin preferencia declarada"
-            : `prefieren ${listing.roommateGenderPref === "female" ? "mujer" : "hombre"}`}{" "}
-          · Edad anuncio {listing.ageMin}–{listing.ageMax}
-        </p>
+        <div className="mt-1 space-y-1 text-sm text-muted">
+          <p>
+            {listing.roomsAvailable} cuarto(s) disponible(s) · Roomies{" "}
+            {listing.roommateGenderPref === "any"
+              ? "sin preferencia declarada"
+              : `prefieren ${listing.roommateGenderPref === "female" ? "mujer" : "hombre"}`}{" "}
+            · Se busca Bestie de {listing.ageMin} a {listing.ageMax} años
+          </p>
+          {createdAtLabel ? <p>Fecha de publicación · {createdAtLabel}</p> : null}
+          {updatedAtLabel ? <p>Fecha de actualización · {updatedAtLabel}</p> : null}
+        </div>
       </header>
 
       <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">

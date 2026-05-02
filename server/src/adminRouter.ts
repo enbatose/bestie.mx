@@ -64,7 +64,7 @@ export function adminRouter(db: DatabaseSync) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    db.prepare(`UPDATE rooms SET status = ? WHERE property_id = ?`).run(st, id);
+    db.prepare(`UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ?`).run(st, id);
     res.json({ ok: true, propertyId: id, status: st });
   });
 
