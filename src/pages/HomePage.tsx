@@ -43,7 +43,7 @@ export function HomePage() {
             Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
             ciudades donde vives o quieres estar.
           </h1>
-          <p className="mt-4 w-full max-w-[52.5rem] text-balance text-lg leading-7 text-primary-fg/90">
+          <p className="mt-4 w-full max-w-[60rem] text-balance text-lg leading-7 text-primary-fg/90">
             Bestie.mx te permite encontrar roomies de forma rápida y segura. Priorizamos la búsqueda
             por ubicación sin sacrificar los filtros que de verdad te importan.
           </p>
@@ -82,9 +82,9 @@ export function HomePage() {
       <section className="border-b border-border bg-surface px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-10 md:grid-cols-2 md:gap-12">
-            <div>
+            <div className="flex flex-col items-center text-center">
               <h2 className="text-lg font-semibold text-body sm:text-xl">Ciudades disponibles</h2>
-              <ul className="mt-4 flex flex-wrap gap-2">
+              <ul className="mt-4 flex flex-wrap justify-center gap-2">
                 <li>
                   <button
                     type="button"
@@ -96,13 +96,16 @@ export function HomePage() {
                   </button>
                 </li>
               </ul>
-              <p className="mt-4 text-sm text-muted">
+              <p className="mt-4 text-balance text-sm text-muted">
                 Toca la ciudad para ir al mapa y a la lista con filtros para esa zona.
               </p>
             </div>
-            <div>
+            <div className="flex flex-col items-center text-center">
               <h2 className="text-lg font-semibold text-body sm:text-xl">Próximamente</h2>
-              <ul className="mt-4 flex flex-wrap gap-2" aria-label="Ciudades próximamente">
+              <ul
+                className="mt-4 flex flex-wrap justify-center gap-2"
+                aria-label="Ciudades próximamente"
+              >
                 {PROXIMAS_CITIES.map((city) => (
                   <li key={city}>
                     <span className={cityChipSoon}>{city}</span>
