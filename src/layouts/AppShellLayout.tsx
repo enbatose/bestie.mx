@@ -48,7 +48,7 @@ export function AppShellLayout() {
         </main>
 
         <footer className="border-t border-border bg-surface px-4 py-8 sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mx-auto max-w-6xl">
             <div className="flex min-w-0 flex-col gap-3">
               <BrandLogo imgClassName="h-7 w-auto max-w-[200px] object-left sm:h-8" />
               <p className="text-sm text-muted">
@@ -75,7 +75,6 @@ export function AppShellLayout() {
                 </Link>
               </nav>
             </div>
-            <p className="text-xs text-muted sm:text-right">bestie.mx — MVP en construcción</p>
           </div>
         </footer>
 
