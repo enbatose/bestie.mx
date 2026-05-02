@@ -178,13 +178,22 @@ function migratePropertyApproximateLocation(db: DatabaseSync): void {
   }
 }
 
+/** SQLite `ALTER TABLE ADD COLUMN` only allows constant DEFAULTs — not `CURRENT_TIMESTAMP`. */
+const ROOM_TS_ALTER_PLACEHOLDER = "1970-01-01T00:00:00.000Z";
+
 function migrateRoomTimestamps(db: DatabaseSync): void {
   if (!tableHasColumn(db, "rooms", "created_at")) {
-    db.exec(`ALTER TABLE rooms ADD COLUMN created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    db.exec(
+      `ALTER TABLE rooms ADD COLUMN created_at TEXT NOT NULL DEFAULT '${ROOM_TS_ALTER_PLACEHOLDER}'`,
+    );
   }
   if (!tableHasColumn(db, "rooms", "updated_at")) {
-    db.exec(`ALTER TABLE rooms ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP`);
+    db.exec(
+      `ALTER TABLE rooms ADD COLUMN updated_at TEXT NOT NULL DEFAULT '${ROOM_TS_ALTER_PLACEHOLDER}'`,
+    );
   }
+  db.prepare(`UPDATE rooms SET created_at = datetime('now') WHERE created_at = ?`).run(ROOM_TS_ALTER_PLACEHOLDER);
+  db.prepare(`UPDATE rooms SET updated_at = datetime('now') WHERE updated_at = ?`).run(ROOM_TS_ALTER_PLACEHOLDER);
   db.prepare(
     `UPDATE rooms SET updated_at = created_at WHERE updated_at IS NULL OR trim(updated_at) = ''`,
   ).run();
