@@ -99,14 +99,16 @@ export function WizardLocationMap({
             interactive={false}
           />
         ) : null}
-        <Marker
-          ref={markerRef}
-          position={localPosition}
-          draggable
-          riseOnHover
-          zIndexOffset={1000}
-          eventHandlers={markerEventHandlers}
-        />
+        {!showApproximateRadius ? (
+          <Marker
+            ref={markerRef}
+            position={localPosition}
+            draggable
+            riseOnHover
+            zIndexOffset={1000}
+            eventHandlers={markerEventHandlers}
+          />
+        ) : null}
       </MapContainer>
       <p className="text-xs text-muted">
         <strong className="font-semibold text-body">Tip</strong>: Los clics en el mapa no mueven el pin.
