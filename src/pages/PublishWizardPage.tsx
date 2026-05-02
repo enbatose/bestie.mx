@@ -2090,14 +2090,6 @@ export function PublishWizardPage() {
         </div>
       </section>
       ) : null}
-
-      {safeStep > 0 ? (
-        <p className="mt-6 text-sm text-muted">
-          <Link to="/buscar" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Ver búsqueda
-          </Link>
-        </p>
-      ) : null}
     </div>
   );
 }
