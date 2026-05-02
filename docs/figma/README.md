@@ -33,6 +33,8 @@ To push the **actual Home (or any) screen** into a Figma file as editable-ish la
 
 After capture, Figma adds a frame (often nested) you can select, tweak, and then link back in Cursor for implementation. Turn off `VITE_FIGMA_CAPTURE` for normal dev so production builds never rely on that script.
 
+**If the new frame is empty (white box):** the DOM was captured before React painted. Use a longer hash delay, e.g. `&figmadelay=8000`, and optionally `&figmaselector=%23root` to scope to the app root. Ensure `vite.config.ts` injects the capture script with **`defer` immediately after** `/src/main.tsx` (already the default in this repo when `VITE_FIGMA_CAPTURE=1`).
+
 ## Flow coverage
 
 The board is based on the route map in `src/App.tsx`, navigation in `src/components/HeaderMegaMenu.tsx`, and product notes in `docs/PRODUCT_V1.md`.

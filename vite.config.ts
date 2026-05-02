@@ -8,9 +8,10 @@ function figmaCaptureInjectPlugin() {
     name: "figma-capture-inject",
     transformIndexHtml(html: string) {
       if (process.env.VITE_FIGMA_CAPTURE !== "1") return html;
+      // `defer` + order after the app module so capture runs after React mounts (async race caused empty Figma frames).
       return html.replace(
-        "</body>",
-        '    <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>\n  </body>',
+        `<script type="module" src="/src/main.tsx"></script>`,
+        `<script type="module" src="/src/main.tsx"></script>\n    <script defer src="https://mcp.figma.com/mcp/html-to-design/capture.js"></script>`,
       );
     },
   };
