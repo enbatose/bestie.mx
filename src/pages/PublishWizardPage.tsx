@@ -928,16 +928,16 @@ export function PublishWizardPage() {
         ),
       },
       {
-        title: "Ubicación",
+        title: "¿Dónde se ubica el espacio?",
         body: (
           <form className="space-y-6">
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Ciudad Base
+              <h3 id="publish-step-city-heading" className="text-[15px] font-bold text-primary">
+                Ciudad
               </h3>
-              <label className="block text-sm font-medium text-body">
-                Ciudad Principal
+              <div className="block text-sm font-medium text-body">
                 <select
+                  aria-labelledby="publish-step-city-heading"
                   value={draft.city}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, city: e.target.value as Draft["city"] }))
@@ -951,9 +951,9 @@ export function PublishWizardPage() {
                   ))}
                 </select>
                 <span className="mt-2 block text-xs text-muted">
-                  Selecciona la ciudad donde se encuentra el inmueble.
+                  Selecciona la ciudad donde se encuentra el espacio.
                 </span>
-              </label>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
@@ -962,7 +962,7 @@ export function PublishWizardPage() {
               </h3>
               <div>
                 <p className="text-sm font-medium text-body">
-                  Arrastra el marcador para colocar la ubicación exacta (los clics en el mapa no mueven el pin).
+                  Arrastra el marcador para colocar la ubicación.
                 </p>
                 <div className="mt-3">
                   <WizardLocationMap
@@ -990,7 +990,7 @@ export function PublishWizardPage() {
                     ni nombre de negocio).
                   </p>
                 ) : null}
-                
+
                 <h3 className="text-sm font-bold text-primary mt-6 mb-2 border-b border-border pb-1">Nivel de privacidad</h3>
                 <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated outline-none focus-within:ring-2 ring-accent">
                   <input
@@ -1006,55 +1006,12 @@ export function PublishWizardPage() {
                       Ocultar dirección exacta en el anuncio
                     </span>
                     <span className="block text-xs text-muted">
-                      En el mapa verán un círculo ~200 m y una dirección sin número exacto (sí calle y CP cuando el
-                      servicio lo permita). Útil hasta que contactes interesados.
+                      Para proteger tu dirección exacta, el marcador aparecerá en un punto aleatorio dentro de un radio
+                      aproximado de 200 metros de la ubicación real.
                     </span>
                   </div>
                 </label>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Ajuste Seguro (Manual)
-              </h3>
-              <details className="rounded-xl border border-border bg-surface-elevated/40 px-3 py-2 text-sm">
-                <summary className="cursor-pointer font-medium text-body outline-none focus:ring-2 ring-accent rounded">Ajuste de coordenadas manuales (Avanzado)</summary>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm font-medium text-body">
-                    Latitud
-                    <input
-                      value={draft.customLat}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          useCustomMapPin: true,
-                          customLat: e.target.value,
-                        }))
-                      }
-                      placeholder={String(CITY_ANCHOR[draft.city].lat)}
-                      inputMode="decimal"
-                      className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-body">
-                    Longitud
-                    <input
-                      value={draft.customLng}
-                      onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          useCustomMapPin: true,
-                          customLng: e.target.value,
-                        }))
-                      }
-                      placeholder={String(CITY_ANCHOR[draft.city].lng)}
-                      inputMode="decimal"
-                      className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                    />
-                  </label>
-                </div>
-              </details>
             </div>
           </form>
         ),

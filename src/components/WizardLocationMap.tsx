@@ -97,32 +97,33 @@ export function WizardLocationMap({ center, position, hasDefinedLocation, locati
           eventHandlers={markerEventHandlers}
         />
       </MapContainer>
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
-        <div className="min-w-0 space-y-1">
-          {localLocationSelected ? (
-            <div className="flex items-start gap-2 font-medium text-primary">
-              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="min-w-0 break-words">
-                {locationLabel ?? "Buscando dirección para la ubicación seleccionada..."}
-              </span>
-            </div>
-          ) : null}
-          <span className="block text-xs text-muted">
-            El mapa es OpenStreetMap. Vista de calle: enlace a una pestaña nueva.
-          </span>
+      <p className="text-xs text-muted">
+        <strong className="font-semibold text-body">Tip</strong>: Los clics en el mapa no mueven el pin.
+      </p>
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
+        {localLocationSelected ? (
+          <div className="flex items-start gap-2 font-medium text-primary">
+            <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="min-w-0 break-words">
+              {locationLabel ?? "Buscando dirección para la ubicación seleccionada..."}
+            </span>
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm text-body">¿No estás seguro de la ubicación?</span>
+          <a
+            href={streetViewHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+            aria-label="Abrir Street View en la ubicación del pin"
+          >
+            Ver vista de calle
+          </a>
         </div>
-        <a
-          href={streetViewHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
-          aria-label="Abrir Street View en la ubicación del pin"
-        >
-          Ver vista de calle
-        </a>
       </div>
     </div>
   );
