@@ -164,16 +164,40 @@ export function ListingPage() {
   if (!listing) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-        <h1 className="text-xl font-semibold text-body">Anuncio no encontrado</h1>
+        <h1 className="text-xl font-semibold text-body">No es posible abrir este anuncio</h1>
         <p className="mt-2 text-sm text-muted">
-          El anuncio no existe o ya no está publicado.
+          Este enlace no está disponible públicamente en este momento.
         </p>
-        <Link
-          to="/buscar"
-          className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-        >
-          Volver a buscar
-        </Link>
+        <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4 text-sm text-muted">
+          <p className="font-medium text-body">Esto puede pasar cuando:</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>el anuncio fue eliminado o archivado;</li>
+            <li>todavía está en borrador o fue pausado por quien lo publicó;</li>
+            <li>la propiedad relacionada ya no está publicada; o</li>
+            <li>el enlace está incompleto o ya no corresponde a un anuncio válido.</li>
+          </ul>
+        </div>
+        <p className="mt-4 text-sm text-muted">
+          Si este anuncio es tuyo, inicia sesión y revísalo desde{" "}
+          <Link to="/mis-anuncios" className="font-medium text-primary underline-offset-2 hover:underline">
+            Mis anuncios
+          </Link>
+          . Si recibiste este enlace de otra persona, pídele un enlace actualizado.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            to="/buscar"
+            className="inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
+          >
+            Volver a buscar
+          </Link>
+          <Link
+            to="/mis-anuncios"
+            className="inline-flex rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface"
+          >
+            Ir a Mis anuncios
+          </Link>
+        </div>
       </div>
     );
   }
