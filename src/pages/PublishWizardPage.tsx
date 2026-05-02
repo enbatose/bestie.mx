@@ -14,6 +14,7 @@ import {
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { LISTING_TAG_SLUG_SET, TAG_CHIP_ORDER } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingTag,
@@ -24,7 +25,6 @@ import type {
   RoommateGenderPref,
 } from "@/types/listing";
 
-const ALL_TAGS = Object.keys(TAG_LABELS) as ListingTag[];
 /** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (minimum property description length). */
 const PROPERTY_SUMMARY_MIN = 20;
 
@@ -300,7 +300,7 @@ function pickCity(city: string): (typeof CITIES)[number] {
 }
 
 function tagOk(t: string): t is ListingTag {
-  return (ALL_TAGS as readonly string[]).includes(t);
+  return LISTING_TAG_SLUG_SET.has(t);
 }
 
 function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; serverSync: ServerSync } {
@@ -1425,7 +1425,7 @@ export function PublishWizardPage() {
                   <div className="mt-3">
                     <p className="text-sm font-medium text-body">Etiquetas del cuarto</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {ALL_TAGS.map((tag) => (
+                      {TAG_CHIP_ORDER.map((tag) => (
                         <label
                           key={tag}
                           className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-body"

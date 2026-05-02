@@ -15,7 +15,18 @@ export type ListingTag =
   | "muebles"
   | "baño-privado"
   | "fumar"
-  | "fiestas";
+  | "fiestas"
+  | "aire-acondicionado"
+  | "seguridad-acceso"
+  | "vigilancia"
+  | "lavanderia"
+  | "cocina-equipada"
+  | "terraza"
+  | "lgbt-friendly"
+  | "servicios-incluidos"
+  | "cerradura-cuarto"
+  | "agua-caliente"
+  | "cerca-transporte";
 
 /** Parent address + contact (Phase B). */
 export type Property = {

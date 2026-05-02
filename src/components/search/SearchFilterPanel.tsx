@@ -1,8 +1,7 @@
 import type { ListingTag, RoommateGenderPref } from "@/types/listing";
+import { TAG_CHIP_ORDER } from "@/lib/listingTags";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { TAG_LABELS } from "@/lib/searchFilters";
-
-const ALL_TAGS = Object.keys(TAG_LABELS) as ListingTag[];
 
 type Props = {
   filters: SearchFilters;
@@ -84,7 +83,7 @@ export function SearchFilterPanel({ filters, onChange }: Props) {
         <fieldset className="sm:col-span-2">
           <legend className="text-sm font-medium text-body">Etiquetas</legend>
           <div className="mt-2 flex flex-wrap gap-2">
-            {ALL_TAGS.map((tag) => {
+            {TAG_CHIP_ORDER.map((tag) => {
               const on = filters.tags.includes(tag);
               return (
                 <button

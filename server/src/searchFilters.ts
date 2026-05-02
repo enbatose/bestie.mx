@@ -5,6 +5,7 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "./types.js";
+import { listingTagSet } from "./listingTags.js";
 
 export type Bbox = {
   minLat: number;
@@ -36,15 +37,7 @@ export type SearchFilters = {
   subletAllowed: boolean | null;
 };
 
-const TAG_SET = new Set<ListingTag>([
-  "wifi",
-  "mascotas",
-  "estacionamiento",
-  "muebles",
-  "baño-privado",
-  "fumar",
-  "fiestas",
-]);
+const TAG_SET = listingTagSet();
 
 function num(v: string | null): number | null {
   if (v == null || v === "") return null;
