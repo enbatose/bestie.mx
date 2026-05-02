@@ -1,0 +1,316 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2160" viewBox="0 0 1600 2160" role="img" aria-labelledby="title desc">
+  <title id="title">Bestie.mx user flows</title>
+  <desc id="desc">Figma-importable board covering the user-facing flows in bestie.mx.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#143D30" />
+    </marker>
+    <marker id="arrow-muted" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#64748B" />
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 800 44px Inter, Arial, sans-serif; fill: #143d30; }
+      .subtitle { font: 500 18px Inter, Arial, sans-serif; fill: #64748b; }
+      .section-title { font: 800 24px Inter, Arial, sans-serif; fill: #143d30; }
+      .section-note { font: 500 14px Inter, Arial, sans-serif; fill: #64748b; }
+      .card-title { font: 800 16px Inter, Arial, sans-serif; fill: #1e293b; }
+      .card-copy { font: 500 13px Inter, Arial, sans-serif; fill: #475569; }
+      .route { font: 700 12px Inter, Arial, sans-serif; fill: #143d30; }
+      .legend { font: 700 13px Inter, Arial, sans-serif; fill: #1e293b; }
+      .small { font: 600 11px Inter, Arial, sans-serif; fill: #64748b; }
+      .lane { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; }
+      .entry { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; }
+      .action { fill: #ecfdf5; stroke: #84cc16; stroke-width: 1.5; }
+      .decision { fill: #fffbeb; stroke: #f59e0b; stroke-width: 1.5; }
+      .guard { fill: #fff1f2; stroke: #e11d48; stroke-width: 1.5; }
+      .admin { fill: #eef2ff; stroke: #818cf8; stroke-width: 1.5; }
+      .support { fill: #f0fdfa; stroke: #6ee7b7; stroke-width: 1.5; }
+      .arrow { stroke: #143d30; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .arrow-muted { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow-muted); stroke-dasharray: 7 6; }
+      .divider { stroke: #e2e8f0; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="2160" />
+  <rect x="48" y="40" width="1504" height="132" rx="28" fill="#ffffff" stroke="#e2e8f0" />
+  <text class="title" x="84" y="96">Bestie.mx user-flow board</text>
+  <text class="subtitle" x="86" y="132">Import this SVG into Figma as the editable source board for the current React/Vite product routes.</text>
+  <text class="small" x="1238" y="86">Source: src/App.tsx routes</text>
+  <text class="small" x="1238" y="108">Brand tokens: docs/PRODUCT_V1.md</text>
+  <text class="small" x="1238" y="130">Updated: 2026-05-02</text>
+
+  <g transform="translate(84 194)">
+    <rect class="entry" x="0" y="0" width="22" height="22" rx="6" />
+    <text class="legend" x="32" y="16">Entry/page</text>
+    <rect class="action" x="148" y="0" width="22" height="22" rx="6" />
+    <text class="legend" x="180" y="16">Primary action</text>
+    <rect class="decision" x="326" y="0" width="22" height="22" rx="6" />
+    <text class="legend" x="358" y="16">Decision/branch</text>
+    <rect class="guard" x="526" y="0" width="22" height="22" rx="6" />
+    <text class="legend" x="558" y="16">Auth/validation guard</text>
+    <rect class="admin" x="770" y="0" width="22" height="22" rx="6" />
+    <text class="legend" x="802" y="16">Admin-only</text>
+  </g>
+
+  <!-- Flow 1 -->
+  <g transform="translate(48 248)">
+    <rect class="lane" x="0" y="0" width="1504" height="255" rx="26" />
+    <text class="section-title" x="36" y="44">1. Browse and search for a room</text>
+    <text class="section-note" x="36" y="68">Shopper flow from landing, city chips, filters, map pins, result cards, and listing detail.</text>
+
+    <g transform="translate(36 104)">
+      <rect class="entry" x="0" y="0" width="180" height="92" rx="18" />
+      <text class="route" x="18" y="25">/</text>
+      <text class="card-title" x="18" y="48">Home</text>
+      <text class="card-copy" x="18" y="70">Hero search + city chips</text>
+    </g>
+    <path class="arrow" d="M226 150 H330" />
+    <g transform="translate(330 104)">
+      <rect class="action" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="route" x="18" y="25">/buscar?city&amp;budget&amp;tags</text>
+      <text class="card-title" x="18" y="48">Search</text>
+      <text class="card-copy" x="18" y="70">URL-driven filters</text>
+    </g>
+    <path class="arrow" d="M540 150 H650" />
+    <g transform="translate(650 104)">
+      <rect class="action" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Map + results</text>
+      <text class="card-copy" x="18" y="53">Pins sync with list cards</text>
+      <text class="card-copy" x="18" y="73">Optional bbox refresh</text>
+    </g>
+    <path class="arrow" d="M860 150 H970" />
+    <g transform="translate(970 104)">
+      <rect class="entry" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="route" x="18" y="25">/anuncio/:id</text>
+      <text class="card-title" x="18" y="48">Listing detail</text>
+      <text class="card-copy" x="18" y="70">Photos, room, property info</text>
+    </g>
+    <path class="arrow" d="M1180 150 H1290" />
+    <g transform="translate(1290 104)">
+      <rect class="decision" x="0" y="0" width="178" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Contact owner</text>
+      <text class="card-copy" x="18" y="53">WhatsApp reveal or</text>
+      <text class="card-copy" x="18" y="73">Bestie messages</text>
+    </g>
+  </g>
+
+  <!-- Flow 2 -->
+  <g transform="translate(48 532)">
+    <rect class="lane" x="0" y="0" width="1504" height="292" rx="26" />
+    <text class="section-title" x="36" y="44">2. Listing contact and messaging</text>
+    <text class="section-note" x="36" y="68">The in-app message CTA is gated by auth; public contact can use the listing WhatsApp link when enabled.</text>
+
+    <g transform="translate(36 110)">
+      <rect class="entry" x="0" y="0" width="205" height="92" rx="18" />
+      <text class="route" x="18" y="25">/anuncio/:id</text>
+      <text class="card-title" x="18" y="48">Tap "Mensaje"</text>
+      <text class="card-copy" x="18" y="70">Start conversation</text>
+    </g>
+    <path class="arrow" d="M241 156 H360" />
+    <g transform="translate(360 110)">
+      <rect class="decision" x="0" y="0" width="205" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Signed in?</text>
+      <text class="card-copy" x="18" y="53">AuthMe from API</text>
+      <text class="card-copy" x="18" y="73">No session opens modal</text>
+    </g>
+    <path class="arrow-muted" d="M462 202 V245 H156" />
+    <g transform="translate(36 184)">
+      <rect class="guard" x="0" y="52" width="240" height="72" rx="18" />
+      <text class="card-title" x="18" y="83">Auth modal</text>
+      <text class="card-copy" x="18" y="105">Login/register, then dashboard</text>
+    </g>
+    <path class="arrow" d="M565 156 H700" />
+    <g transform="translate(700 110)">
+      <rect class="action" x="0" y="0" width="240" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Create conversation</text>
+      <text class="card-copy" x="18" y="53">startConversationFromListing</text>
+      <text class="card-copy" x="18" y="73">Conversation per ad</text>
+    </g>
+    <path class="arrow" d="M940 156 H1080" />
+    <g transform="translate(1080 110)">
+      <rect class="entry" x="0" y="0" width="240" height="92" rx="18" />
+      <text class="route" x="18" y="25">/mensajes?c=:id</text>
+      <text class="card-title" x="18" y="48">Messages</text>
+      <text class="card-copy" x="18" y="70">Read, reply, unread badge</text>
+    </g>
+  </g>
+
+  <!-- Flow 3 -->
+  <g transform="translate(48 853)">
+    <rect class="lane" x="0" y="0" width="1504" height="292" rx="26" />
+    <text class="section-title" x="36" y="44">3. Authentication and account onboarding</text>
+    <text class="section-note" x="36" y="68">Bestie supports a fast modal plus full-page WhatsApp OTP and email/password paths.</text>
+
+    <g transform="translate(36 110)">
+      <rect class="entry" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Header entry</text>
+      <text class="card-copy" x="18" y="53">Entrar modal, /entrar,</text>
+      <text class="card-copy" x="18" y="73">or /registro</text>
+    </g>
+    <path class="arrow" d="M246 156 H360" />
+    <g transform="translate(360 86)">
+      <rect class="decision" x="0" y="0" width="220" height="140" rx="18" />
+      <text class="card-title" x="18" y="31">Choose auth path</text>
+      <text class="card-copy" x="18" y="58">1. WhatsApp OTP</text>
+      <text class="card-copy" x="18" y="80">2. Email login</text>
+      <text class="card-copy" x="18" y="102">3. Email register</text>
+      <text class="card-copy" x="18" y="124">4. Modal fallback</text>
+    </g>
+    <path class="arrow" d="M580 156 H720" />
+    <g transform="translate(720 110)">
+      <rect class="action" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Success</text>
+      <text class="card-copy" x="18" y="53">Link publisher cookie</text>
+      <text class="card-copy" x="18" y="73">Navigate to dashboard</text>
+    </g>
+    <path class="arrow" d="M930 156 H1055" />
+    <g transform="translate(1055 110)">
+      <rect class="entry" x="0" y="0" width="205" height="92" rx="18" />
+      <text class="route" x="18" y="25">/mis-anuncios</text>
+      <text class="card-title" x="18" y="48">Publisher hub</text>
+      <text class="card-copy" x="18" y="70">Default post-auth home</text>
+    </g>
+    <path class="arrow-muted" d="M1157 202 V245 H1330" />
+    <g transform="translate(1300 184)">
+      <rect class="guard" x="0" y="52" width="168" height="72" rx="18" />
+      <text class="card-title" x="18" y="83">Profile warning</text>
+      <text class="card-copy" x="18" y="105">Missing phone badge</text>
+    </g>
+  </g>
+
+  <!-- Flow 4 -->
+  <g transform="translate(48 1174)">
+    <rect class="lane" x="0" y="0" width="1504" height="330" rx="26" />
+    <text class="section-title" x="36" y="44">4. Publish a room or multi-room property</text>
+    <text class="section-note" x="36" y="68">Publisher flow supports quick room posts, multi-room properties, drafts, legal confirmation, and edits.</text>
+
+    <g transform="translate(36 112)">
+      <rect class="entry" x="0" y="0" width="185" height="92" rx="18" />
+      <text class="route" x="18" y="25">/publicar</text>
+      <text class="card-title" x="18" y="48">Start wizard</text>
+      <text class="card-copy" x="18" y="70">Room or property mode</text>
+    </g>
+    <path class="arrow" d="M221 158 H330" />
+    <g transform="translate(330 112)">
+      <rect class="action" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Property basics</text>
+      <text class="card-copy" x="18" y="53">Title, city, pin, photos</text>
+      <text class="card-copy" x="18" y="73">Bedrooms, bathrooms</text>
+    </g>
+    <path class="arrow" d="M540 158 H650" />
+    <g transform="translate(650 112)">
+      <rect class="action" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Room details</text>
+      <text class="card-copy" x="18" y="53">Rent, tags, gender,</text>
+      <text class="card-copy" x="18" y="73">age, stay, images</text>
+    </g>
+    <path class="arrow" d="M860 158 H970" />
+    <g transform="translate(970 112)">
+      <rect class="decision" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Ready?</text>
+      <text class="card-copy" x="18" y="53">Validate required fields</text>
+      <text class="card-copy" x="18" y="73">Accept legal checkbox</text>
+    </g>
+    <path class="arrow" d="M1180 158 H1295" />
+    <g transform="translate(1295 112)">
+      <rect class="action" x="0" y="0" width="173" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Published</text>
+      <text class="route" x="18" y="55">/anuncio/:roomId</text>
+      <text class="card-copy" x="18" y="75">First room detail</text>
+    </g>
+
+    <path class="arrow-muted" d="M1075 204 V282 H790" />
+    <g transform="translate(650 230)">
+      <rect class="guard" x="0" y="0" width="290" height="72" rx="18" />
+      <text class="card-title" x="18" y="31">Anonymous publisher</text>
+      <text class="card-copy" x="18" y="53">Autosave draft, redirect to /entrar</text>
+    </g>
+    <path class="arrow-muted" d="M435 204 V282 H190" />
+    <g transform="translate(36 230)">
+      <rect class="action" x="0" y="0" width="290" height="72" rx="18" />
+      <text class="card-title" x="18" y="31">Save server draft</text>
+      <text class="card-copy" x="18" y="53">Authenticated users land on /mis-anuncios</text>
+    </g>
+  </g>
+
+  <!-- Flow 5 -->
+  <g transform="translate(48 1533)">
+    <rect class="lane" x="0" y="0" width="1504" height="255" rx="26" />
+    <text class="section-title" x="36" y="44">5. Manage listings and property lifecycle</text>
+    <text class="section-note" x="36" y="68">Owners manage rooms grouped by property with draft, published, paused, and archived states.</text>
+
+    <g transform="translate(36 104)">
+      <rect class="entry" x="0" y="0" width="210" height="92" rx="18" />
+      <text class="route" x="18" y="25">/mis-anuncios</text>
+      <text class="card-title" x="18" y="48">My listings</text>
+      <text class="card-copy" x="18" y="70">Grouped by property</text>
+    </g>
+    <path class="arrow" d="M246 150 H370" />
+    <g transform="translate(370 104)">
+      <rect class="decision" x="0" y="0" width="225" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Choose action</text>
+      <text class="card-copy" x="18" y="53">Edit, upgrade, pause,</text>
+      <text class="card-copy" x="18" y="73">republish, archive</text>
+    </g>
+    <path class="arrow" d="M595 150 H730" />
+    <g transform="translate(730 104)">
+      <rect class="action" x="0" y="0" width="260" height="92" rx="18" />
+      <text class="route" x="18" y="25">/publicar?edit=:propertyId</text>
+      <text class="card-title" x="18" y="48">Edit wizard</text>
+      <text class="card-copy" x="18" y="70">Update fields or upgrade mode</text>
+    </g>
+    <path class="arrow" d="M990 150 H1125" />
+    <g transform="translate(1125 104)">
+      <rect class="action" x="0" y="0" width="260" height="92" rx="18" />
+      <text class="card-title" x="18" y="31">Status update</text>
+      <text class="card-copy" x="18" y="53">PATCH room/property status</text>
+      <text class="card-copy" x="18" y="73">Refresh dashboard</text>
+    </g>
+  </g>
+
+  <!-- Flow 6 -->
+  <g transform="translate(48 1817)">
+    <rect class="lane" x="0" y="0" width="1504" height="255" rx="26" />
+    <text class="section-title" x="36" y="44">6. Groups, profile, support, legal, and admin</text>
+    <text class="section-note" x="36" y="68">Secondary flows available from the header mega menu, mobile menu, footer, or auth success state.</text>
+
+    <g transform="translate(36 104)">
+      <rect class="entry" x="0" y="0" width="190" height="92" rx="18" />
+      <text class="route" x="18" y="25">/grupos</text>
+      <text class="card-title" x="18" y="48">Roomie groups</text>
+      <text class="card-copy" x="18" y="70">Create/join groups</text>
+    </g>
+    <path class="arrow-muted" d="M226 150 H320" />
+    <g transform="translate(320 104)">
+      <rect class="entry" x="0" y="0" width="190" height="92" rx="18" />
+      <text class="route" x="18" y="25">/perfil</text>
+      <text class="card-title" x="18" y="48">Profile</text>
+      <text class="card-copy" x="18" y="70">Completion prompts</text>
+    </g>
+    <path class="arrow-muted" d="M510 150 H605" />
+    <g transform="translate(605 104)">
+      <rect class="action" x="0" y="0" width="190" height="92" rx="18" />
+      <text class="route" x="18" y="25">/perfil/editar</text>
+      <text class="card-title" x="18" y="48">Edit account</text>
+      <text class="card-copy" x="18" y="70">Profile + password</text>
+    </g>
+    <path class="arrow-muted" d="M795 150 H890" />
+    <g transform="translate(890 104)">
+      <rect class="support" x="0" y="0" width="190" height="92" rx="18" />
+      <text class="route" x="18" y="25">/contacto /faq /legal</text>
+      <text class="card-title" x="18" y="48">Support/legal</text>
+      <text class="card-copy" x="18" y="70">Email + policy pages</text>
+    </g>
+    <path class="arrow-muted" d="M1080 150 H1175" />
+    <g transform="translate(1175 104)">
+      <rect class="admin" x="0" y="0" width="245" height="92" rx="18" />
+      <text class="route" x="18" y="25">/admin</text>
+      <text class="card-title" x="18" y="48">Admin tools</text>
+      <text class="card-copy" x="18" y="70">Users, cities, analytics, pause</text>
+    </g>
+  </g>
+
+  <line class="divider" x1="84" y1="2105" x2="1516" y2="2105" />
+  <text class="small" x="84" y="2132">Figma import tip: drag this SVG into a blank Figma canvas, then ungroup sections as needed. Companion notes live in docs/figma/README.md.</text>
+</svg>
