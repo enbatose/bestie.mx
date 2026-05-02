@@ -88,18 +88,6 @@ export function ProfilePage() {
         >
           Editar datos
         </Link>
-        <Link
-          to="/mis-anuncios"
-          className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
-        >
-          Mis anuncios
-        </Link>
-        <Link
-          to="/publicar"
-          className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:brightness-110"
-        >
-          Publicar anuncio
-        </Link>
       </div>
     </div>
   );
