@@ -385,24 +385,40 @@ export function MyListingsPage() {
                       </>
                     ) : null}
                     {propSt === "published" ? (
-                      <button
-                        type="button"
-                        disabled={propActing}
-                        onClick={() => void pauseProperty(propertyId)}
-                        className="rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-50"
-                      >
-                        {propActing ? "…" : "Pausar propiedad"}
-                      </button>
+                      <>
+                        <Link
+                          to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                          className="inline-flex justify-center rounded-full border border-border bg-surface px-4 py-2 text-center text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                        >
+                          Editar anuncio
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={propActing}
+                          onClick={() => void pauseProperty(propertyId)}
+                          className="rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-50"
+                        >
+                          {propActing ? "…" : "Pausar propiedad"}
+                        </button>
+                      </>
                     ) : null}
                     {propSt === "paused" ? (
-                      <button
-                        type="button"
-                        disabled={propActing}
-                        onClick={() => void republishProperty(propertyId)}
-                        className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface disabled:opacity-50"
-                      >
-                        {propActing ? "…" : "Republicar propiedad"}
-                      </button>
+                      <>
+                        <Link
+                          to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                          className="inline-flex justify-center rounded-full border border-border bg-surface px-4 py-2 text-center text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                        >
+                          Editar y republicar
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={propActing}
+                          onClick={() => void republishProperty(propertyId)}
+                          className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface disabled:opacity-50"
+                        >
+                          {propActing ? "…" : "Republicar propiedad"}
+                        </button>
+                      </>
                     ) : null}
                     {propSt === "published" || propSt === "paused" ? (
                       <button

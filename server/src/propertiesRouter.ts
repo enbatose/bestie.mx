@@ -695,8 +695,9 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    if (String(roomRow.status) !== "draft") {
-      res.status(400).json({ error: "only_draft_room_editable", message: "Only draft rooms can be edited here." });
+    const roomSt = String(roomRow.status) as ListingStatus;
+    if (roomSt !== "draft" && roomSt !== "published" && roomSt !== "paused") {
+      res.status(400).json({ error: "only_draft_room_editable", message: "Only draft, published, or paused rooms can be edited here." });
       return;
     }
 
@@ -1040,6 +1041,14 @@ export function propertiesRouter(db: DatabaseSync) {
       db.prepare("UPDATE rooms SET status = 'published' WHERE property_id = ? AND status = 'paused'").run(
         propertyId,
       );
+    }
+    if (
+      patch.status === "published" &&
+      (curStatus === "published" || curStatus === "paused")
+    ) {
+      db.prepare(
+        `UPDATE rooms SET status = 'published' WHERE property_id = ? AND status IN ('draft', 'paused')`,
+      ).run(propertyId);
     }
 
     const updated = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
