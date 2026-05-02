@@ -18,8 +18,9 @@ import {
   isSafeRoomOrListingId,
   minimalPropertySummaryOk,
   NEIGHBORHOOD_MAX_LEN,
-  normalizeWhatsAppDigits,
+  contactWhatsAppOkForPublish,
   PROPERTY_SUMMARY_MIN_LEN,
+  storedContactWhatsApp,
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
   validLatLng,
@@ -195,9 +196,11 @@ export function listingsRouter(db: DatabaseSync) {
       return;
     }
 
-    const contactDigits = normalizeWhatsAppDigits(body.contactWhatsApp);
-    if (contactDigits == null) {
-      res.status(400).json({ error: "invalid_whatsapp", message: "WhatsApp must be 10–15 digits." });
+    const showWa = (body as { showWhatsApp?: unknown }).showWhatsApp;
+    const showPublic = showWa !== false;
+    const contactStored = storedContactWhatsApp(showPublic, body.contactWhatsApp);
+    if (!contactWhatsAppOkForPublish(showPublic, contactStored)) {
+      res.status(400).json({ error: "invalid_whatsapp", message: "WhatsApp inválido." });
       return;
     }
     if (!validLatLng(body.lat, body.lng)) {
@@ -249,8 +252,7 @@ export function listingsRouter(db: DatabaseSync) {
 
     const bedTotal = clampBedroomsTotal(Number((body as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
     const bathTotal = clampBathrooms(Number((body as { bathrooms?: unknown }).bathrooms ?? 1));
-    const showWa = (body as { showWhatsApp?: unknown }).showWhatsApp;
-    const showWhatsappInt = showWa === false ? 0 : 1;
+    const showWhatsappInt = showPublic ? 1 : 0;
     const depositMxn = clampDepositMxn(Number((body as { depositMxn?: unknown }).depositMxn ?? 0));
     const propImagesJson = JSON.stringify(
       clampListingImageUrls((body as { propertyImageUrls?: unknown }).propertyImageUrls),
@@ -292,7 +294,7 @@ export function listingsRouter(db: DatabaseSync) {
         lat: body.lat,
         lng: body.lng,
         summary,
-        contactWhatsApp: contactDigits,
+        contactWhatsApp: contactStored,
         propertyKind: propertyKind ?? null,
         bedroomsTotal: bedTotal,
         bathrooms: bathTotal,

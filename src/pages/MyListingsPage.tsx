@@ -64,7 +64,12 @@ export function MyListingsPage() {
     }
     if (!p.neighborhood?.trim()) m.push("Colonia");
     if (!p.city?.trim()) m.push("Ciudad");
-    if (!p.contactWhatsApp?.trim() || p.contactWhatsApp.replace(/\D/g, "").length < 10) m.push("WhatsApp real");
+    if (
+      p.showWhatsApp !== false &&
+      (!p.contactWhatsApp?.trim() || p.contactWhatsApp.replace(/\D/g, "").length < 10)
+    ) {
+      m.push("WhatsApp");
+    }
     if (!isRoomPost && (!p.summary?.trim() || p.summary.trim().length < 20)) m.push("Descripción de la propiedad");
     if (!bundle.rooms?.length) m.push("Al menos 1 cuarto");
     for (const [index, r] of (bundle.rooms ?? []).entries()) {

@@ -104,6 +104,7 @@ describe("Phase B API hardening", () => {
           lat: 20.67,
           lng: -103.35,
           contactWhatsApp: "0000000000000",
+          showWhatsApp: true,
           summary: PROP_SUMMARY_OK,
         },
         rooms: [
@@ -125,6 +126,47 @@ describe("Phase B API hardening", () => {
       })
       .expect(400);
     expect((res.body as { error?: string }).error).toBe("invalid_whatsapp");
+  });
+
+  it("publish-bundle allows no real WhatsApp when showWhatsApp is false", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: uniqueTestEmail("bundle-wa-hide"), password: "longenough1", displayName: "Bundle" })
+      .expect(201);
+    await agent.post("/api/auth/link-publisher").expect(200);
+    await agent
+      .post("/api/properties/publish-bundle")
+      .send({
+        legalAccepted: true,
+        property: {
+          title: "T",
+          city: "Guadalajara",
+          neighborhood: "Centro",
+          lat: 20.67,
+          lng: -103.35,
+          contactWhatsApp: "",
+          showWhatsApp: false,
+          summary: PROP_SUMMARY_OK,
+        },
+        rooms: [
+          {
+            title: "C1",
+            rentMxn: 4000,
+            roomsAvailable: 1,
+            tags: [],
+            roommateGenderPref: "any",
+            ageMin: 18,
+            ageMax: 99,
+            summary: "Descripción del cuarto.",
+            availableFrom: "2026-01-15",
+            roomDimension: "medium",
+            minimalStayMonths: 1,
+            depositMxn: 0,
+          },
+        ],
+      })
+      .expect(201);
   });
 
   it("publish-bundle requires legalAccepted", async () => {
