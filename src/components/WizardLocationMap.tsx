@@ -15,6 +15,8 @@ type Props = {
   hasDefinedLocation: boolean;
   locationLabel: string | null;
   onPositionChange: (lat: number, lng: number) => void;
+  /** When true, show the ~200 m privacy radius circle; otherwise only the draggable pin. */
+  showApproximateRadius?: boolean;
 };
 
 /** External Street View tab only — the embedded map stays Leaflet/OSM (no Maps JavaScript API). */
@@ -22,7 +24,14 @@ function streetViewExternalUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
 }
 
-export function WizardLocationMap({ center, position, hasDefinedLocation, locationLabel, onPositionChange }: Props) {
+export function WizardLocationMap({
+  center,
+  position,
+  hasDefinedLocation,
+  locationLabel,
+  onPositionChange,
+  showApproximateRadius = false,
+}: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
   const [lat, lng] = localPosition;
@@ -82,12 +91,14 @@ export function WizardLocationMap({ center, position, hasDefinedLocation, locati
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <Circle
-          center={localPosition}
-          radius={200}
-          pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
-          interactive={false}
-        />
+        {showApproximateRadius ? (
+          <Circle
+            center={localPosition}
+            radius={200}
+            pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
+            interactive={false}
+          />
+        ) : null}
         <Marker
           ref={markerRef}
           position={localPosition}

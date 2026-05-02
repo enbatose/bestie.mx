@@ -936,13 +936,16 @@ export function PublishWizardPage() {
                 Ciudad
               </h3>
               <div className="block text-sm font-medium text-body">
+                <span className="mb-2 block text-xs text-muted">
+                  Selecciona la ciudad donde se encuentra el espacio.
+                </span>
                 <select
                   aria-labelledby="publish-step-city-heading"
                   value={draft.city}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, city: e.target.value as Draft["city"] }))
                   }
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 >
                   {CITIES.map((c) => (
                     <option key={c} value={c}>
@@ -950,9 +953,6 @@ export function PublishWizardPage() {
                     </option>
                   ))}
                 </select>
-                <span className="mt-2 block text-xs text-muted">
-                  Selecciona la ciudad donde se encuentra el espacio.
-                </span>
               </div>
             </div>
 
@@ -982,12 +982,13 @@ export function PublishWizardPage() {
                         customLng: lng.toFixed(7),
                       }));
                     }}
+                    showApproximateRadius={draft.isApproximateLocation}
                   />
                 </div>
-                {draft.isApproximateLocation && mapGeocode ? (
+                {draft.isApproximateLocation ? (
                   <p className="mt-2 rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
-                    Misma ubicación en el mapa; en público se muestra colonia, calle y código postal (sin número exacto
-                    ni nombre de negocio).
+                    Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
+                    búsqueda mostrará una ubicación aproximada en lugar del punto exacto.
                   </p>
                 ) : null}
 
