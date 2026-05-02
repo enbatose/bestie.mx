@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, NavLink } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -38,6 +39,23 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [megaOpen]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileOpen]);
 
   const linkCol = "flex flex-col gap-1";
   const h = "text-xs font-semibold uppercase tracking-wide text-muted";
@@ -137,6 +155,49 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
     </div>
   );
 
+  const mobileSheet = (
+    <div className="fixed inset-0 z-[90] md:hidden">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50"
+        aria-label="Cerrar menú"
+        onClick={() => setMobileOpen(false)}
+      />
+      <div
+        className="absolute right-0 top-0 flex h-dvh w-[min(100%,320px)] flex-col border-l border-border bg-surface p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menú principal"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-primary">Bestie</span>
+          <button type="button" className="text-muted" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)}>
+            ✕
+          </button>
+        </div>
+        {!me?.id ? (
+          <div className="mt-4 flex flex-col gap-2 border-b border-border pb-4 dark:border-slate-600">
+            <Link
+              to="/entrar"
+              className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-fg transition hover:brightness-110"
+              onClick={() => setMobileOpen(false)}
+            >
+              Entrar
+            </Link>
+            <Link
+              to="/registro"
+              className="rounded-xl border border-border bg-bg-light py-3 text-center text-sm font-semibold text-body transition hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-800"
+              onClick={() => setMobileOpen(false)}
+            >
+              Crear cuenta
+            </Link>
+          </div>
+        ) : null}
+        <div className="mt-4 flex-1 overflow-y-auto overscroll-contain">{megaPanel}</div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Desktop: primary row + mega */}
@@ -216,6 +277,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
           onClick={() => setMobileOpen(true)}
           className="rounded-lg border border-border bg-bg-light px-3 py-2 text-sm font-bold text-body dark:border-slate-600"
           aria-expanded={mobileOpen}
+          aria-haspopup="dialog"
         >
           ☰ Menú
         </button>
@@ -231,45 +293,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         ) : null}
       </div>
 
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-[90] md:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/50"
-            aria-label="Cerrar menú"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="absolute right-0 top-0 flex h-full w-[min(100%,320px)] flex-col border-l border-border bg-surface p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-primary">Bestie</span>
-              <button type="button" className="text-muted" onClick={() => setMobileOpen(false)}>
-                ✕
-              </button>
-            </div>
-            {!me?.id ? (
-              <div className="mt-4 flex flex-col gap-2 border-b border-border pb-4 dark:border-slate-600">
-                <Link
-                  to="/entrar"
-                  className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-fg transition hover:brightness-110"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Entrar
-                </Link>
-                <Link
-                  to="/registro"
-                  className="rounded-xl border border-border bg-bg-light py-3 text-center text-sm font-semibold text-body transition hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-800"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Crear cuenta
-                </Link>
-              </div>
-            ) : null}
-            <div className="mt-4 flex-1 overflow-y-auto overscroll-contain">
-              {megaPanel}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {mobileOpen ? createPortal(mobileSheet, document.body) : null}
     </>
   );
 }
