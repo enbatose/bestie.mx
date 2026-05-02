@@ -22,7 +22,6 @@ import {
   minimalPropertySummaryOk,
   PROPERTY_SUMMARY_MIN_LEN,
   NEIGHBORHOOD_MAX_LEN,
-  normalizeWhatsAppDigits,
   storedContactWhatsApp,
   ROOM_TITLE_MAX_LEN,
   SUMMARY_MAX_LEN,
