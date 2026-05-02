@@ -870,9 +870,6 @@ export function PublishWizardPage() {
           <form className="space-y-6">
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">Tipo de espacio</h3>
-              <p className="text-sm text-muted">
-                Empieza rápido con un cuarto o loft, o crea una propiedad con varios cuartos.
-              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
@@ -923,7 +920,8 @@ export function PublishWizardPage() {
                 </button>
               </div>
               <p className="text-xs text-muted">
-                Tip: Puedes convertir tu publicación de un cuarto a ser una propiedad posterior a su publicación.
+                <strong className="font-semibold text-body">Tip</strong>: Puedes cambiar la categoría de
+                &quot;Cuarto&quot; a &quot;Propiedad completa&quot; incluso después de haber publicado tu anuncio.
               </p>
             </div>
           </form>
@@ -2133,11 +2131,13 @@ export function PublishWizardPage() {
       </section>
       ) : null}
 
-      <p className="mt-6 text-sm text-muted">
-        <Link to="/buscar" className="font-semibold text-primary underline-offset-2 hover:underline">
-          Ver búsqueda
-        </Link>
-      </p>
+      {safeStep > 0 ? (
+        <p className="mt-6 text-sm text-muted">
+          <Link to="/buscar" className="font-semibold text-primary underline-offset-2 hover:underline">
+            Ver búsqueda
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }
