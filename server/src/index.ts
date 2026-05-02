@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 import { logOutboundMailHintIfDisabled, verifySmtpConnection } from "./mailer.js";
@@ -8,11 +9,13 @@ import { logOutboundMailHintIfDisabled, verifySmtpConnection } from "./mailer.js
 /** When `index.html` exists, API + SPA share one origin (see `createApp` `webDistDir`). */
 function resolveWebDistDir(): string | undefined {
   const raw = process.env.WEB_DIST_DIR?.trim();
+  /** `dist/index.js` lives in `server/dist/`; Vite output is sibling `../dist` from `server/`. */
+  const serverPackageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const candidate = raw
     ? path.isAbsolute(raw)
       ? raw
       : path.resolve(process.cwd(), raw)
-    : path.resolve(process.cwd(), "..", "dist");
+    : path.resolve(serverPackageRoot, "..", "dist");
   return fs.existsSync(path.join(candidate, "index.html")) ? candidate : undefined;
 }
 
@@ -24,15 +27,6 @@ function resolveListenPort(): number {
 }
 
 const PORT = resolveListenPort();
-
-/** On Railway, probes may use IPv6; binding only 0.0.0.0 can yield failing healthchecks. Override with LISTEN_HOST if needed. */
-function resolveListenHost(): string {
-  const override = process.env.LISTEN_HOST?.trim();
-  if (override) return override;
-  return process.env.RAILWAY_ENVIRONMENT ? "::" : "0.0.0.0";
-}
-
-const LISTEN_HOST = resolveListenHost();
 
 /** Prefer env path; if that directory is not writable (e.g. /data without a volume), use ./data/bestie.db */
 function resolveWritableDatabasePath(): string {
@@ -83,8 +77,9 @@ const app = createApp(db, {
   ...(webDistDir ? { webDistDir } : {}),
 });
 
-app.listen(PORT, LISTEN_HOST, () => {
-  console.log(`bestie.mx API listening on ${LISTEN_HOST}:${PORT}`);
+// Omit hostname so Node picks the default bind (dual-stack when supported); explicit `::` can fail if IPv6 is off in the image.
+app.listen(PORT, () => {
+  console.log(`bestie.mx API listening on port ${PORT}`);
   console.log(`SQLite: ${databasePath}`);
   if (webDistDir) {
     console.log(`[web] SPA + API same origin from ${webDistDir}`);
