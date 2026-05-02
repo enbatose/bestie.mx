@@ -1,3 +1,4 @@
+import { APPROXIMATE_LISTING_MAP_RADIUS_M, jitterLatLngInDiskMeters } from "@/map/listingMapPosition";
 import { MapContainer, Marker, TileLayer, Circle } from "react-leaflet";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,6 +10,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
+/** Pin shown at the jittered position used on the public search map (same algorithm as `listingMapPosition`). */
+const publicSearchPinIcon = L.divIcon({
+  className: "border-0 bg-transparent",
+  html: '<div style="width:14px;height:14px;border-radius:50%;background:#166534;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.35)" aria-hidden="true"></div>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
 type Props = {
   center: [number, number];
   position: [number, number];
@@ -17,6 +26,11 @@ type Props = {
   onPositionChange: (lat: number, lng: number) => void;
   /** When true, show the ~200 m privacy radius circle; otherwise only the draggable pin. */
   showApproximateRadius?: boolean;
+  /**
+   * Room listing id used to jitter the public map pin (must match the id used in search).
+   * When empty, the circle still shows at the exact pin but the preview marker is omitted until a borrador exists.
+   */
+  publicMapJitterSeed?: string;
 };
 
 /** External Street View tab only — the embedded map stays Leaflet/OSM (no Maps JavaScript API). */
@@ -31,6 +45,7 @@ export function WizardLocationMap({
   locationLabel,
   onPositionChange,
   showApproximateRadius = false,
+  publicMapJitterSeed = "",
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
@@ -38,6 +53,15 @@ export function WizardLocationMap({
   const streetViewHref = streetViewExternalUrl(lat, lng);
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
+
+  const publicMapPreviewPosition = useMemo((): [number, number] | null => {
+    if (!showApproximateRadius) return null;
+    const seed = publicMapJitterSeed.trim();
+    if (!seed) return null;
+    const [la, ln] = localPosition;
+    if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
+    return jitterLatLngInDiskMeters(la, ln, seed, APPROXIMATE_LISTING_MAP_RADIUS_M);
+  }, [showApproximateRadius, publicMapJitterSeed, localPosition]);
 
   useEffect(() => {
     setLocalPosition(position);
@@ -94,9 +118,18 @@ export function WizardLocationMap({
         {showApproximateRadius ? (
           <Circle
             center={localPosition}
-            radius={200}
+            radius={APPROXIMATE_LISTING_MAP_RADIUS_M}
             pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
             interactive={false}
+          />
+        ) : null}
+        {publicMapPreviewPosition ? (
+          <Marker
+            position={publicMapPreviewPosition}
+            icon={publicSearchPinIcon}
+            interactive={false}
+            zIndexOffset={600}
+            title="Ubicación aproximada en el mapa de búsqueda"
           />
         ) : null}
         <Marker

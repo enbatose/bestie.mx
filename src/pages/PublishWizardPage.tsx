@@ -983,6 +983,7 @@ export function PublishWizardPage() {
                       }));
                     }}
                     showApproximateRadius={draft.isApproximateLocation}
+                    publicMapJitterSeed={serverSync.roomIds[0]?.trim() ?? ""}
                   />
                 </div>
                 {draft.isApproximateLocation ? (
@@ -1631,7 +1632,7 @@ export function PublishWizardPage() {
         ),
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, resolveLatLngForDraft],
+    [draft, apiOn, mapAddressShown, mapGeocode, resolveLatLngForDraft, serverSync],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
