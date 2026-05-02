@@ -50,18 +50,24 @@ export function AppShellLayout() {
         <footer className="border-t border-border bg-surface px-4 py-8 sm:px-6">
           <div className="mx-auto flex max-w-6xl flex-col gap-6">
             <BrandLogo imgClassName="h-7 w-auto max-w-[200px] object-left sm:h-8" />
-            <nav className="flex w-full flex-wrap justify-evenly gap-x-4 gap-y-2 text-sm font-medium text-primary sm:flex-nowrap">
-              <a href="mailto:soporte@bestie.mx" className="underline-offset-2 hover:underline">
-                Contacto
-              </a>
-              <Link to="/faq" className="underline-offset-2 hover:underline">
-                FAQ
-              </Link>
-              <Link to="/legal" className="underline-offset-2 hover:underline">
-                Legal y privacidad
-              </Link>
-            </nav>
-            <p className="text-center text-sm text-muted">© {new Date().getFullYear()} Bestie™</p>
+            <div className="mx-auto w-full max-w-2xl">
+              <nav className="grid grid-cols-3 text-center text-sm font-medium text-primary">
+                <a href="mailto:soporte@bestie.mx" className="underline-offset-2 hover:underline">
+                  Contacto
+                </a>
+                <Link to="/faq" className="underline-offset-2 hover:underline">
+                  FAQ
+                </Link>
+                <Link to="/legal" className="underline-offset-2 hover:underline">
+                  Legal y privacidad
+                </Link>
+              </nav>
+              <div className="mt-2 grid grid-cols-3 text-sm text-muted">
+                <div aria-hidden className="min-w-0" />
+                <p className="text-center">© {new Date().getFullYear()} Bestie™</p>
+                <div aria-hidden className="min-w-0" />
+              </div>
+            </div>
           </div>
         </footer>
 
