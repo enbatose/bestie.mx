@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet } from "react-router-dom";
-import { BrandLogo } from "@/components/BrandLogo";
+import { Outlet } from "react-router-dom";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
@@ -48,35 +47,9 @@ export function AppShellLayout() {
         </main>
 
         <footer className="border-t border-border bg-surface px-4 py-8 sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex min-w-0 flex-col gap-3">
-              <BrandLogo imgClassName="h-7 w-auto max-w-[200px] object-left sm:h-8" />
-              <p className="text-sm text-muted">
-                © {new Date().getFullYear()} Bestie™ ·{" "}
-                <a
-                  href="mailto:soporte@bestie.mx"
-                  className="font-medium text-primary underline-offset-2 hover:underline"
-                >
-                  soporte@bestie.mx
-                </a>
-              </p>
-              <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-primary">
-                <a
-                  href="mailto:soporte@bestie.mx"
-                  className="inline-flex items-center justify-center rounded-full border border-border bg-bg-light px-4 py-2 font-semibold text-body shadow-sm transition hover:bg-surface-elevated"
-                >
-                  Contacto
-                </a>
-                <Link to="/faq" className="underline-offset-2 hover:underline">
-                  FAQ
-                </Link>
-                <Link to="/legal" className="underline-offset-2 hover:underline">
-                  Legal y privacidad
-                </Link>
-              </nav>
-            </div>
-            <p className="text-xs text-muted sm:text-right">bestie.mx — MVP en construcción</p>
-          </div>
+          <p className="mx-auto max-w-6xl text-center text-sm text-muted">
+            © {new Date().getFullYear()} Bestie™
+          </p>
         </footer>
 
         <AuthModal />

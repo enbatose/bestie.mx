@@ -1,23 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
-import { fetchFeaturedCities } from "@/lib/authApi";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 import { withDefaultSearchCity } from "@/lib/searchDefaults";
 
-const DEFAULT_CITIES = ["Guadalajara"] as const;
+const PROXIMAS_CITIES = ["Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
 
-/** Cities removed from the home list (still allowed in search data if present). */
-const HOME_CITY_BLOCKLIST = new Set([
-  "Mérida",
-  "Puerto Vallarta",
-  "Sayulita",
-  "Bucerías",
-]);
+const cityChipAvailable =
+  "rounded-full border border-border bg-bg-light px-4 py-2 text-sm font-medium text-body transition hover:border-secondary hover:bg-surface-elevated";
 
-function filterHomeCities(list: string[]): string[] {
-  return [...new Set(list.map((c) => c.trim()).filter(Boolean))].filter((c) => !HOME_CITY_BLOCKLIST.has(c));
-}
+const cityChipSoon =
+  "inline-flex rounded-full border border-border bg-bg-light px-4 py-2 text-sm font-medium text-body";
 
 function buildSearchParams(query: string): URLSearchParams {
   return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: withDefaultSearchCity(query) });
@@ -26,15 +19,7 @@ function buildSearchParams(query: string): URLSearchParams {
 export function HomePage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [cityChoices, setCityChoices] = useState<string[]>(filterHomeCities([...DEFAULT_CITIES]));
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    void fetchFeaturedCities().then((fc) => {
-      const merged = filterHomeCities([...new Set([...fc, ...DEFAULT_CITIES])]);
-      setCityChoices(merged.length ? merged : [...DEFAULT_CITIES]);
-    });
-  }, []);
 
   const goSearch = useCallback(() => {
     navigate({ pathname: "/buscar", search: `?${buildSearchParams(searchQuery).toString()}` });
@@ -106,24 +91,36 @@ export function HomePage() {
 
       <section className="border-b border-border bg-surface px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-lg font-semibold text-body sm:text-xl">Ciudades disponibles</h2>
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {cityChoices.map((city) => (
-              <li key={city}>
-                <button
-                  type="button"
-                  aria-label={`Abrir mapa de búsqueda en ${city}`}
-                  onClick={() => goSearchForCity(city)}
-                  className="rounded-full border border-border bg-bg-light px-4 py-2 text-sm font-medium text-body transition hover:border-secondary hover:bg-surface-elevated"
-                >
-                  {city}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-sm text-muted">
-            Toca una ciudad para ir al mapa y a la lista con filtros para esa zona.
-          </p>
+          <div className="grid gap-10 md:grid-cols-2 md:gap-12">
+            <div>
+              <h2 className="text-lg font-semibold text-body sm:text-xl">Ciudades disponibles</h2>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                <li>
+                  <button
+                    type="button"
+                    aria-label="Abrir mapa de búsqueda en Guadalajara"
+                    onClick={() => goSearchForCity("Guadalajara")}
+                    className={cityChipAvailable}
+                  >
+                    Guadalajara
+                  </button>
+                </li>
+              </ul>
+              <p className="mt-4 text-sm text-muted">
+                Toca la ciudad para ir al mapa y a la lista con filtros para esa zona.
+              </p>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-body sm:text-xl">Próximamente</h2>
+              <ul className="mt-4 flex flex-wrap gap-2" aria-label="Ciudades próximamente">
+                {PROXIMAS_CITIES.map((city) => (
+                  <li key={city}>
+                    <span className={cityChipSoon}>{city}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -141,41 +138,6 @@ export function HomePage() {
               Publicar anuncio
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="px-4 py-10 sm:px-6">
-        <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-3">
-          {[
-            {
-              title: "Propiedad y cuartos",
-              body: "Publica un cuarto de forma rápida. Adicionalmente, ofrecemos publicaciones de propiedad, para mostrar múltiples cuartos y áreas comunes de forma clara.",
-            },
-            {
-              title: "Mapa + lista",
-              body: "Interfaz de mapa con pins y listado de publicaciones para explorar por zona.",
-            },
-            {
-              title: "Filtros relevantes",
-              body: "Selecciona los filtros más relevantes como género de roomies buscados o existentes, rango de edad, baño privado, estacionamiento, entre muchos otros.",
-            },
-          ].map((card) => (
-            <article
-              key={card.title}
-              className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
-            >
-              <img
-                src="/brand/logo-mark.svg"
-                alt=""
-                width={40}
-                height={40}
-                className="mb-3 h-9 w-9 opacity-90 sm:h-10 sm:w-10"
-                decoding="async"
-              />
-              <h3 className="font-semibold text-primary">{card.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{card.body}</p>
-            </article>
-          ))}
         </div>
       </section>
     </>
