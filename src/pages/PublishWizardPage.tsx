@@ -1965,12 +1965,14 @@ export function PublishWizardPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
-      <p className="mt-2 text-sm text-muted">
-        Elige cómo empezar:{" "}
-        <strong className="font-medium text-body">un cuarto o loft</strong> (rápido) o{" "}
-        <strong className="font-medium text-body">una propiedad con varios cuartos</strong>.
-      </p>
-      {apiOn && me === null ? (
+      {safeStep > 0 ? (
+        <p className="mt-2 text-sm text-muted">
+          Elige cómo empezar:{" "}
+          <strong className="font-medium text-body">un cuarto o loft</strong> (rápido) o{" "}
+          <strong className="font-medium text-body">una propiedad con varios cuartos</strong>.
+        </p>
+      ) : null}
+      {safeStep > 0 && apiOn && me === null ? (
         <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-50 p-3 text-sm text-body dark:border-amber-800/60 dark:bg-amber-950/40">
           <Link className="font-semibold text-primary underline" to="/entrar">
             Inicia sesión
@@ -1984,7 +1986,7 @@ export function PublishWizardPage() {
           {handoffBanner}
         </p>
       ) : null}
-      {draft.postMode === "room" ? (
+      {safeStep > 0 && draft.postMode === "room" ? (
         <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4">
           <p className="text-sm text-body">
             Estás publicando <strong>un cuarto o loft</strong>. Si después quieres subir más fotos, agregar cuartos o
