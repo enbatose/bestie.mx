@@ -64,10 +64,6 @@ export function ProfilePage() {
             </Link>
           )}
         </li>
-        <li className="flex items-center justify-between gap-2">
-          <span className="text-body">Publicadores vinculados</span>
-          <span className="text-muted">{me.linkedPublisherIds.length}</span>
-        </li>
       </ul>
 
       {!phoneOk ? (
@@ -103,9 +99,6 @@ export function ProfilePage() {
           className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:brightness-110"
         >
           Publicar anuncio
-        </Link>
-        <Link to="/entrar" className="rounded-full px-4 py-2 text-sm font-semibold text-primary underline-offset-2">
-          Ajustes de sesión
         </Link>
       </div>
     </div>
