@@ -11,6 +11,7 @@ import { ListingPage } from "@/pages/ListingPage";
 import { MessagesPage } from "@/pages/MessagesPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
+import { PropertyPage } from "@/pages/PropertyPage";
 import { PublishWizardPage } from "@/pages/PublishWizardPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { SearchPage } from "@/pages/SearchPage";
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "buscar", element: <SearchPage /> },
       { path: "anuncio/:id", element: <ListingPage /> },
+      { path: "propiedad/:id", element: <PropertyPage /> },
       { path: "publicar", element: <PublishWizardPage /> },
       { path: "mis-anuncios", element: <MyListingsPage /> },
       { path: "perfil", element: <ProfilePage /> },

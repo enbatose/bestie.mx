@@ -21,6 +21,34 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall back for browsers that expose the API but block it outside secure contexts.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  if (!ok) throw new Error("clipboard_unavailable");
+}
+
+function absoluteAppUrl(path: string): string {
+  return new URL(path, window.location.origin).toString();
+}
+
 function unavailableCopy(reason: ListingUnavailableReason | null): {
   title: string;
   lead: string;
@@ -135,6 +163,7 @@ export function ListingPage() {
   const [msgBusy, setMsgBusy] = useState(false);
   const [msgErr, setMsgErr] = useState<string | null>(null);
   const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(() => new Set());
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   const refreshViewer = useCallback(async () => {
     if (!messagingOn) {
@@ -147,6 +176,7 @@ export function ListingPage() {
   useEffect(() => {
     setRevealed(false);
     setMsgErr(null);
+    setShareMsg(null);
     setFailedImageUrls(new Set());
     void refreshViewer();
   }, [id, refreshViewer]);
@@ -221,6 +251,27 @@ export function ListingPage() {
     }
     return seedSiblings.map((l) => ({ id: l.id, label: l.title }));
   }, [apiOn, propertyPack, listing?.id, seedSiblings]);
+
+  const roomShareLinks = useMemo(() => {
+    if (apiOn && propertyPack?.rooms.length) {
+      return propertyPack.rooms
+        .filter((r) => r.status === "published" || r.id === listing?.id)
+        .map((r) => ({ id: r.id, label: r.title || "Cuarto" }));
+    }
+    if (!listing) return [];
+    return [{ id: listing.id, label: listing.title }];
+  }, [apiOn, propertyPack, listing]);
+
+  const isPropertyPost = listing?.propertyPostMode === "property" || propertyPack?.property.postMode === "property";
+
+  const copyShareUrl = useCallback(async (path: string, label: string) => {
+    try {
+      await copyToClipboard(absoluteAppUrl(path));
+      setShareMsg(`${label} copiado al portapapeles.`);
+    } catch {
+      setShareMsg("No se pudo copiar automáticamente. Copia la URL desde la barra del navegador.");
+    }
+  }, []);
 
   const onInAppMessage = useCallback(async () => {
     if (!id || !messagingOn) return;
@@ -365,6 +416,63 @@ export function ListingPage() {
           · Edad anuncio {listing.ageMin}–{listing.ageMax}
         </p>
       </header>
+
+      <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-body">Compartir</h2>
+            <p className="mt-1 text-sm text-muted">
+              Copia un enlace público para enviar este anuncio.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void copyShareUrl(`/anuncio/${encodeURIComponent(listing.id)}`, "Link del anuncio")}
+            className="inline-flex justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
+          >
+            Compartir Anuncio
+          </button>
+        </div>
+        {isPropertyPost ? (
+          <div className="mt-4 rounded-xl border border-border bg-bg-light p-4">
+            <p className="text-sm font-medium text-body">Opciones para publicación tipo propiedad</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Puedes compartir un enlace de la propiedad completa o enlaces directos a cuartos individuales.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  void copyShareUrl(
+                    `/propiedad/${encodeURIComponent(listing.propertyId)}`,
+                    "Link de la propiedad",
+                  )
+                }
+                className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+              >
+                Copiar link de propiedad
+              </button>
+              {roomShareLinks.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() =>
+                    void copyShareUrl(`/anuncio/${encodeURIComponent(r.id)}`, `Link de ${r.label}`)
+                  }
+                  className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                >
+                  {r.id === listing.id ? "Copiar link de este cuarto" : `Copiar link: ${r.label}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {shareMsg ? (
+          <p className="mt-3 text-sm text-muted" role="status" aria-live="polite">
+            {shareMsg}
+          </p>
+        ) : null}
+      </section>
 
       {galleryUrls.length ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
