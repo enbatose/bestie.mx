@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BrandLogo } from "@/components/BrandLogo";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 import { withDefaultSearchCity } from "@/lib/searchDefaults";
 
@@ -40,16 +39,7 @@ export function HomePage() {
           aria-hidden
         />
         <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center text-center">
-          <div className="mb-6 flex w-full justify-center">
-            <BrandLogo
-              variant="onDark"
-              imgClassName="h-10 w-auto max-w-[min(100%,280px)] object-center sm:h-12 sm:max-w-[320px]"
-            />
-          </div>
-          <p className="text-sm font-medium uppercase tracking-wider text-accent">
-            México · Vivienda compartida
-          </p>
-          <h1 className="mt-3 max-w-3xl text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
+          <h1 className="max-w-3xl text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
             Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
             ciudades donde vives o quieres estar.
           </h1>
