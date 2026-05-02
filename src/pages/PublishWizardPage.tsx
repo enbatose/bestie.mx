@@ -29,6 +29,9 @@ import type {
 /** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (minimum property description length). */
 const PROPERTY_SUMMARY_MIN = 20;
 
+/** Index in `steps` for “Datos generales” (título, colonia, descripción del espacio). */
+const WIZARD_STEP_PROPERTY_GENERAL = 2;
+
 function isoToday(): string {
   const d = new Date();
   return d.toISOString().slice(0, 10);
@@ -43,6 +46,19 @@ function pickAddrPart(addr: NominatimAddress | undefined, keys: readonly string[
     if (v) return v;
   }
   return "";
+}
+
+/** Colonia / zona from reverse-geocode (same keys as the area segment in `privacyLocationFromNominatim`). */
+function neighborhoodFromNominatimAddress(addr: NominatimAddress | undefined): string {
+  return pickAddrPart(addr, [
+    "neighbourhood",
+    "suburb",
+    "quarter",
+    "city_block",
+    "district",
+    "city_district",
+    "hamlet",
+  ]);
 }
 
 /**
@@ -169,7 +185,7 @@ const defaultRoom = (): RoomDraft => ({
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
-  "Describe la propiedad y áreas compartidas: reglas de convivencia, baños, cocina, estacionamiento y lo que hace único el espacio.";
+  "Cuéntanos qué hace especial a tu hogar. Describe la propiedad y sus zonas comunes (baños, cocina, estacionamiento), sin olvidar las reglas de convivencia y ese toque único que lo distingue.";
 const DRAFT_ONLY_ROOM_TITLE_SEEDS = ["Cuarto disponible", "Vivienda completa", "Cuarto en borrador"] as const;
 
 const defaultDraft = (): Draft => ({
@@ -200,6 +216,18 @@ function isDraftOnlyRoomTitleSeed(value: string) {
 
 function isDefaultPropertySummarySeed(value: string) {
   return value.trim() === DEFAULT_PROPERTY_SUMMARY;
+}
+
+function propertyGeneralStepInvalidReason(d: Draft): string | null {
+  if (!d.propertyTitle.trim()) return "Agrega el título del anuncio.";
+  if (!d.neighborhood.trim()) return "Indica la colonia o zona.";
+  if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+    return `La descripción del espacio debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
+  }
+  if (isDefaultPropertySummarySeed(d.propertySummary)) {
+    return "Sustituye el texto de ejemplo por tu propia descripción del espacio.";
+  }
+  return null;
 }
 
 function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
@@ -253,14 +281,12 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
   if (opts.upgrade) return 2;
 
   const propertyDetailsMissing =
-    !draft.neighborhood.trim() ||
+    Boolean(propertyGeneralStepInvalidReason(draft)) ||
     (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) ||
     !Number.isFinite(draft.propertyBedroomsTotal) ||
     draft.propertyBedroomsTotal < 1 ||
     !Number.isFinite(draft.propertyBathrooms) ||
-    draft.propertyBathrooms <= 0 ||
-    (draft.postMode !== "room" &&
-      (!draft.propertyTitle.trim() || draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN));
+    draft.propertyBathrooms <= 0;
 
   if (propertyDetailsMissing) return 2;
 
@@ -408,6 +434,8 @@ export function PublishWizardPage() {
   } | null>(null);
   /** Monotonic id so stale reverse-geocode responses never commit after a newer drag/coords change. */
   const reverseGeoGenRef = useRef(0);
+  /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
+  const neighborhoodAutofillFromPinRef = useRef<{ latKey: string; value: string } | null>(null);
 
   useEffect(() => {
     if (!apiOn) {
@@ -645,6 +673,24 @@ export function PublishWizardPage() {
       ac.abort();
     };
   }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin, resolveLatLngForDraft]);
+
+  useEffect(() => {
+    if (!draft.useCustomMapPin || !mapGeocode?.address) return;
+    const latKey = mapGeocode.latKey;
+    const next = neighborhoodFromNominatimAddress(mapGeocode.address).trim();
+    if (!next) return;
+
+    setDraft((d) => {
+      const cur = d.neighborhood.trim();
+      const auto = neighborhoodAutofillFromPinRef.current;
+      const shouldApply = cur === "" || (auto !== null && cur === auto.value);
+      if (!shouldApply) return d;
+
+      neighborhoodAutofillFromPinRef.current = { latKey, value: next };
+      if (d.neighborhood === next) return d;
+      return { ...d, neighborhood: next };
+    });
+  }, [draft.useCustomMapPin, mapGeocode?.latKey, mapGeocode?.lngKey, mapGeocode?.address]);
 
   const mapAddressShown = useMemo(() => {
     if (!draft.useCustomMapPin) return null;
@@ -1018,7 +1064,7 @@ export function PublishWizardPage() {
         ),
       },
       {
-        title: "Propiedad",
+        title: "¿Cómo es tu espacio?",
         body: (
           <form className="space-y-6">
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
@@ -1026,7 +1072,8 @@ export function PublishWizardPage() {
                 Datos Generales
               </h3>
               <label className="block text-sm font-medium text-body">
-                Nombre de la propiedad
+                Título del anuncio
+                <span className="text-red-600"> *</span>
                 <input
                   value={draft.propertyTitle}
                   onChange={(e) => setDraft((d) => ({ ...d, propertyTitle: e.target.value }))}
@@ -1036,6 +1083,7 @@ export function PublishWizardPage() {
               </label>
               <label className="block text-sm font-medium text-body">
                 Colonia o zona
+                <span className="text-red-600"> *</span>
                 <input
                   value={draft.neighborhood}
                   onChange={(e) => setDraft((d) => ({ ...d, neighborhood: e.target.value }))}
@@ -1044,7 +1092,7 @@ export function PublishWizardPage() {
                 />
               </label>
               <label className="block text-sm font-medium text-body">
-                Descripción de la propiedad
+                Descripción del espacio
                 <span className="text-red-600"> *</span>
                 <textarea
                   value={draft.propertySummary}
@@ -1679,6 +1727,10 @@ export function PublishWizardPage() {
     }
   }, [step, safeStep]);
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [step]);
+
   function validateRoomsForSubmit(d: Draft): string | null {
     const iso = /^\d{4}-\d{2}-\d{2}$/;
     for (const r of d.rooms) {
@@ -1711,10 +1763,8 @@ export function PublishWizardPage() {
   }
 
   const publishBlockedReason = useMemo(() => {
-    if (draft.postMode !== "room" && !draft.propertyTitle.trim()) return "Agrega el nombre de la propiedad.";
-    if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-      return `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
-    }
+    const generalErr = propertyGeneralStepInvalidReason(draft);
+    if (generalErr) return generalErr;
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
       return "Indica cuántos cuartos tiene la propiedad (total, mínimo 1).";
     }
@@ -1738,14 +1788,9 @@ export function PublishWizardPage() {
     const anchor = CITY_ANCHOR[draft.city];
     const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
-    if (draft.postMode !== "room" && !draft.propertyTitle.trim()) {
-      setPublishErr("Agrega el nombre de la propiedad.");
-      return;
-    }
-    if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-      setPublishErr(
-        `La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres (requisito de Bestie).`,
-      );
+    const generalErr = propertyGeneralStepInvalidReason(draft);
+    if (generalErr) {
+      setPublishErr(generalErr);
       return;
     }
     if (draft.showWhatsApp && digits.length < 10) {
@@ -1883,12 +1928,9 @@ export function PublishWizardPage() {
   async function submitServerDraft() {
     setPublishErr(null);
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
-    if (draft.postMode !== "room" && !draft.propertyTitle.trim()) {
-      setPublishErr("Agrega el nombre de la propiedad.");
-      return;
-    }
-    if (draft.postMode !== "room" && draft.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-      setPublishErr(`La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`);
+    const generalErr = propertyGeneralStepInvalidReason(draft);
+    if (generalErr) {
+      setPublishErr(generalErr);
       return;
     }
     if (draft.showWhatsApp && digits.length < 10) {
@@ -1992,7 +2034,10 @@ export function PublishWizardPage() {
           {step > 0 ? (
             <button
               type="button"
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              onClick={() => {
+                setPublishErr(null);
+                setStep((s) => Math.max(0, s - 1));
+              }}
               className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
             >
               Atrás
@@ -2001,7 +2046,17 @@ export function PublishWizardPage() {
           {!isPublishStep ? (
             <button
               type="button"
-              onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
+              onClick={() => {
+                if (safeStep === WIZARD_STEP_PROPERTY_GENERAL) {
+                  const err = propertyGeneralStepInvalidReason(draft);
+                  if (err) {
+                    setPublishErr(err);
+                    return;
+                  }
+                }
+                setPublishErr(null);
+                setStep((s) => Math.min(steps.length - 1, s + 1));
+              }}
               className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110"
             >
               Siguiente
