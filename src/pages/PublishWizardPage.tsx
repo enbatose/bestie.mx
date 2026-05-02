@@ -31,6 +31,8 @@ const PROPERTY_SUMMARY_MIN = 20;
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción del espacio). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
+/** Paso 4 en UI (contacto + cuartos). */
+const WIZARD_STEP_CUARTOS_CONTACT = 3;
 
 function isoToday(): string {
   const d = new Date();
@@ -317,15 +319,17 @@ function effectiveWizardPropertyBathrooms(d: Draft): number {
 function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
   if (opts.upgrade) return 2;
 
-  const propertyDetailsMissing =
+  const propertyCoreMissing =
     Boolean(propertyGeneralStepInvalidReason(draft)) ||
-    (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) ||
     !Number.isFinite(draft.propertyBedroomsTotal) ||
     draft.propertyBedroomsTotal < 1 ||
     (showWizardPropertyBathroomsField(draft) &&
       (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0));
 
-  if (propertyDetailsMissing) return 2;
+  if (propertyCoreMissing) return 2;
+
+  const contactMissing =
+    draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10;
 
   const isoDate = /^\d{4}-\d{2}-\d{2}$/;
   const roomsMissing =
@@ -345,7 +349,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
         room.minimalStayMonths < 1,
     );
 
-  if (roomsMissing) return 3;
+  if (contactMissing || roomsMissing) return 3;
 
   if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) return 5;
 
@@ -1184,7 +1188,8 @@ export function PublishWizardPage() {
               {draft.propertyKind === "loft" ? (
                 <p className="text-xs text-muted leading-relaxed">
                   <strong className="text-body">Tip</strong>
-                  {": Un loft es una propiedad completa únicamente de un cuarto sin contar áreas como sala, comedor, o cocina."}
+                  : Un loft es una propiedad completa de un solo cuarto, donde áreas como la sala, el comedor o la cocina
+                  no se cuentan como habitaciones independientes.
                 </p>
               ) : null}
               <div
@@ -1221,7 +1226,7 @@ export function PublishWizardPage() {
                 {showWizardPropertyBathroomsField(draft) ? (
                   <div>
                     <label className="block text-sm font-medium text-body">
-                      Baños (total)
+                      {draft.propertyKind === "loft" ? "Baños" : "Baños (total)"}
                       <span className="text-red-600"> *</span>
                       <input
                         type="number"
@@ -1241,9 +1246,6 @@ export function PublishWizardPage() {
                         className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
                       />
                     </label>
-                    {draft.propertyKind === "loft" ? (
-                      <span className="mt-1 block text-xs text-muted">Todos los baños del Loft</span>
-                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1290,7 +1292,13 @@ export function PublishWizardPage() {
                 </label>
               </div>
             </div>
-
+          </form>
+        ),
+      },
+      {
+        title: "Cuartos",
+        body: (
+          <div className="space-y-6">
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">
                 Contacto
@@ -1331,13 +1339,6 @@ export function PublishWizardPage() {
                 <p className="text-xs text-muted">10–15 dígitos.</p>
               ) : null}
             </div>
-          </form>
-        ),
-      },
-      {
-        title: "Cuartos",
-        body: (
-          <div className="space-y-6">
             {draft.rooms.map((room, i) => (
               <div
                 key={i}
@@ -2182,6 +2183,15 @@ export function PublishWizardPage() {
                   const err = propertyGeneralStepInvalidReason(draft);
                   if (err) {
                     setPublishErr(err);
+                    return;
+                  }
+                }
+                if (safeStep === WIZARD_STEP_CUARTOS_CONTACT) {
+                  if (
+                    draft.showWhatsApp &&
+                    normalizeWhatsApp(draft.contactWhatsApp).length < 10
+                  ) {
+                    setPublishErr("WhatsApp inválido.");
                     return;
                   }
                 }
