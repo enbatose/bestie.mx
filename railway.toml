@@ -9,8 +9,8 @@ buildCommand = "cd /app && npm run build"
 [deploy]
 # Run Node directly (not `npm run start`) so Railway SIGTERM reaches the app and
 # you avoid extra npm parent memory + misleading `npm error signal SIGTERM` on shutdown.
-# If cwd is already `server/` (no nested `server/` dir), run `node dist/index.js` here; else `cd server` first.
-startCommand = "sh -c '[ -d server ] && cd server; exec node dist/index.js'"
+# Use absolute paths so cwd is correct even if the container WORKDIR is not `/app` (fixes SPA `../dist` resolution and avoids flaky `[ -d server ]`).
+startCommand = "sh -ce 'if [ -f /app/server/dist/index.js ]; then cd /app/server; elif [ -f /app/dist/index.js ]; then cd /app; else echo \"bestie: missing /app/server/dist/index.js and /app/dist/index.js\" >&2; exit 1; fi; exec node dist/index.js'"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"

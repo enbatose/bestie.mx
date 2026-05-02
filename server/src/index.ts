@@ -16,7 +16,23 @@ function resolveWebDistDir(): string | undefined {
   return fs.existsSync(path.join(candidate, "index.html")) ? candidate : undefined;
 }
 
-const PORT = Number(process.env.PORT) || 3000;
+function resolveListenPort(): number {
+  const raw = process.env.PORT?.trim();
+  if (!raw) return 3000;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 && n <= 65535 ? n : 3000;
+}
+
+const PORT = resolveListenPort();
+
+/** On Railway, probes may use IPv6; binding only 0.0.0.0 can yield failing healthchecks. Override with LISTEN_HOST if needed. */
+function resolveListenHost(): string {
+  const override = process.env.LISTEN_HOST?.trim();
+  if (override) return override;
+  return process.env.RAILWAY_ENVIRONMENT ? "::" : "0.0.0.0";
+}
+
+const LISTEN_HOST = resolveListenHost();
 
 /** Prefer env path; if that directory is not writable (e.g. /data without a volume), use ./data/bestie.db */
 function resolveWritableDatabasePath(): string {
@@ -67,8 +83,8 @@ const app = createApp(db, {
   ...(webDistDir ? { webDistDir } : {}),
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`bestie.mx API listening on 0.0.0.0:${PORT}`);
+app.listen(PORT, LISTEN_HOST, () => {
+  console.log(`bestie.mx API listening on ${LISTEN_HOST}:${PORT}`);
   console.log(`SQLite: ${databasePath}`);
   if (webDistDir) {
     console.log(`[web] SPA + API same origin from ${webDistDir}`);
