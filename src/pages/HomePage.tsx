@@ -140,6 +140,41 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      <section className="px-4 py-10 sm:px-6">
+        <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-3">
+          {[
+            {
+              title: "Propiedad y cuartos",
+              body: "Publica un cuarto de forma rápida. Adicionalmente, ofrecemos publicaciones de propiedad, para mostrar múltiples cuartos y áreas comunes de forma clara.",
+            },
+            {
+              title: "Mapa + lista",
+              body: "Interfaz de mapa con pins y listado de publicaciones para explorar por zona.",
+            },
+            {
+              title: "Filtros relevantes",
+              body: "Selecciona los filtros más relevantes como género de roomies buscados o existentes, rango de edad, baño privado, estacionamiento, entre muchos otros.",
+            },
+          ].map((card) => (
+            <article
+              key={card.title}
+              className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
+            >
+              <img
+                src="/brand/logo-mark.svg"
+                alt=""
+                width={40}
+                height={40}
+                className="mb-3 h-9 w-9 opacity-90 sm:h-10 sm:w-10"
+                decoding="async"
+              />
+              <h3 className="font-semibold text-primary">{card.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{card.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
     </>
   );
 }
