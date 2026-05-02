@@ -81,9 +81,6 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         </NavLink>
         {me?.id ? (
           <>
-            <NavLink to="/grupos" className={navClass} onClick={dismissNav}>
-              Grupos
-            </NavLink>
             <NavLink to="/perfil" className={navClass} onClick={dismissNav}>
               <span className="inline-flex items-center gap-1">
                 Perfil
@@ -231,9 +228,6 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
                   </span>
                 ) : null}
               </span>
-            </NavLink>
-            <NavLink to="/grupos" className={navClass}>
-              Grupos
             </NavLink>
             {me.isAdmin ? (
               <NavLink to="/admin" className={navClass}>

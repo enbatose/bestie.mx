@@ -179,10 +179,6 @@ export function SignInPage() {
           <Link to="/publicar" className="font-semibold text-primary underline-offset-2 hover:underline">
             Publicar
           </Link>
-          {" · "}
-          <Link to="/grupos" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Grupos
-          </Link>
           {me.isAdmin ? (
             <>
               {" · "}
