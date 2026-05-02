@@ -5,6 +5,7 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 import { isListingTag } from "./listingTags.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
+import { isAdminRequest } from "./propertyRequestAccess.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import {
   CITY_MAX_LEN,
@@ -341,17 +342,25 @@ export function listingsRouter(db: DatabaseSync) {
       return;
     }
     const publisherId = readPublisherIdFromRequest(req);
-    if (!publisherId) {
+    const asAdmin = isAdminRequest(db, req);
+    if (!publisherId && !asAdmin) {
       res.status(401).json({ error: "publisher_session_required", message: "Missing publisher session cookie." });
       return;
     }
 
-    const row = db
-      .prepare(
-        `${ROOM_PROPERTY_JOIN_SQL}
+    let row = publisherId
+      ? (db
+          .prepare(
+            `${ROOM_PROPERTY_JOIN_SQL}
          WHERE r.id = ? AND p.publisher_id = ?`,
-      )
-      .get(req.params.id, publisherId) as Record<string, unknown> | undefined;
+          )
+          .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
+      : undefined;
+    if (!row && asAdmin) {
+      row = db
+        .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
+        .get(req.params.id) as Record<string, unknown> | undefined;
+    }
     if (!row) {
       res.status(404).json({ error: "not_found" });
       return;

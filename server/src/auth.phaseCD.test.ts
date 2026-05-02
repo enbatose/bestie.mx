@@ -222,6 +222,41 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(Array.isArray(res.body.cities)).toBe(true);
   });
 
+  it("admin can GET and PATCH a foreign draft property without the owner publisher cookie", async () => {
+    const owner = request.agent(app);
+    const cr = await owner
+      .post("/api/properties")
+      .send({
+        postMode: "property",
+        title: "Draft ajeno",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "5213312345678",
+        summary: "",
+      })
+      .expect(201);
+    const propertyId = cr.body.id as string;
+
+    await request(app).get(`/api/properties/${encodeURIComponent(propertyId)}`).expect(404);
+
+    const admin = request.agent(app);
+    const login = await admin.post("/api/auth/login").send({ email: bossEmail, password: "longenough1" });
+    if (login.status !== 200) {
+      await admin.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" }).expect(201);
+      await admin.post("/api/auth/login").send({ email: bossEmail, password: "longenough1" }).expect(200);
+    }
+    const bundle = await admin.get(`/api/properties/${encodeURIComponent(propertyId)}`).expect(200);
+    expect(bundle.body.property.id).toBe(propertyId);
+
+    const patched = await admin
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
+      .send({ title: "Actualizado por admin" })
+      .expect(200);
+    expect(patched.body.title).toBe("Actualizado por admin");
+  });
+
   it("production: register starts session; login works immediately", async () => {
     const prevEnv = process.env.NODE_ENV;
     const prevCookie = process.env.TEST_DISABLE_SECURE_COOKIE;

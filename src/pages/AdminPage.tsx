@@ -184,6 +184,14 @@ export function AdminPage() {
               <option value="archived">archived</option>
             </select>
           </label>
+          {propId ? (
+            <Link
+              to={`/publicar?edit=${encodeURIComponent(propId)}`}
+              className="inline-flex w-full justify-center rounded-full border border-secondary/60 bg-secondary/15 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-secondary/25 sm:w-auto"
+            >
+              Abrir en editor de anuncios
+            </Link>
+          ) : null}
           <button
             type="button"
             disabled={busy || !propId}

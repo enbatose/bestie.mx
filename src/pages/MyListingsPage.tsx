@@ -388,7 +388,7 @@ export function MyListingsPage() {
                       <>
                         <Link
                           to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                          className="inline-flex justify-center rounded-full border border-border bg-surface px-4 py-2 text-center text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                          className="inline-flex justify-center rounded-full bg-primary/10 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-primary/15"
                         >
                           Editar anuncio
                         </Link>
@@ -406,7 +406,7 @@ export function MyListingsPage() {
                       <>
                         <Link
                           to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                          className="inline-flex justify-center rounded-full border border-border bg-surface px-4 py-2 text-center text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                          className="inline-flex justify-center rounded-full bg-primary/10 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-primary/15"
                         >
                           Editar y republicar
                         </Link>
@@ -453,6 +453,14 @@ export function MyListingsPage() {
                             <td className="px-4 py-3">{statusLabel(st)}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex flex-wrap justify-end gap-2">
+                                {propSt === "draft" || propSt === "published" || propSt === "paused" ? (
+                                  <Link
+                                    to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15"
+                                  >
+                                    Editar
+                                  </Link>
+                                ) : null}
                                 <Link
                                   to={`/anuncio/${l.id}`}
                                   className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated"

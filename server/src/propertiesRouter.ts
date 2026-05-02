@@ -4,6 +4,7 @@ import express, { type Request, type Response } from "express";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
+import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import {
@@ -458,7 +459,8 @@ export function propertiesRouter(db: DatabaseSync) {
     }
 
     const publisherId = readPublisherIdFromRequest(req);
-    const owner = publisherId != null && String(propRow.publisher_id) === publisherId;
+    const pubOwns = publisherId != null && String(propRow.publisher_id) === publisherId;
+    const owner = pubOwns || isAdminRequest(db, req);
 
     const roomSql = owner
       ? "SELECT * FROM rooms WHERE property_id = ? ORDER BY sort_order ASC, id ASC"
@@ -563,8 +565,7 @@ export function propertiesRouter(db: DatabaseSync) {
       });
       return;
     }
-    const publisherId = readPublisherIdFromRequest(req);
-    if (!publisherId) {
+    if (!hasPublisherOrAdminSession(db, req)) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
@@ -574,7 +575,7 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
     const prop = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown> | undefined;
-    if (!prop || String(prop.publisher_id) !== publisherId) {
+    if (!prop || !canWritePropertyByRequest(db, req, String(prop.publisher_id))) {
       res.status(404).json({ error: "not_found" });
       return;
     }
@@ -671,8 +672,7 @@ export function propertiesRouter(db: DatabaseSync) {
 
   /** Update a draft room (wizard autosave). */
   r.patch("/:id/rooms/:roomId", jsonMw, (req: Request, res: Response) => {
-    const publisherId = readPublisherIdFromRequest(req);
-    if (!publisherId) {
+    if (!hasPublisherOrAdminSession(db, req)) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
@@ -683,7 +683,7 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
     const prop = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown> | undefined;
-    if (!prop || String(prop.publisher_id) !== publisherId) {
+    if (!prop || !canWritePropertyByRequest(db, req, String(prop.publisher_id))) {
       res.status(404).json({ error: "not_found" });
       return;
     }
@@ -790,8 +790,7 @@ export function propertiesRouter(db: DatabaseSync) {
 
   /** Delete a draft room (wizard removed a room). */
   r.delete("/:id/rooms/:roomId", (req: Request, res: Response) => {
-    const publisherId = readPublisherIdFromRequest(req);
-    if (!publisherId) {
+    if (!hasPublisherOrAdminSession(db, req)) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
@@ -802,7 +801,7 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
     const prop = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown> | undefined;
-    if (!prop || String(prop.publisher_id) !== publisherId) {
+    if (!prop || !canWritePropertyByRequest(db, req, String(prop.publisher_id))) {
       res.status(404).json({ error: "not_found" });
       return;
     }
@@ -823,8 +822,7 @@ export function propertiesRouter(db: DatabaseSync) {
 
   /** Update property fields and/or status (pause cascades to rooms). */
   r.patch("/:id", jsonMw, (req: Request, res: Response) => {
-    const publisherId = readPublisherIdFromRequest(req);
-    if (!publisherId) {
+    if (!hasPublisherOrAdminSession(db, req)) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
@@ -838,10 +836,12 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    if (String(prop.publisher_id) !== publisherId) {
+    if (!canWritePropertyByRequest(db, req, String(prop.publisher_id))) {
       res.status(403).json({ error: "not_owner" });
       return;
     }
+    const publisherId = readPublisherIdFromRequest(req);
+    const actingAsAdmin = isAdminRequest(db, req);
 
     const patch = req.body as {
       status?: unknown;
@@ -930,7 +930,7 @@ export function propertiesRouter(db: DatabaseSync) {
         });
         return;
       }
-      if (!publisherLinkedToUser(db, publisherId, userId)) {
+      if (!actingAsAdmin && (!publisherId || !publisherLinkedToUser(db, publisherId, userId))) {
         res.status(403).json({
           error: "publisher_not_linked",
           message:
