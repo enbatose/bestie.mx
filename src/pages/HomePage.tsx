@@ -39,14 +39,16 @@ export function HomePage() {
           aria-hidden
         />
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center text-center">
-          <h1 className="w-full max-w-[60rem] text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
-            Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
-            ciudades donde vives o quieres estar.
-          </h1>
-          <p className="mt-4 w-full max-w-[60rem] text-balance text-lg leading-7 text-primary-fg/90">
-            Bestie.mx te permite encontrar roomies de forma rápida y segura. Priorizamos la búsqueda
-            por ubicación sin sacrificar los filtros que de verdad te importan.
-          </p>
+          <div className="w-full max-w-[60rem]">
+            <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
+              Tu roomie, <span className="text-secondary">tu bestie</span>. Encuentra roomies en las
+              ciudades donde vives o quieres estar.
+            </h1>
+            <p className="mt-4 text-balance text-lg leading-7 text-primary-fg/90">
+              Bestie.mx te permite encontrar roomies de forma rápida y segura. Priorizamos la búsqueda
+              por ubicación sin sacrificar los filtros que de verdad te importan.
+            </p>
+          </div>
           <div
             id="hero-busqueda"
             className="mt-8 flex w-full max-w-[45rem] scroll-mt-24 flex-col items-stretch gap-3"
