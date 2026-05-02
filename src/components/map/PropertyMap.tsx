@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle } from "react-leaflet";
 import L from "leaflet";
+import { Link } from "react-router-dom";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
@@ -206,7 +207,12 @@ export function PropertyMap({
           const popupContent = (
             <Popup>
               <div className="max-w-[220px] text-body">
-                <p className="text-sm font-semibold text-primary">{l.title}</p>
+                <Link
+                  to={`/anuncio/${l.id}`}
+                  className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  {l.title}
+                </Link>
                 <p className="mt-1 text-xs text-muted">
                   {l.neighborhood}, {l.city}
                 </p>
