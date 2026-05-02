@@ -4,9 +4,6 @@ import type { SearchFilters } from "@/lib/searchFilters";
 type Props = {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
-  /** When enabled, panning the map updates the search bbox (debounced). */
-  searchOnMapMove: boolean;
-  onSearchOnMapMoveChange: (v: boolean) => void;
 };
 
 const LODGING_OPTIONS: { value: LodgingType | ""; label: string }[] = [
@@ -16,12 +13,7 @@ const LODGING_OPTIONS: { value: LodgingType | ""; label: string }[] = [
   { value: "shared_room", label: "Cuarto compartido" },
 ];
 
-export function SearchTopBar({
-  filters,
-  onChange,
-  searchOnMapMove,
-  onSearchOnMapMoveChange,
-}: Props) {
+export function SearchTopBar({ filters, onChange }: Props) {
   return (
     <div className="border-b border-primary/15 bg-secondary px-3 py-3 text-primary shadow-sm sm:px-4">
       <div className="mx-auto flex max-w-[1920px] flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
@@ -51,15 +43,6 @@ export function SearchTopBar({
               </svg>
             </span>
           </div>
-          <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-primary sm:text-sm">
-            <input
-              type="checkbox"
-              checked={searchOnMapMove}
-              onChange={(e) => onSearchOnMapMoveChange(e.target.checked)}
-              className="size-4 rounded border-primary/40 text-primary focus:ring-primary"
-            />
-            Buscar al mover el mapa
-          </label>
         </div>
 
         <fieldset className="min-w-0 flex-1 lg:max-w-md">

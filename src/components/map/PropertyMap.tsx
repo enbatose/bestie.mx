@@ -20,8 +20,7 @@ type Props = {
   /** Full-bleed map inside split layout (no outer card radius). */
   embed?: boolean;
   className?: string;
-  /** When true, debounced map `moveend` reports viewport bounds. */
-  searchOnMapMove?: boolean;
+  /** Debounced map `moveend` reports viewport bounds for geofenced search (e.g. `/buscar`). */
   onViewportBbox?: (bbox: Bbox) => void;
   defaultCenter?: [number, number];
   defaultZoom?: number;
@@ -60,16 +59,9 @@ function MapResizeInvalidate() {
   return null;
 }
 
-function MapViewportReporter({
-  enabled,
-  onBbox,
-}: {
-  enabled: boolean;
-  onBbox: (bbox: Bbox) => void;
-}) {
+function MapViewportReporter({ onBbox }: { onBbox: (bbox: Bbox) => void }) {
   const map = useMap();
   const debounceRef = useRef<number>();
-  const wasEnabledRef = useRef(false);
 
   const emit = useCallback(() => {
     const b = map.getBounds();
@@ -79,18 +71,11 @@ function MapViewportReporter({
   }, [map, onBbox]);
 
   useEffect(() => {
-    if (enabled && !wasEnabledRef.current) {
-      wasEnabledRef.current = true;
-      window.setTimeout(() => emit(), 0);
-    }
-    if (!enabled) {
-      wasEnabledRef.current = false;
-    }
-  }, [enabled, emit]);
+    window.setTimeout(() => emit(), 0);
+  }, [emit]);
 
   useMapEvents({
     moveend() {
-      if (!enabled) return;
       window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => emit(), 400);
     },
@@ -145,7 +130,6 @@ export function PropertyMap({
   onSelect,
   embed = false,
   className = "",
-  searchOnMapMove = false,
   onViewportBbox,
   defaultCenter,
   defaultZoom,
@@ -199,9 +183,7 @@ export function PropertyMap({
           defaultZoom={defaultZoom}
           preferDefaultView={preferDefaultView}
         />
-        {searchOnMapMove && onViewportBbox ? (
-          <MapViewportReporter enabled={searchOnMapMove} onBbox={onViewportBbox} />
-        ) : null}
+        {onViewportBbox ? <MapViewportReporter onBbox={onViewportBbox} /> : null}
         <MapSelectionSync selectedId={selectedId} listings={listings} />
         {listings.map((l) => {
           const selected = l.id === selectedId;

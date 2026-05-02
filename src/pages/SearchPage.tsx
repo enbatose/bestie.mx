@@ -64,7 +64,6 @@ export function SearchPage() {
   }, [apiOn, apiListings, normalizedFilters]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [searchOnMapMove, setSearchOnMapMove] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const isGuadalajaraSearch = isDefaultSearchCity(normalizedFilters.q);
 
@@ -115,23 +114,7 @@ export function SearchPage() {
         filters={normalizedFilters}
         onChange={applyFilters}
       />
-      <SearchTopBar
-        filters={filters}
-        onChange={applyFilters}
-        searchOnMapMove={searchOnMapMove}
-        onSearchOnMapMoveChange={(v) => {
-          setSearchOnMapMove(v);
-          if (!v) {
-            setSearchParams(
-              (prev) => {
-                const f = parseFilters(new URLSearchParams(prev));
-                return filtersToParams({ ...f, q: withDefaultSearchCity(f.q), bbox: null });
-              },
-              { replace: true },
-            );
-          }
-        }}
-      />
+      <SearchTopBar filters={filters} onChange={applyFilters} />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ~2/3: rail + map */}
@@ -152,8 +135,7 @@ export function SearchPage() {
                 defaultCenter={isGuadalajaraSearch ? GUADALAJARA_LA_MINERVA_CENTER : undefined}
                 defaultZoom={isGuadalajaraSearch ? GUADALAJARA_LA_MINERVA_ZOOM : undefined}
                 preferDefaultView={isGuadalajaraSearch && selectedId == null}
-                searchOnMapMove={searchOnMapMove}
-                onViewportBbox={searchOnMapMove ? onViewportBbox : undefined}
+                onViewportBbox={onViewportBbox}
               />
             </div>
           </div>
