@@ -113,6 +113,8 @@ export type PublishBundlePayload = {
     showWhatsApp?: boolean;
     imageUrls?: string[];
     isApproximateLocation?: boolean;
+    occupiedByWomenCount?: number | null;
+    occupiedByMenCount?: number | null;
   };
   rooms: Array<{
     id?: string;
@@ -190,6 +192,8 @@ export type CreateDraftPropertyPayload = {
   showWhatsApp?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  occupiedByWomenCount?: number | null;
+  occupiedByMenCount?: number | null;
 };
 
 export type AddDraftRoomPayload = {
@@ -228,6 +232,8 @@ export type UpdatePropertyPayload = {
   showWhatsApp?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  occupiedByWomenCount?: number | null;
+  occupiedByMenCount?: number | null;
 };
 
 export type PatchDraftRoomPayload = Partial<Omit<AddDraftRoomPayload, "id">>;

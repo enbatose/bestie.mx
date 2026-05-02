@@ -143,9 +143,10 @@ function matchesPropertyKind(l: PropertyListing, wantHouse: boolean, wantApartme
   if (!wantHouse && !wantApartment) return true;
   const k = l.propertyKind;
   if (k == null) return true;
-  if (wantHouse && wantApartment) return k === "house" || k === "apartment";
+  const loftOrApt = k === "apartment" || k === "loft";
+  if (wantHouse && wantApartment) return k === "house" || loftOrApt;
   if (wantHouse) return k === "house";
-  return k === "apartment";
+  return loftOrApt;
 }
 
 function matchesAvailableFrom(l: PropertyListing, from: string | null): boolean {

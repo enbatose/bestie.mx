@@ -55,8 +55,23 @@ function optLodging(v: unknown): LodgingType | undefined {
 }
 
 function optPropertyKind(v: unknown): PropertyKind | undefined {
-  if (v !== "house" && v !== "apartment") return undefined;
+  if (v !== "house" && v !== "apartment" && v !== "loft") return undefined;
   return v;
+}
+
+/** Non-negative integer for DB (0–500); `null` clears / stores SQL NULL. */
+function occupantCountOrNull(v: unknown): number | null {
+  if (v === null) return null;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return Math.max(0, Math.min(500, Math.floor(v)));
+  }
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (t === "") return null;
+    if (!/^\d+$/.test(t)) return null;
+    return Math.max(0, Math.min(500, parseInt(t, 10)));
+  }
+  return null;
 }
 
 function optIsoDate(v: unknown): string | undefined {
@@ -117,6 +132,12 @@ function rowToProperty(row: Record<string, unknown>): Property {
     ...(pk ? { propertyKind: pk } : {}),
     ...(imageUrls.length ? { imageUrls } : {}),
     ...(row.is_approximate_location ? { isApproximateLocation: true } : {}),
+    ...(row.occupied_by_women != null && Number.isFinite(Number(row.occupied_by_women))
+      ? { occupiedByWomenCount: Math.max(0, Math.floor(Number(row.occupied_by_women))) }
+      : {}),
+    ...(row.occupied_by_men != null && Number.isFinite(Number(row.occupied_by_men))
+      ? { occupiedByMenCount: Math.max(0, Math.floor(Number(row.occupied_by_men))) }
+      : {}),
   };
 }
 
@@ -347,11 +368,14 @@ export function propertiesRouter(db: DatabaseSync) {
       clampListingImageUrls((p as { imageUrls?: unknown }).imageUrls),
     );
 
+    const occWPub = occupantCountOrNull((p as { occupiedByWomenCount?: unknown }).occupiedByWomenCount);
+    const occMPub = occupantCountOrNull((p as { occupiedByMenCount?: unknown }).occupiedByMenCount);
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location,
+        occupied_by_women, occupied_by_men
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
@@ -381,6 +405,8 @@ export function propertiesRouter(db: DatabaseSync) {
         showWhatsappInt,
         propImagesJson,
         optBool((p as { isApproximateLocation?: unknown }).isApproximateLocation) ? 1 : 0,
+        occWPub,
+        occMPub,
       );
 
       let order = 0;
@@ -534,11 +560,14 @@ export function propertiesRouter(db: DatabaseSync) {
     const draftPropImagesJson = JSON.stringify(
       clampListingImageUrls((body as { imageUrls?: unknown }).imageUrls),
     );
+    const occWCreate = occupantCountOrNull((body as { occupiedByWomenCount?: unknown }).occupiedByWomenCount);
+    const occMCreate = occupantCountOrNull((body as { occupiedByMenCount?: unknown }).occupiedByMenCount);
     db.prepare(
       `INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location,
+        occupied_by_women, occupied_by_men
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
@@ -556,6 +585,8 @@ export function propertiesRouter(db: DatabaseSync) {
       showInt,
       draftPropImagesJson,
       optBool(body.isApproximateLocation) ? 1 : 0,
+      occWCreate,
+      occMCreate,
     );
     const created = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
     res.status(201).json(rowToProperty(created));
@@ -869,6 +900,8 @@ export function propertiesRouter(db: DatabaseSync) {
       showWhatsApp?: unknown;
       imageUrls?: unknown;
       isApproximateLocation?: unknown;
+      occupiedByWomenCount?: unknown;
+      occupiedByMenCount?: unknown;
     };
 
     const curStatus = String(prop.status) as ListingStatus;
@@ -996,6 +1029,19 @@ export function propertiesRouter(db: DatabaseSync) {
           : 0
         : Number(prop.is_approximate_location) ? 1 : 0;
 
+    const nextOccW =
+      patch.occupiedByWomenCount !== undefined
+        ? occupantCountOrNull(patch.occupiedByWomenCount)
+        : prop.occupied_by_women == null || !Number.isFinite(Number(prop.occupied_by_women))
+          ? null
+          : Math.max(0, Math.min(500, Math.floor(Number(prop.occupied_by_women))));
+    const nextOccM =
+      patch.occupiedByMenCount !== undefined
+        ? occupantCountOrNull(patch.occupiedByMenCount)
+        : prop.occupied_by_men == null || !Number.isFinite(Number(prop.occupied_by_men))
+          ? null
+          : Math.max(0, Math.min(500, Math.floor(Number(prop.occupied_by_men))));
+
     const curMode = String(prop.post_mode ?? "property") === "room" ? "room" : "property";
     const nextMode =
       patch.postMode != null && typeof patch.postMode === "string"
@@ -1012,7 +1058,8 @@ export function propertiesRouter(db: DatabaseSync) {
         post_mode = ?,
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
-        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?
+        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?,
+        occupied_by_women = ?, occupied_by_men = ?
       WHERE id = ?`,
     ).run(
       nextStatus,
@@ -1030,6 +1077,8 @@ export function propertiesRouter(db: DatabaseSync) {
       nextShowWhatsapp,
       nextImageUrlsJson,
       nextIsApprox,
+      nextOccW,
+      nextOccM,
       propertyId,
     );
 

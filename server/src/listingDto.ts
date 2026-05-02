@@ -36,7 +36,7 @@ function optLodging(v: unknown): LodgingType | undefined {
 
 function optPropertyKind(v: unknown): PropertyKind | undefined {
   const s = String(v ?? "");
-  if (s === "house" || s === "apartment") return s;
+  if (s === "house" || s === "apartment" || s === "loft") return s;
   return undefined;
 }
 

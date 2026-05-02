@@ -149,6 +149,9 @@ type Draft = {
   propertyBedroomsTotal: number;
   /** Bathrooms count (half baths allowed, 0.5 steps). */
   propertyBathrooms: number;
+  /** Occupants already living in other rooms (integers ≥ 0; required in paso 3). */
+  occupiedByWomenCount: number | null;
+  occupiedByMenCount: number | null;
   /** When true, show WhatsApp on the public listing. */
   showWhatsApp: boolean;
   useCustomMapPin: boolean;
@@ -198,6 +201,8 @@ const defaultDraft = (): Draft => ({
   propertyKind: "house",
   propertyBedroomsTotal: 0,
   propertyBathrooms: 0,
+  occupiedByWomenCount: null,
+  occupiedByMenCount: null,
   showWhatsApp: false,
   useCustomMapPin: false,
   customLat: "",
@@ -218,6 +223,20 @@ function isDefaultPropertySummarySeed(value: string) {
   return value.trim() === DEFAULT_PROPERTY_SUMMARY;
 }
 
+function occupantCountsInvalidReason(d: Draft): string | null {
+  if (
+    d.occupiedByWomenCount == null ||
+    !Number.isInteger(d.occupiedByWomenCount) ||
+    d.occupiedByWomenCount < 0
+  ) {
+    return "Indica cuántas mujeres viven actualmente en los cuartos ocupados (solo números enteros, 0 si no hay).";
+  }
+  if (d.occupiedByMenCount == null || !Number.isInteger(d.occupiedByMenCount) || d.occupiedByMenCount < 0) {
+    return "Indica cuántos hombres viven actualmente en los cuartos ocupados (solo números enteros, 0 si no hay).";
+  }
+  return null;
+}
+
 function propertyGeneralStepInvalidReason(d: Draft): string | null {
   if (!d.propertyTitle.trim()) return "Agrega el título del anuncio.";
   if (!d.neighborhood.trim()) return "Indica la colonia o zona.";
@@ -227,7 +246,7 @@ function propertyGeneralStepInvalidReason(d: Draft): string | null {
   if (isDefaultPropertySummarySeed(d.propertySummary)) {
     return "Sustituye el texto de ejemplo por tu propia descripción del espacio.";
   }
-  return null;
+  return occupantCountsInvalidReason(d);
 }
 
 function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
@@ -366,6 +385,14 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     propertyKind: p.propertyKind ?? "house",
     propertyBedroomsTotal: p.bedroomsTotal,
     propertyBathrooms: p.bathrooms,
+    occupiedByWomenCount:
+      p.occupiedByWomenCount != null && Number.isFinite(Number(p.occupiedByWomenCount))
+        ? Math.max(0, Math.floor(Number(p.occupiedByWomenCount)))
+        : null,
+    occupiedByMenCount:
+      p.occupiedByMenCount != null && Number.isFinite(Number(p.occupiedByMenCount))
+        ? Math.max(0, Math.floor(Number(p.occupiedByMenCount)))
+        : null,
     showWhatsApp: p.showWhatsApp,
     useCustomMapPin: usePin,
     customLat: usePin ? String(p.lat) : "",
@@ -764,6 +791,8 @@ export function PublishWizardPage() {
             showWhatsApp: d.showWhatsApp,
             imageUrls: d.propertyImageUrls,
             isApproximateLocation: d.isApproximateLocation,
+            occupiedByWomenCount: d.occupiedByWomenCount,
+            occupiedByMenCount: d.occupiedByMenCount,
           });
           propertyId = prop.id;
           roomIds = d.rooms.map(() => "");
@@ -815,6 +844,8 @@ export function PublishWizardPage() {
             showWhatsApp: d.showWhatsApp,
             imageUrls: d.propertyImageUrls,
             isApproximateLocation: d.isApproximateLocation,
+            occupiedByWomenCount: d.occupiedByWomenCount,
+            occupiedByMenCount: d.occupiedByMenCount,
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -1110,7 +1141,7 @@ export function PublishWizardPage() {
 
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">
-                Características Físicas
+                Detalles del espacio
               </h3>
               <label className="block text-sm font-medium text-body">
                 Tipo de vivienda
@@ -1123,11 +1154,12 @@ export function PublishWizardPage() {
                 >
                   <option value="house">Casa</option>
                   <option value="apartment">Departamento</option>
+                  <option value="loft">Loft</option>
                 </select>
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
-                  Cuartos en la propiedad (total)
+                  ¿Cuántos cuartos tiene la vivienda completa?
                   <span className="text-red-600"> *</span>
                   <input
                     type="number"
@@ -1168,6 +1200,48 @@ export function PublishWizardPage() {
                         ),
                       }))
                     }
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-body">
+                  ¿Cuántas mujeres viven actualmente en los cuartos ocupados?
+                  <span className="text-red-600"> *</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    value={draft.occupiedByWomenCount === null ? "" : String(draft.occupiedByWomenCount)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      setDraft((d) => ({
+                        ...d,
+                        occupiedByWomenCount:
+                          digits === "" ? null : Math.min(500, Math.max(0, parseInt(digits, 10))),
+                      }));
+                    }}
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-body">
+                  ¿Cuántos hombres viven actualmente en los cuartos ocupados?
+                  <span className="text-red-600"> *</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    value={draft.occupiedByMenCount === null ? "" : String(draft.occupiedByMenCount)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      setDraft((d) => ({
+                        ...d,
+                        occupiedByMenCount:
+                          digits === "" ? null : Math.min(500, Math.max(0, parseInt(digits, 10))),
+                      }));
+                    }}
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
                   />
                 </label>
@@ -1864,6 +1938,8 @@ export function PublishWizardPage() {
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
           isApproximateLocation: draft.isApproximateLocation,
+          occupiedByWomenCount: draft.occupiedByWomenCount,
+          occupiedByMenCount: draft.occupiedByMenCount,
         };
         if (editingLiveProperty?.status === "paused") {
           propPatch.status = "published";
@@ -1893,6 +1969,9 @@ export function PublishWizardPage() {
           bathrooms: draft.propertyBathrooms,
           showWhatsApp: draft.showWhatsApp,
           imageUrls: draft.propertyImageUrls,
+          isApproximateLocation: draft.isApproximateLocation,
+          occupiedByWomenCount: draft.occupiedByWomenCount,
+          occupiedByMenCount: draft.occupiedByMenCount,
         },
         rooms: draft.rooms.map((r, i) => ({
           title: r.title.trim(),

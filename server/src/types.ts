@@ -6,7 +6,7 @@ export type ListingStatus = "draft" | "published" | "paused" | "archived";
 export type LodgingType = "whole_home" | "private_room" | "shared_room";
 
 /** Casa vs departamento (inmueble). */
-export type PropertyKind = "house" | "apartment";
+export type PropertyKind = "house" | "apartment" | "loft";
 
 /** Tamaño del cuarto (filtros avanzados). */
 export type RoomDimension = "small" | "medium" | "large";
@@ -54,6 +54,8 @@ export type Property = {
   /** Gallery paths from `POST /api/uploads` (same-origin `/api/uploads/...`). */
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  occupiedByWomenCount?: number | null;
+  occupiedByMenCount?: number | null;
 };
 
 /** Rentable unit / space inside a property; search pins are per room. */

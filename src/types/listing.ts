@@ -4,7 +4,7 @@ export type ListingStatus = "draft" | "published" | "paused" | "archived";
 
 export type LodgingType = "whole_home" | "private_room" | "shared_room";
 
-export type PropertyKind = "house" | "apartment";
+export type PropertyKind = "house" | "apartment" | "loft";
 
 export type RoomDimension = "small" | "medium" | "large";
 
@@ -49,6 +49,10 @@ export type Property = {
   /** When false, do not show WhatsApp on the public listing. */
   showWhatsApp: boolean;
   imageUrls?: string[];
+  isApproximateLocation?: boolean;
+  /** Reported occupants in existing rooms (wizard). */
+  occupiedByWomenCount?: number | null;
+  occupiedByMenCount?: number | null;
 };
 
 /** Rentable space inside a property. */

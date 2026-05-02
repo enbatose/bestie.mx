@@ -178,6 +178,15 @@ function migratePropertyApproximateLocation(db: DatabaseSync): void {
   }
 }
 
+function migratePropertyOccupantCounts(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "occupied_by_women")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN occupied_by_women INTEGER`);
+  }
+  if (!tableHasColumn(db, "properties", "occupied_by_men")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN occupied_by_men INTEGER`);
+  }
+}
+
 /** SQLite `ALTER TABLE ADD COLUMN` only allows constant DEFAULTs — not `CURRENT_TIMESTAMP`. */
 const ROOM_TS_ALTER_PLACEHOLDER = "1970-01-01T00:00:00.000Z";
 
@@ -267,6 +276,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migrateImageUrlsJson(db);
   migratePropertyPostMode(db);
   migratePropertyApproximateLocation(db);
+  migratePropertyOccupantCounts(db);
   migrateRoomTimestamps(db);
   ensureUploadBlobSchema(db);
 }

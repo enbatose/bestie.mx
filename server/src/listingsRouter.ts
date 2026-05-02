@@ -43,7 +43,7 @@ function optLodging(v: unknown): LodgingType | undefined {
 }
 
 function optPropertyKind(v: unknown): PropertyKind | undefined {
-  if (v !== "house" && v !== "apartment") return undefined;
+  if (v !== "house" && v !== "apartment" && v !== "loft") return undefined;
   return v;
 }
 
