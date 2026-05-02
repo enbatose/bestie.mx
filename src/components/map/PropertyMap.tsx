@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Link } from "react-router-dom";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
+import { listingMapPosition } from "@/map/listingMapPosition";
 import {
   ensureLeafletDefaultIcons,
   selectedMarkerIcon,
@@ -156,7 +157,7 @@ export function PropertyMap({
 
   const bounds = useMemo(() => {
     if (!listings.length) return null;
-    const latLngs = listings.map((l) => [l.lat, l.lng] as [number, number]);
+    const latLngs = listings.map((l) => listingMapPosition(l));
     return L.latLngBounds(latLngs);
   }, [listings]);
 
@@ -228,29 +229,11 @@ export function PropertyMap({
             </Popup>
           );
 
-          if (l.isApproximateLocation) {
-            return (
-              <Circle
-                key={l.id}
-                center={[l.lat, l.lng]}
-                radius={200}
-                pathOptions={{ 
-                  color: selected ? "var(--color-primary)" : "#84CC16", 
-                  fillColor: selected ? "var(--color-primary)" : "#84CC16", 
-                  fillOpacity: 0.25, 
-                  weight: selected ? 3 : 2 
-                }}
-                eventHandlers={{ click: () => onSelect(l.id) }}
-              >
-                {popupContent}
-              </Circle>
-            );
-          }
-
+          const position = listingMapPosition(l);
           return (
             <Marker
               key={l.id}
-              position={[l.lat, l.lng]}
+              position={position}
               eventHandlers={{ click: () => onSelect(l.id) }}
               zIndexOffset={selected ? 700 : 0}
               icon={selected ? selectedMarkerIcon : standardMarkerIcon}
