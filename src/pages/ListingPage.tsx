@@ -178,9 +178,10 @@ export function ListingPage() {
     );
   }
 
-  const wa = `https://wa.me/${listing.contactWhatsApp.replace(/\D/g, "")}`;
+  const waDigits = listing.contactWhatsApp.replace(/\D/g, "");
+  const wa = waDigits.length >= 10 ? `https://wa.me/${waDigits}` : "";
   const listingStatus = listing.status ?? "published";
-  const showWhatsApp = listing.showWhatsApp !== false;
+  const showWhatsApp = listing.showWhatsApp !== false && waDigits.length >= 10;
   const depositMxn = listing.depositMxn ?? 0;
 
   return (

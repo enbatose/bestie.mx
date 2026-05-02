@@ -91,6 +91,25 @@ export function isDraftPlaceholderWhatsApp(digits: string): boolean {
   return /^0+$/.test(digits);
 }
 
+/** Stored in DB when the owner does not show WhatsApp publicly (valid 13-digit placeholder). */
+export const HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER = "0000000000000";
+
+/**
+ * Value to persist in `contact_whatsapp` when `show_whatsapp` is off, or while the field is still empty in drafts.
+ */
+export function storedContactWhatsApp(showPublic: boolean, raw: string): string {
+  if (!showPublic) return HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER;
+  const d = normalizeWhatsAppDigits(raw);
+  return d ?? HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER;
+}
+
+/** True when publishing is allowed: hidden contact, or real 10–15 digit number (not all-zero placeholder). */
+export function contactWhatsAppOkForPublish(showPublic: boolean, storedDigits: string): boolean {
+  if (!showPublic) return true;
+  if (isDraftPlaceholderWhatsApp(storedDigits)) return false;
+  return normalizeWhatsAppDigits(storedDigits) != null;
+}
+
 const LISTING_IMAGE_URL_LEN_MAX = 240;
 const LISTING_IMAGE_COUNT_MAX = 12;
 

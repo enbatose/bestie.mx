@@ -16,13 +16,14 @@ import {
   clampRentMxn,
   clampRoomsAvailable,
   clampStr,
-  isDraftPlaceholderWhatsApp,
+  contactWhatsAppOkForPublish,
   isSafePropertyId,
   isSafeRoomOrListingId,
   minimalPropertySummaryOk,
   PROPERTY_SUMMARY_MIN_LEN,
   NEIGHBORHOOD_MAX_LEN,
   normalizeWhatsAppDigits,
+  storedContactWhatsApp,
   ROOM_TITLE_MAX_LEN,
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
@@ -291,16 +292,11 @@ export function propertiesRouter(db: DatabaseSync) {
       }
     }
 
-    const contactDigits = normalizeWhatsAppDigits(p.contactWhatsApp);
-    if (contactDigits == null) {
-      res.status(400).json({ error: "invalid_whatsapp" });
-      return;
-    }
-    if (isDraftPlaceholderWhatsApp(contactDigits)) {
-      res.status(400).json({
-        error: "invalid_whatsapp",
-        message: "Provide a real WhatsApp number (placeholder numbers are not allowed for publishing).",
-      });
+    const showWaPub = optBool((p as { showWhatsApp?: unknown }).showWhatsApp);
+    const showPublicPub = showWaPub !== false;
+    const contactStoredPub = storedContactWhatsApp(showPublicPub, p.contactWhatsApp);
+    if (!contactWhatsAppOkForPublish(showPublicPub, contactStoredPub)) {
+      res.status(400).json({ error: "invalid_whatsapp", message: "WhatsApp inválido." });
       return;
     }
     if (!validLatLng(p.lat, p.lng)) {
@@ -329,8 +325,7 @@ export function propertiesRouter(db: DatabaseSync) {
 
     const bedTotal = clampBedroomsTotal(Number((p as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
     const bathTotal = clampBathrooms(Number((p as { bathrooms?: unknown }).bathrooms ?? 1));
-    const showWa = optBool((p as { showWhatsApp?: unknown }).showWhatsApp);
-    const showWhatsappInt = showWa === false ? 0 : 1;
+    const showWhatsappInt = showPublicPub ? 1 : 0;
 
     const publisherId = getOrCreatePublisherId(req, res);
     if (!publisherLinkedToUser(db, publisherId, userId)) {
@@ -374,7 +369,7 @@ export function propertiesRouter(db: DatabaseSync) {
         p.lat,
         p.lng,
         ps,
-        contactDigits,
+        contactStoredPub,
         propertyKind ?? null,
         bedTotal,
         bathTotal,
@@ -507,11 +502,8 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_body" });
       return;
     }
-    const wa = normalizeWhatsAppDigits(body.contactWhatsApp);
-    if (wa == null) {
-      res.status(400).json({ error: "invalid_whatsapp" });
-      return;
-    }
+    const showDraft = optBool((body as { showWhatsApp?: unknown }).showWhatsApp) !== false;
+    const wa = storedContactWhatsApp(showDraft, body.contactWhatsApp);
     if (!validLatLng(body.lat, body.lng)) {
       res.status(400).json({ error: "invalid_geo" });
       return;
@@ -905,14 +897,13 @@ export function propertiesRouter(db: DatabaseSync) {
         return;
       }
     }
+    const nextShowWhatsappEarly =
+      patch.showWhatsApp !== undefined
+        ? optBool(patch.showWhatsApp) !== false
+        : !(prop.show_whatsapp === 0 || prop.show_whatsapp === false);
     const nextWaRaw =
       typeof patch.contactWhatsApp === "string" ? patch.contactWhatsApp : String(prop.contact_whatsapp);
-    const nextWaDigits = normalizeWhatsAppDigits(nextWaRaw);
-    if (nextWaDigits == null) {
-      res.status(400).json({ error: "invalid_whatsapp" });
-      return;
-    }
-    const nextWa = nextWaDigits;
+    const nextWa = storedContactWhatsApp(nextShowWhatsappEarly, nextWaRaw);
     const nextPk = patch.propertyKind != null ? optPropertyKind(patch.propertyKind) : optPropertyKind(prop.property_kind);
 
     if (!nextTitle || !nextCity || !nextHood) {
@@ -923,15 +914,11 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
 
-    if (patch.status === "published" && isDraftPlaceholderWhatsApp(nextWa)) {
-      res.status(400).json({
-        error: "invalid_whatsapp",
-        message: "Replace the placeholder WhatsApp with a real number before publishing.",
-      });
+    const nextStatus = patch.status != null ? (patch.status as ListingStatus) : curStatus;
+    if (nextStatus === "published" && !contactWhatsAppOkForPublish(nextShowWhatsappEarly, nextWa)) {
+      res.status(400).json({ error: "invalid_whatsapp", message: "WhatsApp inválido." });
       return;
     }
-
-    const nextStatus = patch.status != null ? (patch.status as ListingStatus) : curStatus;
 
     if (patch.status === "published" && curStatus === "draft") {
       const userId = readAuthUserId(req);
@@ -985,14 +972,7 @@ export function propertiesRouter(db: DatabaseSync) {
       typeof patch.bathrooms === "number"
         ? clampBathrooms(patch.bathrooms)
         : clampBathrooms(Number(prop.bathrooms ?? 1));
-    const nextShowWhatsapp =
-      patch.showWhatsApp !== undefined
-        ? optBool(patch.showWhatsApp) === false
-          ? 0
-          : 1
-        : prop.show_whatsapp === 0 || prop.show_whatsapp === false
-          ? 0
-          : 1;
+    const nextShowWhatsapp = nextShowWhatsappEarly ? 1 : 0;
 
     const nextImageUrlsJson =
       patch.imageUrls !== undefined

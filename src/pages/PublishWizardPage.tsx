@@ -202,7 +202,7 @@ const defaultDraft = (): Draft => ({
   propertyKind: "house",
   propertyBedroomsTotal: 0,
   propertyBathrooms: 0,
-  showWhatsApp: true,
+  showWhatsApp: false,
   useCustomMapPin: false,
   customLat: "",
   customLng: "",
@@ -246,7 +246,8 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   return true;
 }
 
-function wizardContactDigits(contactWhatsApp: string): string {
+function wizardContactDigits(contactWhatsApp: string, showPublic: boolean): string {
+  if (!showPublic) return DRAFT_WA_PLACEHOLDER;
   const d = normalizeWhatsApp(contactWhatsApp);
   return d.length >= 10 ? d : DRAFT_WA_PLACEHOLDER;
 }
@@ -260,7 +261,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
 
   const propertyDetailsMissing =
     !draft.neighborhood.trim() ||
-    normalizeWhatsApp(draft.contactWhatsApp).length < 10 ||
+    (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) ||
     !Number.isFinite(draft.propertyBedroomsTotal) ||
     draft.propertyBedroomsTotal < 1 ||
     !Number.isFinite(draft.propertyBathrooms) ||
@@ -340,7 +341,10 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     city,
     propertyTitle: p.title,
     neighborhood: p.neighborhood,
-    contactWhatsApp: p.contactWhatsApp || "",
+    contactWhatsApp:
+      p.showWhatsApp === false || /^0+$/.test(String(p.contactWhatsApp ?? "").replace(/\D/g, ""))
+        ? ""
+        : p.contactWhatsApp || "",
     propertySummary:
       p.status === "draft" && isDefaultPropertySummarySeed(p.summary) ? "" : p.summary?.trim() ? p.summary : "",
     propertyKind: p.propertyKind ?? "house",
@@ -678,7 +682,7 @@ export function PublishWizardPage() {
       const anchor = CITY_ANCHOR[d.city];
       const neighborhood = d.neighborhood.trim() || anchor.neighborhood;
       const { lat, lng } = resolveLatLngForDraft(d);
-      const wa = wizardContactDigits(d.contactWhatsApp);
+      const wa = wizardContactDigits(d.contactWhatsApp, d.showWhatsApp);
 
       for (let attempt = 0; attempt < 2; attempt++) {
         let propertyId = serverSyncRef.current.propertyId;
@@ -1177,13 +1181,14 @@ export function PublishWizardPage() {
                 Contacto
               </h3>
               <label className="block text-sm font-medium text-body">
-                WhatsApp de contacto (se muestra en cada cuarto al publicar)
+                WhatsApp de contacto (opcional si no lo muestras en el anuncio)
                 <input
                   value={draft.contactWhatsApp}
                   onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
                   placeholder="Ej. 523312345678"
                   inputMode="tel"
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  disabled={!draft.showWhatsApp}
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 {!apiOn ? (
                   <span className="mt-1 block text-xs text-muted">
@@ -1196,11 +1201,20 @@ export function PublishWizardPage() {
                 <input
                   type="checkbox"
                   checked={draft.showWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      showWhatsApp: e.target.checked,
+                      ...(e.target.checked ? {} : { contactWhatsApp: "" }),
+                    }))
+                  }
                   className="mt-1 size-4 rounded border-border text-primary"
                 />
                 <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
               </label>
+              {draft.showWhatsApp ? (
+                <p className="text-xs text-muted">10–15 dígitos.</p>
+              ) : null}
             </div>
           </form>
         ),
@@ -1728,8 +1742,8 @@ export function PublishWizardPage() {
     if (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0) {
       return "Indica cuántos baños tiene la propiedad (total, mayor a 0).";
     }
-    if (normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
-      return "Agrega un WhatsApp válido (al menos 10 dígitos).";
+    if (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
+      return "WhatsApp inválido.";
     }
     if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
       return "Etiqueta tus fotos (Sin categorizar) antes de publicar.";
@@ -1755,8 +1769,8 @@ export function PublishWizardPage() {
       );
       return;
     }
-    if (digits.length < 10) {
-      setPublishErr("Agrega un WhatsApp válido (al menos 10 dígitos).");
+    if (draft.showWhatsApp && digits.length < 10) {
+      setPublishErr("WhatsApp inválido.");
       return;
     }
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
@@ -1820,7 +1834,7 @@ export function PublishWizardPage() {
           neighborhood,
           lat,
           lng,
-          contactWhatsApp: digits,
+          contactWhatsApp: draft.showWhatsApp ? digits : "",
           propertyKind: draft.propertyKind,
           bedroomsTotal: draft.propertyBedroomsTotal,
           bathrooms: draft.propertyBathrooms,
@@ -1842,7 +1856,7 @@ export function PublishWizardPage() {
           lat,
           lng,
           summary: draft.propertySummary.trim(),
-          contactWhatsApp: digits,
+          contactWhatsApp: draft.showWhatsApp ? digits : "",
           propertyKind: draft.propertyKind,
           bedroomsTotal: draft.propertyBedroomsTotal,
           bathrooms: draft.propertyBathrooms,
@@ -1893,8 +1907,8 @@ export function PublishWizardPage() {
       setPublishErr(`La descripción de la propiedad debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`);
       return;
     }
-    if (digits.length < 10) {
-      setPublishErr("Agrega un WhatsApp válido (al menos 10 dígitos).");
+    if (draft.showWhatsApp && digits.length < 10) {
+      setPublishErr("WhatsApp inválido.");
       return;
     }
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
