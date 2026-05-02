@@ -292,6 +292,85 @@ describe("Phase B API hardening", () => {
     expect((g.body as { status?: string }).status).toBe("draft");
   });
 
+  it("GET /api/listings/:id reports invalid_id for malformed ids", async () => {
+    const res = await request(app).get(`/api/listings/${encodeURIComponent("bad!id")}`).expect(400);
+    expect((res.body as { error?: string }).error).toBe("invalid_id");
+    expect((res.body as { reason?: string }).reason).toBe("invalid_id");
+  });
+
+  it("GET /api/listings/:id reports room and property status reasons for anonymous visitors", async () => {
+    const agent = request.agent(app);
+    const r1 = await agent
+      .post("/api/properties")
+      .send({
+        title: "Casa razones GET",
+        city: "Puebla",
+        neighborhood: "Centro",
+        lat: 19.04,
+        lng: -98.2,
+        contactWhatsApp: "522221234567",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+
+    const r2 = await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto razones GET",
+        rentMxn: 4500,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "Descripción del cuarto para probar razones específicas.",
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+
+    const draftRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
+    expect((draftRes.body as { error?: string }).error).toBe("not_found");
+    expect((draftRes.body as { reason?: string }).reason).toBe("listing_draft");
+
+    await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "paused" }).expect(200);
+
+    const pausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
+    expect((pausedRes.body as { error?: string }).error).toBe("not_found");
+    expect((pausedRes.body as { reason?: string }).reason).toBe("listing_paused");
+
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "archived" }).expect(200);
+
+    const archivedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
+    expect((archivedRes.body as { error?: string }).error).toBe("not_found");
+    expect((archivedRes.body as { reason?: string }).reason).toBe("listing_archived");
+
+    const r3 = await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto propiedad pausada",
+        rentMxn: 4800,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "Segundo cuarto para probar estado de la propiedad.",
+      })
+      .expect(201);
+    const roomId2 = (r3.body as { id: string }).id;
+
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId2)}`).send({ status: "published" }).expect(200);
+    await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "paused" }).expect(200);
+
+    const propertyPausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId2)}`).expect(404);
+    expect((propertyPausedRes.body as { error?: string }).error).toBe("not_found");
+    expect((propertyPausedRes.body as { reason?: string }).reason).toBe("property_paused");
+  });
+
   it("GET /api/listings/:id returns another publisher's published room when viewer has bestie_pub", async () => {
     const agentA = request.agent(app);
     const r1 = await agentA

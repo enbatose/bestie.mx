@@ -7,6 +7,8 @@ import {
   fetchListingByIdFromApi,
   fetchPropertyWithRooms,
   isListingsApiConfigured,
+  type FetchListingByIdResult,
+  type ListingUnavailableReason,
 } from "@/lib/listingsApi";
 import { startConversationFromListing } from "@/lib/messagesApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -19,6 +21,97 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
+function unavailableCopy(reason: ListingUnavailableReason | null): {
+  title: string;
+  lead: string;
+  bullets: string[];
+  help: string;
+} {
+  switch (reason) {
+    case "invalid_id":
+      return {
+        title: "No es posible abrir este anuncio",
+        lead: "El enlace no tiene un formato válido o está incompleto.",
+        bullets: [
+          "El ID del anuncio no coincide con un enlace válido de Bestie.",
+          "Es posible que el enlace se haya copiado incompleto o se haya modificado.",
+        ],
+        help: "Pide el enlace completo o vuelve a abrirlo desde la publicación original.",
+      };
+    case "listing_draft":
+      return {
+        title: "Este anuncio sigue en borrador",
+        lead: "La publicación existe, pero todavía no está disponible para visitantes.",
+        bullets: [
+          "La persona que lo creó aún no lo ha publicado.",
+          "Los anuncios en borrador solo pueden abrirse desde la cuenta de quien los creó.",
+        ],
+        help: "Si el anuncio es tuyo, entra a Mis anuncios para terminar de publicarlo.",
+      };
+    case "listing_paused":
+      return {
+        title: "Este anuncio está pausado",
+        lead: "La publicación fue detenida temporalmente y por eso no se muestra en público.",
+        bullets: [
+          "La persona que publicó el anuncio lo pausó desde su panel.",
+          "Mientras esté pausado, el enlace no puede abrirse para visitantes.",
+        ],
+        help: "Si el anuncio es tuyo, puedes volver a activarlo desde Mis anuncios.",
+      };
+    case "listing_archived":
+      return {
+        title: "Este anuncio fue archivado",
+        lead: "La publicación ya no está activa para visitas públicas.",
+        bullets: [
+          "El anuncio fue archivado por quien lo publicó.",
+          "Los anuncios archivados dejan de mostrarse y su enlace deja de funcionar públicamente.",
+        ],
+        help: "Si necesitas volver a compartirlo, tendrás que reactivarlo o crear un anuncio vigente.",
+      };
+    case "property_draft":
+      return {
+        title: "La propiedad aún no está publicada",
+        lead: "El cuarto existe, pero la propiedad principal sigue en borrador.",
+        bullets: [
+          "Bestie solo muestra este enlace cuando tanto el cuarto como la propiedad están publicados.",
+          "Mientras la propiedad siga en borrador, no es posible abrir el anuncio como visitante.",
+        ],
+        help: "Si es tu publicación, entra a Mis anuncios y publica primero la propiedad.",
+      };
+    case "property_paused":
+      return {
+        title: "La propiedad está pausada",
+        lead: "Este anuncio no puede mostrarse porque la propiedad relacionada fue pausada.",
+        bullets: [
+          "Aunque el cuarto exista, una propiedad pausada bloquea su visualización pública.",
+          "El enlace volverá a funcionar cuando la propiedad se reactive.",
+        ],
+        help: "Si es tu publicación, reactiva la propiedad desde Mis anuncios.",
+      };
+    case "property_archived":
+      return {
+        title: "La propiedad fue archivada",
+        lead: "Este anuncio ya no puede abrirse porque la propiedad relacionada fue archivada.",
+        bullets: [
+          "Cuando la propiedad se archiva, sus anuncios dejan de estar disponibles públicamente.",
+          "Por eso este enlace ya no puede mostrarse como anuncio activo.",
+        ],
+        help: "Si es tu publicación, revisa Mis anuncios para gestionar una nueva publicación.",
+      };
+    case "listing_not_found":
+    default:
+      return {
+        title: "No es posible abrir este anuncio",
+        lead: "Este enlace ya no está disponible públicamente.",
+        bullets: [
+          "El anuncio pudo haber sido eliminado.",
+          "También puede tratarse de un enlace antiguo que ya no corresponde a una publicación vigente.",
+        ],
+        help: "Si recibiste este enlace de otra persona, pídele uno actualizado.",
+      };
+  }
+}
+
 export function ListingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -30,6 +123,7 @@ export function ListingPage() {
   const [apiListing, setApiListing] = useState<PropertyListing | null | undefined>(() =>
     apiOn ? undefined : null,
   );
+  const [missingReason, setMissingReason] = useState<ListingUnavailableReason | null>(null);
   const [apiErr, setApiErr] = useState<string | null>(null);
   const [propertyPack, setPropertyPack] = useState<PropertyWithRooms | null | undefined>(() =>
     apiOn ? undefined : null,
@@ -60,20 +154,29 @@ export function ListingPage() {
   useEffect(() => {
     if (!apiOn || !id) {
       setApiListing(apiOn ? undefined : null);
+      setMissingReason(null);
       setApiErr(null);
       return;
     }
     const ac = new AbortController();
     setApiListing(undefined);
+    setMissingReason(null);
     setApiErr(null);
     fetchListingByIdFromApi(id, ac.signal)
-      .then((l) => {
-        setApiListing(l);
+      .then((result: FetchListingByIdResult) => {
+        if (result.kind === "found") {
+          setApiListing(result.listing);
+          setMissingReason(null);
+          return;
+        }
+        setApiListing(null);
+        setMissingReason(result.reason);
       })
       .catch((e: unknown) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setApiErr("No se pudo cargar el anuncio.");
         setApiListing(null);
+        setMissingReason(null);
       });
     return () => ac.abort();
   }, [apiOn, id]);
@@ -162,27 +265,25 @@ export function ListingPage() {
   }
 
   if (!listing) {
+    const copy = unavailableCopy(missingReason);
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-        <h1 className="text-xl font-semibold text-body">No es posible abrir este anuncio</h1>
-        <p className="mt-2 text-sm text-muted">
-          Este enlace no está disponible públicamente en este momento.
-        </p>
+        <h1 className="text-xl font-semibold text-body">{copy.title}</h1>
+        <p className="mt-2 text-sm text-muted">{copy.lead}</p>
         <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4 text-sm text-muted">
-          <p className="font-medium text-body">Esto puede pasar cuando:</p>
+          <p className="font-medium text-body">Motivo detectado:</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>el anuncio fue eliminado o archivado;</li>
-            <li>todavía está en borrador o fue pausado por quien lo publicó;</li>
-            <li>la propiedad relacionada ya no está publicada; o</li>
-            <li>el enlace está incompleto o ya no corresponde a un anuncio válido.</li>
+            {copy.bullets.map((bullet) => (
+              <li key={bullet}>{bullet}</li>
+            ))}
           </ul>
         </div>
         <p className="mt-4 text-sm text-muted">
-          Si este anuncio es tuyo, inicia sesión y revísalo desde{" "}
+          {copy.help} Si este anuncio es tuyo, inicia sesión y revísalo desde{" "}
           <Link to="/mis-anuncios" className="font-medium text-primary underline-offset-2 hover:underline">
             Mis anuncios
           </Link>
-          . Si recibiste este enlace de otra persona, pídele un enlace actualizado.
+          .
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link

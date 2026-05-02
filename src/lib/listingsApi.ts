@@ -20,6 +20,20 @@ export function isListingsApiConfigured(): boolean {
 
 const cred: RequestCredentials = "include";
 
+export type ListingUnavailableReason =
+  | "invalid_id"
+  | "listing_not_found"
+  | "listing_draft"
+  | "listing_paused"
+  | "listing_archived"
+  | "property_draft"
+  | "property_paused"
+  | "property_archived";
+
+export type FetchListingByIdResult =
+  | { kind: "found"; listing: PropertyListing }
+  | { kind: "unavailable"; reason: ListingUnavailableReason };
+
 export async function fetchListingsFromApi(
   searchParams: URLSearchParams,
   signal?: AbortSignal,
@@ -37,17 +51,38 @@ export async function fetchListingsFromApi(
 export async function fetchListingByIdFromApi(
   id: string,
   signal?: AbortSignal,
-): Promise<PropertyListing | null> {
+): Promise<FetchListingByIdResult> {
   const base = apiBase();
   const res = await fetch(`${base}/api/listings/${encodeURIComponent(id)}`, {
     signal,
     credentials: cred,
   });
-  if (res.status === 404) return null;
+  if (res.status === 400) {
+    const body = (await res.json().catch(() => null)) as { error?: string; reason?: string } | null;
+    if (body?.error === "invalid_id") {
+      return { kind: "unavailable", reason: "invalid_id" };
+    }
+  }
+  if (res.status === 404) {
+    const body = (await res.json().catch(() => null)) as { error?: string; reason?: string } | null;
+    const reason = body?.reason;
+    if (
+      reason === "listing_not_found" ||
+      reason === "listing_draft" ||
+      reason === "listing_paused" ||
+      reason === "listing_archived" ||
+      reason === "property_draft" ||
+      reason === "property_paused" ||
+      reason === "property_archived"
+    ) {
+      return { kind: "unavailable", reason };
+    }
+    return { kind: "unavailable", reason: "listing_not_found" };
+  }
   if (!res.ok) {
     throw new Error(`listing_http_${res.status}`);
   }
-  return (await res.json()) as PropertyListing;
+  return { kind: "found", listing: (await res.json()) as PropertyListing };
 }
 
 export type CreateListingPayload = Omit<

@@ -75,6 +75,16 @@ function isListingStatus(s: string): s is ListingStatus {
   return s === "draft" || s === "published" || s === "paused" || s === "archived";
 }
 
+type PublicListingUnavailableReason =
+  | "invalid_id"
+  | "listing_not_found"
+  | "listing_draft"
+  | "listing_paused"
+  | "listing_archived"
+  | "property_draft"
+  | "property_paused"
+  | "property_archived";
+
 function listingForPublic(l: PropertyListing): PropertyListing {
   const { publisherId: _p, ...rest } = l;
   return rest;
@@ -105,6 +115,22 @@ function canTransitionStatus(from: ListingStatus, to: ListingStatus): boolean {
   return false;
 }
 
+function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined): PublicListingUnavailableReason {
+  if (!row) return "listing_not_found";
+
+  const roomStatus = String(row.status ?? "");
+  if (roomStatus === "draft") return "listing_draft";
+  if (roomStatus === "paused") return "listing_paused";
+  if (roomStatus === "archived") return "listing_archived";
+
+  const propertyStatus = String(row.property_status ?? "");
+  if (propertyStatus === "draft") return "property_draft";
+  if (propertyStatus === "paused") return "property_paused";
+  if (propertyStatus === "archived") return "property_archived";
+
+  return "listing_not_found";
+}
+
 const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' `;
 
 export function listingsRouter(db: DatabaseSync) {
@@ -123,7 +149,7 @@ export function listingsRouter(db: DatabaseSync) {
 
   r.get("/:id", (req: Request, res: Response) => {
     if (!isSafeRoomOrListingId(req.params.id)) {
-      res.status(400).json({ error: "invalid_id" });
+      res.status(400).json({ error: "invalid_id", reason: "invalid_id" satisfies PublicListingUnavailableReason });
       return;
     }
     // Published listings must load for any visitor, including browsers that already
@@ -143,11 +169,15 @@ export function listingsRouter(db: DatabaseSync) {
             )
             .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
         : undefined);
-    if (!row) {
-      res.status(404).json({ error: "not_found" });
+    if (row) {
+      res.json(listingForPublic(joinRowToPropertyListing(row)));
       return;
     }
-    res.json(listingForPublic(joinRowToPropertyListing(row)));
+
+    const hiddenRow = db
+      .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
+      .get(req.params.id) as Record<string, unknown> | undefined;
+    res.status(404).json({ error: "not_found", reason: publicUnavailableReasonForRow(hiddenRow) });
   });
 
   r.post("/", jsonMw, (req: Request, res: Response) => {
