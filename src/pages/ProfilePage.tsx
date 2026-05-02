@@ -36,7 +36,6 @@ export function ProfilePage() {
     );
   }
 
-  const hasEmail = Boolean(me.email);
   const phoneOk = Boolean(me.phoneE164);
 
   return (
@@ -51,14 +50,6 @@ export function ProfilePage() {
         <li className="flex items-center justify-between gap-2">
           <span className="text-body">Correo</span>
           <span className="text-muted">{me.email ?? "— (cuenta solo WhatsApp)"}</span>
-        </li>
-        <li className="flex items-center justify-between gap-2">
-          <span className="text-body">Correo verificado</span>
-          {hasEmail ? (
-            <span className="text-primary">Listo</span>
-          ) : (
-            <span className="text-muted">— (cuenta solo WhatsApp)</span>
-          )}
         </li>
         <li className="flex items-center justify-between gap-2">
           <span className="text-body">WhatsApp en cuenta</span>
