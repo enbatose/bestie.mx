@@ -154,7 +154,7 @@ export function HomePage() {
           ].map((card) => (
             <article
               key={card.title}
-              className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
+              className="flex flex-col items-center rounded-2xl border border-border bg-surface p-5 text-center shadow-sm"
             >
               <img
                 src="/brand/logo-mark.svg"
@@ -165,7 +165,7 @@ export function HomePage() {
                 decoding="async"
               />
               <h3 className="font-semibold text-primary">{card.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{card.body}</p>
+              <p className="mt-2 text-balance text-sm leading-relaxed text-muted">{card.body}</p>
             </article>
           ))}
         </div>
