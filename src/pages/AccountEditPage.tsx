@@ -204,10 +204,6 @@ export function AccountEditPage() {
             <dt>WhatsApp en cuenta</dt>
             <dd className="text-body">{me.phoneE164 ?? "—"}</dd>
           </div>
-          <div className="flex justify-between gap-3">
-            <dt>Publicadores vinculados</dt>
-            <dd className="text-body">{me.linkedPublisherIds.length}</dd>
-          </div>
         </dl>
       </section>
 
