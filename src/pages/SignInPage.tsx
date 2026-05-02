@@ -12,7 +12,8 @@ import {
 } from "@/lib/authApi";
 
 export function SignInPage() {
-  const location = useLocation() as { state?: { registrationNotice?: string } };
+  const location = useLocation();
+  const registrationNotice = (location.state as { registrationNotice?: string } | null)?.registrationNotice;
   const navigate = useNavigate();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [tab, setTab] = useState<"wa" | "email">("wa");
@@ -40,6 +41,67 @@ export function SignInPage() {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
+
+  const wantsWaTab = (() => {
+    const t = new URLSearchParams(location.search).get("tab");
+    return t === "wa" || t === "whatsapp";
+  })();
+
+  useEffect(() => {
+    if (me) return;
+    const t = new URLSearchParams(location.search).get("tab");
+    if (t === "email") setTab("email");
+    else if (t === "wa" || t === "whatsapp") setTab("wa");
+  }, [location.search, me]);
+
+  const renderWaLinkingForms = (verifyCta: string) => (
+    <div className="mt-6 space-y-6">
+      <form className="space-y-4" onSubmit={onWaRequest}>
+        <label className="block text-sm font-medium text-body">
+          Celular (México)
+          <input
+            type="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+52 33 … o 10 dígitos"
+            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={waBusy}
+          className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+        >
+          {waBusy ? "Enviando…" : "Enviar código por WhatsApp"}
+        </button>
+      </form>
+      {waDevHint ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{waDevHint}</p>
+      ) : null}
+      <form className="space-y-4 border-t border-border pt-6" onSubmit={onWaVerify}>
+        <label className="block text-sm font-medium text-body">
+          Código de 6 dígitos
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={otpCode}
+            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={waBusy || otpCode.length !== 6}
+          className="w-full rounded-full border border-border py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50"
+        >
+          {verifyCta}
+        </button>
+      </form>
+    </div>
+  );
 
   const onWaRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +179,30 @@ export function SignInPage() {
   }
 
   if (me) {
+    if (!me.phoneE164 && wantsWaTab) {
+      return (
+        <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
+          <h1 className="text-2xl font-bold tracking-tight text-primary">Vincular WhatsApp</h1>
+          <p className="mt-2 text-sm text-muted">
+            Te enviaremos un código por WhatsApp para vincular tu número a la cuenta de{" "}
+            <span className="font-medium text-body">{me.displayName}</span>.
+          </p>
+          {msg ? (
+            <p className="mt-4 rounded-xl border border-border bg-bg-light p-3 text-sm text-body">{msg}</p>
+          ) : null}
+          {err ? (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
+          ) : null}
+          {renderWaLinkingForms("Verificar y vincular")}
+          <p className="mt-8 text-sm text-muted">
+            <Link to="/perfil" className="font-semibold text-primary underline-offset-2 hover:underline">
+              Volver al perfil
+            </Link>
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tu cuenta</h1>
@@ -170,9 +256,9 @@ export function SignInPage() {
   return (
     <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Entrar</h1>
-      {location.state?.registrationNotice ? (
+      {registrationNotice ? (
         <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-xs text-body">
-          {location.state.registrationNotice}
+          {registrationNotice}
         </p>
       ) : null}
       <p className="mt-2 text-sm text-muted">
@@ -204,54 +290,7 @@ export function SignInPage() {
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
       ) : null}
 
-      {tab === "wa" ? (
-        <div className="mt-6 space-y-6">
-          <form className="space-y-4" onSubmit={onWaRequest}>
-            <label className="block text-sm font-medium text-body">
-              Celular (México)
-              <input
-                type="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+52 33 … o 10 dígitos"
-                className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={waBusy}
-              className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
-            >
-              {waBusy ? "Enviando…" : "Enviar código por WhatsApp"}
-            </button>
-          </form>
-          {waDevHint ? (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{waDevHint}</p>
-          ) : null}
-          <form className="space-y-4 border-t border-border pt-6" onSubmit={onWaVerify}>
-            <label className="block text-sm font-medium text-body">
-              Código de 6 dígitos
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={waBusy || otpCode.length !== 6}
-              className="w-full rounded-full border border-border py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50"
-            >
-              Verificar y entrar
-            </button>
-          </form>
-        </div>
-      ) : (
+      {tab === "wa" ? renderWaLinkingForms("Verificar y entrar") : (
         <form className="mt-8 space-y-4" onSubmit={onEmailLogin}>
           <label className="block text-sm font-medium text-body">
             Correo

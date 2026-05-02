@@ -65,7 +65,12 @@ export function ProfilePage() {
           {phoneOk ? (
             <span className="truncate text-muted">{me.phoneE164}</span>
           ) : (
-            <span className="rounded-full bg-error/15 px-2 py-0.5 text-xs font-semibold text-error">Agregar</span>
+            <Link
+              to="/entrar?tab=wa"
+              className="inline-flex rounded-full bg-error/15 px-2 py-0.5 text-xs font-semibold text-error underline-offset-2 transition hover:bg-error/25 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Agregar
+            </Link>
           )}
         </li>
         <li className="flex items-center justify-between gap-2">
@@ -80,7 +85,7 @@ export function ProfilePage() {
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
             <li>
               Vincula WhatsApp desde{" "}
-              <Link to="/entrar" className="font-semibold underline">
+              <Link to="/entrar?tab=wa" className="font-semibold underline">
                 Entrar → pestaña WhatsApp
               </Link>
               .
