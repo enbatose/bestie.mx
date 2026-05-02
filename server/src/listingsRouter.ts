@@ -124,17 +124,23 @@ export function listingsRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
+    // Published listings must load for any visitor, including browsers that already
+    // have a different `bestie_pub` cookie (otherwise only the owner's cookie path ran).
+    const publishedRow = db
+      .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
+      .get(req.params.id) as Record<string, unknown> | undefined;
+
     const publisherId = readPublisherIdFromRequest(req);
-    const row = publisherId
-      ? (db
-          .prepare(
-            `${ROOM_PROPERTY_JOIN_SQL}
-             WHERE r.id = ? AND p.publisher_id = ?`,
-          )
-          .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
-      : (db
-          .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
-          .get(req.params.id) as Record<string, unknown> | undefined);
+    const row =
+      publishedRow ??
+      (publisherId
+        ? (db
+            .prepare(
+              `${ROOM_PROPERTY_JOIN_SQL}
+               WHERE r.id = ? AND p.publisher_id = ?`,
+            )
+            .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
+        : undefined);
     if (!row) {
       res.status(404).json({ error: "not_found" });
       return;

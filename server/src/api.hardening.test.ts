@@ -250,6 +250,61 @@ describe("Phase B API hardening", () => {
     expect((g.body as { status?: string }).status).toBe("draft");
   });
 
+  it("GET /api/listings/:id returns another publisher's published room when viewer has bestie_pub", async () => {
+    const agentA = request.agent(app);
+    const r1 = await agentA
+      .post("/api/properties")
+      .send({
+        title: "Casa visitante con cookie",
+        city: "Querétaro",
+        neighborhood: "Centro",
+        lat: 20.59,
+        lng: -100.39,
+        contactWhatsApp: "524421112233",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+
+    const r2 = await agentA
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto público",
+        rentMxn: 5000,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "Descripción del cuarto para prueba de visitante con cookie propia.",
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+
+    await registerAndLinkAnonymousPublisher(agentA);
+
+    await agentA.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
+    await agentA.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
+
+    const agentB = request.agent(app);
+    await agentB
+      .post("/api/properties")
+      .send({
+        title: "Otro publisher",
+        city: "León",
+        neighborhood: "Centro",
+        lat: 21.12,
+        lng: -101.68,
+        contactWhatsApp: "524771112244",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+
+    const visitor = await agentB.get(`/api/listings/${encodeURIComponent(roomId)}`).expect(200);
+    expect((visitor.body as { status?: string }).status).toBe("published");
+    expect((visitor.body as { id?: string }).id).toBe(roomId);
+  });
+
   it("publishing draft property cascades draft rooms to published", async () => {
     const agent = request.agent(app);
     const r1 = await agent
