@@ -333,6 +333,8 @@ describe("Phase B API hardening", () => {
     expect((draftRes.body as { error?: string }).error).toBe("not_found");
     expect((draftRes.body as { reason?: string }).reason).toBe("listing_draft");
 
+    await registerAndLinkAnonymousPublisher(agent);
+
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "paused" }).expect(200);
@@ -368,7 +370,8 @@ describe("Phase B API hardening", () => {
 
     const propertyPausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId2)}`).expect(404);
     expect((propertyPausedRes.body as { error?: string }).error).toBe("not_found");
-    expect((propertyPausedRes.body as { reason?: string }).reason).toBe("property_paused");
+    // Pausing the property cascades room status to paused, so `publicUnavailableReason` hits listing_paused first.
+    expect((propertyPausedRes.body as { reason?: string }).reason).toBe("listing_paused");
   });
 
   it("GET /api/listings/:id returns another publisher's published room when viewer has bestie_pub", async () => {
