@@ -39,8 +39,8 @@ const PROPERTY_OCCUPANTS_MAX = 50;
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción del espacio). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
-/** Paso 4 en UI (contacto + cuartos). */
-const WIZARD_STEP_CUARTOS_CONTACT = 3;
+/** Paso 5 en UI (Fotos; incluye contacto). */
+const WIZARD_STEP_FOTOS = 4;
 
 function isoToday(): string {
   const d = new Date();
@@ -382,7 +382,8 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
         room.minimalStayMonths < 1,
     );
 
-  if (contactMissing || roomsMissing) return 3;
+  if (roomsMissing) return 3;
+  if (contactMissing) return 4;
 
   if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) return 5;
 
@@ -1340,46 +1341,6 @@ export function PublishWizardPage() {
         title: "Cuartos",
         body: (
           <div className="space-y-6">
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Contacto
-              </h3>
-              <label className="block text-sm font-medium text-body">
-                WhatsApp de contacto (opcional si no lo muestras en el anuncio)
-                <input
-                  value={draft.contactWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
-                  placeholder="Ej. 523312345678"
-                  inputMode="tel"
-                  disabled={!draft.showWhatsApp}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                {!apiOn ? (
-                  <span className="mt-1 block text-xs text-muted">
-                    Sin API configurada, el número solo se guarda en este navegador hasta que conectes el
-                    servidor.
-                  </span>
-                ) : null}
-              </label>
-              <label className="flex cursor-pointer items-start gap-3 text-sm text-body mt-2">
-                <input
-                  type="checkbox"
-                  checked={draft.showWhatsApp}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      showWhatsApp: e.target.checked,
-                      ...(e.target.checked ? {} : { contactWhatsApp: "" }),
-                    }))
-                  }
-                  className="mt-1 size-4 rounded border-border text-primary"
-                />
-                <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
-              </label>
-              {draft.showWhatsApp ? (
-                <p className="text-xs text-muted">10–15 dígitos.</p>
-              ) : null}
-            </div>
             {draft.rooms.map((room, i) => (
               <div
                 key={i}
@@ -1644,6 +1605,46 @@ export function PublishWizardPage() {
         title: "Fotos",
         body: (
           <form className="space-y-6">
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
+                Contacto
+              </h3>
+              <label className="block text-sm font-medium text-body">
+                WhatsApp de contacto (opcional si no lo muestras en el anuncio)
+                <input
+                  value={draft.contactWhatsApp}
+                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
+                  placeholder="Ej. 523312345678"
+                  inputMode="tel"
+                  disabled={!draft.showWhatsApp}
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                {!apiOn ? (
+                  <span className="mt-1 block text-xs text-muted">
+                    Sin API configurada, el número solo se guarda en este navegador hasta que conectes el
+                    servidor.
+                  </span>
+                ) : null}
+              </label>
+              <label className="mt-2 flex cursor-pointer items-start gap-3 text-sm text-body">
+                <input
+                  type="checkbox"
+                  checked={draft.showWhatsApp}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      showWhatsApp: e.target.checked,
+                      ...(e.target.checked ? {} : { contactWhatsApp: "" }),
+                    }))
+                  }
+                  className="mt-1 size-4 rounded border-border text-primary"
+                />
+                <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
+              </label>
+              {draft.showWhatsApp ? (
+                <p className="text-xs text-muted">10–15 dígitos.</p>
+              ) : null}
+            </div>
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">
                 Galería Principal
@@ -2188,7 +2189,7 @@ export function PublishWizardPage() {
                     return;
                   }
                 }
-                if (safeStep === WIZARD_STEP_CUARTOS_CONTACT) {
+                if (safeStep === WIZARD_STEP_FOTOS) {
                   if (
                     draft.showWhatsApp &&
                     normalizeWhatsApp(draft.contactWhatsApp).length < 10
