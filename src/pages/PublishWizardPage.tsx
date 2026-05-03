@@ -231,10 +231,10 @@ function occupantCountsInvalidReason(d: Draft): string | null {
     !Number.isInteger(d.occupiedByWomenCount) ||
     d.occupiedByWomenCount < 0
   ) {
-    return "Indica cuántas mujeres viven actualmente en los cuartos ocupados (solo números enteros, 0 si no hay).";
+    return "Indica cuántas mujeres viven actualmente en la propiedad (solo números enteros, 0 si no hay).";
   }
   if (d.occupiedByMenCount == null || !Number.isInteger(d.occupiedByMenCount) || d.occupiedByMenCount < 0) {
-    return "Indica cuántos hombres viven actualmente en los cuartos ocupados (solo números enteros, 0 si no hay).";
+    return "Indica cuántos hombres viven actualmente en la propiedad (solo números enteros, 0 si no hay).";
   }
   return null;
 }
@@ -1168,6 +1168,7 @@ export function PublishWizardPage() {
               </h3>
               <label className="block text-sm font-medium text-body">
                 Tipo de vivienda
+                <span className="text-red-600"> *</span>
                 <select
                   value={draft.propertyKind}
                   onChange={(e) => {
@@ -1204,6 +1205,7 @@ export function PublishWizardPage() {
                     max={35}
                     step={1}
                     disabled={draft.propertyKind === "loft"}
+                    placeholder="E.j. 2,3,4...etc. Cuartos habitados + disponibles."
                     value={
                       draft.propertyKind === "loft"
                         ? 1
@@ -1251,13 +1253,14 @@ export function PublishWizardPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
-                  ¿Cuántas mujeres viven actualmente en los cuartos ocupados?
+                  ¿Cuántas mujeres viven actualmente en la propiedad?
                   <span className="text-red-600"> *</span>
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     autoComplete="off"
+                    placeholder="E.j. 0,1,2,3,4...etc. Considerando cuartos habitados"
                     value={draft.occupiedByWomenCount === null ? "" : String(draft.occupiedByWomenCount)}
                     onChange={(e) => {
                       const digits = e.target.value.replace(/\D/g, "");
@@ -1271,13 +1274,14 @@ export function PublishWizardPage() {
                   />
                 </label>
                 <label className="block text-sm font-medium text-body">
-                  ¿Cuántos hombres viven actualmente en los cuartos ocupados?
+                  ¿Cuántos hombres viven actualmente en la propiedad?
                   <span className="text-red-600"> *</span>
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     autoComplete="off"
+                    placeholder="E.j. 0,1,2,3,4...etc. Considerando cuartos habitados"
                     value={draft.occupiedByMenCount === null ? "" : String(draft.occupiedByMenCount)}
                     onChange={(e) => {
                       const digits = e.target.value.replace(/\D/g, "");
