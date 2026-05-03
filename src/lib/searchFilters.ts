@@ -6,7 +6,7 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
-import { LISTING_TAG_SLUGS } from "@/lib/listingTags";
+import { LISTING_TAG_SLUGS, utilitiesBundleSatisfied } from "@/lib/listingTags";
 
 export type Bbox = {
   minLat: number;
@@ -206,6 +206,26 @@ function matchesSublet(l: PropertyListing, f: boolean | null): boolean {
   return l.subletAllowed === f;
 }
 
+/** Match filter tag to listing tags, including legacy slug aliases. */
+function listingSatisfiesTagFilter(listTags: readonly ListingTag[], filterTag: ListingTag): boolean {
+  if (listTags.includes(filterTag)) return true;
+  switch (filterTag) {
+    case "lavadora":
+    case "secadora":
+      return listTags.includes("lavanderia");
+    case "lavanderia":
+      return (
+        listTags.includes("lavanderia") ||
+        listTags.includes("lavadora") ||
+        listTags.includes("secadora")
+      );
+    case "servicios-incluidos":
+      return listTags.includes("servicios-incluidos") || utilitiesBundleSatisfied(listTags);
+    default:
+      return false;
+  }
+}
+
 export function filterListings(listings: PropertyListing[], f: SearchFilters): PropertyListing[] {
   const q = f.q.toLowerCase();
   return listings.filter((l) => {
@@ -213,7 +233,7 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (q && !haystack.includes(q)) return false;
     if (f.budgetMin != null && l.rentMxn < f.budgetMin) return false;
     if (f.budgetMax != null && l.rentMxn > f.budgetMax) return false;
-    if (f.tags.length && !f.tags.every((t) => l.tags.includes(t))) return false;
+    if (f.tags.length && !f.tags.every((t) => listingSatisfiesTagFilter(l.tags, t))) return false;
     if (!matchesPref(l, f.pref)) return false;
     if (!matchesAge(l, f.ageMin, f.ageMax)) return false;
     if (f.bbox != null && !inBbox(l, f.bbox)) return false;
@@ -230,6 +250,9 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
 
 export const TAG_LABELS: Record<ListingTag, string> = {
   wifi: "Wi‑Fi",
+  agua: "Agua",
+  luz: "Luz",
+  gas: "Gas",
   mascotas: "Mascotas OK",
   estacionamiento: "Estacionamiento",
   muebles: "Amueblado",
@@ -240,6 +263,8 @@ export const TAG_LABELS: Record<ListingTag, string> = {
   "seguridad-acceso": "Seguridad / acceso controlado",
   vigilancia: "Vigilancia o portería",
   lavanderia: "Lavandería",
+  lavadora: "Lavadora",
+  secadora: "Secadora",
   "cocina-equipada": "Cocina equipada",
   terraza: "Terraza o balcón",
   "lgbt-friendly": "LGBT+ friendly",

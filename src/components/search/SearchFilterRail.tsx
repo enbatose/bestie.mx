@@ -23,6 +23,30 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
           />
         </svg>
       );
+    case "agua":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path
+            strokeWidth="2"
+            strokeLinecap="round"
+            d="M12 3c-2 4-5 5-5 9a5 5 0 0 0 10 0c0-4-3-5-5-9Z"
+          />
+        </svg>
+      );
+    case "luz":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M12 3v2M5 6l1.5 1.5M3 12h2M5 18l1.5-1.5M12 19v2M18.5 16.5 20 18M19 12h2M18.5 7.5 20 6" />
+          <circle cx="12" cy="12" r="3.5" strokeWidth="2" />
+        </svg>
+      );
+    case "gas":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <path strokeWidth="2" strokeLinecap="round" d="M12 3c-2 3-4 3.5-4 7a4 4 0 0 0 8 0c0-3.5-2-4-4-7Z" />
+          <path strokeWidth="2" strokeLinecap="round" d="M9 14c-2 1-3 3-3 5h12c0-2-1-4-3-5" />
+        </svg>
+      );
     case "muebles":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
@@ -103,10 +127,19 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
         </svg>
       );
     case "lavanderia":
+    case "lavadora":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <circle cx="12" cy="13" r="6" strokeWidth="2" />
           <path strokeWidth="2" strokeLinecap="round" d="M8 7h8M10 4h4" />
+        </svg>
+      );
+    case "secadora":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <rect x="5" y="5" width="14" height="14" rx="2" strokeWidth="2" />
+          <circle cx="12" cy="12" r="3" strokeWidth="2" />
+          <path strokeWidth="2" strokeLinecap="round" d="M7 19h10" />
         </svg>
       );
     case "cocina-equipada":

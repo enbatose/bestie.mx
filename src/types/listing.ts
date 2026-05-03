@@ -10,6 +10,9 @@ export type RoomDimension = "small" | "medium" | "large";
 
 export type ListingTag =
   | "wifi"
+  | "agua"
+  | "luz"
+  | "gas"
   | "mascotas"
   | "estacionamiento"
   | "muebles"
@@ -20,6 +23,8 @@ export type ListingTag =
   | "seguridad-acceso"
   | "vigilancia"
   | "lavanderia"
+  | "lavadora"
+  | "secadora"
   | "cocina-equipada"
   | "terraza"
   | "lgbt-friendly"

@@ -15,7 +15,7 @@ import {
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
+import { BASIC_UTILITIES_TAGS, LISTING_TAG_SLUG_SET, utilitiesBundleSatisfied } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingStatus,
@@ -53,22 +53,27 @@ const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 const ROOM_SUMMARY_PLACEHOLDER =
   "Ej. Recámara con excelente luz natural y clóset amplio. Ideal para WFH (silenciosa y con buena ventilación). El baño se comparte solo con una persona. Buscamos a alguien que valore el orden y la buena convivencia para mantener un ambiente profesional y relajado.";
 
+const BASIC_UTILITIES_TAG_SET = new Set<string>(BASIC_UTILITIES_TAGS);
+
 /** Etiquetas del paso Recámaras, agrupadas para escaneo rápido (todas las `ListingTag` del producto). */
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
   {
-    title: "Básicos",
-    tags: ["wifi", "muebles", "servicios-incluidos", "lavanderia", "cocina-equipada", "agua-caliente"],
-  },
-  {
-    title: "Comodidades",
+    title: "Básicos de la propiedad",
     tags: [
-      "baño-privado",
-      "aire-acondicionado",
-      "estacionamiento",
-      "terraza",
-      "cerradura-cuarto",
+      "wifi",
+      "agua",
+      "luz",
+      "gas",
+      "muebles",
+      "cocina-equipada",
+      "lavadora",
+      "secadora",
       "cerca-transporte",
     ],
+  },
+  {
+    title: "Comodidades de la recámara",
+    tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza", "cerradura-cuarto"],
   },
   {
     title: "Seguridad y vibe",
@@ -182,8 +187,6 @@ type RoomDraft = {
   availableFrom: string;
   minimalStayMonths: number;
   roomDimension: RoomDimension;
-  /** Solo UI: si la renta incluye servicios (no se persiste en API). */
-  rentIncludesUtilities: boolean;
 };
 
 type Draft = {
@@ -235,7 +238,6 @@ const defaultRoom = (): RoomDraft => ({
   availableFrom: "",
   minimalStayMonths: 1,
   roomDimension: "medium",
-  rentIncludesUtilities: false,
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
@@ -466,6 +468,24 @@ function tagOk(t: string): t is ListingTag {
   return LISTING_TAG_SLUG_SET.has(t);
 }
 
+/** Migrate legacy tags; “Servicios básicos incluidos” is represented only by agua+luz+gas+wifi in state. */
+function normalizeRoomTagsFromServer(raw: readonly ListingTag[]): ListingTag[] {
+  const hadServicios = raw.includes("servicios-incluidos");
+  const bundleFromTags = utilitiesBundleSatisfied(raw);
+  let next = [...raw].filter((t) => t !== "servicios-incluidos" && t !== "agua-caliente");
+  if (raw.includes("lavanderia")) {
+    next = next.filter((t) => t !== "lavanderia");
+    if (!next.includes("lavadora")) next.push("lavadora");
+    if (!next.includes("secadora")) next.push("secadora");
+  }
+  if (hadServicios || bundleFromTags) {
+    for (const t of BASIC_UTILITIES_TAGS) {
+      if (!next.includes(t)) next.push(t);
+    }
+  }
+  return [...new Set(next)].filter(tagOk);
+}
+
 function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; serverSync: ServerSync } {
   const p = bundle.property;
   const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -484,7 +504,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           depositMxn: r.depositMxn,
           roomsAvailable: r.roomsAvailable,
           summary: r.summary,
-          tags: (r.tags ?? []).filter(tagOk),
+          tags: normalizeRoomTagsFromServer((r.tags ?? []) as ListingTag[]),
           roommateGenderPref: r.roommateGenderPref,
           ageMin: Math.min(99, Math.max(18, Number(r.ageMin) || 18)),
           ageMax: (() => {
@@ -496,7 +516,6 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           availableFrom: (r.availableFrom ?? isoToday()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
           roomDimension: r.roomDimension ?? "medium",
-          rentIncludesUtilities: (r.tags ?? []).includes("servicios-incluidos"),
         }))
       : [defaultRoom()];
   const draft: Draft = {
@@ -1564,19 +1583,22 @@ export function PublishWizardPage() {
                         <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
                           <input
                             type="checkbox"
-                            checked={room.rentIncludesUtilities}
+                            checked={utilitiesBundleSatisfied(room.tags)}
                             onChange={(e) => {
                               const checked = e.target.checked;
                               setDraft((d) => ({
                                 ...d,
                                 rooms: d.rooms.map((r, j) => {
                                   if (j !== i) return r;
-                                  const tags = checked
-                                    ? r.tags.includes("servicios-incluidos")
-                                      ? r.tags
-                                      : [...r.tags, "servicios-incluidos"]
-                                    : r.tags.filter((t) => t !== "servicios-incluidos");
-                                  return { ...r, rentIncludesUtilities: checked, tags };
+                                  let tags = r.tags.filter((t) => t !== "servicios-incluidos");
+                                  if (checked) {
+                                    for (const t of BASIC_UTILITIES_TAGS) {
+                                      if (!tags.includes(t)) tags = [...tags, t];
+                                    }
+                                  } else {
+                                    tags = tags.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
+                                  }
+                                  return { ...r, tags };
                                 }),
                               }));
                             }}
@@ -1761,15 +1783,12 @@ export function PublishWizardPage() {
                     <p className="text-sm font-medium text-body">Etiquetas de la recámara</p>
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (
                       <div key={group.title}>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        <p className="text-xs font-semibold tracking-wide text-muted">
                           {group.title}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {group.tags.map((tag) => {
-                            const active =
-                              tag === "servicios-incluidos"
-                                ? room.tags.includes(tag) || room.rentIncludesUtilities
-                                : room.tags.includes(tag);
+                            const active = room.tags.includes(tag);
                             return (
                               <button
                                 key={tag}
@@ -1782,24 +1801,21 @@ export function PublishWizardPage() {
                                     rooms: d.rooms.map((r, j) => {
                                       if (j !== i) return r;
                                       const nextActive = !active;
-                                      if (tag === "servicios-incluidos") {
-                                        const tags = nextActive
-                                          ? r.tags.includes("servicios-incluidos")
-                                            ? r.tags
-                                            : [...r.tags, "servicios-incluidos"]
-                                          : r.tags.filter((t) => t !== "servicios-incluidos");
-                                        return {
-                                          ...r,
-                                          tags,
-                                          rentIncludesUtilities: nextActive,
-                                        };
+                                      let tags = r.tags.filter((t) => t !== "servicios-incluidos");
+                                      if (BASIC_UTILITIES_TAG_SET.has(tag)) {
+                                        if (nextActive) {
+                                          if (!tags.includes(tag)) tags = [...tags, tag];
+                                        } else {
+                                          tags = tags.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
+                                        }
+                                        return { ...r, tags };
                                       }
-                                      const tags = nextActive
-                                        ? r.tags.includes(tag)
-                                          ? r.tags
-                                          : [...r.tags, tag]
-                                        : r.tags.filter((t) => t !== tag);
-                                      return { ...r, tags };
+                                      const nextTags = nextActive
+                                        ? tags.includes(tag)
+                                          ? tags
+                                          : [...tags, tag]
+                                        : tags.filter((t) => t !== tag);
+                                      return { ...r, tags: nextTags };
                                     }),
                                   }))
                                 }
