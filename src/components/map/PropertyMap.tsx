@@ -96,18 +96,42 @@ function FitBounds({
   defaultCenter,
   defaultZoom,
   preferDefaultView = false,
+  /** When true, never pan/zoom the map when listing markers change — viewport is user-controlled (geofenced search). */
+  skipListingDrivenRefit,
 }: {
   bounds: L.LatLngBounds | null;
   defaultCenter?: [number, number];
   defaultZoom?: number;
   preferDefaultView?: boolean;
+  skipListingDrivenRefit: boolean;
 }) {
   const map = useMap();
+  const didInitialView = useRef(false);
+
   useEffect(() => {
     const el = map.getContainer();
     if (!el?.isConnected) return;
     try {
       map.invalidateSize({ animate: false });
+
+      if (skipListingDrivenRefit) {
+        if (didInitialView.current) return;
+        if (preferDefaultView && defaultCenter) {
+          map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
+          didInitialView.current = true;
+        } else if (defaultCenter) {
+          map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
+          didInitialView.current = true;
+        } else if (bounds?.isValid()) {
+          map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
+          didInitialView.current = true;
+        } else {
+          map.setView(MEXICO_CENTER, 5);
+          didInitialView.current = true;
+        }
+        return;
+      }
+
       if (preferDefaultView && defaultCenter) {
         map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
       } else if (bounds?.isValid()) {
@@ -120,7 +144,7 @@ function FitBounds({
     } catch {
       /* map may be tearing down (React StrictMode / route change) */
     }
-  }, [bounds, defaultCenter, defaultZoom, map, preferDefaultView]);
+  }, [bounds, defaultCenter, defaultZoom, map, preferDefaultView, skipListingDrivenRefit]);
   return null;
 }
 
@@ -182,6 +206,7 @@ export function PropertyMap({
           defaultCenter={defaultCenter}
           defaultZoom={defaultZoom}
           preferDefaultView={preferDefaultView}
+          skipListingDrivenRefit={Boolean(onViewportBbox)}
         />
         {onViewportBbox ? <MapViewportReporter onBbox={onViewportBbox} /> : null}
         <MapSelectionSync selectedId={selectedId} listings={listings} />
