@@ -259,7 +259,7 @@ const defaultDraft = (): Draft => ({
   contactWhatsApp: "",
   propertySummary: "",
   propertyKind: "house",
-  propertyBedroomsTotal: 0,
+  propertyBedroomsTotal: 1,
   propertyBathrooms: 0,
   occupiedByWomenCount: 0,
   occupiedByMenCount: 0,
@@ -326,6 +326,12 @@ function propertyGeneralStepInvalidReason(d: Draft): string | null {
   if (isDefaultPropertySummarySeed(d.propertySummary)) {
     return "Sustituye el texto de ejemplo por tu propia descripción de la propiedad y las zonas comunes.";
   }
+  if (
+    d.propertyKind !== "loft" &&
+    (!Number.isFinite(d.propertyBedroomsTotal) || d.propertyBedroomsTotal < 1)
+  ) {
+    return "Indica cuántas recámaras tiene la propiedad (al menos 1).";
+  }
   if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
     return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
   }
@@ -345,7 +351,17 @@ function convertRoomDraftToProperty(d: Draft): Draft {
   return {
     ...d,
     postMode: "property",
-    ...(d.propertyKind === "loft" ? { propertyBedroomsTotal: 1 } : {}),
+    ...(d.propertyKind === "loft"
+      ? { propertyBedroomsTotal: 1 }
+      : {
+          propertyBedroomsTotal: Math.max(
+            1,
+            Math.min(
+              PROPERTY_BEDROOMS_MAX,
+              Number.isFinite(d.propertyBedroomsTotal) ? d.propertyBedroomsTotal : 1,
+            ),
+          ),
+        }),
     propertyTitle: d.propertyTitle.trim().toLowerCase() === "sin título" ? "" : d.propertyTitle,
     propertySummary: isDefaultPropertySummarySeed(d.propertySummary) ? "" : d.propertySummary,
     rooms,
@@ -496,7 +512,15 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
       p.status === "draft" && isDefaultPropertySummarySeed(p.summary) ? "" : p.summary?.trim() ? p.summary : "",
     propertyKind: p.propertyKind ?? "house",
     propertyBedroomsTotal:
-      p.propertyKind === "loft" ? 1 : p.bedroomsTotal,
+      p.propertyKind === "loft"
+        ? 1
+        : Math.max(
+            1,
+            Math.min(
+              PROPERTY_BEDROOMS_MAX,
+              Number.isFinite(Number(p.bedroomsTotal)) ? Math.floor(Number(p.bedroomsTotal)) : 1,
+            ),
+          ),
     propertyBathrooms: p.bathrooms,
     occupiedByWomenCount:
       p.occupiedByWomenCount != null && Number.isFinite(Number(p.occupiedByWomenCount))
@@ -1089,6 +1113,17 @@ export function PublishWizardPage() {
                       rooms: [{ ...defaultRoom(), title: SINGLE_ROOM_DEFAULT_TITLE }],
                       roomImageUrls: [d.roomImageUrls[0] ?? []],
                       propertySummary: "",
+                      ...(d.propertyKind === "loft"
+                        ? { propertyBedroomsTotal: 1 }
+                        : {
+                            propertyBedroomsTotal: Math.max(
+                              1,
+                              Math.min(
+                                PROPERTY_BEDROOMS_MAX,
+                                Number.isFinite(d.propertyBedroomsTotal) ? d.propertyBedroomsTotal : 1,
+                              ),
+                            ),
+                          }),
                     }))
                   }
                   className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
@@ -1322,10 +1357,10 @@ export function PublishWizardPage() {
                         ? 1
                         : Math.min(
                             PROPERTY_BEDROOMS_MAX,
-                            Math.max(0, draft.propertyBedroomsTotal),
+                            Math.max(1, draft.propertyBedroomsTotal),
                           )
                     }
-                    min={draft.propertyKind === "loft" ? 1 : 0}
+                    min={1}
                     max={PROPERTY_BEDROOMS_MAX}
                     disabled={draft.propertyKind === "loft"}
                     onChange={(n) =>
