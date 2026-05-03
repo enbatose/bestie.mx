@@ -163,6 +163,9 @@ const CITY_ANCHOR: Record<
   Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.675_138, lng: -103.347_345 },
 };
 
+/** Modo cuarto: select “Ocupación permitida” → `roomsAvailable` 1 o 2. */
+type RoomOccupationAllowed = "individuals_only" | "couples_or_individuals";
+
 type RoomDraft = {
   title: string;
   rentMxn: number;
@@ -476,6 +479,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           availableFrom: (r.availableFrom ?? isoToday()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
           roomDimension: r.roomDimension ?? "medium",
+          rentIncludesUtilities: (r.tags ?? []).includes("servicios-incluidos"),
         }))
       : [defaultRoom()];
   const draft: Draft = {
@@ -1521,21 +1525,36 @@ export function PublishWizardPage() {
                             className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                           />
                         </label>
-                        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-body">
+                        <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
                           <input
                             type="checkbox"
                             checked={room.rentIncludesUtilities}
-                            onChange={(e) =>
-                              updateRoom(i, { rentIncludesUtilities: e.target.checked })
-                            }
-                            className="size-4 shrink-0 rounded border-border text-primary"
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setDraft((d) => ({
+                                ...d,
+                                rooms: d.rooms.map((r, j) => {
+                                  if (j !== i) return r;
+                                  const tags = checked
+                                    ? r.tags.includes("servicios-incluidos")
+                                      ? r.tags
+                                      : [...r.tags, "servicios-incluidos"]
+                                    : r.tags.filter((t) => t !== "servicios-incluidos");
+                                  return { ...r, rentIncludesUtilities: checked, tags };
+                                }),
+                              }));
+                            }}
+                            className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
                           />
-                          <span>¿Incluye servicios?</span>
+                          <span>
+                            <span className="block text-sm font-medium text-body">
+                              Servicios básicos incluidos
+                            </span>
+                            <span className="mt-0.5 block text-xs text-muted leading-snug">
+                              Activa esta opción si el precio de renta ya cubre luz, agua, gas e internet (Wi-Fi).
+                            </span>
+                          </span>
                         </label>
-                        <p className="mt-1 text-xs text-muted">
-                          Marca si luz, agua, gas o internet van incluidos en la renta; conviene aclararlo también en
-                          la descripción.
-                        </p>
                       </div>
                       <label className="block text-sm font-medium text-body">
                         Depósito (MXN)
@@ -1561,17 +1580,41 @@ export function PublishWizardPage() {
                     Disponibilidad
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="block text-sm font-medium text-body">
-                      <span className="block">Plazas / espacios</span>
-                      <WizardNumberStepper
-                        value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, room.roomsAvailable))}
-                        min={0}
-                        max={ROOM_PLAZAS_MAX}
-                        onChange={(n) => updateRoom(i, { roomsAvailable: n })}
-                        decrementLabel="Menos plazas"
-                        incrementLabel="Más plazas"
-                      />
-                    </div>
+                    {draft.postMode === "property" ? (
+                      <div className="block text-sm font-medium text-body">
+                        <span className="block">Plazas / espacios</span>
+                        <WizardNumberStepper
+                          value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, room.roomsAvailable))}
+                          min={0}
+                          max={ROOM_PLAZAS_MAX}
+                          onChange={(n) => updateRoom(i, { roomsAvailable: n })}
+                          decrementLabel="Menos plazas"
+                          incrementLabel="Más plazas"
+                        />
+                      </div>
+                    ) : (
+                      <label className="block text-sm font-medium text-body">
+                        Ocupación permitida
+                        <span className="text-red-600"> *</span>
+                        <select
+                          value={
+                            room.roomsAvailable >= 2
+                              ? "couples_or_individuals"
+                              : "individuals_only"
+                          }
+                          onChange={(e) => {
+                            const occ = e.target.value as RoomOccupationAllowed;
+                            updateRoom(i, {
+                              roomsAvailable: occ === "individuals_only" ? 1 : 2,
+                            });
+                          }}
+                          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        >
+                          <option value="individuals_only">Solo individuos</option>
+                          <option value="couples_or_individuals">Parejas o individuos</option>
+                        </select>
+                      </label>
+                    )}
                     <label className="block text-sm font-medium text-body">
                       Disponible desde
                       <span className="text-red-600"> *</span>
@@ -1687,35 +1730,55 @@ export function PublishWizardPage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                           {group.title}
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {group.tags.map((tag) => (
-                            <label
-                              key={tag}
-                              className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-body shadow-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={room.tags.includes(tag)}
-                                onChange={() =>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {group.tags.map((tag) => {
+                            const active =
+                              tag === "servicios-incluidos"
+                                ? room.tags.includes(tag) || room.rentIncludesUtilities
+                                : room.tags.includes(tag);
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                role="checkbox"
+                                aria-checked={active}
+                                onClick={() =>
                                   setDraft((d) => ({
                                     ...d,
-                                    rooms: d.rooms.map((r, j) =>
-                                      j === i
-                                        ? {
-                                            ...r,
-                                            tags: r.tags.includes(tag)
-                                              ? r.tags.filter((t) => t !== tag)
-                                              : [...r.tags, tag],
-                                          }
-                                        : r,
-                                    ),
+                                    rooms: d.rooms.map((r, j) => {
+                                      if (j !== i) return r;
+                                      const nextActive = !active;
+                                      if (tag === "servicios-incluidos") {
+                                        const tags = nextActive
+                                          ? r.tags.includes("servicios-incluidos")
+                                            ? r.tags
+                                            : [...r.tags, "servicios-incluidos"]
+                                          : r.tags.filter((t) => t !== "servicios-incluidos");
+                                        return {
+                                          ...r,
+                                          tags,
+                                          rentIncludesUtilities: nextActive,
+                                        };
+                                      }
+                                      const tags = nextActive
+                                        ? r.tags.includes(tag)
+                                          ? r.tags
+                                          : [...r.tags, tag]
+                                        : r.tags.filter((t) => t !== tag);
+                                      return { ...r, tags };
+                                    }),
                                   }))
                                 }
-                                className="size-3.5 rounded border-border text-primary"
-                              />
-                              {TAG_LABELS[tag]}
-                            </label>
-                          ))}
+                                className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
+                                  active
+                                    ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+                                    : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
+                                }`}
+                              >
+                                {TAG_LABELS[tag]}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
