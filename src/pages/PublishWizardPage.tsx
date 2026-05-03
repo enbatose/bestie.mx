@@ -46,6 +46,12 @@ const WIZARD_STEP_FOTOS = 4;
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
 
+/** Título por defecto del listado en modo un solo cuarto (campo oculto en el paso Recámaras). */
+const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
+
+const ROOM_SUMMARY_PLACEHOLDER_SINGLE =
+  'Describe la iluminación, el tamaño del clóset, si incluye muebles (escritorio/silla) y con cuántas personas se comparte el baño. Menciona también el "vibe" de la casa.';
+
 /** Etiquetas del paso Recámaras, agrupadas para escaneo rápido (todas las `ListingTag` del producto). */
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
   {
@@ -257,7 +263,7 @@ const defaultDraft = (): Draft => ({
   propertyImageUrls: [],
   unassignedImageUrls: [],
   roomImageUrls: [[]],
-  rooms: [defaultRoom()],
+  rooms: [{ ...defaultRoom(), title: SINGLE_ROOM_DEFAULT_TITLE }],
   legalAccepted: false,
   isApproximateLocation: false,
 });
@@ -561,6 +567,25 @@ export function PublishWizardPage() {
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
   const neighborhoodAutofillFromPinRef = useRef<{ latKey: string; value: string } | null>(null);
+
+  const roomLodgingSig = useMemo(
+    () => (draft.postMode === "room" ? draft.rooms.map((r) => r.lodgingType).join("|") : ""),
+    [draft.postMode, draft.rooms],
+  );
+
+  useEffect(() => {
+    if (draft.postMode !== "room") return;
+    setDraft((d) => {
+      if (d.postMode !== "room") return d;
+      if (!d.rooms.some((r) => r.lodgingType === "whole_home")) return d;
+      return {
+        ...d,
+        rooms: d.rooms.map((r) =>
+          r.lodgingType === "whole_home" ? { ...r, lodgingType: "private_room" as const } : r,
+        ),
+      };
+    });
+  }, [draft.postMode, roomLodgingSig]);
 
   useEffect(() => {
     if (!apiOn) {
@@ -1052,7 +1077,7 @@ export function PublishWizardPage() {
                     setDraft((d) => ({
                       ...d,
                       postMode: "room",
-                      rooms: [defaultRoom()],
+                      rooms: [{ ...defaultRoom(), title: SINGLE_ROOM_DEFAULT_TITLE }],
                       roomImageUrls: [d.roomImageUrls[0] ?? []],
                       propertySummary: "",
                     }))
@@ -1408,28 +1433,43 @@ export function PublishWizardPage() {
                   <h3 className="text-sm font-bold text-primary">
                     Información principal
                   </h3>
-                  <label className="block text-sm font-medium text-body">
-                    Título del espacio
-                    <input
-                      value={room.title}
-                      onChange={(e) => updateRoom(i, { title: e.target.value })}
-                      placeholder={roomTitlePlaceholder(room)}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
-                    />
-                  </label>
+                  {draft.postMode === "property" ? (
+                    <label className="block text-sm font-medium text-body">
+                      Título del espacio
+                      <input
+                        value={room.title}
+                        onChange={(e) => updateRoom(i, { title: e.target.value })}
+                        placeholder={roomTitlePlaceholder(room)}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                      />
+                    </label>
+                  ) : null}
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <label className="block text-sm font-medium text-body">
-                      Tipo de espacio
+                      {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
                       <select
-                        value={room.lodgingType}
+                        value={
+                          draft.postMode === "room" && room.lodgingType === "whole_home"
+                            ? "private_room"
+                            : room.lodgingType
+                        }
                         onChange={(e) =>
                           updateRoom(i, { lodgingType: e.target.value as LodgingType })
                         }
                         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                       >
-                        <option value="private_room">Recámara privada</option>
-                        <option value="shared_room">Recámara compartida</option>
-                        <option value="whole_home">Vivienda completa</option>
+                        {draft.postMode === "room" ? (
+                          <>
+                            <option value="private_room">Recámara privada</option>
+                            <option value="shared_room">Recámara compartida</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="private_room">Recámara privada</option>
+                            <option value="shared_room">Recámara compartida</option>
+                            <option value="whole_home">Vivienda completa</option>
+                          </>
+                        )}
                       </select>
                     </label>
                     <label className="block text-sm font-medium text-body">
@@ -1442,9 +1482,21 @@ export function PublishWizardPage() {
                         }
                         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                       >
-                        <option value="small">Pequeño</option>
-                        <option value="medium">Mediano</option>
-                        <option value="large">Grande</option>
+                        {draft.postMode === "room" ? (
+                          <>
+                            <option value="small">Individual (Cabe cama individual + buró)</option>
+                            <option value="medium">
+                              Matrimonial (Cabe cama matrimonial + escritorio)
+                            </option>
+                            <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="small">Pequeño</option>
+                            <option value="medium">Mediano</option>
+                            <option value="large">Grande</option>
+                          </>
+                        )}
                       </select>
                     </label>
                     <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
@@ -1616,6 +1668,9 @@ export function PublishWizardPage() {
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
                       rows={3}
+                      placeholder={
+                        draft.postMode === "room" ? ROOM_SUMMARY_PLACEHOLDER_SINGLE : undefined
+                      }
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
@@ -1930,10 +1985,19 @@ export function PublishWizardPage() {
     setDraft((d) => {
       if (publishModeParam === "room") {
         if (d.postMode === "room") return d;
+        const first = d.rooms[0] ?? defaultRoom();
         return {
           ...d,
           postMode: "room",
-          rooms: d.rooms.length ? [d.rooms[0] ?? defaultRoom()] : [defaultRoom()],
+          rooms: [
+            {
+              ...defaultRoom(),
+              ...first,
+              title: first.title?.trim() || SINGLE_ROOM_DEFAULT_TITLE,
+              lodgingType:
+                first.lodgingType === "whole_home" ? "private_room" : first.lodgingType,
+            },
+          ],
           roomImageUrls: d.roomImageUrls.length ? [[...(d.roomImageUrls[0] ?? [])]] : [[]],
           propertySummary: "",
         };
