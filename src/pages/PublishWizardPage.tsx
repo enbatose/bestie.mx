@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
+import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import {
   addDraftRoomToProperty,
@@ -211,8 +212,8 @@ const defaultDraft = (): Draft => ({
   propertyKind: "house",
   propertyBedroomsTotal: 0,
   propertyBathrooms: 0,
-  occupiedByWomenCount: null,
-  occupiedByMenCount: null,
+  occupiedByWomenCount: 0,
+  occupiedByMenCount: 0,
   showWhatsApp: false,
   useCustomMapPin: false,
   customLat: "",
@@ -240,7 +241,7 @@ function occupantCountsInvalidReason(d: Draft): string | null {
     d.occupiedByWomenCount < 0 ||
     d.occupiedByWomenCount > PROPERTY_OCCUPANTS_MAX
   ) {
-    return `Indica cuántas mujeres viven actualmente en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
+    return `Indica cuántas mujeres (Besties) hay en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
   }
   if (
     d.occupiedByMenCount == null ||
@@ -248,7 +249,7 @@ function occupantCountsInvalidReason(d: Draft): string | null {
     d.occupiedByMenCount < 0 ||
     d.occupiedByMenCount > PROPERTY_OCCUPANTS_MAX
   ) {
-    return `Indica cuántos hombres viven actualmente en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
+    return `Indica cuántos hombres (Besties) hay en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
   }
   return null;
 }
@@ -276,7 +277,7 @@ function propertyGeneralStepInvalidReason(d: Draft): string | null {
     return "Sustituye el texto de ejemplo por tu propia descripción del espacio.";
   }
   if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
-    return `El número de cuartos no puede exceder los ${PROPERTY_BEDROOMS_MAX}.`;
+    return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
   }
   if (showWizardPropertyBathroomsField(d) && d.propertyBathrooms > PROPERTY_BATHROOMS_MAX) {
     return `El número de baños no puede exceder los ${PROPERTY_BATHROOMS_MAX}.`;
@@ -445,11 +446,11 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     occupiedByWomenCount:
       p.occupiedByWomenCount != null && Number.isFinite(Number(p.occupiedByWomenCount))
         ? Math.max(0, Math.floor(Number(p.occupiedByWomenCount)))
-        : null,
+        : 0,
     occupiedByMenCount:
       p.occupiedByMenCount != null && Number.isFinite(Number(p.occupiedByMenCount))
         ? Math.max(0, Math.floor(Number(p.occupiedByMenCount)))
-        : null,
+        : 0,
     showWhatsApp: p.showWhatsApp,
     useCustomMapPin: usePin,
     customLat: usePin ? String(p.lat) : "",
@@ -1235,34 +1236,36 @@ export function PublishWizardPage() {
               <div
                 className={`grid gap-4 ${showWizardPropertyBathroomsField(draft) ? "sm:grid-cols-2" : ""}`}
               >
-                <label className="block text-sm font-medium text-body">
-                  ¿Cuántos cuartos tiene la propiedad completa?
-                  <span className="text-red-600"> *</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="off"
-                    disabled={draft.propertyKind === "loft"}
-                    placeholder="E.j. 2,3,4...etc. Cuartos habitados + disponibles."
+                <div className="block text-sm font-medium text-body">
+                  <span className="block">
+                    ¿Cuántas recámaras tiene la propiedad?
+                    <span className="text-red-600"> *</span>
+                  </span>
+                  <WizardNumberStepper
                     value={
                       draft.propertyKind === "loft"
-                        ? "1"
-                        : draft.propertyBedroomsTotal === 0
-                          ? ""
-                          : String(draft.propertyBedroomsTotal)
+                        ? 1
+                        : Math.min(
+                            PROPERTY_BEDROOMS_MAX,
+                            Math.max(0, draft.propertyBedroomsTotal),
+                          )
                     }
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "");
+                    min={draft.propertyKind === "loft" ? 1 : 0}
+                    max={PROPERTY_BEDROOMS_MAX}
+                    disabled={draft.propertyKind === "loft"}
+                    onChange={(n) =>
                       setDraft((d) => ({
                         ...d,
-                        propertyBedroomsTotal:
-                          digits === "" ? 0 : Math.min(PROPERTY_BEDROOMS_MAX, parseInt(digits, 10)),
-                      }));
-                    }}
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+                        propertyBedroomsTotal: n,
+                      }))
+                    }
+                    decrementLabel="Menos recámaras"
+                    incrementLabel="Más recámaras"
                   />
-                </label>
+                  <span className="mt-1 block text-xs text-muted">
+                    Incluye recámaras habitadas + disponibles
+                  </span>
+                </div>
                 {showWizardPropertyBathroomsField(draft) ? (
                   <div>
                     <label className="block text-sm font-medium text-body">
@@ -1283,55 +1286,56 @@ export function PublishWizardPage() {
                             ),
                           }))
                         }
-                        className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                        className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                       />
                     </label>
                   </div>
                 ) : null}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-body">
-                  ¿Cuántas mujeres viven actualmente en la propiedad?
-                  <span className="text-red-600"> *</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="off"
-                    placeholder="E.j. 0,1,2,3,4...etc. Considerando cuartos habitados"
-                    value={draft.occupiedByWomenCount === null ? "" : String(draft.occupiedByWomenCount)}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "");
-                      setDraft((d) => ({
-                        ...d,
-                        occupiedByWomenCount:
-                          digits === "" ? null : Math.min(PROPERTY_OCCUPANTS_MAX, Math.max(0, parseInt(digits, 10))),
-                      }));
-                    }}
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="block text-sm font-medium text-body">
-                  ¿Cuántos hombres viven actualmente en la propiedad?
-                  <span className="text-red-600"> *</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="off"
-                    placeholder="E.j. 0,1,2,3,4...etc. Considerando cuartos habitados"
-                    value={draft.occupiedByMenCount === null ? "" : String(draft.occupiedByMenCount)}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "");
-                      setDraft((d) => ({
-                        ...d,
-                        occupiedByMenCount:
-                          digits === "" ? null : Math.min(PROPERTY_OCCUPANTS_MAX, Math.max(0, parseInt(digits, 10))),
-                      }));
-                    }}
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-                  />
-                </label>
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold tracking-tight text-primary">
+                  Besties actuales en la propiedad
+                </h4>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="block text-sm font-medium text-body">
+                    <span className="block">
+                      Mujeres
+                      <span className="text-red-600"> *</span>
+                    </span>
+                    <WizardNumberStepper
+                      value={draft.occupiedByWomenCount ?? 0}
+                      min={0}
+                      max={PROPERTY_OCCUPANTS_MAX}
+                      onChange={(n) =>
+                        setDraft((d) => ({
+                          ...d,
+                          occupiedByWomenCount: n,
+                        }))
+                      }
+                      decrementLabel="Menos mujeres"
+                      incrementLabel="Más mujeres"
+                    />
+                  </div>
+                  <div className="block text-sm font-medium text-body">
+                    <span className="block">
+                      Hombres
+                      <span className="text-red-600"> *</span>
+                    </span>
+                    <WizardNumberStepper
+                      value={draft.occupiedByMenCount ?? 0}
+                      min={0}
+                      max={PROPERTY_OCCUPANTS_MAX}
+                      onChange={(n) =>
+                        setDraft((d) => ({
+                          ...d,
+                          occupiedByMenCount: n,
+                        }))
+                      }
+                      decrementLabel="Menos hombres"
+                      incrementLabel="Más hombres"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </form>
@@ -1926,7 +1930,7 @@ export function PublishWizardPage() {
     const generalErr = propertyGeneralStepInvalidReason(draft);
     if (generalErr) return generalErr;
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-      return "Indica cuántos cuartos tiene la propiedad (total, mínimo 1).";
+      return "Indica cuántas recámaras tiene la propiedad (mínimo 1).";
     }
     if (
       showWizardPropertyBathroomsField(draft) &&
@@ -1961,7 +1965,7 @@ export function PublishWizardPage() {
       return;
     }
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-      setPublishErr("Indica cuántos cuartos tiene la propiedad (total, mínimo 1).");
+      setPublishErr("Indica cuántas recámaras tiene la propiedad (mínimo 1).");
       return;
     }
     if (
@@ -2109,7 +2113,7 @@ export function PublishWizardPage() {
       return;
     }
     if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-      setPublishErr("Indica cuántos cuartos tiene la propiedad (total, mínimo 1).");
+      setPublishErr("Indica cuántas recámaras tiene la propiedad (mínimo 1).");
       return;
     }
     if (
