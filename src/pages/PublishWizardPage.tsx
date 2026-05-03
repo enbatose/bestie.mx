@@ -2139,45 +2139,6 @@ export function PublishWizardPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
-      {safeStep > 2 ? (
-        <p className="mt-2 text-sm text-muted">
-          Elige cómo empezar:{" "}
-          <strong className="font-medium text-body">un cuarto o loft</strong> (rápido) o{" "}
-          <strong className="font-medium text-body">una propiedad con varios cuartos</strong>.
-        </p>
-      ) : null}
-      {safeStep > 2 && apiOn && me === null ? (
-        <p className="mt-3 rounded-xl border border-amber-300/80 bg-amber-50 p-3 text-sm text-body dark:border-amber-800/60 dark:bg-amber-950/40">
-          <Link className="font-semibold text-primary underline" to="/entrar">
-            Inicia sesión
-          </Link>{" "}
-          para guardar el borrador en el servidor y publicar. Cada vez que entras a Publicar empiezas con el formulario
-          vacío; sin sesión, al salir de la página no queda copia en el navegador.
-        </p>
-      ) : null}
-      {handoffBanner ? (
-        <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
-          {handoffBanner}
-        </p>
-      ) : null}
-      {safeStep > 2 && draft.postMode === "room" ? (
-        <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4">
-          <p className="text-sm text-body">
-            Estás publicando <strong>un cuarto o loft</strong>. Si después quieres subir más fotos, agregar cuartos o
-            etiquetar fotos por cuarto/áreas compartidas/fachada, puedes convertirlo a propiedad.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(convertRoomDraftToProperty);
-              setStep(2);
-            }}
-            className="mt-3 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary transition hover:brightness-95"
-          >
-            Convertir a propiedad con múltiples cuartos
-          </button>
-        </div>
-      ) : null}
       {apiOn && me ? (
         <p className="mt-2 text-xs text-muted" aria-live="polite">
           {autosaveNote === "saving"
