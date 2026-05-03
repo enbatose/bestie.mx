@@ -38,7 +38,7 @@ const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;
 const PROPERTY_OCCUPANTS_MAX = 50;
 
-/** Index in `steps` for “Datos generales” (título, colonia, descripción del espacio). */
+/** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
 /** Paso 5 en UI (Fotos; incluye contacto). */
 const WIZARD_STEP_FOTOS = 4;
@@ -235,6 +235,10 @@ const defaultRoom = (): RoomDraft => ({
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
+  "Cuéntanos qué hace especial a la propiedad en general. Describe las zonas comunes (sala, cocina, terraza, áreas del edificio) y la convivencia. (Importante: Los detalles específicos de la recámara disponible los llenaremos en el Paso 4).";
+
+/** Previous wizard placeholder; still treated as “example text” so borradores viejos piden sustitución. */
+const LEGACY_DEFAULT_PROPERTY_SUMMARY =
   "Cuéntanos qué hace especial a tu hogar. Describe la propiedad y sus zonas comunes (baños, cocina, estacionamiento), sin olvidar las reglas de convivencia y ese toque único que lo distingue.";
 const DRAFT_ONLY_ROOM_TITLE_SEEDS = [
   "Cuarto disponible",
@@ -273,7 +277,8 @@ function isDraftOnlyRoomTitleSeed(value: string) {
 }
 
 function isDefaultPropertySummarySeed(value: string) {
-  return value.trim() === DEFAULT_PROPERTY_SUMMARY;
+  const t = value.trim();
+  return t === DEFAULT_PROPERTY_SUMMARY || t === LEGACY_DEFAULT_PROPERTY_SUMMARY;
 }
 
 function occupantCountsInvalidReason(d: Draft): string | null {
@@ -310,13 +315,13 @@ function propertyGeneralStepInvalidReason(d: Draft): string | null {
     return `La colonia o zona no puede exceder los ${PROPERTY_NEIGHBORHOOD_MAX} caracteres.`;
   }
   if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-    return `La descripción del espacio debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
+    return `La descripción de la propiedad y áreas comunes debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
   }
   if (d.propertySummary.trim().length > PROPERTY_SUMMARY_MAX) {
-    return `La descripción del espacio no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
+    return `La descripción de la propiedad no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
   }
   if (isDefaultPropertySummarySeed(d.propertySummary)) {
-    return "Sustituye el texto de ejemplo por tu propia descripción del espacio.";
+    return "Sustituye el texto de ejemplo por tu propia descripción de la propiedad y las zonas comunes.";
   }
   if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
     return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
@@ -1251,7 +1256,7 @@ export function PublishWizardPage() {
                 />
               </label>
               <label className="block text-sm font-medium text-body">
-                Descripción del espacio
+                Descripción de la propiedad y áreas comunes
                 <span className="text-red-600"> *</span>
                 <textarea
                   value={draft.propertySummary}
@@ -1262,7 +1267,8 @@ export function PublishWizardPage() {
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
                 <span className="mt-1 block text-xs text-muted">
-                  Mínimo {PROPERTY_SUMMARY_MIN} caracteres · {draft.propertySummary.trim().length} ahora
+                  Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
+                  {draft.propertySummary.trim().length} ahora
                 </span>
               </label>
             </div>
