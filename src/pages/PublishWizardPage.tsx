@@ -15,7 +15,7 @@ import {
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { LISTING_TAG_SLUG_SET, TAG_CHIP_ORDER } from "@/lib/listingTags";
+import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingStatus,
@@ -42,6 +42,33 @@ const PROPERTY_OCCUPANTS_MAX = 50;
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
 /** Paso 5 en UI (Fotos; incluye contacto). */
 const WIZARD_STEP_FOTOS = 4;
+
+const ROOM_PLAZAS_MAX = 12;
+const ROOM_STAY_MAX = 36;
+
+/** Etiquetas del paso Recámaras, agrupadas para escaneo rápido (todas las `ListingTag` del producto). */
+const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
+  {
+    title: "Básicos",
+    tags: ["wifi", "muebles", "servicios-incluidos", "lavanderia", "cocina-equipada", "agua-caliente"],
+  },
+  {
+    title: "Comodidades",
+    tags: [
+      "baño-privado",
+      "aire-acondicionado",
+      "estacionamiento",
+      "terraza",
+      "cerradura-cuarto",
+      "cerca-transporte",
+    ],
+  },
+  {
+    title: "Seguridad y vibe",
+    tags: ["seguridad-acceso", "vigilancia", "lgbt-friendly", "mascotas"],
+  },
+  { title: "Reglas", tags: ["fumar", "fiestas"] },
+];
 
 function isoToday(): string {
   const d = new Date();
@@ -145,6 +172,8 @@ type RoomDraft = {
   availableFrom: string;
   minimalStayMonths: number;
   roomDimension: RoomDimension;
+  /** Solo UI: si la renta incluye servicios (no se persiste en API). */
+  rentIncludesUtilities: boolean;
 };
 
 type Draft = {
@@ -186,21 +215,28 @@ const defaultRoom = (): RoomDraft => ({
   title: "",
   rentMxn: 0,
   depositMxn: 0,
-  roomsAvailable: 0,
+  roomsAvailable: 1,
   summary: "",
   tags: [],
   roommateGenderPref: "any",
-  ageMin: 0,
-  ageMax: 0,
+  ageMin: 18,
+  ageMax: 99,
   lodgingType: "private_room",
   availableFrom: "",
-  minimalStayMonths: 0,
+  minimalStayMonths: 1,
   roomDimension: "medium",
+  rentIncludesUtilities: false,
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
   "Cuéntanos qué hace especial a tu hogar. Describe la propiedad y sus zonas comunes (baños, cocina, estacionamiento), sin olvidar las reglas de convivencia y ese toque único que lo distingue.";
-const DRAFT_ONLY_ROOM_TITLE_SEEDS = ["Cuarto disponible", "Vivienda completa", "Cuarto en borrador"] as const;
+const DRAFT_ONLY_ROOM_TITLE_SEEDS = [
+  "Cuarto disponible",
+  "Recámara disponible",
+  "Vivienda completa",
+  "Cuarto en borrador",
+  "Recámara en borrador",
+] as const;
 
 const defaultDraft = (): Draft => ({
   postMode: "room",
@@ -286,7 +322,7 @@ function propertyGeneralStepInvalidReason(d: Draft): string | null {
 }
 
 function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
-  return room.lodgingType === "whole_home" ? "Vivienda completa" : "Cuarto disponible";
+  return room.lodgingType === "whole_home" ? "Vivienda completa" : "Recámara disponible";
 }
 
 function convertRoomDraftToProperty(d: Draft): Draft {
@@ -419,8 +455,12 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           summary: r.summary,
           tags: (r.tags ?? []).filter(tagOk),
           roommateGenderPref: r.roommateGenderPref,
-          ageMin: r.ageMin,
-          ageMax: r.ageMax,
+          ageMin: Math.min(99, Math.max(18, Number(r.ageMin) || 18)),
+          ageMax: (() => {
+            const mn = Math.min(99, Math.max(18, Number(r.ageMin) || 18));
+            const mx = Math.min(99, Math.max(18, Number(r.ageMax) || 99));
+            return mx < mn ? mn : mx;
+          })(),
           lodgingType: r.lodgingType ?? "private_room",
           availableFrom: (r.availableFrom ?? isoToday()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
@@ -862,7 +902,7 @@ export function PublishWizardPage() {
         for (let i = 0; i < d.rooms.length; i++) {
           const r = d.rooms[i]!;
           const payload = {
-            title: r.title.trim() || "Cuarto en borrador",
+            title: r.title.trim() || "Recámara en borrador",
             rentMxn: r.rentMxn,
             roomsAvailable: r.roomsAvailable,
             tags: r.tags,
@@ -1342,17 +1382,17 @@ export function PublishWizardPage() {
         ),
       },
       {
-        title: "Cuartos",
+        title: "Recámaras",
         body: (
           <div className="space-y-6">
             {draft.rooms.map((room, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-border bg-bg-light p-4 shadow-sm"
+                className="rounded-xl border border-border bg-bg-light p-4 shadow-md ring-1 ring-primary/10"
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    Cuarto {i + 1}
+                    Recámara {i + 1}
                   </p>
                   {draft.rooms.length > 1 ? (
                     <button
@@ -1366,7 +1406,7 @@ export function PublishWizardPage() {
                 </div>
                 <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
                   <h3 className="text-sm font-bold text-primary">
-                    Información Principal
+                    Información principal
                   </h3>
                   <label className="block text-sm font-medium text-body">
                     Título del espacio
@@ -1374,7 +1414,7 @@ export function PublishWizardPage() {
                       value={room.title}
                       onChange={(e) => updateRoom(i, { title: e.target.value })}
                       placeholder={roomTitlePlaceholder(room)}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -1385,57 +1425,76 @@ export function PublishWizardPage() {
                         onChange={(e) =>
                           updateRoom(i, { lodgingType: e.target.value as LodgingType })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                       >
-                        <option value="private_room">Cuarto privado</option>
-                        <option value="shared_room">Cuarto compartido</option>
+                        <option value="private_room">Recámara privada</option>
+                        <option value="shared_room">Recámara compartida</option>
                         <option value="whole_home">Vivienda completa</option>
                       </select>
                     </label>
                     <label className="block text-sm font-medium text-body">
-                      Tamaño del cuarto
+                      Tamaño de la recámara
                       <span className="text-red-600"> *</span>
                       <select
                         value={room.roomDimension}
                         onChange={(e) =>
                           updateRoom(i, { roomDimension: e.target.value as RoomDimension })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                       >
                         <option value="small">Pequeño</option>
                         <option value="medium">Mediano</option>
                         <option value="large">Grande</option>
                       </select>
                     </label>
-                    <label className="block text-sm font-medium text-body">
-                      Renta (MXN / mes)
-                      <span className="text-red-600"> *</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={100}
-                        value={room.rentMxn === 0 ? "" : room.rentMxn}
-                        onChange={(e) =>
-                          updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
-                        }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                      />
-                    </label>
-                    <label className="block text-sm font-medium text-body">
-                      Depósito (MXN)
-                      <span className="text-red-600"> *</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={100}
-                        value={room.depositMxn === 0 ? "" : room.depositMxn}
-                        onChange={(e) =>
-                          updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
-                        }
-                        placeholder="0"
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                      />
-                    </label>
+                    <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-body">
+                          Renta (MXN / mes)
+                          <span className="text-red-600"> *</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={100}
+                            value={room.rentMxn === 0 ? "" : room.rentMxn}
+                            onChange={(e) =>
+                              updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
+                            }
+                            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                          />
+                        </label>
+                        <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-body">
+                          <input
+                            type="checkbox"
+                            checked={room.rentIncludesUtilities}
+                            onChange={(e) =>
+                              updateRoom(i, { rentIncludesUtilities: e.target.checked })
+                            }
+                            className="size-4 shrink-0 rounded border-border text-primary"
+                          />
+                          <span>¿Incluye servicios?</span>
+                        </label>
+                        <p className="mt-1 text-xs text-muted">
+                          Marca si luz, agua, gas o internet van incluidos en la renta; conviene aclararlo también en
+                          la descripción.
+                        </p>
+                      </div>
+                      <label className="block text-sm font-medium text-body">
+                        Depósito (MXN)
+                        <span className="text-red-600"> *</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={100}
+                          value={room.depositMxn === 0 ? "" : room.depositMxn}
+                          onChange={(e) =>
+                            updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
+                          }
+                          placeholder="0"
+                          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -1444,21 +1503,17 @@ export function PublishWizardPage() {
                     Disponibilidad
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <label className="block text-sm font-medium text-body">
-                      Plazas / espacios
-                      <input
-                        type="number"
+                    <div className="block text-sm font-medium text-body">
+                      <span className="block">Plazas / espacios</span>
+                      <WizardNumberStepper
+                        value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, room.roomsAvailable))}
                         min={0}
-                        max={12}
-                        value={room.roomsAvailable === 0 ? "" : room.roomsAvailable}
-                        onChange={(e) =>
-                          updateRoom(i, {
-                            roomsAvailable: Math.max(0, Math.floor(Number(e.target.value) || 0)),
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        max={ROOM_PLAZAS_MAX}
+                        onChange={(n) => updateRoom(i, { roomsAvailable: n })}
+                        decrementLabel="Menos plazas"
+                        incrementLabel="Más plazas"
                       />
-                    </label>
+                    </div>
                     <label className="block text-sm font-medium text-body">
                       Disponible desde
                       <span className="text-red-600"> *</span>
@@ -1466,34 +1521,32 @@ export function PublishWizardPage() {
                         type="date"
                         value={room.availableFrom}
                         onChange={(e) => updateRoom(i, { availableFrom: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                       />
                     </label>
-                    <label className="block text-sm font-medium text-body">
-                      Estancia min. (meses)
-                      <span className="text-red-600"> *</span>
-                      <input
-                        type="number"
+                    <div className="block text-sm font-medium text-body">
+                      <span className="block">
+                        Estancia mín. (meses)
+                        <span className="text-red-600"> *</span>
+                      </span>
+                      <WizardNumberStepper
+                        value={Math.min(
+                          ROOM_STAY_MAX,
+                          Math.max(0, room.minimalStayMonths),
+                        )}
                         min={0}
-                        max={36}
-                        value={room.minimalStayMonths === 0 ? "" : room.minimalStayMonths}
-                        onChange={(e) =>
-                          updateRoom(i, {
-                            minimalStayMonths: Math.min(
-                              36,
-                              Math.max(0, Math.floor(Number(e.target.value) || 0)),
-                            ),
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        max={ROOM_STAY_MAX}
+                        onChange={(n) => updateRoom(i, { minimalStayMonths: n })}
+                        decrementLabel="Menos meses"
+                        incrementLabel="Más meses"
                       />
-                    </label>
+                    </div>
                   </div>
                 </div>
 
                 <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
                   <h3 className="text-sm font-bold text-primary">
-                    Perfil Buscado
+                    Perfil buscado
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
@@ -1505,91 +1558,100 @@ export function PublishWizardPage() {
                             roommateGenderPref: e.target.value as RoommateGenderPref,
                           })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                       >
                         <option value="any">Sin preferencia</option>
-                        <option value="female">Mujer</option>
-                        <option value="male">Hombre</option>
+                        <option value="female">Mujeres</option>
+                        <option value="male">Hombres</option>
                       </select>
                     </label>
-                    <label className="block text-sm font-medium text-body">
-                      Edad mín.
-                      <input
-                        type="number"
+                    <div className="block text-sm font-medium text-body">
+                      <span className="block">Edad mín.</span>
+                      <WizardNumberStepper
+                        value={Math.min(99, Math.max(18, room.ageMin))}
                         min={18}
                         max={99}
-                        value={room.ageMin || ""}
-                        onChange={(e) =>
+                        onChange={(n) =>
                           updateRoom(i, {
-                            ageMin: Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0)),
+                            ageMin: n,
+                            ageMax: room.ageMax < n ? n : room.ageMax,
                           })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        decrementLabel="Menor edad mínima"
+                        incrementLabel="Mayor edad mínima"
                       />
-                    </label>
-                    <label className="block text-sm font-medium text-body">
-                      Edad máx.
-                      <input
-                        type="number"
+                    </div>
+                    <div className="block text-sm font-medium text-body">
+                      <span className="block">Edad máx.</span>
+                      <WizardNumberStepper
+                        value={Math.min(99, Math.max(18, room.ageMax))}
                         min={18}
                         max={99}
-                        value={room.ageMax || ""}
-                        onChange={(e) =>
+                        onChange={(n) =>
                           updateRoom(i, {
-                            ageMax: Math.min(99, Math.max(0, parseInt(e.target.value, 10) || 0)),
+                            ageMax: n,
+                            ageMin: room.ageMin > n ? n : room.ageMin,
                           })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                        decrementLabel="Menor edad máxima"
+                        incrementLabel="Mayor edad máxima"
                       />
-                    </label>
+                    </div>
                   </div>
                 </div>
 
                 <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
                   <h3 className="text-sm font-bold text-primary">
-                    Detalles del Espacio
+                    Detalles de la recámara
                   </h3>
                   <label className="block text-sm font-medium text-body">
-                    Descripción del cuarto
+                    Descripción de la recámara
                     <textarea
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
                       rows={3}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-body">Etiquetas del cuarto</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {TAG_CHIP_ORDER.map((tag) => (
-                        <label
-                          key={tag}
-                          className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-body"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={room.tags.includes(tag)}
-                            onChange={() =>
-                              setDraft((d) => ({
-                                ...d,
-                                rooms: d.rooms.map((r, j) =>
-                                  j === i
-                                    ? {
-                                        ...r,
-                                        tags: r.tags.includes(tag)
-                                          ? r.tags.filter((t) => t !== tag)
-                                          : [...r.tags, tag],
-                                      }
-                                    : r,
-                                ),
-                              }))
-                            }
-                            className="size-3.5 rounded border-border text-primary"
-                          />
-                          {TAG_LABELS[tag]}
-                        </label>
-                      ))}
-                    </div>
+                  <div className="mt-3 space-y-4">
+                    <p className="text-sm font-medium text-body">Etiquetas de la recámara</p>
+                    {WIZARD_ROOM_TAG_GROUPS.map((group) => (
+                      <div key={group.title}>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                          {group.title}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {group.tags.map((tag) => (
+                            <label
+                              key={tag}
+                              className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-body shadow-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={room.tags.includes(tag)}
+                                onChange={() =>
+                                  setDraft((d) => ({
+                                    ...d,
+                                    rooms: d.rooms.map((r, j) =>
+                                      j === i
+                                        ? {
+                                            ...r,
+                                            tags: r.tags.includes(tag)
+                                              ? r.tags.filter((t) => t !== tag)
+                                              : [...r.tags, tag],
+                                          }
+                                        : r,
+                                    ),
+                                  }))
+                                }
+                                className="size-3.5 rounded border-border text-primary"
+                              />
+                              {TAG_LABELS[tag]}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1600,7 +1662,9 @@ export function PublishWizardPage() {
               disabled={draft.postMode === "room"}
               className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {draft.postMode === "room" ? "Convierte a propiedad para agregar más cuartos" : "+ Agregar otro cuarto"}
+              {draft.postMode === "room"
+                ? "Convierte a propiedad para agregar más recámaras"
+                : "+ Agregar otra recámara"}
             </button>
           </div>
         ),
@@ -1676,7 +1740,7 @@ export function PublishWizardPage() {
             {draft.rooms.map((room, i) => (
               <div key={i} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
                 <h3 className="text-[15px] font-bold text-primary">
-                  {`Galería: Cuarto ${i + 1}`}
+                  {`Galería: Recámara ${i + 1}`}
                 </h3>
                 <BulkImageUploader
                   title={room.title.trim() || "Sin título"}
@@ -1803,7 +1867,7 @@ export function PublishWizardPage() {
                                   <option value="facade">Fachada</option>
                                   {draft.rooms.map((r, idx) => (
                                     <option key={idx} value={`room:${idx + 1}`}>
-                                      Cuarto {idx + 1}: {r.title.trim() || "Sin título"}
+                                      Recámara {idx + 1}: {r.title.trim() || "Sin título"}
                                     </option>
                                   ))}
                                 </select>
@@ -1899,25 +1963,25 @@ export function PublishWizardPage() {
     const iso = /^\d{4}-\d{2}-\d{2}$/;
     for (const r of d.rooms) {
       if (!r.title.trim() || !r.summary.trim()) {
-        return "Cada cuarto necesita título y descripción.";
+        return "Cada recámara necesita título y descripción.";
       }
       if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) {
-        return "En cada cuarto indica una renta mayor a 0.";
+        return "En cada recámara indica una renta mayor a 0.";
       }
       if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) {
-        return "En cada cuarto indica al menos 1 plaza o espacio disponible.";
+        return "En cada recámara indica al menos 1 plaza o espacio disponible.";
       }
       if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99) {
         return "La edad mínima y máxima debe estar entre 18 y 99 años.";
       }
       if (r.ageMin > r.ageMax) {
-        return "En cada cuarto la edad mínima no puede ser mayor que la máxima.";
+        return "En cada recámara la edad mínima no puede ser mayor que la máxima.";
       }
       if (!iso.test(r.availableFrom.trim())) {
-        return "En cada cuarto indica una fecha “Disponible desde” válida (AAAA-MM-DD).";
+        return "En cada recámara indica una fecha “Disponible desde” válida (AAAA-MM-DD).";
       }
       if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
-        return "En cada cuarto la estancia mínima debe ser de al menos 1 mes.";
+        return "En cada recámara la estancia mínima debe ser de al menos 1 mes.";
       }
       if (r.depositMxn < 0) {
         return "El depósito no puede ser negativo.";
@@ -2088,7 +2152,7 @@ export function PublishWizardPage() {
       });
       const first = res.rooms[0];
       if (!first) {
-        setPublishErr("La API no devolvió cuartos.");
+        setPublishErr("La API no devolvió recámaras.");
         return;
       }
       setServerSync({ propertyId: null, roomIds: [] });

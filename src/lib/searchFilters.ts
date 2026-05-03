@@ -244,7 +244,7 @@ export const TAG_LABELS: Record<ListingTag, string> = {
   terraza: "Terraza o balcón",
   "lgbt-friendly": "LGBT+ friendly",
   "servicios-incluidos": "Servicios incluidos",
-  "cerradura-cuarto": "Cerradura en el cuarto",
+  "cerradura-cuarto": "Cerradura en la recámara",
   "agua-caliente": "Agua caliente",
   "cerca-transporte": "Cerca de transporte",
 };
