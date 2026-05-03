@@ -1238,28 +1238,27 @@ export function PublishWizardPage() {
                   ¿Cuántos cuartos tiene la propiedad completa?
                   <span className="text-red-600"> *</span>
                   <input
-                    type="number"
-                    min={1}
-                    max={PROPERTY_BEDROOMS_MAX}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
                     disabled={draft.propertyKind === "loft"}
                     placeholder="E.j. 2,3,4...etc. Cuartos habitados + disponibles."
                     value={
                       draft.propertyKind === "loft"
-                        ? 1
+                        ? "1"
                         : draft.propertyBedroomsTotal === 0
                           ? ""
-                          : draft.propertyBedroomsTotal
+                          : String(draft.propertyBedroomsTotal)
                     }
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
                       setDraft((d) => ({
                         ...d,
-                        propertyBedroomsTotal: Math.min(
-                          PROPERTY_BEDROOMS_MAX,
-                          Math.max(0, Math.floor(Number(e.target.value) || 0)),
-                        ),
-                      }))
-                    }
+                        propertyBedroomsTotal:
+                          digits === "" ? 0 : Math.min(PROPERTY_BEDROOMS_MAX, parseInt(digits, 10)),
+                      }));
+                    }}
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70"
                   />
                 </label>
