@@ -27,7 +27,15 @@ import type {
 } from "@/types/listing";
 
 /** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (minimum property description length). */
+const PROPERTY_TITLE_MIN = 10;
+const PROPERTY_TITLE_MAX = 70;
+const PROPERTY_NEIGHBORHOOD_MIN = 3;
+const PROPERTY_NEIGHBORHOOD_MAX = 50;
 const PROPERTY_SUMMARY_MIN = 200;
+const PROPERTY_SUMMARY_MAX = 1500;
+const PROPERTY_BEDROOMS_MAX = 20;
+const PROPERTY_BATHROOMS_MAX = 10;
+const PROPERTY_OCCUPANTS_MAX = 50;
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción del espacio). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
@@ -229,24 +237,49 @@ function occupantCountsInvalidReason(d: Draft): string | null {
   if (
     d.occupiedByWomenCount == null ||
     !Number.isInteger(d.occupiedByWomenCount) ||
-    d.occupiedByWomenCount < 0
+    d.occupiedByWomenCount < 0 ||
+    d.occupiedByWomenCount > PROPERTY_OCCUPANTS_MAX
   ) {
-    return "Indica cuántas mujeres viven actualmente en la propiedad (solo números enteros, 0 si no hay).";
+    return `Indica cuántas mujeres viven actualmente en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
   }
-  if (d.occupiedByMenCount == null || !Number.isInteger(d.occupiedByMenCount) || d.occupiedByMenCount < 0) {
-    return "Indica cuántos hombres viven actualmente en la propiedad (solo números enteros, 0 si no hay).";
+  if (
+    d.occupiedByMenCount == null ||
+    !Number.isInteger(d.occupiedByMenCount) ||
+    d.occupiedByMenCount < 0 ||
+    d.occupiedByMenCount > PROPERTY_OCCUPANTS_MAX
+  ) {
+    return `Indica cuántos hombres viven actualmente en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
   }
   return null;
 }
 
 function propertyGeneralStepInvalidReason(d: Draft): string | null {
-  if (!d.propertyTitle.trim()) return "Agrega el título del anuncio.";
-  if (!d.neighborhood.trim()) return "Indica la colonia o zona.";
+  if (d.propertyTitle.trim().length < PROPERTY_TITLE_MIN) {
+    return `El título del anuncio debe tener al menos ${PROPERTY_TITLE_MIN} caracteres.`;
+  }
+  if (d.propertyTitle.trim().length > PROPERTY_TITLE_MAX) {
+    return `El título del anuncio no puede exceder los ${PROPERTY_TITLE_MAX} caracteres.`;
+  }
+  if (d.neighborhood.trim().length < PROPERTY_NEIGHBORHOOD_MIN) {
+    return `Indica la colonia o zona (mínimo ${PROPERTY_NEIGHBORHOOD_MIN} caracteres).`;
+  }
+  if (d.neighborhood.trim().length > PROPERTY_NEIGHBORHOOD_MAX) {
+    return `La colonia o zona no puede exceder los ${PROPERTY_NEIGHBORHOOD_MAX} caracteres.`;
+  }
   if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
     return `La descripción del espacio debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
   }
+  if (d.propertySummary.trim().length > PROPERTY_SUMMARY_MAX) {
+    return `La descripción del espacio no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
+  }
   if (isDefaultPropertySummarySeed(d.propertySummary)) {
     return "Sustituye el texto de ejemplo por tu propia descripción del espacio.";
+  }
+  if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
+    return `El número de cuartos no puede exceder los ${PROPERTY_BEDROOMS_MAX}.`;
+  }
+  if (showWizardPropertyBathroomsField(d) && d.propertyBathrooms > PROPERTY_BATHROOMS_MAX) {
+    return `El número de baños no puede exceder los ${PROPERTY_BATHROOMS_MAX}.`;
   }
   return occupantCountsInvalidReason(d);
 }
@@ -1131,9 +1164,13 @@ export function PublishWizardPage() {
                 <input
                   value={draft.propertyTitle}
                   onChange={(e) => setDraft((d) => ({ ...d, propertyTitle: e.target.value }))}
+                  maxLength={PROPERTY_TITLE_MAX}
                   placeholder="Ej. Casa compartida Chapalita / Depa zona Minerva"
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
+                <span className="mt-1 block text-right text-[10px] text-muted">
+                  {draft.propertyTitle.trim().length} / {PROPERTY_TITLE_MAX}
+                </span>
               </label>
               <label className="block text-sm font-medium text-body">
                 Colonia o zona
@@ -1141,6 +1178,7 @@ export function PublishWizardPage() {
                 <input
                   value={draft.neighborhood}
                   onChange={(e) => setDraft((d) => ({ ...d, neighborhood: e.target.value }))}
+                  maxLength={PROPERTY_NEIGHBORHOOD_MAX}
                   placeholder="Ej. Chapultepec, Versalles…"
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
@@ -1152,7 +1190,7 @@ export function PublishWizardPage() {
                   value={draft.propertySummary}
                   onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
                   rows={5}
-                  maxLength={2000}
+                  maxLength={PROPERTY_SUMMARY_MAX}
                   placeholder={DEFAULT_PROPERTY_SUMMARY}
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
@@ -1202,7 +1240,7 @@ export function PublishWizardPage() {
                   <input
                     type="number"
                     min={1}
-                    max={35}
+                    max={PROPERTY_BEDROOMS_MAX}
                     step={1}
                     disabled={draft.propertyKind === "loft"}
                     placeholder="E.j. 2,3,4...etc. Cuartos habitados + disponibles."
@@ -1217,7 +1255,7 @@ export function PublishWizardPage() {
                       setDraft((d) => ({
                         ...d,
                         propertyBedroomsTotal: Math.min(
-                          35,
+                          PROPERTY_BEDROOMS_MAX,
                           Math.max(0, Math.floor(Number(e.target.value) || 0)),
                         ),
                       }))
@@ -1233,14 +1271,14 @@ export function PublishWizardPage() {
                       <input
                         type="number"
                         min={0}
-                        max={99}
+                        max={PROPERTY_BATHROOMS_MAX}
                         step={0.5}
                         value={draft.propertyBathrooms === 0 ? "" : draft.propertyBathrooms}
                         onChange={(e) =>
                           setDraft((d) => ({
                             ...d,
                             propertyBathrooms: Math.min(
-                              99,
+                              PROPERTY_BATHROOMS_MAX,
                               Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
                             ),
                           }))
@@ -1267,7 +1305,7 @@ export function PublishWizardPage() {
                       setDraft((d) => ({
                         ...d,
                         occupiedByWomenCount:
-                          digits === "" ? null : Math.min(500, Math.max(0, parseInt(digits, 10))),
+                          digits === "" ? null : Math.min(PROPERTY_OCCUPANTS_MAX, Math.max(0, parseInt(digits, 10))),
                       }));
                     }}
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
@@ -1288,7 +1326,7 @@ export function PublishWizardPage() {
                       setDraft((d) => ({
                         ...d,
                         occupiedByMenCount:
-                          digits === "" ? null : Math.min(500, Math.max(0, parseInt(digits, 10))),
+                          digits === "" ? null : Math.min(PROPERTY_OCCUPANTS_MAX, Math.max(0, parseInt(digits, 10))),
                       }));
                     }}
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm"
