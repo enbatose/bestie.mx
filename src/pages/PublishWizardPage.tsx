@@ -27,7 +27,7 @@ import type {
 } from "@/types/listing";
 
 /** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (minimum property description length). */
-const PROPERTY_SUMMARY_MIN = 20;
+const PROPERTY_SUMMARY_MIN = 200;
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción del espacio). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
