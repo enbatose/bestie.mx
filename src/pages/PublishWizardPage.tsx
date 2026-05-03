@@ -49,8 +49,9 @@ const ROOM_STAY_MAX = 36;
 /** Título por defecto del listado en modo un solo cuarto (campo oculto en el paso Recámaras). */
 const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 
-const ROOM_SUMMARY_PLACEHOLDER_SINGLE =
-  'Describe la iluminación, el tamaño del clóset, si incluye muebles (escritorio/silla) y con cuántas personas se comparte el baño. Menciona también el "vibe" de la casa.';
+/** Placeholder only (not a validation seed); `room.summary` stays empty until the user types. */
+const ROOM_SUMMARY_PLACEHOLDER =
+  "Ej. Recámara con excelente luz natural y clóset amplio. Ideal para WFH (silenciosa y con buena ventilación). El baño se comparte solo con una persona. Buscamos a alguien que valore el orden y la buena convivencia para mantener un ambiente profesional y relajado.";
 
 /** Etiquetas del paso Recámaras, agrupadas para escaneo rápido (todas las `ListingTag` del producto). */
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
@@ -1752,9 +1753,7 @@ export function PublishWizardPage() {
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
                       rows={3}
-                      placeholder={
-                        draft.postMode === "room" ? ROOM_SUMMARY_PLACEHOLDER_SINGLE : undefined
-                      }
+                      placeholder={ROOM_SUMMARY_PLACEHOLDER}
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
