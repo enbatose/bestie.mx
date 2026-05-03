@@ -219,8 +219,8 @@ const defaultRoom = (): RoomDraft => ({
   summary: "",
   tags: [],
   roommateGenderPref: "any",
-  ageMin: 18,
-  ageMax: 99,
+  ageMin: 22,
+  ageMax: 45,
   lodgingType: "private_room",
   availableFrom: "",
   minimalStayMonths: 1,
@@ -1530,6 +1530,8 @@ export function PublishWizardPage() {
                         <span className="text-red-600"> *</span>
                       </span>
                       <WizardNumberStepper
+                        editableCenter
+                        maxInputDigits={2}
                         value={Math.min(
                           ROOM_STAY_MAX,
                           Math.max(0, room.minimalStayMonths),
@@ -1568,6 +1570,8 @@ export function PublishWizardPage() {
                     <div className="block text-sm font-medium text-body">
                       <span className="block">Edad mín.</span>
                       <WizardNumberStepper
+                        editableCenter
+                        maxInputDigits={2}
                         value={Math.min(99, Math.max(18, room.ageMin))}
                         min={18}
                         max={99}
@@ -1584,6 +1588,8 @@ export function PublishWizardPage() {
                     <div className="block text-sm font-medium text-body">
                       <span className="block">Edad máx.</span>
                       <WizardNumberStepper
+                        editableCenter
+                        maxInputDigits={2}
                         value={Math.min(99, Math.max(18, room.ageMax))}
                         min={18}
                         max={99}
