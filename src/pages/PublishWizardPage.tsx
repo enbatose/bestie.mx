@@ -55,10 +55,10 @@ const ROOM_SUMMARY_PLACEHOLDER =
 
 const BASIC_UTILITIES_TAG_SET = new Set<string>(BASIC_UTILITIES_TAGS);
 
-/** Etiquetas del paso Recámaras, agrupadas para escaneo rápido (todas las `ListingTag` del producto). */
+/** Etiquetas del paso Recámaras: propiedad vs recámara vs ambiente/reglas. */
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
   {
-    title: "Básicos de la propiedad",
+    title: "Etiquetas de la propiedad",
     tags: [
       "wifi",
       "agua",
@@ -69,17 +69,18 @@ const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] =
       "lavadora",
       "secadora",
       "cerca-transporte",
+      "seguridad-acceso",
+      "vigilancia",
     ],
   },
   {
-    title: "Comodidades de la recámara",
-    tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza", "cerradura-cuarto"],
+    title: "Etiquetas de la recámara",
+    tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza"],
   },
   {
-    title: "Seguridad y vibe",
-    tags: ["seguridad-acceso", "vigilancia", "lgbt-friendly", "mascotas"],
+    title: "Ambiente y Reglas",
+    tags: ["cerradura-cuarto", "lgbt-friendly", "mascotas", "fumar", "fiestas"],
   },
-  { title: "Reglas", tags: ["fumar", "fiestas"] },
 ];
 
 function isoToday(): string {
@@ -1779,13 +1780,11 @@ export function PublishWizardPage() {
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
-                  <div className="mt-3 space-y-4">
-                    <p className="text-sm font-medium text-body">Etiquetas de la recámara</p>
+                  <div className="mt-3 space-y-5">
+                    <p className="text-sm font-medium text-body">Etiquetas</p>
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (
                       <div key={group.title}>
-                        <p className="text-xs font-semibold tracking-wide text-muted">
-                          {group.title}
-                        </p>
+                        <p className="text-xs font-semibold text-body">{group.title}</p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {group.tags.map((tag) => {
                             const active = room.tags.includes(tag);
