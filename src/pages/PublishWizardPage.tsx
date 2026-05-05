@@ -40,18 +40,24 @@ const PROPERTY_OCCUPANTS_MAX = 50;
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
-/** Paso 5 en UI (Fotos; incluye contacto). */
-const WIZARD_STEP_FOTOS = 4;
+/** Index in `steps` for “Recámaras” (disponibilidad, descripción, chips de recámara). */
+const WIZARD_STEP_RECAMARAS = 3;
 
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
 
+/** Misma escala que la descripción de la propiedad en paso 3. */
+const ROOM_SUMMARY_MIN = 200;
+const ROOM_SUMMARY_MAX = 1500;
+
 /** Título por defecto del listado en modo un solo cuarto (campo oculto en el paso Recámaras). */
 const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 
-/** Placeholder only (not a validation seed); `room.summary` stays empty until the user types. */
 const ROOM_SUMMARY_PLACEHOLDER =
-  "Ej. Recámara con excelente luz natural y clóset amplio. Ideal para WFH (silenciosa y con buena ventilación). El baño se comparte solo con una persona. Buscamos a alguien que valore el orden y la buena convivencia para mantener un ambiente profesional y relajado.";
+  "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies. (Nota: Se requiere un mínimo de 200 caracteres para asegurar una publicación de calidad)";
+
+const ROOM_SINGLE_FLOW_PHOTO_HINT =
+  "Sube fotos en bloque de la recámara y de las áreas comunes de la propiedad (cocina, sala, baño, etc.). No es necesario separarlas por categorías en este flujo";
 
 /** Amenidades de la propiedad (paso 3, bloque “La propiedad cuenta con”). */
 const WIZARD_PROPERTY_AMENITY_SLUGS: readonly ListingTag[] = [
@@ -87,7 +93,16 @@ const WIZARD_STEP3_TAG_SET = new Set<string>(WIZARD_STEP3_TAG_SLUGS);
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
   {
     title: "Propiedades de la Recámara",
-    tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza", "cerradura-cuarto"],
+    tags: [
+      "baño-privado",
+      "aire-acondicionado",
+      "estacionamiento",
+      "terraza",
+      "cerradura-cuarto",
+      "fumar-permitido-recamara",
+      "ventilador",
+      "closet",
+    ],
   },
 ];
 
@@ -95,9 +110,20 @@ const WIZARD_STEP4_TAG_LABELS: Partial<Record<ListingTag, string>> = {
   estacionamiento: "Estacionamiento incluido",
 };
 
-function isoToday(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+/** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
+function isoDateInMexicoCity(date: Date = new Date()): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = fmt.formatToParts(date);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  if (y && m && day) return `${y}-${m}-${day}`;
+  return date.toISOString().slice(0, 10);
 }
 
 type NominatimAddress = Record<string, string>;
@@ -252,7 +278,7 @@ const defaultRoom = (): RoomDraft => ({
   ageMin: 22,
   ageMax: 45,
   lodgingType: "private_room",
-  availableFrom: isoToday(),
+  availableFrom: isoDateInMexicoCity(),
   minimalStayMonths: 1,
   roomDimension: "medium",
   rentIncludesUtilities: false,
@@ -412,6 +438,7 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
     if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99 || r.ageMin > r.ageMax) return false;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.availableFrom.trim())) return false;
     if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) return false;
+    if (r.summary.trim().length < ROOM_SUMMARY_MIN) return false;
   }
   return true;
 }
@@ -460,6 +487,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
       (room) =>
         !room.title.trim() ||
         !room.summary.trim() ||
+        room.summary.trim().length < ROOM_SUMMARY_MIN ||
         room.rentMxn <= 0 ||
         room.roomsAvailable < 1 ||
         room.depositMxn < 0 ||
@@ -472,9 +500,10 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
     );
 
   if (roomsMissing) return 3;
-  if (contactMissing) return 4;
 
   if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) return 5;
+
+  if (contactMissing) return draft.postMode === "property" ? 6 : 5;
 
   return draft.postMode === "property" ? 6 : 5;
 }
@@ -560,7 +589,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
             return mx < mn ? mn : mx;
           })(),
           lodgingType: r.lodgingType ?? "private_room",
-          availableFrom: (r.availableFrom ?? isoToday()).slice(0, 10),
+          availableFrom: (r.availableFrom ?? isoDateInMexicoCity()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
           roomDimension: r.roomDimension ?? "medium",
         }))
@@ -1888,9 +1917,17 @@ export function PublishWizardPage() {
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
                       rows={3}
+                      maxLength={ROOM_SUMMARY_MAX}
                       placeholder={ROOM_SUMMARY_PLACEHOLDER}
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
+                    <span
+                      className={`mt-1 block text-xs ${
+                        room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-amber-700" : "text-muted"
+                      }`}
+                    >
+                      {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
+                    </span>
                   </label>
                   <div className="mt-3 space-y-4">
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (
@@ -1954,55 +1991,15 @@ export function PublishWizardPage() {
         title: "Fotos",
         body: (
           <form className="space-y-6">
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Contacto
-              </h3>
-              <label className="block text-sm font-medium text-body">
-                WhatsApp de contacto (opcional si no lo muestras en el anuncio)
-                <input
-                  value={draft.contactWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
-                  placeholder="Ej. 523312345678"
-                  inputMode="tel"
-                  disabled={!draft.showWhatsApp}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                {!apiOn ? (
-                  <span className="mt-1 block text-xs text-muted">
-                    Sin API configurada, el número solo se guarda en este navegador hasta que conectes el
-                    servidor.
-                  </span>
-                ) : null}
-              </label>
-              <label className="mt-2 flex cursor-pointer items-start gap-3 text-sm text-body">
-                <input
-                  type="checkbox"
-                  checked={draft.showWhatsApp}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      showWhatsApp: e.target.checked,
-                      ...(e.target.checked ? {} : { contactWhatsApp: "" }),
-                    }))
-                  }
-                  className="mt-1 size-4 rounded border-border text-primary"
-                />
-                <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
-              </label>
-              {draft.showWhatsApp ? (
-                <p className="text-xs text-muted">10–15 dígitos.</p>
-              ) : null}
-            </div>
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Galería Principal
-              </h3>
-              <p className="text-sm text-muted">
-                Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después podrás
-                etiquetarlas por cuarto/áreas compartidas/fachada.
-              </p>
-              {draft.postMode === "property" ? (
+            {draft.postMode === "property" ? (
+              <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                <h3 className="text-[15px] font-bold text-primary">
+                  Galería Principal
+                </h3>
+                <p className="text-sm text-muted">
+                  Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después
+                  podrás etiquetarlas por cuarto/áreas compartidas/fachada.
+                </p>
                 <div className="mt-4">
                   <BulkImageUploader
                     title="Fotos a categorizar (propiedad general)"
@@ -2015,19 +2012,20 @@ export function PublishWizardPage() {
                     hint="Luego las etiquetas por cuarto / áreas compartidas / fachada."
                   />
                 </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {draft.rooms.map((room, i) => (
               <div key={i} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                <h3 className="text-[15px] font-bold text-primary">
-                  {`Galería: Recámara ${i + 1}`}
-                </h3>
+                {draft.postMode === "property" ? (
+                  <h3 className="text-[15px] font-bold text-primary">{`Galería: Recámara ${i + 1}`}</h3>
+                ) : null}
                 <BulkImageUploader
-                  title={room.title.trim() || "Sin título"}
+                  title={draft.postMode === "room" ? "Fotos de tu espacio" : room.title.trim() || "Sin título"}
                   urls={draft.roomImageUrls[i] ?? []}
                   maxCount={20}
                   apiOn={apiOn}
+                  hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
                   onChange={(next) => {
                     setDraft((d) => ({
                       ...d,
@@ -2184,6 +2182,44 @@ export function PublishWizardPage() {
                 </p>
               </div>
             </div>
+
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">
+                Contacto
+              </h3>
+              <label className="block text-sm font-medium text-body">
+                WhatsApp de contacto (opcional si no lo muestras en el anuncio)
+                <input
+                  value={draft.contactWhatsApp}
+                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
+                  placeholder="Ej. 523312345678"
+                  inputMode="tel"
+                  disabled={!draft.showWhatsApp}
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                {!apiOn ? (
+                  <span className="mt-1 block text-xs text-muted">
+                    Sin API configurada, el número solo se guarda en este navegador hasta que conectes el servidor.
+                  </span>
+                ) : null}
+              </label>
+              <label className="mt-2 flex cursor-pointer items-start gap-3 text-sm text-body">
+                <input
+                  type="checkbox"
+                  checked={draft.showWhatsApp}
+                  onChange={(e) =>
+                    setDraft((d) => ({
+                      ...d,
+                      showWhatsApp: e.target.checked,
+                      ...(e.target.checked ? {} : { contactWhatsApp: "" }),
+                    }))
+                  }
+                  className="mt-1 size-4 rounded border-border text-primary"
+                />
+                <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
+              </label>
+              {draft.showWhatsApp ? <p className="text-xs text-muted">10–15 dígitos.</p> : null}
+            </div>
           </form>
         ),
       },
@@ -2254,6 +2290,15 @@ export function PublishWizardPage() {
     for (const r of d.rooms) {
       if (!r.title.trim() || !r.summary.trim()) {
         return "Cada recámara necesita título y descripción.";
+      }
+      {
+        const len = r.summary.trim().length;
+        if (len < ROOM_SUMMARY_MIN) {
+          return `La descripción de cada recámara debe tener al menos ${ROOM_SUMMARY_MIN} caracteres.`;
+        }
+        if (len > ROOM_SUMMARY_MAX) {
+          return `La descripción de cada recámara no puede exceder los ${ROOM_SUMMARY_MAX} caracteres.`;
+        }
       }
       if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) {
         return "En cada recámara indica una renta mayor a 0.";
@@ -2547,12 +2592,10 @@ export function PublishWizardPage() {
                     return;
                   }
                 }
-                if (safeStep === WIZARD_STEP_FOTOS) {
-                  if (
-                    draft.showWhatsApp &&
-                    normalizeWhatsApp(draft.contactWhatsApp).length < 10
-                  ) {
-                    setPublishErr("WhatsApp inválido.");
+                if (safeStep === WIZARD_STEP_RECAMARAS) {
+                  const roomErr = validateRoomsForSubmit(draft);
+                  if (roomErr) {
+                    setPublishErr(roomErr);
                     return;
                   }
                 }

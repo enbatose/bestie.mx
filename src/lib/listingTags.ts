@@ -19,6 +19,9 @@ export const LISTING_TAG_SLUGS: readonly ListingTag[] = [
   "baño-privado",
   "fumar",
   "fumar-habitacion",
+  "fumar-permitido-recamara",
+  "ventilador",
+  "closet",
   "fiestas",
   "aire-acondicionado",
   "seguridad-acceso",
@@ -62,5 +65,8 @@ export const TAG_CHIP_ORDER: readonly ListingTag[] = [
   "lgbt-friendly",
   "fumar",
   "fumar-habitacion",
+  "fumar-permitido-recamara",
+  "ventilador",
+  "closet",
   "fiestas",
 ];

@@ -73,6 +73,7 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
       );
     case "fumar":
     case "fumar-habitacion":
+    case "fumar-permitido-recamara":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <path strokeWidth="2" strokeLinecap="round" d="M18 8c-2 2-1 4 0 6s1 4-1 6" />
@@ -155,6 +156,24 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <path strokeWidth="2" strokeLinecap="round" d="M4 14h16M6 14V9h12v5M8 9V6M16 9V6" />
           <path strokeWidth="2" strokeLinecap="round" d="M3 18h18" />
+        </svg>
+      );
+    case "ventilador":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <circle cx="12" cy="12" r="3" strokeWidth="2" />
+          <path
+            strokeWidth="2"
+            strokeLinecap="round"
+            d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4"
+          />
+        </svg>
+      );
+    case "closet":
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+          <rect x="5" y="4" width="14" height="16" rx="1" strokeWidth="2" />
+          <path strokeWidth="2" d="M5 10h14M12 4v16" />
         </svg>
       );
     case "lgbt-friendly":
