@@ -54,7 +54,7 @@ const ROOM_SUMMARY_MAX = 1500;
 const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 
 const ROOM_SUMMARY_PLACEHOLDER =
-  "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies. (Nota: Se requiere un mínimo de 200 caracteres para asegurar una publicación de calidad)";
+  "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies.";
 
 const ROOM_SINGLE_FLOW_PHOTO_HINT =
   "Sube fotos en bloque de la recámara y de las áreas comunes de la propiedad (cocina, sala, baño, etc.). No es necesario separarlas por categorías en este flujo";
