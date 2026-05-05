@@ -55,33 +55,37 @@ const ROOM_SUMMARY_PLACEHOLDER =
 
 const BASIC_UTILITIES_TAG_SET = new Set<string>(BASIC_UTILITIES_TAGS);
 
-/** Etiquetas del paso Recámaras: propiedad vs recámara vs ambiente/reglas. */
+/** Tags edited en paso 3 (propiedad); se fusionan con `rooms[i].tags` al guardar/publicar. */
+const WIZARD_PROPERTY_TAG_SLUGS: readonly ListingTag[] = [
+  "wifi",
+  "agua",
+  "luz",
+  "gas",
+  "muebles",
+  "cocina-equipada",
+  "lavadora",
+  "secadora",
+  "cerca-transporte",
+  "seguridad-acceso",
+  "vigilancia",
+];
+const WIZARD_PROPERTY_TAG_SET = new Set<string>(WIZARD_PROPERTY_TAG_SLUGS);
+
+/** Etiquetas solo en paso 4 (recámara + ambiente). */
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
   {
-    title: "Etiquetas de la propiedad",
-    tags: [
-      "wifi",
-      "agua",
-      "luz",
-      "gas",
-      "muebles",
-      "cocina-equipada",
-      "lavadora",
-      "secadora",
-      "cerca-transporte",
-      "seguridad-acceso",
-      "vigilancia",
-    ],
-  },
-  {
     title: "Etiquetas de la recámara",
-    tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza"],
+    tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza", "cerradura-cuarto"],
   },
   {
     title: "Ambiente y Reglas",
-    tags: ["cerradura-cuarto", "lgbt-friendly", "mascotas", "fumar", "fiestas"],
+    tags: ["lgbt-friendly", "mascotas", "fumar", "fiestas"],
   },
 ];
+
+const WIZARD_STEP4_TAG_LABELS: Partial<Record<ListingTag, string>> = {
+  estacionamiento: "Estacionamiento incluido",
+};
 
 function isoToday(): string {
   const d = new Date();
@@ -220,6 +224,8 @@ type Draft = {
   unassignedImageUrls: string[];
   /** One array per room index. */
   roomImageUrls: string[][];
+  /** Tags de la propiedad (paso 3); se unen a cada recámara al persistir. */
+  propertyTags: ListingTag[];
   rooms: RoomDraft[];
   legalAccepted: boolean;
   isApproximateLocation: boolean;
@@ -274,6 +280,7 @@ const defaultDraft = (): Draft => ({
   propertyImageUrls: [],
   unassignedImageUrls: [],
   roomImageUrls: [[]],
+  propertyTags: [],
   rooms: [{ ...defaultRoom(), title: SINGLE_ROOM_DEFAULT_TITLE }],
   legalAccepted: false,
   isApproximateLocation: false,
@@ -487,6 +494,35 @@ function normalizeRoomTagsFromServer(raw: readonly ListingTag[]): ListingTag[] {
   return [...new Set(next)].filter(tagOk);
 }
 
+function splitHydratedPropertyAndRoomTags(
+  rooms: Array<{ tags: ListingTag[] }>,
+): { propertyTags: ListingTag[]; perRoomTags: ListingTag[][] } {
+  const unionProp = new Set<ListingTag>();
+  for (const rm of rooms) {
+    for (const t of rm.tags) {
+      if (WIZARD_PROPERTY_TAG_SET.has(t)) unionProp.add(t);
+    }
+  }
+  const propertyTags = [...unionProp].filter(tagOk);
+  const perRoomTags = rooms.map((rm) =>
+    rm.tags.filter((t) => !WIZARD_PROPERTY_TAG_SET.has(t)).filter(tagOk),
+  );
+  return { propertyTags, perRoomTags };
+}
+
+function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTag[] {
+  const room = d.rooms[roomIndex];
+  if (!room) return [];
+  const seen = new Set<ListingTag>();
+  const out: ListingTag[] = [];
+  for (const t of [...d.propertyTags, ...room.tags]) {
+    if (!tagOk(t) || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out;
+}
+
 function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; serverSync: ServerSync } {
   const p = bundle.property;
   const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -496,7 +532,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     Number.isFinite(p.lat) &&
     Number.isFinite(p.lng) &&
     (Math.abs(p.lat - anchor.lat) > 0.0002 || Math.abs(p.lng - anchor.lng) > 0.0002);
-  const roomDrafts: RoomDraft[] =
+  let roomDrafts: RoomDraft[] =
     srvRooms.length > 0
       ? srvRooms.map((r) => ({
           ...defaultRoom(),
@@ -519,6 +555,17 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           roomDimension: r.roomDimension ?? "medium",
         }))
       : [defaultRoom()];
+
+  let propertyTags: ListingTag[] = [];
+  if (srvRooms.length > 0) {
+    const split = splitHydratedPropertyAndRoomTags(roomDrafts.map((rd) => ({ tags: rd.tags })));
+    propertyTags = split.propertyTags;
+    roomDrafts = roomDrafts.map((rd, i) => ({
+      ...rd,
+      tags: split.perRoomTags[i] ?? [],
+    }));
+  }
+
   const draft: Draft = {
     ...defaultDraft(),
     postMode: p.postMode === "room" ? "room" : "property",
@@ -558,6 +605,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     propertyImageUrls: p.imageUrls ?? [],
     unassignedImageUrls: [],
     roomImageUrls: srvRooms.length > 0 ? srvRooms.map((r) => r.imageUrls ?? []) : [[]],
+    propertyTags,
     rooms: roomDrafts,
     legalAccepted:
       p.status === "published" || p.status === "paused",
@@ -984,7 +1032,7 @@ export function PublishWizardPage() {
             title: r.title.trim() || "Recámara en borrador",
             rentMxn: r.rentMxn,
             roomsAvailable: r.roomsAvailable,
-            tags: r.tags,
+            tags: mergedRoomTagsForPayload(d, i),
             roommateGenderPref: r.roommateGenderPref,
             ageMin: r.ageMin,
             ageMax: r.ageMax,
@@ -1468,6 +1516,49 @@ export function PublishWizardPage() {
                   </div>
                 </div>
               </div>
+              <div className="mt-4 space-y-2 border-t border-border pt-4">
+                <label className="block text-sm font-medium text-body">La propiedad cuenta con:</label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {WIZARD_PROPERTY_TAG_SLUGS.map((tag) => {
+                    const active = draft.propertyTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={active}
+                        onClick={() =>
+                          setDraft((d) => {
+                            const nextActive = !active;
+                            let prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
+                            if (BASIC_UTILITIES_TAG_SET.has(tag)) {
+                              if (nextActive) {
+                                if (!prop.includes(tag)) prop = [...prop, tag];
+                              } else {
+                                prop = prop.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
+                              }
+                              return { ...d, propertyTags: prop.filter(tagOk) };
+                            }
+                            const nextTags = nextActive
+                              ? prop.includes(tag)
+                                ? prop
+                                : [...prop, tag]
+                              : prop.filter((t) => t !== tag);
+                            return { ...d, propertyTags: nextTags.filter(tagOk) };
+                          })
+                        }
+                        className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
+                          active
+                            ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+                            : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
+                        }`}
+                      >
+                        {TAG_LABELS[tag]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </form>
         ),
@@ -1584,24 +1675,20 @@ export function PublishWizardPage() {
                         <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
                           <input
                             type="checkbox"
-                            checked={utilitiesBundleSatisfied(room.tags)}
+                            checked={utilitiesBundleSatisfied(draft.propertyTags)}
                             onChange={(e) => {
                               const checked = e.target.checked;
-                              setDraft((d) => ({
-                                ...d,
-                                rooms: d.rooms.map((r, j) => {
-                                  if (j !== i) return r;
-                                  let tags = r.tags.filter((t) => t !== "servicios-incluidos");
-                                  if (checked) {
-                                    for (const t of BASIC_UTILITIES_TAGS) {
-                                      if (!tags.includes(t)) tags = [...tags, t];
-                                    }
-                                  } else {
-                                    tags = tags.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
+                              setDraft((d) => {
+                                let prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
+                                if (checked) {
+                                  for (const t of BASIC_UTILITIES_TAGS) {
+                                    if (!prop.includes(t)) prop = [...prop, t];
                                   }
-                                  return { ...r, tags };
-                                }),
-                              }));
+                                } else {
+                                  prop = prop.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
+                                }
+                                return { ...d, propertyTags: prop.filter(tagOk) };
+                              });
                             }}
                             className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
                           />
@@ -1800,15 +1887,7 @@ export function PublishWizardPage() {
                                     rooms: d.rooms.map((r, j) => {
                                       if (j !== i) return r;
                                       const nextActive = !active;
-                                      let tags = r.tags.filter((t) => t !== "servicios-incluidos");
-                                      if (BASIC_UTILITIES_TAG_SET.has(tag)) {
-                                        if (nextActive) {
-                                          if (!tags.includes(tag)) tags = [...tags, tag];
-                                        } else {
-                                          tags = tags.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
-                                        }
-                                        return { ...r, tags };
-                                      }
+                                      const tags = r.tags.filter((t) => t !== "servicios-incluidos");
                                       const nextTags = nextActive
                                         ? tags.includes(tag)
                                           ? tags
@@ -1824,7 +1903,7 @@ export function PublishWizardPage() {
                                     : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
                                 }`}
                               >
-                                {TAG_LABELS[tag]}
+                                {WIZARD_STEP4_TAG_LABELS[tag] ?? TAG_LABELS[tag]}
                               </button>
                             );
                           })}
@@ -1835,16 +1914,15 @@ export function PublishWizardPage() {
                 </div>
               </div>
             ))}
-            <button
-              type="button"
-              onClick={addRoom}
-              disabled={draft.postMode === "room"}
-              className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {draft.postMode === "room"
-                ? "Convierte a propiedad para agregar más recámaras"
-                : "+ Agregar otra recámara"}
-            </button>
+            {draft.postMode === "property" ? (
+              <button
+                type="button"
+                onClick={addRoom}
+                className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10"
+              >
+                + Agregar otra recámara
+              </button>
+            ) : null}
           </div>
         ),
       },
@@ -2325,7 +2403,7 @@ export function PublishWizardPage() {
           title: r.title.trim(),
           rentMxn: Math.max(1, r.rentMxn),
           roomsAvailable: Math.max(1, r.roomsAvailable),
-          tags: r.tags,
+          tags: mergedRoomTagsForPayload(draft, i),
           roommateGenderPref: r.roommateGenderPref,
           ageMin: r.ageMin,
           ageMax: r.ageMax,
