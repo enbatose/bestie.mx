@@ -15,7 +15,7 @@ import {
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { BASIC_UTILITIES_TAGS, LISTING_TAG_SLUG_SET, utilitiesBundleSatisfied } from "@/lib/listingTags";
+import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingStatus,
@@ -53,10 +53,8 @@ const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 const ROOM_SUMMARY_PLACEHOLDER =
   "Ej. Recámara con excelente luz natural y clóset amplio. Ideal para WFH (silenciosa y con buena ventilación). El baño se comparte solo con una persona. Buscamos a alguien que valore el orden y la buena convivencia para mantener un ambiente profesional y relajado.";
 
-const BASIC_UTILITIES_TAG_SET = new Set<string>(BASIC_UTILITIES_TAGS);
-
-/** Tags edited en paso 3 (propiedad); se fusionan con `rooms[i].tags` al guardar/publicar. */
-const WIZARD_PROPERTY_TAG_SLUGS: readonly ListingTag[] = [
+/** Amenidades de la propiedad (paso 3, bloque “La propiedad cuenta con”). */
+const WIZARD_PROPERTY_AMENITY_SLUGS: readonly ListingTag[] = [
   "wifi",
   "agua",
   "luz",
@@ -69,17 +67,27 @@ const WIZARD_PROPERTY_TAG_SLUGS: readonly ListingTag[] = [
   "seguridad-acceso",
   "vigilancia",
 ];
-const WIZARD_PROPERTY_TAG_SET = new Set<string>(WIZARD_PROPERTY_TAG_SLUGS);
 
-/** Etiquetas solo en paso 4 (recámara + ambiente). */
+/** Ambiente y reglas (paso 3, debajo de amenidades). */
+const WIZARD_PROPERTY_AMBIENTE_SLUGS: readonly ListingTag[] = [
+  "lgbt-friendly",
+  "mascotas",
+  "fumar",
+  "fiestas",
+  "fumar-habitacion",
+];
+
+const WIZARD_STEP3_TAG_SLUGS: readonly ListingTag[] = [
+  ...WIZARD_PROPERTY_AMENITY_SLUGS,
+  ...WIZARD_PROPERTY_AMBIENTE_SLUGS,
+];
+const WIZARD_STEP3_TAG_SET = new Set<string>(WIZARD_STEP3_TAG_SLUGS);
+
+/** Solo paso 4 — propiedades físicas de la recámara. */
 const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
   {
-    title: "Etiquetas de la recámara",
+    title: "Propiedades de la Recámara",
     tags: ["baño-privado", "aire-acondicionado", "estacionamiento", "terraza", "cerradura-cuarto"],
-  },
-  {
-    title: "Ambiente y Reglas",
-    tags: ["lgbt-friendly", "mascotas", "fumar", "fiestas"],
   },
 ];
 
@@ -192,6 +200,8 @@ type RoomDraft = {
   availableFrom: string;
   minimalStayMonths: number;
   roomDimension: RoomDimension;
+  /** Renta incluye servicios (independiente de los chips Wi‑Fi / agua / luz / gas del paso 3). */
+  rentIncludesUtilities: boolean;
 };
 
 type Draft = {
@@ -242,9 +252,10 @@ const defaultRoom = (): RoomDraft => ({
   ageMin: 22,
   ageMax: 45,
   lodgingType: "private_room",
-  availableFrom: "",
+  availableFrom: isoToday(),
   minimalStayMonths: 1,
   roomDimension: "medium",
+  rentIncludesUtilities: false,
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
@@ -476,20 +487,13 @@ function tagOk(t: string): t is ListingTag {
   return LISTING_TAG_SLUG_SET.has(t);
 }
 
-/** Migrate legacy tags; “Servicios básicos incluidos” is represented only by agua+luz+gas+wifi in state. */
+/** Migra tags legacy; no vincula `servicios-incluidos` con Wi‑Fi / agua / luz / gas en estado. */
 function normalizeRoomTagsFromServer(raw: readonly ListingTag[]): ListingTag[] {
-  const hadServicios = raw.includes("servicios-incluidos");
-  const bundleFromTags = utilitiesBundleSatisfied(raw);
   let next = [...raw].filter((t) => t !== "servicios-incluidos" && t !== "agua-caliente");
   if (raw.includes("lavanderia")) {
     next = next.filter((t) => t !== "lavanderia");
     if (!next.includes("lavadora")) next.push("lavadora");
     if (!next.includes("secadora")) next.push("secadora");
-  }
-  if (hadServicios || bundleFromTags) {
-    for (const t of BASIC_UTILITIES_TAGS) {
-      if (!next.includes(t)) next.push(t);
-    }
   }
   return [...new Set(next)].filter(tagOk);
 }
@@ -500,12 +504,12 @@ function splitHydratedPropertyAndRoomTags(
   const unionProp = new Set<ListingTag>();
   for (const rm of rooms) {
     for (const t of rm.tags) {
-      if (WIZARD_PROPERTY_TAG_SET.has(t)) unionProp.add(t);
+      if (WIZARD_STEP3_TAG_SET.has(t)) unionProp.add(t);
     }
   }
   const propertyTags = [...unionProp].filter(tagOk);
   const perRoomTags = rooms.map((rm) =>
-    rm.tags.filter((t) => !WIZARD_PROPERTY_TAG_SET.has(t)).filter(tagOk),
+    rm.tags.filter((t) => !WIZARD_STEP3_TAG_SET.has(t)).filter(tagOk),
   );
   return { propertyTags, perRoomTags };
 }
@@ -519,6 +523,11 @@ function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTag[] {
     if (!tagOk(t) || seen.has(t)) continue;
     seen.add(t);
     out.push(t);
+  }
+  if (room.rentIncludesUtilities) {
+    if (!out.includes("servicios-incluidos")) out.push("servicios-incluidos");
+  } else {
+    return out.filter((t) => t !== "servicios-incluidos");
   }
   return out;
 }
@@ -541,6 +550,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           depositMxn: r.depositMxn,
           roomsAvailable: r.roomsAvailable,
           summary: r.summary,
+          rentIncludesUtilities: (r.tags ?? []).includes("servicios-incluidos"),
           tags: normalizeRoomTagsFromServer((r.tags ?? []) as ListingTag[]),
           roommateGenderPref: r.roommateGenderPref,
           ageMin: Math.min(99, Math.max(18, Number(r.ageMin) || 18)),
@@ -1516,47 +1526,72 @@ export function PublishWizardPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-4 space-y-2 border-t border-border pt-4">
-                <label className="block text-sm font-medium text-body">La propiedad cuenta con:</label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {WIZARD_PROPERTY_TAG_SLUGS.map((tag) => {
-                    const active = draft.propertyTags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        role="checkbox"
-                        aria-checked={active}
-                        onClick={() =>
-                          setDraft((d) => {
-                            const nextActive = !active;
-                            let prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
-                            if (BASIC_UTILITIES_TAG_SET.has(tag)) {
-                              if (nextActive) {
-                                if (!prop.includes(tag)) prop = [...prop, tag];
-                              } else {
-                                prop = prop.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
-                              }
-                              return { ...d, propertyTags: prop.filter(tagOk) };
-                            }
-                            const nextTags = nextActive
-                              ? prop.includes(tag)
-                                ? prop
-                                : [...prop, tag]
-                              : prop.filter((t) => t !== tag);
-                            return { ...d, propertyTags: nextTags.filter(tagOk) };
-                          })
-                        }
-                        className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
-                          active
-                            ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                            : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                        }`}
-                      >
-                        {TAG_LABELS[tag]}
-                      </button>
-                    );
-                  })}
+              <div className="mt-4 space-y-4 border-t border-border pt-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-body">La propiedad cuenta con:</label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {WIZARD_PROPERTY_AMENITY_SLUGS.map((tag) => {
+                      const active = draft.propertyTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={active}
+                          onClick={() =>
+                            setDraft((d) => {
+                              const prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
+                              const isOn = prop.includes(tag);
+                              const nextTags = !isOn
+                                ? [...prop, tag]
+                                : prop.filter((t) => t !== tag);
+                              return { ...d, propertyTags: nextTags.filter(tagOk) };
+                            })
+                          }
+                          className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
+                            active
+                              ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+                              : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
+                          }`}
+                        >
+                          {TAG_LABELS[tag]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-body">Ambiente y Reglas</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {WIZARD_PROPERTY_AMBIENTE_SLUGS.map((tag) => {
+                      const active = draft.propertyTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={active}
+                          onClick={() =>
+                            setDraft((d) => {
+                              const prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
+                              const isOn = prop.includes(tag);
+                              const nextTags = !isOn
+                                ? [...prop, tag]
+                                : prop.filter((t) => t !== tag);
+                              return { ...d, propertyTags: nextTags.filter(tagOk) };
+                            })
+                          }
+                          className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
+                            active
+                              ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+                              : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
+                          }`}
+                        >
+                          {TAG_LABELS[tag]}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1675,20 +1710,10 @@ export function PublishWizardPage() {
                         <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
                           <input
                             type="checkbox"
-                            checked={utilitiesBundleSatisfied(draft.propertyTags)}
+                            checked={room.rentIncludesUtilities}
                             onChange={(e) => {
                               const checked = e.target.checked;
-                              setDraft((d) => {
-                                let prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
-                                if (checked) {
-                                  for (const t of BASIC_UTILITIES_TAGS) {
-                                    if (!prop.includes(t)) prop = [...prop, t];
-                                  }
-                                } else {
-                                  prop = prop.filter((t) => !BASIC_UTILITIES_TAG_SET.has(t));
-                                }
-                                return { ...d, propertyTags: prop.filter(tagOk) };
-                              });
+                              updateRoom(i, { rentIncludesUtilities: checked });
                             }}
                             className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
                           />
@@ -1867,11 +1892,10 @@ export function PublishWizardPage() {
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
-                  <div className="mt-3 space-y-5">
-                    <p className="text-sm font-medium text-body">Etiquetas</p>
+                  <div className="mt-3 space-y-4">
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (
                       <div key={group.title}>
-                        <p className="text-xs font-semibold text-body">{group.title}</p>
+                        <p className="text-sm font-medium text-body">{group.title}</p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {group.tags.map((tag) => {
                             const active = room.tags.includes(tag);

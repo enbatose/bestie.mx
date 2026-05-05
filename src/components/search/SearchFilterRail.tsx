@@ -72,6 +72,7 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
         </svg>
       );
     case "fumar":
+    case "fumar-habitacion":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <path strokeWidth="2" strokeLinecap="round" d="M18 8c-2 2-1 4 0 6s1 4-1 6" />

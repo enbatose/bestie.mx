@@ -18,6 +18,7 @@ export const LISTING_TAG_SLUGS = [
   "muebles",
   "baño-privado",
   "fumar",
+  "fumar-habitacion",
   "fiestas",
   "aire-acondicionado",
   "seguridad-acceso",

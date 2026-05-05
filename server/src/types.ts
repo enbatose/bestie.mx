@@ -21,6 +21,7 @@ export type ListingTag =
   | "muebles"
   | "baño-privado"
   | "fumar"
+  | "fumar-habitacion"
   | "fiestas"
   | "aire-acondicionado"
   | "seguridad-acceso"

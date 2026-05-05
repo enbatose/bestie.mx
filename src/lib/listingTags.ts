@@ -1,6 +1,6 @@
 import type { ListingTag } from "@/types/listing";
 
-/** Tags implied when “Servicios básicos incluidos” is on in the publish wizard. */
+/** Utilities bundle check (p. ej. filtros que equivalen a `servicios-incluidos` en datos legacy). */
 export const BASIC_UTILITIES_TAGS = ["agua", "luz", "gas", "wifi"] as const satisfies readonly ListingTag[];
 
 export function utilitiesBundleSatisfied(tags: readonly ListingTag[]): boolean {
@@ -18,6 +18,7 @@ export const LISTING_TAG_SLUGS: readonly ListingTag[] = [
   "muebles",
   "baño-privado",
   "fumar",
+  "fumar-habitacion",
   "fiestas",
   "aire-acondicionado",
   "seguridad-acceso",
@@ -60,5 +61,6 @@ export const TAG_CHIP_ORDER: readonly ListingTag[] = [
   "mascotas",
   "lgbt-friendly",
   "fumar",
+  "fumar-habitacion",
   "fiestas",
 ];
