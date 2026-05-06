@@ -40,6 +40,9 @@ const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;
 const PROPERTY_OCCUPANTS_MAX = 50;
 
+/** Index in `steps` for paso 1 — tipo de espacio (banner de cuenta para invitados). */
+const WIZARD_STEP_POST_MODE = 0;
+
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
 /** Index in `steps` for “Recámaras” (disponibilidad, descripción, chips de recámara). */
