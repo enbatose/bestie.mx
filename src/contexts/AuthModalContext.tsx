@@ -7,6 +7,8 @@ type AuthModalContextValue = {
   tab: AuthTab;
   openLogin: () => void;
   openRegister: () => void;
+  /** Opens the auth modal on the login tab (same as `openLogin`). */
+  openAuthModal: () => void;
   close: () => void;
 };
 
@@ -29,7 +31,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const close = useCallback(() => setOpen(false), []);
 
   const value = useMemo(
-    () => ({ open, tab, openLogin, openRegister, close }),
+    () => ({ open, tab, openLogin, openRegister, openAuthModal: openLogin, close }),
     [open, tab, openLogin, openRegister, close],
   );
 

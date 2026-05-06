@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
@@ -677,6 +679,7 @@ function clearLegacyWizardDraftStorage(): void {
 
 export function PublishWizardPage() {
   const navigate = useNavigate();
+  const { openAuthModal } = useAuthModal();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
@@ -2559,7 +2562,36 @@ export function PublishWizardPage() {
           Paso {safeStep + 1} de {steps.length}
         </p>
         <h2 className="mt-2 text-lg font-semibold text-body">{current.title}</h2>
-        <div className="mt-4">{current.body}</div>
+        <div className="mt-4 space-y-4">
+          {safeStep === WIZARD_STEP_POST_MODE && me === null ? (
+            <div
+              role="status"
+              className="rounded-xl border border-indigo-200/90 bg-indigo-50 p-4 shadow-sm dark:border-indigo-500/35 dark:bg-indigo-950/45"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className="flex min-w-0 flex-1 gap-3">
+                  <ShieldCheck
+                    className="mt-0.5 size-6 shrink-0 text-indigo-600 dark:text-indigo-400"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  <p className="text-sm font-medium leading-relaxed text-indigo-950 dark:text-indigo-100">
+                    Save your progress! Sign in or create an account to ensure your post data is saved automatically if
+                    your session expires.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal()}
+                  className="inline-flex w-full shrink-0 items-center justify-center rounded-full border border-indigo-300 bg-surface px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:border-indigo-400/45 dark:bg-indigo-900/55 dark:text-indigo-50 dark:ring-offset-slate-900 dark:hover:bg-indigo-900/85 sm:w-auto"
+                >
+                  Sign In
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <div>{current.body}</div>
+        </div>
         {publishErr ? (
           <p className="mt-4 text-sm text-red-600" role="alert">
             {publishErr}
