@@ -399,6 +399,67 @@ function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
   return room.lodgingType === "whole_home" ? "Vivienda completa" : "Recámara disponible";
 }
 
+function roomTitleRequired(d: Pick<Draft, "postMode">): boolean {
+  return d.postMode === "property";
+}
+
+/** Título enviado al API; en modo un solo cuarto el campo no se muestra en el paso Recámaras. */
+function effectiveRoomTitle(room: Pick<RoomDraft, "title">, postMode: Draft["postMode"]): string {
+  const trimmed = room.title.trim();
+  if (trimmed) return trimmed;
+  if (postMode === "room") return SINGLE_ROOM_DEFAULT_TITLE;
+  return "";
+}
+
+function roomValidationSuffix(roomIndex: number, roomCount: number): string {
+  return roomCount > 1 ? ` (recámara ${roomIndex + 1})` : "";
+}
+
+function validateRoomsForSubmit(d: Draft): string | null {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const needTitle = roomTitleRequired(d);
+  for (let i = 0; i < d.rooms.length; i++) {
+    const r = d.rooms[i]!;
+    const suffix = roomValidationSuffix(i, d.rooms.length);
+    if (needTitle && !r.title.trim()) {
+      return `Cada recámara necesita un título${suffix}.`;
+    }
+    const summaryTrim = r.summary.trim();
+    if (!summaryTrim) {
+      return `Cada recámara necesita una descripción${suffix}.`;
+    }
+    const len = summaryTrim.length;
+    if (len < ROOM_SUMMARY_MIN) {
+      return `La descripción de cada recámara${suffix} debe tener al menos ${ROOM_SUMMARY_MIN} caracteres.`;
+    }
+    if (len > ROOM_SUMMARY_MAX) {
+      return `La descripción de cada recámara${suffix} no puede exceder los ${ROOM_SUMMARY_MAX} caracteres.`;
+    }
+    if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) {
+      return `En cada recámara${suffix} indica una renta mayor a 0.`;
+    }
+    if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) {
+      return `En cada recámara${suffix} indica al menos 1 plaza o espacio disponible.`;
+    }
+    if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99) {
+      return "La edad mínima y máxima debe estar entre 18 y 99 años.";
+    }
+    if (r.ageMin > r.ageMax) {
+      return `En cada recámara${suffix} la edad mínima no puede ser mayor que la máxima.`;
+    }
+    if (!iso.test(r.availableFrom.trim())) {
+      return `En cada recámara${suffix} indica una fecha “Disponible desde” válida (AAAA-MM-DD).`;
+    }
+    if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
+      return `En cada recámara${suffix} la estancia mínima debe ser de al menos 1 mes.`;
+    }
+    if (r.depositMxn < 0) {
+      return "El depósito no puede ser negativo.";
+    }
+  }
+  return null;
+}
+
 function convertRoomDraftToProperty(d: Draft): Draft {
   if (d.postMode === "property") return d;
   const rooms = d.rooms.length > 0 ? d.rooms : [defaultRoom()];
@@ -491,7 +552,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
     draft.rooms.length === 0 ||
     draft.rooms.some(
       (room) =>
-        !room.title.trim() ||
+        (draft.postMode === "property" && !room.title.trim()) ||
         !room.summary.trim() ||
         room.summary.trim().length < ROOM_SUMMARY_MIN ||
         room.rentMxn <= 0 ||
@@ -1075,7 +1136,7 @@ export function PublishWizardPage() {
         for (let i = 0; i < d.rooms.length; i++) {
           const r = d.rooms[i]!;
           const payload = {
-            title: r.title.trim() || "Recámara en borrador",
+            title: effectiveRoomTitle(r, d.postMode) || "Recámara en borrador",
             rentMxn: r.rentMxn,
             roomsAvailable: r.roomsAvailable,
             tags: mergedRoomTagsForPayload(d, i),
@@ -2299,46 +2360,6 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
-  function validateRoomsForSubmit(d: Draft): string | null {
-    const iso = /^\d{4}-\d{2}-\d{2}$/;
-    for (const r of d.rooms) {
-      if (!r.title.trim() || !r.summary.trim()) {
-        return "Cada recámara necesita título y descripción.";
-      }
-      {
-        const len = r.summary.trim().length;
-        if (len < ROOM_SUMMARY_MIN) {
-          return `La descripción de cada recámara debe tener al menos ${ROOM_SUMMARY_MIN} caracteres.`;
-        }
-        if (len > ROOM_SUMMARY_MAX) {
-          return `La descripción de cada recámara no puede exceder los ${ROOM_SUMMARY_MAX} caracteres.`;
-        }
-      }
-      if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) {
-        return "En cada recámara indica una renta mayor a 0.";
-      }
-      if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) {
-        return "En cada recámara indica al menos 1 plaza o espacio disponible.";
-      }
-      if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99) {
-        return "La edad mínima y máxima debe estar entre 18 y 99 años.";
-      }
-      if (r.ageMin > r.ageMax) {
-        return "En cada recámara la edad mínima no puede ser mayor que la máxima.";
-      }
-      if (!iso.test(r.availableFrom.trim())) {
-        return "En cada recámara indica una fecha “Disponible desde” válida (AAAA-MM-DD).";
-      }
-      if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
-        return "En cada recámara la estancia mínima debe ser de al menos 1 mes.";
-      }
-      if (r.depositMxn < 0) {
-        return "El depósito no puede ser negativo.";
-      }
-    }
-    return null;
-  }
-
   const publishBlockedReason = useMemo(() => {
     const generalErr = propertyGeneralStepInvalidReason(draft);
     if (generalErr) return generalErr;
@@ -2483,7 +2504,7 @@ export function PublishWizardPage() {
           occupiedByMenCount: draft.occupiedByMenCount,
         },
         rooms: draft.rooms.map((r, i) => ({
-          title: r.title.trim(),
+          title: effectiveRoomTitle(r, draft.postMode),
           rentMxn: Math.max(1, r.rentMxn),
           roomsAvailable: Math.max(1, r.roomsAvailable),
           tags: mergedRoomTagsForPayload(draft, i),
