@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
@@ -17,6 +17,10 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
+import {
+  writePublishPreviewSession,
+  type PublishWizardServerSync,
+} from "@/lib/publishWizard/previewSession";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -742,8 +746,15 @@ function clearLegacyWizardDraftStorage(): void {
   }
 }
 
+type WizardResumeState = {
+  resumeDraft?: Draft;
+  resumeServerSync?: PublishWizardServerSync;
+  resumeStep?: number;
+};
+
 export function PublishWizardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { openAuthModal } = useAuthModal();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
@@ -803,6 +814,17 @@ export function PublishWizardPage() {
     }
     void authMe().then(setMe).catch(() => setMe(null));
   }, [apiOn]);
+
+  useEffect(() => {
+    const st = location.state as WizardResumeState | null;
+    if (!st?.resumeDraft) return;
+    setDraft(st.resumeDraft);
+    if (st.resumeServerSync) setServerSync(st.resumeServerSync);
+    if (typeof st.resumeStep === "number" && Number.isFinite(st.resumeStep)) {
+      setStep(Math.max(0, st.resumeStep));
+    }
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate]);
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -2240,53 +2262,25 @@ export function PublishWizardPage() {
               </h3>
               <div className="space-y-3 text-sm text-muted">
                 <p>
-                  Revisa los pasos anteriores: ciudad, precios, fotos y WhatsApp. Cuando todo esté listo, usa la
-                  sección <strong className="text-body">Publicación</strong> debajo para marcar la confirmación legal y
-                  publicar en vivo o guardar borrador en el servidor.
-                </p>
-                <p>
-                  Con la API activa, los datos se sincronizan solos en segundo plano; &quot;Guardar borrador en
-                  servidor&quot; también fuerza una sincronización inmediata.
+                  Revisa los pasos anteriores: ciudad, precios y fotos. Cuando todo esté listo, marca la
+                  confirmación legal y publica en vivo o guarda borrador en el servidor.
                 </p>
               </div>
             </div>
 
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Contacto
-              </h3>
-              <label className="block text-sm font-medium text-body">
-                WhatsApp de contacto (opcional si no lo muestras en el anuncio)
-                <input
-                  value={draft.contactWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
-                  placeholder="Ej. 523312345678"
-                  inputMode="tel"
-                  disabled={!draft.showWhatsApp}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                {!apiOn ? (
-                  <span className="mt-1 block text-xs text-muted">
-                    Sin API configurada, el número solo se guarda en este navegador hasta que conectes el servidor.
-                  </span>
-                ) : null}
-              </label>
-              <label className="mt-2 flex cursor-pointer items-start gap-3 text-sm text-body">
+              <label className="flex cursor-pointer items-start gap-3 text-sm text-body">
                 <input
                   type="checkbox"
-                  checked={draft.showWhatsApp}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      showWhatsApp: e.target.checked,
-                      ...(e.target.checked ? {} : { contactWhatsApp: "" }),
-                    }))
-                  }
+                  checked={draft.legalAccepted}
+                  onChange={(e) => setDraft((d) => ({ ...d, legalAccepted: e.target.checked }))}
                   className="mt-1 size-4 rounded border-border text-primary"
                 />
-                <span>Mostrar WhatsApp en el anuncio público (teléfono visible en el listado).</span>
+                <span>
+                  Confirmo que la información es verídica y acepto las responsabilidades legales al publicar en Bestie
+                  (v1).
+                </span>
               </label>
-              {draft.showWhatsApp ? <p className="text-xs text-muted">10–15 dígitos.</p> : null}
             </div>
           </form>
         ),
@@ -2688,6 +2682,31 @@ export function PublishWizardPage() {
             </button>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPublishErr(null);
+                  writePublishPreviewSession({
+                    draft,
+                    serverSync,
+                    returnStep: safeStep,
+                    editingLiveProperty,
+                  });
+                  navigate("/publicar/vista-previa", {
+                    state: {
+                      previewSession: {
+                        draft,
+                        serverSync,
+                        returnStep: safeStep,
+                        editingLiveProperty,
+                      },
+                    },
+                  });
+                }}
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+              >
+                Previsualizar
+              </button>
               {apiOn ? (
                 <button
                   type="button"
@@ -2695,13 +2714,14 @@ export function PublishWizardPage() {
                   onClick={() => void submitServerDraft()}
                   className="rounded-full border border-secondary/50 bg-secondary/10 px-5 py-2 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/20 disabled:opacity-50"
                 >
-                  {submitInFlight === "draft" ? "Guardando…" : "Guardar borrador en servidor"}
+                  {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
                 </button>
               ) : null}
               {apiOn ? (
                 <button
                   type="button"
-                  disabled={submitInFlight !== null}
+                  disabled={submitInFlight !== null || Boolean(publishBlockedReason)}
+                  title={publishBlockedReason ?? undefined}
                   onClick={() => void submitPublish()}
                   className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
                 >
@@ -2712,64 +2732,6 @@ export function PublishWizardPage() {
           )}
         </div>
       </div>
-
-      {isPublishStep ? (
-      <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
-        <h2 className="text-base font-semibold text-body">Publicación</h2>
-        <p className="mt-1 text-sm text-muted">
-          <strong className="font-medium text-body">Publicar en vivo</strong> (anuncio visible en búsqueda) o{" "}
-          <strong className="font-medium text-body">guardar borrador</strong> en el servidor. Solo disponible en este
-          último paso del asistente.
-        </p>
-        <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-body">
-          <input
-            type="checkbox"
-            checked={draft.legalAccepted}
-            onChange={(e) => setDraft((d) => ({ ...d, legalAccepted: e.target.checked }))}
-            className="mt-1 size-4 rounded border-border text-primary"
-          />
-          <span>
-            Confirmo que la información es verídica y acepto las responsabilidades legales al publicar en Bestie
-            (v1).
-          </span>
-        </label>
-        {publishBlockedReason ? (
-          <p className="mt-3 text-xs text-muted">
-            Para habilitar &quot;Publicar ahora&quot;: {publishBlockedReason}
-          </p>
-        ) : null}
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={submitInFlight !== null || Boolean(publishBlockedReason) || !apiOn}
-            title={
-              !apiOn
-                ? "Configura VITE_API_URL y ejecuta la API para publicar."
-                : publishBlockedReason ?? undefined
-            }
-            onClick={() => void submitPublish()}
-            className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-45"
-          >
-            {submitInFlight === "publish" ? "Publicando…" : "Publicar ahora"}
-          </button>
-          {apiOn ? (
-            <button
-              type="button"
-              disabled={submitInFlight !== null}
-              onClick={() => void submitServerDraft()}
-              className="rounded-full border border-secondary/50 bg-secondary/10 px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/20 disabled:opacity-50"
-            >
-              {submitInFlight === "draft" ? "Guardando…" : "Guardar borrador en servidor"}
-            </button>
-          ) : (
-            <span className="text-xs text-muted">
-              Sin API: el borrador vive en tu navegador; publicar en el catálogo requiere{" "}
-              <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code>.
-            </span>
-          )}
-        </div>
-      </section>
-      ) : null}
     </div>
   );
 }
