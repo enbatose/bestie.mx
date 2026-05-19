@@ -2579,7 +2579,7 @@ export function PublishWizardPage() {
             </div>
             <button
               type="button"
-              onClick={() => openAuthModal()}
+              onClick={() => openAuthModal("/publicar")}
               className="inline-flex w-full shrink-0 items-center justify-center rounded-full border border-indigo-300 bg-surface px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:border-indigo-400/45 dark:bg-indigo-900/55 dark:text-indigo-50 dark:ring-offset-slate-900 dark:hover:bg-indigo-900/85 sm:w-auto"
             >
               Iniciar sesión

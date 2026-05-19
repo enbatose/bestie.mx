@@ -4,7 +4,7 @@ import { authLogin, authRegister } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export function AuthModal() {
-  const { open, tab, close, openLogin, openRegister } = useAuthModal();
+  const { open, tab, redirectTo, close, openLogin, openRegister } = useAuthModal();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -21,7 +21,7 @@ export function AuthModal() {
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
       close();
-      window.location.assign("/mis-anuncios");
+      window.location.assign(redirectTo);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
@@ -44,7 +44,7 @@ export function AuthModal() {
         displayName: displayName.trim() || undefined,
       });
       close();
-      window.location.assign("/mis-anuncios");
+      window.location.assign(redirectTo);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
