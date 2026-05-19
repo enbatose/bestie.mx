@@ -238,7 +238,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
         ) : (
           <button
             type="button"
-            onClick={openLogin}
+            onClick={() => openLogin()}
             className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
           >
             Entrar

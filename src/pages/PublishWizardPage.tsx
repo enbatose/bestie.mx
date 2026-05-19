@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Wand2 } from "lucide-react";
+import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
@@ -216,7 +217,7 @@ const CITY_ANCHOR: Record<
 /** Modo cuarto: select “Ocupación permitida” → `roomsAvailable` 1 o 2. */
 type RoomOccupationAllowed = "individuals_only" | "couples_or_individuals";
 
-type RoomDraft = {
+export type RoomDraft = {
   title: string;
   rentMxn: number;
   depositMxn: number;
@@ -235,7 +236,7 @@ type RoomDraft = {
   rentIncludesUtilities: boolean;
 };
 
-type Draft = {
+export type Draft = {
   /** Strategy: 'room' = single-room post; 'property' = property/multi-room post. */
   postMode: "room" | "property";
   city: (typeof CITIES)[number];
@@ -2238,6 +2239,13 @@ export function PublishWizardPage() {
   const current = steps[safeStep]!;
   const isPublishStep = current.title === "Publicar";
 
+  const autofillStep = useCallback(
+    (stepIndex: number) => {
+      setDraft((d) => ({ ...d, ...seedForStep(stepIndex, d) }));
+    },
+    [],
+  );
+
   /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */
   const publishModeParam = searchParams.get("publishMode");
   const publishStepParam = searchParams.get("publishStep");
@@ -2589,10 +2597,25 @@ export function PublishWizardPage() {
       ) : null}
 
       <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Paso {safeStep + 1} de {steps.length}
-        </p>
-        <h2 className="mt-2 text-lg font-semibold text-body">{current.title}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Paso {safeStep + 1} de {steps.length}
+            </p>
+            <h2 className="mt-2 text-lg font-semibold text-body">{current.title}</h2>
+          </div>
+          {me?.isAdmin ? (
+            <button
+              type="button"
+              onClick={() => autofillStep(safeStep)}
+              className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 dark:border-amber-500/50 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+              title="Solo visible para administradores"
+            >
+              <Wand2 className="size-3.5" aria-hidden />
+              Autopoblar
+            </button>
+          ) : null}
+        </div>
         <div className="mt-4 space-y-4">
           <div>{current.body}</div>
         </div>
