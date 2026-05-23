@@ -19,7 +19,12 @@ import {
   filterRoomScopeTags,
 } from "@/lib/listingTags";
 import {
+  draftImagesAppend,
+  draftImagesWithoutUrl,
+} from "@/lib/publishWizard/draftImages";
+import {
   ROOM_SINGLE_FLOW_PHOTO_HINT,
+  roomsAvailableFromIdealTags,
 } from "@/lib/publishWizard/wizardTags";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -28,8 +33,6 @@ import type { ListingTagGroup } from "@/lib/listingTags";
 
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
-
-type RoomOccupationAllowed = "individuals_only" | "couples_or_individuals";
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -339,9 +342,16 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   const saveRoomTags = () => {
     onDraftChange((d) => ({
       ...d,
-      rooms: d.rooms.map((r, i) =>
-        i === roomIndex ? { ...r, tags: filterRoomScopeTags(roomTagsDraft) } : r,
-      ),
+      rooms: d.rooms.map((r, i) => {
+        if (i !== roomIndex) return r;
+        const tags = filterRoomScopeTags(roomTagsDraft);
+        return {
+          ...r,
+          tags,
+          roomsAvailable:
+            d.postMode === "room" ? roomsAvailableFromIdealTags(tags) : r.roomsAvailable,
+        };
+      }),
     }));
     setEditingRoomTags(false);
   };
@@ -366,7 +376,11 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
         i === roomIndex
           ? {
               ...roomDetailsDraft,
-              tags: filterRoomScopeTags(r.tags),
+              tags: filterRoomScopeTags(roomDetailsDraft.tags),
+              roomsAvailable:
+                d.postMode === "room"
+                  ? roomsAvailableFromIdealTags(roomDetailsDraft.tags)
+                  : roomDetailsDraft.roomsAvailable,
             }
           : r,
       ),
@@ -499,10 +513,10 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
                   {draft.unassignedImageUrls.length} foto(s) sin categorizar — asígnalas antes de publicar.
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {draft.unassignedImageUrls.map((u) => (
-                    <div key={u} className="flex items-start gap-3 rounded-lg border border-border bg-surface p-2">
+                  {draft.unassignedImageUrls.map((img) => (
+                    <div key={img.url} className="flex items-start gap-3 rounded-lg border border-border bg-surface p-2">
                       <img
-                        src={apiAbsoluteUrl(u)}
+                        src={apiAbsoluteUrl(img.url)}
                         alt=""
                         className="h-14 w-14 rounded-lg object-cover ring-1 ring-border"
                         loading="lazy"
@@ -514,31 +528,46 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
                           defaultValue="uncat"
                           onChange={(e) => {
                             const v = e.target.value;
+                            const u = img.url;
                             onDraftChange((d) => {
-                              const nextUnassigned = d.unassignedImageUrls.filter((x) => x !== u);
+                              const nextUnassigned = d.unassignedImageUrls.filter((x) => x.url !== u);
                               if (v === "shared") {
                                 return {
                                   ...d,
                                   unassignedImageUrls: nextUnassigned,
-                                  propertyImageUrls: [...d.propertyImageUrls, u].slice(0, 20),
+                                  propertyImageUrls: draftImagesAppend(
+                                    d.propertyImageUrls,
+                                    { url: u, isCover: false },
+                                    20,
+                                  ),
                                 };
                               }
                               if (v === "facade") {
-                                const without = d.propertyImageUrls.filter((x) => x !== u);
                                 return {
                                   ...d,
                                   unassignedImageUrls: nextUnassigned,
-                                  propertyImageUrls: [u, ...without].slice(0, 20),
+                                  propertyImageUrls: draftImagesAppend(
+                                    draftImagesWithoutUrl(d.propertyImageUrls, u),
+                                    { url: u, isCover: true },
+                                    20,
+                                  ),
                                 };
                               }
                               if (v.startsWith("room:")) {
                                 const idx = Number(v.split(":")[1] ?? "1") - 1;
                                 if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
+                                const row = d.roomImageUrls[idx] ?? [];
                                 return {
                                   ...d,
                                   unassignedImageUrls: nextUnassigned,
-                                  roomImageUrls: d.roomImageUrls.map((row, ri) =>
-                                    ri === idx ? [...row, u].slice(0, 20) : row,
+                                  roomImageUrls: d.roomImageUrls.map((r, ri) =>
+                                    ri === idx
+                                      ? draftImagesAppend(
+                                          r,
+                                          { url: u, isCover: row.length === 0 },
+                                          20,
+                                        )
+                                      : r,
                                   ),
                                 };
                               }
@@ -564,19 +593,19 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             {draft.postMode === "property" ? (
               <BulkImageUploader
                 title="Áreas compartidas / fachada"
-                urls={draft.propertyImageUrls}
+                images={draft.propertyImageUrls}
                 maxCount={20}
                 apiOn={apiOn}
-                onChange={(next) => onDraftChange((d) => ({ ...d, propertyImageUrls: next }))}
+                onImagesChange={(next) => onDraftChange((d) => ({ ...d, propertyImageUrls: next }))}
               />
             ) : null}
             <BulkImageUploader
               title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
-              urls={draft.roomImageUrls[roomIndex] ?? []}
+              images={draft.roomImageUrls[roomIndex] ?? []}
               maxCount={20}
               apiOn={apiOn}
               hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
-              onChange={(next) =>
+              onImagesChange={(next) =>
                 onDraftChange((d) => ({
                   ...d,
                   roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === roomIndex ? next : row)),
@@ -586,24 +615,32 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             {draft.postMode === "property" ? (
               <BulkImageUploader
                 title="Fotos a categorizar"
-                urls={draft.unassignedImageUrls}
+                images={draft.unassignedImageUrls}
                 maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
                 apiOn={apiOn}
                 hint="Sube aquí y luego asígnalas arriba o en el paso de etiquetado."
-                onChange={(next) => onDraftChange((d) => ({ ...d, unassignedImageUrls: next }))}
+                onImagesChange={(next) => onDraftChange((d) => ({ ...d, unassignedImageUrls: next }))}
               />
             ) : null}
           </InlineFieldEditor>
         ) : galleryUrls.length ? (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {galleryUrls.map((u) => (
-              <img
-                key={u}
-                src={apiAbsoluteUrl(u)}
-                alt=""
-                className="aspect-square w-full rounded-xl object-cover ring-1 ring-border"
-                loading="lazy"
-              />
+            {galleryUrls.map((u, ix) => (
+              <div key={u} className="relative">
+                <img
+                  src={apiAbsoluteUrl(u)}
+                  alt=""
+                  className={`aspect-square w-full rounded-xl object-cover ring-1 ${
+                    ix === 0 ? "ring-primary" : "ring-border"
+                  }`}
+                  loading="lazy"
+                />
+                {ix === 0 ? (
+                  <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-fg">
+                    Portada
+                  </span>
+                ) : null}
+              </div>
             ))}
           </div>
         ) : (
@@ -771,28 +808,7 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
                     incrementLabel="Más plazas"
                   />
                 </div>
-              ) : (
-                <label className="block text-sm font-medium text-body">
-                  Ocupación permitida
-                  <select
-                    value={
-                      detailsRoom.roomsAvailable >= 2 ? "couples_or_individuals" : "individuals_only"
-                    }
-                    onChange={(e) => {
-                      const occ = e.target.value as RoomOccupationAllowed;
-                      setRoomDetailsDraft((r) =>
-                        r
-                          ? { ...r, roomsAvailable: occ === "individuals_only" ? 1 : 2 }
-                          : r,
-                      );
-                    }}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                  >
-                    <option value="individuals_only">Solo individuos</option>
-                    <option value="couples_or_individuals">Parejas o individuos</option>
-                  </select>
-                </label>
-              )}
+              ) : null}
               <label className="block text-sm font-medium text-body">
                 Disponible desde
                 <input

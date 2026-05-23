@@ -4,6 +4,8 @@
  * Visible and usable only by users with `me.isAdmin === true`.
  */
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
+import { hydrateDraftImagesFromUrls } from "@/lib/publishWizard/draftImages";
+import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
 // ---------------------------------------------------------------------------
@@ -133,14 +135,9 @@ const PROPERTY_AMENITY_POOL: readonly ListingTag[] = [
   "vigilancia",
 ];
 
-const PROPERTY_PERMITIDO_POOL: readonly ListingTag[] = [
-  "mascotas",
-  "fiestas",
-  "fumar",
-  "fumar-habitacion",
-];
+const PROPERTY_PERMITIDO_POOL: readonly ListingTag[] = ["mascotas", "fiestas", "fumar"];
 
-const PROPERTY_IDEAL_PARA_POOL: readonly ListingTag[] = [
+const ROOM_IDEAL_PARA_POOL: readonly ListingTag[] = [
   "lgbt-friendly",
   "profesionistas",
   "estudiantes",
@@ -155,6 +152,7 @@ const ROOM_TAGS_POOL: readonly ListingTag[] = [
   "cerradura-cuarto",
   "ventilador",
   "closet",
+  "fumar-permitido-recamara",
 ];
 
 const LODGING_TYPES: readonly LodgingType[] = ["private_room", "shared_room"];
@@ -229,7 +227,6 @@ export function seedStep2(_draft: Draft): Partial<Draft> {
     propertyTags: [
       ...randSubset(PROPERTY_AMENITY_POOL, 4, 8),
       ...randSubset(PROPERTY_PERMITIDO_POOL, 0, 3),
-      ...randSubset(PROPERTY_IDEAL_PARA_POOL, 0, 3),
     ] as ListingTag[],
   };
 }
@@ -248,7 +245,9 @@ export function seedStep4(draft: Draft): Partial<Draft> {
     // Single-room mode: all images in roomImageUrls[0]
     return {
       roomImageUrls: [
-        [...roomImgPool.slice(0, 4), ...commonImgPool].map(seedImg),
+        hydrateDraftImagesFromUrls(
+          [...roomImgPool.slice(0, 4), ...commonImgPool].map(seedImg),
+        ),
       ],
       propertyImageUrls: [],
       unassignedImageUrls: [],
@@ -258,12 +257,12 @@ export function seedStep4(draft: Draft): Partial<Draft> {
   // Property mode: spread room images across rooms, put commons as unassigned
   const roomImageUrls = draft.rooms.map((_, i) => {
     const imgs = roomImgPool.slice(i * 2, i * 2 + 2);
-    return imgs.map(seedImg);
+    return hydrateDraftImagesFromUrls(imgs.map(seedImg));
   });
 
   return {
     roomImageUrls,
-    unassignedImageUrls: commonImgPool.map(seedImg),
+    unassignedImageUrls: hydrateDraftImagesFromUrls(commonImgPool.map(seedImg)),
     propertyImageUrls: [],
   };
 }
@@ -294,13 +293,17 @@ function seedRoom(index: number): RoomDraft {
   const depositMultiplier = pick([1, 1, 2] as const);
   const ageMin = randInt(18, 24);
   const ageMax = randInt(28, 45);
+  const tags = [
+    ...randSubset(ROOM_TAGS_POOL, 2, 4),
+    ...randSubset(ROOM_IDEAL_PARA_POOL, 0, 3),
+  ] as ListingTag[];
   return {
     title: index === 0 ? "" : `Recámara ${index + 1}`,
     rentMxn: rent,
     depositMxn: rent * depositMultiplier,
-    roomsAvailable: pick([1, 1, 2] as const),
+    roomsAvailable: roomsAvailableFromIdealTags(tags),
     summary: pick(ROOM_SUMMARIES),
-    tags: randSubset(ROOM_TAGS_POOL, 2, 4) as ListingTag[],
+    tags,
     roommateGenderPref: pick(GENDER_PREFS),
     ageMin,
     ageMax: Math.max(ageMin, ageMax),

@@ -22,14 +22,26 @@ import { type PublishWizardServerSync } from "@/lib/publishWizard/previewSession
 import {
   LISTING_TAG_LABEL_OVERRIDES,
   LISTING_TAG_SLUG_SET,
+  migrateDraftTagScopes,
   PROPERTY_AMENITY_TAG_SLUGS,
-  PROPERTY_IDEAL_PARA_TAG_SLUGS,
   PROPERTY_PERMITIDO_TAG_SLUGS,
   PROPERTY_SCOPE_TAG_SET,
   PROPERTY_SCOPE_TAG_SLUGS,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
-import { ROOM_SINGLE_FLOW_PHOTO_HINT } from "@/lib/publishWizard/wizardTags";
+import {
+  draftImagesAppend,
+  draftImagesWithoutUrl,
+  hydrateDraftImagesFromUrls,
+  normalizePersistedDraftImages,
+  type DraftImage,
+} from "@/lib/publishWizard/draftImages";
+import {
+  draftPropertyImageUrls,
+  draftRoomImageUrls,
+  effectiveRoomsAvailable,
+} from "@/lib/publishWizard/publishCore";
+import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
@@ -76,11 +88,13 @@ const ROOM_SUMMARY_PLACEHOLDER =
 
 const WIZARD_PROPERTY_AMENITY_SLUGS = PROPERTY_AMENITY_TAG_SLUGS;
 const WIZARD_PROPERTY_PERMITIDO_SLUGS = PROPERTY_PERMITIDO_TAG_SLUGS;
-const WIZARD_PROPERTY_IDEAL_PARA_SLUGS = PROPERTY_IDEAL_PARA_TAG_SLUGS;
-const WIZARD_STEP3_TAG_SLUGS = PROPERTY_SCOPE_TAG_SLUGS;
 const WIZARD_STEP3_TAG_SET = PROPERTY_SCOPE_TAG_SET;
 const WIZARD_STEP4_TAG_LABELS = LISTING_TAG_LABEL_OVERRIDES;
 const WIZARD_ROOM_TAG_GROUPS = ROOM_TAG_GROUPS;
+
+function normalizePersistedDraft(d: Draft): Draft {
+  return migrateDraftTagScopes(normalizePersistedDraftImages(d));
+}
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
 function isoDateInMexicoCity(date: Date = new Date()): string {
@@ -180,9 +194,6 @@ const CITY_ANCHOR: Record<
   Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.675_138, lng: -103.347_345 },
 };
 
-/** Modo cuarto: select “Ocupación permitida” → `roomsAvailable` 1 o 2. */
-type RoomOccupationAllowed = "individuals_only" | "couples_or_individuals";
-
 export type RoomDraft = {
   title: string;
   rentMxn: number;
@@ -227,11 +238,11 @@ export type Draft = {
    * Tagged property images (shared areas / facade) — `/api/uploads/...` from server.
    * Note: we don't persist per-image tags yet; this is the post-tagging bucket.
    */
-  propertyImageUrls: string[];
+  propertyImageUrls: DraftImage[];
   /** Untagged pool (mandatory to tag for property-mode before publishing). */
-  unassignedImageUrls: string[];
+  unassignedImageUrls: DraftImage[];
   /** One array per room index. */
-  roomImageUrls: string[][];
+  roomImageUrls: DraftImage[][];
   /** Tags de la propiedad (paso 3); se unen a cada recámara al persistir. */
   propertyTags: ListingTag[];
   rooms: RoomDraft[];
@@ -556,6 +567,25 @@ function togglePropertyTag(d: Draft, tag: ListingTag): Draft {
   return { ...d, propertyTags: nextTags.filter(tagOk) };
 }
 
+function toggleRoomTag(d: Draft, roomIndex: number, tag: ListingTag, active: boolean): Draft {
+  return {
+    ...d,
+    rooms: d.rooms.map((r, j) => {
+      if (j !== roomIndex) return r;
+      const tags = r.tags.filter((t) => t !== "servicios-incluidos");
+      const nextTags = !active
+        ? tags.includes(tag)
+          ? tags
+          : [...tags, tag]
+        : tags.filter((t) => t !== tag);
+      const filtered = nextTags.filter(tagOk);
+      const roomsAvailable =
+        d.postMode === "room" ? roomsAvailableFromIdealTags(filtered) : r.roomsAvailable;
+      return { ...r, tags: filtered, roomsAvailable };
+    }),
+  };
+}
+
 /** Migra tags legacy; no vincula `servicios-incluidos` con Wi‑Fi / agua / luz / gas en estado. */
 function normalizeRoomTagsFromServer(raw: readonly ListingTag[]): ListingTag[] {
   let next = [...raw].filter((t) => t !== "servicios-incluidos" && t !== "agua-caliente");
@@ -681,9 +711,12 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     useCustomMapPin: usePin,
     customLat: usePin ? String(p.lat) : "",
     customLng: usePin ? String(p.lng) : "",
-    propertyImageUrls: p.imageUrls ?? [],
+    propertyImageUrls: hydrateDraftImagesFromUrls(p.imageUrls ?? []),
     unassignedImageUrls: [],
-    roomImageUrls: srvRooms.length > 0 ? srvRooms.map((r) => r.imageUrls ?? []) : [[]],
+    roomImageUrls:
+      srvRooms.length > 0
+        ? srvRooms.map((r) => hydrateDraftImagesFromUrls(r.imageUrls ?? []))
+        : [[]],
     propertyTags,
     rooms: roomDrafts,
     legalAccepted:
@@ -691,7 +724,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     isApproximateLocation: Boolean((p as { isApproximateLocation?: unknown }).isApproximateLocation),
   };
   return {
-    draft,
+    draft: normalizePersistedDraft(draft),
     serverSync:
       srvRooms.length > 0
         ? { propertyId: p.id, roomIds: srvRooms.map((r) => r.id) }
@@ -788,7 +821,7 @@ export function PublishWizardPage() {
   useEffect(() => {
     const st = location.state as WizardResumeState | null;
     if (!st?.resumeDraft) return;
-    setDraft(st.resumeDraft);
+    setDraft(normalizePersistedDraft(st.resumeDraft));
     if (st.resumeServerSync) setServerSync(st.resumeServerSync);
     if (typeof st.resumeStep === "number" && Number.isFinite(st.resumeStep)) {
       setStep(Math.max(0, st.resumeStep));
@@ -1113,7 +1146,7 @@ export function PublishWizardPage() {
             bedroomsTotal: d.propertyBedroomsTotal,
             bathrooms: effectiveWizardPropertyBathrooms(d),
             showWhatsApp: d.showWhatsApp,
-            imageUrls: d.propertyImageUrls,
+            imageUrls: draftPropertyImageUrls(d),
             isApproximateLocation: d.isApproximateLocation,
             occupiedByWomenCount: d.occupiedByWomenCount,
             occupiedByMenCount: d.occupiedByMenCount,
@@ -1130,7 +1163,7 @@ export function PublishWizardPage() {
           const payload = {
             title: effectiveRoomTitle(r, d.postMode) || "Recámara en borrador",
             rentMxn: r.rentMxn,
-            roomsAvailable: r.roomsAvailable,
+            roomsAvailable: effectiveRoomsAvailable(d, i),
             tags: mergedRoomTagsForPayload(d, i),
             roommateGenderPref: r.roommateGenderPref,
             ageMin: r.ageMin,
@@ -1141,7 +1174,7 @@ export function PublishWizardPage() {
             minimalStayMonths: r.minimalStayMonths,
             roomDimension: r.roomDimension,
             depositMxn: r.depositMxn,
-            imageUrls: d.roomImageUrls[i] ?? [],
+            imageUrls: draftRoomImageUrls(d, i),
           };
           const rid = roomIds[i];
           if (!rid) {
@@ -1166,7 +1199,7 @@ export function PublishWizardPage() {
             bedroomsTotal: d.propertyBedroomsTotal,
             bathrooms: effectiveWizardPropertyBathrooms(d),
             showWhatsApp: d.showWhatsApp,
-            imageUrls: d.propertyImageUrls,
+            imageUrls: draftPropertyImageUrls(d),
             isApproximateLocation: d.isApproximateLocation,
             occupiedByWomenCount: d.occupiedByWomenCount,
             occupiedByMenCount: d.occupiedByMenCount,
@@ -1664,30 +1697,6 @@ export function PublishWizardPage() {
                     })}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-body">Ideal para:</p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {WIZARD_PROPERTY_IDEAL_PARA_SLUGS.map((tag) => {
-                      const active = draft.propertyTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={active}
-                          onClick={() => setDraft((d) => togglePropertyTag(d, tag))}
-                          className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
-                            active
-                              ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                              : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                          }`}
-                        >
-                          {TAG_LABELS[tag]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
             </div>
           </form>
@@ -1858,29 +1867,7 @@ export function PublishWizardPage() {
                           incrementLabel="Más plazas"
                         />
                       </div>
-                    ) : (
-                      <label className="block text-sm font-medium text-body">
-                        Ocupación permitida
-                        <span className="text-red-600"> *</span>
-                        <select
-                          value={
-                            room.roomsAvailable >= 2
-                              ? "couples_or_individuals"
-                              : "individuals_only"
-                          }
-                          onChange={(e) => {
-                            const occ = e.target.value as RoomOccupationAllowed;
-                            updateRoom(i, {
-                              roomsAvailable: occ === "individuals_only" ? 1 : 2,
-                            });
-                          }}
-                          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
-                        >
-                          <option value="individuals_only">Solo individuos</option>
-                          <option value="couples_or_individuals">Parejas o individuos</option>
-                        </select>
-                      </label>
-                    )}
+                    ) : null}
                     <label className="block text-sm font-medium text-body">
                       Disponible desde
                       <span className="text-red-600"> *</span>
@@ -2008,22 +1995,7 @@ export function PublishWizardPage() {
                                 type="button"
                                 role="checkbox"
                                 aria-checked={active}
-                                onClick={() =>
-                                  setDraft((d) => ({
-                                    ...d,
-                                    rooms: d.rooms.map((r, j) => {
-                                      if (j !== i) return r;
-                                      const nextActive = !active;
-                                      const tags = r.tags.filter((t) => t !== "servicios-incluidos");
-                                      const nextTags = nextActive
-                                        ? tags.includes(tag)
-                                          ? tags
-                                          : [...tags, tag]
-                                        : tags.filter((t) => t !== tag);
-                                      return { ...r, tags: nextTags };
-                                    }),
-                                  }))
-                                }
+                                onClick={() => setDraft((d) => toggleRoomTag(d, i, tag, active))}
                                 className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
                                   active
                                     ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
@@ -2069,10 +2041,10 @@ export function PublishWizardPage() {
                 <div className="mt-4">
                   <BulkImageUploader
                     title="Fotos a categorizar (propiedad general)"
-                    urls={draft.unassignedImageUrls}
+                    images={draft.unassignedImageUrls}
                     maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
                     apiOn={apiOn}
-                    onChange={(next) => {
+                    onImagesChange={(next) => {
                       setDraft((d) => ({ ...d, unassignedImageUrls: next }));
                     }}
                     hint="Luego las etiquetas por cuarto / áreas compartidas / fachada."
@@ -2088,11 +2060,11 @@ export function PublishWizardPage() {
                 ) : null}
                 <BulkImageUploader
                   title={draft.postMode === "room" ? "Fotos de tu espacio" : room.title.trim() || "Sin título"}
-                  urls={draft.roomImageUrls[i] ?? []}
+                  images={draft.roomImageUrls[i] ?? []}
                   maxCount={20}
                   apiOn={apiOn}
                   hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
-                  onChange={(next) => {
+                  onImagesChange={(next) => {
                     setDraft((d) => ({
                       ...d,
                       roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
@@ -2145,11 +2117,17 @@ export function PublishWizardPage() {
                         type="button"
                         className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body hover:bg-surface-elevated mb-2"
                         onClick={() => {
-                          setDraft((d) => ({
-                            ...d,
-                            propertyImageUrls: [...d.propertyImageUrls, ...d.unassignedImageUrls].slice(0, 20),
-                            unassignedImageUrls: [],
-                          }));
+                          setDraft((d) => {
+                            let propertyImageUrls = [...d.propertyImageUrls];
+                            for (const img of d.unassignedImageUrls) {
+                              propertyImageUrls = draftImagesAppend(
+                                propertyImageUrls,
+                                { ...img, isCover: false },
+                                20,
+                              );
+                            }
+                            return { ...d, propertyImageUrls, unassignedImageUrls: [] };
+                          });
                         }}
                       >
                         Etiquetar todo como “Áreas compartidas”
@@ -2158,11 +2136,11 @@ export function PublishWizardPage() {
                       <p className="text-sm text-muted italic">No hay fotos sin categorizar. ¡Todo listo!</p>
                     )}
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {draft.unassignedImageUrls.map((u) => (
-                        <div key={u} className="rounded-xl border border-border bg-surface p-3">
+                      {draft.unassignedImageUrls.map((img) => (
+                        <div key={img.url} className="rounded-xl border border-border bg-surface p-3">
                           <div className="flex items-start gap-3">
                             <img
-                              src={apiAbsoluteUrl(u)}
+                              src={apiAbsoluteUrl(img.url)}
                               alt=""
                               className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
                               loading="lazy"
@@ -2175,31 +2153,46 @@ export function PublishWizardPage() {
                                   defaultValue="uncat"
                                   onChange={(e) => {
                                     const v = e.target.value;
+                                    const u = img.url;
                                     setDraft((d) => {
-                                      const nextUnassigned = d.unassignedImageUrls.filter((x) => x !== u);
+                                      const nextUnassigned = d.unassignedImageUrls.filter((x) => x.url !== u);
                                       if (v === "shared") {
                                         return {
                                           ...d,
                                           unassignedImageUrls: nextUnassigned,
-                                          propertyImageUrls: [...d.propertyImageUrls, u].slice(0, 20),
+                                          propertyImageUrls: draftImagesAppend(
+                                            d.propertyImageUrls,
+                                            { url: u, isCover: false },
+                                            20,
+                                          ),
                                         };
                                       }
                                       if (v === "facade") {
-                                        const without = d.propertyImageUrls.filter((x) => x !== u);
                                         return {
                                           ...d,
                                           unassignedImageUrls: nextUnassigned,
-                                          propertyImageUrls: [u, ...without].slice(0, 20),
+                                          propertyImageUrls: draftImagesAppend(
+                                            draftImagesWithoutUrl(d.propertyImageUrls, u),
+                                            { url: u, isCover: true },
+                                            20,
+                                          ),
                                         };
                                       }
                                       if (v.startsWith("room:")) {
                                         const idx = Number(v.split(":")[1] ?? "1") - 1;
                                         if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
+                                        const row = d.roomImageUrls[idx] ?? [];
                                         return {
                                           ...d,
                                           unassignedImageUrls: nextUnassigned,
-                                          roomImageUrls: d.roomImageUrls.map((row, ri) =>
-                                            ri === idx ? [...row, u].slice(0, 20) : row,
+                                          roomImageUrls: d.roomImageUrls.map((r, ri) =>
+                                            ri === idx
+                                              ? draftImagesAppend(
+                                                  r,
+                                                  { url: u, isCover: row.length === 0 },
+                                                  20,
+                                                )
+                                              : r,
                                           ),
                                         };
                                       }
@@ -2407,7 +2400,7 @@ export function PublishWizardPage() {
           bedroomsTotal: draft.propertyBedroomsTotal,
           bathrooms: effectiveWizardPropertyBathrooms(draft),
           showWhatsApp: draft.showWhatsApp,
-          imageUrls: draft.propertyImageUrls,
+          imageUrls: draftPropertyImageUrls(draft),
           isApproximateLocation: draft.isApproximateLocation,
           occupiedByWomenCount: draft.occupiedByWomenCount,
           occupiedByMenCount: draft.occupiedByMenCount,
@@ -2439,7 +2432,7 @@ export function PublishWizardPage() {
           bedroomsTotal: draft.propertyBedroomsTotal,
           bathrooms: effectiveWizardPropertyBathrooms(draft),
           showWhatsApp: draft.showWhatsApp,
-          imageUrls: draft.propertyImageUrls,
+          imageUrls: draftPropertyImageUrls(draft),
           isApproximateLocation: draft.isApproximateLocation,
           occupiedByWomenCount: draft.occupiedByWomenCount,
           occupiedByMenCount: draft.occupiedByMenCount,
@@ -2447,7 +2440,7 @@ export function PublishWizardPage() {
         rooms: draft.rooms.map((r, i) => ({
           title: effectiveRoomTitle(r, draft.postMode),
           rentMxn: Math.max(1, r.rentMxn),
-          roomsAvailable: Math.max(1, r.roomsAvailable),
+          roomsAvailable: effectiveRoomsAvailable(draft, i),
           tags: mergedRoomTagsForPayload(draft, i),
           roommateGenderPref: r.roommateGenderPref,
           ageMin: r.ageMin,
@@ -2458,7 +2451,7 @@ export function PublishWizardPage() {
           minimalStayMonths: r.minimalStayMonths,
           roomDimension: r.roomDimension,
           depositMxn: r.depositMxn,
-          imageUrls: draft.roomImageUrls[i] ?? [],
+          imageUrls: draftRoomImageUrls(draft, i),
         })),
       });
       const first = res.rooms[0];

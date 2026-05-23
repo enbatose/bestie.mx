@@ -1,6 +1,14 @@
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { PropertyListing, PropertyWithRooms } from "@/types/listing";
-import { CITY_ANCHOR, effectiveRoomTitle, mergedRoomTagsForPayload, resolveLatLngForDraft } from "@/lib/publishWizard/publishCore";
+import {
+  CITY_ANCHOR,
+  draftPropertyImageUrls,
+  draftRoomImageUrls,
+  effectiveRoomTitle,
+  effectiveRoomsAvailable,
+  mergedRoomTagsForPayload,
+  resolveLatLngForDraft,
+} from "@/lib/publishWizard/publishCore";
 
 const PREVIEW_PROPERTY_ID = "preview-property";
 
@@ -25,7 +33,7 @@ export function draftToPropertyWithRooms(draft: Draft): PropertyWithRooms {
     bedroomsTotal: draft.propertyBedroomsTotal,
     bathrooms: draft.propertyBathrooms > 0 ? draft.propertyBathrooms : 1,
     showWhatsApp: draft.showWhatsApp,
-    imageUrls: draft.propertyImageUrls,
+    imageUrls: draftPropertyImageUrls(draft),
     isApproximateLocation: draft.isApproximateLocation,
     occupiedByWomenCount: draft.occupiedByWomenCount,
     occupiedByMenCount: draft.occupiedByMenCount,
@@ -44,7 +52,7 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
     title: effectiveRoomTitle(r, draft.postMode),
     rentMxn: Math.max(0, r.rentMxn),
     depositMxn: r.depositMxn,
-    roomsAvailable: Math.max(1, r.roomsAvailable),
+    roomsAvailable: effectiveRoomsAvailable(draft, index),
     tags: mergedRoomTagsForPayload(draft, index),
     roommateGenderPref: r.roommateGenderPref,
     ageMin: r.ageMin,
@@ -55,7 +63,7 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
     minimalStayMonths: r.minimalStayMonths,
     roomDimension: r.roomDimension,
     sortOrder: index,
-    imageUrls: draft.roomImageUrls[index] ?? [],
+    imageUrls: draftRoomImageUrls(draft, index),
   };
 }
 

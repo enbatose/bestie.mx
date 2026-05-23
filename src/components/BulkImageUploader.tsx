@@ -1,18 +1,25 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { Star } from "lucide-react";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { uploadListingImage } from "@/lib/listingsApi";
 import { perfEnd, perfSampleImageInput, perfStart } from "@/lib/perf";
 import { trackImagePipeline } from "@/lib/imageTelemetry";
+import {
+  appendDraftImageUrl,
+  removeDraftImage,
+  setDraftImageCover,
+  type DraftImage,
+} from "@/lib/publishWizard/draftImages";
 
 type Props = {
   /** Display label */
   title: string;
-  /** Current uploaded urls */
-  urls: string[];
+  /** Current uploaded images (cover flagged with `isCover`). */
+  images: DraftImage[];
   /** Max number of images allowed */
   maxCount: number;
-  /** Called when urls change */
-  onChange: (next: string[]) => void;
+  /** Called when images change */
+  onImagesChange: (next: DraftImage[]) => void;
   /** If false, shows an error instead of uploading */
   apiOn: boolean;
   /** Optional helper text */
@@ -39,7 +46,6 @@ function supportsWebpCanvas(): boolean {
 }
 
 async function getImageDims(file: File): Promise<{ w: number; h: number }> {
-  // Fast path: createImageBitmap is generally faster than HTMLImageElement.
   const bmp = await createImageBitmap(file);
   try {
     return { w: bmp.width, h: bmp.height };
@@ -67,7 +73,6 @@ async function convertIfNeeded(file: File): Promise<{
   const { w: inputW, h: inputH } = await getImageDims(file);
   const { w: outputW, h: outputH } = clampResize(inputW, inputH, MAX_EDGE);
 
-  // Skip recompress only for formats the API accepts and browsers render reliably.
   if (WEB_SAFE_UPLOAD_TYPES.has(file.type) && file.size <= MAX_SKIP_BYTES && outputW === inputW && outputH === inputH) {
     return {
       outFile: file,
@@ -121,23 +126,30 @@ async function convertIfNeeded(file: File): Promise<{
   }
 }
 
-export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint }: Props) {
+export function BulkImageUploader({ title, images, maxCount, onImagesChange, apiOn, hint }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyRow | null>(null);
   const batchIdRef = useRef<string>(
     globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
   );
-  const urlsRef = useRef(urls);
-  urlsRef.current = urls;
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
 
-  const remaining = Math.max(0, maxCount - urls.length);
+  const remaining = Math.max(0, maxCount - images.length);
   const accept = useMemo(() => "image/*", []);
 
   const remove = useCallback(
     (ix: number) => {
-      onChange(urls.filter((_, j) => j !== ix));
+      onImagesChange(removeDraftImage(images, ix));
     },
-    [onChange, urls],
+    [images, onImagesChange],
+  );
+
+  const setCover = useCallback(
+    (url: string) => {
+      onImagesChange(setDraftImageCover(images, url));
+    },
+    [images, onImagesChange],
   );
 
   const addFiles = useCallback(
@@ -153,6 +165,7 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
       const batchId = batchIdRef.current;
       const batchMark = perfStart("batch_full");
       try {
+        let current = imagesRef.current;
         for (const f of take) {
           setBusy({ name: f.name || "foto", stage: "optimizando" });
           const m1 = perfStart("convert");
@@ -202,8 +215,8 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
             outputH: converted.outputH,
           });
 
-          const next = [...urlsRef.current, url].slice(0, maxCount);
-          onChange(next);
+          current = appendDraftImageUrl(current, url, maxCount);
+          onImagesChange(current);
         }
       } catch (e) {
         setErr(e instanceof Error ? e.message : "No se pudieron subir las imágenes.");
@@ -219,7 +232,7 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
         }).catch(() => null);
       }
     },
-    [apiOn, maxCount, onChange, remaining, urls],
+    [apiOn, maxCount, onImagesChange, remaining],
   );
 
   return (
@@ -228,7 +241,7 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
         <div>
           <h3 className="text-sm font-semibold text-body">{title}</h3>
           <p className="mt-1 text-xs text-muted">
-            {urls.length}/{maxCount} fotos
+            {images.length}/{maxCount} fotos
             {hint ? ` · ${hint}` : ""}
           </p>
         </div>
@@ -286,14 +299,32 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
           void addFiles(files);
         }}
       >
-        <p className="text-xs text-muted">Arrastra y suelta aquí para subir en bloque.</p>
+        <p className="text-xs text-muted">Arrastra y suelta aquí para subir en bloque. Toca la estrella para elegir la portada.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {urls.map((u, ix) => (
+          {images.map((img, ix) => (
             <div
-              key={`${u}-${ix}`}
-              className="relative h-24 w-24 overflow-hidden rounded-lg border border-border bg-bg-light"
+              key={`${img.url}-${ix}`}
+              className={`relative h-24 w-24 overflow-hidden rounded-lg border bg-bg-light ${
+                img.isCover ? "border-primary ring-2 ring-primary/40" : "border-border"
+              }`}
             >
-              <img src={apiAbsoluteUrl(u)} alt="" className="h-full w-full object-cover" />
+              <img src={apiAbsoluteUrl(img.url)} alt="" className="h-full w-full object-cover" />
+              {img.isCover ? (
+                <span className="absolute left-1 top-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-fg">
+                  Portada
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className={`absolute bottom-1 left-1 rounded-full p-1 ${
+                  img.isCover ? "bg-primary text-primary-fg" : "bg-black/60 text-white hover:bg-black/80"
+                }`}
+                onClick={() => setCover(img.url)}
+                aria-label={img.isCover ? "Foto de portada" : "Hacer portada"}
+                aria-pressed={img.isCover}
+              >
+                <Star className={`size-3.5 ${img.isCover ? "fill-current" : ""}`} aria-hidden />
+              </button>
               <button
                 type="button"
                 className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white"
@@ -309,4 +340,3 @@ export function BulkImageUploader({ title, urls, maxCount, onChange, apiOn, hint
     </div>
   );
 }
-

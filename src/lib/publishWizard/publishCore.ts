@@ -8,6 +8,8 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
+import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
+import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import type { ListingStatus, ListingTag } from "@/types/listing";
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 
@@ -78,6 +80,21 @@ export function effectiveRoomTitle(room: Pick<RoomDraft, "title">, postMode: Dra
   if (trimmed) return trimmed;
   if (postMode === "room") return SINGLE_ROOM_DEFAULT_TITLE;
   return "";
+}
+
+export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number {
+  const room = draft.rooms[roomIndex];
+  if (!room) return 1;
+  if (draft.postMode === "property") return Math.max(1, room.roomsAvailable);
+  return roomsAvailableFromIdealTags(room.tags);
+}
+
+export function draftPropertyImageUrls(draft: Draft): string[] {
+  return draftImagesToUrls(draft.propertyImageUrls);
+}
+
+export function draftRoomImageUrls(draft: Draft, roomIndex: number): string[] {
+  return draftImagesToUrls(draft.roomImageUrls[roomIndex] ?? []);
 }
 
 export function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTag[] {
@@ -262,7 +279,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: draft.showWhatsApp,
-        imageUrls: draft.propertyImageUrls,
+        imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
@@ -279,7 +296,7 @@ export async function syncDraftToServer(
       const payload = {
         title: effectiveRoomTitle(r, draft.postMode) || "Recámara en borrador",
         rentMxn: r.rentMxn,
-        roomsAvailable: r.roomsAvailable,
+        roomsAvailable: effectiveRoomsAvailable(draft, i),
         tags: mergedRoomTagsForPayload(draft, i),
         roommateGenderPref: r.roommateGenderPref,
         ageMin: r.ageMin,
@@ -290,7 +307,7 @@ export async function syncDraftToServer(
         minimalStayMonths: r.minimalStayMonths,
         roomDimension: r.roomDimension,
         depositMxn: r.depositMxn,
-        imageUrls: draft.roomImageUrls[i] ?? [],
+        imageUrls: draftRoomImageUrls(draft, i),
       };
       const rid = roomIds[i];
       if (!rid) {
@@ -315,7 +332,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: draft.showWhatsApp,
-        imageUrls: draft.propertyImageUrls,
+        imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
@@ -392,7 +409,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: draft.showWhatsApp,
-        imageUrls: draft.propertyImageUrls,
+        imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
@@ -419,7 +436,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: draft.showWhatsApp,
-        imageUrls: draft.propertyImageUrls,
+        imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
@@ -427,7 +444,7 @@ export async function publishDraftFromWizard(opts: {
       rooms: draft.rooms.map((r, i) => ({
         title: effectiveRoomTitle(r, draft.postMode),
         rentMxn: Math.max(1, r.rentMxn),
-        roomsAvailable: Math.max(1, r.roomsAvailable),
+        roomsAvailable: effectiveRoomsAvailable(draft, i),
         tags: mergedRoomTagsForPayload(draft, i),
         roommateGenderPref: r.roommateGenderPref,
         ageMin: r.ageMin,
@@ -438,7 +455,7 @@ export async function publishDraftFromWizard(opts: {
         minimalStayMonths: r.minimalStayMonths,
         roomDimension: r.roomDimension,
         depositMxn: r.depositMxn,
-        imageUrls: draft.roomImageUrls[i] ?? [],
+        imageUrls: draftRoomImageUrls(draft, i),
       })),
     });
     const first = res.rooms[0];
