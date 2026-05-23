@@ -133,18 +133,20 @@ const PROPERTY_AMENITY_POOL: readonly ListingTag[] = [
   "vigilancia",
 ];
 
-const PROPERTY_AMBIENTE_POOL: readonly ListingTag[] = [
+const PROPERTY_PERMITIDO_POOL: readonly ListingTag[] = [
   "mascotas",
   "fiestas",
   "fumar",
+  "fumar-habitacion",
 ];
 
 const PROPERTY_IDEAL_PARA_POOL: readonly ListingTag[] = [
   "lgbt-friendly",
   "profesionistas",
   "estudiantes",
-  "residentes-medicos",
-  "nomadas-digitales",
+  "individuos-solo",
+  "parejas",
+  "familiar-ninos",
 ];
 
 const ROOM_TAGS_POOL: readonly ListingTag[] = [
@@ -226,7 +228,7 @@ export function seedStep2(_draft: Draft): Partial<Draft> {
     occupiedByMenCount: randInt(0, 2),
     propertyTags: [
       ...randSubset(PROPERTY_AMENITY_POOL, 4, 8),
-      ...randSubset(PROPERTY_AMBIENTE_POOL, 0, 2),
+      ...randSubset(PROPERTY_PERMITIDO_POOL, 0, 3),
       ...randSubset(PROPERTY_IDEAL_PARA_POOL, 0, 3),
     ] as ListingTag[],
   };

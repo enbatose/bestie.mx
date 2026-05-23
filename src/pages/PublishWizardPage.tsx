@@ -97,8 +97,6 @@ const WIZARD_PROPERTY_IDEAL_PARA_SLUGS: readonly ListingTag[] = [
   "lgbt-friendly",
   "profesionistas",
   "estudiantes",
-  "residentes-medicos",
-  "nomadas-digitales",
   "individuos-solo",
   "parejas",
   "familiar-ninos",
