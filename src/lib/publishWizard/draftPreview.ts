@@ -105,5 +105,6 @@ export function draftToListingPreview(draft: Draft, roomIndex: number): Property
     availableFrom: room.availableFrom,
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
+    isApproximateLocation: p.isApproximateLocation,
   };
 }

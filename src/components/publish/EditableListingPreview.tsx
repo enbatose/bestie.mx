@@ -3,17 +3,21 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bath,
   Bed,
+  Building2,
   Calendar,
   Clock,
   DollarSign,
+  MapPin,
   Maximize2,
   Pencil,
+  User,
   UserRound,
   Users,
   UserCircle2,
   Wallet,
 } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import {
@@ -34,11 +38,14 @@ import {
   formatRoomAvailableFrom,
   LODGING_TYPE_LABELS,
   minimalStayMonthsLabel,
+  PROPERTY_KIND_LABELS,
+  propertyBedroomsPreviewLabel,
   roommateGenderPrefLabel,
   roomAgeRangeLabel,
   roomBathroomPreviewLabel,
   roomDimensionPreviewLabel,
   roomPlazasLabel,
+  shouldShowRoomPriceInDetails,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
@@ -277,18 +284,21 @@ function RoomDetailStat({ icon: Icon, label, value }: RoomDetailStatProps) {
 function RoomDetailsReadGrid({
   room,
   postMode,
+  showPricing,
 }: {
   room: RoomDraft;
   postMode: Draft["postMode"];
+  showPricing: boolean;
 }) {
   const lodgingKey =
     postMode === "room" && room.lodgingType === "whole_home" ? "private_room" : room.lodgingType;
 
-  const stats: RoomDetailStatProps[] = [
-    { icon: DollarSign, label: "Renta", value: money.format(room.rentMxn) },
-  ];
-  if (room.depositMxn > 0) {
-    stats.push({ icon: Wallet, label: "Depósito", value: money.format(room.depositMxn) });
+  const stats: RoomDetailStatProps[] = [];
+  if (showPricing) {
+    stats.push({ icon: DollarSign, label: "Renta", value: money.format(room.rentMxn) });
+    if (room.depositMxn > 0) {
+      stats.push({ icon: Wallet, label: "Depósito", value: money.format(room.depositMxn) });
+    }
   }
   stats.push(
     { icon: Bed, label: "Tipo de espacio", value: LODGING_TYPE_LABELS[lodgingKey] },
@@ -322,6 +332,63 @@ function RoomDetailsReadGrid({
       {stats.map((stat) => (
         <RoomDetailStat key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} />
       ))}
+    </div>
+  );
+}
+
+function PropertyRoommatesStat({
+  womenCount,
+  menCount,
+}: {
+  womenCount: number;
+  menCount: number;
+}) {
+  return (
+    <div className="col-span-2 flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5 md:col-span-3">
+      <Users className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
+      <div>
+        <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">
+          Besties actuales
+        </p>
+        <p className="mt-2 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
+            <UserRound className="size-3.5 text-primary/70" aria-hidden />
+            {womenCount} {womenCount === 1 ? "mujer" : "mujeres"}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
+            <User className="size-3.5 text-primary/70" aria-hidden />
+            {menCount} {menCount === 1 ? "hombre" : "hombres"}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PropertySummaryReadGrid({
+  draft,
+  neighborhoodLabel,
+}: {
+  draft: Draft;
+  neighborhoodLabel: string;
+}) {
+  const womenCount = draft.occupiedByWomenCount ?? 0;
+  const menCount = draft.occupiedByMenCount ?? 0;
+
+  return (
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <RoomDetailStat icon={MapPin} label="Colonia" value={neighborhoodLabel} />
+      <RoomDetailStat
+        icon={Building2}
+        label="Tipo de vivienda"
+        value={PROPERTY_KIND_LABELS[draft.propertyKind]}
+      />
+      <RoomDetailStat
+        icon={Bed}
+        label="Recámaras en la propiedad"
+        value={propertyBedroomsPreviewLabel(draft.propertyBedroomsTotal, draft.propertyKind)}
+      />
+      <PropertyRoommatesStat womenCount={womenCount} menCount={menCount} />
     </div>
   );
 }
@@ -486,6 +553,8 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     draft.postMode === "property" ? listing.title : draft.propertyTitle.trim() || listing.title;
 
   const detailsRoom = roomDetailsDraft ?? room;
+  const showRoomPricing = shouldShowRoomPriceInDetails(draft.postMode, draft.rooms.length);
+  const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
 
   return (
     <div className="space-y-6">
@@ -741,6 +810,10 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
         )}
       </PreviewSection>
 
+      <PreviewSection title="Resumen de la propiedad">
+        <PropertySummaryReadGrid draft={draft} neighborhoodLabel={neighborhoodLabel} />
+      </PreviewSection>
+
       <PreviewSection
         title="Sobre la propiedad"
         onEdit={() => {
@@ -767,11 +840,14 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
           </InlineFieldEditor>
         ) : (
           <>
-            <p className="text-sm leading-relaxed text-muted sm:text-base">
-              {draft.propertySummary.trim() || (
-                <span className="italic">Sin descripción de la propiedad.</span>
-              )}
-            </p>
+            <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+              <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
+                {draft.propertySummary.trim() || (
+                  <span className="italic">Sin descripción de la propiedad.</span>
+                )}
+              </div>
+              <PreviewPropertyLocationMap listing={listing} />
+            </div>
             <ScopeTagsBlock
               heading="Etiquetas de la propiedad"
               tags={propertyTagsActive}
@@ -937,7 +1013,11 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             </div>
           </InlineFieldEditor>
         ) : (
-          <RoomDetailsReadGrid room={detailsRoom} postMode={draft.postMode} />
+          <RoomDetailsReadGrid
+            room={detailsRoom}
+            postMode={draft.postMode}
+            showPricing={showRoomPricing}
+          />
         )}
       </PreviewSection>
 

@@ -147,6 +147,8 @@ export type PropertyListing = {
   roomDimension?: RoomDimension;
   avalRequired?: boolean;
   subletAllowed?: boolean;
+  /** When true, public map pin is offset within a privacy radius. */
+  isApproximateLocation?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };

@@ -1,4 +1,4 @@
-import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
+import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
 /** Utilities bundle check (p. ej. filtros que equivalen a `servicios-incluidos` en datos legacy). */
 export const BASIC_UTILITIES_TAGS = ["agua", "luz", "gas", "wifi"] as const satisfies readonly ListingTag[];
@@ -210,6 +210,26 @@ export function roomPlazasLabel(count: number): string {
 
 export function roomAgeRangeLabel(min: number, max: number): string {
   return `${min}–${max} años`;
+}
+
+export const PROPERTY_KIND_LABELS: Record<PropertyKind, string> = {
+  house: "Casa",
+  apartment: "Departamento",
+  loft: "Loft",
+};
+
+/** Renta/depósito en el grid de recámara solo cuando hay varios cuartos en modo propiedad. */
+export function shouldShowRoomPriceInDetails(postMode: "room" | "property", roomCount: number): boolean {
+  if (postMode === "room") return false;
+  return roomCount > 1;
+}
+
+export function propertyBedroomsPreviewLabel(
+  bedroomsTotal: number,
+  propertyKind: PropertyKind,
+): string {
+  if (propertyKind === "loft") return "1 recámara (loft)";
+  return bedroomsTotal === 1 ? "1 recámara" : `${bedroomsTotal} recámaras`;
 }
 
 export function isPropertyScopeTag(tag: string): tag is ListingTag {
