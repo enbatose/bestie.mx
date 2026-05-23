@@ -41,8 +41,11 @@ import {
   minimalStayMonthsLabel,
   PROPERTY_KIND_LABELS,
   propertyBedroomsPreviewLabel,
-  propertySpacesPreviewLabel,
-  currentOccupantsPreviewLabel,
+  previewRoomOccupantsBadgeLabel,
+  previewRoommateSoughtBadgeLabel,
+  previewAvailableFromBadgeLabel,
+  previewPropertySpacesBadgeLabel,
+  PREVIEW_PETS_FRIENDLY_BADGE,
   previewRoomHeaderTitle,
   previewPropertyHeaderTitle,
   roommateGenderPrefLabel,
@@ -373,51 +376,50 @@ function PropertyRoommatesStat({
   );
 }
 
-function PreviewHeaderBadges({
-  draft,
-  room,
-  listing,
-}: {
-  draft: Draft;
-  room: RoomDraft;
-  listing: ReturnType<typeof draftToListingPreview>;
-}) {
-  const badges: string[] = [];
+function PreviewHeaderBadges({ draft, room }: { draft: Draft; room: RoomDraft }) {
+  const badges: { id: string; label: string }[] = [];
 
   if (draft.postMode === "room") {
-    badges.push(money.format(listing.rentMxn));
-    if (room.availableFrom.trim()) {
-      badges.push(formatRoomAvailableFrom(room.availableFrom));
-    }
-    badges.push(
-      currentOccupantsPreviewLabel(draft.occupiedByMenCount, draft.occupiedByWomenCount),
+    const occupants = previewRoomOccupantsBadgeLabel(
+      draft.occupiedByMenCount,
+      draft.occupiedByWomenCount,
     );
-    badges.push(roommateGenderPrefLabel(room.roommateGenderPref));
+    if (occupants) badges.push({ id: "occupants", label: occupants });
+    badges.push({ id: "sought", label: previewRoommateSoughtBadgeLabel(room.roommateGenderPref) });
+    const available = previewAvailableFromBadgeLabel(room.availableFrom);
+    if (available) badges.push({ id: "available", label: available });
   } else {
-    badges.push(money.format(listing.rentMxn));
-    badges.push(
-      propertySpacesPreviewLabel(
+    badges.push({
+      id: "spaces",
+      label: previewPropertySpacesBadgeLabel(
         draft.propertyBedroomsTotal,
         effectiveWizardPropertyBathrooms(draft),
         draft.propertyKind,
       ),
-    );
-    if (draft.propertyTags.includes("estacionamiento")) {
-      badges.push(tagLabel("estacionamiento"));
-    }
+    });
     if (draft.propertyTags.includes("mascotas")) {
-      badges.push(tagLabel("mascotas"));
+      badges.push({ id: "pets", label: PREVIEW_PETS_FRIENDLY_BADGE });
     }
   }
 
+  if (!badges.length) return null;
+
   return (
     <div className="mt-3 flex flex-wrap gap-2">
-      {badges.map((label) => (
-        <span key={label} className={PREVIEW_HEADER_BADGE}>
+      {badges.map(({ id, label }) => (
+        <span key={id} className={PREVIEW_HEADER_BADGE}>
           {label}
         </span>
       ))}
     </div>
+  );
+}
+
+function PreviewHeaderPrice({ rentMxn }: { rentMxn: number }) {
+  return (
+    <p className="mt-2 text-2xl font-bold text-slate-900">
+      {rentMxn.toLocaleString("es-MX")} MXN / mes
+    </p>
   );
 }
 
@@ -710,7 +712,8 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             {draft.postMode === "property" && listing.title.trim() ? (
               <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
             ) : null}
-            <PreviewHeaderBadges draft={draft} room={room} listing={listing} />
+            <PreviewHeaderPrice rentMxn={listing.rentMxn} />
+            <PreviewHeaderBadges draft={draft} room={room} />
             {(listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}

@@ -6,6 +6,8 @@ import type { PropertyListing } from "@/types/listing";
 
 /** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
 const PREVIEW_LOCATION_MAP_ZOOM = 13;
+/** Radio visual al editar ubicación en vista previa (~5 km). */
+const PREVIEW_EDIT_RADIUS_M = 5000;
 
 type Props = {
   listing: PropertyListing;
@@ -13,6 +15,39 @@ type Props = {
   isApproximateLocation: boolean;
   onSaveCoordinates: (lat: number, lng: number) => void;
 };
+
+function LocationEditActions({
+  onSave,
+  onCancel,
+  compact,
+}: {
+  onSave: () => void;
+  onCancel: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onSave}
+        className={`rounded-lg bg-primary font-semibold text-primary-fg shadow-sm ${
+          compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-1.5 text-sm"
+        }`}
+      >
+        Guardar
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className={`rounded-lg border border-border bg-surface/95 font-semibold text-body shadow-sm backdrop-blur-sm ${
+          compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-1.5 text-sm"
+        }`}
+      >
+        Cancelar
+      </button>
+    </>
+  );
+}
 
 export function PreviewPropertyLocationMap({
   listing,
@@ -51,11 +86,25 @@ export function PreviewPropertyLocationMap({
   const saveLocationEdit = () => {
     onSaveCoordinates(draftPosition[0], draftPosition[1]);
     setEditingLocation(false);
+    setExpanded(false);
   };
 
   const cancelLocationEdit = () => {
     setDraftPosition([listing.lat, listing.lng]);
     setEditingLocation(false);
+    setExpanded(false);
+  };
+
+  const editMapProps = {
+    center: mapCenter,
+    position: draftPosition,
+    hasDefinedLocation: true as const,
+    locationLabel: null,
+    onPositionChange: (lat: number, lng: number) => setDraftPosition([lat, lng]),
+    showApproximateRadius: true,
+    approximateRadiusMeters: PREVIEW_EDIT_RADIUS_M,
+    forceDraggablePin: true,
+    embed: true,
   };
 
   const readOnlyMap = (heightClass: string) => (
@@ -71,54 +120,34 @@ export function PreviewPropertyLocationMap({
     />
   );
 
-  const mapPanel = (heightClass: string, compact: boolean) => (
-    <div className={`relative flex flex-col ${compact ? "min-h-[220px] md:min-h-[280px]" : ""}`}>
-      {editingLocation ? (
-        <div className={heightClass}>
-          <WizardLocationMap
-            center={mapCenter}
-            position={draftPosition}
-            hasDefinedLocation
-            locationLabel={null}
-            onPositionChange={(lat, lng) => setDraftPosition([lat, lng])}
-            showApproximateRadius={isApproximateLocation}
-          />
-        </div>
-      ) : (
-        readOnlyMap(heightClass)
-      )}
+  const editMap = (mapHeight: number | string) => (
+    <WizardLocationMap {...editMapProps} mapHeight={mapHeight} />
+  );
 
-      <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
+  return (
+    <>
+      <div className="relative flex min-h-[220px] flex-col md:min-h-[280px]">
         {editingLocation ? (
-          <>
-            <button
-              type="button"
-              onClick={saveLocationEdit}
-              className="rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-fg shadow-sm"
-            >
-              Guardar
-            </button>
-            <button
-              type="button"
-              onClick={cancelLocationEdit}
-              className="rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm"
-            >
-              Cancelar
-            </button>
-          </>
+          <div className="h-[220px] md:h-full md:min-h-[280px]">{editMap(220)}</div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditingLocation(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
-          >
-            <Pencil className="size-3.5" aria-hidden />
-            Editar ubicación
-          </button>
+          readOnlyMap("h-[220px] md:h-full md:min-h-[280px]")
         )}
-      </div>
 
-      {!editingLocation ? (
+        <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
+          {editingLocation ? (
+            <LocationEditActions compact onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingLocation(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+            >
+              <Pencil className="size-3.5" aria-hidden />
+              Editar ubicación
+            </button>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -127,15 +156,9 @@ export function PreviewPropertyLocationMap({
           <Maximize2 className="size-3.5" aria-hidden />
           Ampliar mapa
         </button>
-      ) : null}
-    </div>
-  );
+      </div>
 
-  return (
-    <>
-      {mapPanel("h-[220px] md:h-full md:min-h-[280px]", true)}
-
-      {expanded && !editingLocation ? (
+      {expanded ? (
         <div
           role="dialog"
           aria-modal="true"
@@ -147,21 +170,40 @@ export function PreviewPropertyLocationMap({
             className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <p className="text-sm font-semibold text-body">Ubicación de la propiedad</p>
-              <button
-                type="button"
-                onClick={() => setExpanded(false)}
-                className="rounded-full border border-border p-1.5 text-body transition hover:bg-surface-elevated"
-                aria-label="Cerrar mapa"
-              >
-                <X className="size-4" aria-hidden />
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <p className="text-sm font-semibold text-body">
+                {editingLocation ? "Editar ubicación de la propiedad" : "Ubicación de la propiedad"}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {editingLocation ? (
+                  <LocationEditActions onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setExpanded(false)}
+                  className="rounded-full border border-border p-1.5 text-body transition hover:bg-surface-elevated"
+                  aria-label="Cerrar mapa"
+                >
+                  <X className="size-4" aria-hidden />
+                </button>
+              </div>
             </div>
-            <div className="p-3">{readOnlyMap("h-[min(70vh,560px)] w-full")}</div>
+            <div className="p-3">
+              {editingLocation ? (
+                editMap("min(70vh, 560px)")
+              ) : (
+                readOnlyMap("h-[min(70vh,560px)] w-full")
+              )}
+            </div>
             {isApproximateLocation ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
-                Ubicación aproximada por privacidad; el pin puede variar dentro del área.
+                {editingLocation
+                  ? "Arrastra el pin dentro del área (~5 km). La ubicación pública puede variar por privacidad."
+                  : "Ubicación aproximada por privacidad; el pin puede variar dentro del área."}
+              </p>
+            ) : editingLocation ? (
+              <p className="border-t border-border px-4 py-2 text-xs text-muted">
+                Arrastra el pin para ajustar la ubicación. Los cambios se reflejan en ambos mapas.
               </p>
             ) : null}
           </div>

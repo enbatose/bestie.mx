@@ -273,6 +273,44 @@ export function previewPropertyHeaderTitle(propertyKind: PropertyKind, neighborh
   return `${PROPERTY_KIND_LABELS[propertyKind]} en ${neighborhood}`;
 }
 
+/** Badge de habitantes actuales; null si ambos contadores son 0. */
+export function previewRoomOccupantsBadgeLabel(
+  menCount: number | null | undefined,
+  womenCount: number | null | undefined,
+): string | null {
+  const men = menCount ?? 0;
+  const women = womenCount ?? 0;
+  if (men <= 0 && women <= 0) return null;
+  const parts: string[] = [];
+  if (men > 0) parts.push(`${men} ${men === 1 ? "Hombre" : "Hombres"}`);
+  if (women > 0) parts.push(`${women} ${women === 1 ? "Mujer" : "Mujeres"}`);
+  return `👥 Viven aquí: ${parts.join(", ")}`;
+}
+
+export function previewRoommateSoughtBadgeLabel(pref: RoommateGenderPref): string {
+  return `🤝 Buscan: ${roommateGenderPrefLabel(pref)}`;
+}
+
+/** Badge de disponibilidad; null si no hay fecha. */
+export function previewAvailableFromBadgeLabel(iso: string): string | null {
+  const trimmed = iso.trim();
+  if (!trimmed) return null;
+  return `📅 Disponible: ${formatRoomAvailableFrom(trimmed)}`;
+}
+
+export function previewPropertySpacesBadgeLabel(
+  bedroomsTotal: number,
+  bathrooms: number,
+  propertyKind: PropertyKind,
+): string {
+  const beds = propertyKind === "loft" ? 1 : bedroomsTotal;
+  const bedsLabel = beds === 1 ? "1 Recámara" : `${beds} Recámaras`;
+  const bathsLabel = bathrooms === 1 ? "1 Baño" : `${bathrooms} Baños`;
+  return `🛏️ ${bedsLabel} • 🚿 ${bathsLabel}`;
+}
+
+export const PREVIEW_PETS_FRIENDLY_BADGE = "🐾 Aceptan mascotas";
+
 export function isPropertyScopeTag(tag: string): tag is ListingTag {
   return PROPERTY_SCOPE_TAG_SET.has(tag);
 }
