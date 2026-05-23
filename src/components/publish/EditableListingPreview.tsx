@@ -23,11 +23,12 @@ import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import {
   PROPERTY_SUMMARY_MAX,
   PROPERTY_SUMMARY_MIN,
-  PROPERTY_TITLE_MAX,
   ROOM_SUMMARY_MAX,
   ROOM_SUMMARY_MIN,
+  CITY_ANCHOR,
+  effectiveWizardPropertyBathrooms,
 } from "@/lib/publishWizard/publishCore";
-import { draftToListingPreview, draftToPropertyWithRooms } from "@/lib/publishWizard/draftPreview";
+import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
   PROPERTY_TAG_GROUPS,
@@ -40,6 +41,10 @@ import {
   minimalStayMonthsLabel,
   PROPERTY_KIND_LABELS,
   propertyBedroomsPreviewLabel,
+  propertySpacesPreviewLabel,
+  currentOccupantsPreviewLabel,
+  previewRoomHeaderTitle,
+  previewPropertyHeaderTitle,
   roommateGenderPrefLabel,
   roomAgeRangeLabel,
   roomBathroomPreviewLabel,
@@ -151,6 +156,9 @@ function tagLabel(tag: ListingTag): string {
 
 const TAG_CHIP_READ =
   "rounded-full bg-bg-light px-3 py-1 text-xs font-medium text-body ring-1 ring-border";
+
+const PREVIEW_HEADER_BADGE =
+  "rounded-full bg-bg-light px-3 py-1.5 text-xs font-semibold text-body ring-1 ring-border";
 
 const TAG_CHIP_ACTIVE =
   "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
@@ -365,6 +373,54 @@ function PropertyRoommatesStat({
   );
 }
 
+function PreviewHeaderBadges({
+  draft,
+  room,
+  listing,
+}: {
+  draft: Draft;
+  room: RoomDraft;
+  listing: ReturnType<typeof draftToListingPreview>;
+}) {
+  const badges: string[] = [];
+
+  if (draft.postMode === "room") {
+    badges.push(money.format(listing.rentMxn));
+    if (room.availableFrom.trim()) {
+      badges.push(formatRoomAvailableFrom(room.availableFrom));
+    }
+    badges.push(
+      currentOccupantsPreviewLabel(draft.occupiedByMenCount, draft.occupiedByWomenCount),
+    );
+    badges.push(roommateGenderPrefLabel(room.roommateGenderPref));
+  } else {
+    badges.push(money.format(listing.rentMxn));
+    badges.push(
+      propertySpacesPreviewLabel(
+        draft.propertyBedroomsTotal,
+        effectiveWizardPropertyBathrooms(draft),
+        draft.propertyKind,
+      ),
+    );
+    if (draft.propertyTags.includes("estacionamiento")) {
+      badges.push(tagLabel("estacionamiento"));
+    }
+    if (draft.propertyTags.includes("mascotas")) {
+      badges.push(tagLabel("mascotas"));
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {badges.map((label) => (
+        <span key={label} className={PREVIEW_HEADER_BADGE}>
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PropertySummaryReadGrid({
   draft,
   neighborhoodLabel,
@@ -395,7 +451,6 @@ function PropertySummaryReadGrid({
 
 export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraftChange }: Props) {
   const listing = useMemo(() => draftToListingPreview(draft, roomIndex), [draft, roomIndex]);
-  const propertyPack = useMemo(() => draftToPropertyWithRooms(draft), [draft]);
   const room = draft.rooms[roomIndex];
 
   const [editingHeader, setEditingHeader] = useState(false);
@@ -407,7 +462,6 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
 
   const [headerDraft, setHeaderDraft] = useState({
-    propertyTitle: draft.propertyTitle,
     neighborhood: draft.neighborhood,
     roomTitle: room?.title ?? "",
     rentMxn: room?.rentMxn ?? 0,
@@ -424,6 +478,20 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     [listing.propertyImageUrls, listing.roomImageUrls],
   );
 
+  const mapCenter = useMemo(
+    (): [number, number] => [CITY_ANCHOR[draft.city].lat, CITY_ANCHOR[draft.city].lng],
+    [draft.city],
+  );
+
+  const saveMapCoordinates = (lat: number, lng: number) => {
+    onDraftChange((d) => ({
+      ...d,
+      useCustomMapPin: true,
+      customLat: lat.toFixed(7),
+      customLng: lng.toFixed(7),
+    }));
+  };
+
   if (!room) {
     return <p className="text-sm text-muted">No hay recámara seleccionada.</p>;
   }
@@ -433,7 +501,6 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
 
   const openHeaderEdit = () => {
     setHeaderDraft({
-      propertyTitle: draft.propertyTitle,
       neighborhood: draft.neighborhood,
       roomTitle: room.title,
       rentMxn: room.rentMxn,
@@ -445,7 +512,6 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   const saveHeader = () => {
     onDraftChange((d) => ({
       ...d,
-      propertyTitle: headerDraft.propertyTitle,
       neighborhood: headerDraft.neighborhood,
       rooms: d.rooms.map((r, i) =>
         i === roomIndex
@@ -549,12 +615,14 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     setRoomDetailsDraft(null);
   };
 
-  const displayTitle =
-    draft.postMode === "property" ? listing.title : draft.propertyTitle.trim() || listing.title;
-
   const detailsRoom = roomDetailsDraft ?? room;
   const showRoomPricing = shouldShowRoomPriceInDetails(draft.postMode, draft.rooms.length);
   const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
+
+  const previewHeaderTitle =
+    draft.postMode === "room"
+      ? previewRoomHeaderTitle(room.lodgingType, neighborhoodLabel, draft.postMode)
+      : previewPropertyHeaderTitle(draft.propertyKind, neighborhoodLabel);
 
   return (
     <div className="space-y-6">
@@ -577,21 +645,12 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
 
         {editingHeader ? (
           <InlineFieldEditor
-            label="Título, ubicación y precio"
+            label="Ubicación y precio"
             onSave={saveHeader}
             onCancel={() => setEditingHeader(false)}
           >
-            <label className="block text-sm font-medium text-body">
-              Título del anuncio
-              <input
-                value={headerDraft.propertyTitle}
-                onChange={(e) => setHeaderDraft((h) => ({ ...h, propertyTitle: e.target.value }))}
-                maxLength={PROPERTY_TITLE_MAX}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-              />
-            </label>
             {draft.postMode === "property" ? (
-              <label className="mt-2 block text-sm font-medium text-body">
+              <label className="block text-sm font-medium text-body">
                 Título de esta recámara
                 <input
                   value={headerDraft.roomTitle}
@@ -600,7 +659,7 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
                 />
               </label>
             ) : null}
-            <label className="mt-2 block text-sm font-medium text-body">
+            <label className={`block text-sm font-medium text-body ${draft.postMode === "property" ? "mt-2" : ""}`}>
               Colonia o zona
               <input
                 value={headerDraft.neighborhood}
@@ -645,18 +704,16 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             <p className="mt-3 text-sm text-muted">
               {listing.neighborhood} · {listing.city}
             </p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-primary sm:text-3xl">{displayTitle}</h1>
-            {draft.postMode === "property" && listing.title !== displayTitle ? (
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+              {previewHeaderTitle}
+            </h1>
+            {draft.postMode === "property" && listing.title.trim() ? (
               <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
             ) : null}
-            <p className="mt-3 text-2xl font-semibold text-body">{money.format(listing.rentMxn)}</p>
+            <PreviewHeaderBadges draft={draft} room={room} listing={listing} />
             {(listing.depositMxn ?? 0) > 0 ? (
-              <p className="mt-1 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
+              <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
-            <p className="mt-2 text-sm text-muted">
-              {propertyPack.property.bedroomsTotal} recámara(s) · {propertyPack.property.bathrooms} baño(s) ·{" "}
-              {listing.roomsAvailable} plaza(s) disponible(s)
-            </p>
           </>
         )}
       </header>
@@ -821,46 +878,53 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
           setEditingProperty(true);
         }}
       >
-        {editingProperty ? (
-          <InlineFieldEditor
-            label="Descripción de la propiedad y áreas comunes"
-            onSave={savePropertySummary}
-            onCancel={() => setEditingProperty(false)}
-          >
-            <textarea
-              value={propertySummaryDraft}
-              onChange={(e) => setPropertySummaryDraft(e.target.value)}
-              rows={5}
-              maxLength={PROPERTY_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-            />
-            <span className="text-xs text-muted">
-              {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
-            </span>
-          </InlineFieldEditor>
-        ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+        <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+          <div>
+            {editingProperty ? (
+              <InlineFieldEditor
+                label="Descripción de la propiedad y áreas comunes"
+                onSave={savePropertySummary}
+                onCancel={() => setEditingProperty(false)}
+              >
+                <textarea
+                  value={propertySummaryDraft}
+                  onChange={(e) => setPropertySummaryDraft(e.target.value)}
+                  rows={5}
+                  maxLength={PROPERTY_SUMMARY_MAX}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                />
+                <span className="text-xs text-muted">
+                  {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
+                </span>
+              </InlineFieldEditor>
+            ) : (
               <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
                 {draft.propertySummary.trim() || (
                   <span className="italic">Sin descripción de la propiedad.</span>
                 )}
               </div>
-              <PreviewPropertyLocationMap listing={listing} />
-            </div>
-            <ScopeTagsBlock
-              heading="Etiquetas de la propiedad"
-              tags={propertyTagsActive}
-              editing={editingPropertyTags}
-              onStartEdit={openPropertyTagsEdit}
-              onSave={savePropertyTags}
-              onCancel={() => setEditingPropertyTags(false)}
-              editGroups={PROPERTY_TAG_GROUPS}
-              draftTags={propertyTagsDraft}
-              onToggle={togglePropertyTagDraft}
-            />
-          </>
-        )}
+            )}
+          </div>
+          <PreviewPropertyLocationMap
+            listing={listing}
+            mapCenter={mapCenter}
+            isApproximateLocation={draft.isApproximateLocation}
+            onSaveCoordinates={saveMapCoordinates}
+          />
+        </div>
+        {!editingProperty ? (
+          <ScopeTagsBlock
+            heading="Etiquetas de la propiedad"
+            tags={propertyTagsActive}
+            editing={editingPropertyTags}
+            onStartEdit={openPropertyTagsEdit}
+            onSave={savePropertyTags}
+            onCancel={() => setEditingPropertyTags(false)}
+            editGroups={PROPERTY_TAG_GROUPS}
+            draftTags={propertyTagsDraft}
+            onToggle={togglePropertyTagDraft}
+          />
+        ) : null}
       </PreviewSection>
 
       <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">

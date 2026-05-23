@@ -232,6 +232,47 @@ export function propertyBedroomsPreviewLabel(
   return bedroomsTotal === 1 ? "1 recámara" : `${bedroomsTotal} recámaras`;
 }
 
+export function propertySpacesPreviewLabel(
+  bedroomsTotal: number,
+  bathrooms: number,
+  propertyKind: PropertyKind,
+): string {
+  const beds =
+    propertyKind === "loft"
+      ? "1 Recámara"
+      : bedroomsTotal === 1
+        ? "1 Recámara"
+        : `${bedroomsTotal} Recámaras`;
+  const baths = bathrooms === 1 ? "1 Baño" : `${bathrooms} Baños`;
+  return `${beds} • ${baths}`;
+}
+
+export function currentOccupantsPreviewLabel(
+  menCount: number | null | undefined,
+  womenCount: number | null | undefined,
+): string {
+  const men = menCount ?? 0;
+  const women = womenCount ?? 0;
+  const parts: string[] = [];
+  if (men > 0) parts.push(`${men} ${men === 1 ? "Hombre" : "Hombres"}`);
+  if (women > 0) parts.push(`${women} ${women === 1 ? "Mujer" : "Mujeres"}`);
+  if (!parts.length) return "Viven aquí: sin habitantes registrados";
+  return `Viven aquí: ${parts.join(", ")}`;
+}
+
+export function previewRoomHeaderTitle(
+  lodgingType: LodgingType,
+  neighborhood: string,
+  postMode: "room" | "property",
+): string {
+  const key = postMode === "room" && lodgingType === "whole_home" ? "private_room" : lodgingType;
+  return `${LODGING_TYPE_LABELS[key]} en ${neighborhood}`;
+}
+
+export function previewPropertyHeaderTitle(propertyKind: PropertyKind, neighborhood: string): string {
+  return `${PROPERTY_KIND_LABELS[propertyKind]} en ${neighborhood}`;
+}
+
 export function isPropertyScopeTag(tag: string): tag is ListingTag {
   return PROPERTY_SCOPE_TAG_SET.has(tag);
 }
