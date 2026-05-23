@@ -20,12 +20,17 @@ import {
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { type PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 import {
-  ROOM_SINGLE_FLOW_PHOTO_HINT,
-  WIZARD_ROOM_TAG_GROUPS,
-  WIZARD_STEP4_TAG_LABELS,
-} from "@/lib/publishWizard/wizardTags";
+  LISTING_TAG_LABEL_OVERRIDES,
+  LISTING_TAG_SLUG_SET,
+  PROPERTY_AMENITY_TAG_SLUGS,
+  PROPERTY_IDEAL_PARA_TAG_SLUGS,
+  PROPERTY_PERMITIDO_TAG_SLUGS,
+  PROPERTY_SCOPE_TAG_SET,
+  PROPERTY_SCOPE_TAG_SLUGS,
+  ROOM_TAG_GROUPS,
+} from "@/lib/listingTags";
+import { ROOM_SINGLE_FLOW_PHOTO_HINT } from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type {
   ListingStatus,
@@ -69,44 +74,13 @@ const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 const ROOM_SUMMARY_PLACEHOLDER =
   "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies.";
 
-const WIZARD_PROPERTY_AMENITY_SLUGS: readonly ListingTag[] = [
-  "wifi",
-  "agua",
-  "luz",
-  "gas",
-  "muebles",
-  "cocina-equipada",
-  "lavadora",
-  "secadora",
-  "cerca-transporte",
-  "seguridad-acceso",
-  "vigilancia",
-];
-
-/** Reglas de convivencia permitidas (paso 3, bloque “Se permite:”). */
-const WIZARD_PROPERTY_PERMITIDO_SLUGS: readonly ListingTag[] = [
-  "mascotas",
-  "fiestas",
-  "fumar",
-  "fumar-habitacion",
-];
-
-/** Afinidades de perfil buscado (paso 3, bloque “Ideal para:”). */
-const WIZARD_PROPERTY_IDEAL_PARA_SLUGS: readonly ListingTag[] = [
-  "lgbt-friendly",
-  "profesionistas",
-  "estudiantes",
-  "individuos-solo",
-  "parejas",
-  "familiar-ninos",
-];
-
-const WIZARD_STEP3_TAG_SLUGS: readonly ListingTag[] = [
-  ...WIZARD_PROPERTY_AMENITY_SLUGS,
-  ...WIZARD_PROPERTY_PERMITIDO_SLUGS,
-  ...WIZARD_PROPERTY_IDEAL_PARA_SLUGS,
-];
-const WIZARD_STEP3_TAG_SET = new Set<string>(WIZARD_STEP3_TAG_SLUGS);
+const WIZARD_PROPERTY_AMENITY_SLUGS = PROPERTY_AMENITY_TAG_SLUGS;
+const WIZARD_PROPERTY_PERMITIDO_SLUGS = PROPERTY_PERMITIDO_TAG_SLUGS;
+const WIZARD_PROPERTY_IDEAL_PARA_SLUGS = PROPERTY_IDEAL_PARA_TAG_SLUGS;
+const WIZARD_STEP3_TAG_SLUGS = PROPERTY_SCOPE_TAG_SLUGS;
+const WIZARD_STEP3_TAG_SET = PROPERTY_SCOPE_TAG_SET;
+const WIZARD_STEP4_TAG_LABELS = LISTING_TAG_LABEL_OVERRIDES;
+const WIZARD_ROOM_TAG_GROUPS = ROOM_TAG_GROUPS;
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
 function isoDateInMexicoCity(date: Date = new Date()): string {

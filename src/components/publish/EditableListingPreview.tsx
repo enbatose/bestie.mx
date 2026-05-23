@@ -12,13 +12,19 @@ import {
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview, draftToPropertyWithRooms } from "@/lib/publishWizard/draftPreview";
 import {
+  LISTING_TAG_LABEL_OVERRIDES,
+  PROPERTY_TAG_GROUPS,
+  ROOM_TAG_GROUPS,
+  filterPropertyScopeTags,
+  filterRoomScopeTags,
+} from "@/lib/listingTags";
+import {
   ROOM_SINGLE_FLOW_PHOTO_HINT,
-  WIZARD_ROOM_TAG_GROUPS,
-  WIZARD_STEP4_TAG_LABELS,
 } from "@/lib/publishWizard/wizardTags";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
+import type { ListingTagGroup } from "@/lib/listingTags";
 
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
@@ -106,6 +112,120 @@ function InlineFieldEditor({
   );
 }
 
+function tagLabel(tag: ListingTag): string {
+  return LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag];
+}
+
+const TAG_CHIP_READ =
+  "rounded-full bg-bg-light px-3 py-1 text-xs font-medium text-body ring-1 ring-border";
+
+const TAG_CHIP_ACTIVE =
+  "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
+
+const TAG_CHIP_INACTIVE =
+  "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 border border-dashed border-border bg-surface-elevated/90 text-muted opacity-75 hover:border-border hover:opacity-100 hover:bg-surface";
+
+function TagReadList({ tags }: { tags: readonly ListingTag[] }) {
+  if (!tags.length) {
+    return <p className="text-sm italic text-muted">Sin etiquetas seleccionadas.</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tags.map((t) => (
+        <span key={t} className={TAG_CHIP_READ}>
+          {tagLabel(t)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TagGroupsEditor({
+  groups,
+  selected,
+  onToggle,
+}: {
+  groups: readonly ListingTagGroup[];
+  selected: readonly ListingTag[];
+  onToggle: (tag: ListingTag) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <div key={group.title}>
+          <p className="text-sm font-medium text-body">{group.title}</p>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {group.tags.map((tag) => {
+              const active = selected.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={active}
+                  onClick={() => onToggle(tag)}
+                  className={active ? TAG_CHIP_ACTIVE : TAG_CHIP_INACTIVE}
+                >
+                  {tagLabel(tag)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScopeTagsBlock({
+  heading,
+  tags,
+  editing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  editGroups,
+  draftTags,
+  onToggle,
+}: {
+  heading: string;
+  tags: readonly ListingTag[];
+  editing: boolean;
+  onStartEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  editGroups: readonly ListingTagGroup[];
+  draftTags: readonly ListingTag[];
+  onToggle: (tag: ListingTag) => void;
+}) {
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{heading}</p>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={onStartEdit}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-surface-elevated"
+          >
+            <Pencil className="size-3" aria-hidden />
+            Editar etiquetas
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-2">
+        {editing ? (
+          <InlineFieldEditor label="Selecciona las etiquetas" onSave={onSave} onCancel={onCancel}>
+            <TagGroupsEditor groups={editGroups} selected={draftTags} onToggle={onToggle} />
+          </InlineFieldEditor>
+        ) : (
+          <TagReadList tags={tags} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function cloneRoomDraft(room: RoomDraft): RoomDraft {
   return { ...room, tags: [...room.tags] };
 }
@@ -117,7 +237,9 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
 
   const [editingHeader, setEditingHeader] = useState(false);
   const [editingProperty, setEditingProperty] = useState(false);
+  const [editingPropertyTags, setEditingPropertyTags] = useState(false);
   const [editingRoom, setEditingRoom] = useState(false);
+  const [editingRoomTags, setEditingRoomTags] = useState(false);
   const [editingPhotos, setEditingPhotos] = useState(false);
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
 
@@ -129,7 +251,9 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     depositMxn: room?.depositMxn ?? 0,
   });
   const [propertySummaryDraft, setPropertySummaryDraft] = useState(draft.propertySummary);
+  const [propertyTagsDraft, setPropertyTagsDraft] = useState<ListingTag[]>([...draft.propertyTags]);
   const [roomSummaryDraft, setRoomSummaryDraft] = useState(room?.summary ?? "");
+  const [roomTagsDraft, setRoomTagsDraft] = useState<ListingTag[]>([]);
   const [roomDetailsDraft, setRoomDetailsDraft] = useState<RoomDraft | null>(null);
 
   const galleryUrls = useMemo(
@@ -140,6 +264,9 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   if (!room) {
     return <p className="text-sm text-muted">No hay recámara seleccionada.</p>;
   }
+
+  const propertyTagsActive = filterPropertyScopeTags(draft.propertyTags);
+  const roomTagsActive = filterRoomScopeTags(room.tags);
 
   const openHeaderEdit = () => {
     setHeaderDraft({
@@ -176,12 +303,54 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     setEditingProperty(false);
   };
 
+  const openPropertyTagsEdit = () => {
+    setPropertyTagsDraft(filterPropertyScopeTags(draft.propertyTags));
+    setEditingPropertyTags(true);
+  };
+
+  const savePropertyTags = () => {
+    onDraftChange((d) => ({
+      ...d,
+      propertyTags: filterPropertyScopeTags(propertyTagsDraft),
+    }));
+    setEditingPropertyTags(false);
+  };
+
+  const togglePropertyTagDraft = (tag: ListingTag) => {
+    setPropertyTagsDraft((prev) => {
+      const active = prev.includes(tag);
+      return active ? prev.filter((t) => t !== tag) : [...prev, tag];
+    });
+  };
+
   const saveRoomSummary = () => {
     onDraftChange((d) => ({
       ...d,
       rooms: d.rooms.map((r, i) => (i === roomIndex ? { ...r, summary: roomSummaryDraft } : r)),
     }));
     setEditingRoom(false);
+  };
+
+  const openRoomTagsEdit = () => {
+    setRoomTagsDraft(filterRoomScopeTags(room.tags));
+    setEditingRoomTags(true);
+  };
+
+  const saveRoomTags = () => {
+    onDraftChange((d) => ({
+      ...d,
+      rooms: d.rooms.map((r, i) =>
+        i === roomIndex ? { ...r, tags: filterRoomScopeTags(roomTagsDraft) } : r,
+      ),
+    }));
+    setEditingRoomTags(false);
+  };
+
+  const toggleRoomTagDraft = (tag: ListingTag) => {
+    setRoomTagsDraft((prev) => {
+      const active = prev.includes(tag);
+      return active ? prev.filter((t) => t !== tag) : [...prev, tag];
+    });
   };
 
   const openRoomDetailsEdit = () => {
@@ -193,20 +362,17 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     if (!roomDetailsDraft) return;
     onDraftChange((d) => ({
       ...d,
-      rooms: d.rooms.map((r, i) => (i === roomIndex ? { ...roomDetailsDraft, tags: [...roomDetailsDraft.tags] } : r)),
+      rooms: d.rooms.map((r, i) =>
+        i === roomIndex
+          ? {
+              ...roomDetailsDraft,
+              tags: filterRoomScopeTags(r.tags),
+            }
+          : r,
+      ),
     }));
     setEditingRoomDetails(false);
     setRoomDetailsDraft(null);
-  };
-
-  const toggleRoomDetailTag = (tag: ListingTag) => {
-    setRoomDetailsDraft((prev) => {
-      if (!prev) return prev;
-      const tags = prev.tags.filter((t) => t !== "servicios-incluidos");
-      const active = tags.includes(tag);
-      const nextTags = active ? tags.filter((t) => t !== tag) : [...tags, tag];
-      return { ...prev, tags: nextTags };
-    });
   };
 
   const displayTitle =
@@ -470,11 +636,24 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             </span>
           </InlineFieldEditor>
         ) : (
-          <p className="text-sm leading-relaxed text-muted sm:text-base">
-            {draft.propertySummary.trim() || (
-              <span className="italic">Sin descripción de la propiedad.</span>
-            )}
-          </p>
+          <>
+            <p className="text-sm leading-relaxed text-muted sm:text-base">
+              {draft.propertySummary.trim() || (
+                <span className="italic">Sin descripción de la propiedad.</span>
+              )}
+            </p>
+            <ScopeTagsBlock
+              heading="Etiquetas de la propiedad"
+              tags={propertyTagsActive}
+              editing={editingPropertyTags}
+              onStartEdit={openPropertyTagsEdit}
+              onSave={savePropertyTags}
+              onCancel={() => setEditingPropertyTags(false)}
+              editGroups={PROPERTY_TAG_GROUPS}
+              draftTags={propertyTagsDraft}
+              onToggle={togglePropertyTagDraft}
+            />
+          </>
         )}
       </PreviewSection>
 
@@ -503,16 +682,29 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             </span>
           </InlineFieldEditor>
         ) : (
-          <p className="text-sm leading-relaxed text-muted sm:text-base">
-            {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
-          </p>
+          <>
+            <p className="text-sm leading-relaxed text-muted sm:text-base">
+              {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
+            </p>
+            <ScopeTagsBlock
+              heading="Etiquetas de la recámara"
+              tags={roomTagsActive}
+              editing={editingRoomTags}
+              onStartEdit={openRoomTagsEdit}
+              onSave={saveRoomTags}
+              onCancel={() => setEditingRoomTags(false)}
+              editGroups={ROOM_TAG_GROUPS}
+              draftTags={roomTagsDraft}
+              onToggle={toggleRoomTagDraft}
+            />
+          </>
         )}
       </PreviewSection>
 
       <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">
         {editingRoomDetails && roomDetailsDraft ? (
           <InlineFieldEditor
-            label="Tipo, disponibilidad, perfil y etiquetas"
+            label="Tipo, disponibilidad y perfil buscado"
             onSave={saveRoomDetails}
             onCancel={() => {
               setEditingRoomDetails(false);
@@ -678,58 +870,27 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
                 />
               </div>
             </div>
-            {WIZARD_ROOM_TAG_GROUPS.map((group) => (
-              <div key={group.title} className="mt-4">
-                <p className="text-sm font-medium text-body">{group.title}</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {group.tags.map((tag) => {
-                    const active = detailsRoom.tags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        role="checkbox"
-                        aria-checked={active}
-                        onClick={() => toggleRoomDetailTag(tag)}
-                        className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
-                          active
-                            ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                            : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                        }`}
-                      >
-                        {WIZARD_STEP4_TAG_LABELS[tag] ?? TAG_LABELS[tag]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
           </InlineFieldEditor>
         ) : (
-          <>
-            <div className="flex flex-wrap gap-2">
-              {listing.tags.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full bg-bg-light px-3 py-1 text-xs font-medium text-body ring-1 ring-border"
-                >
-                  {TAG_LABELS[t]}
-                </span>
-              ))}
-              {!listing.tags.length ? <span className="text-sm text-muted">Sin etiquetas.</span> : null}
-            </div>
-            <p className="mt-3 text-xs text-muted">
-              {detailsRoom.lodgingType === "private_room"
-                ? "Recámara privada"
-                : detailsRoom.lodgingType === "shared_room"
-                  ? "Recámara compartida"
-                  : "Vivienda completa"}
-              {" · "}
-              Disponible desde {detailsRoom.availableFrom || "—"}
-              {" · "}
-              Estancia mín. {detailsRoom.minimalStayMonths} mes(es)
-            </p>
-          </>
+          <p className="text-xs text-muted">
+            {detailsRoom.lodgingType === "private_room"
+              ? "Recámara privada"
+              : detailsRoom.lodgingType === "shared_room"
+                ? "Recámara compartida"
+                : "Vivienda completa"}
+            {" · "}
+            Disponible desde {detailsRoom.availableFrom || "—"}
+            {" · "}
+            Estancia mín. {detailsRoom.minimalStayMonths} mes(es)
+            {" · "}
+            {detailsRoom.roommateGenderPref === "female"
+              ? "Prefieren mujeres"
+              : detailsRoom.roommateGenderPref === "male"
+                ? "Prefieren hombres"
+                : "Sin preferencia de género"}
+            {" · "}
+            Edades {detailsRoom.ageMin}–{detailsRoom.ageMax}
+          </p>
         )}
       </PreviewSection>
     </div>
