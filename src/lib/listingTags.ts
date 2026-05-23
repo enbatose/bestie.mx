@@ -109,19 +109,14 @@ const ROOM_PHYSICAL_TAG_SLUGS = [
   "cerradura-cuarto",
   "ventilador",
   "closet",
+  "fumar-permitido-recamara",
 ] as const satisfies readonly ListingTag[];
-
-export const ROOM_SMOKING_TAG_SLUGS = ["fumar-permitido-recamara"] as const satisfies readonly ListingTag[];
 
 /** Grupos de tags editables por recámara (wizard paso Recámaras + preview). */
 export const ROOM_TAG_GROUPS: readonly ListingTagGroup[] = [
   {
     title: "Propiedades de la recámara",
     tags: ROOM_PHYSICAL_TAG_SLUGS,
-  },
-  {
-    title: "Permitido fumar en la recámara",
-    tags: ROOM_SMOKING_TAG_SLUGS,
   },
   {
     title: "Ideal para",
@@ -131,7 +126,6 @@ export const ROOM_TAG_GROUPS: readonly ListingTagGroup[] = [
 
 export const ROOM_SCOPE_TAG_SLUGS: readonly ListingTag[] = [
   ...ROOM_PHYSICAL_TAG_SLUGS,
-  ...ROOM_SMOKING_TAG_SLUGS,
   ...ROOM_IDEAL_PARA_TAG_SLUGS,
 ];
 
@@ -169,6 +163,12 @@ export function filterPropertyScopeTags(tags: readonly ListingTag[]): ListingTag
 
 export function filterRoomScopeTags(tags: readonly ListingTag[]): ListingTag[] {
   return tags.filter((t) => isRoomScopeTag(t));
+}
+
+/** Orden de visualización alineado con `ROOM_TAG_GROUPS`. */
+export function sortRoomScopeTags(tags: readonly ListingTag[]): ListingTag[] {
+  const order = new Map(ROOM_SCOPE_TAG_SLUGS.map((t, i) => [t, i]));
+  return [...tags].sort((a, b) => (order.get(a) ?? 999) - (order.get(b) ?? 999));
 }
 
 /** Migra tags de propiedad reubicados al ámbito recámara (ideal para, fumar en habitación legacy). */

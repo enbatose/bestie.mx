@@ -17,6 +17,7 @@ import {
   ROOM_TAG_GROUPS,
   filterPropertyScopeTags,
   filterRoomScopeTags,
+  sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
   draftImagesAppend,
@@ -269,7 +270,7 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   }
 
   const propertyTagsActive = filterPropertyScopeTags(draft.propertyTags);
-  const roomTagsActive = filterRoomScopeTags(room.tags);
+  const roomTagsActive = sortRoomScopeTags(filterRoomScopeTags(room.tags));
 
   const openHeaderEdit = () => {
     setHeaderDraft({
