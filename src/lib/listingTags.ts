@@ -1,4 +1,4 @@
-import type { ListingTag } from "@/types/listing";
+import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
 /** Utilities bundle check (p. ej. filtros que equivalen a `servicios-incluidos` en datos legacy). */
 export const BASIC_UTILITIES_TAGS = ["agua", "luz", "gas", "wifi"] as const satisfies readonly ListingTag[];
@@ -144,6 +144,70 @@ export const LISTING_TAG_LABEL_OVERRIDES: Partial<Record<ListingTag, string>> = 
   estacionamiento: "Estacionamiento incluido",
   "fumar-permitido-recamara": "Permitido fumar en la recámara",
 };
+
+export const LODGING_TYPE_LABELS: Record<LodgingType, string> = {
+  private_room: "Recámara privada",
+  shared_room: "Recámara compartida",
+  whole_home: "Vivienda completa",
+};
+
+/** Etiqueta de tamaño / tipo de cama para preview y listados. */
+export function roomDimensionPreviewLabel(
+  dimension: RoomDimension,
+  postMode: "room" | "property",
+): string {
+  if (postMode === "room") {
+    const labels: Record<RoomDimension, string> = {
+      small: "Individual",
+      medium: "Matrimonial",
+      large: "Grande (Queen/King)",
+    };
+    return labels[dimension];
+  }
+  const labels: Record<RoomDimension, string> = {
+    small: "Pequeña",
+    medium: "Mediana",
+    large: "Grande",
+  };
+  return labels[dimension];
+}
+
+export function roomBathroomPreviewLabel(tags: readonly ListingTag[]): string {
+  return tags.includes("baño-privado") ? "Baño privado" : "Baño compartido";
+}
+
+export function roommateGenderPrefLabel(pref: RoommateGenderPref): string {
+  if (pref === "female") return "Prefieren mujeres";
+  if (pref === "male") return "Prefieren hombres";
+  return "Sin preferencia";
+}
+
+/** ISO `YYYY-MM-DD` → fecha legible en español (México). */
+export function formatRoomAvailableFrom(iso: string): string {
+  const trimmed = iso.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed || "—";
+  const [y, m, d] = trimmed.split("-").map(Number);
+  if (!y || !m || !d) return trimmed;
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(y, m - 1, d));
+}
+
+export function minimalStayMonthsLabel(months: number): string {
+  if (!Number.isFinite(months) || months < 1) return "—";
+  return months === 1 ? "1 mes" : `${months} meses`;
+}
+
+export function roomPlazasLabel(count: number): string {
+  if (!Number.isFinite(count) || count < 1) return "—";
+  return count === 1 ? "1 plaza" : `${count} plazas`;
+}
+
+export function roomAgeRangeLabel(min: number, max: number): string {
+  return `${min}–${max} años`;
+}
 
 export function isPropertyScopeTag(tag: string): tag is ListingTag {
   return PROPERTY_SCOPE_TAG_SET.has(tag);

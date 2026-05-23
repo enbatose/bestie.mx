@@ -1,5 +1,18 @@
 import { useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bath,
+  Bed,
+  Calendar,
+  Clock,
+  DollarSign,
+  Maximize2,
+  Pencil,
+  UserRound,
+  Users,
+  UserCircle2,
+  Wallet,
+} from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -17,6 +30,14 @@ import {
   ROOM_TAG_GROUPS,
   filterPropertyScopeTags,
   filterRoomScopeTags,
+  formatRoomAvailableFrom,
+  LODGING_TYPE_LABELS,
+  minimalStayMonthsLabel,
+  roommateGenderPrefLabel,
+  roomAgeRangeLabel,
+  roomBathroomPreviewLabel,
+  roomDimensionPreviewLabel,
+  roomPlazasLabel,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
@@ -232,6 +253,76 @@ function ScopeTagsBlock({
 
 function cloneRoomDraft(room: RoomDraft): RoomDraft {
   return { ...room, tags: [...room.tags] };
+}
+
+type RoomDetailStatProps = {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+};
+
+function RoomDetailStat({ icon: Icon, label, value }: RoomDetailStatProps) {
+  return (
+    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
+      <Icon className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
+        <p className="mt-0.5 text-sm font-semibold leading-snug text-body">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function RoomDetailsReadGrid({
+  room,
+  postMode,
+}: {
+  room: RoomDraft;
+  postMode: Draft["postMode"];
+}) {
+  const lodgingKey =
+    postMode === "room" && room.lodgingType === "whole_home" ? "private_room" : room.lodgingType;
+
+  const stats: RoomDetailStatProps[] = [
+    { icon: DollarSign, label: "Renta", value: money.format(room.rentMxn) },
+  ];
+  if (room.depositMxn > 0) {
+    stats.push({ icon: Wallet, label: "Depósito", value: money.format(room.depositMxn) });
+  }
+  stats.push(
+    { icon: Bed, label: "Tipo de espacio", value: LODGING_TYPE_LABELS[lodgingKey] },
+    {
+      icon: Maximize2,
+      label: "Tamaño",
+      value: roomDimensionPreviewLabel(room.roomDimension, postMode),
+    },
+    { icon: Bath, label: "Baño", value: roomBathroomPreviewLabel(room.tags) },
+    {
+      icon: Calendar,
+      label: "Disponible desde",
+      value: formatRoomAvailableFrom(room.availableFrom),
+    },
+    {
+      icon: Clock,
+      label: "Estancia mínima",
+      value: minimalStayMonthsLabel(room.minimalStayMonths),
+    },
+  );
+  if (postMode === "property") {
+    stats.push({ icon: Users, label: "Plazas", value: roomPlazasLabel(room.roomsAvailable) });
+  }
+  stats.push(
+    { icon: UserCircle2, label: "Prefieren", value: roommateGenderPrefLabel(room.roommateGenderPref) },
+    { icon: UserRound, label: "Edades", value: roomAgeRangeLabel(room.ageMin, room.ageMax) },
+  );
+
+  return (
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      {stats.map((stat) => (
+        <RoomDetailStat key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} />
+      ))}
+    </div>
+  );
 }
 
 export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraftChange }: Props) {
@@ -695,50 +786,6 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
         )}
       </PreviewSection>
 
-      <PreviewSection
-        title="Descripción del cuarto"
-        onEdit={() => {
-          setRoomSummaryDraft(room.summary);
-          setEditingRoom(true);
-        }}
-      >
-        {editingRoom ? (
-          <InlineFieldEditor
-            label="Descripción de la recámara"
-            onSave={saveRoomSummary}
-            onCancel={() => setEditingRoom(false)}
-          >
-            <textarea
-              value={roomSummaryDraft}
-              onChange={(e) => setRoomSummaryDraft(e.target.value)}
-              rows={5}
-              maxLength={ROOM_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-            />
-            <span className="text-xs text-muted">
-              {roomSummaryDraft.trim().length}/{ROOM_SUMMARY_MIN} mín.
-            </span>
-          </InlineFieldEditor>
-        ) : (
-          <>
-            <p className="text-sm leading-relaxed text-muted sm:text-base">
-              {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
-            </p>
-            <ScopeTagsBlock
-              heading="Etiquetas de la recámara"
-              tags={roomTagsActive}
-              editing={editingRoomTags}
-              onStartEdit={openRoomTagsEdit}
-              onSave={saveRoomTags}
-              onCancel={() => setEditingRoomTags(false)}
-              editGroups={ROOM_TAG_GROUPS}
-              draftTags={roomTagsDraft}
-              onToggle={toggleRoomTagDraft}
-            />
-          </>
-        )}
-      </PreviewSection>
-
       <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">
         {editingRoomDetails && roomDetailsDraft ? (
           <InlineFieldEditor
@@ -889,25 +936,51 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             </div>
           </InlineFieldEditor>
         ) : (
-          <p className="text-xs text-muted">
-            {detailsRoom.lodgingType === "private_room"
-              ? "Recámara privada"
-              : detailsRoom.lodgingType === "shared_room"
-                ? "Recámara compartida"
-                : "Vivienda completa"}
-            {" · "}
-            Disponible desde {detailsRoom.availableFrom || "—"}
-            {" · "}
-            Estancia mín. {detailsRoom.minimalStayMonths} mes(es)
-            {" · "}
-            {detailsRoom.roommateGenderPref === "female"
-              ? "Prefieren mujeres"
-              : detailsRoom.roommateGenderPref === "male"
-                ? "Prefieren hombres"
-                : "Sin preferencia de género"}
-            {" · "}
-            Edades {detailsRoom.ageMin}–{detailsRoom.ageMax}
-          </p>
+          <RoomDetailsReadGrid room={detailsRoom} postMode={draft.postMode} />
+        )}
+      </PreviewSection>
+
+      <PreviewSection
+        title="Descripción de la recámara"
+        onEdit={() => {
+          setRoomSummaryDraft(room.summary);
+          setEditingRoom(true);
+        }}
+      >
+        {editingRoom ? (
+          <InlineFieldEditor
+            label="Descripción de la recámara"
+            onSave={saveRoomSummary}
+            onCancel={() => setEditingRoom(false)}
+          >
+            <textarea
+              value={roomSummaryDraft}
+              onChange={(e) => setRoomSummaryDraft(e.target.value)}
+              rows={5}
+              maxLength={ROOM_SUMMARY_MAX}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            />
+            <span className="text-xs text-muted">
+              {roomSummaryDraft.trim().length}/{ROOM_SUMMARY_MIN} mín.
+            </span>
+          </InlineFieldEditor>
+        ) : (
+          <>
+            <p className="text-sm leading-relaxed text-muted sm:text-base">
+              {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
+            </p>
+            <ScopeTagsBlock
+              heading="Etiquetas de la recámara"
+              tags={roomTagsActive}
+              editing={editingRoomTags}
+              onStartEdit={openRoomTagsEdit}
+              onSave={saveRoomTags}
+              onCancel={() => setEditingRoomTags(false)}
+              editGroups={ROOM_TAG_GROUPS}
+              draftTags={roomTagsDraft}
+              onToggle={toggleRoomTagDraft}
+            />
+          </>
         )}
       </PreviewSection>
     </div>
