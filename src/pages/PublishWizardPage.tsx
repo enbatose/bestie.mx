@@ -6,6 +6,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
@@ -17,10 +18,12 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
+import { type PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 import {
-  writePublishPreviewSession,
-  type PublishWizardServerSync,
-} from "@/lib/publishWizard/previewSession";
+  ROOM_SINGLE_FLOW_PHOTO_HINT,
+  WIZARD_ROOM_TAG_GROUPS,
+  WIZARD_STEP4_TAG_LABELS,
+} from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -66,10 +69,6 @@ const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
 const ROOM_SUMMARY_PLACEHOLDER =
   "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies.";
 
-const ROOM_SINGLE_FLOW_PHOTO_HINT =
-  "Sube fotos en bloque de la recámara y de las áreas comunes de la propiedad (cocina, sala, baño, etc.). No es necesario separarlas por categorías en este flujo";
-
-/** Amenidades de la propiedad (paso 3, bloque “La propiedad cuenta con”). */
 const WIZARD_PROPERTY_AMENITY_SLUGS: readonly ListingTag[] = [
   "wifi",
   "agua",
@@ -108,27 +107,6 @@ const WIZARD_STEP3_TAG_SLUGS: readonly ListingTag[] = [
   ...WIZARD_PROPERTY_IDEAL_PARA_SLUGS,
 ];
 const WIZARD_STEP3_TAG_SET = new Set<string>(WIZARD_STEP3_TAG_SLUGS);
-
-/** Solo paso 4 — propiedades físicas de la recámara. */
-const WIZARD_ROOM_TAG_GROUPS: { title: string; tags: readonly ListingTag[] }[] = [
-  {
-    title: "Propiedades de la Recámara",
-    tags: [
-      "baño-privado",
-      "aire-acondicionado",
-      "estacionamiento",
-      "terraza",
-      "cerradura-cuarto",
-      "fumar-permitido-recamara",
-      "ventilador",
-      "closet",
-    ],
-  },
-];
-
-const WIZARD_STEP4_TAG_LABELS: Partial<Record<ListingTag, string>> = {
-  estacionamiento: "Estacionamiento incluido",
-};
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
 function isoDateInMexicoCity(date: Date = new Date()): string {
@@ -787,6 +765,7 @@ export function PublishWizardPage() {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => defaultDraft());
   const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
+  const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -2276,37 +2255,8 @@ export function PublishWizardPage() {
           ] as const)
         : []),
       {
-        title: "Publicar",
-        body: (
-          <form className="space-y-6">
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">
-                Revisión Final
-              </h3>
-              <div className="space-y-3 text-sm text-muted">
-                <p>
-                  Revisa los pasos anteriores: ciudad, precios y fotos. Cuando todo esté listo, marca la
-                  confirmación legal y publica en vivo o guarda borrador en el servidor.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <label className="flex cursor-pointer items-start gap-3 text-sm text-body">
-                <input
-                  type="checkbox"
-                  checked={draft.legalAccepted}
-                  onChange={(e) => setDraft((d) => ({ ...d, legalAccepted: e.target.checked }))}
-                  className="mt-1 size-4 rounded border-border text-primary"
-                />
-                <span>
-                  Confirmo que la información es verídica y acepto las responsabilidades legales al publicar en Bestie
-                  (v1).
-                </span>
-              </label>
-            </div>
-          </form>
-        ),
+        title: "Revisar y publicar",
+        body: null,
       },
     ],
     [draft, apiOn, mapAddressShown, mapGeocode, resolveLatLngForDraft],
@@ -2315,7 +2265,7 @@ export function PublishWizardPage() {
   const maxStepIndex = Math.max(0, steps.length - 1);
   const safeStep = Math.min(Math.max(0, step), maxStepIndex);
   const current = steps[safeStep]!;
-  const isPublishStep = current.title === "Publicar";
+  const isPublishStep = current.title === "Revisar y publicar";
 
   const autofillStep = useCallback(
     (stepIndex: number) => {
@@ -2592,7 +2542,7 @@ export function PublishWizardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
       {apiOn && me ? (
         <p className="mt-2 text-xs text-muted" aria-live="polite">
@@ -2655,9 +2605,24 @@ export function PublishWizardPage() {
           ) : null}
         </div>
         <div className="mt-4 space-y-4">
-          <div>{current.body}</div>
+          {isPublishStep ? (
+            <PublishWizardReviewStep
+              draft={draft}
+              roomIndex={Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))}
+              onRoomIndexChange={setPreviewRoomIndex}
+              onDraftChange={(updater) => setDraft((d) => updater(d))}
+              apiOn={apiOn}
+              publishBlockedReason={publishBlockedReason}
+              actionErr={publishErr}
+              submitInFlight={submitInFlight}
+              onSaveDraft={() => void submitServerDraft()}
+              onPublish={() => void submitPublish()}
+            />
+          ) : (
+            current.body
+          )}
         </div>
-        {publishErr ? (
+        {publishErr && !isPublishStep ? (
           <p className="mt-4 text-sm text-red-600" role="alert">
             {publishErr}
           </p>
@@ -2703,56 +2668,7 @@ export function PublishWizardPage() {
             >
               Siguiente
             </button>
-          ) : (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPublishErr(null);
-                  writePublishPreviewSession({
-                    draft,
-                    serverSync,
-                    returnStep: safeStep,
-                    editingLiveProperty,
-                  });
-                  navigate("/publicar/vista-previa", {
-                    state: {
-                      previewSession: {
-                        draft,
-                        serverSync,
-                        returnStep: safeStep,
-                        editingLiveProperty,
-                      },
-                    },
-                  });
-                }}
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
-              >
-                Previsualizar
-              </button>
-              {apiOn ? (
-                <button
-                  type="button"
-                  disabled={submitInFlight !== null}
-                  onClick={() => void submitServerDraft()}
-                  className="rounded-full border border-secondary/50 bg-secondary/10 px-5 py-2 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/20 disabled:opacity-50"
-                >
-                  {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
-                </button>
-              ) : null}
-              {apiOn ? (
-                <button
-                  type="button"
-                  disabled={submitInFlight !== null || Boolean(publishBlockedReason)}
-                  title={publishBlockedReason ?? undefined}
-                  onClick={() => void submitPublish()}
-                  className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
-                >
-                  {submitInFlight === "publish" ? "Publicando…" : "Publicar"}
-                </button>
-              ) : null}
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
