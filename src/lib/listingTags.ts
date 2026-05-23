@@ -176,9 +176,12 @@ export function roomBathroomPreviewLabel(tags: readonly ListingTag[]): string {
   return tags.includes("baño-privado") ? "Baño privado" : "Baño compartido";
 }
 
+/** Etiqueta del campo en wizard y preview (no confundir con el valor seleccionado). */
+export const ROOMMATE_GENDER_PREF_FIELD_LABEL = "Preferencia de Género";
+
 export function roommateGenderPrefLabel(pref: RoommateGenderPref): string {
-  if (pref === "female") return "Prefieren mujeres";
-  if (pref === "male") return "Prefieren hombres";
+  if (pref === "female") return "Mujeres";
+  if (pref === "male") return "Hombres";
   return "Sin preferencia";
 }
 

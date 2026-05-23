@@ -27,6 +27,7 @@ import {
   PROPERTY_PERMITIDO_TAG_SLUGS,
   PROPERTY_SCOPE_TAG_SET,
   PROPERTY_SCOPE_TAG_SLUGS,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
 import {
@@ -1907,7 +1908,7 @@ export function PublishWizardPage() {
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
-                      Prefieren
+                      {ROOMMATE_GENDER_PREF_FIELD_LABEL}
                       <select
                         value={room.roommateGenderPref}
                         onChange={(e) =>

@@ -28,6 +28,7 @@ import {
   LISTING_TAG_LABEL_OVERRIDES,
   PROPERTY_TAG_GROUPS,
   ROOM_TAG_GROUPS,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL,
   filterPropertyScopeTags,
   filterRoomScopeTags,
   formatRoomAvailableFrom,
@@ -266,7 +267,7 @@ function RoomDetailStat({ icon: Icon, label, value }: RoomDetailStatProps) {
     <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
       <Icon className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
+        <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">{label}</p>
         <p className="mt-0.5 text-sm font-semibold leading-snug text-body">{value}</p>
       </div>
     </div>
@@ -312,7 +313,7 @@ function RoomDetailsReadGrid({
     stats.push({ icon: Users, label: "Plazas", value: roomPlazasLabel(room.roomsAvailable) });
   }
   stats.push(
-    { icon: UserCircle2, label: "Prefieren", value: roommateGenderPrefLabel(room.roommateGenderPref) },
+    { icon: UserCircle2, label: ROOMMATE_GENDER_PREF_FIELD_LABEL, value: roommateGenderPrefLabel(room.roommateGenderPref) },
     { icon: UserRound, label: "Edades", value: roomAgeRangeLabel(room.ageMin, room.ageMax) },
   );
 
@@ -884,7 +885,7 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
                 />
               </div>
               <label className="block text-sm font-medium text-body">
-                Prefieren
+                {ROOMMATE_GENDER_PREF_FIELD_LABEL}
                 <select
                   value={detailsRoom.roommateGenderPref}
                   onChange={(e) =>
