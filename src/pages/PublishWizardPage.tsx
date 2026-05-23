@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ShieldCheck, Wand2 } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -773,6 +773,7 @@ export function PublishWizardPage() {
   const [draft, setDraft] = useState<Draft>(() => defaultDraft());
   const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
+  const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -2413,7 +2414,7 @@ export function PublishWizardPage() {
         await updateProperty(sync.propertyId, propPatch);
         setEditingLiveProperty(null);
         setServerSync({ propertyId: null, roomIds: [] });
-        navigate(`/anuncio/${firstRoomId}`);
+        setPublishSuccessRoomId(firstRoomId);
         return;
       }
 
@@ -2460,7 +2461,7 @@ export function PublishWizardPage() {
         return;
       }
       setServerSync({ propertyId: null, roomIds: [] });
-      navigate(`/anuncio/${first.id}`);
+      setPublishSuccessRoomId(first.id);
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
     } finally {
@@ -2506,6 +2507,59 @@ export function PublishWizardPage() {
     } finally {
       setSubmitInFlight(null);
     }
+  }
+
+  if (publishSuccessRoomId) {
+    const successTitle =
+      draft.postMode === "property"
+        ? "¡Todo listo! Tu propiedad ya está publicada"
+        : "¡Todo listo! Tu habitación ya está publicada";
+
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 sm:py-24">
+        <div
+          className="mx-auto inline-flex rounded-full bg-emerald-50 p-4 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+          aria-hidden
+        >
+          <CheckCircle2 className="size-10" strokeWidth={2} />
+        </div>
+
+        <h1 className="mt-8 text-2xl font-bold text-slate-900 dark:text-slate-50">{successTitle}</h1>
+        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-slate-600 dark:text-slate-400">
+          Tu anuncio ya está visible para la comunidad. Te notificaremos en cuanto alguien se interese en tu espacio.
+        </p>
+
+        <div className="mx-auto mt-6 max-w-md rounded-xl bg-slate-50 p-4 text-left dark:bg-slate-800/60">
+          <ul className="space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            <li>
+              <span aria-hidden>💬 </span>
+              <strong className="font-semibold text-slate-800 dark:text-slate-100">Recibe mensajes:</strong> Atiende a
+              los interesados directamente desde tu bandeja de entrada.
+            </li>
+            <li>
+              <span aria-hidden>✏️ </span>
+              <strong className="font-semibold text-slate-800 dark:text-slate-100">Control total:</strong> Modifica
+              precios, fotos o pausa el anuncio desde la sección &quot;Mis Anuncios&quot;.
+            </li>
+          </ul>
+        </div>
+
+        <div className="mt-10 flex flex-col items-center gap-3">
+          <Link
+            to={`/anuncio/${publishSuccessRoomId}`}
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            Ver mi anuncio
+          </Link>
+          <Link
+            to="/"
+            className="text-sm font-medium text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            Ir al Inicio
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
