@@ -84,18 +84,30 @@ const WIZARD_PROPERTY_AMENITY_SLUGS: readonly ListingTag[] = [
   "vigilancia",
 ];
 
-/** Ambiente y reglas (paso 3, debajo de amenidades). */
-const WIZARD_PROPERTY_AMBIENTE_SLUGS: readonly ListingTag[] = [
-  "lgbt-friendly",
+/** Reglas de convivencia permitidas (paso 3, bloque “Se permite:”). */
+const WIZARD_PROPERTY_PERMITIDO_SLUGS: readonly ListingTag[] = [
   "mascotas",
-  "fumar",
   "fiestas",
+  "fumar",
   "fumar-habitacion",
+];
+
+/** Afinidades de perfil buscado (paso 3, bloque “Ideal para:”). */
+const WIZARD_PROPERTY_IDEAL_PARA_SLUGS: readonly ListingTag[] = [
+  "lgbt-friendly",
+  "profesionistas",
+  "estudiantes",
+  "residentes-medicos",
+  "nomadas-digitales",
+  "individuos-solo",
+  "parejas",
+  "familiar-ninos",
 ];
 
 const WIZARD_STEP3_TAG_SLUGS: readonly ListingTag[] = [
   ...WIZARD_PROPERTY_AMENITY_SLUGS,
-  ...WIZARD_PROPERTY_AMBIENTE_SLUGS,
+  ...WIZARD_PROPERTY_PERMITIDO_SLUGS,
+  ...WIZARD_PROPERTY_IDEAL_PARA_SLUGS,
 ];
 const WIZARD_STEP3_TAG_SET = new Set<string>(WIZARD_STEP3_TAG_SLUGS);
 
@@ -585,6 +597,13 @@ function pickCity(city: string): (typeof CITIES)[number] {
 
 function tagOk(t: string): t is ListingTag {
   return LISTING_TAG_SLUG_SET.has(t);
+}
+
+function togglePropertyTag(d: Draft, tag: ListingTag): Draft {
+  const prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
+  const isOn = prop.includes(tag);
+  const nextTags = !isOn ? [...prop, tag] : prop.filter((t) => t !== tag);
+  return { ...d, propertyTags: nextTags.filter(tagOk) };
 }
 
 /** Migra tags legacy; no vincula `servicios-incluidos` con Wi‑Fi / agua / luz / gas en estado. */
@@ -1657,16 +1676,7 @@ export function PublishWizardPage() {
                           type="button"
                           role="checkbox"
                           aria-checked={active}
-                          onClick={() =>
-                            setDraft((d) => {
-                              const prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
-                              const isOn = prop.includes(tag);
-                              const nextTags = !isOn
-                                ? [...prop, tag]
-                                : prop.filter((t) => t !== tag);
-                              return { ...d, propertyTags: nextTags.filter(tagOk) };
-                            })
-                          }
+                          onClick={() => setDraft((d) => togglePropertyTag(d, tag))}
                           className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
                             active
                               ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
@@ -1680,9 +1690,9 @@ export function PublishWizardPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-body">Ambiente y Reglas</p>
+                  <p className="text-sm font-medium text-body">Se permite:</p>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {WIZARD_PROPERTY_AMBIENTE_SLUGS.map((tag) => {
+                    {WIZARD_PROPERTY_PERMITIDO_SLUGS.map((tag) => {
                       const active = draft.propertyTags.includes(tag);
                       return (
                         <button
@@ -1690,16 +1700,31 @@ export function PublishWizardPage() {
                           type="button"
                           role="checkbox"
                           aria-checked={active}
-                          onClick={() =>
-                            setDraft((d) => {
-                              const prop = d.propertyTags.filter((t) => t !== "servicios-incluidos");
-                              const isOn = prop.includes(tag);
-                              const nextTags = !isOn
-                                ? [...prop, tag]
-                                : prop.filter((t) => t !== tag);
-                              return { ...d, propertyTags: nextTags.filter(tagOk) };
-                            })
-                          }
+                          onClick={() => setDraft((d) => togglePropertyTag(d, tag))}
+                          className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
+                            active
+                              ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+                              : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
+                          }`}
+                        >
+                          {TAG_LABELS[tag]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-body">Ideal para:</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {WIZARD_PROPERTY_IDEAL_PARA_SLUGS.map((tag) => {
+                      const active = draft.propertyTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={active}
+                          onClick={() => setDraft((d) => togglePropertyTag(d, tag))}
                           className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
                             active
                               ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"

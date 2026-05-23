@@ -134,8 +134,17 @@ const PROPERTY_AMENITY_POOL: readonly ListingTag[] = [
 ];
 
 const PROPERTY_AMBIENTE_POOL: readonly ListingTag[] = [
-  "lgbt-friendly",
   "mascotas",
+  "fiestas",
+  "fumar",
+];
+
+const PROPERTY_IDEAL_PARA_POOL: readonly ListingTag[] = [
+  "lgbt-friendly",
+  "profesionistas",
+  "estudiantes",
+  "residentes-medicos",
+  "nomadas-digitales",
 ];
 
 const ROOM_TAGS_POOL: readonly ListingTag[] = [
@@ -218,6 +227,7 @@ export function seedStep2(_draft: Draft): Partial<Draft> {
     propertyTags: [
       ...randSubset(PROPERTY_AMENITY_POOL, 4, 8),
       ...randSubset(PROPERTY_AMBIENTE_POOL, 0, 2),
+      ...randSubset(PROPERTY_IDEAL_PARA_POOL, 0, 3),
     ] as ListingTag[],
   };
 }
