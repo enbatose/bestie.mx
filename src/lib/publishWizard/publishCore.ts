@@ -243,9 +243,6 @@ export function getPublishBlockedReason(draft: Draft): string | null {
   if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
     return "Etiqueta tus fotos (Sin categorizar) antes de publicar.";
   }
-  if (!draft.legalAccepted) {
-    return "Marca la casilla de confirmación legal para publicar.";
-  }
   return validateRoomsForSubmit(draft);
 }
 

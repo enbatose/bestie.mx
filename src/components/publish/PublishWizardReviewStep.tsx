@@ -1,4 +1,5 @@
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
+import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
 import type { Draft } from "@/pages/PublishWizardPage";
 
 type Props = {
@@ -61,29 +62,20 @@ export function PublishWizardReviewStep({
       />
 
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <label className="flex cursor-pointer items-start gap-3 text-sm text-body">
-          <input
-            type="checkbox"
-            checked={draft.legalAccepted}
-            onChange={(e) => onDraftChange((d) => ({ ...d, legalAccepted: e.target.checked }))}
-            className="mt-1 size-4 rounded border-border text-primary"
-          />
-          <span>
-            Confirmo que la información es verídica y acepto las responsabilidades legales al publicar en Bestie (v1).
-          </span>
-        </label>
         {publishBlockedReason ? (
-          <p className="mt-3 text-xs text-muted" role="status">
+          <p className="text-xs text-muted" role="status">
             Para publicar: {publishBlockedReason}
           </p>
         ) : null}
         {actionErr ? (
-          <p className="mt-3 text-sm text-red-600" role="alert">
+          <p className={`text-sm text-red-600 ${publishBlockedReason ? "mt-3" : ""}`} role="alert">
             {actionErr}
           </p>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap items-center gap-2">
+        <div
+          className={`flex flex-wrap items-center gap-2 ${publishBlockedReason || actionErr ? "mt-5" : ""}`}
+        >
           {apiOn ? (
             <button
               type="button"
@@ -110,6 +102,8 @@ export function PublishWizardReviewStep({
             </span>
           )}
         </div>
+
+        <PublishReviewDisclaimer />
       </section>
     </div>
   );

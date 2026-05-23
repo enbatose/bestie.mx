@@ -2314,9 +2314,6 @@ export function PublishWizardPage() {
     if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
       return "Etiqueta tus fotos (Sin categorizar) antes de publicar.";
     }
-    if (!draft.legalAccepted) {
-      return "Marca la casilla de confirmación legal para publicar.";
-    }
     return validateRoomsForSubmit(draft);
   }, [draft]);
 
@@ -2343,10 +2340,6 @@ export function PublishWizardPage() {
       (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
     ) {
       setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
-      return;
-    }
-    if (!draft.legalAccepted) {
-      setPublishErr("Debes aceptar la confirmación legal.");
       return;
     }
     if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
