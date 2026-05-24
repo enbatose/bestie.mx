@@ -6,7 +6,7 @@ import {
   ListingHeroPrice,
   publicListingHeaderTitle,
 } from "@/components/listing/PublicListingHeader";
-import { PublicListingLocationMap } from "@/components/listing/PublicListingLocationMap";
+import { PublicListingContent } from "@/components/listing/PublicListingContent";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 import {
@@ -17,8 +17,6 @@ import {
   type ListingUnavailableReason,
 } from "@/lib/listingsApi";
 import { startConversationFromListing } from "@/lib/messagesApi";
-import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { TAG_LABELS } from "@/lib/searchFilters";
 import type { PropertyKind, PropertyListing, PropertyWithRooms } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -397,6 +395,8 @@ export function ListingPage() {
     lodgingType: listing.lodgingType,
     propertyKind,
   });
+  const publishedRoomCount =
+    propertyPack?.rooms.filter((r) => r.status === "published").length ?? seedSiblings.length + 1;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
@@ -407,10 +407,10 @@ export function ListingPage() {
         <span aria-hidden className="mx-2">
           /
         </span>
-        <span className="text-body">{listing.title}</span>
+        <span className="text-body">{headerTitle}</span>
       </nav>
 
-      <header className="mt-6">
+      <header className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
         <p className="text-sm text-muted">
           {listing.neighborhood} · {listing.city}
         </p>
@@ -519,44 +519,27 @@ export function ListingPage() {
         ) : null}
       </section>
 
-      {galleryUrls.length ? (
-        <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-body">Fotos</h2>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {galleryUrls.map((u) => (
-              <a
-                key={u}
-                href={apiAbsoluteUrl(u)}
-                target="_blank"
-                rel="noreferrer"
-                className="block overflow-hidden rounded-xl ring-1 ring-border transition hover:opacity-90"
-              >
-                {failedImageUrls.has(u) ? (
-                  <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-bg-light px-4 text-center text-xs text-muted">
-                    <span className="font-semibold text-body">Foto no disponible</span>
-                    <span>Vuelve a subir esta foto desde “Editar borrador”.</span>
-                  </div>
-                ) : (
-                  <img
-                    src={apiAbsoluteUrl(u)}
-                    alt=""
-                    className="aspect-square w-full object-cover"
-                    loading="lazy"
-                    onError={() => {
-                      setFailedImageUrls((prev) => {
-                        if (prev.has(u)) return prev;
-                        const next = new Set(prev);
-                        next.add(u);
-                        return next;
-                      });
-                    }}
-                  />
-                )}
-              </a>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <PublicListingContent
+        listing={listing}
+        postMode={postMode}
+        propertyKind={propertyKind}
+        propertyBedroomsTotal={propertyBedroomsTotal}
+        propertySummary={propertySummary}
+        isApproximateLocation={isApproximateLocation}
+        occupiedByWomenCount={propertyPack?.property.occupiedByWomenCount}
+        occupiedByMenCount={propertyPack?.property.occupiedByMenCount}
+        galleryUrls={galleryUrls}
+        roomCount={publishedRoomCount}
+        failedImageUrls={failedImageUrls}
+        onImageError={(u) => {
+          setFailedImageUrls((prev) => {
+            if (prev.has(u)) return prev;
+            const next = new Set(prev);
+            next.add(u);
+            return next;
+          });
+        }}
+      />
 
       {siblingLinks.length ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -575,37 +558,6 @@ export function ListingPage() {
           </ul>
         </section>
       ) : null}
-
-      {propertySummary || Number.isFinite(listing.lat) ? (
-        <section className="mt-6 rounded-2xl border border-border bg-bg-light p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-body">Sobre la propiedad</h2>
-          <div className="mt-3 grid gap-4 md:grid-cols-2 md:items-stretch">
-            {propertySummary ? (
-              <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
-                {propertySummary}
-              </div>
-            ) : (
-              <p className="text-sm italic text-muted">Sin descripción de la propiedad.</p>
-            )}
-            <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
-          </div>
-        </section>
-      ) : null}
-
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-body">Descripción del cuarto</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">{listing.summary}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {listing.tags.map((t) => (
-            <span
-              key={t}
-              className="rounded-full bg-bg-light px-3 py-1 text-xs font-medium text-body ring-1 ring-border"
-            >
-              {TAG_LABELS[t]}
-            </span>
-          ))}
-        </div>
-      </div>
 
       <section className="mt-8 rounded-2xl border border-border bg-bg-light p-5 sm:p-6">
         <h2 className="text-base font-semibold text-body">Contacto (v1)</h2>

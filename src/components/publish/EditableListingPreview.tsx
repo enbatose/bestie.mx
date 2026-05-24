@@ -1,22 +1,13 @@
 import { useMemo, useState } from "react";
-import type { LucideIcon } from "lucide-react";
-import {
-  Bath,
-  Bed,
-  Building2,
-  Calendar,
-  Clock,
-  DollarSign,
-  MapPin,
-  Maximize2,
-  Pencil,
-  User,
-  UserRound,
-  Users,
-  UserCircle2,
-  Wallet,
-} from "lucide-react";
+import { Pencil } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
+import {
+  ListingPropertySummaryGrid,
+  ListingRoomDetailsGrid,
+} from "@/components/listing/ListingPropertySummaryGrid";
+import { ListingSection } from "@/components/listing/ListingSection";
+import { ListingTagChips, listingTagLabel } from "@/components/listing/ListingTagChips";
 import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
@@ -31,23 +22,11 @@ import {
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
 import {
-  LISTING_TAG_LABEL_OVERRIDES,
   PROPERTY_TAG_GROUPS,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   filterPropertyScopeTags,
   filterRoomScopeTags,
-  formatRoomAvailableFrom,
-  LODGING_TYPE_LABELS,
-  minimalStayMonthsLabel,
-  PROPERTY_KIND_LABELS,
-  propertyBedroomsPreviewLabel,
-  roommateGenderPrefLabel,
-  roomAgeRangeLabel,
-  roomBathroomPreviewLabel,
-  roomDimensionPreviewLabel,
-  roomPlazasLabel,
-  shouldShowRoomPriceInDetails,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
@@ -59,7 +38,6 @@ import {
   roomsAvailableFromIdealTags,
 } from "@/lib/publishWizard/wizardTags";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
-import { TAG_LABELS } from "@/lib/searchFilters";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 import type { ListingTagGroup } from "@/lib/listingTags";
 
@@ -91,10 +69,10 @@ function PreviewSection({
   editLabel?: string;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold text-body">{title}</h2>
-        {onEdit ? (
+    <ListingSection
+      title={title}
+      action={
+        onEdit ? (
           <button
             type="button"
             onClick={onEdit}
@@ -103,10 +81,11 @@ function PreviewSection({
             <Pencil className="size-3.5" aria-hidden />
             {editLabel}
           </button>
-        ) : null}
-      </div>
-      <div className="mt-3">{children}</div>
-    </section>
+        ) : undefined
+      }
+    >
+      {children}
+    </ListingSection>
   );
 }
 
@@ -147,33 +126,11 @@ function InlineFieldEditor({
   );
 }
 
-function tagLabel(tag: ListingTag): string {
-  return LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag];
-}
-
-const TAG_CHIP_READ =
-  "rounded-full bg-bg-light px-3 py-1 text-xs font-medium text-body ring-1 ring-border";
-
 const TAG_CHIP_ACTIVE =
   "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
 
 const TAG_CHIP_INACTIVE =
   "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 border border-dashed border-border bg-surface-elevated/90 text-muted opacity-75 hover:border-border hover:opacity-100 hover:bg-surface";
-
-function TagReadList({ tags }: { tags: readonly ListingTag[] }) {
-  if (!tags.length) {
-    return <p className="text-sm italic text-muted">Sin etiquetas seleccionadas.</p>;
-  }
-  return (
-    <div className="flex flex-wrap gap-2">
-      {tags.map((t) => (
-        <span key={t} className={TAG_CHIP_READ}>
-          {tagLabel(t)}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function TagGroupsEditor({
   groups,
@@ -201,7 +158,7 @@ function TagGroupsEditor({
                   onClick={() => onToggle(tag)}
                   className={active ? TAG_CHIP_ACTIVE : TAG_CHIP_INACTIVE}
                 >
-                  {tagLabel(tag)}
+                  {listingTagLabel(tag)}
                 </button>
               );
             })}
@@ -254,7 +211,7 @@ function ScopeTagsBlock({
             <TagGroupsEditor groups={editGroups} selected={draftTags} onToggle={onToggle} />
           </InlineFieldEditor>
         ) : (
-          <TagReadList tags={tags} />
+          <ListingTagChips tags={tags} />
         )}
       </div>
     </div>
@@ -265,135 +222,6 @@ function cloneRoomDraft(room: RoomDraft): RoomDraft {
   return { ...room, tags: [...room.tags] };
 }
 
-type RoomDetailStatProps = {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-};
-
-function RoomDetailStat({ icon: Icon, label, value }: RoomDetailStatProps) {
-  return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
-      <Icon className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
-      <div>
-        <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">{label}</p>
-        <p className="mt-0.5 text-sm font-semibold leading-snug text-body">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function RoomDetailsReadGrid({
-  room,
-  postMode,
-  showPricing,
-}: {
-  room: RoomDraft;
-  postMode: Draft["postMode"];
-  showPricing: boolean;
-}) {
-  const lodgingKey =
-    postMode === "room" && room.lodgingType === "whole_home" ? "private_room" : room.lodgingType;
-
-  const stats: RoomDetailStatProps[] = [];
-  if (showPricing) {
-    stats.push({ icon: DollarSign, label: "Renta", value: money.format(room.rentMxn) });
-    if (room.depositMxn > 0) {
-      stats.push({ icon: Wallet, label: "Depósito", value: money.format(room.depositMxn) });
-    }
-  }
-  stats.push(
-    { icon: Bed, label: "Tipo de espacio", value: LODGING_TYPE_LABELS[lodgingKey] },
-    {
-      icon: Maximize2,
-      label: "Tamaño",
-      value: roomDimensionPreviewLabel(room.roomDimension, postMode),
-    },
-    { icon: Bath, label: "Baño", value: roomBathroomPreviewLabel(room.tags) },
-    {
-      icon: Calendar,
-      label: "Disponible desde",
-      value: formatRoomAvailableFrom(room.availableFrom),
-    },
-    {
-      icon: Clock,
-      label: "Estancia mínima",
-      value: minimalStayMonthsLabel(room.minimalStayMonths),
-    },
-  );
-  if (postMode === "property") {
-    stats.push({ icon: Users, label: "Plazas", value: roomPlazasLabel(room.roomsAvailable) });
-  }
-  stats.push(
-    { icon: UserCircle2, label: ROOMMATE_GENDER_PREF_FIELD_LABEL, value: roommateGenderPrefLabel(room.roommateGenderPref) },
-    { icon: UserRound, label: "Edades", value: roomAgeRangeLabel(room.ageMin, room.ageMax) },
-  );
-
-  return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-      {stats.map((stat) => (
-        <RoomDetailStat key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} />
-      ))}
-    </div>
-  );
-}
-
-function PropertyRoommatesStat({
-  womenCount,
-  menCount,
-}: {
-  womenCount: number;
-  menCount: number;
-}) {
-  return (
-    <div className="col-span-2 flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5 md:col-span-3">
-      <Users className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
-      <div>
-        <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">
-          Besties actuales
-        </p>
-        <p className="mt-2 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
-            <UserRound className="size-3.5 text-primary/70" aria-hidden />
-            {womenCount} {womenCount === 1 ? "mujer" : "mujeres"}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
-            <User className="size-3.5 text-primary/70" aria-hidden />
-            {menCount} {menCount === 1 ? "hombre" : "hombres"}
-          </span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function PropertySummaryReadGrid({
-  draft,
-  neighborhoodLabel,
-}: {
-  draft: Draft;
-  neighborhoodLabel: string;
-}) {
-  const womenCount = draft.occupiedByWomenCount ?? 0;
-  const menCount = draft.occupiedByMenCount ?? 0;
-
-  return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-      <RoomDetailStat icon={MapPin} label="Colonia" value={neighborhoodLabel} />
-      <RoomDetailStat
-        icon={Building2}
-        label="Tipo de vivienda"
-        value={PROPERTY_KIND_LABELS[draft.propertyKind]}
-      />
-      <RoomDetailStat
-        icon={Bed}
-        label="Recámaras en la propiedad"
-        value={propertyBedroomsPreviewLabel(draft.propertyBedroomsTotal, draft.propertyKind)}
-      />
-      <PropertyRoommatesStat womenCount={womenCount} menCount={menCount} />
-    </div>
-  );
-}
 
 export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraftChange }: Props) {
   const listing = useMemo(() => draftToListingPreview(draft, roomIndex), [draft, roomIndex]);
@@ -562,7 +390,6 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   };
 
   const detailsRoom = roomDetailsDraft ?? room;
-  const showRoomPricing = shouldShowRoomPriceInDetails(draft.postMode, draft.rooms.length);
   const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
 
   const previewHeaderTitle = publicListingHeaderTitle({
@@ -802,32 +629,20 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             ) : null}
           </InlineFieldEditor>
         ) : galleryUrls.length ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {galleryUrls.map((u, ix) => (
-              <div key={u} className="relative">
-                <img
-                  src={apiAbsoluteUrl(u)}
-                  alt=""
-                  className={`aspect-square w-full rounded-xl object-cover ring-1 ${
-                    ix === 0 ? "ring-primary" : "ring-border"
-                  }`}
-                  loading="lazy"
-                />
-                {ix === 0 ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-fg">
-                    Portada
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          <ListingPhotoGallery urls={galleryUrls} />
         ) : (
           <p className="text-sm text-muted">Aún no hay fotos. Usa Editar fotos para agregarlas.</p>
         )}
       </PreviewSection>
 
       <PreviewSection title="Resumen de la propiedad">
-        <PropertySummaryReadGrid draft={draft} neighborhoodLabel={neighborhoodLabel} />
+        <ListingPropertySummaryGrid
+          neighborhood={neighborhoodLabel}
+          propertyKind={draft.propertyKind}
+          propertyBedroomsTotal={draft.propertyBedroomsTotal}
+          occupiedByWomenCount={draft.occupiedByWomenCount}
+          occupiedByMenCount={draft.occupiedByMenCount}
+        />
       </PreviewSection>
 
       <PreviewSection
@@ -1036,10 +851,10 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             </div>
           </InlineFieldEditor>
         ) : (
-          <RoomDetailsReadGrid
+          <ListingRoomDetailsGrid
             room={detailsRoom}
             postMode={draft.postMode}
-            showPricing={showRoomPricing}
+            roomCount={draft.rooms.length}
           />
         )}
       </PreviewSection>
