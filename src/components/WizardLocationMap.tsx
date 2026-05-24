@@ -1,4 +1,4 @@
-import { MapContainer, Marker, TileLayer, Circle } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -27,9 +27,62 @@ type Props = {
   mapHeight?: number | string;
 };
 
+/** Circle styling for approximate / privacy radius (brand green). */
+export const MAP_PRIVACY_CIRCLE_PATH = {
+  color: "#84CC16",
+  fillColor: "#84CC16",
+  fillOpacity: 0.15,
+  weight: 2,
+} as const;
+
+/** Default privacy radius in wizard step 2 (matches copy: ~200 m). */
+export const WIZARD_APPROXIMATE_RADIUS_M = 200;
+
+/** Visual radius for approximate location in publish preview (read-only). */
+export const PREVIEW_APPROXIMATE_RADIUS_M = 400;
+
 /** External Street View tab only — the embedded map stays Leaflet/OSM (no Maps JavaScript API). */
 function streetViewExternalUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+}
+
+/** Pan/zoom when `position` updates from outside (e.g. autofill), not after marker drag. */
+function MapViewSync({
+  position,
+  zoom,
+  skipFlyRef,
+}: {
+  position: [number, number];
+  zoom: number;
+  skipFlyRef: React.MutableRefObject<boolean>;
+}) {
+  const map = useMap();
+  const lastKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const key = `${position[0].toFixed(7)},${position[1].toFixed(7)}`;
+    if (lastKeyRef.current === key) return;
+
+    const isInitial = lastKeyRef.current === null;
+    lastKeyRef.current = key;
+
+    if (skipFlyRef.current) {
+      skipFlyRef.current = false;
+      return;
+    }
+
+    try {
+      if (isInitial) {
+        map.setView(position, zoom, { animate: false });
+      } else {
+        map.flyTo(position, zoom, { duration: 0.75 });
+      }
+    } catch {
+      /* map tearing down */
+    }
+  }, [map, position, skipFlyRef, zoom]);
+
+  return null;
 }
 
 export function WizardLocationMap({
@@ -50,6 +103,7 @@ export function WizardLocationMap({
   const streetViewHref = streetViewExternalUrl(lat, lng);
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
+  const skipFlyRef = useRef(false);
   const showMarker = forceDraggablePin || !showApproximateRadius;
 
   useEffect(() => {
@@ -63,6 +117,7 @@ export function WizardLocationMap({
       if (!ll) return;
       setLocalPosition([ll.lat, ll.lng]);
       setLocalLocationSelected(true);
+      skipFlyRef.current = true;
       onPositionChange(ll.lat, ll.lng);
     },
     [onPositionChange],
@@ -106,11 +161,12 @@ export function WizardLocationMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <MapViewSync position={localPosition} zoom={13} skipFlyRef={skipFlyRef} />
         {showApproximateRadius ? (
           <Circle
             center={localPosition}
             radius={approximateRadiusMeters}
-            pathOptions={{ color: "#84CC16", fillColor: "#84CC16", fillOpacity: 0.15, weight: 2 }}
+            pathOptions={MAP_PRIVACY_CIRCLE_PATH}
             interactive={false}
           />
         ) : null}

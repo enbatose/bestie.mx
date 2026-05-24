@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Link } from "react-router-dom";
+import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
@@ -25,6 +26,9 @@ type Props = {
   defaultCenter?: [number, number];
   defaultZoom?: number;
   preferDefaultView?: boolean;
+  /** Render approximate listings as a privacy circle at true coords (no pin). */
+  approximateAsCircle?: boolean;
+  approximateCircleRadiusM?: number;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -158,6 +162,8 @@ export function PropertyMap({
   defaultCenter,
   defaultZoom,
   preferDefaultView = false,
+  approximateAsCircle = false,
+  approximateCircleRadiusM = 400,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -212,6 +218,19 @@ export function PropertyMap({
         <MapSelectionSync selectedId={selectedId} listings={listings} />
         {listings.map((l) => {
           const selected = l.id === selectedId;
+
+          if (approximateAsCircle && l.isApproximateLocation) {
+            return (
+              <Circle
+                key={l.id}
+                center={[l.lat, l.lng]}
+                radius={approximateCircleRadiusM}
+                pathOptions={MAP_PRIVACY_CIRCLE_PATH}
+                interactive={false}
+              />
+            );
+          }
+
           const popupContent = (
             <Popup>
               <div className="max-w-[220px] text-body">

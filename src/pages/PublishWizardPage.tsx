@@ -3,7 +3,7 @@ import { CheckCircle2, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { WizardLocationMap } from "@/components/WizardLocationMap";
+import { WizardLocationMap, WIZARD_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
@@ -1356,6 +1356,7 @@ export function PublishWizardPage() {
                       }));
                     }}
                     showApproximateRadius={draft.isApproximateLocation}
+                    approximateRadiusMeters={WIZARD_APPROXIMATE_RADIUS_M}
                   />
                 </div>
                 {draft.isApproximateLocation ? (

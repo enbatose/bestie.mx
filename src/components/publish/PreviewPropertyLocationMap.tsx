@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Maximize2, Pencil, X } from "lucide-react";
-import { WizardLocationMap } from "@/components/WizardLocationMap";
+import { WizardLocationMap, PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import type { PropertyListing } from "@/types/listing";
 
@@ -101,8 +101,8 @@ export function PreviewPropertyLocationMap({
     hasDefinedLocation: true as const,
     locationLabel: null,
     onPositionChange: (lat: number, lng: number) => setDraftPosition([lat, lng]),
-    showApproximateRadius: true,
-    approximateRadiusMeters: PREVIEW_EDIT_RADIUS_M,
+    showApproximateRadius: isApproximateLocation,
+    approximateRadiusMeters: isApproximateLocation ? PREVIEW_APPROXIMATE_RADIUS_M : PREVIEW_EDIT_RADIUS_M,
     forceDraggablePin: true,
     embed: true,
   };
@@ -117,6 +117,8 @@ export function PreviewPropertyLocationMap({
       defaultCenter={[listing.lat, listing.lng]}
       defaultZoom={PREVIEW_LOCATION_MAP_ZOOM}
       preferDefaultView
+      approximateAsCircle={isApproximateLocation}
+      approximateCircleRadiusM={PREVIEW_APPROXIMATE_RADIUS_M}
     />
   );
 
@@ -198,8 +200,8 @@ export function PreviewPropertyLocationMap({
             {isApproximateLocation ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
                 {editingLocation
-                  ? "Arrastra el pin dentro del área (~5 km). La ubicación pública puede variar por privacidad."
-                  : "Ubicación aproximada por privacidad; el pin puede variar dentro del área."}
+                  ? `Arrastra el pin dentro del área (~${PREVIEW_APPROXIMATE_RADIUS_M} m). La ubicación pública puede variar por privacidad.`
+                  : `Ubicación aproximada por privacidad (radio ~${PREVIEW_APPROXIMATE_RADIUS_M} m); el pin público no se muestra.`}
               </p>
             ) : editingLocation ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
