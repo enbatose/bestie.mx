@@ -311,6 +311,57 @@ export function previewPropertySpacesBadgeLabel(
 
 export const PREVIEW_PETS_FRIENDLY_BADGE = "🐾 Aceptan mascotas";
 
+/** Chip style for explicit header badges (preview + public listing pages). */
+export const LISTING_HEADER_BADGE_CLASS =
+  "rounded-full bg-bg-light px-3 py-1.5 text-xs font-semibold text-body ring-1 ring-border";
+
+export type PublicListingHeaderBadge = { id: string; label: string };
+
+/** Explicit header badges for room vs property posts (shared by preview and public pages). */
+export function publicListingHeaderBadges(opts: {
+  postMode: "room" | "property";
+  roommateGenderPref: RoommateGenderPref;
+  availableFrom?: string;
+  occupiedByMenCount?: number | null;
+  occupiedByWomenCount?: number | null;
+  propertyBedroomsTotal?: number;
+  propertyBathrooms?: number;
+  propertyKind?: PropertyKind;
+  tags?: readonly ListingTag[];
+}): PublicListingHeaderBadge[] {
+  const badges: PublicListingHeaderBadge[] = [];
+
+  if (opts.postMode === "room") {
+    const occupants = previewRoomOccupantsBadgeLabel(
+      opts.occupiedByMenCount,
+      opts.occupiedByWomenCount,
+    );
+    if (occupants) badges.push({ id: "occupants", label: occupants });
+    badges.push({ id: "sought", label: previewRoommateSoughtBadgeLabel(opts.roommateGenderPref) });
+    const available = previewAvailableFromBadgeLabel(opts.availableFrom ?? "");
+    if (available) badges.push({ id: "available", label: available });
+  } else {
+    badges.push({
+      id: "spaces",
+      label: previewPropertySpacesBadgeLabel(
+        opts.propertyBedroomsTotal ?? 1,
+        opts.propertyBathrooms ?? 1,
+        opts.propertyKind ?? "house",
+      ),
+    });
+    const propTags = opts.tags ? filterPropertyScopeTags(opts.tags) : [];
+    if (propTags.includes("mascotas")) {
+      badges.push({ id: "pets", label: PREVIEW_PETS_FRIENDLY_BADGE });
+    }
+  }
+
+  return badges;
+}
+
+export function listingHeroPriceLabel(rentMxn: number): string {
+  return `${rentMxn.toLocaleString("es-MX")} MXN / mes`;
+}
+
 export function isPropertyScopeTag(tag: string): tag is ListingTag {
   return PROPERTY_SCOPE_TAG_SET.has(tag);
 }

@@ -38,10 +38,23 @@ import {
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
 import {
+  CITY_ANCHOR,
   draftPropertyImageUrls,
   draftRoomImageUrls,
   effectiveRoomsAvailable,
+  effectiveWizardPropertyBathrooms,
+  getPublishBlockedReason,
+  locationStepInvalidReason,
+  contactStepInvalidReason,
+  normalizeWhatsApp,
+  photosStepInvalidReason,
+  propertyGeneralStepInvalidReason,
+  resolveLatLngForDraft,
+  showWizardPropertyBathroomsField,
+  tagPhotosStepInvalidReason,
   validateRoomsForSubmit,
+  validateWizardStepByTitle,
+  wizardContactDigits,
   ROOM_SUMMARY_MIN,
 } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
@@ -188,13 +201,6 @@ type ServerSync = {
 
 const CITIES = ["Guadalajara"] as const;
 
-const CITY_ANCHOR: Record<
-  (typeof CITIES)[number],
-  { neighborhood: string; lat: number; lng: number }
-> = {
-  Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.675_138, lng: -103.347_345 },
-};
-
 export type RoomDraft = {
   title: string;
   rentMxn: number;
@@ -294,7 +300,7 @@ const defaultDraft = (): Draft => ({
   propertyBathrooms: 0,
   occupiedByWomenCount: 0,
   occupiedByMenCount: 0,
-  showWhatsApp: false,
+  showWhatsApp: true,
   useCustomMapPin: false,
   customLat: "",
   customLng: "",
@@ -314,63 +320,6 @@ function isDraftOnlyRoomTitleSeed(value: string) {
 function isDefaultPropertySummarySeed(value: string) {
   const t = value.trim();
   return t === DEFAULT_PROPERTY_SUMMARY || t === LEGACY_DEFAULT_PROPERTY_SUMMARY;
-}
-
-function occupantCountsInvalidReason(d: Draft): string | null {
-  if (
-    d.occupiedByWomenCount == null ||
-    !Number.isInteger(d.occupiedByWomenCount) ||
-    d.occupiedByWomenCount < 0 ||
-    d.occupiedByWomenCount > PROPERTY_OCCUPANTS_MAX
-  ) {
-    return `Indica cuántas mujeres (Besties) hay en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
-  }
-  if (
-    d.occupiedByMenCount == null ||
-    !Number.isInteger(d.occupiedByMenCount) ||
-    d.occupiedByMenCount < 0 ||
-    d.occupiedByMenCount > PROPERTY_OCCUPANTS_MAX
-  ) {
-    return `Indica cuántos hombres (Besties) hay en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
-  }
-  return null;
-}
-
-function propertyGeneralStepInvalidReason(d: Draft): string | null {
-  if (d.propertyTitle.trim().length < PROPERTY_TITLE_MIN) {
-    return `El título del anuncio debe tener al menos ${PROPERTY_TITLE_MIN} caracteres.`;
-  }
-  if (d.propertyTitle.trim().length > PROPERTY_TITLE_MAX) {
-    return `El título del anuncio no puede exceder los ${PROPERTY_TITLE_MAX} caracteres.`;
-  }
-  if (d.neighborhood.trim().length < PROPERTY_NEIGHBORHOOD_MIN) {
-    return `Indica la colonia o zona (mínimo ${PROPERTY_NEIGHBORHOOD_MIN} caracteres).`;
-  }
-  if (d.neighborhood.trim().length > PROPERTY_NEIGHBORHOOD_MAX) {
-    return `La colonia o zona no puede exceder los ${PROPERTY_NEIGHBORHOOD_MAX} caracteres.`;
-  }
-  if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-    return `La descripción de la propiedad y áreas comunes debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
-  }
-  if (d.propertySummary.trim().length > PROPERTY_SUMMARY_MAX) {
-    return `La descripción de la propiedad no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
-  }
-  if (isDefaultPropertySummarySeed(d.propertySummary)) {
-    return "Sustituye el texto de ejemplo por tu propia descripción de la propiedad y las zonas comunes.";
-  }
-  if (
-    d.propertyKind !== "loft" &&
-    (!Number.isFinite(d.propertyBedroomsTotal) || d.propertyBedroomsTotal < 1)
-  ) {
-    return "Indica cuántas recámaras tiene la propiedad (al menos 1).";
-  }
-  if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
-    return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
-  }
-  if (showWizardPropertyBathroomsField(d) && d.propertyBathrooms > PROPERTY_BATHROOMS_MAX) {
-    return `El número de baños no puede exceder los ${PROPERTY_BATHROOMS_MAX}.`;
-  }
-  return occupantCountsInvalidReason(d);
 }
 
 function roomTitlePlaceholder(room: Pick<RoomDraft, "lodgingType">) {
@@ -431,50 +380,18 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   return validateRoomsForSubmit(d) === null;
 }
 
-function wizardContactDigits(contactWhatsApp: string, showPublic: boolean): string {
-  if (!showPublic) return DRAFT_WA_PLACEHOLDER;
-  const d = normalizeWhatsApp(contactWhatsApp);
-  return d.length >= 10 ? d : DRAFT_WA_PLACEHOLDER;
-}
-
-function normalizeWhatsApp(s: string): string {
-  return s.replace(/\D/g, "");
-}
-
-/** Show "Baños (total)" for loft listings, or in full-property (multi-room) wizard mode. */
-function showWizardPropertyBathroomsField(d: Draft): boolean {
-  return d.propertyKind === "loft" || d.postMode === "property";
-}
-
-/** Bathrooms sent to the API (minimum 1 when the field is hidden we still persist a sensible default). */
-function effectiveWizardPropertyBathrooms(d: Draft): number {
-  const b = d.propertyBathrooms;
-  if (Number.isFinite(b) && b > 0) return b;
-  return 1;
-}
-
 function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
   if (opts.upgrade) return 2;
 
-  const propertyCoreMissing =
-    Boolean(propertyGeneralStepInvalidReason(draft)) ||
-    !Number.isFinite(draft.propertyBedroomsTotal) ||
-    draft.propertyBedroomsTotal < 1 ||
-    (showWizardPropertyBathroomsField(draft) &&
-      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0));
+  if (locationStepInvalidReason(draft)) return 1;
 
-  if (propertyCoreMissing) return 2;
+  if (propertyGeneralStepInvalidReason(draft) || contactStepInvalidReason(draft)) return 2;
 
-  const contactMissing =
-    draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10;
+  if (validateRoomsForSubmit(draft)) return 3;
 
-  const roomsMissing = validateRoomsForSubmit(draft) !== null;
+  if (photosStepInvalidReason(draft)) return 4;
 
-  if (roomsMissing) return 3;
-
-  if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) return 5;
-
-  if (contactMissing) return draft.postMode === "property" ? 6 : 5;
+  if (draft.postMode === "property" && tagPhotosStepInvalidReason(draft)) return 5;
 
   return draft.postMode === "property" ? 6 : 5;
 }
@@ -922,15 +839,6 @@ export function PublishWizardPage() {
     };
   }, [apiOn, editPropertyId, upgrade, setSearchParams]);
 
-  const resolveLatLngForDraft = useCallback((d: Draft): { lat: number; lng: number } => {
-    const anchor = CITY_ANCHOR[d.city];
-    if (!d.useCustomMapPin) return { lat: anchor.lat, lng: anchor.lng };
-    const lat = Number(String(d.customLat).replace(",", "."));
-    const lng = Number(String(d.customLng).replace(",", "."));
-    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
-    return { lat: anchor.lat, lng: anchor.lng };
-  }, []);
-
   /** Drop any stale reverse-geocode label; the UI shows a coordinate fallback until Nominatim returns. */
   useLayoutEffect(() => {
     if (!draft.useCustomMapPin) return;
@@ -984,7 +892,7 @@ export function PublishWizardPage() {
       window.clearTimeout(timer);
       ac.abort();
     };
-  }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin, resolveLatLngForDraft]);
+  }, [draft.city, draft.customLat, draft.customLng, draft.useCustomMapPin]);
 
   useEffect(() => {
     if (!draft.useCustomMapPin || !mapGeocode?.address) return;
@@ -1336,6 +1244,7 @@ export function PublishWizardPage() {
               <div>
                 <p className="text-sm font-medium text-body">
                   Arrastra el marcador para colocar la ubicación.
+                  <span className="text-red-600"> *</span>
                 </p>
                 <div className="mt-3">
                   <WizardLocationMap
@@ -1439,6 +1348,35 @@ export function PublishWizardPage() {
                   Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
                   {draft.propertySummary.trim().length} ahora
                 </span>
+              </label>
+            </div>
+
+            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+              <h3 className="text-[15px] font-bold text-primary">Contacto</h3>
+              <label className="block text-sm font-medium text-body">
+                WhatsApp
+                <span className="text-red-600"> *</span>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={draft.contactWhatsApp}
+                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
+                  placeholder="Ej. 52 33 1234 5678"
+                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
+                <span className="mt-1 block text-xs text-muted">
+                  10–15 dígitos; incluye lada y código de país si aplica.
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
+                  checked={draft.showWhatsApp}
+                  onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
+                />
+                <span className="text-sm text-body">Mostrar WhatsApp en el anuncio público</span>
               </label>
             </div>
 
@@ -2173,7 +2111,7 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, resolveLatLngForDraft],
+    [draft, apiOn, mapAddressShown, mapGeocode],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
@@ -2241,61 +2179,18 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
-  const publishBlockedReason = useMemo(() => {
-    const generalErr = propertyGeneralStepInvalidReason(draft);
-    if (generalErr) return generalErr;
-    if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-      return "Indica cuántas recámaras tiene la propiedad (mínimo 1).";
-    }
-    if (
-      showWizardPropertyBathroomsField(draft) &&
-      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
-    ) {
-      return "Indica cuántos baños tiene la propiedad (total, mayor a 0).";
-    }
-    if (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
-      return "WhatsApp inválido.";
-    }
-    if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
-      return "Etiqueta tus fotos (Sin categorizar) antes de publicar.";
-    }
-    return validateRoomsForSubmit(draft);
-  }, [draft]);
+  const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 
   async function submitPublish() {
     setPublishErr(null);
+    const blocked = getPublishBlockedReason(draft);
+    if (blocked) {
+      setPublishErr(blocked);
+      return;
+    }
     const anchor = CITY_ANCHOR[draft.city];
     const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
     const digits = normalizeWhatsApp(draft.contactWhatsApp);
-    const generalErr = propertyGeneralStepInvalidReason(draft);
-    if (generalErr) {
-      setPublishErr(generalErr);
-      return;
-    }
-    if (draft.showWhatsApp && digits.length < 10) {
-      setPublishErr("WhatsApp inválido.");
-      return;
-    }
-    if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-      setPublishErr("Indica cuántas recámaras tiene la propiedad (mínimo 1).");
-      return;
-    }
-    if (
-      showWizardPropertyBathroomsField(draft) &&
-      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
-    ) {
-      setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
-      return;
-    }
-    if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
-      setPublishErr("Etiqueta tus fotos (Sin categorizar) antes de publicar.");
-      return;
-    }
-    const roomErr = validateRoomsForSubmit(draft);
-    if (roomErr) {
-      setPublishErr(roomErr);
-      return;
-    }
     if (me === undefined) {
       setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
       return;
@@ -2410,30 +2305,12 @@ export function PublishWizardPage() {
 
   async function submitServerDraft() {
     setPublishErr(null);
-    const digits = normalizeWhatsApp(draft.contactWhatsApp);
-    const generalErr = propertyGeneralStepInvalidReason(draft);
-    if (generalErr) {
-      setPublishErr(generalErr);
-      return;
-    }
-    if (draft.showWhatsApp && digits.length < 10) {
-      setPublishErr("WhatsApp inválido.");
-      return;
-    }
-    if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-      setPublishErr("Indica cuántas recámaras tiene la propiedad (mínimo 1).");
-      return;
-    }
-    if (
-      showWizardPropertyBathroomsField(draft) &&
-      (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
-    ) {
-      setPublishErr("Indica cuántos baños tiene la propiedad (total, mayor a 0).");
-      return;
-    }
-    const roomErr = validateRoomsForSubmit(draft);
-    if (roomErr) {
-      setPublishErr(roomErr);
+    const blocked =
+      propertyGeneralStepInvalidReason(draft) ??
+      contactStepInvalidReason(draft) ??
+      validateRoomsForSubmit(draft);
+    if (blocked) {
+      setPublishErr(blocked);
       return;
     }
 
@@ -2607,19 +2484,10 @@ export function PublishWizardPage() {
             <button
               type="button"
               onClick={() => {
-                if (safeStep === WIZARD_STEP_PROPERTY_GENERAL) {
-                  const err = propertyGeneralStepInvalidReason(draft);
-                  if (err) {
-                    setPublishErr(err);
-                    return;
-                  }
-                }
-                if (safeStep === WIZARD_STEP_RECAMARAS) {
-                  const roomErr = validateRoomsForSubmit(draft);
-                  if (roomErr) {
-                    setPublishErr(roomErr);
-                    return;
-                  }
+                const err = validateWizardStepByTitle(current.title, draft, safeStep);
+                if (err) {
+                  setPublishErr(err);
+                  return;
                 }
                 setPublishErr(null);
                 setStep((s) => Math.min(steps.length - 1, s + 1));

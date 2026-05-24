@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import {
+  ListingHeaderBadges,
+  ListingHeroPrice,
+  publicListingHeaderTitle,
+} from "@/components/listing/PublicListingHeader";
+import { PublicListingLocationMap } from "@/components/listing/PublicListingLocationMap";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 import {
@@ -13,7 +19,7 @@ import {
 import { startConversationFromListing } from "@/lib/messagesApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
-import type { PropertyListing, PropertyWithRooms } from "@/types/listing";
+import type { PropertyKind, PropertyListing, PropertyWithRooms } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -375,6 +381,23 @@ export function ListingPage() {
   const createdAtLabel = formatListingDate(listing.createdAt);
   const updatedAtLabel = formatListingDate(listing.updatedAt);
 
+  const postMode = listing.propertyPostMode ?? propertyPack?.property.postMode ?? "room";
+  const propertyKind = (listing.propertyKind ??
+    propertyPack?.property.propertyKind ??
+    "house") as PropertyKind;
+  const propertyBedroomsTotal =
+    listing.propertyBedroomsTotal ?? propertyPack?.property.bedroomsTotal ?? 1;
+  const propertyBathrooms = listing.propertyBathrooms ?? propertyPack?.property.bathrooms ?? 1;
+  const isApproximateLocation =
+    listing.isApproximateLocation ?? propertyPack?.property.isApproximateLocation ?? false;
+  const propertySummary = propertyPack?.property.summary.trim() ?? "";
+  const headerTitle = publicListingHeaderTitle({
+    postMode,
+    neighborhood: listing.neighborhood,
+    lodgingType: listing.lodgingType,
+    propertyKind,
+  });
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
       <nav className="text-sm text-muted">
@@ -392,7 +415,7 @@ export function ListingPage() {
           {listing.neighborhood} · {listing.city}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{listing.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{headerTitle}</h1>
           <span
             className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
               listingStatus === "published"
@@ -413,27 +436,30 @@ export function ListingPage() {
                   : "Archivado"}
           </span>
         </div>
-        <p className="mt-3 text-2xl font-semibold text-body">{money.format(listing.rentMxn)}</p>
+        {postMode === "property" && listing.title.trim() ? (
+          <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
+        ) : null}
+        <ListingHeroPrice rentMxn={listing.rentMxn} />
+        <ListingHeaderBadges
+          postMode={postMode}
+          roommateGenderPref={listing.roommateGenderPref}
+          availableFrom={listing.availableFrom}
+          occupiedByMenCount={propertyPack?.property.occupiedByMenCount}
+          occupiedByWomenCount={propertyPack?.property.occupiedByWomenCount}
+          propertyBedroomsTotal={propertyBedroomsTotal}
+          propertyBathrooms={propertyBathrooms}
+          propertyKind={propertyKind}
+          tags={listing.tags}
+        />
         {depositMxn > 0 ? (
-          <p className="mt-1 text-sm text-muted">Depósito · {money.format(depositMxn)}</p>
+          <p className="mt-2 text-sm text-muted">Depósito · {money.format(depositMxn)}</p>
         ) : null}
-        {apiOn && propertyPack ? (
-          <p className="mt-1 text-sm text-muted">
-            Propiedad · {propertyPack.property.bedroomsTotal} recámara(s) · {propertyPack.property.bathrooms}{" "}
-            baño(s)
-          </p>
+        {createdAtLabel || updatedAtLabel ? (
+          <div className="mt-2 space-y-1 text-sm text-muted">
+            {createdAtLabel ? <p>Fecha de publicación · {createdAtLabel}</p> : null}
+            {updatedAtLabel ? <p>Fecha de actualización · {updatedAtLabel}</p> : null}
+          </div>
         ) : null}
-        <div className="mt-1 space-y-1 text-sm text-muted">
-          <p>
-            {listing.roomsAvailable} cuarto(s) disponible(s) · Roomies{" "}
-            {listing.roommateGenderPref === "any"
-              ? "sin preferencia declarada"
-              : `prefieren ${listing.roommateGenderPref === "female" ? "mujer" : "hombre"}`}{" "}
-            · Se busca Bestie de {listing.ageMin} a {listing.ageMax} años
-          </p>
-          {createdAtLabel ? <p>Fecha de publicación · {createdAtLabel}</p> : null}
-          {updatedAtLabel ? <p>Fecha de actualización · {updatedAtLabel}</p> : null}
-        </div>
       </header>
 
       <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -550,12 +576,19 @@ export function ListingPage() {
         </section>
       ) : null}
 
-      {apiOn && propertyPack?.property.summary.trim() ? (
+      {propertySummary || Number.isFinite(listing.lat) ? (
         <section className="mt-6 rounded-2xl border border-border bg-bg-light p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-body">Sobre la propiedad</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted sm:text-base">
-            {propertyPack.property.summary}
-          </p>
+          <div className="mt-3 grid gap-4 md:grid-cols-2 md:items-stretch">
+            {propertySummary ? (
+              <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
+                {propertySummary}
+              </div>
+            ) : (
+              <p className="text-sm italic text-muted">Sin descripción de la propiedad.</p>
+            )}
+            <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
+          </div>
         </section>
       ) : null}
 

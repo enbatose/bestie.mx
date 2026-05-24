@@ -10,8 +10,23 @@ import {
 import { isRoomIdealParaTag, LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
-import type { ListingStatus, ListingTag } from "@/types/listing";
+import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from "@/types/listing";
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
+
+/** Titles used in `PublishWizardPage` steps — keep in sync when renaming steps. */
+export const WIZARD_STEP_TITLES = {
+  POST_MODE: "¿Qué tipo de espacio deseas publicar?",
+  LOCATION: "¿Dónde se ubica el espacio?",
+  PROPERTY_GENERAL: "¿Cómo es tu espacio?",
+  ROOMS: "Recámaras",
+  PHOTOS: "Fotos",
+  TAG_PHOTOS: "Etiquetar fotos",
+  REVIEW: "Revisar y publicar",
+} as const;
+
+const VALID_PROPERTY_KINDS: readonly PropertyKind[] = ["house", "apartment", "loft"];
+const VALID_ROOM_LODGING_TYPES = ["private_room", "shared_room"] as const;
+const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "female", "male"];
 
 export const CITY_ANCHOR = {
   Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.675_138, lng: -103.347_345 },
@@ -48,6 +63,21 @@ function isDefaultPropertySummarySeed(value: string) {
 
 export function normalizeWhatsApp(s: string): string {
   return s.replace(/\D/g, "");
+}
+
+function validLatLng(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+function stepPrefix(stepIndex: number, section: string, message: string): string {
+  return `Paso ${stepIndex + 1} · ${section}: ${message}`;
 }
 
 export function wizardContactDigits(contactWhatsApp: string, showPublic: boolean): string {
@@ -166,10 +196,118 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
   if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
     return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
   }
+  if (
+    showWizardPropertyBathroomsField(d) &&
+    (!Number.isFinite(d.propertyBathrooms) || d.propertyBathrooms < 1)
+  ) {
+    return "Indica cuántos baños tiene la propiedad (mínimo 1).";
+  }
   if (showWizardPropertyBathroomsField(d) && d.propertyBathrooms > PROPERTY_BATHROOMS_MAX) {
     return `El número de baños no puede exceder los ${PROPERTY_BATHROOMS_MAX}.`;
   }
+  if (d.postMode === "property" && !VALID_PROPERTY_KINDS.includes(d.propertyKind)) {
+    return "Selecciona el tipo de vivienda (Casa, Departamento o Loft).";
+  }
   return occupantCountsInvalidReason(d);
+}
+
+export function contactStepInvalidReason(d: Draft): string | null {
+  if (!d.showWhatsApp) {
+    return "Activa “Mostrar WhatsApp en el anuncio” e ingresa tu número de contacto.";
+  }
+  const digits = normalizeWhatsApp(d.contactWhatsApp);
+  if (digits.length < 10 || digits.length > 15) {
+    return "Ingresa un WhatsApp válido (10–15 dígitos).";
+  }
+  if (/^0+$/.test(digits)) {
+    return "Ingresa un número de WhatsApp real (no puede ser solo ceros).";
+  }
+  return null;
+}
+
+export function locationStepInvalidReason(d: Draft): string | null {
+  if (!d.city?.trim()) {
+    return "Selecciona una ciudad.";
+  }
+  if (!d.useCustomMapPin) {
+    return "Arrastra el marcador en el mapa para indicar la ubicación de tu espacio.";
+  }
+  const { lat, lng } = resolveLatLngForDraft(d);
+  if (!validLatLng(lat, lng)) {
+    return "La ubicación en el mapa no es válida.";
+  }
+  return null;
+}
+
+export function photosStepInvalidReason(d: Draft): string | null {
+  if (d.postMode === "room") {
+    if (draftRoomImageUrls(d, 0).length < 1) {
+      return "Sube al menos 1 foto de tu espacio.";
+    }
+    return null;
+  }
+  const unassigned = d.unassignedImageUrls.length;
+  const roomPhotos = d.roomImageUrls.reduce((sum, row) => sum + row.length, 0);
+  const shared = d.propertyImageUrls.length;
+  if (unassigned + roomPhotos + shared < 1) {
+    return "Sube al menos 1 foto antes de continuar.";
+  }
+  return null;
+}
+
+export function tagPhotosStepInvalidReason(d: Draft): string | null {
+  if (d.postMode !== "property") return null;
+  if (d.unassignedImageUrls.length > 0) {
+    return "Categoriza todas las fotos sin asignar (Sin categorizar) antes de continuar.";
+  }
+  return null;
+}
+
+export function publishPhotosInvalidReason(d: Draft): string | null {
+  const stepErr = photosStepInvalidReason(d);
+  if (stepErr) return stepErr;
+  const tagErr = tagPhotosStepInvalidReason(d);
+  if (tagErr) return tagErr;
+  if (d.postMode === "property") {
+    for (let i = 0; i < d.rooms.length; i++) {
+      if (draftRoomImageUrls(d, i).length < 1) {
+        return `Sube al menos 1 foto para la recámara ${i + 1}.`;
+      }
+    }
+  }
+  return null;
+}
+
+/** Validates the current wizard step before advancing with “Siguiente”. */
+export function validateWizardStepByTitle(
+  stepTitle: string,
+  draft: Draft,
+  stepIndex: number,
+): string | null {
+  switch (stepTitle) {
+    case WIZARD_STEP_TITLES.LOCATION: {
+      const err = locationStepInvalidReason(draft);
+      return err ? stepPrefix(stepIndex, "Ubicación", err) : null;
+    }
+    case WIZARD_STEP_TITLES.PROPERTY_GENERAL: {
+      const err = propertyGeneralStepInvalidReason(draft) ?? contactStepInvalidReason(draft);
+      return err ? stepPrefix(stepIndex, "Datos generales", err) : null;
+    }
+    case WIZARD_STEP_TITLES.ROOMS: {
+      const err = validateRoomsForSubmit(draft);
+      return err ? stepPrefix(stepIndex, "Recámaras", err) : null;
+    }
+    case WIZARD_STEP_TITLES.PHOTOS: {
+      const err = photosStepInvalidReason(draft);
+      return err ? stepPrefix(stepIndex, "Fotos", err) : null;
+    }
+    case WIZARD_STEP_TITLES.TAG_PHOTOS: {
+      const err = tagPhotosStepInvalidReason(draft);
+      return err ? stepPrefix(stepIndex, "Etiquetar fotos", err) : null;
+    }
+    default:
+      return null;
+  }
 }
 
 function roomTitleRequired(d: Pick<Draft, "postMode">): boolean {
@@ -222,8 +360,16 @@ export function validateRoomsForSubmit(d: Draft): string | null {
     if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
       return `En cada recámara${suffix} la estancia mínima debe ser de al menos 1 mes.`;
     }
-    if (r.depositMxn < 0) {
-      return "El depósito no puede ser negativo.";
+    if (!Number.isFinite(r.depositMxn) || r.depositMxn < 0) {
+      return `En cada recámara${suffix} indica el depósito (puede ser 0).`;
+    }
+    if (d.postMode === "room") {
+      if (!VALID_ROOM_LODGING_TYPES.includes(r.lodgingType as (typeof VALID_ROOM_LODGING_TYPES)[number])) {
+        return `Selecciona el tipo de recámara (privada o compartida)${suffix}.`;
+      }
+      if (!VALID_ROOMMATE_GENDER_PREFS.includes(r.roommateGenderPref)) {
+        return `Selecciona la preferencia de convivencia (Hombre, Mujer o Sin preferencia)${suffix}.`;
+      }
     }
     if (!roomHasIdealParaTag(r.tags)) {
       return `Selecciona al menos una opción en “Ideal para”${suffix}.`;
@@ -233,24 +379,22 @@ export function validateRoomsForSubmit(d: Draft): string | null {
 }
 
 export function getPublishBlockedReason(draft: Draft): string | null {
+  const locationErr = locationStepInvalidReason(draft);
+  if (locationErr) return `Paso · Ubicación: ${locationErr}`;
+
   const generalErr = propertyGeneralStepInvalidReason(draft);
-  if (generalErr) return generalErr;
-  if (!Number.isFinite(draft.propertyBedroomsTotal) || draft.propertyBedroomsTotal < 1) {
-    return "Indica cuántas recámaras tiene la propiedad (mínimo 1).";
-  }
-  if (
-    showWizardPropertyBathroomsField(draft) &&
-    (!Number.isFinite(draft.propertyBathrooms) || draft.propertyBathrooms <= 0)
-  ) {
-    return "Indica cuántos baños tiene la propiedad (total, mayor a 0).";
-  }
-  if (draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10) {
-    return "WhatsApp inválido.";
-  }
-  if (draft.postMode === "property" && draft.unassignedImageUrls.length > 0) {
-    return "Etiqueta tus fotos (Sin categorizar) antes de publicar.";
-  }
-  return validateRoomsForSubmit(draft);
+  if (generalErr) return `Paso · Datos generales: ${generalErr}`;
+
+  const contactErr = contactStepInvalidReason(draft);
+  if (contactErr) return `Paso · Contacto: ${contactErr}`;
+
+  const roomsErr = validateRoomsForSubmit(draft);
+  if (roomsErr) return `Paso · Recámaras: ${roomsErr}`;
+
+  const photosErr = publishPhotosInvalidReason(draft);
+  if (photosErr) return `Paso · Fotos: ${photosErr}`;
+
+  return null;
 }
 
 export { PROPERTY_SUMMARY_MIN, PROPERTY_SUMMARY_MAX, ROOM_SUMMARY_MIN, ROOM_SUMMARY_MAX, PROPERTY_TITLE_MAX };

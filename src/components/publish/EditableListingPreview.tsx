@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -41,13 +42,6 @@ import {
   minimalStayMonthsLabel,
   PROPERTY_KIND_LABELS,
   propertyBedroomsPreviewLabel,
-  previewRoomOccupantsBadgeLabel,
-  previewRoommateSoughtBadgeLabel,
-  previewAvailableFromBadgeLabel,
-  previewPropertySpacesBadgeLabel,
-  PREVIEW_PETS_FRIENDLY_BADGE,
-  previewRoomHeaderTitle,
-  previewPropertyHeaderTitle,
   roommateGenderPrefLabel,
   roomAgeRangeLabel,
   roomBathroomPreviewLabel,
@@ -159,9 +153,6 @@ function tagLabel(tag: ListingTag): string {
 
 const TAG_CHIP_READ =
   "rounded-full bg-bg-light px-3 py-1 text-xs font-medium text-body ring-1 ring-border";
-
-const PREVIEW_HEADER_BADGE =
-  "rounded-full bg-bg-light px-3 py-1.5 text-xs font-semibold text-body ring-1 ring-border";
 
 const TAG_CHIP_ACTIVE =
   "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
@@ -376,53 +367,6 @@ function PropertyRoommatesStat({
   );
 }
 
-function PreviewHeaderBadges({ draft, room }: { draft: Draft; room: RoomDraft }) {
-  const badges: { id: string; label: string }[] = [];
-
-  if (draft.postMode === "room") {
-    const occupants = previewRoomOccupantsBadgeLabel(
-      draft.occupiedByMenCount,
-      draft.occupiedByWomenCount,
-    );
-    if (occupants) badges.push({ id: "occupants", label: occupants });
-    badges.push({ id: "sought", label: previewRoommateSoughtBadgeLabel(room.roommateGenderPref) });
-    const available = previewAvailableFromBadgeLabel(room.availableFrom);
-    if (available) badges.push({ id: "available", label: available });
-  } else {
-    badges.push({
-      id: "spaces",
-      label: previewPropertySpacesBadgeLabel(
-        draft.propertyBedroomsTotal,
-        effectiveWizardPropertyBathrooms(draft),
-        draft.propertyKind,
-      ),
-    });
-    if (draft.propertyTags.includes("mascotas")) {
-      badges.push({ id: "pets", label: PREVIEW_PETS_FRIENDLY_BADGE });
-    }
-  }
-
-  if (!badges.length) return null;
-
-  return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {badges.map(({ id, label }) => (
-        <span key={id} className={PREVIEW_HEADER_BADGE}>
-          {label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function PreviewHeaderPrice({ rentMxn }: { rentMxn: number }) {
-  return (
-    <p className="mt-2 text-2xl font-bold text-slate-900">
-      {rentMxn.toLocaleString("es-MX")} MXN / mes
-    </p>
-  );
-}
-
 function PropertySummaryReadGrid({
   draft,
   neighborhoodLabel,
@@ -621,10 +565,12 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
   const showRoomPricing = shouldShowRoomPriceInDetails(draft.postMode, draft.rooms.length);
   const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
 
-  const previewHeaderTitle =
-    draft.postMode === "room"
-      ? previewRoomHeaderTitle(room.lodgingType, neighborhoodLabel, draft.postMode)
-      : previewPropertyHeaderTitle(draft.propertyKind, neighborhoodLabel);
+  const previewHeaderTitle = publicListingHeaderTitle({
+    postMode: draft.postMode,
+    neighborhood: neighborhoodLabel,
+    lodgingType: room.lodgingType,
+    propertyKind: draft.propertyKind,
+  });
 
   return (
     <div className="space-y-6">
@@ -712,8 +658,18 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
             {draft.postMode === "property" && listing.title.trim() ? (
               <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
             ) : null}
-            <PreviewHeaderPrice rentMxn={listing.rentMxn} />
-            <PreviewHeaderBadges draft={draft} room={room} />
+            <ListingHeroPrice rentMxn={listing.rentMxn} />
+            <ListingHeaderBadges
+              postMode={draft.postMode}
+              roommateGenderPref={room.roommateGenderPref}
+              availableFrom={room.availableFrom}
+              occupiedByMenCount={draft.occupiedByMenCount}
+              occupiedByWomenCount={draft.occupiedByWomenCount}
+              propertyBedroomsTotal={draft.propertyBedroomsTotal}
+              propertyBathrooms={effectiveWizardPropertyBathrooms(draft)}
+              propertyKind={draft.propertyKind}
+              tags={draft.propertyTags}
+            />
             {(listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
