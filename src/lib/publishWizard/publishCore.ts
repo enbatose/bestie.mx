@@ -7,7 +7,7 @@ import {
   publishPropertyBundle,
   updateProperty,
 } from "@/lib/listingsApi";
-import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
+import { isRoomIdealParaTag, LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import type { ListingStatus, ListingTag } from "@/types/listing";
@@ -180,6 +180,10 @@ function roomValidationSuffix(roomIndex: number, roomCount: number): string {
   return roomCount > 1 ? ` (recámara ${roomIndex + 1})` : "";
 }
 
+function roomHasIdealParaTag(tags: readonly ListingTag[]): boolean {
+  return tags.some((t) => isRoomIdealParaTag(t));
+}
+
 export function validateRoomsForSubmit(d: Draft): string | null {
   const iso = /^\d{4}-\d{2}-\d{2}$/;
   const needTitle = roomTitleRequired(d);
@@ -220,6 +224,9 @@ export function validateRoomsForSubmit(d: Draft): string | null {
     }
     if (r.depositMxn < 0) {
       return "El depósito no puede ser negativo.";
+    }
+    if (!roomHasIdealParaTag(r.tags)) {
+      return `Selecciona al menos una opción en “Ideal para”${suffix}.`;
     }
   }
   return null;

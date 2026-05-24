@@ -41,6 +41,8 @@ import {
   draftPropertyImageUrls,
   draftRoomImageUrls,
   effectiveRoomsAvailable,
+  validateRoomsForSubmit,
+  ROOM_SUMMARY_MIN,
 } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -77,8 +79,6 @@ const WIZARD_STEP_RECAMARAS = 3;
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
 
-/** Misma escala que la descripción de la propiedad en paso 3. */
-const ROOM_SUMMARY_MIN = 200;
 const ROOM_SUMMARY_MAX = 1500;
 
 /** Título por defecto del listado en modo un solo cuarto (campo oculto en el paso Recámaras). */
@@ -389,55 +389,6 @@ function effectiveRoomTitle(room: Pick<RoomDraft, "title">, postMode: Draft["pos
   return "";
 }
 
-function roomValidationSuffix(roomIndex: number, roomCount: number): string {
-  return roomCount > 1 ? ` (recámara ${roomIndex + 1})` : "";
-}
-
-function validateRoomsForSubmit(d: Draft): string | null {
-  const iso = /^\d{4}-\d{2}-\d{2}$/;
-  const needTitle = roomTitleRequired(d);
-  for (let i = 0; i < d.rooms.length; i++) {
-    const r = d.rooms[i]!;
-    const suffix = roomValidationSuffix(i, d.rooms.length);
-    if (needTitle && !r.title.trim()) {
-      return `Cada recámara necesita un título${suffix}.`;
-    }
-    const summaryTrim = r.summary.trim();
-    if (!summaryTrim) {
-      return `Cada recámara necesita una descripción${suffix}.`;
-    }
-    const len = summaryTrim.length;
-    if (len < ROOM_SUMMARY_MIN) {
-      return `La descripción de cada recámara${suffix} debe tener al menos ${ROOM_SUMMARY_MIN} caracteres.`;
-    }
-    if (len > ROOM_SUMMARY_MAX) {
-      return `La descripción de cada recámara${suffix} no puede exceder los ${ROOM_SUMMARY_MAX} caracteres.`;
-    }
-    if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) {
-      return `En cada recámara${suffix} indica una renta mayor a 0.`;
-    }
-    if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) {
-      return `En cada recámara${suffix} indica al menos 1 plaza o espacio disponible.`;
-    }
-    if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99) {
-      return "La edad mínima y máxima debe estar entre 18 y 99 años.";
-    }
-    if (r.ageMin > r.ageMax) {
-      return `En cada recámara${suffix} la edad mínima no puede ser mayor que la máxima.`;
-    }
-    if (!iso.test(r.availableFrom.trim())) {
-      return `En cada recámara${suffix} indica una fecha “Disponible desde” válida (AAAA-MM-DD).`;
-    }
-    if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) {
-      return `En cada recámara${suffix} la estancia mínima debe ser de al menos 1 mes.`;
-    }
-    if (r.depositMxn < 0) {
-      return "El depósito no puede ser negativo.";
-    }
-  }
-  return null;
-}
-
 function convertRoomDraftToProperty(d: Draft): Draft {
   if (d.postMode === "property") return d;
   const rooms = d.rooms.length > 0 ? d.rooms : [defaultRoom()];
@@ -477,15 +428,7 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   ) {
     return false;
   }
-  for (const r of d.rooms) {
-    if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) return false;
-    if (!Number.isFinite(r.roomsAvailable) || r.roomsAvailable < 1) return false;
-    if (r.ageMin < 18 || r.ageMax < 18 || r.ageMax > 99 || r.ageMin > r.ageMax) return false;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.availableFrom.trim())) return false;
-    if (!Number.isFinite(r.minimalStayMonths) || r.minimalStayMonths < 1) return false;
-    if (r.summary.trim().length < ROOM_SUMMARY_MIN) return false;
-  }
-  return true;
+  return validateRoomsForSubmit(d) === null;
 }
 
 function wizardContactDigits(contactWhatsApp: string, showPublic: boolean): string {
@@ -525,24 +468,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
   const contactMissing =
     draft.showWhatsApp && normalizeWhatsApp(draft.contactWhatsApp).length < 10;
 
-  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
-  const roomsMissing =
-    draft.rooms.length === 0 ||
-    draft.rooms.some(
-      (room) =>
-        (draft.postMode === "property" && !room.title.trim()) ||
-        !room.summary.trim() ||
-        room.summary.trim().length < ROOM_SUMMARY_MIN ||
-        room.rentMxn <= 0 ||
-        room.roomsAvailable < 1 ||
-        room.depositMxn < 0 ||
-        room.ageMin < 18 ||
-        room.ageMax < 18 ||
-        room.ageMax > 99 ||
-        room.ageMin > room.ageMax ||
-        !isoDate.test(room.availableFrom.trim()) ||
-        room.minimalStayMonths < 1,
-    );
+  const roomsMissing = validateRoomsForSubmit(draft) !== null;
 
   if (roomsMissing) return 3;
 
@@ -1734,6 +1660,7 @@ export function PublishWizardPage() {
                   {draft.postMode === "property" ? (
                     <label className="block text-sm font-medium text-body">
                       Título del espacio
+                      <span className="text-red-600"> *</span>
                       <input
                         value={room.title}
                         onChange={(e) => updateRoom(i, { title: e.target.value })}
@@ -1745,6 +1672,7 @@ export function PublishWizardPage() {
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <label className="block text-sm font-medium text-body">
                       {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
+                      <span className="text-red-600"> *</span>
                       <select
                         value={
                           draft.postMode === "room" && room.lodgingType === "whole_home"
@@ -1859,10 +1787,13 @@ export function PublishWizardPage() {
                   <div className="grid gap-3 sm:grid-cols-3">
                     {draft.postMode === "property" ? (
                       <div className="block text-sm font-medium text-body">
-                        <span className="block">Plazas / espacios</span>
+                        <span className="block">
+                          Plazas / espacios
+                          <span className="text-red-600"> *</span>
+                        </span>
                         <WizardNumberStepper
-                          value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, room.roomsAvailable))}
-                          min={0}
+                          value={Math.min(ROOM_PLAZAS_MAX, Math.max(1, room.roomsAvailable))}
+                          min={1}
                           max={ROOM_PLAZAS_MAX}
                           onChange={(n) => updateRoom(i, { roomsAvailable: n })}
                           decrementLabel="Menos plazas"
@@ -1909,6 +1840,7 @@ export function PublishWizardPage() {
                   <div className="grid gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
                       {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                      <span className="text-red-600"> *</span>
                       <select
                         value={room.roommateGenderPref}
                         onChange={(e) =>
@@ -1924,7 +1856,10 @@ export function PublishWizardPage() {
                       </select>
                     </label>
                     <div className="block text-sm font-medium text-body">
-                      <span className="block">Edad mín.</span>
+                      <span className="block">
+                        Edad mín.
+                        <span className="text-red-600"> *</span>
+                      </span>
                       <WizardNumberStepper
                         editableCenter
                         maxInputDigits={2}
@@ -1942,7 +1877,10 @@ export function PublishWizardPage() {
                       />
                     </div>
                     <div className="block text-sm font-medium text-body">
-                      <span className="block">Edad máx.</span>
+                      <span className="block">
+                        Edad máx.
+                        <span className="text-red-600"> *</span>
+                      </span>
                       <WizardNumberStepper
                         editableCenter
                         maxInputDigits={2}
@@ -1968,6 +1906,7 @@ export function PublishWizardPage() {
                   </h3>
                   <label className="block text-sm font-medium text-body">
                     Descripción de la recámara
+                    <span className="text-red-600"> *</span>
                     <textarea
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
@@ -1987,7 +1926,12 @@ export function PublishWizardPage() {
                   <div className="mt-3 space-y-4">
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (
                       <div key={group.title}>
-                        <p className="text-sm font-medium text-body">{group.title}</p>
+                        <p className="text-sm font-medium text-body">
+                          {group.title}
+                          {group.title === "Ideal para" ? (
+                            <span className="text-red-600"> *</span>
+                          ) : null}
+                        </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {group.tags.map((tag) => {
                             const active = room.tags.includes(tag);

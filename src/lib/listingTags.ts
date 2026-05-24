@@ -180,9 +180,9 @@ export function roomBathroomPreviewLabel(tags: readonly ListingTag[]): string {
 export const ROOMMATE_GENDER_PREF_FIELD_LABEL = "Preferencia de Género";
 
 export function roommateGenderPrefLabel(pref: RoommateGenderPref): string {
-  if (pref === "female") return "Mujeres";
-  if (pref === "male") return "Hombres";
-  return "Sin preferencia";
+  if (pref === "female") return "Solo Mujeres";
+  if (pref === "male") return "Solo Hombres";
+  return "Hombre o Mujer";
 }
 
 /** ISO `YYYY-MM-DD` → fecha legible en español (México). */
