@@ -16,7 +16,7 @@ export function myListingsHandler(db: DatabaseSync) {
 
     const rows = db
       .prepare(
-        `${ROOM_PROPERTY_JOIN_SQL} WHERE p.publisher_id = ? ORDER BY p.title ASC, r.sort_order ASC, r.rent_mxn ASC, r.id ASC`,
+        `${ROOM_PROPERTY_JOIN_SQL} WHERE p.publisher_id = ? ORDER BY CASE p.status WHEN 'published' THEN 0 WHEN 'paused' THEN 1 WHEN 'draft' THEN 2 ELSE 3 END, p.title ASC, r.sort_order ASC, r.rent_mxn ASC, r.id ASC`,
       )
       .all(publisherId) as Record<string, unknown>[];
 

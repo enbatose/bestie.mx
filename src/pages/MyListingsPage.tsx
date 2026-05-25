@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ListingReferenceChip } from "@/components/myListings/ListingReferenceChip";
 import {
   fetchMyListings,
   updateListingStatus,
   updateProperty,
   fetchPropertyWithRooms,
 } from "@/lib/listingsApi";
+import {
+  MY_LISTINGS_SECTIONS,
+  propertyReferenceCode,
+  propertyStatusSortKey,
+  roomReferenceCode,
+} from "@/lib/listingReference";
 import { authMe, type AuthMe } from "@/lib/authApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
+
+type PropertyGroup = { propertyId: string; list: PropertyListing[] };
 
 type FlashMessage = {
   text: string;
@@ -81,20 +90,50 @@ export function MyListingsPage() {
     return [...new Set(m)];
   }, []);
 
-  const groups = useMemo(() => {
-    if (!rows?.length) return [] as [string, PropertyListing[]][];
+  const propertyGroups = useMemo((): PropertyGroup[] => {
+    if (!rows?.length) return [];
     const m = new Map<string, PropertyListing[]>();
     for (const l of rows) {
       const list = m.get(l.propertyId) ?? [];
       list.push(l);
       m.set(l.propertyId, list);
     }
-    return [...m.entries()].sort((a, b) => {
-      const ta = a[1][0]?.propertyTitle ?? a[0];
-      const tb = b[1][0]?.propertyTitle ?? b[0];
-      return ta.localeCompare(tb, "es");
-    });
+    return [...m.entries()]
+      .map(([propertyId, list]) => ({ propertyId, list }))
+      .sort((a, b) => {
+        const sa = propertyStatusSortKey(a.list[0]?.propertyStatus);
+        const sb = propertyStatusSortKey(b.list[0]?.propertyStatus);
+        if (sa !== sb) return sa - sb;
+        const ta = a.list[0]?.propertyTitle ?? a.propertyId;
+        const tb = b.list[0]?.propertyTitle ?? b.propertyId;
+        return ta.localeCompare(tb, "es");
+      });
   }, [rows]);
+
+  const sectionsWithGroups = useMemo(
+    () =>
+      MY_LISTINGS_SECTIONS.map((section) => ({
+        ...section,
+        groups: propertyGroups.filter(
+          (g) => (g.list[0]?.propertyStatus ?? "published") === section.status,
+        ),
+      })).filter((section) => section.groups.length > 0),
+    [propertyGroups],
+  );
+
+  const summaryParts = useMemo(() => {
+    const counts = { published: 0, draft: 0, paused: 0, archived: 0 };
+    for (const g of propertyGroups) {
+      const st = g.list[0]?.propertyStatus ?? "published";
+      counts[st]++;
+    }
+    const parts: string[] = [];
+    if (counts.published) parts.push(`${counts.published} publicado${counts.published === 1 ? "" : "s"}`);
+    if (counts.draft) parts.push(`${counts.draft} borrador${counts.draft === 1 ? "" : "es"}`);
+    if (counts.paused) parts.push(`${counts.paused} pausado${counts.paused === 1 ? "" : "s"}`);
+    if (counts.archived) parts.push(`${counts.archived} archivado${counts.archived === 1 ? "" : "s"}`);
+    return parts;
+  }, [propertyGroups]);
 
   useEffect(() => {
     const st = location.state as { draftSaved?: boolean } | null;
@@ -275,6 +314,9 @@ export function MyListingsPage() {
             Aquí puedes ver tus borradores y tus anuncios activos. Un borrador puede crearse sin cuenta, pero
             para activarlo y publicarlo necesitas iniciar sesión.
           </p>
+          {summaryParts.length ? (
+            <p className="mt-2 text-sm font-medium text-body">{summaryParts.join(" · ")}</p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -306,7 +348,7 @@ export function MyListingsPage() {
         </p>
       ) : null}
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-8 space-y-10">
         {busy && rows === null ? (
           <p className="text-sm text-muted">Cargando…</p>
         ) : rows?.length === 0 ? (
@@ -317,24 +359,51 @@ export function MyListingsPage() {
             </Link>
           </p>
         ) : (
-          groups.map(([propertyId, list]) => {
+          sectionsWithGroups.map((section) => (
+            <div key={section.key}>
+              <div className="mb-4 border-b border-border pb-3">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2 className="text-lg font-semibold text-body">{section.title}</h2>
+                  <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
+                    {section.groups.length}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted">{section.description}</p>
+              </div>
+              <div className="space-y-6">
+                {section.groups.map(({ propertyId, list }) => {
             const head = list[0]!;
             const propSt = head.propertyStatus ?? "published";
             const propActing = actionPropertyId === propertyId;
+            const propRef = propertyReferenceCode(propertyId);
+            const sectionAccent =
+              section.key === "published"
+                ? "border-l-primary/50"
+                : section.key === "draft"
+                  ? "border-l-amber-400"
+                  : section.key === "paused"
+                    ? "border-l-slate-300"
+                    : "border-l-border";
 
             return (
               <section
                 key={propertyId}
-                className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
+                className={`overflow-hidden rounded-2xl border border-border border-l-4 ${sectionAccent} bg-surface shadow-sm`}
               >
                 <div className="flex flex-col gap-4 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                      {propertyStatusLabel(head.propertyStatus)}
-                    </p>
-                    <h2 className="mt-1 text-lg font-semibold text-body">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        {propertyStatusLabel(head.propertyStatus)}
+                      </p>
+                      <ListingReferenceChip code={propRef} label="Propiedad" title={`Referencia de propiedad: ${propRef}`} />
+                    </div>
+                    <h3 className="mt-1 text-lg font-semibold text-body">
                       {head.propertyTitle ?? head.title}
-                    </h2>
+                    </h3>
+                    <p className="mt-1 text-xs text-muted">
+                      {head.neighborhood} · {head.city}
+                    </p>
                     {propSt === "draft" && missingByProperty[propertyId] ? (
                       <p className="mt-2 text-xs text-amber-900 dark:text-amber-200">
                         Completa: <span className="font-medium">{missingByProperty[propertyId]}</span>
@@ -436,9 +505,10 @@ export function MyListingsPage() {
                   <table className="min-w-full text-left text-sm">
                     <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                       <tr>
+                        <th className="px-4 py-3">Referencia</th>
                         <th className="px-4 py-3">Cuarto / título</th>
-                        <th className="px-4 py-3">Ciudad</th>
-                        <th className="px-4 py-3">Estado cuarto</th>
+                        <th className="hidden px-4 py-3 sm:table-cell">Ciudad</th>
+                        <th className="px-4 py-3">Estado</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
@@ -446,10 +516,18 @@ export function MyListingsPage() {
                       {list.map((l) => {
                         const st = l.status ?? "published";
                         const acting = rowBusy(l);
+                        const roomRef = roomReferenceCode(l.id);
                         return (
                           <tr key={l.id}>
+                            <td className="px-4 py-3">
+                              <ListingReferenceChip
+                                code={roomRef}
+                                label="Anuncio"
+                                title={`Referencia del anuncio: ${roomRef}`}
+                              />
+                            </td>
                             <td className="px-4 py-3 font-medium">{l.title}</td>
-                            <td className="px-4 py-3 text-muted">{l.city}</td>
+                            <td className="hidden px-4 py-3 text-muted sm:table-cell">{l.city}</td>
                             <td className="px-4 py-3">{statusLabel(st)}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex flex-wrap justify-end gap-2">
@@ -509,7 +587,10 @@ export function MyListingsPage() {
                 </div>
               </section>
             );
-          })
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
