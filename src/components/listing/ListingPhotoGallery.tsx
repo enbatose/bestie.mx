@@ -8,6 +8,7 @@ type Props = {
   linkToFullSize?: boolean;
 };
 
+/** Grid collage for wizard preview and cover selection. Published listings use {@link ListingPhotoCarousel}. */
 export function ListingPhotoGallery({ urls, failedUrls, onImageError, linkToFullSize = false }: Props) {
   if (!urls.length) {
     return <p className="text-sm text-muted">Sin fotos disponibles.</p>;

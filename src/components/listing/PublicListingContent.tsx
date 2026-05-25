@@ -1,4 +1,4 @@
-import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
+import { ListingPhotoCarousel } from "@/components/listing/ListingPhotoCarousel";
 import { ListingPhotoPlaceholder } from "@/components/listing/ListingPhotoPlaceholder";
 import {
   ListingPropertySummaryGrid,
@@ -67,11 +67,10 @@ export function PublicListingContent({
   const depositMxn = listing.depositMxn ?? 0;
 
   const photosBlock = galleryUrls.length ? (
-    <ListingPhotoGallery
+    <ListingPhotoCarousel
       urls={galleryUrls}
       failedUrls={failedImageUrls}
       onImageError={onImageError}
-      linkToFullSize
     />
   ) : (
     <ListingPhotoPlaceholder />
