@@ -7,6 +7,7 @@ import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { isAdminRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
+import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
   CITY_MAX_LEN,
   clampAge,
@@ -148,7 +149,8 @@ export function listingsRouter(db: DatabaseSync) {
   });
 
   r.get("/:id", (req: Request, res: Response) => {
-    if (!isSafeRoomOrListingId(req.params.id)) {
+    const roomId = resolveRoomIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!roomId) {
       res.status(400).json({ error: "invalid_id", reason: "invalid_id" satisfies PublicListingUnavailableReason });
       return;
     }
@@ -156,7 +158,7 @@ export function listingsRouter(db: DatabaseSync) {
     // have a different `bestie_pub` cookie (otherwise only the owner's cookie path ran).
     const publishedRow = db
       .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
-      .get(req.params.id) as Record<string, unknown> | undefined;
+      .get(roomId) as Record<string, unknown> | undefined;
 
     const publisherId = readPublisherIdFromRequest(req);
     const row =
@@ -167,7 +169,7 @@ export function listingsRouter(db: DatabaseSync) {
               `${ROOM_PROPERTY_JOIN_SQL}
                WHERE r.id = ? AND p.publisher_id = ?`,
             )
-            .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
+            .get(roomId, publisherId) as Record<string, unknown> | undefined)
         : undefined);
     if (row) {
       const listing = listingForPublic(joinRowToPropertyListing(row));
@@ -182,7 +184,7 @@ export function listingsRouter(db: DatabaseSync) {
 
     const hiddenRow = db
       .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
-      .get(req.params.id) as Record<string, unknown> | undefined;
+      .get(roomId) as Record<string, unknown> | undefined;
     res.status(404).json({ error: "not_found", reason: publicUnavailableReasonForRow(hiddenRow) });
   });
 
@@ -376,7 +378,8 @@ export function listingsRouter(db: DatabaseSync) {
   });
 
   r.patch("/:id", jsonMw, (req: Request, res: Response) => {
-    if (!isSafeRoomOrListingId(req.params.id)) {
+    const roomId = resolveRoomIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!roomId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
@@ -393,12 +396,12 @@ export function listingsRouter(db: DatabaseSync) {
             `${ROOM_PROPERTY_JOIN_SQL}
          WHERE r.id = ? AND p.publisher_id = ?`,
           )
-          .get(req.params.id, publisherId) as Record<string, unknown> | undefined)
+          .get(roomId, publisherId) as Record<string, unknown> | undefined)
       : undefined;
     if (!row && asAdmin) {
       row = db
         .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
-        .get(req.params.id) as Record<string, unknown> | undefined;
+        .get(roomId) as Record<string, unknown> | undefined;
     }
     if (!row) {
       res.status(404).json({ error: "not_found" });

@@ -1,4 +1,5 @@
 import { MessageCircle, Share2 } from "lucide-react";
+import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 
 type ShareLink = { id: string; label: string };
 
@@ -43,7 +44,7 @@ export function ListingShareActions({
           <div className="mt-2 flex flex-col items-end gap-1">
             <button
               type="button"
-              onClick={() => onSharePath(`/propiedad/${encodeURIComponent(propertyId)}`, "Link de la propiedad")}
+              onClick={() => onSharePath(propertyPublicPath(propertyId), "Link de la propiedad")}
               className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
             >
               Link de la propiedad
@@ -52,7 +53,7 @@ export function ListingShareActions({
               <button
                 key={r.id}
                 type="button"
-                onClick={() => onSharePath(`/anuncio/${encodeURIComponent(r.id)}`, `Link de ${r.label}`)}
+                onClick={() => onSharePath(listingPublicPath(r.id), `Link de ${r.label}`)}
                 className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
               >
                 {r.id === currentListingId ? "Este cuarto" : r.label}

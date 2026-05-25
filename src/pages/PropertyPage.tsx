@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { listingPublicPath } from "@/lib/listingReference";
 import { fetchPropertyWithRooms } from "@/lib/listingsApi";
 import type { PropertyWithRooms } from "@/types/listing";
 
@@ -31,7 +32,7 @@ export function PropertyPage() {
     if (!propertyPack) return;
     const firstPublishedRoom = propertyPack.rooms.find((room) => room.status === "published");
     if (firstPublishedRoom) {
-      navigate(`/anuncio/${encodeURIComponent(firstPublishedRoom.id)}`, { replace: true });
+      navigate(listingPublicPath(firstPublishedRoom.id), { replace: true });
     }
   }, [navigate, propertyPack]);
 

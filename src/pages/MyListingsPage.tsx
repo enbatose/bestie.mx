@@ -8,6 +8,7 @@ import {
   fetchPropertyWithRooms,
 } from "@/lib/listingsApi";
 import {
+  listingPublicPath,
   MY_LISTINGS_SECTIONS,
   propertyReferenceCode,
   propertyStatusSortKey,
@@ -200,7 +201,7 @@ export function MyListingsPage() {
       await load();
       setFlash({
         text: "El anuncio ya está publicado.",
-        to: `/anuncio/${id}`,
+        to: listingPublicPath(id),
         linkText: "Ver anuncio publicado",
       });
     } catch (e) {
@@ -245,7 +246,7 @@ export function MyListingsPage() {
       await load();
       setFlash({
         text: "La propiedad ya está publicada.",
-        to: publicListingId ? `/anuncio/${publicListingId}` : undefined,
+        to: publicListingId ? listingPublicPath(publicListingId) : undefined,
         linkText: "Ver publicación",
       });
     } catch (e) {
@@ -286,7 +287,7 @@ export function MyListingsPage() {
       setLegalPublishByProperty((m) => ({ ...m, [propertyId]: false }));
       setFlash({
         text: "Ya está publicado.",
-        to: publicListingId ? `/anuncio/${publicListingId}` : undefined,
+        to: publicListingId ? listingPublicPath(publicListingId) : undefined,
         linkText: "Ver publicación",
       });
     } catch (e) {
@@ -540,7 +541,7 @@ export function MyListingsPage() {
                                   </Link>
                                 ) : null}
                                 <Link
-                                  to={`/anuncio/${l.id}`}
+                                  to={listingPublicPath(l.id)}
                                   className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated"
                                 >
                                   {st === "published" && propSt === "published"

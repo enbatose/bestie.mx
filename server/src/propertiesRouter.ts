@@ -6,6 +6,7 @@ import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
+import { resolvePropertyIdFromRouteParam } from "./resolveListingRouteId.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import {
   CITY_MAX_LEN,
@@ -526,8 +527,8 @@ export function propertiesRouter(db: DatabaseSync) {
 
   /** Public: property + published rooms only. Owner cookie: all rooms for that property. */
   r.get("/:id", (req: Request, res: Response) => {
-    const propertyId = req.params.id;
-    if (!isSafePropertyId(propertyId)) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!propertyId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }

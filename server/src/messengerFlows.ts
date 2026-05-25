@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { PropertyListing } from "./types.js";
 import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
+import { roomReferenceCode } from "./listingReference.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import {
@@ -115,7 +116,7 @@ async function runSearchAndReply(db: DatabaseSync, psid: string, base: string, d
 
   const top = list.slice(0, 5);
   const elements = top.map((l) => {
-    const url = `${base}/anuncio/${encodeURIComponent(l.id)}`;
+    const url = `${base}/anuncio/${encodeURIComponent(roomReferenceCode(l.id))}`;
     const img = listingPrimaryImage(base, l);
     return {
       title: l.title.slice(0, 80),

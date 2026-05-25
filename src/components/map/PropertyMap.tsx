@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Link } from "react-router-dom";
+import { listingPublicPath } from "@/lib/listingReference";
 import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
@@ -235,7 +236,7 @@ export function PropertyMap({
             <Popup>
               <div className="max-w-[220px] text-body">
                 <Link
-                  to={`/anuncio/${l.id}`}
+                  to={listingPublicPath(l.id)}
                   className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
                 >
                   {l.title}

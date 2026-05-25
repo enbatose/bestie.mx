@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { listingPublicPath } from "@/lib/listingReference";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
 import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
 import type { Draft } from "@/pages/PublishWizardPage";
@@ -70,7 +71,7 @@ export function PublishWizardReviewStep({
         </p>
         {isLiveEdit && returnListingId ? (
           <Link
-            to={`/anuncio/${encodeURIComponent(returnListingId)}`}
+            to={listingPublicPath(returnListingId)}
             className="mt-3 inline-flex text-sm font-semibold text-primary underline-offset-2 hover:underline"
           >
             Volver al anuncio publicado
@@ -145,7 +146,7 @@ export function PublishWizardReviewStep({
           )}
           {isLiveEdit && returnListingId ? (
             <Link
-              to={`/anuncio/${encodeURIComponent(returnListingId)}`}
+              to={listingPublicPath(returnListingId)}
               className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
             >
               Cancelar

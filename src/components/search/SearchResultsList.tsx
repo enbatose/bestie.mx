@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { listingPublicPath } from "@/lib/listingReference";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
@@ -85,7 +86,7 @@ export function SearchResultsList({ listings, selectedId, onSelect, dense = fals
               </button>
               <div className={`flex flex-wrap gap-2 ${dense ? "mt-2" : "mt-3"}`}>
                 <Link
-                  to={`/anuncio/${l.id}`}
+                  to={listingPublicPath(l.id)}
                   className={`inline-flex items-center justify-center rounded-full bg-primary font-semibold text-primary-fg transition hover:brightness-110 ${
                     dense ? "px-3 py-1.5 text-[11px]" : "px-4 py-2 text-xs sm:text-sm"
                   }`}

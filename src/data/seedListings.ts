@@ -1,3 +1,4 @@
+import { roomReferenceCode } from "@/lib/listingReference";
 import type { PropertyListing } from "@/types/listing";
 
 export const SEED_LISTINGS: PropertyListing[] = [
@@ -292,6 +293,9 @@ export const SEED_LISTINGS: PropertyListing[] = [
   },
 ];
 
-export function getListingById(id: string): PropertyListing | undefined {
-  return SEED_LISTINGS.find((l) => l.id === id);
+export function getListingById(idOrRef: string): PropertyListing | undefined {
+  const trimmed = idOrRef.trim();
+  const direct = SEED_LISTINGS.find((l) => l.id === trimmed);
+  if (direct) return direct;
+  return SEED_LISTINGS.find((l) => roomReferenceCode(l.id) === trimmed);
 }

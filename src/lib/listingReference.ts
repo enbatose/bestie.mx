@@ -1,6 +1,9 @@
 import type { ListingStatus } from "@/types/listing";
 
-const REF_BRAND = "BES";
+const ROOM_REF_PATTERN = /^A([A-F0-9]{8})$/i;
+const PROPERTY_REF_PATTERN = /^P([A-F0-9]{8})$/i;
+const LEGACY_ROOM_REF_PATTERN = /^BES-A-([A-F0-9]{8})$/i;
+const LEGACY_PROPERTY_REF_PATTERN = /^BES-P-([A-F0-9]{8})$/i;
 
 /** Stable 8-char hex slice from property or room ids (incl. `prp__` prefix). */
 export function listingReferenceId(rawId: string): string {
@@ -9,11 +12,36 @@ export function listingReferenceId(rawId: string): string {
 }
 
 export function propertyReferenceCode(propertyId: string): string {
-  return `${REF_BRAND}-P-${listingReferenceId(propertyId)}`;
+  return `P${listingReferenceId(propertyId)}`;
 }
 
 export function roomReferenceCode(roomId: string): string {
-  return `${REF_BRAND}-A-${listingReferenceId(roomId)}`;
+  return `A${listingReferenceId(roomId)}`;
+}
+
+export function isListingReferenceCode(param: string): boolean {
+  const t = param.trim();
+  return (
+    ROOM_REF_PATTERN.test(t) ||
+    PROPERTY_REF_PATTERN.test(t) ||
+    LEGACY_ROOM_REF_PATTERN.test(t) ||
+    LEGACY_PROPERTY_REF_PATTERN.test(t)
+  );
+}
+
+export function isRoomReferenceCode(param: string): boolean {
+  const t = param.trim();
+  return ROOM_REF_PATTERN.test(t) || LEGACY_ROOM_REF_PATTERN.test(t);
+}
+
+/** Public listing URL slug (e.g. `/anuncio/A550E8400`). */
+export function listingPublicPath(roomId: string): string {
+  return `/anuncio/${roomReferenceCode(roomId)}`;
+}
+
+/** Property hub URL slug (redirects to first published room). */
+export function propertyPublicPath(propertyId: string): string {
+  return `/propiedad/${propertyReferenceCode(propertyId)}`;
 }
 
 const PROPERTY_STATUS_ORDER: Record<ListingStatus, number> = {

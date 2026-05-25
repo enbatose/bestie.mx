@@ -7,6 +7,7 @@ import type { Application } from "express";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
+import { roomReferenceCode } from "./listingReference.js";
 
 const PROP_SUMMARY_OK =
   "Descripción de la propiedad lo bastante larga para pruebas API (≥20 caracteres).";
@@ -312,6 +313,47 @@ describe("Phase B API hardening", () => {
     const res = await request(app).get(`/api/listings/${encodeURIComponent("bad!id")}`).expect(400);
     expect((res.body as { error?: string }).error).toBe("invalid_id");
     expect((res.body as { reason?: string }).reason).toBe("invalid_id");
+  });
+
+  it("GET /api/listings/:id resolves A reference slugs", async () => {
+    const agent = request.agent(app);
+    const r1 = await agent
+      .post("/api/properties")
+      .send({
+        title: "Casa ref GET",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "523331234567",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+
+    const r2 = await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto ref",
+        rentMxn: 4200,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "Descripción del cuarto para prueba de referencia A550E8400.",
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+    await registerAndLinkAnonymousPublisher(agent);
+    await patchRoomWithTestPhoto(agent, propertyId, roomId);
+    await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
+    await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
+
+    const ref = roomReferenceCode(roomId);
+    const g = await request(app).get(`/api/listings/${encodeURIComponent(ref)}`).expect(200);
+    expect((g.body as { id?: string }).id).toBe(roomId);
+    expect((g.body as { status?: string }).status).toBe("published");
   });
 
   it("GET /api/listings/:id reports room and property status reasons for anonymous visitors", async () => {

@@ -18,6 +18,7 @@ import {
   type FetchListingByIdResult,
   type ListingUnavailableReason,
 } from "@/lib/listingsApi";
+import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
 import { startConversationFromListing } from "@/lib/messagesApi";
 import type { PropertyKind, PropertyListing, PropertyWithRooms } from "@/types/listing";
 
@@ -240,6 +241,16 @@ export function ListingPage() {
   }, [apiOn, id]);
 
   const listing = apiOn ? (apiListing === undefined ? undefined : apiListing) : seedListing;
+
+  useEffect(() => {
+    if (!listing?.id || !id) return;
+    const canonical = roomReferenceCode(listing.id);
+    if (id === canonical) return;
+    navigate(`${listingPublicPath(listing.id)}${location.search}`, {
+      replace: true,
+      state: location.state,
+    });
+  }, [id, listing?.id, location.search, location.state, navigate]);
 
   useEffect(() => {
     if (!apiOn || !listing?.propertyId) {
@@ -466,7 +477,7 @@ export function ListingPage() {
             <ListingShareActions
               shareMsg={shareMsg}
               onShareListing={() =>
-                void copyShareUrl(`/anuncio/${encodeURIComponent(listing.id)}`, "Link del anuncio")
+                void copyShareUrl(listingPublicPath(listing.id), "Link del anuncio")
               }
               isPropertyPost={isPropertyPost}
               propertyId={listing.propertyId}
@@ -557,7 +568,7 @@ export function ListingPage() {
             {siblingLinks.map((s) => (
               <li key={s.id}>
                 <Link
-                  to={`/anuncio/${s.id}`}
+                  to={listingPublicPath(s.id)}
                   className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   {s.label}

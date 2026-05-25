@@ -13,6 +13,7 @@ import {
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
+import { listingPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
@@ -2166,7 +2167,7 @@ export function PublishWizardPage() {
           serverSyncRef.current.roomIds[roomIdx] ?? liveEditReturnListingId ?? result.roomId;
 
         if (editingLiveProperty?.status === "published") {
-          navigate(`/anuncio/${encodeURIComponent(returnId)}`, {
+          navigate(listingPublicPath(returnId), {
             replace: true,
             state: { listingUpdated: true },
           });
@@ -2309,7 +2310,7 @@ export function PublishWizardPage() {
 
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
-            to={`/anuncio/${publishSuccessRoomId}`}
+            to={listingPublicPath(publishSuccessRoomId)}
             className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             Ver mi anuncio

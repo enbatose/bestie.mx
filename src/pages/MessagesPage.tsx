@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { listingPublicPath } from "@/lib/listingReference";
 import {
   fetchConversationMessages,
   fetchConversations,
@@ -172,7 +173,7 @@ export function MessagesPage() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {active?.listingRoomId ? (
                     <Link
-                      to={`/anuncio/${encodeURIComponent(active.listingRoomId)}`}
+                      to={listingPublicPath(active.listingRoomId)}
                       className="text-xs font-semibold underline"
                     >
                       Ver anuncio
