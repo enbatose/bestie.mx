@@ -13,7 +13,7 @@ import {
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
-import { type PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
+import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
   LISTING_TAG_SLUG_SET,
@@ -602,6 +602,7 @@ export function PublishWizardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
+  const editListingId = searchParams.get("room");
   const upgrade = searchParams.get("upgrade") === "1";
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
@@ -609,6 +610,10 @@ export function PublishWizardPage() {
   const [editingLiveProperty, setEditingLiveProperty] = useState<{
     status: Extract<ListingStatus, "published" | "paused">;
   } | null>(null);
+  const [editBundleReady, setEditBundleReady] = useState(() => !searchParams.get("edit"));
+  const [liveEditReturnListingId, setLiveEditReturnListingId] = useState<string | null>(
+    () => searchParams.get("room"),
+  );
   const apiOn = isListingsApiConfigured();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => defaultDraft());
@@ -778,6 +783,7 @@ export function PublishWizardPage() {
   useEffect(() => {
     if (!editPropertyId) return;
     if (!apiOn) return;
+    setEditBundleReady(false);
     let cancelled = false;
     void (async () => {
       try {
@@ -794,7 +800,26 @@ export function PublishWizardPage() {
               : mapped.draft;
           setDraft(nextDraft);
           setServerSync(mapped.serverSync);
-          setStep(resumeStepForDraft(nextDraft, { upgrade }));
+
+          const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
+          let previewIdx = 0;
+          if (editListingId) {
+            const found = srvRooms.findIndex((r) => r.id === editListingId);
+            if (found >= 0) previewIdx = found;
+          }
+          setPreviewRoomIndex(previewIdx);
+          const returnId =
+            (editListingId && srvRooms.some((r) => r.id === editListingId)
+              ? editListingId
+              : srvRooms[previewIdx]?.id) ?? srvRooms.find((r) => r.status === "published")?.id ?? srvRooms[0]?.id ?? null;
+          setLiveEditReturnListingId(returnId);
+
+          if (!upgrade && (ps === "published" || ps === "paused")) {
+            setStep(publishWizardLastStepIndex(nextDraft.postMode));
+          } else {
+            setStep(resumeStepForDraft(nextDraft, { upgrade }));
+          }
+
           if (upgrade && mapped.draft.postMode === "room") {
             setHandoffBanner(
               "Borrador cargado como propiedad con múltiples cuartos. Completa la información faltante para agregar cuartos y publicar.",
@@ -802,8 +827,8 @@ export function PublishWizardPage() {
           } else if (ps === "published" || ps === "paused") {
             setHandoffBanner(
               ps === "paused"
-                ? "Anuncio en pausa cargado. Guarda los cambios y usa “Publicar” para volver a activarlo en búsqueda."
-                : "Anuncio publicado cargado. Los cambios se aplican al guardar o al publicar de nuevo.",
+                ? "Anuncio en pausa. Edita por sección y usa “Guardar y republicar” para volver a activarlo en búsqueda."
+                : null,
             );
           } else {
             setHandoffBanner("Borrador cargado para editar.");
@@ -818,12 +843,14 @@ export function PublishWizardPage() {
         }
       } finally {
         if (!cancelled) {
+          setEditBundleReady(true);
           setStorageReady(true);
           setSearchParams(
             (prev) => {
               const n = new URLSearchParams(prev);
               n.delete("edit");
               n.delete("upgrade");
+              n.delete("room");
               return n;
             },
             { replace: true },
@@ -834,7 +861,7 @@ export function PublishWizardPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiOn, editPropertyId, upgrade, setSearchParams]);
+  }, [apiOn, editPropertyId, editListingId, upgrade, setSearchParams]);
 
   /** Drop any stale reverse-geocode label; the UI shows a coordinate fallback until Nominatim returns. */
   useLayoutEffect(() => {
@@ -2020,6 +2047,7 @@ export function PublishWizardPage() {
   const safeStep = Math.min(Math.max(0, step), maxStepIndex);
   const current = steps[safeStep]!;
   const isPublishStep = current.title === "Revisar y publicar";
+  const isLiveListingEdit = Boolean(editingLiveProperty && !upgrade);
 
   const autofillStep = useCallback(
     (stepIndex: number) => {
@@ -2130,10 +2158,25 @@ export function PublishWizardPage() {
         isLoggedIn: true,
       });
       if (result.kind === "published") {
+        const roomIdx = Math.min(
+          previewRoomIndex,
+          Math.max(0, draftRef.current.rooms.length - 1),
+        );
+        const returnId =
+          serverSyncRef.current.roomIds[roomIdx] ?? liveEditReturnListingId ?? result.roomId;
+
+        if (editingLiveProperty?.status === "published") {
+          navigate(`/anuncio/${encodeURIComponent(returnId)}`, {
+            replace: true,
+            state: { listingUpdated: true },
+          });
+          return;
+        }
+
         setEditingLiveProperty(null);
         setServerSync({ propertyId: null, roomIds: [] });
         serverSyncRef.current = { propertyId: null, roomIds: [] };
-        setPublishSuccessRoomId(result.roomId);
+        setPublishSuccessRoomId(returnId);
         return;
       }
       if (result.kind === "error") {
@@ -2172,6 +2215,61 @@ export function PublishWizardPage() {
     } finally {
       setSubmitInFlight(null);
     }
+  }
+
+  if (editPropertyId && !editBundleReady) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+        <p className="text-sm text-muted">Cargando tu anuncio para editar…</p>
+      </div>
+    );
+  }
+
+  if (isLiveListingEdit && editingLiveProperty) {
+    const reviewRoomIndex = Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1));
+    const returnListingId =
+      liveEditReturnListingId ?? serverSync.roomIds[reviewRoomIndex] ?? null;
+
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
+        {apiOn && me ? (
+          <p className="mt-2 text-xs text-muted" aria-live="polite">
+            {autosaveNote === "saving"
+              ? "Guardando cambios en el servidor…"
+              : autosaveNote === "saved"
+                ? "Cambios guardados en el servidor."
+                : autosaveNote === "error"
+                  ? "No se pudo sincronizar con el servidor. Se reintentará al seguir editando."
+                  : "Los cambios se guardan solos en el servidor mientras editas."}
+          </p>
+        ) : null}
+        {handoffBanner ? (
+          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            {handoffBanner}
+          </p>
+        ) : null}
+
+        <div className="mt-6">
+          <PublishWizardReviewStep
+            draft={draft}
+            roomIndex={reviewRoomIndex}
+            onRoomIndexChange={setPreviewRoomIndex}
+            onDraftChange={(updater) => setDraft((d) => updater(d))}
+            apiOn={apiOn}
+            publishBlockedReason={publishBlockedReason}
+            actionErr={publishErr}
+            submitInFlight={submitInFlight}
+            onSaveDraft={() => void submitServerDraft()}
+            onPublish={() => void submitPublish()}
+            liveEdit={{
+              status: editingLiveProperty.status,
+              returnListingId,
+            }}
+          />
+        </div>
+      </div>
+    );
   }
 
   if (publishSuccessRoomId) {

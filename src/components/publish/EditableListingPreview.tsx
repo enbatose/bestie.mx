@@ -54,6 +54,7 @@ type Props = {
   draft: Draft;
   roomIndex: number;
   apiOn?: boolean;
+  variant?: "preview" | "live-edit";
   onDraftChange: (updater: (d: Draft) => Draft) => void;
 };
 
@@ -223,7 +224,13 @@ function cloneRoomDraft(room: RoomDraft): RoomDraft {
 }
 
 
-export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraftChange }: Props) {
+export function EditableListingPreview({
+  draft,
+  roomIndex,
+  apiOn = false,
+  variant = "preview",
+  onDraftChange,
+}: Props) {
   const listing = useMemo(() => draftToListingPreview(draft, roomIndex), [draft, roomIndex]);
   const room = draft.rooms[roomIndex];
 
@@ -403,8 +410,14 @@ export function EditableListingPreview({ draft, roomIndex, apiOn = false, onDraf
     <div className="space-y-6">
       <header className="rounded-2xl border border-dashed border-secondary/50 bg-secondary/5 p-5">
         <div className="flex items-center justify-between gap-2">
-          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-900">
-            Vista previa · Borrador
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+              variant === "live-edit"
+                ? "bg-primary/10 text-primary"
+                : "bg-amber-100 text-amber-900"
+            }`}
+          >
+            {variant === "live-edit" ? "Editando anuncio" : "Vista previa · Borrador"}
           </span>
           {!editingHeader ? (
             <button

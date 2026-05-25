@@ -1,6 +1,13 @@
+import { Link } from "react-router-dom";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
 import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
 import type { Draft } from "@/pages/PublishWizardPage";
+import type { ListingStatus } from "@/types/listing";
+
+type LiveEditContext = {
+  status: Extract<ListingStatus, "published" | "paused">;
+  returnListingId?: string | null;
+};
 
 type Props = {
   draft: Draft;
@@ -13,6 +20,8 @@ type Props = {
   submitInFlight: "publish" | "draft" | null;
   onSaveDraft: () => void;
   onPublish: () => void;
+  /** Owner editing an already-published or paused listing (not the first-time wizard). */
+  liveEdit?: LiveEditContext | null;
 };
 
 export function PublishWizardReviewStep({
@@ -26,20 +35,52 @@ export function PublishWizardReviewStep({
   submitInFlight,
   onSaveDraft,
   onPublish,
+  liveEdit = null,
 }: Props) {
+  const isLiveEdit = liveEdit != null;
+  const returnListingId = liveEdit?.returnListingId ?? null;
+  const primaryLabel =
+    submitInFlight === "publish"
+      ? "Guardando…"
+      : isLiveEdit && liveEdit.status === "published"
+        ? "Guardar cambios"
+        : isLiveEdit && liveEdit.status === "paused"
+          ? "Guardar y republicar"
+          : "Publicar anuncio";
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm">
-        <h3 className="text-[15px] font-bold text-primary">Revisión final</h3>
+        <h3 className="text-[15px] font-bold text-primary">
+          {isLiveEdit ? "Editar anuncio" : "Revisión final"}
+        </h3>
         <p className="mt-2 text-sm text-muted">
-          Así se verá tu anuncio publicado. Toca <strong className="font-medium text-body">Editar</strong> en cada
-          bloque para ajustar el contenido aquí mismo, sin salir de este paso.
+          {isLiveEdit ? (
+            <>
+              Tu anuncio se ve como en la página publicada. Toca{" "}
+              <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
+              descripción y más.
+            </>
+          ) : (
+            <>
+              Así se verá tu anuncio publicado. Toca <strong className="font-medium text-body">Editar</strong> en cada
+              bloque para ajustar el contenido aquí mismo, sin salir de este paso.
+            </>
+          )}
         </p>
+        {isLiveEdit && returnListingId ? (
+          <Link
+            to={`/anuncio/${encodeURIComponent(returnListingId)}`}
+            className="mt-3 inline-flex text-sm font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            Volver al anuncio publicado
+          </Link>
+        ) : null}
       </div>
 
       {draft.rooms.length > 1 ? (
         <label className="block text-sm font-medium text-body">
-          Recámara en vista previa
+          {isLiveEdit ? "Recámara que estás editando" : "Recámara en vista previa"}
           <select
             value={roomIndex}
             onChange={(e) => onRoomIndexChange(Number(e.target.value))}
@@ -58,13 +99,14 @@ export function PublishWizardReviewStep({
         draft={draft}
         roomIndex={roomIndex}
         apiOn={apiOn}
+        variant={isLiveEdit ? "live-edit" : "preview"}
         onDraftChange={onDraftChange}
       />
 
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
         {publishBlockedReason ? (
           <p className="text-xs text-muted" role="status">
-            Para publicar: {publishBlockedReason}
+            {isLiveEdit ? "Para guardar:" : "Para publicar:"} {publishBlockedReason}
           </p>
         ) : null}
         {actionErr ? (
@@ -76,7 +118,7 @@ export function PublishWizardReviewStep({
         <div
           className={`flex flex-wrap items-center gap-2 ${publishBlockedReason || actionErr ? "mt-5" : ""}`}
         >
-          {apiOn ? (
+          {apiOn && !isLiveEdit ? (
             <button
               type="button"
               disabled={submitInFlight !== null}
@@ -94,16 +136,24 @@ export function PublishWizardReviewStep({
               onClick={onPublish}
               className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
             >
-              {submitInFlight === "publish" ? "Publicando…" : "Publicar anuncio"}
+              {primaryLabel}
             </button>
           ) : (
             <span className="text-xs text-muted">
               Sin API: configura <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code> para publicar.
             </span>
           )}
+          {isLiveEdit && returnListingId ? (
+            <Link
+              to={`/anuncio/${encodeURIComponent(returnListingId)}`}
+              className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+            >
+              Cancelar
+            </Link>
+          ) : null}
         </div>
 
-        <PublishReviewDisclaimer />
+        {!isLiveEdit ? <PublishReviewDisclaimer /> : null}
       </section>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import {
   ListingHeaderBadges,
@@ -161,7 +161,16 @@ function unavailableCopy(reason: ListingUnavailableReason | null): {
 
 export function ListingPage() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const listingUpdated = Boolean(
+    (location.state as { listingUpdated?: boolean } | null)?.listingUpdated,
+  );
+  useEffect(() => {
+    if (!listingUpdated) return;
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [listingUpdated, location.pathname, location.search, navigate]);
+
   const { openLogin } = useAuthModal();
   const apiOn = isListingsApiConfigured();
   const messagingOn = isAuthApiConfigured();
@@ -431,6 +440,15 @@ export function ListingPage() {
         <span className="text-body">{headerTitle}</span>
       </nav>
 
+      {listingUpdated ? (
+        <p
+          className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          Cambios guardados. Tu anuncio ya muestra la información actualizada.
+        </p>
+      ) : null}
+
       <header className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-muted">
@@ -439,7 +457,7 @@ export function ListingPage() {
           <div className="flex flex-col items-end gap-2">
             {listing.viewerIsOwner && listingStatus === "published" ? (
               <Link
-                to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}`}
+                to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}&room=${encodeURIComponent(listing.id)}`}
                 className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
               >
                 Editar anuncio
