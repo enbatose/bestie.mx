@@ -76,14 +76,21 @@ export function PublicListingContent({
     <ListingPhotoPlaceholder />
   );
 
-  const propertyDescriptionBlock = (
+  const showPropertySummaryText = postMode === "property";
+  const propertyDescriptionBlock = showPropertySummaryText ? (
     <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
       <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
         {propertySummary ? propertySummary : <span className="italic">Sin descripción de la propiedad.</span>}
       </div>
       <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
     </div>
+  ) : (
+    <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
   );
+  const propertySectionTitle = showPropertySummaryText ? "La propiedad" : "Ubicación y amenidades";
+  const propertySectionSubtitle = showPropertySummaryText
+    ? "Áreas comunes, ubicación y amenidades compartidas."
+    : "Dónde está y qué incluye la propiedad.";
 
   if (seekerLayout) {
     return (
@@ -126,7 +133,7 @@ export function PublicListingContent({
           />
         </ListingSection>
 
-        <ListingSection title="La propiedad" subtitle="Áreas comunes, ubicación y amenidades compartidas.">
+        <ListingSection title={propertySectionTitle} subtitle={propertySectionSubtitle}>
           {propertyDescriptionBlock}
           <ListingTagSection heading="Amenidades de la propiedad" tags={propertyTags} />
         </ListingSection>
@@ -148,7 +155,7 @@ export function PublicListingContent({
         />
       </ListingSection>
 
-      <ListingSection title="Sobre la propiedad">
+      <ListingSection title={showPropertySummaryText ? "Sobre la propiedad" : "Ubicación y amenidades"}>
         {propertyDescriptionBlock}
         <ListingTagSection heading="Etiquetas de la propiedad" tags={propertyTags} />
       </ListingSection>

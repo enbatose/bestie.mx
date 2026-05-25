@@ -178,14 +178,16 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
   if (d.neighborhood.trim().length > PROPERTY_NEIGHBORHOOD_MAX) {
     return `La colonia o zona no puede exceder los ${PROPERTY_NEIGHBORHOOD_MAX} caracteres.`;
   }
-  if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-    return `La descripción de la propiedad y áreas comunes debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
-  }
-  if (d.propertySummary.trim().length > PROPERTY_SUMMARY_MAX) {
-    return `La descripción de la propiedad no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
-  }
-  if (isDefaultPropertySummarySeed(d.propertySummary)) {
-    return "Sustituye el texto de ejemplo por tu propia descripción de la propiedad y las zonas comunes.";
+  if (d.postMode === "property") {
+    if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
+      return `La descripción de la propiedad y áreas comunes debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
+    }
+    if (d.propertySummary.trim().length > PROPERTY_SUMMARY_MAX) {
+      return `La descripción de la propiedad no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
+    }
+    if (isDefaultPropertySummarySeed(d.propertySummary)) {
+      return "Sustituye el texto de ejemplo por tu propia descripción de la propiedad y las zonas comunes.";
+    }
   }
   if (
     d.propertyKind !== "loft" &&

@@ -1263,22 +1263,24 @@ export function PublishWizardPage() {
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <label className="block text-sm font-medium text-body">
-                Descripción de la propiedad y áreas comunes
-                <span className="text-red-600"> *</span>
-                <textarea
-                  value={draft.propertySummary}
-                  onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
-                  rows={5}
-                  maxLength={PROPERTY_SUMMARY_MAX}
-                  placeholder={DEFAULT_PROPERTY_SUMMARY}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                />
-                <span className="mt-1 block text-xs text-muted">
-                  Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
-                  {draft.propertySummary.trim().length} ahora
-                </span>
-              </label>
+              {draft.postMode === "property" ? (
+                <label className="block text-sm font-medium text-body">
+                  Descripción de la propiedad y áreas comunes
+                  <span className="text-red-600"> *</span>
+                  <textarea
+                    value={draft.propertySummary}
+                    onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
+                    rows={5}
+                    maxLength={PROPERTY_SUMMARY_MAX}
+                    placeholder={DEFAULT_PROPERTY_SUMMARY}
+                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  />
+                  <span className="mt-1 block text-xs text-muted">
+                    Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
+                    {draft.propertySummary.trim().length} ahora
+                  </span>
+                </label>
+              ) : null}
             </div>
 
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
