@@ -11,6 +11,19 @@ import { openDb } from "./db.js";
 const PROP_SUMMARY_OK =
   "Descripción de la propiedad lo bastante larga para pruebas API (≥20 caracteres).";
 
+const TEST_LISTING_IMAGE_URL = "/api/uploads/test-listing-photo.png";
+
+async function patchRoomWithTestPhoto(
+  agent: ReturnType<typeof request.agent>,
+  propertyId: string,
+  roomId: string,
+): Promise<void> {
+  await agent
+    .patch(`/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`)
+    .send({ imageUrls: [TEST_LISTING_IMAGE_URL] })
+    .expect(200);
+}
+
 function cookiePairFromSetCookie(res: { headers: Record<string, unknown> }): string {
   const sc = res.headers["set-cookie"] as string | string[] | undefined;
   if (!sc) return "";
@@ -163,6 +176,7 @@ describe("Phase B API hardening", () => {
             roomDimension: "medium",
             minimalStayMonths: 1,
             depositMxn: 0,
+            imageUrls: [TEST_LISTING_IMAGE_URL],
           },
         ],
       })
@@ -242,6 +256,8 @@ describe("Phase B API hardening", () => {
     expect((r3.body as { error?: string }).error).toBe("property_not_published");
 
     await registerAndLinkAnonymousPublisher(agent);
+
+    await patchRoomWithTestPhoto(agent, propertyId, roomId);
 
     await agent
       .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
@@ -335,6 +351,8 @@ describe("Phase B API hardening", () => {
 
     await registerAndLinkAnonymousPublisher(agent);
 
+    await patchRoomWithTestPhoto(agent, propertyId, roomId);
+
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "paused" }).expect(200);
@@ -364,6 +382,8 @@ describe("Phase B API hardening", () => {
       })
       .expect(201);
     const roomId2 = (r3.body as { id: string }).id;
+
+    await patchRoomWithTestPhoto(agent, propertyId, roomId2);
 
     await agent.patch(`/api/listings/${encodeURIComponent(roomId2)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "paused" }).expect(200);
@@ -406,6 +426,8 @@ describe("Phase B API hardening", () => {
     const roomId = (r2.body as { id: string }).id;
 
     await registerAndLinkAnonymousPublisher(agentA);
+
+    await patchRoomWithTestPhoto(agentA, propertyId, roomId);
 
     await agentA.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
     await agentA.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
@@ -461,6 +483,8 @@ describe("Phase B API hardening", () => {
     const room1Id = (rRoom1.body as { id: string }).id;
 
     await registerAndLinkAnonymousPublisher(agent);
+
+    await patchRoomWithTestPhoto(agent, propertyId, room1Id);
 
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
 
@@ -627,7 +651,7 @@ describe("Phase B API hardening", () => {
       })
       .expect(201);
     const propertyId = (r1.body as { id: string }).id;
-    await agent
+    const rRoom = await agent
       .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
       .send({
         title: "R1",
@@ -640,7 +664,9 @@ describe("Phase B API hardening", () => {
         summary: "Descripción del cuarto.",
       })
       .expect(201);
+    const roomIdForPublish = (rRoom.body as { id: string }).id;
     await registerAndLinkAnonymousPublisher(agent);
+    await patchRoomWithTestPhoto(agent, propertyId, roomIdForPublish);
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
 
     const r2 = await agent
@@ -680,6 +706,7 @@ describe("Phase B API hardening", () => {
       .expect(201);
     const roomId = (rRoom.body as { id: string }).id;
     await registerAndLinkAnonymousPublisher(agent);
+    await patchRoomWithTestPhoto(agent, propertyId, roomId);
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
 

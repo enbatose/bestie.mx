@@ -102,6 +102,32 @@ function imageUrlsFromRow(raw: unknown): string[] {
   }
 }
 
+function draftPublishPhotosOk(
+  db: DatabaseSync,
+  propertyId: string,
+  postMode: "room" | "property",
+  patchedPropImages?: string[],
+): boolean {
+  const propRow = db
+    .prepare("SELECT image_urls_json FROM properties WHERE id = ?")
+    .get(propertyId) as { image_urls_json: unknown } | undefined;
+  const propImages = patchedPropImages ?? imageUrlsFromRow(propRow?.image_urls_json);
+  const roomRows = db
+    .prepare(
+      "SELECT image_urls_json FROM rooms WHERE property_id = ? ORDER BY sort_order ASC, id ASC",
+    )
+    .all(propertyId) as { image_urls_json: unknown }[];
+  if (postMode === "room") {
+    const firstRoomImages = roomRows[0] ? imageUrlsFromRow(roomRows[0].image_urls_json) : [];
+    return firstRoomImages.length >= 1 || propImages.length >= 1;
+  }
+  if (roomRows.length < 1) return false;
+  for (const row of roomRows) {
+    if (imageUrlsFromRow(row.image_urls_json).length < 1) return false;
+  }
+  return true;
+}
+
 function rowToProperty(row: Record<string, unknown>): Property {
   const pk = optPropertyKind(row.property_kind);
   const st = String(row.status ?? "draft");
@@ -1024,6 +1050,24 @@ export function propertiesRouter(db: DatabaseSync) {
         res.status(400).json({
           error: "invalid_body",
           message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters before publishing.`,
+        });
+        return;
+      }
+      const publishMode =
+        patch.postMode != null && typeof patch.postMode === "string" && patch.postMode === "property"
+          ? "property"
+          : patch.postMode === "room"
+            ? "room"
+            : curMode;
+      const patchedPropImages =
+        patch.imageUrls !== undefined ? clampListingImageUrls(patch.imageUrls) : undefined;
+      if (!draftPublishPhotosOk(db, propertyId, publishMode, patchedPropImages)) {
+        res.status(400).json({
+          error: "photos_required",
+          message:
+            publishMode === "room"
+              ? "Sube al menos 1 foto de tu espacio antes de publicar."
+              : "Sube al menos 1 foto por recámara antes de publicar.",
         });
         return;
       }

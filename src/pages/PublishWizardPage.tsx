@@ -8,14 +8,9 @@ import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
-  addDraftRoomToProperty,
-  createDraftProperty,
   deleteDraftRoom,
   fetchPropertyWithRooms,
   isListingsApiConfigured,
-  patchDraftRoom,
-  publishPropertyBundle,
-  updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
 import { type PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
@@ -55,6 +50,8 @@ import {
   validateRoomsForSubmit,
   validateWizardStepByTitle,
   wizardContactDigits,
+  publishDraftFromWizard,
+  syncDraftToServer,
   ROOM_SUMMARY_MIN,
 } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
@@ -960,109 +957,14 @@ export function PublishWizardPage() {
 
     try {
       setAutosaveNote("saving");
-      const anchor = CITY_ANCHOR[d.city];
-      const neighborhood = d.neighborhood.trim() || anchor.neighborhood;
-      const { lat, lng } = resolveLatLngForDraft(d);
-      const wa = wizardContactDigits(d.contactWhatsApp, d.showWhatsApp);
-
-      for (let attempt = 0; attempt < 2; attempt++) {
-        let propertyId = serverSyncRef.current.propertyId;
-        let roomIds = [...serverSyncRef.current.roomIds];
-
-        if (!propertyId) {
-          const prop = await createDraftProperty({
-            title: d.propertyTitle.trim() || "Sin título",
-            city: d.city,
-            neighborhood,
-            lat,
-            lng,
-            summary: d.propertySummary.trim(),
-            contactWhatsApp: wa,
-            propertyKind: d.propertyKind,
-            bedroomsTotal: d.propertyBedroomsTotal,
-            bathrooms: effectiveWizardPropertyBathrooms(d),
-            showWhatsApp: d.showWhatsApp,
-            imageUrls: draftPropertyImageUrls(d),
-            isApproximateLocation: d.isApproximateLocation,
-            occupiedByWomenCount: d.occupiedByWomenCount,
-            occupiedByMenCount: d.occupiedByMenCount,
-          });
-          propertyId = prop.id;
-          roomIds = d.rooms.map(() => "");
-        }
-
-        while (roomIds.length < d.rooms.length) roomIds.push("");
-        roomIds = roomIds.slice(0, d.rooms.length);
-
-        for (let i = 0; i < d.rooms.length; i++) {
-          const r = d.rooms[i]!;
-          const payload = {
-            title: effectiveRoomTitle(r, d.postMode) || "Recámara en borrador",
-            rentMxn: r.rentMxn,
-            roomsAvailable: effectiveRoomsAvailable(d, i),
-            tags: mergedRoomTagsForPayload(d, i),
-            roommateGenderPref: r.roommateGenderPref,
-            ageMin: r.ageMin,
-            ageMax: r.ageMax,
-            summary: r.summary.trim(),
-            lodgingType: r.lodgingType,
-            availableFrom: r.availableFrom.trim(),
-            minimalStayMonths: r.minimalStayMonths,
-            roomDimension: r.roomDimension,
-            depositMxn: r.depositMxn,
-            imageUrls: draftRoomImageUrls(d, i),
-          };
-          const rid = roomIds[i];
-          if (!rid) {
-            const created = await addDraftRoomToProperty(propertyId!, payload);
-            roomIds[i] = created.id;
-          } else {
-            await patchDraftRoom(propertyId!, rid, payload);
-          }
-        }
-
-        try {
-          await updateProperty(propertyId!, {
-            postMode: d.postMode,
-            title: d.propertyTitle.trim() || "Sin título",
-            summary: d.propertySummary.trim(),
-            city: d.city,
-            neighborhood,
-            lat,
-            lng,
-            contactWhatsApp: wa,
-            propertyKind: d.propertyKind,
-            bedroomsTotal: d.propertyBedroomsTotal,
-            bathrooms: effectiveWizardPropertyBathrooms(d),
-            showWhatsApp: d.showWhatsApp,
-            imageUrls: draftPropertyImageUrls(d),
-            isApproximateLocation: d.isApproximateLocation,
-            occupiedByWomenCount: d.occupiedByWomenCount,
-            occupiedByMenCount: d.occupiedByMenCount,
-          });
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (attempt === 0 && (msg.includes("update_property_http_404") || msg.includes("update_property_http_403"))) {
-            // Draft no longer exists on server or publisher cookie changed; recreate once.
-            serverSyncRef.current = { propertyId: "", roomIds: [] };
-            setServerSync({ propertyId: "", roomIds: [] });
-            continue;
-          }
-          throw e;
-        }
-
-        const next: ServerSync = { propertyId, roomIds };
-        serverSyncRef.current = next;
-        setServerSync(next);
-        setAutosaveNote("saved");
-        window.setTimeout(() => {
-          setAutosaveNote((n) => (n === "saved" ? "idle" : n));
-        }, 2000);
-        return next;
-      }
-
-      setAutosaveNote("error");
-      return null;
+      const next = await syncDraftToServer(d, serverSyncRef.current);
+      serverSyncRef.current = next;
+      setServerSync(next);
+      setAutosaveNote("saved");
+      window.setTimeout(() => {
+        setAutosaveNote((n) => (n === "saved" ? "idle" : n));
+      }, 2000);
+      return next;
     } catch {
       setAutosaveNote("error");
       return null;
@@ -2183,14 +2085,11 @@ export function PublishWizardPage() {
 
   async function submitPublish() {
     setPublishErr(null);
-    const blocked = getPublishBlockedReason(draft);
+    const blocked = getPublishBlockedReason(draftRef.current);
     if (blocked) {
       setPublishErr(blocked);
       return;
     }
-    const anchor = CITY_ANCHOR[draft.city];
-    const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
-    const digits = normalizeWhatsApp(draft.contactWhatsApp);
     if (me === undefined) {
       setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
       return;
@@ -2198,12 +2097,19 @@ export function PublishWizardPage() {
     if (!me) {
       setSubmitInFlight("draft");
       try {
-        await flushWizardAutosave();
+        if (apiOn) {
+          const synced = await syncDraftToServer(draftRef.current, serverSyncRef.current);
+          serverSyncRef.current = synced;
+          setServerSync(synced);
+        }
         navigate("/entrar", {
           replace: true,
           state: {
             registrationNotice:
               "Tu anuncio ya está creado como borrador. Para activarlo y publicarlo, inicia sesión o crea una cuenta.",
+            resumeDraft: draftRef.current,
+            resumeServerSync: serverSyncRef.current,
+            resumeStep: step,
           },
         });
       } catch (e) {
@@ -2216,86 +2122,23 @@ export function PublishWizardPage() {
 
     setSubmitInFlight("publish");
     try {
-      const sync = await flushWizardAutosave();
-      const { lat, lng } = resolveLatLngForDraft(draft);
-      const firstRoomId =
-        sync?.roomIds.find((id) => typeof id === "string" && id.length > 0) ?? null;
-
-      if (apiOn && sync?.propertyId && firstRoomId) {
-        const propPatch: Parameters<typeof updateProperty>[1] = {
-          postMode: draft.postMode,
-          title: draft.propertyTitle.trim(),
-          summary: draft.propertySummary.trim(),
-          city: draft.city,
-          neighborhood,
-          lat,
-          lng,
-          contactWhatsApp: draft.showWhatsApp ? digits : "",
-          propertyKind: draft.propertyKind,
-          bedroomsTotal: draft.propertyBedroomsTotal,
-          bathrooms: effectiveWizardPropertyBathrooms(draft),
-          showWhatsApp: draft.showWhatsApp,
-          imageUrls: draftPropertyImageUrls(draft),
-          isApproximateLocation: draft.isApproximateLocation,
-          occupiedByWomenCount: draft.occupiedByWomenCount,
-          occupiedByMenCount: draft.occupiedByMenCount,
-        };
-        if (editingLiveProperty?.status === "paused") {
-          propPatch.status = "published";
-        } else if (!editingLiveProperty) {
-          propPatch.status = "published";
-        }
-        await updateProperty(sync.propertyId, propPatch);
+      const result = await publishDraftFromWizard({
+        draft: draftRef.current,
+        serverSync: serverSyncRef.current,
+        editingLiveProperty,
+        apiOn,
+        isLoggedIn: true,
+      });
+      if (result.kind === "published") {
         setEditingLiveProperty(null);
         setServerSync({ propertyId: null, roomIds: [] });
-        setPublishSuccessRoomId(firstRoomId);
+        serverSyncRef.current = { propertyId: null, roomIds: [] };
+        setPublishSuccessRoomId(result.roomId);
         return;
       }
-
-      const res = await publishPropertyBundle({
-        legalAccepted: true,
-        property: {
-          postMode: draft.postMode,
-          title: draft.propertyTitle.trim(),
-          city: draft.city,
-          neighborhood,
-          lat,
-          lng,
-          summary: draft.propertySummary.trim(),
-          contactWhatsApp: draft.showWhatsApp ? digits : "",
-          propertyKind: draft.propertyKind,
-          bedroomsTotal: draft.propertyBedroomsTotal,
-          bathrooms: effectiveWizardPropertyBathrooms(draft),
-          showWhatsApp: draft.showWhatsApp,
-          imageUrls: draftPropertyImageUrls(draft),
-          isApproximateLocation: draft.isApproximateLocation,
-          occupiedByWomenCount: draft.occupiedByWomenCount,
-          occupiedByMenCount: draft.occupiedByMenCount,
-        },
-        rooms: draft.rooms.map((r, i) => ({
-          title: effectiveRoomTitle(r, draft.postMode),
-          rentMxn: Math.max(1, r.rentMxn),
-          roomsAvailable: effectiveRoomsAvailable(draft, i),
-          tags: mergedRoomTagsForPayload(draft, i),
-          roommateGenderPref: r.roommateGenderPref,
-          ageMin: r.ageMin,
-          ageMax: r.ageMax,
-          summary: r.summary.trim(),
-          lodgingType: r.lodgingType,
-          availableFrom: r.availableFrom.trim(),
-          minimalStayMonths: r.minimalStayMonths,
-          roomDimension: r.roomDimension,
-          depositMxn: r.depositMxn,
-          imageUrls: draftRoomImageUrls(draft, i),
-        })),
-      });
-      const first = res.rooms[0];
-      if (!first) {
-        setPublishErr("La API no devolvió recámaras.");
-        return;
+      if (result.kind === "error") {
+        setPublishErr(result.message);
       }
-      setServerSync({ propertyId: null, roomIds: [] });
-      setPublishSuccessRoomId(first.id);
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
     } finally {
@@ -2316,7 +2159,13 @@ export function PublishWizardPage() {
 
     setSubmitInFlight("draft");
     try {
-      await flushWizardAutosave();
+      if (apiOn) {
+        const synced = await syncDraftToServer(draftRef.current, serverSyncRef.current);
+        serverSyncRef.current = synced;
+        setServerSync(synced);
+      } else {
+        await flushWizardAutosave();
+      }
       navigate("/mis-anuncios", { state: { draftSaved: true } });
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.");
