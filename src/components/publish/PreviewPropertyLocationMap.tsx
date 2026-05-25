@@ -128,11 +128,11 @@ export function PreviewPropertyLocationMap({
 
   return (
     <>
-      <div className="relative flex min-h-[220px] flex-col md:min-h-[280px]">
+      <div className="relative">
         {editingLocation ? (
-          <div className="h-[220px] md:h-full md:min-h-[280px]">{editMap(220)}</div>
+          <div className="h-[260px] md:h-[320px]">{editMap(220)}</div>
         ) : (
-          readOnlyMap("h-[220px] md:h-full md:min-h-[280px]")
+          readOnlyMap("h-[260px] md:h-[320px]")
         )}
 
         <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">

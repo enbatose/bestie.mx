@@ -6,7 +6,7 @@ import {
 } from "@/components/listing/ListingPropertySummaryGrid";
 import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingSeekerFitCard } from "@/components/listing/ListingSeekerFitCard";
-import { ListingTagSection } from "@/components/listing/ListingTagChips";
+import { ListingTagChips, ListingTagSection } from "@/components/listing/ListingTagChips";
 import { PublicListingLocationMap } from "@/components/listing/PublicListingLocationMap";
 import {
   filterPropertyScopeTags,
@@ -78,7 +78,7 @@ export function PublicListingContent({
 
   const showPropertySummaryText = postMode === "property";
   const propertyDescriptionBlock = showPropertySummaryText ? (
-    <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+    <div className="grid gap-4 md:grid-cols-2 md:items-start">
       <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
         {propertySummary ? propertySummary : <span className="italic">Sin descripción de la propiedad.</span>}
       </div>
@@ -87,10 +87,15 @@ export function PublicListingContent({
   ) : (
     <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
   );
-  const propertySectionTitle = showPropertySummaryText ? "La propiedad" : "Ubicación y amenidades";
-  const propertySectionSubtitle = showPropertySummaryText
-    ? "Áreas comunes, ubicación y amenidades compartidas."
-    : "Dónde está y qué incluye la propiedad.";
+  const propertyLocationSectionTitle = showPropertySummaryText ? "La propiedad" : "Ubicación";
+  const propertyLocationSectionSubtitle = showPropertySummaryText
+    ? "Áreas comunes y ubicación de la propiedad."
+    : "Dónde está la propiedad en el mapa.";
+  const propertyAmenitiesBlock = propertyTags.length ? (
+    <ListingSection title="Amenidades de la propiedad" subtitle="Lo que incluye el espacio compartido.">
+      <ListingTagChips tags={propertyTags} />
+    </ListingSection>
+  ) : null;
 
   if (seekerLayout) {
     return (
@@ -98,6 +103,8 @@ export function PublicListingContent({
         <ListingSection title="Fotos" subtitle="Revisa el espacio antes de contactar al anunciante.">
           {photosBlock}
         </ListingSection>
+
+        {propertyAmenitiesBlock}
 
         <ListingSeekerFitCard
           rentMxn={listing.rentMxn}
@@ -133,9 +140,8 @@ export function PublicListingContent({
           />
         </ListingSection>
 
-        <ListingSection title={propertySectionTitle} subtitle={propertySectionSubtitle}>
+        <ListingSection title={propertyLocationSectionTitle} subtitle={propertyLocationSectionSubtitle}>
           {propertyDescriptionBlock}
-          <ListingTagSection heading="Amenidades de la propiedad" tags={propertyTags} />
         </ListingSection>
       </div>
     );
@@ -144,6 +150,8 @@ export function PublicListingContent({
   return (
     <div className="space-y-6">
       {galleryUrls.length ? <ListingSection title="Fotos">{photosBlock}</ListingSection> : null}
+
+      {propertyAmenitiesBlock}
 
       <ListingSection title="Resumen de la propiedad">
         <ListingPropertySummaryGrid
@@ -155,9 +163,8 @@ export function PublicListingContent({
         />
       </ListingSection>
 
-      <ListingSection title={showPropertySummaryText ? "Sobre la propiedad" : "Ubicación y amenidades"}>
+      <ListingSection title={showPropertySummaryText ? "Sobre la propiedad" : "Ubicación"}>
         {propertyDescriptionBlock}
-        <ListingTagSection heading="Etiquetas de la propiedad" tags={propertyTags} />
       </ListingSection>
 
       <ListingSection title="Detalles de la recámara">

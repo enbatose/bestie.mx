@@ -60,11 +60,11 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
 
   return (
     <>
-      <div className="relative flex min-h-[220px] flex-col md:min-h-[280px]">
+      <div className="relative">
         <ReadOnlyLocationMap
           listing={listing}
           isApproximateLocation={isApproximateLocation}
-          heightClass="h-[220px] md:h-full md:min-h-[280px]"
+          heightClass="h-[260px] md:h-[320px]"
         />
         <button
           type="button"

@@ -648,6 +648,24 @@ export function EditableListingPreview({
         )}
       </PreviewSection>
 
+      <PreviewSection
+        title="Amenidades de la propiedad"
+        onEdit={editingPropertyTags ? undefined : openPropertyTagsEdit}
+        editLabel="Editar amenidades"
+      >
+        <ScopeTagsBlock
+          heading="Amenidades de la propiedad"
+          tags={propertyTagsActive}
+          editing={editingPropertyTags}
+          onStartEdit={openPropertyTagsEdit}
+          onSave={savePropertyTags}
+          onCancel={() => setEditingPropertyTags(false)}
+          editGroups={PROPERTY_TAG_GROUPS}
+          draftTags={propertyTagsDraft}
+          onToggle={togglePropertyTagDraft}
+        />
+      </PreviewSection>
+
       <PreviewSection title="Resumen de la propiedad">
         <ListingPropertySummaryGrid
           neighborhood={neighborhoodLabel}
@@ -659,7 +677,7 @@ export function EditableListingPreview({
       </PreviewSection>
 
       <PreviewSection
-        title={draft.postMode === "room" ? "Ubicación y amenidades" : "Sobre la propiedad"}
+        title={draft.postMode === "room" ? "Ubicación" : "Sobre la propiedad"}
         onEdit={
           draft.postMode === "room"
             ? undefined
@@ -677,7 +695,7 @@ export function EditableListingPreview({
             onSaveCoordinates={saveMapCoordinates}
           />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+          <div className="grid gap-4 md:grid-cols-2 md:items-start">
             <div>
               {editingProperty ? (
                 <InlineFieldEditor
@@ -712,19 +730,6 @@ export function EditableListingPreview({
             />
           </div>
         )}
-        {draft.postMode === "room" || !editingProperty ? (
-          <ScopeTagsBlock
-            heading="Etiquetas de la propiedad"
-            tags={propertyTagsActive}
-            editing={editingPropertyTags}
-            onStartEdit={openPropertyTagsEdit}
-            onSave={savePropertyTags}
-            onCancel={() => setEditingPropertyTags(false)}
-            editGroups={PROPERTY_TAG_GROUPS}
-            draftTags={propertyTagsDraft}
-            onToggle={togglePropertyTagDraft}
-          />
-        ) : null}
       </PreviewSection>
 
       <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">
