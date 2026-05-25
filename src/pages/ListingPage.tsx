@@ -436,17 +436,27 @@ export function ListingPage() {
           <p className="text-sm text-muted">
             {listing.neighborhood} · {listing.city}
           </p>
-          <ListingShareActions
-            shareMsg={shareMsg}
-            onShareListing={() =>
-              void copyShareUrl(`/anuncio/${encodeURIComponent(listing.id)}`, "Link del anuncio")
-            }
-            isPropertyPost={isPropertyPost}
-            propertyId={listing.propertyId}
-            roomShareLinks={roomShareLinks}
-            currentListingId={listing.id}
-            onSharePath={(path, label) => void copyShareUrl(path, label)}
-          />
+          <div className="flex flex-col items-end gap-2">
+            {listing.viewerIsOwner && listingStatus === "published" ? (
+              <Link
+                to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+              >
+                Editar anuncio
+              </Link>
+            ) : null}
+            <ListingShareActions
+              shareMsg={shareMsg}
+              onShareListing={() =>
+                void copyShareUrl(`/anuncio/${encodeURIComponent(listing.id)}`, "Link del anuncio")
+              }
+              isPropertyPost={isPropertyPost}
+              propertyId={listing.propertyId}
+              roomShareLinks={roomShareLinks}
+              currentListingId={listing.id}
+              onSharePath={(path, label) => void copyShareUrl(path, label)}
+            />
+          </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{headerTitle}</h1>

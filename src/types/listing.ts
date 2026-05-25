@@ -151,4 +151,6 @@ export type PropertyListing = {
   isApproximateLocation?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  /** True when the authenticated session owns this listing (publisher cookie or linked account). */
+  viewerIsOwner?: boolean;
 };

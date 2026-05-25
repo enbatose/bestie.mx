@@ -19,3 +19,14 @@ export function canWritePropertyByRequest(db: DatabaseSync, req: Request, proper
   if (pub != null && pub === propertyPublisherId) return true;
   return isAdminRequest(db, req);
 }
+
+/** Owner session (publisher cookie or linked account) for read-only UI hints on public pages. */
+export function viewerOwnsProperty(db: DatabaseSync, req: Request, propertyPublisherId: string): boolean {
+  if (canWritePropertyByRequest(db, req, propertyPublisherId)) return true;
+  const userId = readAuthUserId(req);
+  if (!userId) return false;
+  const row = db
+    .prepare(`SELECT 1 AS x FROM user_publishers WHERE user_id = ? AND publisher_id = ?`)
+    .get(userId, propertyPublisherId) as { x: number } | undefined;
+  return row != null;
+}
