@@ -138,7 +138,7 @@ export type PropertyListing = {
   status?: ListingStatus;
   propertyImageUrls?: string[];
   roomImageUrls?: string[];
-  /** Only returned for `/api/my-listings` when authenticated with publisher cookie. */
+  /** Only returned for `/api/my-listings` when the viewer owns the listing (cookie or linked account). */
   publisherId?: string;
   lodgingType?: LodgingType;
   propertyKind?: PropertyKind;

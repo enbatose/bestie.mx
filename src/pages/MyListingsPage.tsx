@@ -14,7 +14,7 @@ import {
   propertyStatusSortKey,
   roomReferenceCode,
 } from "@/lib/listingReference";
-import { authMe, type AuthMe } from "@/lib/authApi";
+import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 type PropertyGroup = { propertyId: string; list: PropertyListing[] };
@@ -177,7 +177,12 @@ export function MyListingsPage() {
   }, [load]);
 
   useEffect(() => {
-    void authMe().then(setMe).catch(() => setMe(null));
+    void authMe()
+      .then((user) => {
+        setMe(user);
+        if (user) void authLinkPublisher().catch(() => undefined);
+      })
+      .catch(() => setMe(null));
   }, []);
 
   async function pause(id: string) {

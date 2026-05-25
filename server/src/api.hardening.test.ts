@@ -356,6 +356,57 @@ describe("Phase B API hardening", () => {
     expect((g.body as { status?: string }).status).toBe("published");
   });
 
+  it("GET /api/my-listings returns linked publishers when auth cookie differs from publish cookie", async () => {
+    const email = uniqueTestEmail("mylist");
+    const password = "longenough1";
+
+    const publishAgent = request.agent(app);
+    await publishAgent
+      .post("/api/auth/register")
+      .send({ email, password, displayName: "My Listings Link" })
+      .expect(201);
+    await publishAgent.post("/api/auth/link-publisher").expect(200);
+
+    const r1 = await publishAgent
+      .post("/api/properties")
+      .send({
+        title: "Casa mis listados vinculados",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "523331234567",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+
+    const r2 = await publishAgent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto mis listados",
+        rentMxn: 4100,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "Descripción del cuarto para prueba de mis listados vinculados.",
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+
+    const browseAgent = request.agent(app);
+    await browseAgent
+      .post("/api/auth/login")
+      .send({ email, password })
+      .expect(200);
+
+    const mine = await browseAgent.get("/api/my-listings").expect(200);
+    const ids = (mine.body as { id: string }[]).map((l) => l.id);
+    expect(ids).toContain(roomId);
+  });
+
   it("GET /api/listings/:id reports room and property status reasons for anonymous visitors", async () => {
     const agent = request.agent(app);
     const r1 = await agent

@@ -75,7 +75,7 @@ Listing photos are stored as files (and duplicated in SQLite `upload_blobs`). If
 
 ### Owner endpoints
 
-- `GET /api/my-listings` — requires `bestie_pub` cookie; returns **room rows** (joined with property) for all statuses owned by that publisher.
+- `GET /api/my-listings` — requires `bestie_pub` cookie and/or logged-in account with linked publishers; returns **room rows** (joined with property) for all statuses owned by those publisher ids.
 - `PATCH /api/listings/:id` — updates **room** `:id` (same id as in search). Body `{ "status": "published" | "paused" | "archived" }`; only the owning publisher may update. Valid transitions: `draft→published`, `published↔paused`, `published|paused→archived`.
 
 ### Phase B — property + rooms (normalized SQLite)
