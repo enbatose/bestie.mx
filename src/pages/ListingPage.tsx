@@ -423,12 +423,17 @@ export function ListingPage() {
   const isApproximateLocation =
     listing.isApproximateLocation ?? propertyPack?.property.isApproximateLocation ?? false;
   const propertySummary = propertyPack?.property.summary.trim() ?? "";
-  const headerTitle = publicListingHeaderTitle({
+  const categoryTitle = publicListingHeaderTitle({
     postMode,
     neighborhood: listing.neighborhood,
     lodgingType: listing.lodgingType,
     propertyKind,
   });
+  const userTitle =
+    listing.propertyTitle?.trim() ||
+    listing.title?.trim() ||
+    categoryTitle;
+  const headerTitle = userTitle;
   const publishedRoomCount =
     propertyPack?.rooms.filter((r) => r.status === "published").length ?? seedSiblings.length + 1;
 
@@ -448,7 +453,7 @@ export function ListingPage() {
         <span aria-hidden className="mx-2">
           /
         </span>
-        <span className="text-body">{headerTitle}</span>
+        <span className="text-body">{categoryTitle}</span>
       </nav>
 
       {listingUpdated ? (
@@ -507,7 +512,10 @@ export function ListingPage() {
             </span>
           ) : null}
         </div>
-        {postMode === "property" && listing.title.trim() ? (
+        {categoryTitle && categoryTitle !== headerTitle ? (
+          <p className="mt-1 text-sm text-muted">{categoryTitle}</p>
+        ) : null}
+        {postMode === "property" && listing.title.trim() && listing.title.trim() !== headerTitle ? (
           <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
         ) : null}
         <ListingHeroPrice rentMxn={listing.rentMxn} />

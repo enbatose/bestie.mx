@@ -73,10 +73,15 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
 
   const propertyTitle = String(row.property_title ?? "");
   const roomListingTitle = String(row.room_listing_title ?? "");
-  const displayTitle =
-    roomListingTitle.trim() !== ""
-      ? `${propertyTitle} · ${roomListingTitle}`.trim()
-      : propertyTitle;
+  const trimmedRoomTitle = roomListingTitle.trim();
+  // Single-room posts auto-default the room title to "Recámara 1"; don't pollute the
+  // public title with that placeholder. Multi-room property posts still get the suffix
+  // so individual rooms can be distinguished in lists.
+  const isSingleRoomDefault =
+    postMode === "room" || trimmedRoomTitle === "" || trimmedRoomTitle === propertyTitle.trim();
+  const displayTitle = isSingleRoomDefault
+    ? propertyTitle
+    : `${propertyTitle} · ${trimmedRoomTitle}`.trim();
 
   const depositMxn = row.deposit_mxn != null && Number.isFinite(Number(row.deposit_mxn)) ? Number(row.deposit_mxn) : 0;
   const bedroomsTotal =
