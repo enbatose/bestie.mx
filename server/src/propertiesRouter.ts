@@ -348,6 +348,30 @@ export function propertiesRouter(db: DatabaseSync) {
       return;
     }
 
+    const propImages = clampListingImageUrls((p as { imageUrls?: unknown }).imageUrls);
+    const roomImagesList = roomsIn.map((raw) =>
+      clampListingImageUrls((raw as { imageUrls?: unknown }).imageUrls),
+    );
+    if (postMode === "room") {
+      if (roomImagesList[0]?.length < 1) {
+        res.status(400).json({
+          error: "photos_required",
+          message: "Sube al menos 1 foto de tu espacio antes de publicar.",
+        });
+        return;
+      }
+    } else {
+      for (let i = 0; i < roomImagesList.length; i++) {
+        if (roomImagesList[i].length < 1) {
+          res.status(400).json({
+            error: "photos_required",
+            message: `Sube al menos 1 foto para la recámara ${i + 1} antes de publicar.`,
+          });
+          return;
+        }
+      }
+    }
+
     const bedTotal = clampBedroomsTotal(Number((p as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
     const bathTotal = clampBathrooms(Number((p as { bathrooms?: unknown }).bathrooms ?? 1));
     const showWhatsappInt = showPublicPub ? 1 : 0;
@@ -364,9 +388,7 @@ export function propertiesRouter(db: DatabaseSync) {
     const propertyId = `prp__${randomUUID()}`;
     const propertyKind = optPropertyKind(p.propertyKind);
 
-    const propImagesJson = JSON.stringify(
-      clampListingImageUrls((p as { imageUrls?: unknown }).imageUrls),
-    );
+    const propImagesJson = JSON.stringify(propImages);
 
     const occWPub = occupantCountOrNull((p as { occupiedByWomenCount?: unknown }).occupiedByWomenCount);
     const occMPub = occupantCountOrNull((p as { occupiedByMenCount?: unknown }).occupiedByMenCount);
@@ -435,7 +457,7 @@ export function propertiesRouter(db: DatabaseSync) {
         const minStay = optPositiveInt(rm.minimalStayMonths);
         if (!availFrom || !dim || minStay == null || minStay < 1) throw new Error("bad_room_fields");
         const depositMxn = clampDepositMxn(Number((rm as { depositMxn?: unknown }).depositMxn));
-        const roomImagesJson = JSON.stringify(clampListingImageUrls((rm as { imageUrls?: unknown }).imageUrls));
+        const roomImagesJson = JSON.stringify(roomImagesList[order] ?? clampListingImageUrls((rm as { imageUrls?: unknown }).imageUrls));
         insertRoom.run(
           roomId,
           propertyId,

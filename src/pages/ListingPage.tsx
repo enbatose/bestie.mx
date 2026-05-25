@@ -7,6 +7,8 @@ import {
   publicListingHeaderTitle,
 } from "@/components/listing/PublicListingHeader";
 import { PublicListingContent } from "@/components/listing/PublicListingContent";
+import { ListingContactPanel } from "@/components/listing/ListingContactPanel";
+import { ListingShareActions, ListingStickyContactBar } from "@/components/listing/ListingShareActions";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 import {
@@ -309,6 +311,18 @@ export function ListingPage() {
     }
   }, [id, messagingOn, viewer, openLogin, navigate]);
 
+  const scrollToContact = useCallback(() => {
+    document.getElementById("contacto")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const handleStickyContact = useCallback(() => {
+    if (messagingOn && id) {
+      void onInAppMessage();
+      return;
+    }
+    scrollToContact();
+  }, [id, messagingOn, onInAppMessage, scrollToContact]);
+
   if (apiOn && apiListing === undefined && !apiErr) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
@@ -398,8 +412,15 @@ export function ListingPage() {
   const publishedRoomCount =
     propertyPack?.rooms.filter((r) => r.status === "published").length ?? seedSiblings.length + 1;
 
+  const canMessage = messagingOn && listingStatus === "published" && Boolean(id);
+  const canContact = listingStatus === "published";
+
+  const stickyContactLabel = canMessage && viewer
+    ? "Mensaje"
+    : "Contactar";
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-3xl px-4 py-8 pb-24 sm:px-6 sm:py-10 sm:pb-10">
       <nav className="text-sm text-muted">
         <Link to="/buscar" className="font-medium text-primary underline-offset-2 hover:underline">
           Buscar
@@ -411,30 +432,41 @@ export function ListingPage() {
       </nav>
 
       <header className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <p className="text-sm text-muted">
-          {listing.neighborhood} · {listing.city}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm text-muted">
+            {listing.neighborhood} · {listing.city}
+          </p>
+          <ListingShareActions
+            shareMsg={shareMsg}
+            onShareListing={() =>
+              void copyShareUrl(`/anuncio/${encodeURIComponent(listing.id)}`, "Link del anuncio")
+            }
+            isPropertyPost={isPropertyPost}
+            propertyId={listing.propertyId}
+            roomShareLinks={roomShareLinks}
+            currentListingId={listing.id}
+            onSharePath={(path, label) => void copyShareUrl(path, label)}
+          />
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{headerTitle}</h1>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
-              listingStatus === "published"
-                ? "bg-secondary/25 text-primary"
-                : listingStatus === "paused"
+          {listingStatus !== "published" ? (
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                listingStatus === "paused"
                   ? "bg-amber-100 text-amber-900"
                   : listingStatus === "draft"
                     ? "bg-slate-200 text-slate-800"
                     : "bg-slate-200 text-slate-600"
-            }`}
-          >
-            {listingStatus === "published"
-              ? "Publicado"
-              : listingStatus === "paused"
+              }`}
+            >
+              {listingStatus === "paused"
                 ? "Pausado"
                 : listingStatus === "draft"
                   ? "Borrador"
                   : "Archivado"}
-          </span>
+            </span>
+          ) : null}
         </div>
         {postMode === "property" && listing.title.trim() ? (
           <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
@@ -454,70 +486,17 @@ export function ListingPage() {
         {depositMxn > 0 ? (
           <p className="mt-2 text-sm text-muted">Depósito · {money.format(depositMxn)}</p>
         ) : null}
-        {createdAtLabel || updatedAtLabel ? (
-          <div className="mt-2 space-y-1 text-sm text-muted">
-            {createdAtLabel ? <p>Fecha de publicación · {createdAtLabel}</p> : null}
-            {updatedAtLabel ? <p>Fecha de actualización · {updatedAtLabel}</p> : null}
-          </div>
+        {canContact ? (
+          <button
+            type="button"
+            onClick={scrollToContact}
+            className="mt-4 inline-flex w-full justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 sm:w-auto"
+          >
+            Me interesa — contactar
+          </button>
         ) : null}
       </header>
 
-      <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-body">Compartir</h2>
-            <p className="mt-1 text-sm text-muted">
-              Copia un enlace público para enviar este anuncio.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void copyShareUrl(`/anuncio/${encodeURIComponent(listing.id)}`, "Link del anuncio")}
-            className="inline-flex justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-          >
-            Compartir Anuncio
-          </button>
-        </div>
-        {isPropertyPost ? (
-          <div className="mt-4 rounded-xl border border-border bg-bg-light p-4">
-            <p className="text-sm font-medium text-body">Opciones para publicación tipo propiedad</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted">
-              Puedes compartir un enlace de la propiedad completa o enlaces directos a cuartos individuales.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  void copyShareUrl(
-                    `/propiedad/${encodeURIComponent(listing.propertyId)}`,
-                    "Link de la propiedad",
-                  )
-                }
-                className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface-elevated"
-              >
-                Copiar link de propiedad
-              </button>
-              {roomShareLinks.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() =>
-                    void copyShareUrl(`/anuncio/${encodeURIComponent(r.id)}`, `Link de ${r.label}`)
-                  }
-                  className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface-elevated"
-                >
-                  {r.id === listing.id ? "Copiar link de este cuarto" : `Copiar link: ${r.label}`}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {shareMsg ? (
-          <p className="mt-3 text-sm text-muted" role="status" aria-live="polite">
-            {shareMsg}
-          </p>
-        ) : null}
-      </section>
 
       <PublicListingContent
         listing={listing}
@@ -531,6 +510,7 @@ export function ListingPage() {
         galleryUrls={galleryUrls}
         roomCount={publishedRoomCount}
         failedImageUrls={failedImageUrls}
+        seekerLayout
         onImageError={(u) => {
           setFailedImageUrls((prev) => {
             if (prev.has(u)) return prev;
@@ -543,7 +523,8 @@ export function ListingPage() {
 
       {siblingLinks.length ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-body">Otros cuartos en la misma propiedad</h2>
+          <h2 className="text-sm font-semibold text-body">Más opciones en esta propiedad</h2>
+          <p className="mt-1 text-xs text-muted">Otros cuartos publicados en el mismo lugar.</p>
           <ul className="mt-3 space-y-2 text-sm">
             {siblingLinks.map((s) => (
               <li key={s.id}>
@@ -559,72 +540,35 @@ export function ListingPage() {
         </section>
       ) : null}
 
-      <section className="mt-8 rounded-2xl border border-border bg-bg-light p-5 sm:p-6">
-        <h2 className="text-base font-semibold text-body">Contacto (v1)</h2>
-        {messagingOn && listingStatus === "published" && id ? (
-          <div className="mt-3 rounded-xl border border-border bg-surface p-4">
-            <p className="text-sm text-muted">
-              Mensajes dentro de Bestie cuando el anunciante tiene cuenta vinculada. Si no hay cuenta,
-              verás un aviso y puedes usar WhatsApp abajo.
-            </p>
-            {msgErr ? <p className="mt-2 text-sm text-error">{msgErr}</p> : null}
-            <button
-              type="button"
-              onClick={() => void onInAppMessage()}
-              disabled={msgBusy || viewer === undefined}
-              className="mt-3 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50"
-            >
-              {msgBusy
-                ? "Abriendo…"
-                : viewer === undefined
-                  ? "Comprobando sesión…"
-                  : !viewer
-                    ? "Mensaje al anunciante (inicia sesión)"
-                    : "Mensaje al anunciante"}
-            </button>
-          </div>
-        ) : null}
-        {!showWhatsApp ? (
-          <p className="mt-2 text-sm text-muted">
-            El anunciante eligió no mostrar WhatsApp en Bestie. Puedes escribir a{" "}
-            <a href="mailto:support@bestie.mx" className="font-medium text-primary underline-offset-2 hover:underline">
-              support@bestie.mx
-            </a>{" "}
-            si necesitas ayuda para contactar cuando el anuncio no muestra el número públicamente.
-          </p>
-        ) : (
-          <>
-            <p className="mt-2 text-sm text-muted">
-              {messagingOn
-                ? "También puedes revelar WhatsApp cuando estés listo."
-                : "Revela WhatsApp cuando estés listo (conecta la API para mensajes en la app)."}
-            </p>
-            {!revealed ? (
-              <button
-                type="button"
-                onClick={() => setRevealed(true)}
-                className="mt-4 inline-flex rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition hover:brightness-95"
-              >
-                Revelar WhatsApp
-              </button>
-            ) : (
-              <div className="mt-4 space-y-3">
-                <p className="text-sm text-body">
-                  <span className="font-medium">Número:</span> +{listing.contactWhatsApp}
-                </p>
-                <a
-                  href={wa}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-                >
-                  Abrir WhatsApp
-                </a>
-              </div>
-            )}
-          </>
-        )}
-      </section>
+      <ListingContactPanel
+        listingStatus={listingStatus}
+        messagingOn={messagingOn}
+        listingId={id}
+        viewer={viewer}
+        msgBusy={msgBusy}
+        msgErr={msgErr}
+        onInAppMessage={onInAppMessage}
+        showWhatsApp={showWhatsApp}
+        revealed={revealed}
+        onRevealWhatsApp={() => setRevealed(true)}
+        contactWhatsApp={listing.contactWhatsApp}
+        waUrl={wa}
+      />
+
+      {createdAtLabel || updatedAtLabel ? (
+        <p className="mt-6 text-center text-xs text-muted">
+          {createdAtLabel ? <>Publicado · {createdAtLabel}</> : null}
+          {createdAtLabel && updatedAtLabel ? " · " : null}
+          {updatedAtLabel ? <>Actualizado · {updatedAtLabel}</> : null}
+        </p>
+      ) : null}
+
+      <ListingStickyContactBar
+        rentMxn={listing.rentMxn}
+        canContact={canContact}
+        contactLabel={stickyContactLabel}
+        onContact={handleStickyContact}
+      />
     </div>
   );
 }
