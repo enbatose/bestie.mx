@@ -23,15 +23,6 @@ const dropBtn =
 const logoutBtn =
   "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30";
 
-function footerNavClass({ isActive }: { isActive: boolean }) {
-  return [
-    "block rounded-lg px-3 py-2 text-left text-xs font-medium transition",
-    isActive
-      ? "bg-surface-elevated text-primary ring-1 ring-border"
-      : "text-muted hover:bg-surface-elevated hover:text-body",
-  ].join(" ");
-}
-
 function primaryNavClass({ isActive }: { isActive: boolean }) {
   return [
     "inline-flex items-center gap-2 transition",
@@ -299,21 +290,12 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       ) : null}
 
       <AvatarMenuSection>
-        <NavLink to="/grupos" className={navClass} onClick={dismissNav}>
-          Comunidades
-        </NavLink>
-        <NavLink to="/faq" className={navClass} onClick={dismissNav}>
-          Preguntas Frecuentes
-        </NavLink>
-        <a href="mailto:soporte@bestie.mx" className={dropBtn} onClick={dismissNav}>
+        <Link to="/contacto" className={dropBtn} onClick={dismissNav}>
           Contacto
-        </a>
+        </Link>
       </AvatarMenuSection>
 
       <AvatarMenuSection>
-        <NavLink to="/legal" className={footerNavClass} onClick={dismissNav}>
-          Términos y Privacidad
-        </NavLink>
         <button type="button" className={logoutBtn} onClick={() => void onLogout()}>
           Cerrar sesión
         </button>
@@ -335,21 +317,9 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       </AvatarMenuSection>
 
       <AvatarMenuSection>
-        <NavLink to="/grupos" className={navClass} onClick={dismissNav}>
-          Comunidades
-        </NavLink>
-        <NavLink to="/faq" className={navClass} onClick={dismissNav}>
-          Preguntas Frecuentes
-        </NavLink>
-        <a href="mailto:soporte@bestie.mx" className={dropBtn} onClick={dismissNav}>
+        <Link to="/contacto" className={dropBtn} onClick={dismissNav}>
           Contacto
-        </a>
-      </AvatarMenuSection>
-
-      <AvatarMenuSection>
-        <NavLink to="/legal" className={footerNavClass} onClick={dismissNav}>
-          Términos y Privacidad
-        </NavLink>
+        </Link>
       </AvatarMenuSection>
     </div>
   );
