@@ -1,5 +1,6 @@
 import type { Draft } from "@/pages/PublishWizardPage";
 import type { ListingStatus } from "@/types/listing";
+import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 
 export type PublishWizardServerSync = {
   propertyId: string | null;
@@ -29,6 +30,10 @@ export function readPublishPreviewSession(): PublishPreviewSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PublishPreviewSession;
     if (!parsed?.draft || !Array.isArray(parsed.draft.rooms)) return null;
+    parsed.draft = {
+      ...parsed.draft,
+      rooms: parsed.draft.rooms.map((room) => normalizeRoomDraft(room)),
+    };
     return parsed;
   } catch {
     return null;

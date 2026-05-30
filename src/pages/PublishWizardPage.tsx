@@ -60,6 +60,7 @@ import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import { newRoomDraftId } from "@/lib/roomDisplay";
+import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 import type {
   ListingStatus,
   ListingTag,
@@ -108,7 +109,15 @@ const WIZARD_STEP4_TAG_LABELS = LISTING_TAG_LABEL_OVERRIDES;
 const WIZARD_ROOM_TAG_GROUPS = ROOM_TAG_GROUPS;
 
 function normalizePersistedDraft(d: Draft): Draft {
-  return migrateDraftTagScopes(normalizePersistedDraftImages(d));
+  const migrated = migrateDraftTagScopes(normalizePersistedDraftImages(d));
+  const rooms = (migrated.rooms ?? []).map((room) => normalizeRoomDraft(room));
+  const roomImageUrls = [...(migrated.roomImageUrls ?? [])];
+  while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
+  return {
+    ...migrated,
+    rooms: rooms.length ? rooms : [defaultRoom()],
+    roomImageUrls: roomImageUrls.slice(0, rooms.length || 1),
+  };
 }
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
@@ -1920,11 +1929,11 @@ export function PublishWizardPage() {
               <div key={room.id} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
                 {draft.postMode === "property" ? (
                   <h3 className="text-[15px] font-bold text-primary">
-                    {room.customName.trim() || `Galería: Recámara ${i + 1}`}
+                    {room.customName?.trim() || `Galería: Recámara ${i + 1}`}
                   </h3>
                 ) : null}
                 <BulkImageUploader
-                  title={draft.postMode === "room" ? "Fotos de tu espacio" : room.customName.trim() || room.title.trim() || "Sin título"}
+                  title={draft.postMode === "room" ? "Fotos de tu espacio" : room.customName?.trim() || room.title?.trim() || "Sin título"}
                   images={draft.roomImageUrls[i] ?? []}
                   maxCount={20}
                   apiOn={apiOn}
@@ -2103,7 +2112,7 @@ export function PublishWizardPage() {
 
   const autofillStep = useCallback(
     (stepIndex: number) => {
-      setDraft((d) => ({ ...d, ...seedForStep(stepIndex, d) }));
+      setDraft((d) => normalizePersistedDraft({ ...d, ...seedForStep(stepIndex, d) }));
     },
     [],
   );

@@ -4,6 +4,7 @@
  * Visible and usable only by users with `me.isAdmin === true`.
  */
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
+import { newRoomDraftId } from "@/lib/roomDisplay";
 import { hydrateDraftImagesFromUrls } from "@/lib/publishWizard/draftImages";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
@@ -298,6 +299,11 @@ function seedRoom(index: number): RoomDraft {
     ...randSubset(ROOM_IDEAL_PARA_POOL, 0, 3),
   ] as ListingTag[];
   return {
+    id: newRoomDraftId(),
+    customName: index === 0 ? "" : `Recámara ${index + 1}`,
+    occupancyStatus: "available" as const,
+    occupantGender: pick(GENDER_PREFS),
+    occupantAge: randInt(22, 40),
     title: index === 0 ? "" : `Recámara ${index + 1}`,
     rentMxn: rent,
     depositMxn: rent * depositMultiplier,

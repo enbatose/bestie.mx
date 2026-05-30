@@ -9,6 +9,7 @@ import {
   mergedRoomTagsForPayload,
   resolveLatLngForDraft,
 } from "@/lib/publishWizard/publishCore";
+import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 
 const PREVIEW_PROPERTY_ID = "preview-property";
 
@@ -40,7 +41,7 @@ export function draftToPropertyWithRooms(draft: Draft): PropertyWithRooms {
     occupiedByMenCount: draft.occupiedByMenCount,
   };
 
-  const rooms = draft.rooms.map((r, i) => roomDraftToRoom(r, i, draft));
+  const rooms = draft.rooms.map((r, i) => roomDraftToRoom(normalizeRoomDraft(r), i, draft));
 
   return { property, rooms };
 }
@@ -50,7 +51,7 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
     id: r.id || `preview-room-${index}`,
     propertyId: PREVIEW_PROPERTY_ID,
     status: "draft" as const,
-    customName: r.customName.trim() || undefined,
+    customName: r.customName?.trim() || undefined,
     occupancyStatus: r.occupancyStatus,
     occupantGender: r.occupantGender,
     occupantAge: r.occupantAge,

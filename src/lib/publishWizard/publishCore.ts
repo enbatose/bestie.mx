@@ -122,7 +122,7 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
   const occupied = !isRoomAvailableForRent(room);
   const base = {
     id: room.id,
-    customName: room.customName.trim() || undefined,
+    customName: room.customName?.trim() || undefined,
     occupancyStatus: room.occupancyStatus,
     title: effectiveRoomTitle(room, draft.postMode) || "Recámara en borrador",
   };
@@ -326,7 +326,7 @@ export function publishPhotosInvalidReason(d: Draft): string | null {
       const room = d.rooms[i]!;
       if (!isRoomAvailableForRent(room)) continue;
       if (draftRoomImageUrls(d, i).length < 1) {
-        return `Sube al menos 1 foto para ${room.customName.trim() || `la recámara ${i + 1}`}.`;
+        return `Sube al menos 1 foto para ${room.customName?.trim() || `la recámara ${i + 1}`}.`;
       }
     }
   }
@@ -394,7 +394,7 @@ export function validateRoomsForSubmit(d: Draft): string | null {
       continue;
     }
 
-    if (needTitle && !r.customName.trim() && !r.title.trim()) {
+    if (needTitle && !r.customName?.trim() && !r.title?.trim()) {
       return `Cada recámara necesita un nombre o título${suffix}.`;
     }
     const summaryTrim = r.summary.trim();
