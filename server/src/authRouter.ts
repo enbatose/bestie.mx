@@ -38,6 +38,18 @@ function jsonMw() {
   return express.json({ limit: "256kb" });
 }
 
+const SAFE_UPLOAD_PATH =
+  /^\/api\/uploads\/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|svg|bmp)$/i;
+
+function parseProfilePictureUrl(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === "") return null;
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return SAFE_UPLOAD_PATH.test(trimmed) ? trimmed : undefined;
+}
+
 export function authRouter(db: DatabaseSync) {
   const r = express.Router();
 
@@ -130,7 +142,7 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     const row = db
-      .prepare("SELECT id, email, phone_e164, password_hash, display_name FROM users WHERE id = ?")
+      .prepare("SELECT id, email, phone_e164, password_hash, display_name, profile_picture_url FROM users WHERE id = ?")
       .get(uid) as
       | {
           id: string;
@@ -138,6 +150,7 @@ export function authRouter(db: DatabaseSync) {
           phone_e164: string | null;
           password_hash: string;
           display_name: string;
+          profile_picture_url: string | null;
         }
       | undefined;
     if (!row) {
@@ -151,6 +164,7 @@ export function authRouter(db: DatabaseSync) {
       email?: unknown;
       currentPassword?: unknown;
       phone?: unknown;
+      profilePictureUrl?: unknown;
     };
 
     const sets: string[] = [];
@@ -166,6 +180,16 @@ export function authRouter(db: DatabaseSync) {
         sets.push("display_name = ?");
         params.push(dn);
       }
+    }
+
+    const nextPicture = parseProfilePictureUrl(body.profilePictureUrl);
+    if (body.profilePictureUrl !== undefined && nextPicture === undefined) {
+      res.status(400).json({ error: "invalid_profile_picture_url" });
+      return;
+    }
+    if (nextPicture !== undefined && nextPicture !== (row.profile_picture_url ?? null)) {
+      sets.push("profile_picture_url = ?");
+      params.push(nextPicture);
     }
 
     if (typeof body.phone === "string") {
@@ -287,7 +311,7 @@ export function authRouter(db: DatabaseSync) {
     }
     const u = db
       .prepare(
-        "SELECT id, email, phone_e164, display_name, created_at, email_verified_at FROM users WHERE id = ?",
+        "SELECT id, email, phone_e164, display_name, profile_picture_url, created_at, email_verified_at FROM users WHERE id = ?",
       )
       .get(uid) as
       | {
@@ -295,6 +319,7 @@ export function authRouter(db: DatabaseSync) {
           email: string | null;
           phone_e164: string | null;
           display_name: string;
+          profile_picture_url: string | null;
           created_at: string;
           email_verified_at: string | null;
         }
@@ -312,6 +337,7 @@ export function authRouter(db: DatabaseSync) {
       email: u.email,
       phoneE164: u.phone_e164,
       displayName: u.display_name,
+      profilePictureUrl: u.profile_picture_url,
       createdAt: u.created_at,
       linkedPublisherIds: pubs.map((p) => p.publisher_id),
       isAdmin: isAdminUser(db, uid),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 import { authMe, type AuthMe } from "@/lib/authApi";
 
 export function ProfilePage() {
@@ -46,7 +47,15 @@ export function ProfilePage() {
         datos de confianza.
       </p>
 
-      <ul className="mt-8 space-y-3 rounded-2xl border border-border bg-surface p-4 text-sm">
+      <div className="mt-8 rounded-2xl border border-border bg-surface p-4">
+        <ProfilePictureUpload
+          displayName={me.displayName}
+          profilePictureUrl={me.profilePictureUrl}
+          onUpdated={(profilePictureUrl) => setMe({ ...me, profilePictureUrl })}
+        />
+      </div>
+
+      <ul className="mt-6 space-y-3 rounded-2xl border border-border bg-surface p-4 text-sm">
         <li className="flex items-center justify-between gap-2">
           <span className="text-body">Correo</span>
           <span className="text-muted">{me.email ?? "— (cuenta solo WhatsApp)"}</span>

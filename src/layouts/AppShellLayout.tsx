@@ -32,6 +32,12 @@ export function AppShellLayout() {
   }, [location.pathname, refreshMe]);
 
   useEffect(() => {
+    const onChange = () => void refreshMe();
+    window.addEventListener("bestie:me-changed", onChange);
+    return () => window.removeEventListener("bestie:me-changed", onChange);
+  }, [refreshMe]);
+
+  useEffect(() => {
     if (!me?.id) {
       setUnread(0);
       return;
@@ -49,7 +55,12 @@ export function AppShellLayout() {
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <BrandLogo />
             <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-              <HeaderMegaMenu me={me} profileIncomplete={profileIncomplete} unreadCount={unread} />
+              <HeaderMegaMenu
+                me={me}
+                profileIncomplete={profileIncomplete}
+                unreadCount={unread}
+                onAuthChange={refreshMe}
+              />
             </div>
           </div>
         </header>

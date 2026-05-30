@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
+import { authLogout } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserAvatar } from "@/components/UserAvatar";
 
 function navClass({ isActive }: { isActive: boolean }) {
   return [
@@ -14,31 +16,43 @@ function navClass({ isActive }: { isActive: boolean }) {
   ].join(" ");
 }
 
+const dropItem =
+  "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+const dropBtn =
+  "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+
 type Props = {
   me: AuthMe | null | undefined;
   profileIncomplete: boolean;
   unreadCount: number;
+  onAuthChange?: () => void;
 };
 
-export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
-  const { openLogin, openRegister } = useAuthModal();
-  const [megaOpen, setMegaOpen] = useState(false);
+export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChange }: Props) {
+  const navigate = useNavigate();
+  const { openLogin } = useAuthModal();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const megaRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const avatarRef = useRef<HTMLDivElement>(null);
 
   const dismissNav = useCallback(() => {
-    setMegaOpen(false);
+    setMenuOpen(false);
+    setAvatarOpen(false);
     setMobileOpen(false);
   }, []);
 
   useEffect(() => {
-    if (!megaOpen) return;
+    if (!menuOpen && !avatarOpen) return;
     const close = (e: MouseEvent) => {
-      if (megaRef.current && !megaRef.current.contains(e.target as Node)) setMegaOpen(false);
+      const t = e.target as Node;
+      if (menuOpen && menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
+      if (avatarOpen && avatarRef.current && !avatarRef.current.contains(t)) setAvatarOpen(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [megaOpen]);
+  }, [menuOpen, avatarOpen]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -57,102 +71,86 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
     };
   }, [mobileOpen]);
 
-  const linkCol = "flex flex-col gap-1";
-  const h = "text-xs font-semibold uppercase tracking-wide text-muted";
+  const onLogout = async () => {
+    dismissNav();
+    await authLogout();
+    onAuthChange?.();
+    navigate("/");
+  };
 
-  const megaPanel = (
-    <div className="grid gap-6 sm:grid-cols-3">
-      <div className={linkCol}>
-        <p className={h}>Explorar</p>
-        <NavLink to="/buscar" className={navClass} onClick={dismissNav}>
-          Buscar
-        </NavLink>
-        <NavLink to="/faq" className={navClass} onClick={dismissNav}>
-          FAQ
-        </NavLink>
+  const menuLinks = (
+    <>
+      <NavLink to="/faq" className={navClass} onClick={dismissNav}>
+        FAQ
+      </NavLink>
+      {me?.id ? (
+        <>
+          <NavLink to="/mis-anuncios" className={navClass} onClick={dismissNav}>
+            Mis anuncios
+          </NavLink>
+          <NavLink to="/mensajes" className={navClass} onClick={dismissNav}>
+            <span className="inline-flex items-center gap-1">
+              Mensajes
+              {unreadCount > 0 ? (
+                <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              ) : null}
+            </span>
+          </NavLink>
+        </>
+      ) : null}
+      <div className="px-1 py-1">
+        <ThemeToggle />
       </div>
-      <div className={linkCol}>
-        <p className={h}>Publicar</p>
-        <NavLink to="/publicar" className={navClass} onClick={dismissNav}>
-          Publicar anuncio
+      <a
+        href="mailto:soporte@bestie.mx"
+        className={dropItem}
+        onClick={dismissNav}
+      >
+        Contacto
+      </a>
+      <NavLink to="/legal" className={navClass} onClick={dismissNav}>
+        Legal
+      </NavLink>
+    </>
+  );
+
+  const menuDropdown = (
+    <div className="flex min-w-[12rem] flex-col gap-0.5 p-1">{menuLinks}</div>
+  );
+
+  const avatarDropdown = me?.id ? (
+    <div className="flex min-w-[12rem] flex-col gap-0.5 p-1">
+      <NavLink to="/perfil" className={navClass} onClick={dismissNav}>
+        <span className="inline-flex items-center gap-1">
+          Mi Perfil
+          {profileIncomplete ? (
+            <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
+          ) : null}
+        </span>
+      </NavLink>
+      {me.isAdmin ? (
+        <NavLink to="/admin" className={navClass} onClick={dismissNav}>
+          Admin
         </NavLink>
-        <NavLink to="/mis-anuncios" className={navClass} onClick={dismissNav}>
-          Mis anuncios
-        </NavLink>
-        {me?.id ? (
-          <>
-            <NavLink to="/perfil" className={navClass} onClick={dismissNav}>
-              <span className="inline-flex items-center gap-1">
-                Perfil
-                {profileIncomplete ? (
-                  <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
-                ) : null}
-              </span>
-            </NavLink>
-            <NavLink to="/mensajes" className={navClass} onClick={dismissNav}>
-              <span className="inline-flex items-center gap-1">
-                Mensajes
-                {unreadCount > 0 ? (
-                  <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                ) : null}
-              </span>
-            </NavLink>
-            {me.isAdmin ? (
-              <NavLink to="/admin" className={navClass} onClick={dismissNav}>
-                Admin
-              </NavLink>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="rounded-lg px-3 py-2 text-left text-sm font-medium text-body hover:bg-surface-elevated"
-              onClick={() => {
-                dismissNav();
-                openRegister();
-              }}
-            >
-              Registro
-            </button>
-            <button
-              type="button"
-              className="rounded-lg px-3 py-2 text-left text-sm font-medium text-body hover:bg-surface-elevated"
-              onClick={() => {
-                dismissNav();
-                openLogin();
-              }}
-            >
-              Entrar (modal)
-            </button>
-          </>
-        )}
-      </div>
-      <div className={linkCol}>
-        <p className={h}>Ayuda</p>
-        <div className="px-1 py-1">
-          <ThemeToggle />
-        </div>
-        <a
-          href="mailto:soporte@bestie.mx"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-body transition hover:bg-surface-elevated"
-          onClick={dismissNav}
-        >
-          Contacto
-        </a>
-        <NavLink to="/legal" className={navClass} onClick={dismissNav}>
-          Legal
-        </NavLink>
-        <Link
-          to="/entrar"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-surface-elevated"
-          onClick={dismissNav}
-        >
-          Página completa entrar
-        </Link>
-      </div>
+      ) : null}
+      <button type="button" className={dropBtn} onClick={() => void onLogout()}>
+        Cerrar sesión
+      </button>
+    </div>
+  ) : (
+    <div className="flex min-w-[12rem] flex-col gap-0.5 p-1">
+      <button
+        type="button"
+        className={dropBtn}
+        onClick={() => {
+          dismissNav();
+          openLogin();
+        }}
+      >
+        Iniciar sesión / Registrarse
+      </button>
     </div>
   );
 
@@ -176,100 +174,126 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
             ✕
           </button>
         </div>
-        {!me?.id ? (
-          <div className="mt-4 flex flex-col gap-2 border-b border-border pb-4 dark:border-slate-600">
-            <Link
-              to="/entrar"
-              className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-fg transition hover:brightness-110"
-              onClick={() => setMobileOpen(false)}
+        <div className="mt-4 flex flex-col gap-1 border-b border-border pb-4 dark:border-slate-600">
+          <NavLink to="/buscar" className={navClass} onClick={dismissNav}>
+            Buscar
+          </NavLink>
+          <NavLink to="/publicar" className={navClass} onClick={dismissNav}>
+            Publicar
+          </NavLink>
+        </div>
+        <div className="mt-4 flex-1 overflow-y-auto overscroll-contain">
+          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted">Menú</p>
+          {menuLinks}
+        </div>
+        <div className="mt-4 border-t border-border pt-4 dark:border-slate-600">
+          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted">Cuenta</p>
+          {me?.id ? (
+            <div className="flex flex-col gap-0.5">
+              <Link to="/perfil" className={dropItem} onClick={dismissNav}>
+                <span className="inline-flex items-center gap-2">
+                  <UserAvatar
+                    displayName={me.displayName}
+                    profilePictureUrl={me.profilePictureUrl}
+                    size="sm"
+                  />
+                  Mi Perfil
+                  {profileIncomplete ? (
+                    <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
+                  ) : null}
+                </span>
+              </Link>
+              {me.isAdmin ? (
+                <NavLink to="/admin" className={navClass} onClick={dismissNav}>
+                  Admin
+                </NavLink>
+              ) : null}
+              <button type="button" className={dropBtn} onClick={() => void onLogout()}>
+                Cerrar sesión
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={dropBtn}
+              onClick={() => {
+                dismissNav();
+                openLogin();
+              }}
             >
-              Entrar
-            </Link>
-            <Link
-              to="/registro"
-              className="rounded-xl border border-border bg-bg-light py-3 text-center text-sm font-semibold text-body transition hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-800"
-              onClick={() => setMobileOpen(false)}
-            >
-              Crear cuenta
-            </Link>
-          </div>
-        ) : null}
-        <div className="mt-4 flex-1 overflow-y-auto overscroll-contain">{megaPanel}</div>
+              Iniciar sesión / Registrarse
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop: primary row + mega */}
-      <div className="hidden flex-wrap items-center justify-end gap-1 md:flex lg:gap-2">
+      {/* Desktop */}
+      <div className="hidden items-center justify-end gap-1 md:flex lg:gap-2">
         <NavLink to="/buscar" className={navClass}>
           Buscar
         </NavLink>
         <NavLink to="/publicar" className={navClass}>
           Publicar
         </NavLink>
-        {me?.id ? (
-          <>
-            <NavLink to="/perfil" className={navClass}>
-              <span className="inline-flex items-center gap-1">
-                Perfil
-                {profileIncomplete ? (
-                  <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
-                ) : null}
-              </span>
-            </NavLink>
-            <NavLink to="/mensajes" className={navClass}>
-              <span className="inline-flex items-center gap-1">
-                Mensajes
-                {unreadCount > 0 ? (
-                  <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                ) : null}
-              </span>
-            </NavLink>
-            {me.isAdmin ? (
-              <NavLink to="/admin" className={navClass}>
-                Admin
-              </NavLink>
-            ) : null}
-          </>
-        ) : (
+
+        <div className="relative" ref={menuRef}>
           <button
             type="button"
-            onClick={() => openLogin()}
-            className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
-          >
-            Entrar
-          </button>
-        )}
-        <div className="relative" ref={megaRef}>
-          <button
-            type="button"
-            onClick={() => setMegaOpen((v) => !v)}
+            onClick={() => {
+              setAvatarOpen(false);
+              setMenuOpen((v) => !v);
+            }}
             className="rounded-full border border-border bg-bg-light px-4 py-2 text-sm font-bold text-body hover:bg-surface-elevated dark:border-slate-600"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
           >
             Menú ▾
           </button>
-          {megaOpen ? (
-            <div className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,640px)] rounded-2xl border border-border bg-surface p-5 shadow-xl dark:border-slate-600 dark:bg-slate-900">
-              {megaPanel}
+          {menuOpen ? (
+            <div className="absolute right-0 top-full z-50 mt-2 rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
+              {menuDropdown}
             </div>
           ) : null}
         </div>
-        {me?.id ? (
-          <Link
-            to="/entrar"
-            className="rounded-full border border-border px-3 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+
+        <div className="relative" ref={avatarRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              setAvatarOpen((v) => !v);
+            }}
+            className="rounded-full p-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-expanded={avatarOpen}
+            aria-haspopup="menu"
+            aria-label={me?.id ? "Menú de cuenta" : "Iniciar sesión o registrarse"}
           >
-            Sesión
-          </Link>
-        ) : null}
+            <UserAvatar
+              displayName={me?.displayName}
+              profilePictureUrl={me?.profilePictureUrl}
+              size="md"
+            />
+          </button>
+          {avatarOpen ? (
+            <div className="absolute right-0 top-full z-50 mt-2 rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
+              {avatarDropdown}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      {/* Mobile: hamburger + sheet */}
+      {/* Mobile */}
       <div className="flex items-center gap-2 md:hidden">
+        <NavLink to="/buscar" className="rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-body dark:border-slate-600">
+          Buscar
+        </NavLink>
+        <NavLink to="/publicar" className="rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-body dark:border-slate-600">
+          Publicar
+        </NavLink>
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
@@ -277,18 +301,26 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount }: Props) {
           aria-expanded={mobileOpen}
           aria-haspopup="dialog"
         >
-          ☰ Menú
+          Menú
         </button>
-        {me?.id ? (
-          <NavLink to="/mensajes" className="relative rounded-full border border-border px-3 py-2 text-xs font-semibold">
-            Msgs
-            {unreadCount > 0 ? (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            ) : null}
-          </NavLink>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            if (me?.id) {
+              setMobileOpen(true);
+            } else {
+              openLogin();
+            }
+          }}
+          className="rounded-full p-0.5"
+          aria-label={me?.id ? "Abrir menú de cuenta" : "Iniciar sesión o registrarse"}
+        >
+          <UserAvatar
+            displayName={me?.displayName}
+            profilePictureUrl={me?.profilePictureUrl}
+            size="sm"
+          />
+        </button>
       </div>
 
       {mobileOpen ? createPortal(mobileSheet, document.body) : null}

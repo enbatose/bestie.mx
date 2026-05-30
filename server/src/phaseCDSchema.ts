@@ -127,6 +127,9 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
   if (!usersTableHasColumn(db, "email_canonical")) {
     db.exec("ALTER TABLE users ADD COLUMN email_canonical TEXT");
   }
+  if (!usersTableHasColumn(db, "profile_picture_url")) {
+    db.exec("ALTER TABLE users ADD COLUMN profile_picture_url TEXT");
+  }
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_canonical ON users(email_canonical) WHERE email_canonical IS NOT NULL");
   db.prepare(
     `UPDATE users SET email_verified_at = created_at WHERE email IS NOT NULL AND (email_verified_at IS NULL OR trim(email_verified_at) = '')`,

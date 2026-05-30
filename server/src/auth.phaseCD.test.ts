@@ -99,6 +99,20 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(me.body.displayName).toBe("Nuevo Nombre");
   });
 
+  it("PATCH /api/auth/me saves and clears profilePictureUrl", async () => {
+    const em = `edit-pic-${testId}@test.mx`;
+    const pic = "/api/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg";
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+    await agent.patch("/api/auth/me").send({ profilePictureUrl: pic }).expect(200);
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.profilePictureUrl).toBe(pic);
+    await agent.patch("/api/auth/me").send({ profilePictureUrl: null }).expect(200);
+    const cleared = await agent.get("/api/auth/me").expect(200);
+    expect(cleared.body.profilePictureUrl).toBeNull();
+    await agent.patch("/api/auth/me").send({ profilePictureUrl: "https://evil.example/x.jpg" }).expect(400);
+  });
+
   it("PATCH /api/auth/me saves phone_e164 from phone string", async () => {
     const em = `edit-ph-${testId}@test.mx`;
     const agent = request.agent(app);
