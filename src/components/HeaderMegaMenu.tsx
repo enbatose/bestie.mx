@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { CirclePlus, Search } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
@@ -20,6 +21,23 @@ const dropItem =
   "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
 const dropBtn =
   "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+
+function NavIconLabel({
+  icon: Icon,
+  label,
+  iconClassName = "h-4 w-4",
+}: {
+  icon: typeof Search;
+  label: string;
+  iconClassName?: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Icon className={`shrink-0 ${iconClassName}`} aria-hidden />
+      {label}
+    </span>
+  );
+}
 
 type Props = {
   me: AuthMe | null | undefined;
@@ -176,10 +194,10 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         </div>
         <div className="mt-4 flex flex-col gap-1 border-b border-border pb-4 dark:border-slate-600">
           <NavLink to="/buscar" className={navClass} onClick={dismissNav}>
-            Buscar
+            <NavIconLabel icon={Search} label="Buscar" />
           </NavLink>
           <NavLink to="/publicar" className={navClass} onClick={dismissNav}>
-            Publicar
+            <NavIconLabel icon={CirclePlus} label="Publicar" />
           </NavLink>
         </div>
         <div className="mt-4 flex-1 overflow-y-auto overscroll-contain">
@@ -234,10 +252,10 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       {/* Desktop */}
       <div className="hidden items-center justify-end gap-1 md:flex lg:gap-2">
         <NavLink to="/buscar" className={navClass}>
-          Buscar
+          <NavIconLabel icon={Search} label="Buscar" />
         </NavLink>
         <NavLink to="/publicar" className={navClass}>
-          Publicar
+          <NavIconLabel icon={CirclePlus} label="Publicar" />
         </NavLink>
 
         <div className="relative" ref={menuRef}>
@@ -288,10 +306,18 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
       {/* Mobile */}
       <div className="flex items-center gap-2 md:hidden">
-        <NavLink to="/buscar" className="rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-body dark:border-slate-600">
+        <NavLink
+          to="/buscar"
+          className="inline-flex items-center gap-2 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-body dark:border-slate-600"
+        >
+          <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
           Buscar
         </NavLink>
-        <NavLink to="/publicar" className="rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-body dark:border-slate-600">
+        <NavLink
+          to="/publicar"
+          className="inline-flex items-center gap-2 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-body dark:border-slate-600"
+        >
+          <CirclePlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
           Publicar
         </NavLink>
         <button
