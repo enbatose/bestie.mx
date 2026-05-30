@@ -4,6 +4,7 @@ import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { WizardLocationMap, WIZARD_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
+import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
@@ -683,8 +684,13 @@ export function PublishWizardPage() {
   const [streetViewAdjustOpen, setStreetViewAdjustOpen] = useState(false);
 
   useEffect(() => {
-    if (draft.streetViewPov) setStreetViewAdjustOpen(true);
-  }, [draft.streetViewPov?.heading, draft.streetViewPov?.pitch, draft.streetViewPov?.zoom]);
+    if (draft.streetViewPov && !draft.isApproximateLocation) setStreetViewAdjustOpen(true);
+  }, [
+    draft.isApproximateLocation,
+    draft.streetViewPov?.heading,
+    draft.streetViewPov?.pitch,
+    draft.streetViewPov?.zoom,
+  ]);
 
   const roomLodgingSig = useMemo(
     () => (draft.postMode === "room" ? draft.rooms.map((r) => r.lodgingType).join("|") : ""),
@@ -1234,39 +1240,37 @@ export function PublishWizardPage() {
                     hasDefinedLocation={draft.useCustomMapPin}
                     locationLabel={mapAddressShown}
                     onPositionChange={(lat, lng) => {
+                      setStreetViewAdjustOpen(false);
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
                         customLat: lat.toFixed(7),
                         customLng: lng.toFixed(7),
+                        streetViewPov: undefined,
                       }));
                     }}
                     showApproximateRadius={draft.isApproximateLocation}
                     approximateRadiusMeters={WIZARD_APPROXIMATE_RADIUS_M}
-                    streetViewAdjustOpen={streetViewAdjustOpen}
-                    onStreetViewAdjustOpenChange={setStreetViewAdjustOpen}
-                    streetViewPov={draft.streetViewPov}
-                    onStreetViewPovChange={(streetViewPov) =>
-                      setDraft((d) => ({ ...d, streetViewPov }))
-                    }
                   />
                 </div>
-                {draft.isApproximateLocation ? (
-                  <p className="mt-2 rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
-                    Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
-                    búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro mostrado en el mapa.
-                  </p>
-                ) : null}
 
-                <h3 className="text-sm font-bold text-primary mt-6 mb-2 border-b border-border pb-1">Nivel de privacidad</h3>
+                <h3 className="mt-4 text-sm font-bold text-primary border-b border-border pb-1">
+                  Nivel de privacidad
+                </h3>
                 <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
                   <input
                     type="checkbox"
                     className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
                     checked={draft.isApproximateLocation}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, isApproximateLocation: e.target.checked }))
-                    }
+                    onChange={(e) => {
+                      const hideExact = e.target.checked;
+                      if (hideExact) setStreetViewAdjustOpen(false);
+                      setDraft((d) => ({
+                        ...d,
+                        isApproximateLocation: hideExact,
+                        ...(hideExact ? { streetViewPov: undefined } : {}),
+                      }));
+                    }}
                   />
                   <div>
                     <span className="block text-sm font-semibold text-primary">
@@ -1278,6 +1282,55 @@ export function PublishWizardPage() {
                     </span>
                   </div>
                 </label>
+
+                {draft.isApproximateLocation ? (
+                  <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted transition-opacity duration-200">
+                    Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
+                    búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro mostrado en el mapa.
+                  </p>
+                ) : null}
+
+                {!draft.isApproximateLocation && draft.useCustomMapPin ? (() => {
+                  const { lat, lng } = resolveLatLngForDraft(draft);
+                  return (
+                  <div className="space-y-3 border-t border-border pt-4 transition-opacity duration-200">
+                    <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
+                        checked={streetViewAdjustOpen}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setStreetViewAdjustOpen(on);
+                          setDraft((d) => ({
+                            ...d,
+                            streetViewPov: on
+                              ? d.streetViewPov ?? { heading: 0, pitch: 0, zoom: 1 }
+                              : undefined,
+                          }));
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-primary">Ajustar vista de calle (Opcional)</span>
+                    </label>
+                    {streetViewAdjustOpen ? (
+                      <>
+                        <StreetViewPovEditor
+                          lat={lat}
+                          lng={lng}
+                          pov={draft.streetViewPov}
+                          onPovChange={(streetViewPov) =>
+                            setDraft((d) => ({ ...d, streetViewPov }))
+                          }
+                        />
+                        <p className="text-xs text-muted">
+                          Ajusta la cámara para que apunte a la fachada de tu propiedad. Esta toma exacta será la que se
+                          mostrará en tu anuncio público.
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                  );
+                })() : null}
               </div>
             </div>
           </form>

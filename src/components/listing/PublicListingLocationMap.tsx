@@ -40,6 +40,9 @@ function ReadOnlyLocationMap({
 
 export function PublicListingLocationMap({ listing, isApproximateLocation = false }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
+  const showStreetView = !hideExactAddress;
+  const gridClass = showStreetView ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "grid grid-cols-1 gap-4";
 
   useEffect(() => {
     if (!expanded) return;
@@ -61,11 +64,11 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="relative">
+      <div className={gridClass}>
+        <div className={`relative ${showStreetView ? "" : "col-span-full"}`}>
           <ReadOnlyLocationMap
             listing={listing}
-            isApproximateLocation={isApproximateLocation}
+            isApproximateLocation={hideExactAddress}
             heightClass="h-[260px] md:h-[320px]"
           />
           <button
@@ -77,20 +80,22 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
             Ampliar mapa
           </button>
         </div>
-        <GoogleStreetViewPane
-          lat={listing.lat}
-          lng={listing.lng}
-          streetViewPov={listing.streetViewPov}
-          trackingInterface="public_listing"
-          propertyId={listing.propertyId}
-          listingId={listing.id}
-        />
+        {showStreetView ? (
+          <GoogleStreetViewPane
+            lat={listing.lat}
+            lng={listing.lng}
+            streetViewPov={listing.streetViewPov}
+            trackingInterface="public_listing"
+            propertyId={listing.propertyId}
+            listingId={listing.id}
+          />
+        ) : null}
       </div>
 
-      {isApproximateLocation ? (
+      {hideExactAddress ? (
         <p className="mt-2 text-xs text-muted">
           Ubicación aproximada por privacidad (radio ~{PREVIEW_APPROXIMATE_RADIUS_M} m); el pin exacto no se
-          muestra. Street View puede no coincidir con el punto exacto del anuncio.
+          muestra.
         </p>
       ) : null}
 
@@ -120,11 +125,11 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
             <div className="p-3">
               <ReadOnlyLocationMap
                 listing={listing}
-                isApproximateLocation={isApproximateLocation}
+                isApproximateLocation={hideExactAddress}
                 heightClass="h-[min(70vh,560px)] w-full"
               />
             </div>
-            {isApproximateLocation ? (
+            {hideExactAddress ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
                 Ubicación aproximada por privacidad (radio ~{PREVIEW_APPROXIMATE_RADIUS_M} m).
               </p>

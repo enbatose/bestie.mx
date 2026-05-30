@@ -1,9 +1,6 @@
 import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
-import { streetViewExternalUrl } from "@/lib/streetView";
-import type { StreetViewPov } from "@/types/listing";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -28,11 +25,6 @@ type Props = {
   embed?: boolean;
   /** Map height in px or CSS length (default 288). */
   mapHeight?: number | string;
-  /** Optional Street View POV lock (wizard step 2). */
-  streetViewAdjustOpen?: boolean;
-  onStreetViewAdjustOpenChange?: (open: boolean) => void;
-  streetViewPov?: StreetViewPov;
-  onStreetViewPovChange?: (pov: StreetViewPov | undefined) => void;
 };
 
 /** Circle styling for approximate / privacy radius (brand green). */
@@ -98,20 +90,13 @@ export function WizardLocationMap({
   forceDraggablePin = false,
   embed = false,
   mapHeight = 288,
-  streetViewAdjustOpen = false,
-  onStreetViewAdjustOpenChange,
-  streetViewPov,
-  onStreetViewPovChange,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
-  const [lat, lng] = localPosition;
-  const streetViewHref = streetViewExternalUrl(lat, lng, streetViewPov);
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
   const skipFlyRef = useRef(false);
   const showMarker = forceDraggablePin || !showApproximateRadius;
-  const streetViewEnabled = Boolean(onStreetViewPovChange);
 
   useEffect(() => {
     setLocalPosition(position);
@@ -125,11 +110,9 @@ export function WizardLocationMap({
       setLocalPosition([ll.lat, ll.lng]);
       setLocalLocationSelected(true);
       skipFlyRef.current = true;
-      onStreetViewAdjustOpenChange?.(false);
-      onStreetViewPovChange?.(undefined);
       onPositionChange(ll.lat, ll.lng);
     },
-    [onPositionChange, onStreetViewAdjustOpenChange, onStreetViewPovChange],
+    [onPositionChange],
   );
 
   const markerEventHandlers = useMemo(
@@ -191,80 +174,32 @@ export function WizardLocationMap({
         ) : null}
       </MapContainer>
 
-      {streetViewEnabled && !embed && localLocationSelected ? (
-        <div className="space-y-3 border-t border-border pt-4">
-          <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
-              checked={streetViewAdjustOpen}
-              onChange={(e) => {
-                const on = e.target.checked;
-                onStreetViewAdjustOpenChange?.(on);
-                onStreetViewPovChange?.(
-                  on ? streetViewPov ?? { heading: 0, pitch: 0, zoom: 1 } : undefined,
-                );
-              }}
-            />
-            <span className="text-sm font-semibold text-primary">Ajustar vista de calle (Opcional)</span>
-          </label>
-          {streetViewAdjustOpen ? (
-            <>
-              <StreetViewPovEditor
-                lat={lat}
-                lng={lng}
-                pov={streetViewPov}
-                onPovChange={(nextPov) => onStreetViewPovChange?.(nextPov)}
-              />
-              <p className="text-xs text-muted">
-                Gira la cámara para que apunte a la fachada de la propiedad. Esta será la vista que verán los
-                usuarios.
-              </p>
-            </>
-          ) : null}
-        </div>
-      ) : null}
-
       {embed ? null : (
         <>
           <p className="text-xs text-muted">
             <strong className="font-semibold text-body">Tip</strong>: Los clics en el mapa no mueven el pin.
           </p>
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm">
-            {localLocationSelected ? (
-              <div className="flex items-start gap-2 font-medium text-primary">
-                <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <span className="min-w-0 break-words">
-                  {locationLabel ?? "Buscando dirección para la ubicación seleccionada..."}
-                </span>
-              </div>
-            ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm text-body">¿No estás seguro de la ubicación?</span>
-              <a
-                href={streetViewHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
-                aria-label="Abrir Street View en la ubicación del pin"
-              >
-                Ver vista de calle
-              </a>
+          {localLocationSelected ? (
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm font-medium text-primary">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span className="min-w-0 break-words">
+                {locationLabel ?? "Buscando dirección para la ubicación seleccionada..."}
+              </span>
             </div>
-          </div>
+          ) : null}
         </>
       )}
     </div>

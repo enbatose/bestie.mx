@@ -59,6 +59,9 @@ export function PreviewPropertyLocationMap({
   const [expanded, setExpanded] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
   const [draftPosition, setDraftPosition] = useState<[number, number]>([listing.lat, listing.lng]);
+  const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
+  const showStreetView = !hideExactAddress;
+  const gridClass = showStreetView ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "grid grid-cols-1 gap-4";
 
   useEffect(() => {
     if (!editingLocation) {
@@ -105,8 +108,8 @@ export function PreviewPropertyLocationMap({
     hasDefinedLocation: true as const,
     locationLabel: null,
     onPositionChange: (lat: number, lng: number) => setDraftPosition([lat, lng]),
-    showApproximateRadius: isApproximateLocation,
-    approximateRadiusMeters: isApproximateLocation ? PREVIEW_APPROXIMATE_RADIUS_M : PREVIEW_EDIT_RADIUS_M,
+    showApproximateRadius: hideExactAddress,
+    approximateRadiusMeters: hideExactAddress ? PREVIEW_APPROXIMATE_RADIUS_M : PREVIEW_EDIT_RADIUS_M,
     forceDraggablePin: true,
     embed: true,
   };
@@ -121,7 +124,7 @@ export function PreviewPropertyLocationMap({
       defaultCenter={[listing.lat, listing.lng]}
       defaultZoom={PREVIEW_LOCATION_MAP_ZOOM}
       preferDefaultView
-      approximateAsCircle={isApproximateLocation}
+      approximateAsCircle={hideExactAddress}
       approximateCircleRadiusM={PREVIEW_APPROXIMATE_RADIUS_M}
     />
   );
@@ -168,16 +171,18 @@ export function PreviewPropertyLocationMap({
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {mapPane("h-[260px] md:h-[320px]", 220)}
-        <GoogleStreetViewPane
-          lat={streetViewLat}
-          lng={streetViewLng}
-          streetViewPov={listing.streetViewPov}
-          trackingInterface="listing_preview"
-          propertyId={listing.propertyId}
-          listingId={listing.id}
-        />
+      <div className={gridClass}>
+        <div className={showStreetView ? "" : "col-span-full"}>{mapPane("h-[260px] md:h-[320px]", 220)}</div>
+        {showStreetView ? (
+          <GoogleStreetViewPane
+            lat={streetViewLat}
+            lng={streetViewLng}
+            streetViewPov={listing.streetViewPov}
+            trackingInterface="listing_preview"
+            propertyId={listing.propertyId}
+            listingId={listing.id}
+          />
+        ) : null}
       </div>
 
       {expanded ? (
@@ -217,7 +222,7 @@ export function PreviewPropertyLocationMap({
                 readOnlyMap("h-[min(70vh,560px)] w-full")
               )}
             </div>
-            {isApproximateLocation ? (
+            {hideExactAddress ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
                 {editingLocation
                   ? `Arrastra el pin dentro del área (~${PREVIEW_APPROXIMATE_RADIUS_M} m). La ubicación pública puede variar por privacidad.`
@@ -225,7 +230,8 @@ export function PreviewPropertyLocationMap({
               </p>
             ) : editingLocation ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
-                Arrastra el pin para ajustar la ubicación. Los cambios se reflejan en ambos mapas.
+                Arrastra el pin para ajustar la ubicación.
+                {showStreetView ? " Los cambios se reflejan en ambos mapas." : ""}
               </p>
             ) : null}
           </div>
