@@ -41,12 +41,7 @@ export const WIZARD_APPROXIMATE_RADIUS_M = 200;
 /** Visual radius for approximate location in publish preview (read-only). */
 export const PREVIEW_APPROXIMATE_RADIUS_M = 400;
 
-/** External Street View tab only — the embedded map stays Leaflet/OSM (no Maps JavaScript API). */
-function streetViewExternalUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
-}
-
-/** Pan/zoom when `position` updates from outside (e.g. autofill), not after marker drag. */
+import { streetViewExternalUrl } from "@/lib/streetView";
 function MapViewSync({
   position,
   zoom,

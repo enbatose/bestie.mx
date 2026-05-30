@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Maximize2, X } from "lucide-react";
+import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import type { PropertyListing } from "@/types/listing";
@@ -60,26 +61,29 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
 
   return (
     <>
-      <div className="relative">
-        <ReadOnlyLocationMap
-          listing={listing}
-          isApproximateLocation={isApproximateLocation}
-          heightClass="h-[260px] md:h-[320px]"
-        />
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
-        >
-          <Maximize2 className="size-3.5" aria-hidden />
-          Ampliar mapa
-        </button>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="relative">
+          <ReadOnlyLocationMap
+            listing={listing}
+            isApproximateLocation={isApproximateLocation}
+            heightClass="h-[260px] md:h-[320px]"
+          />
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+          >
+            <Maximize2 className="size-3.5" aria-hidden />
+            Ampliar mapa
+          </button>
+        </div>
+        <GoogleStreetViewPane lat={listing.lat} lng={listing.lng} />
       </div>
 
       {isApproximateLocation ? (
         <p className="mt-2 text-xs text-muted">
           Ubicación aproximada por privacidad (radio ~{PREVIEW_APPROXIMATE_RADIUS_M} m); el pin exacto no se
-          muestra.
+          muestra. Street View puede no coincidir con el punto exacto del anuncio.
         </p>
       ) : null}
 

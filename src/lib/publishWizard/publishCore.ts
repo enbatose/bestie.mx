@@ -261,18 +261,37 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
   return occupantCountsInvalidReason(d);
 }
 
-export function contactStepInvalidReason(d: Draft): string | null {
-  if (!d.showWhatsApp) {
-    return "Activa “Mostrar WhatsApp en el anuncio” e ingresa tu número de contacto.";
+export function contactStepInvalidReason(_d: Draft): string | null {
+  return null;
+}
+
+/** WhatsApp comes from the user profile at publish time, not the wizard. */
+export function profileContactPublishBlockedReason(profilePhoneE164: string | null | undefined): string | null {
+  const raw = profilePhoneE164?.trim() ?? "";
+  if (!raw) {
+    return "Agrega tu WhatsApp en Mi cuenta antes de publicar.";
   }
-  const digits = normalizeWhatsApp(d.contactWhatsApp);
+  const digits = normalizeWhatsApp(raw.replace(/^\+/, ""));
   if (digits.length < 10 || digits.length > 15) {
-    return "Ingresa un WhatsApp válido (10–15 dígitos).";
+    return "Tu WhatsApp en Mi cuenta no es válido. Actualízalo en Mi cuenta.";
   }
   if (/^0+$/.test(digits)) {
-    return "Ingresa un número de WhatsApp real (no puede ser solo ceros).";
+    return "Actualiza tu WhatsApp en Mi cuenta con un número real.";
   }
   return null;
+}
+
+export function resolveListingContactForApi(
+  profilePhoneE164: string | null | undefined,
+  draft: Draft,
+): { contactWhatsApp: string; showWhatsApp: boolean } {
+  const raw = profilePhoneE164?.trim() || draft.contactWhatsApp?.trim() || "";
+  const digits = normalizeWhatsApp(raw.replace(/^\+/, ""));
+  const valid = digits.length >= 10 && digits.length <= 15 && !/^0+$/.test(digits);
+  return {
+    contactWhatsApp: valid ? digits : DRAFT_WA_PLACEHOLDER,
+    showWhatsApp: valid,
+  };
 }
 
 export function locationStepInvalidReason(d: Draft): string | null {
@@ -345,7 +364,7 @@ export function validateWizardStepByTitle(
       return err ? stepPrefix(stepIndex, "Ubicación", err) : null;
     }
     case WIZARD_STEP_TITLES.PROPERTY_GENERAL: {
-      const err = propertyGeneralStepInvalidReason(draft) ?? contactStepInvalidReason(draft);
+      const err = propertyGeneralStepInvalidReason(draft);
       return err ? stepPrefix(stepIndex, "Datos generales", err) : null;
     }
     case WIZARD_STEP_TITLES.ROOMS: {
@@ -444,15 +463,20 @@ export function validateRoomsForSubmit(d: Draft): string | null {
   return null;
 }
 
-export function getPublishBlockedReason(draft: Draft): string | null {
+export function getPublishBlockedReason(
+  draft: Draft,
+  profilePhoneE164?: string | null,
+): string | null {
   const locationErr = locationStepInvalidReason(draft);
   if (locationErr) return `Paso · Ubicación: ${locationErr}`;
 
   const generalErr = propertyGeneralStepInvalidReason(draft);
   if (generalErr) return `Paso · Datos generales: ${generalErr}`;
 
-  const contactErr = contactStepInvalidReason(draft);
-  if (contactErr) return `Paso · Contacto: ${contactErr}`;
+  if (profilePhoneE164 !== undefined) {
+    const profileContactErr = profileContactPublishBlockedReason(profilePhoneE164);
+    if (profileContactErr) return `Paso · Contacto: ${profileContactErr}`;
+  }
 
   const roomsErr = validateRoomsForSubmit(draft);
   if (roomsErr) return `Paso · Recámaras: ${roomsErr}`;
@@ -468,13 +492,15 @@ export { PROPERTY_SUMMARY_MIN, PROPERTY_SUMMARY_MAX, ROOM_SUMMARY_MIN, ROOM_SUMM
 export async function syncDraftToServer(
   draft: Draft,
   serverSync: PublishWizardServerSync,
+  profilePhoneE164?: string | null,
 ): Promise<PublishWizardServerSync> {
   if (!isListingsApiConfigured()) return serverSync;
 
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
   const { lat, lng } = resolveLatLngForDraft(draft);
-  const wa = wizardContactDigits(draft.contactWhatsApp, draft.showWhatsApp);
+  const contact = resolveListingContactForApi(profilePhoneE164, draft);
+  const wa = wizardContactDigits(contact.contactWhatsApp, contact.showWhatsApp);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     let propertyId = serverSync.propertyId;
@@ -492,7 +518,7 @@ export async function syncDraftToServer(
         propertyKind: draft.propertyKind,
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
-        showWhatsApp: draft.showWhatsApp,
+        showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -533,7 +559,7 @@ export async function syncDraftToServer(
         propertyKind: draft.propertyKind,
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
-        showWhatsApp: draft.showWhatsApp,
+        showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -565,21 +591,23 @@ export async function publishDraftFromWizard(opts: {
   editingLiveProperty: { status: Extract<ListingStatus, "published" | "paused"> } | null;
   apiOn: boolean;
   isLoggedIn: boolean;
+  profilePhoneE164?: string | null;
 }): Promise<PublishDraftResult> {
-  const { draft, editingLiveProperty, apiOn, isLoggedIn } = opts;
+  const { draft, editingLiveProperty, apiOn, isLoggedIn, profilePhoneE164 } = opts;
   let serverSync = opts.serverSync;
 
-  const blocked = getPublishBlockedReason(draft);
+  const blocked = getPublishBlockedReason(draft, profilePhoneE164 ?? null);
   if (blocked) return { kind: "error", message: blocked };
 
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
-  const digits = normalizeWhatsApp(draft.contactWhatsApp);
+  const contact = resolveListingContactForApi(profilePhoneE164, draft);
+  const digits = contact.contactWhatsApp;
 
   if (!isLoggedIn) {
     if (apiOn) {
       try {
-        serverSync = (await syncDraftToServer(draft, serverSync)) ?? serverSync;
+        serverSync = (await syncDraftToServer(draft, serverSync, profilePhoneE164)) ?? serverSync;
       } catch (e) {
         return { kind: "error", message: e instanceof Error ? e.message : "No se pudo guardar el borrador." };
       }
@@ -592,7 +620,7 @@ export async function publishDraftFromWizard(opts: {
   }
 
   try {
-    serverSync = (await syncDraftToServer(draft, serverSync)) ?? serverSync;
+    serverSync = (await syncDraftToServer(draft, serverSync, profilePhoneE164)) ?? serverSync;
     const { lat, lng } = resolveLatLngForDraft(draft);
     const firstRoomId =
       serverSync.roomIds.find((id) => typeof id === "string" && id.length > 0) ?? null;
@@ -606,11 +634,11 @@ export async function publishDraftFromWizard(opts: {
         neighborhood,
         lat,
         lng,
-        contactWhatsApp: draft.showWhatsApp ? digits : "",
+        contactWhatsApp: contact.showWhatsApp ? digits : "",
         propertyKind: draft.propertyKind,
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
-        showWhatsApp: draft.showWhatsApp,
+        showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -633,11 +661,11 @@ export async function publishDraftFromWizard(opts: {
         lat,
         lng,
         summary: draft.propertySummary.trim(),
-        contactWhatsApp: draft.showWhatsApp ? digits : "",
+        contactWhatsApp: contact.showWhatsApp ? digits : "",
         propertyKind: draft.propertyKind,
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
-        showWhatsApp: draft.showWhatsApp,
+        showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -663,6 +691,7 @@ export async function saveDraftFromWizard(opts: {
   draft: Draft;
   serverSync: PublishWizardServerSync;
   apiOn: boolean;
+  profilePhoneE164?: string | null;
 }): Promise<{ serverSync: PublishWizardServerSync; error?: string }> {
   const blocked =
     propertyGeneralStepInvalidReason(opts.draft) ?? validateRoomsForSubmit(opts.draft);
@@ -673,7 +702,7 @@ export async function saveDraftFromWizard(opts: {
   }
 
   try {
-    const serverSync = await syncDraftToServer(opts.draft, opts.serverSync);
+    const serverSync = await syncDraftToServer(opts.draft, opts.serverSync, opts.profilePhoneE164);
     return { serverSync };
   } catch (e) {
     return {

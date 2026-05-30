@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Maximize2, Pencil, X } from "lucide-react";
+import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { WizardLocationMap, PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import type { PropertyListing } from "@/types/listing";
@@ -95,6 +96,9 @@ export function PreviewPropertyLocationMap({
     setExpanded(false);
   };
 
+  const streetViewLat = editingLocation ? draftPosition[0] : listing.lat;
+  const streetViewLng = editingLocation ? draftPosition[1] : listing.lng;
+
   const editMapProps = {
     center: mapCenter,
     position: draftPosition,
@@ -126,30 +130,30 @@ export function PreviewPropertyLocationMap({
     <WizardLocationMap {...editMapProps} mapHeight={mapHeight} />
   );
 
-  return (
-    <>
-      <div className="relative">
+  const mapPane = (heightClass: string, editHeight: number | string) => (
+    <div className="relative">
+      {editingLocation ? (
+        <div className={heightClass}>{editMap(editHeight)}</div>
+      ) : (
+        readOnlyMap(heightClass)
+      )}
+
+      <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
         {editingLocation ? (
-          <div className="h-[260px] md:h-[320px]">{editMap(220)}</div>
+          <LocationEditActions compact onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
         ) : (
-          readOnlyMap("h-[260px] md:h-[320px]")
+          <button
+            type="button"
+            onClick={() => setEditingLocation(true)}
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+          >
+            <Pencil className="size-3.5" aria-hidden />
+            Editar ubicación
+          </button>
         )}
+      </div>
 
-        <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
-          {editingLocation ? (
-            <LocationEditActions compact onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEditingLocation(true)}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
-            >
-              <Pencil className="size-3.5" aria-hidden />
-              Editar ubicación
-            </button>
-          )}
-        </div>
-
+      {!editingLocation ? (
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -158,6 +162,15 @@ export function PreviewPropertyLocationMap({
           <Maximize2 className="size-3.5" aria-hidden />
           Ampliar mapa
         </button>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {mapPane("h-[260px] md:h-[320px]", 220)}
+        <GoogleStreetViewPane lat={streetViewLat} lng={streetViewLng} />
       </div>
 
       {expanded ? (

@@ -42,7 +42,6 @@ import {
   effectiveWizardPropertyBathrooms,
   getPublishBlockedReason,
   locationStepInvalidReason,
-  contactStepInvalidReason,
   normalizeWhatsApp,
   photosStepInvalidReason,
   propertyGeneralStepInvalidReason,
@@ -411,7 +410,7 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
 
   if (locationStepInvalidReason(draft)) return 1;
 
-  if (propertyGeneralStepInvalidReason(draft) || contactStepInvalidReason(draft)) return 2;
+  if (propertyGeneralStepInvalidReason(draft)) return 2;
 
   if (validateRoomsForSubmit(draft)) return 3;
 
@@ -1024,7 +1023,7 @@ export function PublishWizardPage() {
 
     try {
       setAutosaveNote("saving");
-      const next = await syncDraftToServer(d, serverSyncRef.current);
+      const next = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164);
       serverSyncRef.current = next;
       setServerSync(next);
       setAutosaveNote("saved");
@@ -1332,35 +1331,6 @@ export function PublishWizardPage() {
                   </div>
                 </>
               ) : null}
-            </div>
-
-            <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-              <h3 className="text-[15px] font-bold text-primary">Contacto</h3>
-              <label className="block text-sm font-medium text-body">
-                WhatsApp
-                <span className="text-red-600"> *</span>
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={draft.contactWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, contactWhatsApp: e.target.value }))}
-                  placeholder="Ej. 52 33 1234 5678"
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                />
-                <span className="mt-1 block text-xs text-muted">
-                  10–15 dígitos; incluye lada y código de país si aplica.
-                </span>
-              </label>
-              <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
-                  checked={draft.showWhatsApp}
-                  onChange={(e) => setDraft((d) => ({ ...d, showWhatsApp: e.target.checked }))}
-                />
-                <span className="text-sm text-body">Mostrar WhatsApp en el anuncio público</span>
-              </label>
             </div>
 
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
@@ -2170,11 +2140,14 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
-  const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
+  const publishBlockedReason = useMemo(
+    () => getPublishBlockedReason(draft, me?.phoneE164),
+    [draft, me?.phoneE164],
+  );
 
   async function submitPublish() {
     setPublishErr(null);
-    const blocked = getPublishBlockedReason(draftRef.current);
+    const blocked = getPublishBlockedReason(draftRef.current, meRef.current?.phoneE164);
     if (blocked) {
       setPublishErr(blocked);
       return;
@@ -2187,7 +2160,11 @@ export function PublishWizardPage() {
       setSubmitInFlight("draft");
       try {
         if (apiOn) {
-          const synced = await syncDraftToServer(draftRef.current, serverSyncRef.current);
+          const synced = await syncDraftToServer(
+            draftRef.current,
+            serverSyncRef.current,
+            meRef.current?.phoneE164,
+          );
           serverSyncRef.current = synced;
           setServerSync(synced);
         }
@@ -2217,6 +2194,7 @@ export function PublishWizardPage() {
         editingLiveProperty,
         apiOn,
         isLoggedIn: true,
+        profilePhoneE164: me?.phoneE164,
       });
       if (result.kind === "published") {
         const roomIdx = Math.min(
@@ -2253,9 +2231,7 @@ export function PublishWizardPage() {
   async function submitServerDraft() {
     setPublishErr(null);
     const blocked =
-      propertyGeneralStepInvalidReason(draft) ??
-      contactStepInvalidReason(draft) ??
-      validateRoomsForSubmit(draft);
+      propertyGeneralStepInvalidReason(draft) ?? validateRoomsForSubmit(draft);
     if (blocked) {
       setPublishErr(blocked);
       return;
@@ -2264,7 +2240,11 @@ export function PublishWizardPage() {
     setSubmitInFlight("draft");
     try {
       if (apiOn) {
-        const synced = await syncDraftToServer(draftRef.current, serverSyncRef.current);
+        const synced = await syncDraftToServer(
+          draftRef.current,
+          serverSyncRef.current,
+          meRef.current?.phoneE164,
+        );
         serverSyncRef.current = synced;
         setServerSync(synced);
       } else {
@@ -2318,6 +2298,7 @@ export function PublishWizardPage() {
             onRoomIndexChange={setPreviewRoomIndex}
             onDraftChange={(updater) => setDraft((d) => updater(d))}
             apiOn={apiOn}
+            profilePhoneE164={me?.phoneE164}
             publishBlockedReason={publishBlockedReason}
             actionErr={publishErr}
             submitInFlight={submitInFlight}
@@ -2457,6 +2438,7 @@ export function PublishWizardPage() {
               onRoomIndexChange={setPreviewRoomIndex}
               onDraftChange={(updater) => setDraft((d) => updater(d))}
               apiOn={apiOn}
+              profilePhoneE164={me?.phoneE164}
               publishBlockedReason={publishBlockedReason}
               actionErr={publishErr}
               submitInFlight={submitInFlight}

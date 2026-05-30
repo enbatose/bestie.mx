@@ -16,6 +16,7 @@ type Props = {
   onRoomIndexChange: (index: number) => void;
   onDraftChange: (updater: (d: Draft) => Draft) => void;
   apiOn: boolean;
+  profilePhoneE164?: string | null;
   publishBlockedReason: string | null;
   actionErr: string | null;
   submitInFlight: "publish" | "draft" | null;
@@ -31,6 +32,7 @@ export function PublishWizardReviewStep({
   onRoomIndexChange,
   onDraftChange,
   apiOn,
+  profilePhoneE164,
   publishBlockedReason,
   actionErr,
   submitInFlight,
@@ -101,6 +103,7 @@ export function PublishWizardReviewStep({
         roomIndex={roomIndex}
         apiOn={apiOn}
         variant={isLiveEdit ? "live-edit" : "preview"}
+        profilePhoneE164={profilePhoneE164}
         onDraftChange={onDraftChange}
       />
 

@@ -8,15 +8,20 @@ import {
   effectiveRoomsAvailable,
   mergedRoomTagsForPayload,
   resolveLatLngForDraft,
+  resolveListingContactForApi,
 } from "@/lib/publishWizard/publishCore";
 import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 
 const PREVIEW_PROPERTY_ID = "preview-property";
 
-export function draftToPropertyWithRooms(draft: Draft): PropertyWithRooms {
+export function draftToPropertyWithRooms(
+  draft: Draft,
+  profilePhoneE164?: string | null,
+): PropertyWithRooms {
   const { lat, lng } = resolveLatLngForDraft(draft);
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
+  const contact = resolveListingContactForApi(profilePhoneE164, draft);
 
   const property = {
     id: PREVIEW_PROPERTY_ID,
@@ -29,11 +34,11 @@ export function draftToPropertyWithRooms(draft: Draft): PropertyWithRooms {
     lat,
     lng,
     summary: draft.propertySummary.trim(),
-    contactWhatsApp: draft.showWhatsApp ? draft.contactWhatsApp : "",
+    contactWhatsApp: contact.showWhatsApp ? contact.contactWhatsApp : "",
     propertyKind: draft.propertyKind,
     bedroomsTotal: draft.propertyBedroomsTotal,
     bathrooms: draft.propertyBathrooms > 0 ? draft.propertyBathrooms : 1,
-    showWhatsApp: draft.showWhatsApp,
+    showWhatsApp: contact.showWhatsApp,
     imageUrls: draftPropertyImageUrls(draft),
     commonAreaPhotos: draftPropertyImageUrls(draft),
     isApproximateLocation: draft.isApproximateLocation,
@@ -73,8 +78,12 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
   };
 }
 
-export function draftToListingPreview(draft: Draft, roomIndex: number): PropertyListing {
-  const pack = draftToPropertyWithRooms(draft);
+export function draftToListingPreview(
+  draft: Draft,
+  roomIndex: number,
+  profilePhoneE164?: string | null,
+): PropertyListing {
+  const pack = draftToPropertyWithRooms(draft, profilePhoneE164);
   const room = pack.rooms[roomIndex] ?? pack.rooms[0];
   if (!room) {
     throw new Error("preview_requires_room");

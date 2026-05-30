@@ -55,6 +55,7 @@ type Props = {
   roomIndex: number;
   apiOn?: boolean;
   variant?: "preview" | "live-edit";
+  profilePhoneE164?: string | null;
   onDraftChange: (updater: (d: Draft) => Draft) => void;
 };
 
@@ -229,9 +230,13 @@ export function EditableListingPreview({
   roomIndex,
   apiOn = false,
   variant = "preview",
+  profilePhoneE164,
   onDraftChange,
 }: Props) {
-  const listing = useMemo(() => draftToListingPreview(draft, roomIndex), [draft, roomIndex]);
+  const listing = useMemo(
+    () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
+    [draft, roomIndex, profilePhoneE164],
+  );
   const room = draft.rooms[roomIndex];
 
   const [editingHeader, setEditingHeader] = useState(false);

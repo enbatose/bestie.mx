@@ -76,10 +76,10 @@ export function MyListingsPage() {
     if (!p.neighborhood?.trim()) m.push("Colonia");
     if (!p.city?.trim()) m.push("Ciudad");
     if (
-      p.showWhatsApp !== false &&
-      (!p.contactWhatsApp?.trim() || p.contactWhatsApp.replace(/\D/g, "").length < 10)
+      !me?.phoneE164?.trim() ||
+      me.phoneE164.replace(/\D/g, "").length < 10
     ) {
-      m.push("WhatsApp");
+      m.push("WhatsApp en Mi cuenta");
     }
     if (!isRoomPost && (!p.summary?.trim() || p.summary.trim().length < 20)) m.push("Descripción de la propiedad");
     if (!bundle.rooms?.length) m.push("Al menos 1 cuarto");
@@ -94,7 +94,7 @@ export function MyListingsPage() {
       if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) m.push(`Renta del cuarto${roomSuffix}`);
     }
     return [...new Set(m)];
-  }, []);
+  }, [me?.phoneE164]);
 
   const propertyGroups = useMemo((): PropertyGroup[] => {
     if (!rows?.length) return [];
