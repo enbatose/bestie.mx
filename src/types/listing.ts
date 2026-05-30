@@ -8,6 +8,13 @@ export type PropertyKind = "house" | "apartment" | "loft";
 
 export type RoomDimension = "small" | "medium" | "large";
 
+/** Locked Google Street View camera angle for a property location. */
+export type StreetViewPov = {
+  heading: number;
+  pitch: number;
+  zoom: number;
+};
+
 /** Whether a room slot is offered for rent or already occupied (property multi-room manager). */
 export type RoomOccupancyStatus = "available" | "occupied";
 
@@ -71,6 +78,8 @@ export type Property = {
   /** Shared-area / facade photos for property posts (same storage as `imageUrls`). */
   commonAreaPhotos?: string[];
   isApproximateLocation?: boolean;
+  /** Optional locked Street View camera (heading / pitch / zoom). */
+  streetViewPov?: StreetViewPov;
   /** Reported occupants in existing rooms (wizard). */
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
@@ -168,6 +177,8 @@ export type PropertyListing = {
   subletAllowed?: boolean;
   /** When true, public map pin is offset within a privacy radius. */
   isApproximateLocation?: boolean;
+  /** Locked Street View camera from the publisher (property-level). */
+  streetViewPov?: StreetViewPov;
   createdAt?: string;
   updatedAt?: string;
   /** True when the authenticated session owns this listing (publisher cookie or linked account). */

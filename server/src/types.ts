@@ -11,6 +11,12 @@ export type PropertyKind = "house" | "apartment" | "loft";
 /** Tamaño del cuarto (filtros avanzados). */
 export type RoomDimension = "small" | "medium" | "large";
 
+export type StreetViewPov = {
+  heading: number;
+  pitch: number;
+  zoom: number;
+};
+
 export type RoomOccupancyStatus = "available" | "occupied";
 
 export type ListingTag =
@@ -73,6 +79,7 @@ export type Property = {
   imageUrls?: string[];
   commonAreaPhotos?: string[];
   isApproximateLocation?: boolean;
+  streetViewPov?: StreetViewPov;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
   rooms?: Room[];
@@ -170,4 +177,5 @@ export type PropertyListing = {
   roomOccupantGender?: RoommateGenderPref;
   roomOccupantAge?: number;
   isApproximateLocation?: boolean;
+  streetViewPov?: StreetViewPov;
 };

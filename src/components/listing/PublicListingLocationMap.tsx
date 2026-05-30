@@ -77,7 +77,11 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
             Ampliar mapa
           </button>
         </div>
-        <GoogleStreetViewPane lat={listing.lat} lng={listing.lng} />
+        <GoogleStreetViewPane
+          lat={listing.lat}
+          lng={listing.lng}
+          streetViewPov={listing.streetViewPov}
+        />
       </div>
 
       {isApproximateLocation ? (

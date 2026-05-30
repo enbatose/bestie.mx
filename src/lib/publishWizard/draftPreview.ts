@@ -42,6 +42,7 @@ export function draftToPropertyWithRooms(
     imageUrls: draftPropertyImageUrls(draft),
     commonAreaPhotos: draftPropertyImageUrls(draft),
     isApproximateLocation: draft.isApproximateLocation,
+    ...(draft.streetViewPov ? { streetViewPov: draft.streetViewPov } : {}),
     occupiedByWomenCount: draft.occupiedByWomenCount,
     occupiedByMenCount: draft.occupiedByMenCount,
   };
@@ -121,5 +122,6 @@ export function draftToListingPreview(
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
     isApproximateLocation: p.isApproximateLocation,
+    ...(p.streetViewPov ? { streetViewPov: p.streetViewPov } : {}),
   };
 }

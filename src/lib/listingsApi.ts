@@ -10,6 +10,7 @@ import type {
   RoomDimension,
   RoomOccupancyStatus,
   RoommateGenderPref,
+  StreetViewPov,
 } from "@/types/listing";
 import { apiBase } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
@@ -114,6 +115,7 @@ export type PublishBundlePayload = {
     showWhatsApp?: boolean;
     imageUrls?: string[];
     isApproximateLocation?: boolean;
+    streetViewPov?: StreetViewPov | null;
     occupiedByWomenCount?: number | null;
     occupiedByMenCount?: number | null;
   };
@@ -197,6 +199,7 @@ export type CreateDraftPropertyPayload = {
   showWhatsApp?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  streetViewPov?: StreetViewPov | null;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
 };
@@ -241,6 +244,7 @@ export type UpdatePropertyPayload = {
   showWhatsApp?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  streetViewPov?: StreetViewPov | null;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
 };

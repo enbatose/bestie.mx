@@ -187,6 +187,12 @@ function migratePropertyOccupantCounts(db: DatabaseSync): void {
   }
 }
 
+function migratePropertyStreetViewPov(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "street_view_pov_json")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN street_view_pov_json TEXT`);
+  }
+}
+
 /** SQLite `ALTER TABLE ADD COLUMN` only allows constant DEFAULTs — not `CURRENT_TIMESTAMP`. */
 const ROOM_TS_ALTER_PLACEHOLDER = "1970-01-01T00:00:00.000Z";
 
@@ -292,6 +298,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migratePropertyPostMode(db);
   migratePropertyApproximateLocation(db);
   migratePropertyOccupantCounts(db);
+  migratePropertyStreetViewPov(db);
   migrateRoomTimestamps(db);
   migrateRoomOccupancyFields(db);
   ensureUploadBlobSchema(db);

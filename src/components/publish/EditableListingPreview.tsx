@@ -693,46 +693,31 @@ export function EditableListingPreview({
         }
       >
         {draft.postMode === "room" ? (
-          <PreviewPropertyLocationMap
-            listing={listing}
-            mapCenter={mapCenter}
-            isApproximateLocation={draft.isApproximateLocation}
-            onSaveCoordinates={saveMapCoordinates}
-          />
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 md:items-start">
-            <div>
-              {editingProperty ? (
-                <InlineFieldEditor
-                  label="Descripción de la propiedad y áreas comunes"
-                  onSave={savePropertySummary}
-                  onCancel={() => setEditingProperty(false)}
-                >
-                  <textarea
-                    value={propertySummaryDraft}
-                    onChange={(e) => setPropertySummaryDraft(e.target.value)}
-                    rows={5}
-                    maxLength={PROPERTY_SUMMARY_MAX}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                  />
-                  <span className="text-xs text-muted">
-                    {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
-                  </span>
-                </InlineFieldEditor>
-              ) : (
-                <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
-                  {draft.propertySummary.trim() || (
-                    <span className="italic">Sin descripción de la propiedad.</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <PreviewPropertyLocationMap
-              listing={listing}
-              mapCenter={mapCenter}
-              isApproximateLocation={draft.isApproximateLocation}
-              onSaveCoordinates={saveMapCoordinates}
+          <p className="text-sm text-muted">
+            {neighborhoodLabel} · {listing.city}. El mapa está al final de la vista previa.
+          </p>
+        ) : editingProperty ? (
+          <InlineFieldEditor
+            label="Descripción de la propiedad y áreas comunes"
+            onSave={savePropertySummary}
+            onCancel={() => setEditingProperty(false)}
+          >
+            <textarea
+              value={propertySummaryDraft}
+              onChange={(e) => setPropertySummaryDraft(e.target.value)}
+              rows={5}
+              maxLength={PROPERTY_SUMMARY_MAX}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
+            <span className="text-xs text-muted">
+              {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
+            </span>
+          </InlineFieldEditor>
+        ) : (
+          <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
+            {draft.propertySummary.trim() || (
+              <span className="italic">Sin descripción de la propiedad.</span>
+            )}
           </div>
         )}
       </PreviewSection>
@@ -937,6 +922,15 @@ export function EditableListingPreview({
             />
           </>
         )}
+      </PreviewSection>
+
+      <PreviewSection title="Ubicación">
+        <PreviewPropertyLocationMap
+          listing={listing}
+          mapCenter={mapCenter}
+          isApproximateLocation={draft.isApproximateLocation}
+          onSaveCoordinates={saveMapCoordinates}
+        />
       </PreviewSection>
     </div>
   );

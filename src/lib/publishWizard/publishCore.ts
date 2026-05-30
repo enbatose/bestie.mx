@@ -521,6 +521,7 @@ export async function syncDraftToServer(
         showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
       });
@@ -562,6 +563,7 @@ export async function syncDraftToServer(
         showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
       });
@@ -641,6 +643,7 @@ export async function publishDraftFromWizard(opts: {
         showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
       };
@@ -668,6 +671,7 @@ export async function publishDraftFromWizard(opts: {
         showWhatsApp: contact.showWhatsApp,
         imageUrls: draftPropertyImageUrls(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
       },

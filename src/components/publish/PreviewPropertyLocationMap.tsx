@@ -170,7 +170,11 @@ export function PreviewPropertyLocationMap({
     <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {mapPane("h-[260px] md:h-[320px]", 220)}
-        <GoogleStreetViewPane lat={streetViewLat} lng={streetViewLng} />
+        <GoogleStreetViewPane
+          lat={streetViewLat}
+          lng={streetViewLng}
+          streetViewPov={listing.streetViewPov}
+        />
       </div>
 
       {expanded ? (

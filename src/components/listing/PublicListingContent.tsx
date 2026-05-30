@@ -78,19 +78,16 @@ export function PublicListingContent({
 
   const showPropertySummaryText = postMode === "property";
   const propertyDescriptionBlock = showPropertySummaryText ? (
-    <div className="grid gap-4 md:grid-cols-2 md:items-start">
-      <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
-        {propertySummary ? propertySummary : <span className="italic">Sin descripción de la propiedad.</span>}
-      </div>
-      <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
+    <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
+      {propertySummary ? propertySummary : <span className="italic">Sin descripción de la propiedad.</span>}
     </div>
-  ) : (
-    <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
+  ) : null;
+
+  const locationMapBlock = (
+    <ListingSection title="Ubicación" subtitle="Dónde está la propiedad en el mapa.">
+      <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
+    </ListingSection>
   );
-  const propertyLocationSectionTitle = showPropertySummaryText ? "La propiedad" : "Ubicación";
-  const propertyLocationSectionSubtitle = showPropertySummaryText
-    ? "Áreas comunes y ubicación de la propiedad."
-    : "Dónde está la propiedad en el mapa.";
   const propertyAmenitiesBlock = propertyTags.length ? (
     <ListingSection title="Amenidades de la propiedad" subtitle="Lo que incluye el espacio compartido.">
       <ListingTagChips tags={propertyTags} />
@@ -140,9 +137,13 @@ export function PublicListingContent({
           />
         </ListingSection>
 
-        <ListingSection title={propertyLocationSectionTitle} subtitle={propertyLocationSectionSubtitle}>
-          {propertyDescriptionBlock}
-        </ListingSection>
+        {showPropertySummaryText ? (
+          <ListingSection title="La propiedad" subtitle="Áreas comunes y descripción general.">
+            {propertyDescriptionBlock}
+          </ListingSection>
+        ) : null}
+
+        {locationMapBlock}
       </div>
     );
   }
@@ -163,9 +164,11 @@ export function PublicListingContent({
         />
       </ListingSection>
 
-      <ListingSection title={showPropertySummaryText ? "Sobre la propiedad" : "Ubicación"}>
-        {propertyDescriptionBlock}
-      </ListingSection>
+      {showPropertySummaryText ? (
+        <ListingSection title="Sobre la propiedad">
+          {propertyDescriptionBlock}
+        </ListingSection>
+      ) : null}
 
       <ListingSection title="Detalles de la recámara">
         <ListingRoomDetailsGrid room={roomDetailsFromListing(listing)} postMode={postMode} roomCount={roomCount} />
@@ -177,6 +180,8 @@ export function PublicListingContent({
         </p>
         <ListingTagSection heading="Etiquetas de la recámara" tags={roomTags} />
       </ListingSection>
+
+      {locationMapBlock}
     </div>
   );
 }

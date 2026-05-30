@@ -40,6 +40,7 @@ import type {
   Room,
   RoomDimension,
   RoommateGenderPref,
+  StreetViewPov,
 } from "./types.js";
 
 function isListingStatus(s: string): s is ListingStatus {
@@ -159,6 +160,40 @@ function draftPublishPhotosOk(
   return true;
 }
 
+function parseStreetViewPovJson(raw: unknown): StreetViewPov | undefined {
+  if (raw == null) return undefined;
+  try {
+    const o = typeof raw === "string" ? JSON.parse(raw.trim() || "null") : raw;
+    if (!o || typeof o !== "object") return undefined;
+    const heading = Number((o as StreetViewPov).heading);
+    const pitch = Number((o as StreetViewPov).pitch);
+    const zoom = Number((o as StreetViewPov).zoom);
+    if (!Number.isFinite(heading) || !Number.isFinite(pitch) || !Number.isFinite(zoom)) {
+      return undefined;
+    }
+    return {
+      heading: ((heading % 360) + 360) % 360,
+      pitch: Math.max(-90, Math.min(90, pitch)),
+      zoom: Math.max(0, Math.min(4, zoom)),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function streetViewPovFromBody(body: unknown): StreetViewPov | null | undefined {
+  if (body === undefined) return undefined;
+  if (body === null) return null;
+  const parsed = parseStreetViewPovJson(body);
+  if (!parsed) throw new Error("bad_pov");
+  return parsed;
+}
+
+function serializeStreetViewPovJson(pov: StreetViewPov | null | undefined): string | null {
+  if (pov == null) return null;
+  return JSON.stringify(pov);
+}
+
 function rowToProperty(row: Record<string, unknown>): Property {
   const pk = optPropertyKind(row.property_kind);
   const st = String(row.status ?? "draft");
@@ -189,6 +224,9 @@ function rowToProperty(row: Record<string, unknown>): Property {
     ...(pk ? { propertyKind: pk } : {}),
     ...(imageUrls.length ? { imageUrls, commonAreaPhotos: imageUrls } : {}),
     ...(row.is_approximate_location ? { isApproximateLocation: true } : {}),
+    ...(parseStreetViewPovJson(row.street_view_pov_json)
+      ? { streetViewPov: parseStreetViewPovJson(row.street_view_pov_json)! }
+      : {}),
     ...(row.occupied_by_women != null && Number.isFinite(Number(row.occupied_by_women))
       ? { occupiedByWomenCount: Math.max(0, Math.floor(Number(row.occupied_by_women))) }
       : {}),
@@ -468,12 +506,20 @@ export function propertiesRouter(db: DatabaseSync) {
 
     const occWPub = occupantCountOrNull((p as { occupiedByWomenCount?: unknown }).occupiedByWomenCount);
     const occMPub = occupantCountOrNull((p as { occupiedByMenCount?: unknown }).occupiedByMenCount);
+    let streetViewPovJsonPub: string | null = null;
+    try {
+      const povBody = streetViewPovFromBody((p as { streetViewPov?: unknown }).streetViewPov);
+      streetViewPovJsonPub = serializeStreetViewPovJson(povBody ?? undefined);
+    } catch {
+      res.status(400).json({ error: "invalid_street_view_pov" });
+      return;
+    }
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location,
-        occupied_by_women, occupied_by_men
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        occupied_by_women, occupied_by_men, street_view_pov_json
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
@@ -506,6 +552,7 @@ export function propertiesRouter(db: DatabaseSync) {
         optBool((p as { isApproximateLocation?: unknown }).isApproximateLocation) ? 1 : 0,
         occWPub,
         occMPub,
+        streetViewPovJsonPub,
       );
 
       let order = 0;
@@ -704,12 +751,20 @@ export function propertiesRouter(db: DatabaseSync) {
     );
     const occWCreate = occupantCountOrNull((body as { occupiedByWomenCount?: unknown }).occupiedByWomenCount);
     const occMCreate = occupantCountOrNull((body as { occupiedByMenCount?: unknown }).occupiedByMenCount);
+    let streetViewPovJsonCreate: string | null = null;
+    try {
+      const povBody = streetViewPovFromBody((body as { streetViewPov?: unknown }).streetViewPov);
+      streetViewPovJsonCreate = serializeStreetViewPovJson(povBody ?? undefined);
+    } catch {
+      res.status(400).json({ error: "invalid_street_view_pov" });
+      return;
+    }
     db.prepare(
       `INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location,
-        occupied_by_women, occupied_by_men
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        occupied_by_women, occupied_by_men, street_view_pov_json
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
@@ -729,6 +784,7 @@ export function propertiesRouter(db: DatabaseSync) {
       optBool(body.isApproximateLocation) ? 1 : 0,
       occWCreate,
       occMCreate,
+      streetViewPovJsonCreate,
     );
     const created = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
     res.status(201).json(rowToProperty(created));
@@ -1080,6 +1136,7 @@ export function propertiesRouter(db: DatabaseSync) {
       isApproximateLocation?: unknown;
       occupiedByWomenCount?: unknown;
       occupiedByMenCount?: unknown;
+      streetViewPov?: unknown;
     };
 
     const curStatus = String(prop.status) as ListingStatus;
@@ -1238,6 +1295,20 @@ export function propertiesRouter(db: DatabaseSync) {
           ? null
           : Math.max(0, Math.min(500, Math.floor(Number(prop.occupied_by_men))));
 
+    let nextStreetViewPovJson: string | null =
+      prop.street_view_pov_json != null && String(prop.street_view_pov_json).trim()
+        ? String(prop.street_view_pov_json)
+        : null;
+    if (patch.streetViewPov !== undefined) {
+      try {
+        const povBody = streetViewPovFromBody(patch.streetViewPov);
+        nextStreetViewPovJson = serializeStreetViewPovJson(povBody ?? undefined);
+      } catch {
+        res.status(400).json({ error: "invalid_street_view_pov" });
+        return;
+      }
+    }
+
     const curMode = String(prop.post_mode ?? "property") === "room" ? "room" : "property";
     const nextMode =
       patch.postMode != null && typeof patch.postMode === "string"
@@ -1255,7 +1326,7 @@ export function propertiesRouter(db: DatabaseSync) {
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
         bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?,
-        occupied_by_women = ?, occupied_by_men = ?
+        occupied_by_women = ?, occupied_by_men = ?, street_view_pov_json = ?
       WHERE id = ?`,
     ).run(
       nextStatus,
@@ -1275,6 +1346,7 @@ export function propertiesRouter(db: DatabaseSync) {
       nextIsApprox,
       nextOccW,
       nextOccM,
+      nextStreetViewPovJson,
       propertyId,
     );
 

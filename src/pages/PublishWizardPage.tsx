@@ -7,6 +7,7 @@ import { WizardLocationMap, WIZARD_APPROXIMATE_RADIUS_M } from "@/components/Wiz
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
+import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
   deleteDraftRoom,
@@ -69,6 +70,7 @@ import type {
   RoomDimension,
   RoomOccupancyStatus,
   RoommateGenderPref,
+  StreetViewPov,
 } from "@/types/listing";
 
 /** Aligned with server `PROPERTY_SUMMARY_MIN_LEN` (minimum property description length). */
@@ -270,6 +272,8 @@ export type Draft = {
   rooms: RoomDraft[];
   legalAccepted: boolean;
   isApproximateLocation: boolean;
+  /** Optional locked Street View camera angle for public listings. */
+  streetViewPov?: StreetViewPov;
 };
 
 const defaultRoom = (): RoomDraft => ({
@@ -602,6 +606,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     legalAccepted:
       p.status === "published" || p.status === "paused",
     isApproximateLocation: Boolean((p as { isApproximateLocation?: unknown }).isApproximateLocation),
+    ...(p.streetViewPov ? { streetViewPov: p.streetViewPov } : {}),
   };
   return {
     draft: normalizePersistedDraft(draft),
@@ -676,6 +681,11 @@ export function PublishWizardPage() {
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
   const neighborhoodAutofillFromPinRef = useRef<{ latKey: string; value: string } | null>(null);
+  const [streetViewAdjustOpen, setStreetViewAdjustOpen] = useState(false);
+
+  useEffect(() => {
+    if (draft.streetViewPov) setStreetViewAdjustOpen(true);
+  }, [draft.streetViewPov?.heading, draft.streetViewPov?.pitch, draft.streetViewPov?.zoom]);
 
   const roomLodgingSig = useMemo(
     () => (draft.postMode === "room" ? draft.rooms.map((r) => r.lodgingType).join("|") : ""),
@@ -1225,11 +1235,13 @@ export function PublishWizardPage() {
                     hasDefinedLocation={draft.useCustomMapPin}
                     locationLabel={mapAddressShown}
                     onPositionChange={(lat, lng) => {
+                      setStreetViewAdjustOpen(false);
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
                         customLat: lat.toFixed(7),
                         customLng: lng.toFixed(7),
+                        streetViewPov: undefined,
                       }));
                     }}
                     showApproximateRadius={draft.isApproximateLocation}
@@ -1263,6 +1275,47 @@ export function PublishWizardPage() {
                     </span>
                   </div>
                 </label>
+
+                {draft.useCustomMapPin ? (
+                  <div className="mt-4 space-y-3 border-t border-border pt-4">
+                    <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
+                        checked={streetViewAdjustOpen}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setStreetViewAdjustOpen(on);
+                          setDraft((d) => ({
+                            ...d,
+                            streetViewPov: on
+                              ? d.streetViewPov ?? { heading: 0, pitch: 0, zoom: 1 }
+                              : undefined,
+                          }));
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-primary">
+                        Ajustar vista de calle (Opcional)
+                      </span>
+                    </label>
+                    {streetViewAdjustOpen ? (
+                      <>
+                        <StreetViewPovEditor
+                          lat={resolveLatLngForDraft(draft).lat}
+                          lng={resolveLatLngForDraft(draft).lng}
+                          pov={draft.streetViewPov}
+                          onPovChange={(streetViewPov) =>
+                            setDraft((d) => ({ ...d, streetViewPov }))
+                          }
+                        />
+                        <p className="text-xs text-muted">
+                          Gira la cámara para que apunte a la fachada de la propiedad. Esta será la vista que
+                          verán los usuarios.
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           </form>

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { streetViewEmbedUrl, streetViewExternalUrl } from "@/lib/streetView";
+import type { StreetViewPov } from "@/types/listing";
 
 type Props = {
   lat: number;
   lng: number;
+  streetViewPov?: StreetViewPov | null;
   heightClass?: string;
   className?: string;
 };
@@ -12,15 +14,20 @@ type Props = {
 function StreetViewFrame({
   lat,
   lng,
+  streetViewPov,
   heightClass,
   title,
 }: {
   lat: number;
   lng: number;
+  streetViewPov?: StreetViewPov | null;
   heightClass: string;
   title: string;
 }) {
-  const src = useMemo(() => streetViewEmbedUrl(lat, lng), [lat, lng]);
+  const src = useMemo(
+    () => streetViewEmbedUrl(lat, lng, streetViewPov),
+    [lat, lng, streetViewPov?.heading, streetViewPov?.pitch, streetViewPov?.zoom],
+  );
   return (
     <iframe
       title={title}
@@ -36,11 +43,15 @@ function StreetViewFrame({
 export function GoogleStreetViewPane({
   lat,
   lng,
+  streetViewPov,
   heightClass = "h-[260px] md:h-[320px]",
   className = "",
 }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const externalUrl = useMemo(() => streetViewExternalUrl(lat, lng), [lat, lng]);
+  const externalUrl = useMemo(
+    () => streetViewExternalUrl(lat, lng, streetViewPov),
+    [lat, lng, streetViewPov?.heading, streetViewPov?.pitch, streetViewPov?.zoom],
+  );
 
   useEffect(() => {
     if (!expanded) return;
@@ -63,7 +74,13 @@ export function GoogleStreetViewPane({
   return (
     <>
       <div className={`relative ${className}`}>
-        <StreetViewFrame lat={lat} lng={lng} heightClass={heightClass} title="Vista de calle" />
+        <StreetViewFrame
+          lat={lat}
+          lng={lng}
+          streetViewPov={streetViewPov}
+          heightClass={heightClass}
+          title="Vista de calle"
+        />
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -111,6 +128,7 @@ export function GoogleStreetViewPane({
               <StreetViewFrame
                 lat={lat}
                 lng={lng}
+                streetViewPov={streetViewPov}
                 heightClass="h-[min(70vh,560px)]"
                 title="Vista de calle ampliada"
               />
