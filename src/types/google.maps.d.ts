@@ -4,15 +4,44 @@ declare namespace google.maps {
     lng: number;
   }
 
+  interface LatLng {
+    lat(): number;
+    lng(): number;
+  }
+
   interface StreetViewPov {
     heading: number;
     pitch: number;
+  }
+
+  enum StreetViewStatus {
+    OK = "OK",
+    UNKNOWN_ERROR = "UNKNOWN_ERROR",
+    ZERO_RESULTS = "ZERO_RESULTS",
+  }
+
+  interface StreetViewLocation {
+    latLng?: LatLng;
+    pano?: string;
+  }
+
+  interface StreetViewPanoramaData {
+    location?: StreetViewLocation;
+    tiles?: { centerHeading?: number };
+  }
+
+  class StreetViewService {
+    getPanorama(
+      request: { location: LatLngLiteral; radius?: number; source?: string },
+      callback: (data: StreetViewPanoramaData | null, status: StreetViewStatus) => void,
+    ): void;
   }
 
   interface StreetViewPanoramaOptions {
     position?: LatLngLiteral;
     pov?: StreetViewPov;
     zoom?: number;
+    pano?: string;
     addressControl?: boolean;
     fullscreenControl?: boolean;
     linksControl?: boolean;
@@ -34,6 +63,7 @@ declare namespace google.maps {
     getZoom(): number;
     setZoom(zoom: number): void;
     setPosition(latLng: LatLngLiteral): void;
+    setPano(pano: string): void;
   }
 }
 

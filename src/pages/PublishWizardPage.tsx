@@ -7,7 +7,6 @@ import { WizardLocationMap, WIZARD_APPROXIMATE_RADIUS_M } from "@/components/Wiz
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
-import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
   deleteDraftRoom,
@@ -1235,17 +1234,21 @@ export function PublishWizardPage() {
                     hasDefinedLocation={draft.useCustomMapPin}
                     locationLabel={mapAddressShown}
                     onPositionChange={(lat, lng) => {
-                      setStreetViewAdjustOpen(false);
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
                         customLat: lat.toFixed(7),
                         customLng: lng.toFixed(7),
-                        streetViewPov: undefined,
                       }));
                     }}
                     showApproximateRadius={draft.isApproximateLocation}
                     approximateRadiusMeters={WIZARD_APPROXIMATE_RADIUS_M}
+                    streetViewAdjustOpen={streetViewAdjustOpen}
+                    onStreetViewAdjustOpenChange={setStreetViewAdjustOpen}
+                    streetViewPov={draft.streetViewPov}
+                    onStreetViewPovChange={(streetViewPov) =>
+                      setDraft((d) => ({ ...d, streetViewPov }))
+                    }
                   />
                 </div>
                 {draft.isApproximateLocation ? (
@@ -1275,47 +1278,6 @@ export function PublishWizardPage() {
                     </span>
                   </div>
                 </label>
-
-                {draft.useCustomMapPin ? (
-                  <div className="mt-4 space-y-3 border-t border-border pt-4">
-                    <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
-                        checked={streetViewAdjustOpen}
-                        onChange={(e) => {
-                          const on = e.target.checked;
-                          setStreetViewAdjustOpen(on);
-                          setDraft((d) => ({
-                            ...d,
-                            streetViewPov: on
-                              ? d.streetViewPov ?? { heading: 0, pitch: 0, zoom: 1 }
-                              : undefined,
-                          }));
-                        }}
-                      />
-                      <span className="text-sm font-semibold text-primary">
-                        Ajustar vista de calle (Opcional)
-                      </span>
-                    </label>
-                    {streetViewAdjustOpen ? (
-                      <>
-                        <StreetViewPovEditor
-                          lat={resolveLatLngForDraft(draft).lat}
-                          lng={resolveLatLngForDraft(draft).lng}
-                          pov={draft.streetViewPov}
-                          onPovChange={(streetViewPov) =>
-                            setDraft((d) => ({ ...d, streetViewPov }))
-                          }
-                        />
-                        <p className="text-xs text-muted">
-                          Gira la cámara para que apunte a la fachada de la propiedad. Esta será la vista que
-                          verán los usuarios.
-                        </p>
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
             </div>
           </form>

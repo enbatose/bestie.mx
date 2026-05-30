@@ -1,6 +1,9 @@
 import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
+import { streetViewExternalUrl } from "@/lib/streetView";
+import type { StreetViewPov } from "@/types/listing";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -25,6 +28,11 @@ type Props = {
   embed?: boolean;
   /** Map height in px or CSS length (default 288). */
   mapHeight?: number | string;
+  /** Optional Street View POV lock (wizard step 2). */
+  streetViewAdjustOpen?: boolean;
+  onStreetViewAdjustOpenChange?: (open: boolean) => void;
+  streetViewPov?: StreetViewPov;
+  onStreetViewPovChange?: (pov: StreetViewPov | undefined) => void;
 };
 
 /** Circle styling for approximate / privacy radius (brand green). */
@@ -41,7 +49,6 @@ export const WIZARD_APPROXIMATE_RADIUS_M = 200;
 /** Visual radius for approximate location in publish preview (read-only). */
 export const PREVIEW_APPROXIMATE_RADIUS_M = 400;
 
-import { streetViewExternalUrl } from "@/lib/streetView";
 function MapViewSync({
   position,
   zoom,
@@ -91,15 +98,20 @@ export function WizardLocationMap({
   forceDraggablePin = false,
   embed = false,
   mapHeight = 288,
+  streetViewAdjustOpen = false,
+  onStreetViewAdjustOpenChange,
+  streetViewPov,
+  onStreetViewPovChange,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
   const [lat, lng] = localPosition;
-  const streetViewHref = streetViewExternalUrl(lat, lng);
+  const streetViewHref = streetViewExternalUrl(lat, lng, streetViewPov);
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
   const skipFlyRef = useRef(false);
   const showMarker = forceDraggablePin || !showApproximateRadius;
+  const streetViewEnabled = Boolean(onStreetViewPovChange);
 
   useEffect(() => {
     setLocalPosition(position);
@@ -113,9 +125,11 @@ export function WizardLocationMap({
       setLocalPosition([ll.lat, ll.lng]);
       setLocalLocationSelected(true);
       skipFlyRef.current = true;
+      onStreetViewAdjustOpenChange?.(false);
+      onStreetViewPovChange?.(undefined);
       onPositionChange(ll.lat, ll.lng);
     },
-    [onPositionChange],
+    [onPositionChange, onStreetViewAdjustOpenChange, onStreetViewPovChange],
   );
 
   const markerEventHandlers = useMemo(
@@ -176,6 +190,41 @@ export function WizardLocationMap({
           />
         ) : null}
       </MapContainer>
+
+      {streetViewEnabled && !embed && localLocationSelected ? (
+        <div className="space-y-3 border-t border-border pt-4">
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
+              checked={streetViewAdjustOpen}
+              onChange={(e) => {
+                const on = e.target.checked;
+                onStreetViewAdjustOpenChange?.(on);
+                onStreetViewPovChange?.(
+                  on ? streetViewPov ?? { heading: 0, pitch: 0, zoom: 1 } : undefined,
+                );
+              }}
+            />
+            <span className="text-sm font-semibold text-primary">Ajustar vista de calle (Opcional)</span>
+          </label>
+          {streetViewAdjustOpen ? (
+            <>
+              <StreetViewPovEditor
+                lat={lat}
+                lng={lng}
+                pov={streetViewPov}
+                onPovChange={(nextPov) => onStreetViewPovChange?.(nextPov)}
+              />
+              <p className="text-xs text-muted">
+                Gira la cámara para que apunte a la fachada de la propiedad. Esta será la vista que verán los
+                usuarios.
+              </p>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
       {embed ? null : (
         <>
           <p className="text-xs text-muted">
