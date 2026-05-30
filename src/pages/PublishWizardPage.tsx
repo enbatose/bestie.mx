@@ -681,16 +681,6 @@ export function PublishWizardPage() {
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
   const neighborhoodAutofillFromPinRef = useRef<{ latKey: string; value: string } | null>(null);
-  const [streetViewAdjustOpen, setStreetViewAdjustOpen] = useState(false);
-
-  useEffect(() => {
-    if (draft.streetViewPov && !draft.isApproximateLocation) setStreetViewAdjustOpen(true);
-  }, [
-    draft.isApproximateLocation,
-    draft.streetViewPov?.heading,
-    draft.streetViewPov?.pitch,
-    draft.streetViewPov?.zoom,
-  ]);
 
   const roomLodgingSig = useMemo(
     () => (draft.postMode === "room" ? draft.rooms.map((r) => r.lodgingType).join("|") : ""),
@@ -1240,7 +1230,6 @@ export function PublishWizardPage() {
                     hasDefinedLocation={draft.useCustomMapPin}
                     locationLabel={mapAddressShown}
                     onPositionChange={(lat, lng) => {
-                      setStreetViewAdjustOpen(false);
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
@@ -1264,7 +1253,6 @@ export function PublishWizardPage() {
                     checked={draft.isApproximateLocation}
                     onChange={(e) => {
                       const hideExact = e.target.checked;
-                      if (hideExact) setStreetViewAdjustOpen(false);
                       setDraft((d) => ({
                         ...d,
                         isApproximateLocation: hideExact,
@@ -1293,42 +1281,23 @@ export function PublishWizardPage() {
                 {!draft.isApproximateLocation && draft.useCustomMapPin ? (() => {
                   const { lat, lng } = resolveLatLngForDraft(draft);
                   return (
-                  <div className="space-y-3 border-t border-border pt-4 transition-opacity duration-200">
-                    <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
-                        checked={streetViewAdjustOpen}
-                        onChange={(e) => {
-                          const on = e.target.checked;
-                          setStreetViewAdjustOpen(on);
-                          setDraft((d) => ({
-                            ...d,
-                            streetViewPov: on
-                              ? d.streetViewPov ?? { heading: 0, pitch: 0, zoom: 1 }
-                              : undefined,
-                          }));
-                        }}
+                    <div className="transition-opacity duration-200">
+                      <h3 className="mt-8 mb-3 text-lg font-semibold text-gray-900">
+                        Vista de la propiedad
+                      </h3>
+                      <StreetViewPovEditor
+                        lat={lat}
+                        lng={lng}
+                        pov={draft.streetViewPov}
+                        onPovChange={(streetViewPov) =>
+                          setDraft((d) => ({ ...d, streetViewPov }))
+                        }
                       />
-                      <span className="text-sm font-semibold text-primary">Ajustar vista de calle (Opcional)</span>
-                    </label>
-                    {streetViewAdjustOpen ? (
-                      <>
-                        <StreetViewPovEditor
-                          lat={lat}
-                          lng={lng}
-                          pov={draft.streetViewPov}
-                          onPovChange={(streetViewPov) =>
-                            setDraft((d) => ({ ...d, streetViewPov }))
-                          }
-                        />
-                        <p className="text-xs text-muted">
-                          Ajusta la cámara para que apunte a la fachada de tu propiedad. Esta toma exacta será la que se
-                          mostrará en tu anuncio público.
-                        </p>
-                      </>
-                    ) : null}
-                  </div>
+                      <p className="mt-2 text-sm text-gray-800">
+                        <span className="font-bold">TIP:</span> Gira la cámara para que apunte a la fachada de tu
+                        propiedad. Esta toma exacta será la que se mostrará en tu anuncio público.
+                      </p>
+                    </div>
                   );
                 })() : null}
               </div>
