@@ -98,6 +98,14 @@ Listing photos are stored as files (and duplicated in SQLite `upload_blobs`). If
 
 - **support@bestie.mx** is referenced in UI (`/contacto`, footer). Ensure DNS + mailbox exist for production.
 
+### Google Maps / Street View (Railway)
+
+Production deploys via **Railway** ([`Dockerfile`](Dockerfile) + [`railway.toml`](railway.toml)). Set build-time env vars on the Railway service:
+
+- **`VITE_GOOGLE_MAPS_EMBED_KEY`** — Maps JavaScript API + Embed API key (Vite bakes `VITE_*` at `npm run build`).
+
+See **[`docs/integrations/google-maps-pricing.md`](docs/integrations/google-maps-pricing.md)** for GCP referrer restrictions, SKU pricing, session tracking, and the admin **Métricas** dashboard.
+
 ## Next implementation slices
 
 1. **Router + layouts** (e.g. React Router), auth shell, protected routes  

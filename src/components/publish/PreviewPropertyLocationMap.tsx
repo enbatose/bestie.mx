@@ -174,6 +174,9 @@ export function PreviewPropertyLocationMap({
           lat={streetViewLat}
           lng={streetViewLng}
           streetViewPov={listing.streetViewPov}
+          trackingInterface="listing_preview"
+          propertyId={listing.propertyId}
+          listingId={listing.id}
         />
       </div>
 

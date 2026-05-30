@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { streetViewEmbedUrl, streetViewExternalUrl } from "@/lib/streetView";
+import {
+  trackStreetViewEmbedLocked,
+  type StreetViewTrackingInterface,
+  type StreetViewEmbedVariant,
+} from "@/lib/streetViewTelemetry";
 import type { StreetViewPov } from "@/types/listing";
 
 type Props = {
@@ -9,6 +14,9 @@ type Props = {
   streetViewPov?: StreetViewPov | null;
   heightClass?: string;
   className?: string;
+  trackingInterface?: StreetViewTrackingInterface;
+  propertyId?: string;
+  listingId?: string;
 };
 
 function StreetViewFrame({
@@ -17,17 +25,42 @@ function StreetViewFrame({
   streetViewPov,
   heightClass,
   title,
+  trackingInterface,
+  propertyId,
+  listingId,
+  variant,
 }: {
   lat: number;
   lng: number;
   streetViewPov?: StreetViewPov | null;
   heightClass: string;
   title: string;
+  trackingInterface?: StreetViewTrackingInterface;
+  propertyId?: string;
+  listingId?: string;
+  variant: StreetViewEmbedVariant;
 }) {
+  const trackedRef = useRef(false);
   const src = useMemo(
     () => streetViewEmbedUrl(lat, lng, streetViewPov),
     [lat, lng, streetViewPov?.heading, streetViewPov?.pitch, streetViewPov?.zoom],
   );
+
+  useEffect(() => {
+    trackedRef.current = false;
+  }, [src, trackingInterface, variant]);
+
+  const handleLoad = () => {
+    if (!streetViewPov || !trackingInterface || trackedRef.current) return;
+    trackedRef.current = true;
+    void trackStreetViewEmbedLocked({
+      interface: trackingInterface,
+      variant,
+      propertyId,
+      listingId,
+    });
+  };
+
   return (
     <iframe
       title={title}
@@ -36,6 +69,7 @@ function StreetViewFrame({
       loading="lazy"
       referrerPolicy="no-referrer-when-downgrade"
       allowFullScreen
+      onLoad={handleLoad}
     />
   );
 }
@@ -46,6 +80,9 @@ export function GoogleStreetViewPane({
   streetViewPov,
   heightClass = "h-[260px] md:h-[320px]",
   className = "",
+  trackingInterface,
+  propertyId,
+  listingId,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const externalUrl = useMemo(
@@ -80,6 +117,10 @@ export function GoogleStreetViewPane({
           streetViewPov={streetViewPov}
           heightClass={heightClass}
           title="Vista de calle"
+          trackingInterface={trackingInterface}
+          propertyId={propertyId}
+          listingId={listingId}
+          variant="inline"
         />
         <button
           type="button"
@@ -131,6 +172,10 @@ export function GoogleStreetViewPane({
                 streetViewPov={streetViewPov}
                 heightClass="h-[min(70vh,560px)]"
                 title="Vista de calle ampliada"
+                trackingInterface={trackingInterface}
+                propertyId={propertyId}
+                listingId={listingId}
+                variant="expanded"
               />
             </div>
           </div>

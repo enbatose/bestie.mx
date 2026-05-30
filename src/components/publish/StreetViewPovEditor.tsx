@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { googleMapsApiKey, loadGoogleMapsScript } from "@/lib/googleMapsLoader";
+import { trackDynamicStreetViewSession } from "@/lib/streetViewTelemetry";
 import type { StreetViewPov } from "@/types/listing";
 
 type Props = {
@@ -28,6 +29,7 @@ export function StreetViewPovEditor({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<google.maps.StreetViewPanorama | null>(null);
+  const sessionTrackedRef = useRef(false);
   const onPovChangeRef = useRef(onPovChange);
   onPovChangeRef.current = onPovChange;
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export function StreetViewPovEditor({
     setLoadErr(null);
     setNoImagery(false);
     setLoading(true);
+    sessionTrackedRef.current = false;
 
     let cancelled = false;
     const listeners: google.maps.MapsEventListener[] = [];
@@ -93,6 +96,10 @@ export function StreetViewPovEditor({
           listeners.push(panorama.addListener("pov_changed", syncPov));
           listeners.push(panorama.addListener("zoom_changed", syncPov));
           syncPov();
+          if (!sessionTrackedRef.current) {
+            sessionTrackedRef.current = true;
+            void trackDynamicStreetViewSession({ interface: "publish_wizard", lat, lng });
+          }
           setLoading(false);
         });
       })

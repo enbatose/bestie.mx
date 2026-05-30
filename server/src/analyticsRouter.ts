@@ -3,6 +3,11 @@ import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { readPublisherIdFromRequest, getOrCreatePublisherId } from "./session.js";
 import { readAuthUserId } from "./jwtSession.js";
+import {
+  incrementAnalyticsDaily,
+  parseStreetViewInterface,
+  streetViewMetricForEvent,
+} from "./streetViewAnalytics.js";
 
 export function analyticsRouter(db: DatabaseSync) {
   const r = express.Router();
@@ -73,6 +78,20 @@ export function analyticsRouter(db: DatabaseSync) {
     db.prepare(
       `INSERT INTO client_events (id, created_at, publisher_id, user_id, name, payload_json) VALUES (?, ?, ?, ?, ?, ?)`,
     ).run(id, createdAt, pub, userId ?? null, name, payloadJson);
+
+    const streetViewMetric = streetViewMetricForEvent(name);
+    if (streetViewMetric) {
+      let payload: unknown = {};
+      try {
+        payload = JSON.parse(payloadJson) as unknown;
+      } catch {
+        payload = {};
+      }
+      const day = new Date().toISOString().slice(0, 10);
+      const dimension = parseStreetViewInterface(payload);
+      incrementAnalyticsDaily(db, day, streetViewMetric, dimension);
+    }
+
     res.status(202).json({ ok: true });
   });
 

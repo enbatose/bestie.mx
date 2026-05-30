@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
 import { isSafePropertyId } from "./validation.js";
+import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -100,6 +101,15 @@ export function adminRouter(db: DatabaseSync) {
        ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json`,
     ).run(JSON.stringify(cities));
     res.json({ ok: true, cities });
+  });
+
+  r.get("/analytics/street-view", (req: Request, res: Response) => {
+    const body = buildStreetViewAnalyticsResponse(db, req.query.month);
+    if (!body) {
+      res.status(400).json({ error: "invalid_month" });
+      return;
+    }
+    res.json(body);
   });
 
   r.get("/analytics/summary", (_req: Request, res: Response) => {

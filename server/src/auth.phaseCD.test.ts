@@ -259,6 +259,71 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(Array.isArray(res.body.cities)).toBe(true);
   });
 
+  it("street view analytics events increment daily counters", async () => {
+    const agent = request.agent(app);
+    const day = new Date().toISOString().slice(0, 10);
+
+    await agent
+      .post("/api/analytics/event")
+      .send({
+        name: "dynamic_street_view_session",
+        payload: { interface: "publish_wizard", lat: 20.67, lng: -103.35 },
+      })
+      .expect(202);
+
+    const dynamicRow = db
+      .prepare(
+        `SELECT value FROM analytics_daily WHERE day = ? AND metric = 'dynamic_street_view_sessions' AND dimension = 'publish_wizard'`,
+      )
+      .get(day) as { value: number } | undefined;
+    expect(dynamicRow?.value).toBe(1);
+
+    await agent
+      .post("/api/analytics/event")
+      .send({ name: "image_pipeline", payload: { step: "upload", ok: true } })
+      .expect(202);
+
+    const imageRow = db
+      .prepare(`SELECT value FROM analytics_daily WHERE day = ? AND metric = 'image_pipeline'`)
+      .get(day);
+    expect(imageRow).toBeUndefined();
+
+    await agent
+      .post("/api/analytics/event")
+      .send({
+        name: "street_view_embed_locked",
+        payload: { interface: "public_listing", variant: "inline" },
+      })
+      .expect(202);
+
+    const embedRow = db
+      .prepare(
+        `SELECT value FROM analytics_daily WHERE day = ? AND metric = 'street_view_embed_locked' AND dimension = 'public_listing'`,
+      )
+      .get(day) as { value: number } | undefined;
+    expect(embedRow?.value).toBe(1);
+  });
+
+  it("admin street-view analytics returns monthly rollup and cost estimate", async () => {
+    const agent = request.agent(app);
+    const login = await agent.post("/api/auth/login").send({ email: bossEmail, password: "longenough1" });
+    if (login.status !== 200) {
+      await agent.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" }).expect(201);
+      await agent.post("/api/auth/login").send({ email: bossEmail, password: "longenough1" }).expect(200);
+    }
+
+    const month = new Date().toISOString().slice(0, 7);
+    const res = await agent.get(`/api/admin/analytics/street-view?month=${month}`).expect(200);
+    expect(res.body.month).toBe(month);
+    expect(res.body.dynamicStreetView.freeTierLimit).toBe(5000);
+    expect(res.body.dynamicStreetView.total).toBeGreaterThanOrEqual(1);
+    expect(res.body.dynamicStreetView.billableOverage).toBe(0);
+    expect(res.body.dynamicStreetView.estimatedOverageUsd).toBe(0);
+    expect(res.body.lockedEmbedViews.total).toBeGreaterThanOrEqual(1);
+    expect(res.body.pricing.sourceUrl).toContain("developers.google.com");
+    expect(res.body.pricing.dynamicStreetViewUsdPer1000).toBe(14);
+  });
+
   it("admin can GET and PATCH a foreign draft property without the owner publisher cookie", async () => {
     const owner = request.agent(app);
     const cr = await owner

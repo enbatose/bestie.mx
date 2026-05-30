@@ -81,6 +81,9 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
           lat={listing.lat}
           lng={listing.lng}
           streetViewPov={listing.streetViewPov}
+          trackingInterface="public_listing"
+          propertyId={listing.propertyId}
+          listingId={listing.id}
         />
       </div>
 

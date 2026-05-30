@@ -34,7 +34,7 @@ Tabs: `users` | `cities` | `analytics` | `property`
 - `Admin/TabBar`
 - `Admin/UserList`
 - `Admin/FeaturedCitiesEditor` (multiline)
-- `Admin/AnalyticsSummary`
+- `Admin/AnalyticsSummary` — published count, DAU, **Street View billable sessions** (month selector, free-tier progress, estimated USD overage), locked embed views
 - `Admin/PropertyStatusForm`
 
 ## Flows in

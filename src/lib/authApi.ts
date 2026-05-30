@@ -352,6 +352,44 @@ export async function adminAnalyticsSummary(signal?: AbortSignal): Promise<{
   };
 }
 
+export type AdminStreetViewAnalytics = {
+  month: string;
+  monthStart: string;
+  monthEnd: string;
+  dynamicStreetView: {
+    total: number;
+    freeTierLimit: number;
+    billableOverage: number;
+    estimatedOverageUsd: number;
+    byInterface: Record<string, number>;
+    daily: { day: string; total: number }[];
+  };
+  lockedEmbedViews: {
+    total: number;
+    byInterface: Record<string, number>;
+  };
+  pricing: {
+    sourceUrl: string;
+    lastVerified: string;
+    dynamicStreetViewUsdPer1000: number;
+    note: string;
+  };
+};
+
+export async function adminStreetViewAnalytics(
+  month?: string,
+  signal?: AbortSignal,
+): Promise<AdminStreetViewAnalytics> {
+  const base = apiBase();
+  const q = month ? `?month=${encodeURIComponent(month)}` : "";
+  const res = await networkFetch(`${base}/api/admin/analytics/street-view${q}`, {
+    credentials: cred,
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_street_view_${res.status}`);
+  return (await res.json()) as AdminStreetViewAnalytics;
+}
+
 export type GroupRow = {
   id: string;
   name: string;
