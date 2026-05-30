@@ -8,6 +8,7 @@ import type {
   PropertyWithRooms,
   Room,
   RoomDimension,
+  RoomOccupancyStatus,
   RoommateGenderPref,
 } from "@/types/listing";
 import { apiBase } from "@/lib/apiBase";
@@ -118,6 +119,10 @@ export type PublishBundlePayload = {
   };
   rooms: Array<{
     id?: string;
+    customName?: string;
+    occupancyStatus?: RoomOccupancyStatus;
+    occupantGender?: RoommateGenderPref;
+    occupantAge?: number;
     title: string;
     rentMxn: number;
     roomsAvailable: number;
@@ -198,6 +203,10 @@ export type CreateDraftPropertyPayload = {
 
 export type AddDraftRoomPayload = {
   id?: string;
+  customName?: string;
+  occupancyStatus?: RoomOccupancyStatus;
+  occupantGender?: RoommateGenderPref;
+  occupantAge?: number;
   title: string;
   rentMxn: number;
   roomsAvailable: number;

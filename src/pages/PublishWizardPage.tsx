@@ -6,6 +6,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { WizardLocationMap, WIZARD_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
   deleteDraftRoom,
@@ -58,6 +59,7 @@ import {
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
+import { newRoomDraftId } from "@/lib/roomDisplay";
 import type {
   ListingStatus,
   ListingTag,
@@ -65,6 +67,7 @@ import type {
   PropertyKind,
   PropertyWithRooms,
   RoomDimension,
+  RoomOccupancyStatus,
   RoommateGenderPref,
 } from "@/types/listing";
 
@@ -200,6 +203,12 @@ type ServerSync = {
 const CITIES = ["Guadalajara"] as const;
 
 export type RoomDraft = {
+  /** Persistent id (synced with server room row). */
+  id: string;
+  customName: string;
+  occupancyStatus: RoomOccupancyStatus;
+  occupantGender: RoommateGenderPref;
+  occupantAge: number;
   title: string;
   rentMxn: number;
   depositMxn: number;
@@ -256,6 +265,11 @@ export type Draft = {
 };
 
 const defaultRoom = (): RoomDraft => ({
+  id: newRoomDraftId(),
+  customName: "",
+  occupancyStatus: "available",
+  occupantGender: "any",
+  occupantAge: 25,
   title: "",
   rentMxn: 0,
   depositMxn: 0,
@@ -329,7 +343,12 @@ function roomTitleRequired(d: Pick<Draft, "postMode">): boolean {
 }
 
 /** Título enviado al API; en modo un solo cuarto el campo no se muestra en el paso Recámaras. */
-function effectiveRoomTitle(room: Pick<RoomDraft, "title">, postMode: Draft["postMode"]): string {
+function effectiveRoomTitle(
+  room: Pick<RoomDraft, "title" | "customName">,
+  postMode: Draft["postMode"],
+): string {
+  const custom = room.customName?.trim();
+  if (custom) return custom;
   const trimmed = room.title.trim();
   if (trimmed) return trimmed;
   if (postMode === "room") return SINGLE_ROOM_DEFAULT_TITLE;
@@ -486,7 +505,18 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     srvRooms.length > 0
       ? srvRooms.map((r) => ({
           ...defaultRoom(),
-          title: r.status === "draft" && isDraftOnlyRoomTitleSeed(r.title) ? "" : r.title,
+          id: r.id,
+          customName: r.customName?.trim() ?? "",
+          occupancyStatus: r.occupancyStatus === "occupied" ? "occupied" : "available",
+          occupantGender: r.occupantGender ?? "any",
+          occupantAge:
+            r.occupantAge != null && Number.isFinite(r.occupantAge)
+              ? Math.min(99, Math.max(18, r.occupantAge))
+              : 25,
+          title:
+            r.status === "draft" && isDraftOnlyRoomTitleSeed(r.title)
+              ? ""
+              : r.customName?.trim() || r.title,
           rentMxn: r.rentMxn,
           depositMxn: r.depositMxn,
           roomsAvailable: r.roomsAvailable,
@@ -1046,7 +1076,7 @@ export function PublishWizardPage() {
   function removeRoom(i: number) {
     if (draftRef.current.postMode === "room") return;
     const pid = serverSyncRef.current.propertyId;
-    const rid = serverSyncRef.current.roomIds[i];
+    const rid = serverSyncRef.current.roomIds[i] || draftRef.current.rooms[i]?.id;
     if (apiOn && pid && rid) {
       void deleteDraftRoom(pid, rid).catch(() => undefined);
     }
@@ -1264,22 +1294,34 @@ export function PublishWizardPage() {
                 />
               </label>
               {draft.postMode === "property" ? (
-                <label className="block text-sm font-medium text-body">
-                  Descripción de la propiedad y áreas comunes
-                  <span className="text-red-600"> *</span>
-                  <textarea
-                    value={draft.propertySummary}
-                    onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
-                    rows={5}
-                    maxLength={PROPERTY_SUMMARY_MAX}
-                    placeholder={DEFAULT_PROPERTY_SUMMARY}
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                  />
-                  <span className="mt-1 block text-xs text-muted">
-                    Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
-                    {draft.propertySummary.trim().length} ahora
-                  </span>
-                </label>
+                <>
+                  <label className="block text-sm font-medium text-body">
+                    Descripción de la propiedad y áreas comunes
+                    <span className="text-red-600"> *</span>
+                    <textarea
+                      value={draft.propertySummary}
+                      onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
+                      rows={5}
+                      maxLength={PROPERTY_SUMMARY_MAX}
+                      placeholder={DEFAULT_PROPERTY_SUMMARY}
+                      className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                    />
+                    <span className="mt-1 block text-xs text-muted">
+                      Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
+                      {draft.propertySummary.trim().length} ahora
+                    </span>
+                  </label>
+                  <div className="mt-4 border-t border-border pt-4">
+                    <BulkImageUploader
+                      title="Fotos de áreas comunes"
+                      images={draft.propertyImageUrls}
+                      maxCount={40}
+                      apiOn={apiOn}
+                      hint="Sala, cocina, fachada y otros espacios compartidos (no de recámaras individuales)."
+                      onImagesChange={(next) => setDraft((d) => ({ ...d, propertyImageUrls: next }))}
+                    />
+                  </div>
+                </>
               ) : null}
             </div>
 
@@ -1502,8 +1544,19 @@ export function PublishWizardPage() {
         ),
       },
       {
-        title: "Recámaras",
-        body: (
+        title: draft.postMode === "property" ? "Administrador de recámaras" : "Recámaras",
+        body:
+          draft.postMode === "property" ? (
+            <PropertyRoomManager
+              draft={draft}
+              onUpdateRoom={updateRoom}
+              onRemoveRoom={removeRoom}
+              onAddRoom={addRoom}
+              onToggleTag={(roomIndex, tag, active) =>
+                setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
+              }
+            />
+          ) : (
           <div className="space-y-6">
             {draft.rooms.map((room, i) => (
               <div
@@ -1830,17 +1883,8 @@ export function PublishWizardPage() {
                 </div>
               </div>
             ))}
-            {draft.postMode === "property" ? (
-              <button
-                type="button"
-                onClick={addRoom}
-                className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10"
-              >
-                + Agregar otra recámara
-              </button>
-            ) : null}
           </div>
-        ),
+          ),
       },
       {
         title: "Fotos",
@@ -1870,13 +1914,17 @@ export function PublishWizardPage() {
               </div>
             ) : null}
 
-            {draft.rooms.map((room, i) => (
-              <div key={i} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+            {draft.rooms.map((room, i) => {
+              if (draft.postMode === "property" && room.occupancyStatus === "occupied") return null;
+              return (
+              <div key={room.id} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
                 {draft.postMode === "property" ? (
-                  <h3 className="text-[15px] font-bold text-primary">{`Galería: Recámara ${i + 1}`}</h3>
+                  <h3 className="text-[15px] font-bold text-primary">
+                    {room.customName.trim() || `Galería: Recámara ${i + 1}`}
+                  </h3>
                 ) : null}
                 <BulkImageUploader
-                  title={draft.postMode === "room" ? "Fotos de tu espacio" : room.title.trim() || "Sin título"}
+                  title={draft.postMode === "room" ? "Fotos de tu espacio" : room.customName.trim() || room.title.trim() || "Sin título"}
                   images={draft.roomImageUrls[i] ?? []}
                   maxCount={20}
                   apiOn={apiOn}
@@ -1889,7 +1937,8 @@ export function PublishWizardPage() {
                   }}
                 />
               </div>
-            ))}
+            );
+            })}
           </form>
         ),
       },

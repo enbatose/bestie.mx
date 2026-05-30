@@ -4,6 +4,7 @@ import type {
   PropertyKind,
   PropertyListing,
   RoomDimension,
+  RoommateGenderPref,
 } from "./types.js";
 import { clampListingImageUrls } from "./validation.js";
 
@@ -133,6 +134,21 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ...(propertyImageUrls.length ? { propertyImageUrls } : {}),
     ...(roomImageUrls.length ? { roomImageUrls } : {}),
     ...(int01(row.is_approximate_location) ? { isApproximateLocation: true } : {}),
+    ...(row.custom_name != null && String(row.custom_name).trim()
+      ? { roomCustomName: String(row.custom_name).trim() }
+      : {}),
+    ...(String(row.occupancy_status ?? "available") === "occupied"
+      ? { roomOccupancyStatus: "occupied" as const }
+      : { roomOccupancyStatus: "available" as const }),
+    ...(row.occupant_gender != null &&
+    (String(row.occupant_gender) === "any" ||
+      String(row.occupant_gender) === "female" ||
+      String(row.occupant_gender) === "male")
+      ? { roomOccupantGender: String(row.occupant_gender) as RoommateGenderPref }
+      : {}),
+    ...(row.occupant_age != null && Number.isFinite(Number(row.occupant_age))
+      ? { roomOccupantAge: Number(row.occupant_age) }
+      : {}),
   };
 }
 
@@ -173,7 +189,11 @@ SELECT
   r.image_urls_json AS room_image_urls_json,
   r.created_at AS created_at,
   r.updated_at AS updated_at,
-  p.is_approximate_location AS is_approximate_location
+  p.is_approximate_location AS is_approximate_location,
+  r.custom_name AS custom_name,
+  r.occupancy_status AS occupancy_status,
+  r.occupant_gender AS occupant_gender,
+  r.occupant_age AS occupant_age
 FROM rooms r
 INNER JOIN properties p ON p.id = r.property_id
 `;

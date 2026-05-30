@@ -15,6 +15,7 @@ import {
   roomReferenceCode,
 } from "@/lib/listingReference";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
+import { isRoomAvailableForRent, occupancyStatusLabel, roomDisplayName } from "@/lib/roomDisplay";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 type PropertyGroup = { propertyId: string; list: PropertyListing[] };
@@ -84,7 +85,11 @@ export function MyListingsPage() {
     if (!bundle.rooms?.length) m.push("Al menos 1 cuarto");
     for (const [index, r] of (bundle.rooms ?? []).entries()) {
       const roomSuffix = bundle.rooms.length > 1 ? ` ${index + 1}` : "";
-      if (!r.title?.trim()) m.push(`Título del cuarto${roomSuffix}`);
+      if (r.occupancyStatus === "occupied") {
+        if (r.occupantAge == null || r.occupantAge < 18) m.push(`Edad del ocupante${roomSuffix}`);
+        continue;
+      }
+      if (!r.customName?.trim() && !r.title?.trim()) m.push(`Nombre del cuarto${roomSuffix}`);
       if (!r.summary?.trim()) m.push(`Descripción del cuarto${roomSuffix}`);
       if (!Number.isFinite(r.rentMxn) || r.rentMxn <= 0) m.push(`Renta del cuarto${roomSuffix}`);
     }
@@ -415,6 +420,42 @@ export function MyListingsPage() {
                         Completa: <span className="font-medium">{missingByProperty[propertyId]}</span>
                       </p>
                     ) : null}
+                    {head.propertyPostMode === "property" ? (
+                      <ul className="mt-4 space-y-2 rounded-xl border border-border bg-surface px-3 py-3">
+                        {list.map((l, roomIdx) => {
+                          const occ = l.roomOccupancyStatus ?? "available";
+                          const name = roomDisplayName(
+                            { customName: l.roomCustomName, title: l.title },
+                            roomIdx,
+                          );
+                          return (
+                            <li
+                              key={l.id}
+                              className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                            >
+                              <div className="min-w-0">
+                                <span className="font-medium text-body">{name}</span>
+                                <span
+                                  className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                    isRoomAvailableForRent({ occupancyStatus: occ })
+                                      ? "bg-emerald-100 text-emerald-900"
+                                      : "bg-slate-200 text-slate-700"
+                                  }`}
+                                >
+                                  {occupancyStatusLabel(occ)}
+                                </span>
+                              </div>
+                              <Link
+                                to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
+                                className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                              >
+                                Editar recámara
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
                   </div>
                   <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px] sm:items-stretch">
                     {propSt === "draft" ? (
@@ -512,8 +553,14 @@ export function MyListingsPage() {
                     <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                       <tr>
                         <th className="px-4 py-3">Referencia</th>
-                        <th className="px-4 py-3">Cuarto / título</th>
-                        <th className="hidden px-4 py-3 sm:table-cell">Ciudad</th>
+                        <th className="px-4 py-3">
+                          {head.propertyPostMode === "property" ? "Recámara" : "Cuarto / título"}
+                        </th>
+                        {head.propertyPostMode === "property" ? (
+                          <th className="hidden px-4 py-3 sm:table-cell">Disponibilidad</th>
+                        ) : (
+                          <th className="hidden px-4 py-3 sm:table-cell">Ciudad</th>
+                        )}
                         <th className="px-4 py-3">Estado</th>
                         <th className="px-4 py-3 text-right">Acciones</th>
                       </tr>
@@ -532,21 +579,36 @@ export function MyListingsPage() {
                                 title={`Referencia del anuncio: ${roomRef}`}
                               />
                             </td>
-                            <td className="px-4 py-3 font-medium">{l.title}</td>
-                            <td className="hidden px-4 py-3 text-muted sm:table-cell">{l.city}</td>
+                            <td className="px-4 py-3 font-medium">
+                              {head.propertyPostMode === "property"
+                                ? roomDisplayName(
+                                    { customName: l.roomCustomName, title: l.title },
+                                    list.findIndex((x) => x.id === l.id),
+                                  )
+                                : l.title}
+                            </td>
+                            <td className="hidden px-4 py-3 text-muted sm:table-cell">
+                              {head.propertyPostMode === "property"
+                                ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
+                                : l.city}
+                            </td>
                             <td className="px-4 py-3">{statusLabel(st)}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex flex-wrap justify-end gap-2">
                                 {propSt === "draft" || propSt === "published" || propSt === "paused" ? (
                                   <Link
-                                    to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                                    to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
                                     className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15"
                                   >
                                     Editar
                                   </Link>
                                 ) : null}
                                 <Link
-                                  to={listingPublicPath(l.id)}
+                                  to={
+                                    head.propertyPostMode === "property"
+                                      ? `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`
+                                      : listingPublicPath(l.id)
+                                  }
                                   className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated"
                                 >
                                   {st === "published" && propSt === "published"

@@ -1,4 +1,5 @@
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
+import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
@@ -105,11 +106,58 @@ export function resolveLatLngForDraft(d: Draft): { lat: number; lng: number } {
   return { lat: anchor.lat, lng: anchor.lng };
 }
 
-export function effectiveRoomTitle(room: Pick<RoomDraft, "title">, postMode: Draft["postMode"]): string {
+export function effectiveRoomTitle(
+  room: Pick<RoomDraft, "title" | "customName">,
+  postMode: Draft["postMode"],
+): string {
+  const custom = room.customName?.trim();
+  if (custom) return custom;
   const trimmed = room.title.trim();
   if (trimmed) return trimmed;
   if (postMode === "room") return SINGLE_ROOM_DEFAULT_TITLE;
   return "";
+}
+
+export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex: number) {
+  const occupied = !isRoomAvailableForRent(room);
+  const base = {
+    id: room.id,
+    customName: room.customName.trim() || undefined,
+    occupancyStatus: room.occupancyStatus,
+    title: effectiveRoomTitle(room, draft.postMode) || "Recámara en borrador",
+  };
+  if (occupied) {
+    return {
+      ...base,
+      rentMxn: 0,
+      roomsAvailable: 1,
+      tags: [] as ListingTag[],
+      roommateGenderPref: room.occupantGender,
+      ageMin: room.occupantAge,
+      ageMax: room.occupantAge,
+      summary: "",
+      depositMxn: 0,
+      occupantGender: room.occupantGender,
+      occupantAge: room.occupantAge,
+      imageUrls: [] as string[],
+    };
+  }
+  return {
+    ...base,
+    rentMxn: room.rentMxn,
+    roomsAvailable: effectiveRoomsAvailable(draft, roomIndex),
+    tags: mergedRoomTagsForPayload(draft, roomIndex),
+    roommateGenderPref: room.roommateGenderPref,
+    ageMin: room.ageMin,
+    ageMax: room.ageMax,
+    summary: room.summary.trim(),
+    lodgingType: room.lodgingType,
+    availableFrom: room.availableFrom.trim(),
+    minimalStayMonths: room.minimalStayMonths,
+    roomDimension: room.roomDimension,
+    depositMxn: room.depositMxn,
+    imageUrls: draftRoomImageUrls(draft, roomIndex),
+  };
 }
 
 export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number {
@@ -271,9 +319,14 @@ export function publishPhotosInvalidReason(d: Draft): string | null {
   const tagErr = tagPhotosStepInvalidReason(d);
   if (tagErr) return tagErr;
   if (d.postMode === "property") {
+    if (draftPropertyImageUrls(d).length < 1) {
+      return "Sube al menos 1 foto de áreas comunes.";
+    }
     for (let i = 0; i < d.rooms.length; i++) {
+      const room = d.rooms[i]!;
+      if (!isRoomAvailableForRent(room)) continue;
       if (draftRoomImageUrls(d, i).length < 1) {
-        return `Sube al menos 1 foto para la recámara ${i + 1}.`;
+        return `Sube al menos 1 foto para ${room.customName.trim() || `la recámara ${i + 1}`}.`;
       }
     }
   }
@@ -330,8 +383,19 @@ export function validateRoomsForSubmit(d: Draft): string | null {
   for (let i = 0; i < d.rooms.length; i++) {
     const r = d.rooms[i]!;
     const suffix = roomValidationSuffix(i, d.rooms.length);
-    if (needTitle && !r.title.trim()) {
-      return `Cada recámara necesita un título${suffix}.`;
+
+    if (d.postMode === "property" && !isRoomAvailableForRent(r)) {
+      if (!Number.isFinite(r.occupantAge) || r.occupantAge < 18 || r.occupantAge > 99) {
+        return `Indica la edad del ocupante actual${suffix} (18–99 años).`;
+      }
+      if (!["any", "female", "male"].includes(r.occupantGender)) {
+        return `Indica el género del ocupante actual${suffix}.`;
+      }
+      continue;
+    }
+
+    if (needTitle && !r.customName.trim() && !r.title.trim()) {
+      return `Cada recámara necesita un nombre o título${suffix}.`;
     }
     const summaryTrim = r.summary.trim();
     if (!summaryTrim) {
@@ -443,27 +507,15 @@ export async function syncDraftToServer(
 
     for (let i = 0; i < draft.rooms.length; i++) {
       const r = draft.rooms[i]!;
-      const payload = {
-        title: effectiveRoomTitle(r, draft.postMode) || "Recámara en borrador",
-        rentMxn: r.rentMxn,
-        roomsAvailable: effectiveRoomsAvailable(draft, i),
-        tags: mergedRoomTagsForPayload(draft, i),
-        roommateGenderPref: r.roommateGenderPref,
-        ageMin: r.ageMin,
-        ageMax: r.ageMax,
-        summary: r.summary.trim(),
-        lodgingType: r.lodgingType,
-        availableFrom: r.availableFrom.trim(),
-        minimalStayMonths: r.minimalStayMonths,
-        roomDimension: r.roomDimension,
-        depositMxn: r.depositMxn,
-        imageUrls: draftRoomImageUrls(draft, i),
-      };
-      const rid = roomIds[i];
+      const payload = roomApiFieldsFromDraft(draft, r, i);
+      let rid = roomIds[i] || r.id;
+      const byIdIdx = r.id ? roomIds.findIndex((id) => id === r.id) : -1;
+      if (!rid && byIdIdx >= 0) rid = roomIds[byIdIdx] ?? "";
       if (!rid) {
-        const created = await addDraftRoomToProperty(propertyId!, payload);
+        const created = await addDraftRoomToProperty(propertyId!, { ...payload, id: r.id });
         roomIds[i] = created.id;
       } else {
+        roomIds[i] = rid;
         await patchDraftRoom(propertyId!, rid, payload);
       }
     }
@@ -591,22 +643,13 @@ export async function publishDraftFromWizard(opts: {
         occupiedByWomenCount: draft.occupiedByWomenCount,
         occupiedByMenCount: draft.occupiedByMenCount,
       },
-      rooms: draft.rooms.map((r, i) => ({
-        title: effectiveRoomTitle(r, draft.postMode),
-        rentMxn: Math.max(1, r.rentMxn),
-        roomsAvailable: effectiveRoomsAvailable(draft, i),
-        tags: mergedRoomTagsForPayload(draft, i),
-        roommateGenderPref: r.roommateGenderPref,
-        ageMin: r.ageMin,
-        ageMax: r.ageMax,
-        summary: r.summary.trim(),
-        lodgingType: r.lodgingType,
-        availableFrom: r.availableFrom.trim(),
-        minimalStayMonths: r.minimalStayMonths,
-        roomDimension: r.roomDimension,
-        depositMxn: r.depositMxn,
-        imageUrls: draftRoomImageUrls(draft, i),
-      })),
+      rooms: draft.rooms.map((r, i) => {
+        const fields = roomApiFieldsFromDraft(draft, r, i);
+        return {
+          ...fields,
+          rentMxn: isRoomAvailableForRent(r) ? Math.max(1, fields.rentMxn) : 0,
+        };
+      }),
     });
     const first = res.rooms[0];
     if (!first) return { kind: "error", message: "La API no devolvió recámaras." };

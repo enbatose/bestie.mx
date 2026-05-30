@@ -11,6 +11,8 @@ export type PropertyKind = "house" | "apartment" | "loft";
 /** Tamaño del cuarto (filtros avanzados). */
 export type RoomDimension = "small" | "medium" | "large";
 
+export type RoomOccupancyStatus = "available" | "occupied";
+
 export type ListingTag =
   | "wifi"
   | "agua"
@@ -69,9 +71,11 @@ export type Property = {
   showWhatsApp: boolean;
   /** Gallery paths from `POST /api/uploads` (same-origin `/api/uploads/...`). */
   imageUrls?: string[];
+  commonAreaPhotos?: string[];
   isApproximateLocation?: boolean;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  rooms?: Room[];
 };
 
 /** Rentable unit / space inside a property; search pins are per room. */
@@ -79,6 +83,10 @@ export type Room = {
   id: string;
   propertyId: string;
   status: ListingStatus;
+  customName?: string;
+  occupancyStatus?: RoomOccupancyStatus;
+  occupantGender?: RoommateGenderPref;
+  occupantAge?: number;
   /** Short label, e.g. “Cuarto planta alta”. */
   title: string;
   rentMxn: number;
@@ -157,4 +165,9 @@ export type PropertyListing = {
   createdAt?: string;
   /** Room update timestamp from API responses. */
   updatedAt?: string;
+  roomCustomName?: string;
+  roomOccupancyStatus?: RoomOccupancyStatus;
+  roomOccupantGender?: RoommateGenderPref;
+  roomOccupantAge?: number;
+  isApproximateLocation?: boolean;
 };

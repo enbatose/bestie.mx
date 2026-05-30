@@ -8,6 +8,9 @@ export type PropertyKind = "house" | "apartment" | "loft";
 
 export type RoomDimension = "small" | "medium" | "large";
 
+/** Whether a room slot is offered for rent or already occupied (property multi-room manager). */
+export type RoomOccupancyStatus = "available" | "occupied";
+
 export type ListingTag =
   | "wifi"
   | "agua"
@@ -65,17 +68,33 @@ export type Property = {
   /** When false, do not show WhatsApp on the public listing. */
   showWhatsApp: boolean;
   imageUrls?: string[];
+  /** Shared-area / facade photos for property posts (same storage as `imageUrls`). */
+  commonAreaPhotos?: string[];
   isApproximateLocation?: boolean;
   /** Reported occupants in existing rooms (wizard). */
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  /** Rooms on the property (populated when loading `PropertyWithRooms`). */
+  rooms?: Room[];
 };
 
 /** Rentable space inside a property. */
 export type Room = {
   id: string;
   propertyId: string;
+  /** Publication lifecycle (draft / published / …). */
   status: ListingStatus;
+  /** Owner label shown in UI; falls back to “Habitación N” when empty. */
+  customName?: string;
+  /**
+   * Slot availability for property manager (`available` = listed for rent;
+   * `occupied` = demographic-only). Distinct from publication `status`.
+   */
+  occupancyStatus?: RoomOccupancyStatus;
+  /** Current occupant gender when `occupancyStatus === 'occupied'`. */
+  occupantGender?: RoommateGenderPref;
+  /** Current occupant age when `occupancyStatus === 'occupied'`. */
+  occupantAge?: number;
   title: string;
   rentMxn: number;
   /** One-time deposit in MXN. */
@@ -153,4 +172,8 @@ export type PropertyListing = {
   updatedAt?: string;
   /** True when the authenticated session owns this listing (publisher cookie or linked account). */
   viewerIsOwner?: boolean;
+  roomCustomName?: string;
+  roomOccupancyStatus?: RoomOccupancyStatus;
+  roomOccupantGender?: RoommateGenderPref;
+  roomOccupantAge?: number;
 };

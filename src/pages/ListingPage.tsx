@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { PropertyPublicRoomsSection } from "@/components/listing/PropertyPublicRoomsSection";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import {
   ListingHeaderBadges,
@@ -18,7 +19,9 @@ import {
   type FetchListingByIdResult,
   type ListingUnavailableReason,
 } from "@/lib/listingsApi";
+import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
+import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
 import { startConversationFromListing } from "@/lib/messagesApi";
 import type { PropertyKind, PropertyListing, PropertyWithRooms } from "@/types/listing";
 
@@ -162,6 +165,8 @@ function unavailableCopy(reason: ListingUnavailableReason | null): {
 
 export function ListingPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const highlightRoomId = searchParams.get("roomId");
   const location = useLocation();
   const navigate = useNavigate();
   const listingUpdated = Boolean(
@@ -273,20 +278,40 @@ export function ListingPage() {
     return SEED_LISTINGS.filter((l) => l.propertyId === listing.propertyId && l.id !== listing.id);
   }, [listing]);
 
+  const isPropertyPost =
+    listing?.propertyPostMode === "property" || propertyPack?.property.postMode === "property";
+
+  const commonAreaUrls = useMemo(() => {
+    if (!listing) return [];
+    const raw =
+      propertyPack?.property.commonAreaPhotos ??
+      propertyPack?.property.imageUrls ??
+      listing.propertyImageUrls ??
+      [];
+    return raw.map((u) => apiAbsoluteUrl(u));
+  }, [listing, propertyPack]);
+
   const galleryUrls = useMemo(() => {
     if (!listing) return [];
+    if (isPropertyPost && propertyPack) {
+      if (commonAreaUrls.length) return commonAreaUrls;
+      const room = propertyPack.rooms.find((r) => r.id === listing.id);
+      return (room?.imageUrls ?? []).map((u) => apiAbsoluteUrl(u));
+    }
     const fromJoin = [...(listing.propertyImageUrls ?? []), ...(listing.roomImageUrls ?? [])];
-    if (fromJoin.length) return fromJoin;
+    if (fromJoin.length) return fromJoin.map((u) => apiAbsoluteUrl(u));
     if (!apiOn || !propertyPack) return [];
     const room = propertyPack.rooms.find((r) => r.id === listing.id);
-    return [...(propertyPack.property.imageUrls ?? []), ...(room?.imageUrls ?? [])];
-  }, [apiOn, listing, propertyPack]);
+    return [...(propertyPack.property.imageUrls ?? []), ...(room?.imageUrls ?? [])].map((u) =>
+      apiAbsoluteUrl(u),
+    );
+  }, [apiOn, listing, propertyPack, isPropertyPost, commonAreaUrls]);
 
   const siblingLinks = useMemo(() => {
     if (apiOn && propertyPack && propertyPack.rooms.length > 1) {
       return propertyPack.rooms
         .filter((r) => r.id !== listing?.id && r.status === "published")
-        .map((r) => ({ id: r.id, label: r.title }));
+        .map((r, idx) => ({ id: r.id, label: roomDisplayName(r, idx) }));
     }
     return seedSiblings.map((l) => ({ id: l.id, label: l.title }));
   }, [apiOn, propertyPack, listing?.id, seedSiblings]);
@@ -300,8 +325,6 @@ export function ListingPage() {
     if (!listing) return [];
     return [{ id: listing.id, label: listing.title }];
   }, [apiOn, propertyPack, listing]);
-
-  const isPropertyPost = listing?.propertyPostMode === "property" || propertyPack?.property.postMode === "property";
 
   const copyShareUrl = useCallback(async (path: string, label: string) => {
     try {
@@ -515,8 +538,20 @@ export function ListingPage() {
         {categoryTitle && categoryTitle !== headerTitle ? (
           <p className="mt-1 text-sm text-muted">{categoryTitle}</p>
         ) : null}
-        {postMode === "property" && listing.title.trim() && listing.title.trim() !== headerTitle ? (
-          <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
+        {postMode === "property" && propertyPack ? (
+          <p className="mt-1 text-sm text-muted">
+            Recámara:{" "}
+            {roomDisplayName(
+              propertyPack.rooms.find((r) => r.id === listing.id) ?? {
+                customName: listing.roomCustomName,
+                title: listing.title,
+              },
+              Math.max(
+                0,
+                propertyPack.rooms.findIndex((r) => r.id === listing.id),
+              ),
+            )}
+          </p>
         ) : null}
         <ListingHeroPrice rentMxn={listing.rentMxn} />
         <ListingHeaderBadges
@@ -545,30 +580,55 @@ export function ListingPage() {
       </header>
 
 
-      <PublicListingContent
-        listing={listing}
-        postMode={postMode}
-        propertyKind={propertyKind}
-        propertyBedroomsTotal={propertyBedroomsTotal}
-        propertySummary={propertySummary}
-        isApproximateLocation={isApproximateLocation}
-        occupiedByWomenCount={propertyPack?.property.occupiedByWomenCount}
-        occupiedByMenCount={propertyPack?.property.occupiedByMenCount}
-        galleryUrls={galleryUrls}
-        roomCount={publishedRoomCount}
-        failedImageUrls={failedImageUrls}
-        seekerLayout
-        onImageError={(u) => {
-          setFailedImageUrls((prev) => {
-            if (prev.has(u)) return prev;
-            const next = new Set(prev);
-            next.add(u);
-            return next;
-          });
-        }}
-      />
+      {isPropertyPost && propertyPack ? (
+        <PropertyPublicRoomsSection
+          rooms={propertyPack.rooms}
+          highlightRoomId={highlightRoomId ?? listing.id}
+          commonAreaUrls={commonAreaUrls}
+          failedImageUrls={failedImageUrls}
+          onImageError={(u) => {
+            setFailedImageUrls((prev) => {
+              if (prev.has(u)) return prev;
+              const next = new Set(prev);
+              next.add(u);
+              return next;
+            });
+          }}
+        />
+      ) : null}
 
-      {siblingLinks.length ? (
+      {isPropertyPost &&
+      propertyPack &&
+      !isRoomAvailableForRent(propertyPack.rooms.find((r) => r.id === listing.id) ?? {}) ? (
+        <p className="mt-6 rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-muted">
+          Esta recámara está marcada como ocupada y no se ofrece en renta en este momento.
+        </p>
+      ) : (
+        <PublicListingContent
+          listing={listing}
+          postMode={postMode}
+          propertyKind={propertyKind}
+          propertyBedroomsTotal={propertyBedroomsTotal}
+          propertySummary={propertySummary}
+          isApproximateLocation={isApproximateLocation}
+          occupiedByWomenCount={propertyPack?.property.occupiedByWomenCount}
+          occupiedByMenCount={propertyPack?.property.occupiedByMenCount}
+          galleryUrls={isPropertyPost && propertyPack ? [] : galleryUrls}
+          roomCount={publishedRoomCount}
+          failedImageUrls={failedImageUrls}
+          seekerLayout
+          onImageError={(u) => {
+            setFailedImageUrls((prev) => {
+              if (prev.has(u)) return prev;
+              const next = new Set(prev);
+              next.add(u);
+              return next;
+            });
+          }}
+        />
+      )}
+
+      {siblingLinks.length && !isPropertyPost ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-body">Más opciones en esta propiedad</h2>
           <p className="mt-1 text-xs text-muted">Otros cuartos publicados en el mismo lugar.</p>

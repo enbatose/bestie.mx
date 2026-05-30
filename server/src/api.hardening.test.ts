@@ -23,6 +23,10 @@ async function patchRoomWithTestPhoto(
     .patch(`/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`)
     .send({ imageUrls: [TEST_LISTING_IMAGE_URL] })
     .expect(200);
+  await agent
+    .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
+    .send({ imageUrls: [TEST_LISTING_IMAGE_URL] })
+    .expect(200);
 }
 
 function cookiePairFromSetCookie(res: { headers: Record<string, unknown> }): string {

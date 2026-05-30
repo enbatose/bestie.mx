@@ -34,6 +34,7 @@ export function draftToPropertyWithRooms(draft: Draft): PropertyWithRooms {
     bathrooms: draft.propertyBathrooms > 0 ? draft.propertyBathrooms : 1,
     showWhatsApp: draft.showWhatsApp,
     imageUrls: draftPropertyImageUrls(draft),
+    commonAreaPhotos: draftPropertyImageUrls(draft),
     isApproximateLocation: draft.isApproximateLocation,
     occupiedByWomenCount: draft.occupiedByWomenCount,
     occupiedByMenCount: draft.occupiedByMenCount,
@@ -46,9 +47,13 @@ export function draftToPropertyWithRooms(draft: Draft): PropertyWithRooms {
 
 function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
   return {
-    id: `preview-room-${index}`,
+    id: r.id || `preview-room-${index}`,
     propertyId: PREVIEW_PROPERTY_ID,
     status: "draft" as const,
+    customName: r.customName.trim() || undefined,
+    occupancyStatus: r.occupancyStatus,
+    occupantGender: r.occupantGender,
+    occupantAge: r.occupantAge,
     title: effectiveRoomTitle(r, draft.postMode),
     rentMxn: Math.max(0, r.rentMxn),
     depositMxn: r.depositMxn,

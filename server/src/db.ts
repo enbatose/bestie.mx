@@ -190,6 +190,21 @@ function migratePropertyOccupantCounts(db: DatabaseSync): void {
 /** SQLite `ALTER TABLE ADD COLUMN` only allows constant DEFAULTs — not `CURRENT_TIMESTAMP`. */
 const ROOM_TS_ALTER_PLACEHOLDER = "1970-01-01T00:00:00.000Z";
 
+function migrateRoomOccupancyFields(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "rooms", "custom_name")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN custom_name TEXT");
+  }
+  if (!tableHasColumn(db, "rooms", "occupancy_status")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN occupancy_status TEXT NOT NULL DEFAULT 'available'");
+  }
+  if (!tableHasColumn(db, "rooms", "occupant_gender")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN occupant_gender TEXT");
+  }
+  if (!tableHasColumn(db, "rooms", "occupant_age")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN occupant_age INTEGER");
+  }
+}
+
 function migrateRoomTimestamps(db: DatabaseSync): void {
   if (!tableHasColumn(db, "rooms", "created_at")) {
     db.exec(
@@ -278,6 +293,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migratePropertyApproximateLocation(db);
   migratePropertyOccupantCounts(db);
   migrateRoomTimestamps(db);
+  migrateRoomOccupancyFields(db);
   ensureUploadBlobSchema(db);
 }
 
