@@ -3,6 +3,9 @@
 # always includes `server/dist` + Vite `dist` + server `node_modules` (fixes empty/gated Railpack runtime).
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+# Railway service variables must be declared as ARG/ENV before `npm run build` so Vite bakes VITE_* into the SPA bundle.
+ARG VITE_GOOGLE_MAPS_EMBED_KEY
+ENV VITE_GOOGLE_MAPS_EMBED_KEY=$VITE_GOOGLE_MAPS_EMBED_KEY
 COPY package.json package-lock.json ./
 COPY server/package.json server/package-lock.json ./server/
 RUN npm ci

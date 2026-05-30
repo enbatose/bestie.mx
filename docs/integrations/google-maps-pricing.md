@@ -48,7 +48,7 @@ Locked embed views (`street_view_embed_locked`) are tracked for ops visibility o
 
 ## Production deployment (Railway)
 
-- Set **`VITE_GOOGLE_MAPS_EMBED_KEY`** on the Railway service **before build** (Dockerfile runs `npm run build`; Vite bakes `VITE_*` at build time).
+- Set **`VITE_GOOGLE_MAPS_EMBED_KEY`** on the Railway service **before build** (Dockerfile runs `npm run build`; Vite bakes `VITE_*` at build time). The [`Dockerfile`](../../Dockerfile) declares `ARG VITE_GOOGLE_MAPS_EMBED_KEY` so Railway passes the service variable into the build stage — **redeploy after adding or changing the variable**.
 - GCP API key **Application restriction:** Websites (HTTP referrers), e.g.:
   - `http://localhost:5173/*`, `http://127.0.0.1:5173/*` (local dev)
   - `https://bestie.mx/*`, `https://www.bestie.mx/*`
