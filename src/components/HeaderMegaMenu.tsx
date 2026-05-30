@@ -6,7 +6,6 @@ import { authLogout } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import type { NotificationItem } from "@/lib/notificationsMock";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -20,6 +19,18 @@ function navClass({ isActive }: { isActive: boolean }) {
 
 const dropBtn =
   "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+
+const logoutBtn =
+  "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30";
+
+function footerNavClass({ isActive }: { isActive: boolean }) {
+  return [
+    "block rounded-lg px-3 py-2 text-left text-xs font-medium transition",
+    isActive
+      ? "bg-surface-elevated text-primary ring-1 ring-border"
+      : "text-muted hover:bg-surface-elevated hover:text-body",
+  ].join(" ");
+}
 
 function primaryNavClass({ isActive }: { isActive: boolean }) {
   return [
@@ -173,9 +184,22 @@ function AvatarTrigger({
   );
 }
 
-function AvatarMenuSection({ children }: { children: React.ReactNode }) {
+function AvatarMenuSection({
+  children,
+  showDivider = true,
+}: {
+  children: React.ReactNode;
+  showDivider?: boolean;
+}) {
   return (
-    <div className="border-t border-border p-1 first:border-t-0 dark:border-slate-600">{children}</div>
+    <div
+      className={[
+        "p-1",
+        showDivider ? "my-1 border-t border-gray-100 dark:border-slate-700" : "",
+      ].join(" ")}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -231,7 +255,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
   const avatarDropdown = me?.id ? (
     <div className="flex min-w-[14rem] flex-col py-1">
-      <AvatarMenuSection>
+      <AvatarMenuSection showDivider={false}>
         <NavLink to="/perfil" className={navClass} onClick={dismissNav}>
           <span className="inline-flex items-center gap-1">
             Mi Perfil
@@ -243,12 +267,36 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         <NavLink to="/mis-anuncios" className={navClass} onClick={dismissNav}>
           Mis Anuncios
         </NavLink>
-        {me.isAdmin ? (
+        <NavLink
+          to="/mensajes"
+          className={navClass}
+          onClick={() => {
+            onMessagesClick();
+            dismissNav();
+          }}
+        >
+          <span className="inline-flex items-center gap-1">
+            Mensajes
+            {hasUnreadMessages ? (
+              unreadCount > 0 ? (
+                <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-error" aria-hidden />
+              )
+            ) : null}
+          </span>
+        </NavLink>
+      </AvatarMenuSection>
+
+      {me.isAdmin ? (
+        <AvatarMenuSection>
           <NavLink to="/admin" className={navClass} onClick={dismissNav}>
             Administrador
           </NavLink>
-        ) : null}
-      </AvatarMenuSection>
+        </AvatarMenuSection>
+      ) : null}
 
       <AvatarMenuSection>
         <NavLink to="/grupos" className={navClass} onClick={dismissNav}>
@@ -257,30 +305,23 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         <NavLink to="/faq" className={navClass} onClick={dismissNav}>
           Preguntas Frecuentes
         </NavLink>
-        <a
-          href="mailto:soporte@bestie.mx"
-          className={dropBtn}
-          onClick={dismissNav}
-        >
+        <a href="mailto:soporte@bestie.mx" className={dropBtn} onClick={dismissNav}>
           Contacto
         </a>
-        <div className="px-1 py-1">
-          <ThemeToggle />
-        </div>
       </AvatarMenuSection>
 
       <AvatarMenuSection>
-        <NavLink to="/legal" className={navClass} onClick={dismissNav}>
+        <NavLink to="/legal" className={footerNavClass} onClick={dismissNav}>
           Términos y Privacidad
         </NavLink>
-        <button type="button" className={dropBtn} onClick={() => void onLogout()}>
+        <button type="button" className={logoutBtn} onClick={() => void onLogout()}>
           Cerrar sesión
         </button>
       </AvatarMenuSection>
     </div>
   ) : (
     <div className="flex min-w-[14rem] flex-col py-1">
-      <AvatarMenuSection>
+      <AvatarMenuSection showDivider={false}>
         <button
           type="button"
           className={dropBtn}
@@ -300,20 +341,13 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         <NavLink to="/faq" className={navClass} onClick={dismissNav}>
           Preguntas Frecuentes
         </NavLink>
-        <a
-          href="mailto:soporte@bestie.mx"
-          className={dropBtn}
-          onClick={dismissNav}
-        >
+        <a href="mailto:soporte@bestie.mx" className={dropBtn} onClick={dismissNav}>
           Contacto
         </a>
-        <div className="px-1 py-1">
-          <ThemeToggle />
-        </div>
       </AvatarMenuSection>
 
       <AvatarMenuSection>
-        <NavLink to="/legal" className={navClass} onClick={dismissNav}>
+        <NavLink to="/legal" className={footerNavClass} onClick={dismissNav}>
           Términos y Privacidad
         </NavLink>
       </AvatarMenuSection>
