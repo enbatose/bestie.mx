@@ -4,6 +4,8 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useNotifications } from "@/contexts/NotificationsContext";
+import type { NotificationItem } from "@/lib/notificationsMock";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 
@@ -42,52 +44,11 @@ function UnreadDot({ className = "" }: { className?: string }) {
   );
 }
 
-type NotificationItem = {
-  id: string;
-  text: string;
-  date: string;
-  time: string;
-  isRead: boolean;
-  link: string;
-};
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "created-room-americana",
-    text: "Tu nuevo anuncio de Cuarto 'Cuarto en la Americana' se ha creado exitosamente, no olvides publicarlo.",
-    date: "28 may 2026",
-    time: "09:15",
-    isRead: false,
-    link: "/publicar/vista-previa?listing=cuarto-americana",
-  },
-  {
-    id: "created-property-providencia",
-    text: "Tu nuevo anuncio de Propiedad 'Casa en Providencia' se ha creado exitosamente, no olvides publicarlo.",
-    date: "27 may 2026",
-    time: "18:42",
-    isRead: false,
-    link: "/publicar/vista-previa?listing=casa-providencia",
-  },
-  {
-    id: "published-room-americana",
-    text: "Has publicado exitosamente tu anuncio de Cuarto 'Cuarto en la Americana'.",
-    date: "26 may 2026",
-    time: "11:03",
-    isRead: true,
-    link: "/publicar/vista-previa?listing=cuarto-americana",
-  },
-  {
-    id: "reminder-room-americana",
-    text: "Tu anuncio 'Cuarto en la Americana' lleva 3 días creado sin publicarse. ¡Publícalo hoy!",
-    date: "25 may 2026",
-    time: "08:00",
-    isRead: false,
-    link: "/publicar/vista-previa?listing=cuarto-americana",
-  },
-];
+type NotificationItemProps = NotificationItem;
 
 function LoggedInIconActions({
   hasUnreadMessages,
+  onMessagesClick,
   notifications,
   hasUnreadNotifications,
   notificationsOpen,
@@ -97,7 +58,8 @@ function LoggedInIconActions({
   onDismiss,
 }: {
   hasUnreadMessages: boolean;
-  notifications: NotificationItem[];
+  onMessagesClick: () => void;
+  notifications: NotificationItemProps[];
   hasUnreadNotifications: boolean;
   notificationsOpen: boolean;
   onToggleNotifications: () => void;
@@ -110,6 +72,7 @@ function LoggedInIconActions({
       <NavLink
         to="/mensajes"
         className={iconBtnClass}
+        onClick={onMessagesClick}
         aria-label={hasUnreadMessages ? "Mensajes (sin leer)" : "Mensajes"}
       >
         <span className="relative inline-flex">
@@ -168,7 +131,7 @@ function LoggedInIconActions({
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm leading-snug text-body">{n.text}</span>
                       <span className="mt-1 block text-xs text-muted">
-                        {n.date} · {n.time}
+                        {n.relativeTime}
                       </span>
                     </span>
                   </Link>
@@ -223,27 +186,27 @@ type Props = {
   onAuthChange?: () => void;
 };
 
-export function HeaderMegaMenu({ me, profileIncomplete, onAuthChange }: Props) {
+export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChange }: Props) {
   const navigate = useNavigate();
   const { openLogin } = useAuthModal();
+  const { notifications, hasUnreadNotifications, markNotificationRead } = useNotifications();
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
-  const hasUnreadNotifications = notifications.some((n) => !n.isRead);
+  useEffect(() => {
+    if (unreadCount > 0) setHasUnreadMessages(true);
+  }, [unreadCount]);
 
   const dismissNav = useCallback(() => {
     setAvatarOpen(false);
     setNotificationsOpen(false);
   }, []);
 
-  const markNotificationRead = useCallback((id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-    );
+  const onMessagesClick = useCallback(() => {
+    setHasUnreadMessages(false);
   }, []);
 
   useEffect(() => {
@@ -372,6 +335,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, onAuthChange }: Props) {
         {me?.id ? (
           <LoggedInIconActions
             hasUnreadMessages={hasUnreadMessages}
+            onMessagesClick={onMessagesClick}
             notifications={notifications}
             hasUnreadNotifications={hasUnreadNotifications}
             notificationsOpen={notificationsOpen}

@@ -10,6 +10,7 @@ import { LegalPage } from "@/pages/LegalPage";
 import { ListingPage } from "@/pages/ListingPage";
 import { MessagesPage } from "@/pages/MessagesPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { PropertyPage } from "@/pages/PropertyPage";
 import { PublishPreviewPage } from "@/pages/PublishPreviewPage";
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: "perfil", element: <ProfilePage /> },
       { path: "perfil/editar", element: <AccountEditPage /> },
       { path: "mensajes", element: <MessagesPage /> },
+      { path: "notifications", element: <NotificationsPage /> },
       { path: "contacto", element: <ContactPage /> },
       { path: "faq", element: <FaqPage /> },
       { path: "legal", element: <LegalPage /> },

@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { analyticsHeartbeat, authMe, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 
@@ -50,6 +51,7 @@ export function AppShellLayout() {
 
   return (
     <AuthModalProvider>
+      <NotificationsProvider>
       <div className="flex min-h-screen flex-col dark:bg-bg-dark">
         <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -101,6 +103,7 @@ export function AppShellLayout() {
 
         <AuthModal />
       </div>
+      </NotificationsProvider>
     </AuthModalProvider>
   );
 }
