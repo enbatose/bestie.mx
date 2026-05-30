@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CirclePlus, Search } from "lucide-react";
+import { Bell, ChevronDown, CirclePlus, MessageSquare, Search } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
@@ -39,6 +39,134 @@ function NavIconLabel({
   );
 }
 
+const iconBtnClass =
+  "relative inline-flex items-center justify-center rounded-lg p-2 text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
+function UnreadDot() {
+  return (
+    <span
+      className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-error ring-2 ring-surface"
+      aria-hidden
+    />
+  );
+}
+
+type MockNotification = {
+  id: string;
+  text: string;
+  to: string;
+};
+
+const MOCK_NOTIFICATIONS: MockNotification[] = [
+  {
+    id: "created-room-americana",
+    text: "Tu nuevo anuncio de Cuarto 'Cuarto en la Americana' se ha creado exitosamente, no olvides publicarlo.",
+    to: "/publicar/vista-previa?listing=cuarto-americana",
+  },
+  {
+    id: "created-property-providencia",
+    text: "Tu nuevo anuncio de Propiedad 'Casa en Providencia' se ha creado exitosamente, no olvides publicarlo.",
+    to: "/publicar/vista-previa?listing=casa-providencia",
+  },
+  {
+    id: "published-room-americana",
+    text: "Has publicado exitosamente tu anuncio de Cuarto 'Cuarto en la Americana'.",
+    to: "/publicar/vista-previa?listing=cuarto-americana",
+  },
+  {
+    id: "reminder-room-americana",
+    text: "Tu anuncio 'Cuarto en la Americana' lleva 3 días creado sin publicarse. ¡Publícalo hoy!",
+    to: "/publicar/vista-previa?listing=cuarto-americana",
+  },
+];
+
+function LoggedInIconActions({
+  unreadCount,
+  notificationsOpen,
+  onToggleNotifications,
+  notificationsRef,
+  onDismiss,
+}: {
+  unreadCount: number;
+  notificationsOpen: boolean;
+  onToggleNotifications: () => void;
+  notificationsRef: React.RefObject<HTMLDivElement | null>;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5">
+      <NavLink
+        to="/mensajes"
+        className={iconBtnClass}
+        aria-label={
+          unreadCount > 0 ? `Mensajes (${unreadCount > 99 ? "99+" : unreadCount} sin leer)` : "Mensajes (sin leer)"
+        }
+      >
+        <span className="relative inline-flex">
+          <MessageSquare className="h-5 w-5 shrink-0" aria-hidden />
+          <UnreadDot />
+        </span>
+      </NavLink>
+
+      <div className="relative" ref={notificationsRef}>
+        <button
+          type="button"
+          onClick={onToggleNotifications}
+          className={`${iconBtnClass} gap-0.5 px-1.5`}
+          aria-expanded={notificationsOpen}
+          aria-haspopup="menu"
+          aria-label="Notificaciones"
+        >
+          <span className="relative inline-flex">
+            <Bell className="h-5 w-5 shrink-0" aria-hidden />
+            <UnreadDot />
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+        </button>
+        {notificationsOpen ? (
+          <div className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,22rem)] rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
+            <p className="border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted dark:border-slate-600">
+              Notificaciones
+            </p>
+            <ul className="max-h-80 overflow-y-auto p-1">
+              {MOCK_NOTIFICATIONS.slice(0, 5).map((n) => (
+                <li key={n.id}>
+                  <Link
+                    to={n.to}
+                    onClick={onDismiss}
+                    className="block rounded-lg px-3 py-2.5 text-sm leading-snug text-body transition hover:bg-surface-elevated"
+                  >
+                    {n.text}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function AvatarTrigger({
+  me,
+  size = "md",
+  showChevron = false,
+}: {
+  me: AuthMe | null | undefined;
+  size?: "sm" | "md";
+  showChevron?: boolean;
+}) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      <UserAvatar displayName={me?.displayName} profilePictureUrl={me?.profilePictureUrl} size={size} />
+      {showChevron ? (
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+      ) : null}
+    </span>
+  );
+}
+
 type Props = {
   me: AuthMe | null | undefined;
   profileIncomplete: boolean;
@@ -51,26 +179,32 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   const { openLogin } = useAuthModal();
   const [menuOpen, setMenuOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   const dismissNav = useCallback(() => {
     setMenuOpen(false);
     setAvatarOpen(false);
+    setNotificationsOpen(false);
     setMobileOpen(false);
   }, []);
 
   useEffect(() => {
-    if (!menuOpen && !avatarOpen) return;
+    if (!menuOpen && !avatarOpen && !notificationsOpen) return;
     const close = (e: MouseEvent) => {
       const t = e.target as Node;
       if (menuOpen && menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
       if (avatarOpen && avatarRef.current && !avatarRef.current.contains(t)) setAvatarOpen(false);
+      if (notificationsOpen && notificationsRef.current && !notificationsRef.current.contains(t)) {
+        setNotificationsOpen(false);
+      }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [menuOpen, avatarOpen]);
+  }, [menuOpen, avatarOpen, notificationsOpen]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -263,6 +397,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
             type="button"
             onClick={() => {
               setAvatarOpen(false);
+              setNotificationsOpen(false);
               setMenuOpen((v) => !v);
             }}
             className="rounded-full border border-border bg-bg-light px-4 py-2 text-sm font-bold text-body hover:bg-surface-elevated dark:border-slate-600"
@@ -278,23 +413,34 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           ) : null}
         </div>
 
+        {me?.id ? (
+          <LoggedInIconActions
+            unreadCount={unreadCount}
+            notificationsOpen={notificationsOpen}
+            onToggleNotifications={() => {
+              setMenuOpen(false);
+              setAvatarOpen(false);
+              setNotificationsOpen((v) => !v);
+            }}
+            notificationsRef={notificationsRef}
+            onDismiss={dismissNav}
+          />
+        ) : null}
+
         <div className="relative" ref={avatarRef}>
           <button
             type="button"
             onClick={() => {
               setMenuOpen(false);
+              setNotificationsOpen(false);
               setAvatarOpen((v) => !v);
             }}
-            className="rounded-full p-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex items-center rounded-full p-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-expanded={avatarOpen}
             aria-haspopup="menu"
             aria-label={me?.id ? "Menú de cuenta" : "Iniciar sesión o registrarse"}
           >
-            <UserAvatar
-              displayName={me?.displayName}
-              profilePictureUrl={me?.profilePictureUrl}
-              size="md"
-            />
+            <AvatarTrigger me={me} size="md" showChevron={Boolean(me?.id)} />
           </button>
           {avatarOpen ? (
             <div className="absolute right-0 top-full z-50 mt-2 rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
@@ -329,23 +475,32 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         >
           Menú
         </button>
+        {me?.id ? (
+          <LoggedInIconActions
+            unreadCount={unreadCount}
+            notificationsOpen={notificationsOpen}
+            onToggleNotifications={() => {
+              setMobileOpen(false);
+              setNotificationsOpen((v) => !v);
+            }}
+            notificationsRef={notificationsRef}
+            onDismiss={dismissNav}
+          />
+        ) : null}
         <button
           type="button"
           onClick={() => {
             if (me?.id) {
+              setNotificationsOpen(false);
               setMobileOpen(true);
             } else {
               openLogin();
             }
           }}
-          className="rounded-full p-0.5"
+          className="inline-flex items-center rounded-full p-0.5"
           aria-label={me?.id ? "Abrir menú de cuenta" : "Iniciar sesión o registrarse"}
         >
-          <UserAvatar
-            displayName={me?.displayName}
-            profilePictureUrl={me?.profilePictureUrl}
-            size="sm"
-          />
+          <AvatarTrigger me={me} size="sm" showChevron={Boolean(me?.id)} />
         </button>
       </div>
 
