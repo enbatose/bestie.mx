@@ -152,8 +152,8 @@ function draftPublishPhotosOk(
     )
     .all(propertyId) as { image_urls_json: unknown; occupancy_status?: unknown }[];
   if (postMode === "room") {
-    const firstRoomImages = roomRows[0] ? imageUrlsFromRow(roomRows[0].image_urls_json) : [];
-    return firstRoomImages.length >= 1 || propImages.length >= 1;
+    const hasRoomPhoto = roomRows.some((row) => imageUrlsFromRow(row.image_urls_json).length >= 1);
+    return hasRoomPhoto || propImages.length >= 1;
   }
   if (roomRows.length < 1) return false;
   if (propImages.length < 1) return false;

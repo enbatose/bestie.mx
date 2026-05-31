@@ -3,6 +3,7 @@ import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import {
   addDraftRoomToProperty,
   createDraftProperty,
+  deleteDraftRoom,
   isListingsApiConfigured,
   patchDraftRoom,
   publishPropertyBundle,
@@ -169,6 +170,14 @@ export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number
 
 export function draftPropertyImageUrls(draft: Draft): string[] {
   return draftImagesToUrls(draft.propertyImageUrls);
+}
+
+/** Room posts store photos on the room slot; mirror them on the property for API sync/publish. */
+export function draftPropertyImageUrlsForSync(draft: Draft): string[] {
+  if (draft.postMode === "room") {
+    return draftRoomImageUrls(draft, 0);
+  }
+  return draftPropertyImageUrls(draft);
 }
 
 export function draftRoomImageUrls(draft: Draft, roomIndex: number): string[] {
@@ -495,7 +504,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrls(draft),
+        imageUrls: draftPropertyImageUrlsForSync(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -520,6 +529,7 @@ export async function syncDraftToServer(
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           if (!msg.includes("patch_room_http_404")) throw e;
+          await deleteDraftRoom(propertyId!, knownServerId);
         }
       }
       const created = await addDraftRoomToProperty(propertyId!, { ...payload, id: r.id });
@@ -540,7 +550,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrls(draft),
+        imageUrls: draftPropertyImageUrlsForSync(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -620,7 +630,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrls(draft),
+        imageUrls: draftPropertyImageUrlsForSync(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -648,7 +658,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrls(draft),
+        imageUrls: draftPropertyImageUrlsForSync(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
