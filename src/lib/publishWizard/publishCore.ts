@@ -158,7 +158,7 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
     depositMxn: room.depositMxn,
-    imageUrls: draftRoomImageUrls(draft, roomIndex),
+    imageUrls: draftRoomImageUrlsForApi(draft, roomIndex),
   };
 }
 
@@ -170,19 +170,27 @@ export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number
 }
 
 export function draftPropertyImageUrls(draft: Draft): string[] {
-  return listingImageUrlsForApi(draftImagesToUrls(draft.propertyImageUrls));
+  return draftImagesToUrls(draft.propertyImageUrls);
+}
+
+export function draftPropertyImageUrlsForApi(draft: Draft): string[] {
+  return listingImageUrlsForApi(draftPropertyImageUrls(draft));
 }
 
 /** Room posts store photos on the room slot; mirror them on the property for API sync/publish. */
 export function draftPropertyImageUrlsForSync(draft: Draft): string[] {
   if (draft.postMode === "room") {
-    return draftRoomImageUrls(draft, 0);
+    return draftRoomImageUrlsForApi(draft, 0);
   }
-  return draftPropertyImageUrls(draft);
+  return draftPropertyImageUrlsForApi(draft);
 }
 
 export function draftRoomImageUrls(draft: Draft, roomIndex: number): string[] {
-  return listingImageUrlsForApi(draftImagesToUrls(draft.roomImageUrls[roomIndex] ?? []));
+  return draftImagesToUrls(draft.roomImageUrls[roomIndex] ?? []);
+}
+
+export function draftRoomImageUrlsForApi(draft: Draft, roomIndex: number): string[] {
+  return listingImageUrlsForApi(draftRoomImageUrls(draft, roomIndex));
 }
 
 function propertyImagePatch(draft: Draft): { imageUrls?: string[] } {
@@ -337,13 +345,13 @@ export function publishPhotosInvalidReason(d: Draft): string | null {
   const tagErr = tagPhotosStepInvalidReason(d);
   if (tagErr) return tagErr;
   if (d.postMode === "property") {
-    if (draftPropertyImageUrls(d).length < 1) {
+    if (draftPropertyImageUrlsForApi(d).length < 1) {
       return "Sube al menos 1 foto de áreas comunes.";
     }
     for (let i = 0; i < d.rooms.length; i++) {
       const room = d.rooms[i]!;
       if (!isRoomAvailableForRent(room)) continue;
-      if (draftRoomImageUrls(d, i).length < 1) {
+      if (draftRoomImageUrlsForApi(d, i).length < 1) {
         return `Sube al menos 1 foto para ${room.customName?.trim() || `la recámara ${i + 1}`}.`;
       }
     }
