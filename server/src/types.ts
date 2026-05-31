@@ -15,6 +15,10 @@ export type StreetViewPov = {
   heading: number;
   pitch: number;
   zoom: number;
+  fov?: number;
+  pano?: string;
+  panoLat?: number;
+  panoLng?: number;
 };
 
 export type RoomOccupancyStatus = "available" | "occupied";

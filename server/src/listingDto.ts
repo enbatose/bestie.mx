@@ -5,9 +5,9 @@ import type {
   PropertyListing,
   RoomDimension,
   RoommateGenderPref,
-  StreetViewPov,
 } from "./types.js";
 import { clampListingImageUrls } from "./validation.js";
+import { parseStreetViewPovJson } from "./streetViewPov.js";
 
 function imageUrlsFromCell(raw: unknown): string[] {
   try {
@@ -46,27 +46,6 @@ function optDim(v: unknown): RoomDimension | undefined {
   const s = String(v ?? "");
   if (s === "small" || s === "medium" || s === "large") return s;
   return undefined;
-}
-
-function parseStreetViewPovJson(raw: unknown): StreetViewPov | undefined {
-  if (raw == null) return undefined;
-  try {
-    const o = typeof raw === "string" ? JSON.parse(raw.trim() || "null") : raw;
-    if (!o || typeof o !== "object") return undefined;
-    const heading = Number((o as StreetViewPov).heading);
-    const pitch = Number((o as StreetViewPov).pitch);
-    const zoom = Number((o as StreetViewPov).zoom);
-    if (!Number.isFinite(heading) || !Number.isFinite(pitch) || !Number.isFinite(zoom)) {
-      return undefined;
-    }
-    return {
-      heading: ((heading % 360) + 360) % 360,
-      pitch: Math.max(-90, Math.min(90, pitch)),
-      zoom: Math.max(0, Math.min(4, zoom)),
-    };
-  } catch {
-    return undefined;
-  }
 }
 
 /** Maps a joined `rooms` + `properties` row (see SQL aliases in repositories). */

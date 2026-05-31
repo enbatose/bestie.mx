@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Maximize2, Pencil, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
+import { streetViewPovCacheKey } from "@/lib/streetView";
 import { WizardLocationMap, PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import type { PropertyListing, StreetViewPov } from "@/types/listing";
@@ -181,7 +182,7 @@ export function PreviewPropertyLocationMap({
         <div className={showStreetView ? "" : "col-span-full"}>{mapPane("h-[260px] md:h-[320px]", 220)}</div>
         {showStreetView ? (
           <GoogleStreetViewPane
-            key={`${streetViewLat},${streetViewLng},${streetViewPov?.heading ?? ""},${streetViewPov?.pitch ?? ""},${streetViewPov?.zoom ?? ""}`}
+            key={streetViewPovCacheKey(streetViewPov) || `${streetViewLat},${streetViewLng}`}
             lat={streetViewLat}
             lng={streetViewLng}
             streetViewPov={streetViewPov}

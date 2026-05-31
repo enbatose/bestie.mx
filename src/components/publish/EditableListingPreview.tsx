@@ -21,6 +21,7 @@ import {
   effectiveWizardPropertyBathrooms,
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
+import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
   ROOM_TAG_GROUPS,
@@ -239,9 +240,7 @@ export function EditableListingPreview({
       draft,
       roomIndex,
       profilePhoneE164,
-      draft.streetViewPov?.heading,
-      draft.streetViewPov?.pitch,
-      draft.streetViewPov?.zoom,
+      streetViewPovCacheKey(draft.streetViewPov),
       draft.isApproximateLocation,
       draft.useCustomMapPin,
       draft.customLat,

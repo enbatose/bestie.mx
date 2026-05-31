@@ -13,6 +13,13 @@ export type StreetViewPov = {
   heading: number;
   pitch: number;
   zoom: number;
+  /** Embed-ready horizontal field of view in degrees (10–100). */
+  fov?: number;
+  /** Google panorama ID for the locked scene. */
+  pano?: string;
+  /** Panorama capture point (may differ from the map pin). */
+  panoLat?: number;
+  panoLng?: number;
 };
 
 /** Whether a room slot is offered for rent or already occupied (property multi-room manager). */

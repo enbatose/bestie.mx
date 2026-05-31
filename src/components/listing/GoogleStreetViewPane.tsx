@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
-import { streetViewEmbedUrl, streetViewExternalUrl } from "@/lib/streetView";
+import { streetViewEmbedUrl, streetViewExternalUrl, streetViewPovCacheKey } from "@/lib/streetView";
 import {
   trackStreetViewEmbedLocked,
   type StreetViewTrackingInterface,
@@ -45,9 +45,10 @@ function StreetViewFrame({
   loadEager?: boolean;
 }) {
   const trackedRef = useRef(false);
+  const povKey = streetViewPovCacheKey(streetViewPov);
   const src = useMemo(
     () => streetViewEmbedUrl(lat, lng, streetViewPov),
-    [lat, lng, streetViewPov?.heading, streetViewPov?.pitch, streetViewPov?.zoom],
+    [lat, lng, povKey],
   );
 
   useEffect(() => {
@@ -90,9 +91,10 @@ export function GoogleStreetViewPane({
   loadEager = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const povKey = streetViewPovCacheKey(streetViewPov);
   const externalUrl = useMemo(
     () => streetViewExternalUrl(lat, lng, streetViewPov),
-    [lat, lng, streetViewPov?.heading, streetViewPov?.pitch, streetViewPov?.zoom],
+    [lat, lng, povKey],
   );
 
   useEffect(() => {

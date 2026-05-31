@@ -12,17 +12,74 @@ export function streetViewFovFromZoom(zoom: number): number {
   return Math.max(EMBED_FOV_MIN, Math.min(EMBED_FOV_MAX, fov));
 }
 
+export function streetViewEmbedFov(pov?: StreetViewPov | null): number {
+  if (pov?.fov != null && Number.isFinite(pov.fov)) {
+    return Math.max(EMBED_FOV_MIN, Math.min(EMBED_FOV_MAX, pov.fov));
+  }
+  if (pov) return streetViewFovFromZoom(pov.zoom);
+  return 80;
+}
+
+export function streetViewPovCacheKey(pov?: StreetViewPov | null): string {
+  if (!pov) return "";
+  return [
+    pov.pano ?? "",
+    pov.panoLat ?? "",
+    pov.panoLng ?? "",
+    pov.heading,
+    pov.pitch,
+    pov.zoom,
+    pov.fov ?? "",
+  ].join(",");
+}
+
+function streetViewCameraParams(pov?: StreetViewPov | null): {
+  heading: string;
+  pitch: string;
+  fov: string;
+} {
+  return {
+    heading: pov ? String(Math.round(pov.heading)) : "210",
+    pitch: pov ? String(Math.round(pov.pitch)) : "0",
+    fov: String(Math.round(streetViewEmbedFov(pov))),
+  };
+}
+
+function streetViewSceneParams(
+  lat: number,
+  lng: number,
+  pov?: StreetViewPov | null,
+): URLSearchParams {
+  const params = new URLSearchParams();
+  const pano = pov?.pano?.trim();
+  if (pano) {
+    params.set("pano", pano);
+  } else {
+    const sceneLat = pov?.panoLat ?? lat;
+    const sceneLng = pov?.panoLng ?? lng;
+    params.set("location", `${sceneLat},${sceneLng}`);
+  }
+  return params;
+}
+
 /** External Street View tab (no Maps JavaScript API). */
 export function streetViewExternalUrl(lat: number, lng: number, pov?: StreetViewPov | null): string {
   const params = new URLSearchParams({
     api: "1",
     map_action: "pano",
-    viewpoint: `${lat},${lng}`,
   });
+  const pano = pov?.pano?.trim();
+  if (pano) {
+    params.set("pano", pano);
+  } else {
+    const sceneLat = pov?.panoLat ?? lat;
+    const sceneLng = pov?.panoLng ?? lng;
+    params.set("viewpoint", `${sceneLat},${sceneLng}`);
+  }
   if (pov) {
     params.set("heading", String(Math.round(pov.heading)));
     params.set("pitch", String(Math.round(pov.pitch)));
-    params.set("fov", String(Math.round(streetViewFovFromZoom(pov.zoom))));
+    params.set("fov", String(Math.round(streetViewEmbedFov(pov))));
   }
   return `https://www.google.com/maps/@?${params.toString()}`;
 }
@@ -32,26 +89,23 @@ export function streetViewExternalUrl(lat: number, lng: number, pov?: StreetView
  * Uses Maps Embed API when `VITE_GOOGLE_MAPS_EMBED_KEY` is set; otherwise a legacy svembed URL.
  */
 export function streetViewEmbedUrl(lat: number, lng: number, pov?: StreetViewPov | null): string {
-  const heading = pov ? String(Math.round(pov.heading)) : "210";
-  const pitch = pov ? String(Math.round(pov.pitch)) : "0";
-  const fov = pov ? String(Math.round(streetViewFovFromZoom(pov.zoom))) : "80";
-
+  const { heading, pitch, fov } = streetViewCameraParams(pov);
   const key = import.meta.env.VITE_GOOGLE_MAPS_EMBED_KEY?.trim();
   if (key) {
-    const params = new URLSearchParams({
-      key,
-      location: `${lat},${lng}`,
-      heading,
-      pitch,
-      fov,
-    });
+    const params = streetViewSceneParams(lat, lng, pov);
+    params.set("key", key);
+    params.set("heading", heading);
+    params.set("pitch", pitch);
+    params.set("fov", fov);
     return `https://www.google.com/maps/embed/v1/streetview?${params.toString()}`;
   }
 
+  const sceneLat = pov?.panoLat ?? lat;
+  const sceneLng = pov?.panoLng ?? lng;
   const params = new URLSearchParams({
     q: "",
     layer: "c",
-    cbll: `${lat},${lng}`,
+    cbll: `${sceneLat},${sceneLng}`,
     cbp: `11,${heading},${pitch},${fov},0`,
     output: "svembed",
   });

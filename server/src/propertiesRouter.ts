@@ -7,6 +7,11 @@ import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { resolvePropertyIdFromRouteParam } from "./resolveListingRouteId.js";
+import {
+  parseStreetViewPovJson,
+  serializeStreetViewPovJson,
+  streetViewPovFromBody,
+} from "./streetViewPov.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import {
   CITY_MAX_LEN,
@@ -40,7 +45,6 @@ import type {
   Room,
   RoomDimension,
   RoommateGenderPref,
-  StreetViewPov,
 } from "./types.js";
 
 function isListingStatus(s: string): s is ListingStatus {
@@ -158,40 +162,6 @@ function draftPublishPhotosOk(
     if (imageUrlsFromRow(row.image_urls_json).length < 1) return false;
   }
   return true;
-}
-
-function parseStreetViewPovJson(raw: unknown): StreetViewPov | undefined {
-  if (raw == null) return undefined;
-  try {
-    const o = typeof raw === "string" ? JSON.parse(raw.trim() || "null") : raw;
-    if (!o || typeof o !== "object") return undefined;
-    const heading = Number((o as StreetViewPov).heading);
-    const pitch = Number((o as StreetViewPov).pitch);
-    const zoom = Number((o as StreetViewPov).zoom);
-    if (!Number.isFinite(heading) || !Number.isFinite(pitch) || !Number.isFinite(zoom)) {
-      return undefined;
-    }
-    return {
-      heading: ((heading % 360) + 360) % 360,
-      pitch: Math.max(-90, Math.min(90, pitch)),
-      zoom: Math.max(0, Math.min(4, zoom)),
-    };
-  } catch {
-    return undefined;
-  }
-}
-
-function streetViewPovFromBody(body: unknown): StreetViewPov | null | undefined {
-  if (body === undefined) return undefined;
-  if (body === null) return null;
-  const parsed = parseStreetViewPovJson(body);
-  if (!parsed) throw new Error("bad_pov");
-  return parsed;
-}
-
-function serializeStreetViewPovJson(pov: StreetViewPov | null | undefined): string | null {
-  if (pov == null) return null;
-  return JSON.stringify(pov);
 }
 
 function rowToProperty(row: Record<string, unknown>): Property {

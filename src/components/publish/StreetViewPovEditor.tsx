@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { googleMapsApiKey, loadGoogleMapsScript } from "@/lib/googleMapsLoader";
 import { trackDynamicStreetViewSession } from "@/lib/streetViewTelemetry";
 import type { StreetViewPov } from "@/types/listing";
+import { streetViewFovFromZoom } from "@/lib/streetView";
 
 type Props = {
   lat: number;
@@ -13,11 +14,25 @@ type Props = {
 
 function readPanoramaPov(panorama: google.maps.StreetViewPanorama): StreetViewPov {
   const p = panorama.getPov();
-  return {
+  const zoom = Number.isFinite(panorama.getZoom()) ? panorama.getZoom() : 1;
+  const pos = panorama.getPosition();
+  const pov: StreetViewPov = {
     heading: Number.isFinite(p.heading) ? p.heading : 0,
     pitch: Number.isFinite(p.pitch) ? p.pitch : 0,
-    zoom: Number.isFinite(panorama.getZoom()) ? panorama.getZoom() : 1,
+    zoom,
+    fov: streetViewFovFromZoom(zoom),
   };
+  const pano = panorama.getPano()?.trim();
+  if (pano) pov.pano = pano;
+  if (pos) {
+    const panoLat = pos.lat();
+    const panoLng = pos.lng();
+    if (Number.isFinite(panoLat) && Number.isFinite(panoLng)) {
+      pov.panoLat = panoLat;
+      pov.panoLng = panoLng;
+    }
+  }
+  return pov;
 }
 
 export function StreetViewPovEditor({
@@ -95,6 +110,8 @@ export function StreetViewPovEditor({
           };
           listeners.push(panorama.addListener("pov_changed", syncPov));
           listeners.push(panorama.addListener("zoom_changed", syncPov));
+          listeners.push(panorama.addListener("pano_changed", syncPov));
+          listeners.push(panorama.addListener("position_changed", syncPov));
           syncPov();
           if (!sessionTrackedRef.current) {
             sessionTrackedRef.current = true;

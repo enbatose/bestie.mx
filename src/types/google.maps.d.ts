@@ -62,6 +62,8 @@ declare namespace google.maps {
     setPov(pov: StreetViewPov): void;
     getZoom(): number;
     setZoom(zoom: number): void;
+    getPano(): string;
+    getPosition(): LatLng | null | undefined;
     setPosition(latLng: LatLngLiteral): void;
     setPano(pano: string): void;
   }

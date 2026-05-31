@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
+import { streetViewPovCacheKey } from "@/lib/streetView";
 import { PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import type { PropertyListing } from "@/types/listing";
@@ -41,7 +42,7 @@ function ReadOnlyLocationMap({
 export function PublicListingLocationMap({ listing, isApproximateLocation = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
-  const showStreetView = !hideExactAddress;
+  const showStreetView = !hideExactAddress && Boolean(listing.streetViewPov);
   const gridClass = showStreetView ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "grid grid-cols-1 gap-4";
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
         </div>
         {showStreetView ? (
           <GoogleStreetViewPane
-            key={`${listing.lat},${listing.lng},${listing.streetViewPov?.heading ?? ""},${listing.streetViewPov?.pitch ?? ""},${listing.streetViewPov?.zoom ?? ""}`}
+            key={streetViewPovCacheKey(listing.streetViewPov) || `${listing.lat},${listing.lng}`}
             lat={listing.lat}
             lng={listing.lng}
             streetViewPov={listing.streetViewPov}
