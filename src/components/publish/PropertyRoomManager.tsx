@@ -210,33 +210,35 @@ function OccupiedRoomFields({
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-muted">Ocupado por —</span>
-        <button
-          type="button"
-          onClick={() => onChange({ occupantWomenCount: 1, occupantMenCount: 0 })}
-          className={chipClass(women === 1 && men === 0)}
-        >
-          1 Mujer
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange({ occupantMenCount: 1, occupantWomenCount: 0 })}
-          className={chipClass(men === 1 && women === 0)}
-        >
-          1 Hombre
-        </button>
         {!needsDetailSteppers ? (
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                occupantWomenCount: women > 0 ? Math.max(2, women) : 2,
-                occupantMenCount: men,
-              })
-            }
-            className="rounded-full px-2 py-1 text-xs font-medium text-muted transition hover:bg-surface-elevated hover:text-body"
-          >
-            Más de una persona
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => onChange({ occupantWomenCount: 1, occupantMenCount: 0 })}
+              className={chipClass(women === 1 && men === 0)}
+            >
+              1 Mujer
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ occupantMenCount: 1, occupantWomenCount: 0 })}
+              className={chipClass(men === 1 && women === 0)}
+            >
+              1 Hombre
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  occupantWomenCount: women > 0 ? Math.max(2, women) : 2,
+                  occupantMenCount: men,
+                })
+              }
+              className="rounded-full px-2 py-1 text-xs font-medium text-muted transition hover:bg-surface-elevated hover:text-body"
+            >
+              Más de una persona
+            </button>
+          </>
         ) : null}
       </div>
 
