@@ -1,9 +1,15 @@
 import type { StreetViewPov } from "@/types/listing";
 
+/** Maps Embed API accepts fov between 10° and 100° (Street View JS zoom 0 maps to 180°). */
+const EMBED_FOV_MIN = 10;
+const EMBED_FOV_MAX = 100;
+
 /** Convert Street View zoom (0–4) to embed API field-of-view degrees. */
 export function streetViewFovFromZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return 90;
   const z = Math.max(0, Math.min(4, zoom));
-  return 180 / 2 ** z;
+  const fov = 180 / 2 ** z;
+  return Math.max(EMBED_FOV_MIN, Math.min(EMBED_FOV_MAX, fov));
 }
 
 /** External Street View tab (no Maps JavaScript API). */
