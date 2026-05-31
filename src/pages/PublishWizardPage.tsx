@@ -1407,7 +1407,7 @@ export function PublishWizardPage() {
                 <strong className="text-primary">Solo propiedad y áreas comunes.</strong> En este paso describe la
                 vivienda en general — sala, cocina, jardín, convivencia, etc. — y sube fotos de espacios compartidos.{" "}
                 <strong className="text-body">No incluyas detalles ni fotos por habitación</strong>; cada recámara se
-                completa en el siguiente paso, <strong className="text-body">Administrador de recámaras</strong>.
+                completa en el siguiente paso.
               </p>
             ) : null}
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">

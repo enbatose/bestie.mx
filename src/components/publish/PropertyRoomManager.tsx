@@ -606,15 +606,15 @@ export function PropertyRoomManager({
         </p>
       </div>
 
-      {roomOrder.map((i, displayIndex) => {
+      {roomOrder.map((i) => {
         const room = draft.rooms[i]!;
-        const displayNumber = displayIndex + 1;
+        const roomNumber = i + 1;
         const expanded = expandedRoomIndex === i;
         const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
-        const contextLabel = propertyRoomContextLabel(displayNumber, totalBedrooms, !available);
+        const contextLabel = propertyRoomContextLabel(roomNumber, totalBedrooms, !available);
         const roomLabel =
-          room.customName?.trim() || room.title?.trim() || propertyRoomDefaultTitle(displayNumber);
+          room.customName?.trim() || room.title?.trim() || propertyRoomDefaultTitle(roomNumber);
         const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
           issues.length
             ? "border-amber-300/80 ring-amber-200/60"
@@ -646,7 +646,7 @@ export function PropertyRoomManager({
                   <div className="mt-1">
                     <RoomTitleInlineEditor
                       room={room}
-                      displayNumber={displayNumber}
+                      displayNumber={roomNumber}
                       onUpdate={(patch) => onUpdateRoom(i, patch)}
                       stopClickPropagation
                     />
@@ -723,7 +723,7 @@ export function PropertyRoomManager({
                 <div className="mt-1">
                   <RoomTitleInlineEditor
                     room={room}
-                    displayNumber={displayNumber}
+                    displayNumber={roomNumber}
                     onUpdate={(patch) => onUpdateRoom(i, patch)}
                     stopClickPropagation
                   />
