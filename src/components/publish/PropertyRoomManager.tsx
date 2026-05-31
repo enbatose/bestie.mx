@@ -16,7 +16,6 @@ import {
 import {
   collectRoomFieldIssues,
   roomValidationIssuesByIndex,
-  roomWizardLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { isRoomAvailableForRent, occupancyStatusLabel } from "@/lib/roomDisplay";
 import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
@@ -104,10 +103,13 @@ function RoomTitleInlineEditor({
   room,
   displayNumber,
   onUpdate,
+  stopClickPropagation = false,
 }: {
   room: RoomDraft;
   displayNumber: number;
   onUpdate: (patch: Partial<RoomDraft>) => void;
+  /** Prevents accordion toggle when editing from the card header. */
+  stopClickPropagation?: boolean;
 }) {
   const fallbackTitle = propertyRoomDefaultTitle(displayNumber);
   const resolvedTitle = room.customName?.trim() || room.title?.trim() || fallbackTitle;
@@ -117,6 +119,10 @@ function RoomTitleInlineEditor({
   useEffect(() => {
     if (!editing) setDraftTitle(resolvedTitle);
   }, [resolvedTitle, editing]);
+
+  const stopBubble = (e: { stopPropagation(): void }) => {
+    if (stopClickPropagation) e.stopPropagation();
+  };
 
   const commitTitle = () => {
     const trimmed = draftTitle.trim();
@@ -129,7 +135,7 @@ function RoomTitleInlineEditor({
 
   if (editing) {
     return (
-      <label className="block text-sm font-medium text-body">
+      <label className="block text-sm font-medium text-body" onClick={stopBubble}>
         Título de la habitación
         <span className="text-red-600"> *</span>
         <input
@@ -137,7 +143,9 @@ function RoomTitleInlineEditor({
           value={draftTitle}
           onChange={(e) => setDraftTitle(e.target.value)}
           onBlur={commitTitle}
+          onClick={stopBubble}
           onKeyDown={(e) => {
+            stopBubble(e);
             if (e.key === "Enter") {
               e.preventDefault();
               (e.target as HTMLInputElement).blur();
@@ -159,12 +167,14 @@ function RoomTitleInlineEditor({
       <span className="text-base font-bold text-primary">{resolvedTitle}</span>
       <button
         type="button"
-        onClick={() => setEditing(true)}
-        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+        onClick={(e) => {
+          if (stopClickPropagation) e.stopPropagation();
+          setEditing(true);
+        }}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/5 text-primary transition hover:bg-primary/10"
         aria-label={`Editar título de ${fallbackTitle}`}
       >
         <Pencil className="size-3.5" aria-hidden />
-        Editar
       </button>
     </div>
   );
@@ -594,17 +604,29 @@ export function PropertyRoomManager({
 
         return (
           <div key={room.id} className={cardClass}>
-            <button
-              type="button"
-              aria-expanded={expanded}
-              onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
-              className="flex w-full items-start justify-between gap-3 p-4 text-left"
-            >
-              <div className="min-w-0 flex-1">
+            <div className="flex w-full items-start justify-between gap-3 p-4">
+              <div
+                className="min-w-0 flex-1 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-expanded={expanded}
+                onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onExpandedRoomIndexChange(expanded ? null : i);
+                  }
+                }}
+              >
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">{contextLabel}</p>
-                <p className="mt-1 text-base font-bold text-primary">
-                  {roomWizardLabel(draft, room, i, displayNumber)}
-                </p>
+                <div className="mt-1">
+                  <RoomTitleInlineEditor
+                    room={room}
+                    displayNumber={displayNumber}
+                    onUpdate={(patch) => onUpdateRoom(i, patch)}
+                    stopClickPropagation
+                  />
+                </div>
                 {!expanded && issues.length > 0 ? (
                   <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                 ) : null}
@@ -614,12 +636,20 @@ export function PropertyRoomManager({
               </div>
               <span className="inline-flex shrink-0 items-center gap-2">
                 <RoomStatusBadges available issues={issues} />
-                <ChevronDown
-                  className={`size-5 text-muted transition ${expanded ? "rotate-180" : ""}`}
-                  aria-hidden
-                />
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
+                  onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
+                  className="rounded-lg p-1 text-muted transition hover:bg-surface-elevated"
+                >
+                  <ChevronDown
+                    className={`size-5 transition ${expanded ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                </button>
               </span>
-            </button>
+            </div>
 
             {expanded ? (
               <div className="border-t border-border px-4 pb-4">
@@ -636,11 +666,6 @@ export function PropertyRoomManager({
                       Recámara ocupada
                     </label>
                   </div>
-                  <RoomTitleInlineEditor
-                    room={room}
-                    displayNumber={displayNumber}
-                    onUpdate={(patch) => onUpdateRoom(i, patch)}
-                  />
                   <AvailableRoomFields
                     room={room}
                     onChange={(patch) => onUpdateRoom(i, patch)}
