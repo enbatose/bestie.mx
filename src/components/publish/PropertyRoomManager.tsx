@@ -424,61 +424,63 @@ export function PropertyRoomManager({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-3">
-        <h3 className="text-[15px] font-bold text-primary">Capacidad de la propiedad</h3>
-        {propertyKind === "loft" ? (
-          <p className="text-sm text-muted">
-            Un loft cuenta como <strong className="text-body">1 recámara</strong> en total (ocupadas y disponibles).
-          </p>
-        ) : (
-          <div className="block text-sm font-medium text-body">
-            <span className="block">
-              ¿Cuántas recámaras tiene la propiedad?
+      <div className="rounded-xl border border-border bg-bg-light p-4 shadow-sm">
+        <h3 className="text-[15px] font-bold text-primary">Recámaras de la propiedad</h3>
+        <p className="mt-1 text-xs text-muted leading-snug">
+          {propertyKind === "loft"
+            ? "Loft = 1 recámara en total."
+            : "Total habitadas + disponibles; luego indica cuántas publicarás en renta."}
+        </p>
+
+        <div
+          className={`mt-3 grid gap-4 ${propertyKind === "loft" ? "max-w-xs" : "sm:grid-cols-2 sm:gap-6"}`}
+        >
+          {propertyKind !== "loft" ? (
+            <label className="block text-sm font-medium text-body">
+              <span className="block text-xs text-muted">Total en la propiedad</span>
+              <span className="mt-0.5 block">
+                Recámaras
+                <span className="text-red-600"> *</span>
+              </span>
+              <WizardNumberStepper
+                compact
+                value={Math.min(propertyBedroomsMax, Math.max(1, propertyBedroomsTotal))}
+                min={1}
+                max={propertyBedroomsMax}
+                onChange={onBedroomTotalChange}
+                decrementLabel="Menos recámaras"
+                incrementLabel="Más recámaras"
+              />
+            </label>
+          ) : null}
+
+          <label className="block text-sm font-medium text-body">
+            <span className="block text-xs text-muted">
+              {propertyKind === "loft" ? "De 1 recámara en total" : `De ${totalBedrooms} en total`}
+            </span>
+            <span className="mt-0.5 block">
+              En renta ahora
               <span className="text-red-600"> *</span>
             </span>
             <WizardNumberStepper
-              value={Math.min(propertyBedroomsMax, Math.max(1, propertyBedroomsTotal))}
-              min={1}
-              max={propertyBedroomsMax}
-              onChange={onBedroomTotalChange}
-              decrementLabel="Menos recámaras"
-              incrementLabel="Más recámaras"
+              compact
+              value={rentCount}
+              min={0}
+              max={totalBedrooms}
+              onChange={onRentRoomCountChange}
+              decrementLabel="Menos recámaras en renta"
+              incrementLabel="Más recámaras en renta"
             />
-            <span className="mt-1 block text-xs text-muted">
-              Incluye recámaras habitadas y disponibles para renta.
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-3">
-        <h3 className="text-[15px] font-bold text-primary">Recámaras en renta</h3>
-        <p className="text-sm text-muted">
-          De las{" "}
-          <strong className="text-body">
-            {totalBedrooms} {totalBedrooms === 1 ? "recámara" : "recámaras"}
-          </strong>{" "}
-          en total, ¿cuántas publicarás en renta ahora?
-        </p>
-        <div className="block text-sm font-medium text-body">
-          <span className="block">
-            Recámaras disponibles para renta
-            <span className="text-red-600"> *</span>
-          </span>
-          <WizardNumberStepper
-            value={rentCount}
-            min={0}
-            max={totalBedrooms}
-            onChange={onRentRoomCountChange}
-            decrementLabel="Menos recámaras en renta"
-            incrementLabel="Más recámaras en renta"
-          />
-          <span className="mt-1 block text-xs text-muted">
-            {occupiedCount > 0
-              ? `${occupiedCount} ${occupiedCount === 1 ? "recámara queda ocupada" : "recámaras quedan ocupadas"} — indica quién vive en cada una abajo.`
-              : "Todas las recámaras quedarán disponibles para renta."}
-          </span>
+          </label>
         </div>
+
+        <p className="mt-3 text-xs text-muted leading-snug">
+          {occupiedCount > 0
+            ? `${occupiedCount} ocupada${occupiedCount === 1 ? "" : "s"} — completa quién vive en cada una abajo.`
+            : rentCount === totalBedrooms
+              ? "Todas quedarán disponibles para renta."
+              : `${totalBedrooms - rentCount} quedarán marcadas como ocupadas.`}
+        </p>
       </div>
 
       {roomOrder.map((i) => {

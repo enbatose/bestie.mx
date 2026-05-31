@@ -14,6 +14,8 @@ type WizardNumberStepperProps = {
   step?: number;
   /** Max digits while typing (e.g. 2 for ages 0–99). */
   maxInputDigits?: number;
+  /** Narrow layout for side-by-side wizard fields. */
+  compact?: boolean;
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -35,6 +37,7 @@ export function WizardNumberStepper({
   editableCenter = false,
   step = 1,
   maxInputDigits,
+  compact = false,
 }: WizardNumberStepperProps) {
   const [inputStr, setInputStr] = useState(String(value));
 
@@ -92,23 +95,29 @@ export function WizardNumberStepper({
       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0 text-center text-sm font-semibold tabular-nums text-body outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
     />
   ) : (
-    <div className="flex min-w-[2.5rem] flex-1 items-center justify-center border-x border-border text-sm font-semibold tabular-nums text-body">
+    <div
+      className={`flex items-center justify-center border-x border-border text-sm font-semibold tabular-nums text-body ${
+        compact ? "min-w-[2rem] px-2" : "min-w-[2.5rem] flex-1"
+      }`}
+    >
       {value}
     </div>
   );
 
   return (
     <div
-      className={`mt-2 flex h-11 items-stretch overflow-hidden rounded-xl border border-border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0 ${
-        disabled ? "opacity-70" : ""
-      }`}
+      className={`flex items-stretch overflow-hidden rounded-xl border border-border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0 ${
+        compact ? "mt-1 h-10 w-[8.5rem] max-w-full" : "mt-2 h-11"
+      } ${disabled ? "opacity-70" : ""}`}
     >
       <button
         type="button"
         aria-label={decrementLabel}
         disabled={disabled || atMin}
         onClick={dec}
-        className="min-w-[2.75rem] px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40"
+        className={`px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40 ${
+          compact ? "min-w-[2.25rem]" : "min-w-[2.75rem]"
+        }`}
       >
         −
       </button>
@@ -118,7 +127,9 @@ export function WizardNumberStepper({
         aria-label={incrementLabel}
         disabled={disabled || atMax}
         onClick={inc}
-        className="min-w-[2.75rem] px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40"
+        className={`px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40 ${
+          compact ? "min-w-[2.25rem]" : "min-w-[2.75rem]"
+        }`}
       >
         +
       </button>
