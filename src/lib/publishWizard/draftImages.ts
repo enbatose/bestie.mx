@@ -77,13 +77,16 @@ export function draftImagesAppend(
 }
 
 export function normalizePersistedDraftImages<T extends {
+  commonAreaPhotos?: DraftImage[] | string[];
   propertyImageUrls: DraftImage[] | string[];
   unassignedImageUrls: DraftImage[] | string[];
   roomImageUrls: (DraftImage[] | string[])[];
 }>(draft: T): T {
+  const commonAreaPhotos = normalizeDraftImages(draft.commonAreaPhotos ?? draft.propertyImageUrls);
   return {
     ...draft,
-    propertyImageUrls: normalizeDraftImages(draft.propertyImageUrls),
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
     unassignedImageUrls: normalizeDraftImages(draft.unassignedImageUrls),
     roomImageUrls: draft.roomImageUrls.map((row) => normalizeDraftImages(row)),
   };

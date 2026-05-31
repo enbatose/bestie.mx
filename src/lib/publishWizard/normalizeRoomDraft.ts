@@ -1,3 +1,5 @@
+import type { DraftImage } from "@/lib/publishWizard/draftImages";
+import { normalizeDraftImages } from "@/lib/publishWizard/draftImages";
 import type { RoomDraft } from "@/pages/PublishWizardPage";
 import { newRoomDraftId } from "@/lib/roomDisplay";
 import type {
@@ -79,5 +81,6 @@ export function normalizeRoomDraft(raw: Partial<RoomDraft> | undefined | null): 
         : 1,
     roomDimension,
     rentIncludesUtilities: Boolean(r.rentIncludesUtilities),
+    photos: normalizeDraftImages(r.photos ?? []),
   };
 }

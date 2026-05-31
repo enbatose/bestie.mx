@@ -11,6 +11,7 @@ import {
 } from "@/lib/listingsApi";
 import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { ensureDraftListingImagesUploadedForApi } from "@/lib/publishWizard/draftImageUpload";
+import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
 import { listingImageUrlsForApi } from "@/lib/listingImageUrls";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
@@ -54,17 +55,26 @@ const ROOM_SUMMARY_MIN = 200;
 const ROOM_SUMMARY_MAX = 1500;
 
 const DEFAULT_PROPERTY_SUMMARY =
-  "Cuéntanos qué hace especial a la propiedad en general. Describe las zonas comunes (sala, cocina, terraza, áreas del edificio) y la convivencia. (Importante: Los detalles específicos de la recámara disponible los llenaremos en el Paso 4).";
+  "Describe cómo es la convivencia, la sala, la cocina, y las reglas generales de la casa.";
 const LEGACY_DEFAULT_PROPERTY_SUMMARY =
   "Cuéntanos qué hace especial a tu hogar. Describe la propiedad y sus zonas comunes (baños, cocina, estacionamiento), sin olvidar las reglas de convivencia y ese toque único que lo distingue.";
-
-function tagOk(t: string): t is ListingTag {
-  return LISTING_TAG_SLUG_SET.has(t);
-}
+const LEGACY_DEFAULT_PROPERTY_SUMMARY_2 =
+  "Describe la propiedad en general y sus áreas comunes: sala, cocina, terraza, jardín, estacionamiento y reglas de convivencia compartidas.";
+const LEGACY_DEFAULT_PROPERTY_SUMMARY_3 =
+  "Cuéntanos qué hace especial a la propiedad en general. Describe las zonas comunes (sala, cocina, terraza, áreas del edificio) y la convivencia. (Importante: Los detalles específicos de la recámara disponible los llenaremos en el Paso 4).";
 
 function isDefaultPropertySummarySeed(value: string) {
   const t = value.trim();
-  return t === DEFAULT_PROPERTY_SUMMARY || t === LEGACY_DEFAULT_PROPERTY_SUMMARY;
+  return (
+    t === DEFAULT_PROPERTY_SUMMARY ||
+    t === LEGACY_DEFAULT_PROPERTY_SUMMARY ||
+    t === LEGACY_DEFAULT_PROPERTY_SUMMARY_2 ||
+    t === LEGACY_DEFAULT_PROPERTY_SUMMARY_3
+  );
+}
+
+function tagOk(t: string): t is ListingTag {
+  return LISTING_TAG_SLUG_SET.has(t);
 }
 
 export function normalizeWhatsApp(s: string): string {
@@ -165,8 +175,16 @@ export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number
   return roomsAvailableFromIdealTags(room.tags);
 }
 
+export function draftCommonAreaPhotos(draft: Draft): DraftImage[] {
+  return draft.commonAreaPhotos ?? draft.propertyImageUrls ?? [];
+}
+
+export function draftRoomPhotos(draft: Draft, roomIndex: number): DraftImage[] {
+  return draft.rooms[roomIndex]?.photos ?? draft.roomImageUrls[roomIndex] ?? [];
+}
+
 export function draftPropertyImageUrls(draft: Draft): string[] {
-  return draftImagesToUrls(draft.propertyImageUrls);
+  return draftImagesToUrls(draftCommonAreaPhotos(draft));
 }
 
 export function draftPropertyImageUrlsForApi(draft: Draft): string[] {
@@ -182,7 +200,7 @@ export function draftPropertyImageUrlsForSync(draft: Draft): string[] {
 }
 
 export function draftRoomImageUrls(draft: Draft, roomIndex: number): string[] {
-  return draftImagesToUrls(draft.roomImageUrls[roomIndex] ?? []);
+  return draftImagesToUrls(draftRoomPhotos(draft, roomIndex));
 }
 
 export function draftRoomImageUrlsForApi(draft: Draft, roomIndex: number): string[] {
@@ -231,13 +249,16 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
   }
   if (d.postMode === "property") {
     if (d.propertySummary.trim().length < PROPERTY_SUMMARY_MIN) {
-      return `La descripción de la propiedad y áreas comunes debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
+      return `El ambiente y las áreas comunes debe tener al menos ${PROPERTY_SUMMARY_MIN} caracteres.`;
     }
     if (d.propertySummary.trim().length > PROPERTY_SUMMARY_MAX) {
-      return `La descripción de la propiedad no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
+      return `El ambiente y las áreas comunes no puede exceder los ${PROPERTY_SUMMARY_MAX} caracteres.`;
     }
     if (isDefaultPropertySummarySeed(d.propertySummary)) {
-      return "Sustituye el texto de ejemplo por tu propia descripción de la propiedad y las zonas comunes.";
+      return "Sustituye el texto de ejemplo por tu propia descripción del ambiente y las zonas compartidas.";
+    }
+    if (draftCommonAreaPhotos(d).length < 1) {
+      return "Sube al menos 1 foto de áreas comunes.";
     }
   }
   if (
@@ -297,6 +318,7 @@ export function locationStepInvalidReason(d: Draft): string | null {
 }
 
 export function photosStepInvalidReason(d: Draft): string | null {
+  if (d.postMode === "property") return null;
   if (d.postMode === "room") {
     if (draftRoomImageUrls(d, 0).length < 1) {
       return "Sube al menos 1 foto de tu espacio.";
@@ -305,7 +327,7 @@ export function photosStepInvalidReason(d: Draft): string | null {
   }
   const unassigned = d.unassignedImageUrls.length;
   const roomPhotos = d.roomImageUrls.reduce((sum, row) => sum + row.length, 0);
-  const shared = d.propertyImageUrls.length;
+  const shared = draftCommonAreaPhotos(d).length;
   if (unassigned + roomPhotos + shared < 1) {
     return "Sube al menos 1 foto antes de continuar.";
   }

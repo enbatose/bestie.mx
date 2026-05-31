@@ -132,6 +132,8 @@ export type Room = {
   avalRequired?: boolean;
   subletAllowed?: boolean;
   sortOrder: number;
+  /** Room-specific interior photos (persisted as `imageUrls` in API). */
+  photos?: string[];
   imageUrls?: string[];
   createdAt?: string;
   updatedAt?: string;

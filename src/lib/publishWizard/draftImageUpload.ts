@@ -33,10 +33,23 @@ async function ensureDraftImagesUploaded(images: readonly DraftImage[]): Promise
 
 /** Uploads local/seed preview URLs so sync/publish can persist `/api/uploads/...` paths. */
 export async function ensureDraftListingImagesUploadedForApi(draft: Draft): Promise<Draft> {
-  const propertyImageUrls = await ensureDraftImagesUploaded(draft.propertyImageUrls);
-  const unassignedImageUrls = await ensureDraftImagesUploaded(draft.unassignedImageUrls);
-  const roomImageUrls = await Promise.all(
-    draft.roomImageUrls.map((row) => ensureDraftImagesUploaded(row ?? [])),
+  const commonAreaPhotos = await ensureDraftImagesUploaded(
+    draft.commonAreaPhotos ?? draft.propertyImageUrls,
   );
-  return { ...draft, propertyImageUrls, unassignedImageUrls, roomImageUrls };
+  const unassignedImageUrls = await ensureDraftImagesUploaded(draft.unassignedImageUrls);
+  const rooms = await Promise.all(
+    draft.rooms.map(async (room, i) => ({
+      ...room,
+      photos: await ensureDraftImagesUploaded(room.photos ?? draft.roomImageUrls[i] ?? []),
+    })),
+  );
+  const roomImageUrls = rooms.map((room) => room.photos);
+  return {
+    ...draft,
+    rooms,
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
+    unassignedImageUrls,
+    roomImageUrls,
+  };
 }

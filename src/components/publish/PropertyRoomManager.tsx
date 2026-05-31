@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/publishWizard/roomWizardValidation";
 import { isRoomAvailableForRent, occupiedRoomOccupantSummary, occupancyStatusLabel } from "@/lib/roomDisplay";
 import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
+import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
@@ -29,7 +31,7 @@ const ROOM_SUMMARY_MAX = 1500;
 const ROOM_OCCUPANT_MAX = 12;
 
 const ROOM_SUMMARY_PLACEHOLDER =
-  "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies.";
+  "Describe el tamaño, la iluminación, si tiene clóset, y qué incluye.";
 
 type Props = {
   draft: Draft;
@@ -44,7 +46,9 @@ type Props = {
   onRentRoomCountChange: (count: number) => void;
   onOccupancyStatusChange: (roomIndex: number, status: RoomOccupancyStatus) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
+  onRoomPhotosChange: (roomIndex: number, photos: DraftImage[]) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
+  apiOn?: boolean;
   showSaveProgress?: boolean;
   onSaveProgress?: () => void;
   saveProgressInFlight?: boolean;
@@ -258,12 +262,18 @@ function OccupiedRoomFields({
 
 function AvailableRoomFields({
   room,
+  roomLabel,
   onChange,
   onToggleTag,
+  onPhotosChange,
+  apiOn = false,
 }: {
   room: RoomDraft;
+  roomLabel: string;
   onChange: (patch: Partial<RoomDraft>) => void;
   onToggleTag: (tag: ListingTag, active: boolean) => void;
+  onPhotosChange: (photos: DraftImage[]) => void;
+  apiOn?: boolean;
 }) {
   return (
     <>
@@ -432,27 +442,37 @@ function AvailableRoomFields({
       </div>
 
       <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
-        <h3 className="text-sm font-bold text-primary">Detalles de la recámara</h3>
-        <label className="block text-sm font-medium text-body">
-          Descripción de la recámara
+        <h3 className="text-sm font-bold text-primary">
+          Detalles de esta recámara
           <span className="text-red-600"> *</span>
-          <textarea
-            value={room.summary}
-            onChange={(e) => onChange({ summary: e.target.value })}
-            rows={3}
-            maxLength={ROOM_SUMMARY_MAX}
-            placeholder={ROOM_SUMMARY_PLACEHOLDER}
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
-          />
-          <span
-            className={`mt-1 block text-xs ${
-              room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-amber-700" : "text-muted"
-            }`}
-          >
-            {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
-          </span>
-        </label>
-        <div className="mt-3 space-y-4">
+        </h3>
+        <textarea
+          value={room.summary}
+          onChange={(e) => onChange({ summary: e.target.value })}
+          rows={3}
+          maxLength={ROOM_SUMMARY_MAX}
+          placeholder={ROOM_SUMMARY_PLACEHOLDER}
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+        />
+        <span
+          className={`block text-xs ${
+            room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-amber-700" : "text-muted"
+          }`}
+        >
+          {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
+        </span>
+        <BulkImageUploader
+          title={`Fotos de ${roomLabel}`}
+          images={room.photos}
+          maxCount={20}
+          apiOn={apiOn}
+          hint="Solo el interior de esta recámara. No incluyas sala, cocina ni otras áreas comunes."
+          onImagesChange={onPhotosChange}
+        />
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+        <div className="space-y-4">
           {ROOM_TAG_GROUPS.map((group) => (
             <div key={group.title}>
               <p className="text-sm font-medium text-body">
@@ -500,7 +520,9 @@ export function PropertyRoomManager({
   onRentRoomCountChange,
   onOccupancyStatusChange,
   onUpdateRoom,
+  onRoomPhotosChange,
   onToggleTag,
+  apiOn = false,
   showSaveProgress = false,
   onSaveProgress,
   saveProgressInFlight = false,
@@ -591,6 +613,8 @@ export function PropertyRoomManager({
         const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
         const contextLabel = propertyRoomContextLabel(displayNumber, totalBedrooms, !available);
+        const roomLabel =
+          room.customName?.trim() || room.title?.trim() || propertyRoomDefaultTitle(displayNumber);
         const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
           issues.length
             ? "border-amber-300/80 ring-amber-200/60"
@@ -745,7 +769,10 @@ export function PropertyRoomManager({
                   </div>
                   <AvailableRoomFields
                     room={room}
+                    roomLabel={roomLabel}
+                    apiOn={apiOn}
                     onChange={(patch) => onUpdateRoom(i, patch)}
+                    onPhotosChange={(photos) => onRoomPhotosChange(i, photos)}
                     onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
                   />
                   <p className="text-xs text-muted">

@@ -50,9 +50,9 @@ export function clearPublishPreviewSession(): void {
 
 /** Last step index in the wizard for the current post mode. */
 export function publishWizardLastStepIndex(postMode: Draft["postMode"]): number {
-  return postMode === "property" ? 6 : 5;
+  return postMode === "property" ? 4 : 5;
 }
 
 export function publishWizardPhotosStepIndex(postMode: Draft["postMode"]): number {
-  return 4;
+  return postMode === "room" ? 4 : -1;
 }

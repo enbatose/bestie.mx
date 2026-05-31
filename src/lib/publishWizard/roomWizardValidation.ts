@@ -78,11 +78,18 @@ export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number
 
   const summaryTrim = room.summary.trim();
   if (!summaryTrim) {
-    issues.push("Descripción de la recámara");
+    issues.push("Detalles de esta recámara");
   } else if (summaryTrim.length < ROOM_SUMMARY_MIN) {
-    issues.push(`Descripción (mínimo ${ROOM_SUMMARY_MIN} caracteres)`);
+    issues.push(`Detalles de esta recámara (mínimo ${ROOM_SUMMARY_MIN} caracteres)`);
   } else if (summaryTrim.length > ROOM_SUMMARY_MAX) {
-    issues.push(`Descripción (máximo ${ROOM_SUMMARY_MAX} caracteres)`);
+    issues.push(`Detalles de esta recámara (máximo ${ROOM_SUMMARY_MAX} caracteres)`);
+  }
+
+  if (d.postMode === "property") {
+    const photos = room.photos ?? d.roomImageUrls[_index] ?? [];
+    if (photos.length < 1) {
+      issues.push("Al menos 1 foto de la recámara");
+    }
   }
 
   if (!room.tags.some((t) => isRoomIdealParaTag(t))) {

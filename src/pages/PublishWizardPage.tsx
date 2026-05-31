@@ -30,9 +30,8 @@ import {
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
 import {
-  draftImagesAppend,
-  draftImagesWithoutUrl,
   hydrateDraftImagesFromUrls,
+  normalizeDraftImages,
   normalizePersistedDraftImages,
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
@@ -49,7 +48,6 @@ import {
   propertyGeneralStepInvalidReason,
   resolveLatLngForDraft,
   showWizardPropertyBathroomsField,
-  tagPhotosStepInvalidReason,
   validateRoomsForSubmit,
   validateWizardStepByTitle,
   wizardContactDigits,
@@ -65,9 +63,8 @@ import {
   syncPropertyRoomSlotsToTotal,
 } from "@/lib/publishWizard/propertyRoomSlots";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
-import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { TAG_LABELS } from "@/lib/searchFilters";
 import { newRoomDraftId } from "@/lib/roomDisplay";
+import { TAG_LABELS } from "@/lib/searchFilters";
 import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 import type {
   ListingStatus,
@@ -116,6 +113,23 @@ const WIZARD_STEP3_TAG_SET = PROPERTY_SCOPE_TAG_SET;
 const WIZARD_STEP4_TAG_LABELS = LISTING_TAG_LABEL_OVERRIDES;
 const WIZARD_ROOM_TAG_GROUPS = ROOM_TAG_GROUPS;
 
+function syncDraftPhotoFields(d: Draft): Draft {
+  const commonAreaPhotos = normalizeDraftImages(d.commonAreaPhotos ?? d.propertyImageUrls ?? []);
+  const legacyRows = d.roomImageUrls ?? [];
+  const rooms = d.rooms.map((room, i) => ({
+    ...room,
+    photos: normalizeDraftImages(room.photos ?? legacyRows[i] ?? []),
+  }));
+  const roomImageUrls = rooms.map((r) => r.photos);
+  return {
+    ...d,
+    rooms,
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
+    roomImageUrls,
+  };
+}
+
 function normalizePersistedDraft(d: Draft): Draft {
   const migrated = migrateDraftTagScopes(normalizePersistedDraftImages(d));
   const rooms = (migrated.rooms ?? []).map((room) => normalizeRoomDraft(room));
@@ -123,10 +137,11 @@ function normalizePersistedDraft(d: Draft): Draft {
   while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
   const base: Draft = {
     ...migrated,
+    commonAreaPhotos: normalizeDraftImages(migrated.commonAreaPhotos ?? migrated.propertyImageUrls ?? []),
     rooms: rooms.length ? rooms : [defaultRoom()],
     roomImageUrls: roomImageUrls.slice(0, rooms.length || 1),
   };
-  return normalizePropertyRoomSlots(base);
+  return syncDraftPhotoFields(normalizePropertyRoomSlots(base));
 }
 
 function normalizePropertyRoomSlots(d: Draft): Draft {
@@ -253,6 +268,8 @@ export type RoomDraft = {
   roomDimension: RoomDimension;
   /** Renta incluye servicios (independiente de los chips Wi‑Fi / agua / luz / gas del paso 3). */
   rentIncludesUtilities: boolean;
+  /** Room-specific photos (interior); distinct from property common areas. */
+  photos: DraftImage[];
 };
 
 export type Draft = {
@@ -277,8 +294,13 @@ export type Draft = {
   customLat: string;
   customLng: string;
   /**
+   * Shared-area / facade photos for property posts.
+   * Legacy alias: `propertyImageUrls` (kept in sync when persisting drafts).
+   */
+  commonAreaPhotos: DraftImage[];
+  /**
    * Tagged property images (shared areas / facade) — `/api/uploads/...` from server.
-   * Note: we don't persist per-image tags yet; this is the post-tagging bucket.
+   * @deprecated Prefer `commonAreaPhotos`; kept in sync for legacy draft JSON.
    */
   propertyImageUrls: DraftImage[];
   /** Untagged pool (mandatory to tag for property-mode before publishing). */
@@ -316,10 +338,11 @@ const defaultRoom = (): RoomDraft => ({
   minimalStayMonths: 1,
   roomDimension: "medium",
   rentIncludesUtilities: false,
+  photos: [],
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
-  "Describe la propiedad en general y sus áreas comunes: sala, cocina, terraza, jardín, estacionamiento y reglas de convivencia compartidas.";
+  "Describe cómo es la convivencia, la sala, la cocina, y las reglas generales de la casa.";
 
 /** Previous wizard placeholder; still treated as “example text” so borradores viejos piden sustitución. */
 const LEGACY_DEFAULT_PROPERTY_SUMMARY =
@@ -349,6 +372,7 @@ const defaultDraft = (): Draft => ({
   customLat: "",
   customLng: "",
   propertyImageUrls: [],
+  commonAreaPhotos: [],
   unassignedImageUrls: [],
   roomImageUrls: [[]],
   propertyTags: [],
@@ -439,11 +463,9 @@ function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
 
   if (validateRoomsForSubmit(draft)) return 3;
 
-  if (photosStepInvalidReason(draft)) return 4;
+  if (draft.postMode === "room" && photosStepInvalidReason(draft)) return 4;
 
-  if (draft.postMode === "property" && tagPhotosStepInvalidReason(draft)) return 5;
-
-  return draft.postMode === "property" ? 6 : 5;
+  return draft.postMode === "property" ? 4 : 5;
 }
 
 function pickCity(city: string): (typeof CITIES)[number] {
@@ -575,6 +597,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           availableFrom: (r.availableFrom ?? isoDateInMexicoCity()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
           roomDimension: r.roomDimension ?? "medium",
+          photos: hydrateDraftImagesFromUrls(r.photos ?? r.imageUrls ?? []),
         }),
         )
       : [defaultRoom()];
@@ -625,11 +648,12 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     useCustomMapPin: usePin,
     customLat: usePin ? String(p.lat) : "",
     customLng: usePin ? String(p.lng) : "",
-    propertyImageUrls: hydrateDraftImagesFromUrls(p.imageUrls ?? []),
+    propertyImageUrls: hydrateDraftImagesFromUrls(p.commonAreaPhotos ?? p.imageUrls ?? []),
+    commonAreaPhotos: hydrateDraftImagesFromUrls(p.commonAreaPhotos ?? p.imageUrls ?? []),
     unassignedImageUrls: [],
     roomImageUrls:
       srvRooms.length > 0
-        ? srvRooms.map((r) => hydrateDraftImagesFromUrls(r.imageUrls ?? []))
+        ? srvRooms.map((r) => hydrateDraftImagesFromUrls(r.photos ?? r.imageUrls ?? []))
         : [[]],
     propertyTags,
     rooms: roomDrafts,
@@ -1381,10 +1405,9 @@ export function PublishWizardPage() {
             {draft.postMode === "property" ? (
               <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm leading-snug text-body">
                 <strong className="text-primary">Solo propiedad y áreas comunes.</strong> En este paso describe la
-                vivienda en general — sala, cocina, jardín, convivencia, etc.{" "}
-                <strong className="text-body">No incluyas detalles por habitación</strong>; la descripción de cada
-                recámara la completarás en el siguiente paso,{" "}
-                <strong className="text-body">Administrador de recámaras</strong>.
+                vivienda en general — sala, cocina, jardín, convivencia, etc. — y sube fotos de espacios compartidos.{" "}
+                <strong className="text-body">No incluyas detalles ni fotos por habitación</strong>; cada recámara se
+                completa en el siguiente paso, <strong className="text-body">Administrador de recámaras</strong>.
               </p>
             ) : null}
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
@@ -1424,7 +1447,7 @@ export function PublishWizardPage() {
               {draft.postMode === "property" ? (
                 <>
                   <label className="block text-sm font-medium text-body">
-                    Descripción de la propiedad y áreas comunes
+                    El ambiente y las áreas comunes
                     <span className="text-red-600"> *</span>
                     <textarea
                       value={draft.propertySummary}
@@ -1435,10 +1458,31 @@ export function PublishWizardPage() {
                       className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                     />
                     <span className="mt-1 block text-xs text-muted">
-                      Mínimo {PROPERTY_SUMMARY_MIN} caracteres · Solo propiedad y áreas comunes (la descripción por
-                      recámara va en el paso 4) · {draft.propertySummary.trim().length} ahora
+                      Mínimo {PROPERTY_SUMMARY_MIN} caracteres · Solo convivencia y zonas compartidas (cada recámara
+                      se describe en el paso 4) · {draft.propertySummary.trim().length} ahora
                     </span>
                   </label>
+
+                  <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                    <div className="mb-4 border-l-4 border-blue-500 bg-blue-50 p-4 text-sm leading-snug text-body">
+                      🚨 <strong>Solo áreas compartidas.</strong> Sube aquí fotos de la sala, cocina, baños
+                      compartidos y exteriores. Te pediremos las fotos específicas de cada recámara en el siguiente paso.
+                    </div>
+                    <BulkImageUploader
+                      title="Fotos de áreas comunes"
+                      images={draft.commonAreaPhotos}
+                      maxCount={40}
+                      apiOn={apiOn}
+                      hint="Sala, cocina, baños compartidos, lavandería, estacionamiento, fachada y jardín."
+                      onImagesChange={(next) =>
+                        setDraft((d) => ({
+                          ...d,
+                          commonAreaPhotos: next,
+                          propertyImageUrls: next,
+                        }))
+                      }
+                    />
+                  </div>
                 </>
               ) : null}
             </div>
@@ -1607,6 +1651,14 @@ export function PublishWizardPage() {
                 }))
               }
               onUpdateRoom={updateRoom}
+              onRoomPhotosChange={(roomIndex, photos) =>
+                setDraft((d) =>
+                  syncDraftPhotoFields({
+                    ...d,
+                    rooms: d.rooms.map((room, i) => (i === roomIndex ? { ...room, photos } : room)),
+                  }),
+                )
+              }
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
@@ -1614,6 +1666,7 @@ export function PublishWizardPage() {
               saveProgressInFlight={submitInFlight === "draft"}
               saveProgressSaved={wizardDraftSaveNote === "saved"}
               showSaveProgress={apiOn}
+              apiOn={apiOn}
             />
           ) : (
           <div className="space-y-6">
@@ -1945,247 +1998,34 @@ export function PublishWizardPage() {
           </div>
           ),
       },
-      {
-        title: "Fotos",
-        body: (
-          <form className="space-y-6">
-            {draft.postMode === "property" ? (
-              <>
-                <div className="rounded-xl border border-secondary/30 bg-secondary/5 p-4 px-5 shadow-sm">
-                  <h3 className="text-[15px] font-bold text-primary">Organiza tus fotos</h3>
-                  <p className="mt-1 text-sm text-muted">
-                    Sube fotos en dos bloques: primero las{" "}
-                    <strong className="text-body">áreas comunes</strong> de la propiedad y después una galería por
-                    cada <strong className="text-body">recámara en renta</strong>. No mezcles fotos de recámaras con
-                    las de sala, cocina o fachada.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
-                    Áreas comunes
-                  </p>
-                  <h3 className="text-[15px] font-bold text-primary">Fotos de espacios compartidos</h3>
-                  <p className="text-sm text-muted">
-                    Sala, comedor, cocina, baños compartidos, lavandería, estacionamiento, fachada y jardín.{" "}
-                    <strong className="text-body">No subas aquí fotos del interior de recámaras individuales.</strong>
-                  </p>
-                  <BulkImageUploader
-                    title="Áreas comunes y fachada"
-                    images={draft.propertyImageUrls}
-                    maxCount={40}
-                    apiOn={apiOn}
-                    hint="Espacios que comparten todos los roomies."
-                    onImagesChange={(next) => setDraft((d) => ({ ...d, propertyImageUrls: next }))}
-                  />
-                </div>
-
-                {draft.rooms.map((room, i) => {
-                  const available = room.occupancyStatus !== "occupied";
-                  return (
-                  <div
-                    key={room.id}
-                    className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4"
-                  >
-                    <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
-                      {available ? `Recámara en renta ${i + 1}` : `Recámara ocupada ${i + 1}`}
-                    </p>
-                    <h3 className="text-[15px] font-bold text-primary">
-                      Fotos de {room.customName?.trim() || room.title?.trim() || `Recámara ${i + 1}`}
-                    </h3>
-                    <p className="text-sm text-muted">
-                      {available
-                        ? "Solo el interior de esta recámara: cama, clóset, ventanas, escritorio y baño privado si aplica."
-                        : "Opcional mientras esté ocupada — conservamos estas fotos para cuando vuelva a estar en renta."}
-                    </p>
-                    <BulkImageUploader
-                      title={room.customName?.trim() || room.title?.trim() || `Recámara ${i + 1}`}
-                      images={draft.roomImageUrls[i] ?? []}
-                      maxCount={20}
-                      apiOn={apiOn}
-                      hint={
-                        available
-                          ? "No incluyas sala, cocina ni otras áreas comunes."
-                          : "Se guardan aunque la recámara esté ocupada."
-                      }
-                      onImagesChange={(next) => {
-                        setDraft((d) => ({
-                          ...d,
-                          roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
-                        }));
-                      }}
-                    />
-                  </div>
-                  );
-                })}
-              </>
-            ) : null}
-
-            {draft.postMode === "room"
-              ? draft.rooms.map((room, i) => (
-                  <div
-                    key={room.id}
-                    className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4"
-                  >
-                    <BulkImageUploader
-                      title="Fotos de tu espacio"
-                      images={draft.roomImageUrls[i] ?? []}
-                      maxCount={20}
-                      apiOn={apiOn}
-                      hint={ROOM_SINGLE_FLOW_PHOTO_HINT}
-                      onImagesChange={(next) => {
-                        setDraft((d) => ({
-                          ...d,
-                          roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
-                        }));
-                      }}
-                    />
-                  </div>
-                ))
-              : null}
-          </form>
-        ),
-      },
-      ...(draft.postMode === "property"
+      ...(draft.postMode === "room"
         ? ([
             {
-              title: "Etiquetar fotos",
+              title: "Fotos",
               body: (
                 <form className="space-y-6">
-                  <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                    <h3 className="text-[15px] font-bold text-primary">
-                      Distribución de Fotos
-                    </h3>
-                    <p className="text-sm text-muted">
-                      Para una publicación de propiedad, las fotos deben estar etiquetadas antes de publicar. Puedes
-                      dejar fotos “Sin categorizar” mientras editas, pero no al momento de publicar.
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                      <span>
-                        Sin categorizar: <strong className="text-body">{draft.unassignedImageUrls.length}</strong>
-                      </span>
-                      <span aria-hidden>·</span>
-                      <span>
-                        Propiedad: <strong className="text-body">{draft.propertyImageUrls.length}</strong>
-                      </span>
-                      <span aria-hidden>·</span>
-                      <span>
-                        Cuartos:{" "}
-                        <strong className="text-body">
-                          {draft.roomImageUrls.reduce((a, r) => a + (r?.length ?? 0), 0)}
-                        </strong>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                    <h3 className="text-[15px] font-bold text-primary">
-                      Fotos Sin Categorizar
-                    </h3>
-                    {draft.unassignedImageUrls.length ? (
-                      <button
-                        type="button"
-                        className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-body hover:bg-surface-elevated mb-2"
-                        onClick={() => {
-                          setDraft((d) => {
-                            let propertyImageUrls = [...d.propertyImageUrls];
-                            for (const img of d.unassignedImageUrls) {
-                              propertyImageUrls = draftImagesAppend(
-                                propertyImageUrls,
-                                { ...img, isCover: false },
-                                20,
-                              );
-                            }
-                            return { ...d, propertyImageUrls, unassignedImageUrls: [] };
-                          });
+                  {draft.rooms.map((room, i) => (
+                    <div
+                      key={room.id}
+                      className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4"
+                    >
+                      <BulkImageUploader
+                        title="Fotos de tu espacio"
+                        images={room.photos}
+                        maxCount={20}
+                        apiOn={apiOn}
+                        hint={ROOM_SINGLE_FLOW_PHOTO_HINT}
+                        onImagesChange={(next) => {
+                          setDraft((d) =>
+                            syncDraftPhotoFields({
+                              ...d,
+                              rooms: d.rooms.map((r, ri) => (ri === i ? { ...r, photos: next } : r)),
+                            }),
+                          );
                         }}
-                      >
-                        Etiquetar todo como “Áreas compartidas”
-                      </button>
-                    ) : (
-                      <p className="text-sm text-muted italic">No hay fotos sin categorizar. ¡Todo listo!</p>
-                    )}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {draft.unassignedImageUrls.map((img) => (
-                        <div key={img.url} className="rounded-xl border border-border bg-surface p-3">
-                          <div className="flex items-start gap-3">
-                            <img
-                              src={apiAbsoluteUrl(img.url)}
-                              alt=""
-                              className="h-16 w-16 rounded-lg object-cover ring-1 ring-border"
-                              loading="lazy"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
-                                Asignar a...
-                                <select
-                                  className="mt-1 w-full rounded-lg border border-border bg-bg-light px-2 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                                  defaultValue="uncat"
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    const u = img.url;
-                                    setDraft((d) => {
-                                      const nextUnassigned = d.unassignedImageUrls.filter((x) => x.url !== u);
-                                      if (v === "shared") {
-                                        return {
-                                          ...d,
-                                          unassignedImageUrls: nextUnassigned,
-                                          propertyImageUrls: draftImagesAppend(
-                                            d.propertyImageUrls,
-                                            { url: u, isCover: false },
-                                            20,
-                                          ),
-                                        };
-                                      }
-                                      if (v === "facade") {
-                                        return {
-                                          ...d,
-                                          unassignedImageUrls: nextUnassigned,
-                                          propertyImageUrls: draftImagesAppend(
-                                            draftImagesWithoutUrl(d.propertyImageUrls, u),
-                                            { url: u, isCover: true },
-                                            20,
-                                          ),
-                                        };
-                                      }
-                                      if (v.startsWith("room:")) {
-                                        const idx = Number(v.split(":")[1] ?? "1") - 1;
-                                        if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
-                                        const row = d.roomImageUrls[idx] ?? [];
-                                        return {
-                                          ...d,
-                                          unassignedImageUrls: nextUnassigned,
-                                          roomImageUrls: d.roomImageUrls.map((r, ri) =>
-                                            ri === idx
-                                              ? draftImagesAppend(
-                                                  r,
-                                                  { url: u, isCover: row.length === 0 },
-                                                  20,
-                                                )
-                                              : r,
-                                          ),
-                                        };
-                                      }
-                                      return d;
-                                    });
-                                  }}
-                                >
-                                  <option value="uncat">Sin categorizar</option>
-                                  <option value="shared">Áreas compartidas</option>
-                                  <option value="facade">Fachada</option>
-                                  {draft.rooms.map((r, idx) => (
-                                    <option key={idx} value={`room:${idx + 1}`}>
-                                      Recámara {idx + 1}: {r.title.trim() || "Sin título"}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      />
                     </div>
-                  </div>
+                  ))}
                 </form>
               ),
             },
