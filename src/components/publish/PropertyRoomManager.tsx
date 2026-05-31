@@ -309,6 +309,48 @@ function RoomAvailabilityToggle({
   );
 }
 
+/** Keeps toggle, status badge, and expand control aligned across occupied/available cards. */
+function RoomCardHeaderActions({
+  available,
+  onAvailabilityChange,
+  issues,
+  expanded,
+  onExpandToggle,
+  showExpand = false,
+}: {
+  available: boolean;
+  onAvailabilityChange: (nextAvailable: boolean) => void;
+  issues: string[];
+  expanded?: boolean;
+  onExpandToggle?: () => void;
+  showExpand?: boolean;
+}) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2">
+      <RoomAvailabilityToggle available={available} onChange={onAvailabilityChange} />
+      <RoomStatusBadges issues={issues} />
+      <span className="inline-flex size-7 shrink-0 items-center justify-center">
+        {showExpand && onExpandToggle ? (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
+            onClick={onExpandToggle}
+            className="inline-flex size-7 items-center justify-center rounded-full border border-border/80 bg-surface text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary"
+          >
+            <ChevronDown
+              className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
+              aria-hidden
+            />
+          </button>
+        ) : (
+          <span className="size-7" aria-hidden />
+        )}
+      </span>
+    </span>
+  );
+}
+
 function AvailableRoomFields({
   room,
   roomLabel,
@@ -676,15 +718,13 @@ export function PropertyRoomManager({
                       <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                     ) : null}
                   </div>
-                  <span className="inline-flex shrink-0 items-center gap-2">
-                    <RoomAvailabilityToggle
-                      available={false}
-                      onChange={(nextAvailable) =>
-                        onOccupancyStatusChange(i, nextAvailable ? "available" : "occupied")
-                      }
-                    />
-                    <RoomStatusBadges issues={issues} />
-                  </span>
+                  <RoomCardHeaderActions
+                    available={false}
+                    onAvailabilityChange={(nextAvailable) =>
+                      onOccupancyStatusChange(i, nextAvailable ? "available" : "occupied")
+                    }
+                    issues={issues}
+                  />
                 </div>
                 <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
               </div>
@@ -721,27 +761,16 @@ export function PropertyRoomManager({
                   <p className="mt-1 text-xs text-muted">Completa — toca para editar</p>
                 ) : null}
               </div>
-              <span className="inline-flex shrink-0 items-center gap-2">
-                <RoomAvailabilityToggle
-                  available
-                  onChange={(nextAvailable) =>
-                    onOccupancyStatusChange(i, nextAvailable ? "available" : "occupied")
-                  }
-                />
-                <RoomStatusBadges issues={issues} />
-                <button
-                  type="button"
-                  aria-expanded={expanded}
-                  aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
-                  onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
-                  className="rounded-full border border-border/80 bg-surface p-1.5 text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary"
-                >
-                  <ChevronDown
-                    className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
-                    aria-hidden
-                  />
-                </button>
-              </span>
+              <RoomCardHeaderActions
+                available
+                onAvailabilityChange={(nextAvailable) =>
+                  onOccupancyStatusChange(i, nextAvailable ? "available" : "occupied")
+                }
+                issues={issues}
+                expanded={expanded}
+                showExpand
+                onExpandToggle={() => onExpandedRoomIndexChange(expanded ? null : i)}
+              />
             </div>
 
             {expanded ? (
