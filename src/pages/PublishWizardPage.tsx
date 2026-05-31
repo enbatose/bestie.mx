@@ -459,7 +459,7 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   ) {
     return false;
   }
-  return validateRoomsForSubmit(d) === null;
+  return true;
 }
 
 function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
@@ -2311,7 +2311,7 @@ export function PublishWizardPage() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         {showAutosaveToast && apiOn && me ? (
-          <div className="fixed right-4 top-4 z-50">
+          <div className="fixed right-4 top-[72px] z-50">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
               <CloudCheck className="size-3.5" aria-hidden />
               Auto-guardado
@@ -2406,7 +2406,7 @@ export function PublishWizardPage() {
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
       {showAutosaveToast && apiOn && me ? (
-        <div className="fixed right-4 top-4 z-50">
+        <div className="fixed right-4 top-[72px] z-50">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
             <CloudCheck className="size-3.5" aria-hidden />
             Auto-guardado
