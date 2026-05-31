@@ -72,7 +72,7 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
     occupantAge: r.occupantAge,
     occupantWomenCount: r.occupantWomenCount,
     occupantMenCount: r.occupantMenCount,
-    title: effectiveRoomTitle(r, draft.postMode),
+    title: effectiveRoomTitle(r, draft.postMode, index),
     rentMxn: Math.max(0, r.rentMxn),
     depositMxn: r.depositMxn,
     roomsAvailable: effectiveRoomsAvailable(draft, index),

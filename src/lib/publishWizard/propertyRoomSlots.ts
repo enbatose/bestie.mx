@@ -26,6 +26,30 @@ export function propertyOccupiedRoomCount(d: Draft): number {
   return d.rooms.filter((room) => room.occupancyStatus === "occupied").length;
 }
 
+/** Wizard list order: occupied first on new posts; slot order when editing. */
+export function propertyRoomListOrder(d: Draft, preferOccupiedFirst: boolean): number[] {
+  const indices = d.rooms.map((_, i) => i);
+  if (!preferOccupiedFirst) return indices;
+  return [...indices].sort((a, b) => {
+    const aOccupied = d.rooms[a]?.occupancyStatus === "occupied" ? 0 : 1;
+    const bOccupied = d.rooms[b]?.occupancyStatus === "occupied" ? 0 : 1;
+    if (aOccupied !== bOccupied) return aOccupied - bOccupied;
+    return a - b;
+  });
+}
+
+export function propertyRoomDefaultTitle(displayNumber: number): string {
+  return `Habitación ${displayNumber}`;
+}
+
+export function propertyRoomContextLabel(
+  displayNumber: number,
+  total: number,
+  occupied: boolean,
+): string {
+  return `Recámara #${displayNumber} de ${total} · ${occupied ? "Ocupada" : "En renta"}`;
+}
+
 /** Mark the first `rentCount` slots available; the rest occupied. */
 export function applyPropertyRentRoomCount(
   d: Draft,

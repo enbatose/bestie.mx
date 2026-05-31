@@ -114,13 +114,14 @@ export function resolveLatLngForDraft(d: Draft): { lat: number; lng: number } {
 export function effectiveRoomTitle(
   room: Pick<RoomDraft, "title" | "customName">,
   postMode: Draft["postMode"],
+  roomIndex = 0,
 ): string {
   const custom = room.customName?.trim();
   if (custom) return custom;
   const trimmed = room.title.trim();
   if (trimmed) return trimmed;
   if (postMode === "room") return SINGLE_ROOM_DEFAULT_TITLE;
-  return "";
+  return `Habitación ${roomIndex + 1}`;
 }
 
 export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex: number) {
@@ -130,7 +131,7 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
     id: room.id,
     customName: room.customName?.trim() || undefined,
     occupancyStatus: room.occupancyStatus,
-    title: effectiveRoomTitle(room, draft.postMode) || "Recámara en borrador",
+    title: effectiveRoomTitle(room, draft.postMode, roomIndex) || "Recámara en borrador",
     rentMxn: room.rentMxn,
     roomsAvailable: effectiveRoomsAvailable(draft, roomIndex),
     tags: mergedRoomTagsForPayload(draft, roomIndex),

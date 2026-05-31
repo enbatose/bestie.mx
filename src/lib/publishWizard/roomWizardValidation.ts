@@ -10,10 +10,16 @@ const VALID_ROOM_LODGING_TYPES = ["private_room", "shared_room"] as const;
 const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "female", "male"];
 
 /** Label shown in accordion headers, validation errors, and photo sections. */
-export function roomWizardLabel(d: Draft, room: RoomDraft, index: number): string {
+export function roomWizardLabel(
+  d: Draft,
+  room: RoomDraft,
+  index: number,
+  displayNumber?: number,
+): string {
   const custom = room.customName?.trim() || room.title?.trim();
   if (custom) return custom;
-  return d.postMode === "property" ? `Habitación ${index + 1}` : `Recámara ${index + 1}`;
+  const n = displayNumber ?? index + 1;
+  return d.postMode === "property" ? `Habitación ${n}` : `Recámara ${n}`;
 }
 
 /** Human-readable missing/invalid field names for one room row. */
@@ -30,10 +36,6 @@ export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number
       issues.push("Máximo 12 personas por género en la recámara");
     }
     return issues;
-  }
-
-  if (d.postMode === "property" && !room.customName?.trim() && !room.title?.trim()) {
-    issues.push("Título de la habitación");
   }
 
   const lodgingOk =

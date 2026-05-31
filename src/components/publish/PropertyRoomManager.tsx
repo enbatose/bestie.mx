@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
@@ -9,6 +9,9 @@ import {
 import {
   propertyOccupiedRoomCount,
   propertyRentRoomCount,
+  propertyRoomContextLabel,
+  propertyRoomDefaultTitle,
+  propertyRoomListOrder,
 } from "@/lib/publishWizard/propertyRoomSlots";
 import {
   collectRoomFieldIssues,
@@ -97,15 +100,74 @@ function RoomSaveFooter({
   );
 }
 
-function propertyRoomDisplayOrder(draft: Draft, preferOccupiedFirst: boolean): number[] {
-  const indices = draft.rooms.map((_, i) => i);
-  if (!preferOccupiedFirst) return indices;
-  return [...indices].sort((a, b) => {
-    const aOccupied = draft.rooms[a]?.occupancyStatus === "occupied" ? 0 : 1;
-    const bOccupied = draft.rooms[b]?.occupancyStatus === "occupied" ? 0 : 1;
-    if (aOccupied !== bOccupied) return aOccupied - bOccupied;
-    return a - b;
-  });
+function RoomTitleInlineEditor({
+  room,
+  displayNumber,
+  onUpdate,
+}: {
+  room: RoomDraft;
+  displayNumber: number;
+  onUpdate: (patch: Partial<RoomDraft>) => void;
+}) {
+  const fallbackTitle = propertyRoomDefaultTitle(displayNumber);
+  const resolvedTitle = room.customName?.trim() || room.title?.trim() || fallbackTitle;
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(resolvedTitle);
+
+  useEffect(() => {
+    if (!editing) setDraftTitle(resolvedTitle);
+  }, [resolvedTitle, editing]);
+
+  const commitTitle = () => {
+    const trimmed = draftTitle.trim();
+    onUpdate({
+      customName: trimmed,
+      title: trimmed || fallbackTitle,
+    });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <label className="block text-sm font-medium text-body">
+        Título de la habitación
+        <span className="text-red-600"> *</span>
+        <input
+          autoFocus
+          value={draftTitle}
+          onChange={(e) => setDraftTitle(e.target.value)}
+          onBlur={commitTitle}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+            if (e.key === "Escape") {
+              setDraftTitle(resolvedTitle);
+              setEditing(false);
+            }
+          }}
+          placeholder={`Ej. Cuarto con balcón · ${fallbackTitle}`}
+          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+        />
+      </label>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-base font-bold text-primary">{resolvedTitle}</span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+        aria-label={`Editar título de ${fallbackTitle}`}
+      >
+        <Pencil className="size-3.5" aria-hidden />
+        Editar
+      </button>
+    </div>
+  );
 }
 
 function OccupiedRoomFields({
@@ -404,7 +466,7 @@ export function PropertyRoomManager({
   const occupiedCount = propertyOccupiedRoomCount(draft);
   const issueRows = useMemo(() => roomValidationIssuesByIndex(draft), [draft]);
   const roomOrder = useMemo(
-    () => propertyRoomDisplayOrder(draft, preferOccupiedFirst),
+    () => propertyRoomListOrder(draft, preferOccupiedFirst),
     [draft, preferOccupiedFirst],
   );
 
@@ -477,12 +539,13 @@ export function PropertyRoomManager({
         </p>
       </div>
 
-      {roomOrder.map((i) => {
+      {roomOrder.map((i, displayIndex) => {
         const room = draft.rooms[i]!;
+        const displayNumber = displayIndex + 1;
         const expanded = expandedRoomIndex === i;
         const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
-        const heading = roomWizardLabel(draft, room, i);
+        const contextLabel = propertyRoomContextLabel(displayNumber, totalBedrooms, !available);
         const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
           issues.length
             ? "border-amber-300/80 ring-amber-200/60"
@@ -497,32 +560,20 @@ export function PropertyRoomManager({
               <div className="space-y-4 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                      Recámara {i + 1} de {totalBedrooms} · Ocupada
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-primary">{heading}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">{contextLabel}</p>
+                    <div className="mt-2">
+                      <RoomTitleInlineEditor
+                        room={room}
+                        displayNumber={displayNumber}
+                        onUpdate={(patch) => onUpdateRoom(i, patch)}
+                      />
+                    </div>
                     {issues.length > 0 ? (
                       <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                     ) : null}
                   </div>
                   <RoomStatusBadges available={false} issues={issues} />
                 </div>
-
-                <label className="block text-sm font-medium text-body">
-                  Título de la habitación
-                  <span className="text-red-600"> *</span>
-                  <input
-                    value={room.customName || room.title}
-                    onChange={(e) =>
-                      onUpdateRoom(i, {
-                        customName: e.target.value,
-                        title: e.target.value,
-                      })
-                    }
-                    placeholder={`Ej. Cuarto con balcón · Habitación ${i + 1}`}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
-                  />
-                </label>
 
                 <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
 
@@ -550,10 +601,10 @@ export function PropertyRoomManager({
               className="flex w-full items-start justify-between gap-3 p-4 text-left"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Recámara {i + 1} de {totalBedrooms} · En renta
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{contextLabel}</p>
+                <p className="mt-1 text-base font-bold text-primary">
+                  {roomWizardLabel(draft, room, i, displayNumber)}
                 </p>
-                <p className="mt-1 text-sm font-bold text-primary">{heading}</p>
                 {!expanded && issues.length > 0 ? (
                   <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                 ) : null}
@@ -585,21 +636,11 @@ export function PropertyRoomManager({
                       Recámara ocupada
                     </label>
                   </div>
-                  <label className="block text-sm font-medium text-body">
-                    Título de la habitación
-                    <span className="text-red-600"> *</span>
-                    <input
-                      value={room.customName || room.title}
-                      onChange={(e) =>
-                        onUpdateRoom(i, {
-                          customName: e.target.value,
-                          title: e.target.value,
-                        })
-                      }
-                      placeholder={`Ej. Cuarto con balcón · Habitación ${i + 1}`}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
-                    />
-                  </label>
+                  <RoomTitleInlineEditor
+                    room={room}
+                    displayNumber={displayNumber}
+                    onUpdate={(patch) => onUpdateRoom(i, patch)}
+                  />
                   <AvailableRoomFields
                     room={room}
                     onChange={(patch) => onUpdateRoom(i, patch)}
