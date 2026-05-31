@@ -122,41 +122,46 @@ function formatAutosaveTime(ts: number | null): string | null {
 }
 
 const WIZARD_AUTOSAVE_DEBOUNCE_MS = 2800;
+const WIZARD_AUTOSAVE_RING_MS = 1000;
 
 function WizardAutosaveIndicator({
   lastSavedAt,
   flashKey,
+  showRing,
 }: {
   lastSavedAt: number | null;
   flashKey: number;
+  showRing: boolean;
 }) {
   const timeLabel = formatAutosaveTime(lastSavedAt);
   if (!timeLabel) return null;
   return (
     <div className="pointer-events-none fixed right-4 top-[72px] z-50" aria-live="polite">
       <div className="relative inline-flex rounded-full">
-        <svg
-          key={flashKey}
-          className="pointer-events-none absolute inset-0 h-full w-full"
-          viewBox="0 0 200 32"
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <rect
-            x="1.5"
-            y="1.5"
-            width="197"
-            height="29"
-            rx="14.5"
-            ry="14.5"
-            fill="none"
-            stroke="#065f46"
-            strokeWidth="2"
-            pathLength="1"
-            strokeDasharray="0.16 0.84"
-            className="animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
-          />
-        </svg>
+        {showRing ? (
+          <svg
+            key={flashKey}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            viewBox="0 0 200 32"
+            preserveAspectRatio="none"
+            aria-hidden
+          >
+            <rect
+              x="1.5"
+              y="1.5"
+              width="197"
+              height="29"
+              rx="14.5"
+              ry="14.5"
+              fill="none"
+              stroke="#065f46"
+              strokeWidth="2"
+              pathLength="1"
+              strokeDasharray="0.16 0.84"
+              className="animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
+            />
+          </svg>
+        ) : null}
         <div className="relative z-10 m-[2px] inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
           <CloudCheck className="size-3.5" aria-hidden />
           Auto-guardado {timeLabel}
@@ -776,6 +781,7 @@ export function PublishWizardPage() {
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const [autosaveFlashKey, setAutosaveFlashKey] = useState(0);
+  const [showAutosaveRing, setShowAutosaveRing] = useState(false);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
   const [storageReady, setStorageReady] = useState(false);
@@ -843,6 +849,7 @@ export function PublishWizardPage() {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
   const autosaveGenerationRef = useRef(0);
+  const autosaveRingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (me === undefined) return;
@@ -857,6 +864,7 @@ export function PublishWizardPage() {
       setAutosaveNote("idle");
       setLastAutosavedAt(null);
       setAutosaveFlashKey(0);
+      setShowAutosaveRing(false);
       return;
     }
     const uid = me.id;
@@ -878,6 +886,7 @@ export function PublishWizardPage() {
     setAutosaveNote("idle");
     setLastAutosavedAt(null);
     setAutosaveFlashKey(0);
+    setShowAutosaveRing(false);
     setStorageReady(true);
   }, [me, editPropertyId, handoffToken]);
 
@@ -1153,6 +1162,12 @@ export function PublishWizardPage() {
       setAutosaveNote("saved");
       setLastAutosavedAt(Date.now());
       setAutosaveFlashKey((k) => k + 1);
+      setShowAutosaveRing(true);
+      if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
+      autosaveRingTimerRef.current = window.setTimeout(() => {
+        setShowAutosaveRing(false);
+        autosaveRingTimerRef.current = null;
+      }, WIZARD_AUTOSAVE_RING_MS);
       window.setTimeout(() => {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
@@ -2334,7 +2349,11 @@ export function PublishWizardPage() {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         {apiOn && me && autosaveTimeLabel ? (
-          <WizardAutosaveIndicator lastSavedAt={lastAutosavedAt} flashKey={autosaveFlashKey} />
+          <WizardAutosaveIndicator
+            lastSavedAt={lastAutosavedAt}
+            flashKey={autosaveFlashKey}
+            showRing={showAutosaveRing}
+          />
         ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
         {handoffBanner ? (
@@ -2423,7 +2442,11 @@ export function PublishWizardPage() {
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
       {apiOn && me && autosaveTimeLabel ? (
-        <WizardAutosaveIndicator lastSavedAt={lastAutosavedAt} flashKey={autosaveFlashKey} />
+        <WizardAutosaveIndicator
+          lastSavedAt={lastAutosavedAt}
+          flashKey={autosaveFlashKey}
+          showRing={showAutosaveRing}
+        />
       ) : null}
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
 

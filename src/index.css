@@ -59,8 +59,14 @@
 @keyframes autosave-ring-travel {
   from {
     stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  88% {
+    stroke-dashoffset: 0.04;
+    opacity: 1;
   }
   to {
     stroke-dashoffset: 0;
+    opacity: 0;
   }
 }
