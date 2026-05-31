@@ -511,16 +511,19 @@ export async function syncDraftToServer(
     for (let i = 0; i < draft.rooms.length; i++) {
       const r = draft.rooms[i]!;
       const payload = roomApiFieldsFromDraft(draft, r, i);
-      let rid = roomIds[i] || r.id;
-      const byIdIdx = r.id ? roomIds.findIndex((id) => id === r.id) : -1;
-      if (!rid && byIdIdx >= 0) rid = roomIds[byIdIdx] ?? "";
-      if (!rid) {
-        const created = await addDraftRoomToProperty(propertyId!, { ...payload, id: r.id });
-        roomIds[i] = created.id;
-      } else {
-        roomIds[i] = rid;
-        await patchDraftRoom(propertyId!, rid, payload);
+      const knownServerId = roomIds[i]?.trim() || "";
+      if (knownServerId) {
+        try {
+          await patchDraftRoom(propertyId!, knownServerId, payload);
+          roomIds[i] = knownServerId;
+          continue;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!msg.includes("patch_room_http_404")) throw e;
+        }
       }
+      const created = await addDraftRoomToProperty(propertyId!, { ...payload, id: r.id });
+      roomIds[i] = created.id;
     }
 
     try {
