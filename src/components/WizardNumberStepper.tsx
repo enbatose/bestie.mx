@@ -95,19 +95,19 @@ export function WizardNumberStepper({
       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-0 text-center text-sm font-semibold tabular-nums text-body outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
     />
   ) : (
-    <div
-      className={`flex items-center justify-center border-x border-border text-sm font-semibold tabular-nums text-body ${
-        compact ? "min-w-[2rem] px-2" : "min-w-[2.5rem] flex-1"
-      }`}
-    >
+    <div className="flex flex-1 items-center justify-center border-x border-border text-sm font-semibold tabular-nums text-body">
       {value}
     </div>
   );
 
+  const buttonClass = compact
+    ? "flex h-full w-11 shrink-0 items-center justify-center text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40"
+    : "min-w-[2.75rem] px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40";
+
   return (
     <div
-      className={`flex items-stretch overflow-hidden rounded-xl border border-border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0 ${
-        compact ? "mt-1 h-10 w-[8.5rem] max-w-full" : "mt-2 h-11"
+      className={`flex w-full items-center justify-between overflow-hidden rounded-xl border border-border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0 ${
+        compact ? "mt-1 h-10" : "mt-2 h-11"
       } ${disabled ? "opacity-70" : ""}`}
     >
       <button
@@ -115,9 +115,7 @@ export function WizardNumberStepper({
         aria-label={decrementLabel}
         disabled={disabled || atMin}
         onClick={dec}
-        className={`px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40 ${
-          compact ? "min-w-[2.25rem]" : "min-w-[2.75rem]"
-        }`}
+        className={buttonClass}
       >
         −
       </button>
@@ -127,9 +125,7 @@ export function WizardNumberStepper({
         aria-label={incrementLabel}
         disabled={disabled || atMax}
         onClick={inc}
-        className={`px-2 text-lg font-semibold text-primary transition enabled:hover:bg-surface-elevated enabled:active:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-40 ${
-          compact ? "min-w-[2.25rem]" : "min-w-[2.75rem]"
-        }`}
+        className={buttonClass}
       >
         +
       </button>
