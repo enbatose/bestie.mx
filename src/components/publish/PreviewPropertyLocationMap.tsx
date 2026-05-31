@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Maximize2, Pencil, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { streetViewPovCacheKey } from "@/lib/streetView";
@@ -69,6 +69,10 @@ export function PreviewPropertyLocationMap({
   const showStreetView =
     !hideExactAddress && (useCustomMapPin === true || Boolean(streetViewPov));
   const gridClass = showStreetView ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "grid grid-cols-1 gap-4";
+  const listingMapCenter = useMemo(
+    (): [number, number] => [listing.lat, listing.lng],
+    [listing.lat, listing.lng],
+  );
 
   useEffect(() => {
     if (!editingLocation) {
@@ -128,9 +132,10 @@ export function PreviewPropertyLocationMap({
       onSelect={() => {}}
       embed
       className={`${heightClass} rounded-xl border border-border`}
-      defaultCenter={[listing.lat, listing.lng]}
+      defaultCenter={listingMapCenter}
       defaultZoom={PREVIEW_LOCATION_MAP_ZOOM}
       preferDefaultView
+      disableSelectionSync
       approximateAsCircle={hideExactAddress}
       approximateCircleRadiusM={PREVIEW_APPROXIMATE_RADIUS_M}
     />

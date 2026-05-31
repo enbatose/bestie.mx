@@ -149,38 +149,6 @@ function imageUrlsFromRow(raw: unknown): string[] {
   }
 }
 
-function draftPublishPhotosOk(
-  db: DatabaseSync,
-  propertyId: string,
-  postMode: "room" | "property",
-  patchedPropImages?: string[],
-): boolean {
-  const propRow = db
-    .prepare("SELECT image_urls_json FROM properties WHERE id = ?")
-    .get(propertyId) as { image_urls_json: unknown } | undefined;
-  const storedPropImages = imageUrlsFromRow(propRow?.image_urls_json);
-  const propImages =
-    patchedPropImages !== undefined && patchedPropImages.length > 0
-      ? patchedPropImages
-      : storedPropImages;
-  const roomRows = db
-    .prepare(
-      "SELECT image_urls_json, occupancy_status FROM rooms WHERE property_id = ? ORDER BY sort_order ASC, id ASC",
-    )
-    .all(propertyId) as { image_urls_json: unknown; occupancy_status?: unknown }[];
-  if (postMode === "room") {
-    const hasRoomPhoto = roomRows.some((row) => imageUrlsFromRow(row.image_urls_json).length >= 1);
-    return hasRoomPhoto || propImages.length >= 1;
-  }
-  if (roomRows.length < 1) return false;
-  if (propImages.length < 1) return false;
-  for (const row of roomRows) {
-    if (optOccupancyStatus(row.occupancy_status) === "occupied") continue;
-    if (imageUrlsFromRow(row.image_urls_json).length < 1) return false;
-  }
-  return true;
-}
-
 function rowToProperty(row: Record<string, unknown>): Property {
   const pk = optPropertyKind(row.property_kind);
   const st = String(row.status ?? "draft");
@@ -474,27 +442,6 @@ export function propertiesRouter(db: DatabaseSync) {
     const roomImagesList = roomsIn.map((raw) =>
       clampListingImageUrls((raw as { imageUrls?: unknown }).imageUrls),
     );
-    if (postMode === "room") {
-      if (roomImagesList[0]?.length < 1) {
-        res.status(400).json({
-          error: "photos_required",
-          message: "Sube al menos 1 foto de tu espacio antes de publicar.",
-        });
-        return;
-      }
-    } else {
-      for (let i = 0; i < roomImagesList.length; i++) {
-        const rm = roomsIn[i] as Partial<Room>;
-        if (optOccupancyStatus(rm.occupancyStatus) === "occupied") continue;
-        if (roomImagesList[i].length < 1) {
-          res.status(400).json({
-            error: "photos_required",
-            message: `Sube al menos 1 foto para la recámara ${i + 1} antes de publicar.`,
-          });
-          return;
-        }
-      }
-    }
 
     const bedTotal = clampBedroomsTotal(Number((p as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
     const bathTotal = clampBathrooms(Number((p as { bathrooms?: unknown }).bathrooms ?? 1));
@@ -1242,24 +1189,6 @@ export function propertiesRouter(db: DatabaseSync) {
         res.status(400).json({
           error: "invalid_body",
           message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters before publishing.`,
-        });
-        return;
-      }
-      const publishMode =
-        patch.postMode != null && typeof patch.postMode === "string" && patch.postMode === "property"
-          ? "property"
-          : patch.postMode === "room"
-            ? "room"
-            : curMode;
-      const patchedPropImages =
-        patch.imageUrls !== undefined ? clampListingImageUrls(patch.imageUrls) : undefined;
-      if (!draftPublishPhotosOk(db, propertyId, publishMode, patchedPropImages)) {
-        res.status(400).json({
-          error: "photos_required",
-          message:
-            publishMode === "room"
-              ? "Sube al menos 1 foto de tu espacio antes de publicar."
-              : "Sube al menos 1 foto por recámara antes de publicar.",
         });
         return;
       }

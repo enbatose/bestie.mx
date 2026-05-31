@@ -30,6 +30,8 @@ type Props = {
   /** Render approximate listings as a privacy circle at true coords (no pin). */
   approximateAsCircle?: boolean;
   approximateCircleRadiusM?: number;
+  /** Skip fly-to on selection (e.g. fixed preview maps). */
+  disableSelectionSync?: boolean;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -112,6 +114,7 @@ function FitBounds({
 }) {
   const map = useMap();
   const didInitialView = useRef(false);
+  const appliedDefaultViewRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null);
 
   useEffect(() => {
     const el = map.getContainer();
@@ -119,12 +122,26 @@ function FitBounds({
     try {
       map.invalidateSize({ animate: false });
 
+      if (preferDefaultView && defaultCenter) {
+        const zoom = defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM;
+        const prev = appliedDefaultViewRef.current;
+        if (
+          prev &&
+          prev.lat === defaultCenter[0] &&
+          prev.lng === defaultCenter[1] &&
+          prev.zoom === zoom
+        ) {
+          return;
+        }
+        map.setView(defaultCenter, zoom);
+        appliedDefaultViewRef.current = { lat: defaultCenter[0], lng: defaultCenter[1], zoom };
+        didInitialView.current = true;
+        return;
+      }
+
       if (skipListingDrivenRefit) {
         if (didInitialView.current) return;
-        if (preferDefaultView && defaultCenter) {
-          map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
-          didInitialView.current = true;
-        } else if (defaultCenter) {
+        if (defaultCenter) {
           map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
           didInitialView.current = true;
         } else if (bounds?.isValid()) {
@@ -137,9 +154,7 @@ function FitBounds({
         return;
       }
 
-      if (preferDefaultView && defaultCenter) {
-        map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
-      } else if (bounds?.isValid()) {
+      if (bounds?.isValid()) {
         map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
       } else if (defaultCenter) {
         map.setView(defaultCenter, defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
@@ -165,6 +180,7 @@ export function PropertyMap({
   preferDefaultView = false,
   approximateAsCircle = false,
   approximateCircleRadiusM = 400,
+  disableSelectionSync = false,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -216,7 +232,9 @@ export function PropertyMap({
           skipListingDrivenRefit={Boolean(onViewportBbox)}
         />
         {onViewportBbox ? <MapViewportReporter onBbox={onViewportBbox} /> : null}
-        <MapSelectionSync selectedId={selectedId} listings={listings} />
+        {!disableSelectionSync ? (
+          <MapSelectionSync selectedId={selectedId} listings={listings} />
+        ) : null}
         {listings.map((l) => {
           const selected = l.id === selectedId;
 

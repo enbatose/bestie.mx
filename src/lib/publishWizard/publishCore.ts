@@ -257,9 +257,6 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
     if (isDefaultPropertySummarySeed(d.propertySummary)) {
       return "Sustituye el texto de ejemplo por tu propia descripción del ambiente y las zonas compartidas.";
     }
-    if (draftCommonAreaPhotos(d).length < 1) {
-      return "Sube al menos 1 foto de áreas comunes.";
-    }
   }
   if (
     d.postMode !== "property" &&
@@ -317,20 +314,7 @@ export function locationStepInvalidReason(d: Draft): string | null {
   return null;
 }
 
-export function photosStepInvalidReason(d: Draft): string | null {
-  if (d.postMode === "property") return null;
-  if (d.postMode === "room") {
-    if (draftRoomImageUrls(d, 0).length < 1) {
-      return "Sube al menos 1 foto de tu espacio.";
-    }
-    return null;
-  }
-  const unassigned = d.unassignedImageUrls.length;
-  const roomPhotos = d.roomImageUrls.reduce((sum, row) => sum + row.length, 0);
-  const shared = draftCommonAreaPhotos(d).length;
-  if (unassigned + roomPhotos + shared < 1) {
-    return "Sube al menos 1 foto antes de continuar.";
-  }
+export function photosStepInvalidReason(_d: Draft): string | null {
   return null;
 }
 
@@ -343,23 +327,7 @@ export function tagPhotosStepInvalidReason(d: Draft): string | null {
 }
 
 export function publishPhotosInvalidReason(d: Draft): string | null {
-  const stepErr = photosStepInvalidReason(d);
-  if (stepErr) return stepErr;
-  const tagErr = tagPhotosStepInvalidReason(d);
-  if (tagErr) return tagErr;
-  if (d.postMode === "property") {
-    if (draftPropertyImageUrlsForApi(d).length < 1) {
-      return "Sube al menos 1 foto de áreas comunes.";
-    }
-    for (let i = 0; i < d.rooms.length; i++) {
-      const room = d.rooms[i]!;
-      if (!isRoomAvailableForRent(room)) continue;
-      if (draftRoomImageUrlsForApi(d, i).length < 1) {
-        return `Sube al menos 1 foto para ${room.customName?.trim() || `la recámara ${i + 1}`}.`;
-      }
-    }
-  }
-  return null;
+  return tagPhotosStepInvalidReason(d);
 }
 
 /** Validates the current wizard step before advancing with “Siguiente”. */

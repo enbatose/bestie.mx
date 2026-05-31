@@ -85,13 +85,6 @@ export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number
     issues.push(`Detalles de esta recámara (máximo ${ROOM_SUMMARY_MAX} caracteres)`);
   }
 
-  if (d.postMode === "property") {
-    const photos = room.photos ?? d.roomImageUrls[_index] ?? [];
-    if (photos.length < 1) {
-      issues.push("Al menos 1 foto de la recámara");
-    }
-  }
-
   if (!room.tags.some((t) => isRoomIdealParaTag(t))) {
     issues.push("Ideal para (al menos una opción)");
   }
