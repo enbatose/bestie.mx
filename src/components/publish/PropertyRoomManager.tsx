@@ -16,6 +16,7 @@ import {
   roomWizardLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { isRoomAvailableForRent, occupancyStatusLabel } from "@/lib/roomDisplay";
+import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
@@ -39,6 +40,10 @@ type Props = {
   onOccupancyStatusChange: (roomIndex: number, status: RoomOccupancyStatus) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
+  showSaveProgress?: boolean;
+  onSaveProgress?: () => void;
+  saveProgressInFlight?: boolean;
+  saveProgressSaved?: boolean;
 };
 
 function propertyRoomDisplayOrder(draft: Draft, preferOccupiedFirst: boolean): number[] {
@@ -335,6 +340,10 @@ export function PropertyRoomManager({
   onOccupancyStatusChange,
   onUpdateRoom,
   onToggleTag,
+  showSaveProgress = false,
+  onSaveProgress,
+  saveProgressInFlight = false,
+  saveProgressSaved = false,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
   const rentCount = propertyRentRoomCount(draft);
@@ -498,6 +507,17 @@ export function PropertyRoomManager({
                     </>
                   )}
                 </div>
+              </div>
+            ) : null}
+
+            {showSaveProgress && onSaveProgress ? (
+              <div className="border-t border-border px-4 py-3">
+                <WizardSaveDraftButton
+                  compact
+                  onClick={onSaveProgress}
+                  inFlight={saveProgressInFlight}
+                  saved={saveProgressSaved}
+                />
               </div>
             ) : null}
           </div>

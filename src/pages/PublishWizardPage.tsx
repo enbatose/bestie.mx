@@ -9,6 +9,7 @@ import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
+import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
 import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
@@ -695,6 +696,7 @@ export function PublishWizardPage() {
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
+  const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
@@ -1589,6 +1591,10 @@ export function PublishWizardPage() {
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
+              onSaveProgress={() => void submitWizardProgressDraft()}
+              saveProgressInFlight={submitInFlight === "draft"}
+              saveProgressSaved={wizardDraftSaveNote === "saved"}
+              showSaveProgress={apiOn}
             />
           ) : (
           <div className="space-y-6">
@@ -2330,35 +2336,67 @@ export function PublishWizardPage() {
     }
   }
 
-  async function submitServerDraft() {
+  async function submitWizardProgressDraft(opts?: { finish?: boolean }) {
     setPublishErr(null);
-    const blocked =
-      propertyGeneralStepInvalidReason(draft) ?? validateRoomsForSubmit(draft);
-    if (blocked) {
-      setPublishErr(blocked);
+    if (!apiOn) {
+      setPublishErr("Configura la API para guardar en el servidor.");
+      return;
+    }
+    if (isFreshDefaultDraft(draftRef.current)) {
+      setPublishErr("Selecciona un tipo de espacio antes de guardar.");
+      return;
+    }
+    if (me === undefined) {
+      setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
       return;
     }
 
     setSubmitInFlight("draft");
+    setWizardDraftSaveNote("idle");
     try {
-      if (apiOn) {
-        const synced = await syncDraftToServer(
-          draftRef.current,
-          serverSyncRef.current,
-          meRef.current?.phoneE164,
-        );
-        serverSyncRef.current = synced.serverSync;
-        setServerSync(synced.serverSync);
-        setDraft(synced.draft);
-      } else {
-        await flushWizardAutosave();
+      let resumeDraft = draftRef.current;
+      const synced = await syncDraftToServer(
+        draftRef.current,
+        serverSyncRef.current,
+        meRef.current?.phoneE164,
+      );
+      serverSyncRef.current = synced.serverSync;
+      setServerSync(synced.serverSync);
+      setDraft(synced.draft);
+      resumeDraft = synced.draft;
+
+      if (!me) {
+        navigate("/entrar", {
+          replace: true,
+          state: {
+            registrationNotice:
+              "Tu anuncio ya está creado como borrador. Inicia sesión o crea una cuenta para retomarlo en Mis anuncios.",
+            resumeDraft,
+            resumeServerSync: serverSyncRef.current,
+            resumeStep: step,
+          },
+        });
+        return;
       }
-      navigate("/mis-anuncios", { state: { draftSaved: true } });
+
+      if (opts?.finish) {
+        navigate("/mis-anuncios", { state: { draftSaved: true } });
+        return;
+      }
+
+      setWizardDraftSaveNote("saved");
+      window.setTimeout(() => {
+        setWizardDraftSaveNote((n) => (n === "saved" ? "idle" : n));
+      }, 2500);
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.");
     } finally {
       setSubmitInFlight(null);
     }
+  }
+
+  async function submitServerDraft() {
+    await submitWizardProgressDraft({ finish: true });
   }
 
   if (editPropertyId && !editBundleReady) {
@@ -2573,30 +2611,41 @@ export function PublishWizardPage() {
               Atrás
             </button>
           ) : null}
-          {!isPublishStep ? (
-            <button
-              type="button"
-              onClick={() => {
-                const err = validateWizardStepByTitle(current.title, draft, safeStep);
-                if (err) {
-                  setPublishErr(err);
-                  if (
-                    draft.postMode === "property" &&
-                    (current.title === "Administrador de recámaras" || current.title === "Recámaras")
-                  ) {
-                    const idx = firstRoomIndexWithIssues(draft);
-                    if (idx >= 0) setExpandedPropertyRoomIndex(idx);
+          <div className="flex flex-wrap items-center gap-3">
+            {!isPublishStep && apiOn ? (
+              <WizardSaveDraftButton
+                onClick={() => void submitWizardProgressDraft()}
+                inFlight={submitInFlight === "draft"}
+                saved={wizardDraftSaveNote === "saved"}
+                disabled={submitInFlight === "publish"}
+              />
+            ) : null}
+            {!isPublishStep ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const err = validateWizardStepByTitle(current.title, draft, safeStep);
+                  if (err) {
+                    setPublishErr(err);
+                    if (
+                      draft.postMode === "property" &&
+                      (current.title === "Administrador de recámaras" || current.title === "Recámaras")
+                    ) {
+                      const idx = firstRoomIndexWithIssues(draft);
+                      if (idx >= 0) setExpandedPropertyRoomIndex(idx);
+                    }
+                    return;
                   }
-                  return;
-                }
-                setPublishErr(null);
-                setStep((s) => Math.min(steps.length - 1, s + 1));
-              }}
-              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-            >
-              Siguiente
-            </button>
-          ) : null}
+                  setPublishErr(null);
+                  setStep((s) => Math.min(steps.length - 1, s + 1));
+                }}
+                disabled={submitInFlight !== null}
+                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50"
+              >
+                Siguiente
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
