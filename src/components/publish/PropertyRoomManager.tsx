@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Pencil } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
@@ -80,21 +80,56 @@ function RoomStatusBadges({
   );
 }
 
-function RoomSaveFooter({
+function RoomCardFooter({
+  expanded,
+  onCollapse,
   showSaveProgress,
   onSaveProgress,
   saveProgressInFlight,
   saveProgressSaved,
-}: Pick<Props, "showSaveProgress" | "onSaveProgress" | "saveProgressInFlight" | "saveProgressSaved">) {
-  if (!showSaveProgress || !onSaveProgress) return null;
+}: Pick<Props, "showSaveProgress" | "onSaveProgress" | "saveProgressInFlight" | "saveProgressSaved"> & {
+  expanded: boolean;
+  onCollapse: () => void;
+}) {
+  const showSave = showSaveProgress && onSaveProgress;
+
+  if (!expanded && !showSave) return null;
+
+  if (!expanded) {
+    return (
+      <div className="border-t border-border px-4 py-3">
+        <WizardSaveDraftButton
+          compact
+          onClick={onSaveProgress!}
+          inFlight={saveProgressInFlight}
+          saved={saveProgressSaved}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="border-t border-border px-4 py-3">
-      <WizardSaveDraftButton
-        compact
-        onClick={onSaveProgress}
-        inFlight={saveProgressInFlight}
-        saved={saveProgressSaved}
-      />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          {showSave ? (
+            <WizardSaveDraftButton
+              compact
+              onClick={onSaveProgress}
+              inFlight={saveProgressInFlight}
+              saved={saveProgressSaved}
+            />
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onCollapse}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-surface-elevated"
+        >
+          <ChevronUp className="size-3.5" aria-hidden />
+          Contraer
+        </button>
+      </div>
     </div>
   );
 }
@@ -635,7 +670,11 @@ export function PropertyRoomManager({
                 </div>
               ) : null}
 
-              <RoomSaveFooter {...saveFooterProps} />
+              <RoomCardFooter
+                {...saveFooterProps}
+                expanded={expanded}
+                onCollapse={() => onExpandedRoomIndexChange(null)}
+              />
             </div>
           );
         }
@@ -717,7 +756,11 @@ export function PropertyRoomManager({
               </div>
             ) : null}
 
-            <RoomSaveFooter {...saveFooterProps} />
+            <RoomCardFooter
+              {...saveFooterProps}
+              expanded={expanded}
+              onCollapse={() => onExpandedRoomIndexChange(null)}
+            />
           </div>
         );
       })}
