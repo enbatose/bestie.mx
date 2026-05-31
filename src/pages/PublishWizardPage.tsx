@@ -114,11 +114,18 @@ function normalizePersistedDraft(d: Draft): Draft {
   const rooms = (migrated.rooms ?? []).map((room) => normalizeRoomDraft(room));
   const roomImageUrls = [...(migrated.roomImageUrls ?? [])];
   while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
-  return {
+  const base: Draft = {
     ...migrated,
     rooms: rooms.length ? rooms : [defaultRoom()],
     roomImageUrls: roomImageUrls.slice(0, rooms.length || 1),
   };
+  return normalizePropertyRoomSlots(base);
+}
+
+function normalizePropertyRoomSlots(d: Draft): Draft {
+  if (d.postMode !== "property") return d;
+  const n = Math.max(1, Math.min(d.propertyBedroomsTotal, d.rooms.length || 1));
+  return syncPropertyRoomsToCount(d, n);
 }
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
@@ -389,6 +396,24 @@ function convertRoomDraftToProperty(d: Draft): Draft {
     rooms,
     roomImageUrls: rooms.map((_, i) => d.roomImageUrls[i] ?? []),
   };
+}
+
+/** Resize property-mode room slots; each slot is a recámara en renta. */
+function syncPropertyRoomsToCount(d: Draft, count: number): Draft {
+  const maxTotal = Math.max(1, d.propertyBedroomsTotal);
+  const n = Math.max(1, Math.min(maxTotal, Math.floor(count)));
+  let rooms = [...d.rooms];
+  let roomImageUrls = [...d.roomImageUrls];
+  while (rooms.length < n) {
+    rooms.push(defaultRoom());
+    roomImageUrls.push([]);
+  }
+  if (rooms.length > n) {
+    rooms = rooms.slice(0, n);
+    roomImageUrls = roomImageUrls.slice(0, n);
+  }
+  rooms = rooms.map((room) => ({ ...room, occupancyStatus: "available" as const }));
+  return { ...d, rooms, roomImageUrls };
 }
 
 function isFreshDefaultDraft(d: Draft): boolean {
@@ -1077,6 +1102,29 @@ export function PublishWizardPage() {
     }));
   }
 
+  function setPropertyAvailableRoomCount(count: number) {
+    const d = draftRef.current;
+    const prevCount = d.rooms.length;
+    const nextCount = Math.max(1, Math.min(d.propertyBedroomsTotal, Math.floor(count)));
+    setDraft((draft) => syncPropertyRoomsToCount(draft, nextCount));
+    if (nextCount >= prevCount) {
+      setServerSync((s) => {
+        const roomIds = [...s.roomIds];
+        while (roomIds.length < nextCount) roomIds.push("");
+        return { ...s, roomIds: roomIds.slice(0, nextCount) };
+      });
+      return;
+    }
+    const pid = serverSyncRef.current.propertyId;
+    if (apiOn && pid) {
+      for (let i = nextCount; i < prevCount; i++) {
+        const rid = serverSyncRef.current.roomIds[i];
+        if (rid) void deleteDraftRoom(pid, rid).catch(() => undefined);
+      }
+    }
+    setServerSync((s) => ({ ...s, roomIds: s.roomIds.slice(0, nextCount) }));
+  }
+
   function addRoom() {
     if (draftRef.current.postMode === "room") return;
     setDraft((d) => ({
@@ -1156,8 +1204,10 @@ export function PublishWizardPage() {
                       return {
                         ...d,
                         postMode: "property",
-                        rooms: [defaultRoom()],
-                        roomImageUrls: [[]],
+                        ...syncPropertyRoomsToCount(
+                          { ...d, postMode: "property", rooms: [defaultRoom()], roomImageUrls: [[]] },
+                          1,
+                        ),
                       };
                     })
                   }
@@ -1357,16 +1407,6 @@ export function PublishWizardPage() {
                       {draft.propertySummary.trim().length} ahora
                     </span>
                   </label>
-                  <div className="mt-4 border-t border-border pt-4">
-                    <BulkImageUploader
-                      title="Fotos de áreas comunes"
-                      images={draft.propertyImageUrls}
-                      maxCount={40}
-                      apiOn={apiOn}
-                      hint="Sala, cocina, fachada y otros espacios compartidos (no de recámaras individuales)."
-                      onImagesChange={(next) => setDraft((d) => ({ ...d, propertyImageUrls: next }))}
-                    />
-                  </div>
                 </>
               ) : null}
             </div>
@@ -1423,10 +1463,9 @@ export function PublishWizardPage() {
                     max={PROPERTY_BEDROOMS_MAX}
                     disabled={draft.propertyKind === "loft"}
                     onChange={(n) =>
-                      setDraft((d) => ({
-                        ...d,
-                        propertyBedroomsTotal: n,
-                      }))
+                      setDraft((d) =>
+                        syncPropertyRoomsToCount({ ...d, propertyBedroomsTotal: n }, Math.min(d.rooms.length, n)),
+                      )
                     }
                     decrementLabel="Menos recámaras"
                     incrementLabel="Más recámaras"
@@ -1566,9 +1605,9 @@ export function PublishWizardPage() {
           draft.postMode === "property" ? (
             <PropertyRoomManager
               draft={draft}
+              propertyBedroomsTotal={draft.propertyBedroomsTotal}
+              onAvailableRoomCountChange={setPropertyAvailableRoomCount}
               onUpdateRoom={updateRoom}
-              onRemoveRoom={removeRoom}
-              onAddRoom={addRoom}
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
@@ -1908,54 +1947,90 @@ export function PublishWizardPage() {
         body: (
           <form className="space-y-6">
             {draft.postMode === "property" ? (
-              <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                <h3 className="text-[15px] font-bold text-primary">
-                  Galería Principal
-                </h3>
-                <p className="text-sm text-muted">
-                  Sube fotos en bloque. Se optimizan para web (hasta 1920px) antes de subir. En “propiedad” después
-                  podrás etiquetarlas por cuarto/áreas compartidas/fachada.
-                </p>
-                <div className="mt-4">
+              <>
+                <div className="rounded-xl border border-secondary/30 bg-secondary/5 p-4 px-5 shadow-sm">
+                  <h3 className="text-[15px] font-bold text-primary">Organiza tus fotos</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Sube fotos en dos bloques: primero las{" "}
+                    <strong className="text-body">áreas comunes</strong> de la propiedad y después una galería por
+                    cada <strong className="text-body">recámara en renta</strong>. No mezcles fotos de recámaras con
+                    las de sala, cocina o fachada.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                    Áreas comunes
+                  </p>
+                  <h3 className="text-[15px] font-bold text-primary">Fotos de espacios compartidos</h3>
+                  <p className="text-sm text-muted">
+                    Sala, comedor, cocina, baños compartidos, lavandería, estacionamiento, fachada y jardín.{" "}
+                    <strong className="text-body">No subas aquí fotos del interior de recámaras individuales.</strong>
+                  </p>
                   <BulkImageUploader
-                    title="Fotos a categorizar (propiedad general)"
-                    images={draft.unassignedImageUrls}
-                    maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
+                    title="Áreas comunes y fachada"
+                    images={draft.propertyImageUrls}
+                    maxCount={40}
                     apiOn={apiOn}
-                    onImagesChange={(next) => {
-                      setDraft((d) => ({ ...d, unassignedImageUrls: next }));
-                    }}
-                    hint="Luego las etiquetas por cuarto / áreas compartidas / fachada."
+                    hint="Espacios que comparten todos los roomies."
+                    onImagesChange={(next) => setDraft((d) => ({ ...d, propertyImageUrls: next }))}
                   />
                 </div>
-              </div>
+
+                {draft.rooms.map((room, i) => (
+                  <div
+                    key={room.id}
+                    className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                      Recámara en renta {i + 1}
+                    </p>
+                    <h3 className="text-[15px] font-bold text-primary">
+                      Fotos de {room.customName?.trim() || room.title?.trim() || `Recámara ${i + 1}`}
+                    </h3>
+                    <p className="text-sm text-muted">
+                      Solo el interior de esta recámara: cama, clóset, ventanas, escritorio y baño privado si aplica.
+                    </p>
+                    <BulkImageUploader
+                      title={room.customName?.trim() || room.title?.trim() || `Recámara ${i + 1}`}
+                      images={draft.roomImageUrls[i] ?? []}
+                      maxCount={20}
+                      apiOn={apiOn}
+                      hint="No incluyas sala, cocina ni otras áreas comunes."
+                      onImagesChange={(next) => {
+                        setDraft((d) => ({
+                          ...d,
+                          roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
+                        }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </>
             ) : null}
 
-            {draft.rooms.map((room, i) => {
-              if (draft.postMode === "property" && room.occupancyStatus === "occupied") return null;
-              return (
-              <div key={room.id} className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
-                {draft.postMode === "property" ? (
-                  <h3 className="text-[15px] font-bold text-primary">
-                    {room.customName?.trim() || `Galería: Recámara ${i + 1}`}
-                  </h3>
-                ) : null}
-                <BulkImageUploader
-                  title={draft.postMode === "room" ? "Fotos de tu espacio" : room.customName?.trim() || room.title?.trim() || "Sin título"}
-                  images={draft.roomImageUrls[i] ?? []}
-                  maxCount={20}
-                  apiOn={apiOn}
-                  hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
-                  onImagesChange={(next) => {
-                    setDraft((d) => ({
-                      ...d,
-                      roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
-                    }));
-                  }}
-                />
-              </div>
-            );
-            })}
+            {draft.postMode === "room"
+              ? draft.rooms.map((room, i) => (
+                  <div
+                    key={room.id}
+                    className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4"
+                  >
+                    <BulkImageUploader
+                      title="Fotos de tu espacio"
+                      images={draft.roomImageUrls[i] ?? []}
+                      maxCount={20}
+                      apiOn={apiOn}
+                      hint={ROOM_SINGLE_FLOW_PHOTO_HINT}
+                      onImagesChange={(next) => {
+                        setDraft((d) => ({
+                          ...d,
+                          roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === i ? next : row)),
+                        }));
+                      }}
+                    />
+                  </div>
+                ))
+              : null}
           </form>
         ),
       },

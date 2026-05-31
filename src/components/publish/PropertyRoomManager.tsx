@@ -4,7 +4,7 @@ import {
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
-import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
+import { roomDisplayName } from "@/lib/roomDisplay";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
@@ -19,85 +19,11 @@ const ROOM_SUMMARY_PLACEHOLDER =
 
 type Props = {
   draft: Draft;
+  propertyBedroomsTotal: number;
+  onAvailableRoomCountChange: (count: number) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
-  onRemoveRoom: (index: number) => void;
-  onAddRoom: () => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
 };
-
-function OccupancyToggle({
-  value,
-  onChange,
-}: {
-  value: RoomDraft["occupancyStatus"];
-  onChange: (next: RoomDraft["occupancyStatus"]) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {(
-        [
-          { id: "available" as const, label: "Disponible" },
-          { id: "occupied" as const, label: "Ocupada" },
-        ] as const
-      ).map((opt) => (
-        <button
-          key={opt.id}
-          type="button"
-          onClick={() => onChange(opt.id)}
-          className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-            value === opt.id
-              ? "bg-primary text-primary-fg ring-2 ring-primary/30"
-              : "border border-border bg-surface text-body hover:bg-surface-elevated"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function OccupiedRoomFields({
-  room,
-  onChange,
-}: {
-  room: RoomDraft;
-  onChange: (patch: Partial<RoomDraft>) => void;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <label className="block text-sm font-medium text-body">
-        Género del ocupante actual
-        <span className="text-red-600"> *</span>
-        <select
-          value={room.occupantGender}
-          onChange={(e) => onChange({ occupantGender: e.target.value as RoommateGenderPref })}
-          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
-        >
-          <option value="female">Mujer</option>
-          <option value="male">Hombre</option>
-          <option value="any">Otro / prefiero no decir</option>
-        </select>
-      </label>
-      <div className="block text-sm font-medium text-body">
-        <span className="block">
-          Edad del ocupante actual
-          <span className="text-red-600"> *</span>
-        </span>
-        <WizardNumberStepper
-          editableCenter
-          maxInputDigits={2}
-          value={Math.min(99, Math.max(18, room.occupantAge))}
-          min={18}
-          max={99}
-          onChange={(n) => onChange({ occupantAge: n })}
-          decrementLabel="Menor edad"
-          incrementLabel="Mayor edad"
-        />
-      </div>
-    </div>
-  );
-}
 
 function AvailableRoomFields({
   room,
@@ -346,35 +272,58 @@ function AvailableRoomFields({
   );
 }
 
-export function PropertyRoomManager({ draft, onUpdateRoom, onRemoveRoom, onAddRoom, onToggleTag }: Props) {
+export function PropertyRoomManager({
+  draft,
+  propertyBedroomsTotal,
+  onAvailableRoomCountChange,
+  onUpdateRoom,
+  onToggleTag,
+}: Props) {
+  const totalBedrooms = Math.max(1, propertyBedroomsTotal);
+  const availableCount = Math.max(1, Math.min(totalBedrooms, draft.rooms.length));
+
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted">
-        Administra cada recámara de la propiedad. Marca las ocupadas para registrar solo al roomie actual; las
-        disponibles se publican con el mismo detalle que un anuncio de habitación individual.
-      </p>
+      <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-3">
+        <h3 className="text-[15px] font-bold text-primary">Recámaras en renta</h3>
+        <p className="text-sm text-muted">
+          En el paso anterior indicaste que la propiedad tiene{" "}
+          <strong className="text-body">
+            {totalBedrooms} {totalBedrooms === 1 ? "recámara" : "recámaras"}
+          </strong>{" "}
+          en total (ocupadas y disponibles). ¿Cuántas de esas recámaras publicarás en renta?
+        </p>
+        <div className="block text-sm font-medium text-body">
+          <span className="block">
+            Recámaras disponibles para renta
+            <span className="text-red-600"> *</span>
+          </span>
+          <WizardNumberStepper
+            value={availableCount}
+            min={1}
+            max={totalBedrooms}
+            onChange={onAvailableRoomCountChange}
+            decrementLabel="Menos recámaras en renta"
+            incrementLabel="Más recámaras en renta"
+          />
+          <span className="mt-1 block text-xs text-muted">
+            Crearemos una ficha por recámara (máximo {totalBedrooms}, según el total de la propiedad).
+          </span>
+        </div>
+      </div>
+
       {draft.rooms.map((room, i) => {
-        const available = isRoomAvailableForRent(room);
         const label = roomDisplayName(room, i);
         return (
           <div
             key={room.id}
             className="rounded-xl border border-border bg-bg-light p-4 shadow-md ring-1 ring-primary/10"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-              {draft.rooms.length > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => onRemoveRoom(i)}
-                  className="text-xs font-semibold text-red-600 hover:underline"
-                >
-                  Quitar
-                </button>
-              ) : null}
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Recámara en renta {i + 1} de {availableCount}
+            </p>
             <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-primary">Estado de la recámara</h3>
+              <h3 className="text-sm font-bold text-primary">{label}</h3>
               <label className="block text-sm font-medium text-body">
                 Nombre personalizado (opcional)
                 <input
@@ -389,33 +338,15 @@ export function PropertyRoomManager({ draft, onUpdateRoom, onRemoveRoom, onAddRo
                   className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <div>
-                <p className="text-sm font-medium text-body mb-2">¿Está disponible para renta?</p>
-                <OccupancyToggle
-                  value={room.occupancyStatus}
-                  onChange={(occupancyStatus) => onUpdateRoom(i, { occupancyStatus })}
-                />
-              </div>
-              {available ? (
-                <AvailableRoomFields
-                  room={room}
-                  onChange={(patch) => onUpdateRoom(i, patch)}
-                  onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
-                />
-              ) : (
-                <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
-              )}
+              <AvailableRoomFields
+                room={room}
+                onChange={(patch) => onUpdateRoom(i, patch)}
+                onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
+              />
             </div>
           </div>
         );
       })}
-      <button
-        type="button"
-        onClick={onAddRoom}
-        className="w-full rounded-xl border border-dashed border-secondary/60 py-2 text-sm font-semibold text-primary hover:bg-secondary/10"
-      >
-        + Agregar otra recámara
-      </button>
     </div>
   );
 }
