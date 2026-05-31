@@ -209,7 +209,7 @@ function OccupiedRoomFields({
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-muted">Ocupa</span>
+        <span className="text-xs text-muted">Ocupado por —</span>
         <button
           type="button"
           onClick={() => onChange({ occupantWomenCount: 1, occupantMenCount: 0 })}
@@ -734,10 +734,10 @@ export function PropertyRoomManager({
                   aria-expanded={expanded}
                   aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
                   onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
-                  className="rounded-lg p-1 text-muted transition hover:bg-surface-elevated"
+                  className="rounded-full border border-border/80 bg-surface p-1.5 text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary"
                 >
                   <ChevronDown
-                    className={`size-5 transition ${expanded ? "rotate-180" : ""}`}
+                    className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
                     aria-hidden
                   />
                 </button>
