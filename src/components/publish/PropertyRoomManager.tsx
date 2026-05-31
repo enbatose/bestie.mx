@@ -274,25 +274,25 @@ function RoomAvailabilityToggle({
     <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm">
       <button
         type="button"
-        onClick={() => onChange(true)}
+        onClick={() => onChange(false)}
         className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-          available
+          !available
             ? "bg-slate-200 text-slate-900 ring-1 ring-slate-300"
             : "text-muted hover:bg-surface-elevated"
         }`}
       >
-        Disponible
+        Ocupada
       </button>
       <button
         type="button"
-        onClick={() => onChange(false)}
+        onClick={() => onChange(true)}
         className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-          !available
-            ? "bg-primary text-primary-fg ring-1 ring-primary/40"
+          available
+            ? "bg-emerald-700 text-white ring-1 ring-emerald-800/40"
             : "text-muted hover:bg-surface-elevated"
         }`}
       >
-        Ocupada
+        Disponible
       </button>
     </div>
   );
