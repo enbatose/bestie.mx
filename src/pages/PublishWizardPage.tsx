@@ -134,15 +134,30 @@ function WizardAutosaveIndicator({
   if (!timeLabel) return null;
   return (
     <div className="pointer-events-none fixed right-4 top-[72px] z-50" aria-live="polite">
-      <div className="relative inline-flex overflow-hidden rounded-full p-[2px]">
-        <div
+      <div className="relative inline-flex rounded-full">
+        <svg
           key={flashKey}
-          className="pointer-events-none absolute inset-0 animate-[autosave-ring-spin_0.9s_ease-out_forwards]"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          viewBox="0 0 200 32"
+          preserveAspectRatio="none"
           aria-hidden
         >
-          <div className="size-full bg-[conic-gradient(from_0deg,transparent_0deg,transparent_288deg,#047857_312deg,#065f46_360deg)]" />
-        </div>
-        <div className="relative inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
+          <rect
+            x="1.5"
+            y="1.5"
+            width="197"
+            height="29"
+            rx="14.5"
+            ry="14.5"
+            fill="none"
+            stroke="#065f46"
+            strokeWidth="2"
+            pathLength="1"
+            strokeDasharray="0.16 0.84"
+            className="animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
+          />
+        </svg>
+        <div className="relative z-10 m-[2px] inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
           <CloudCheck className="size-3.5" aria-hidden />
           Auto-guardado {timeLabel}
         </div>
