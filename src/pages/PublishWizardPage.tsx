@@ -118,7 +118,33 @@ function formatAutosaveTime(ts: number | null): string | null {
   return new Date(ts).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   });
+}
+
+/** Tracks text/photo fields that crossed validation thresholds (for immediate autosave). */
+function draftFieldAutosaveTriggers(d: Draft): string {
+  const triggers: string[] = [];
+  const titleLen = d.propertyTitle.trim().length;
+  if (titleLen >= PROPERTY_TITLE_MIN) triggers.push(`title:${titleLen}`);
+  const nbhLen = d.neighborhood.trim().length;
+  if (nbhLen >= PROPERTY_NEIGHBORHOOD_MIN) triggers.push(`nbh:${nbhLen}`);
+  if (d.postMode === "property") {
+    const summaryLen = d.propertySummary.trim().length;
+    if (summaryLen >= PROPERTY_SUMMARY_MIN) triggers.push(`psummary:${summaryLen}`);
+    if (d.commonAreaPhotos.length >= 1) triggers.push(`commonPhotos:${d.commonAreaPhotos.length}`);
+  }
+  d.rooms.forEach((room, i) => {
+    const summaryLen = room.summary.trim().length;
+    if (summaryLen >= ROOM_SUMMARY_MIN) triggers.push(`room${i}summary:${summaryLen}`);
+    const photoCount = room.photos?.length ?? d.roomImageUrls[i]?.length ?? 0;
+    if (photoCount >= 1) triggers.push(`room${i}photos:${photoCount}`);
+  });
+  if (d.postMode === "room") {
+    const roomPhotos = d.rooms[0]?.photos?.length ?? d.roomImageUrls[0]?.length ?? 0;
+    if (roomPhotos >= 1) triggers.push(`singleRoomPhotos:${roomPhotos}`);
+  }
+  return triggers.join("|");
 }
 
 function syncDraftPhotoFields(d: Draft): Draft {
@@ -800,6 +826,9 @@ export function PublishWizardPage() {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
+  const prevWizardStepRef = useRef<number | null>(null);
+  const prevStepValidRef = useRef<boolean | null>(null);
+  const prevAutosaveTriggersRef = useRef("");
 
   useEffect(() => {
     if (me === undefined) return;
@@ -1515,6 +1544,7 @@ export function PublishWizardPage() {
                           propertyImageUrls: next,
                         }))
                       }
+                      onBatchComplete={() => void flushWizardAutosave()}
                     />
                   </div>
                 </>
@@ -1674,7 +1704,7 @@ export function PublishWizardPage() {
               onBedroomTotalChange={setPropertyBedroomTotal}
               expandedRoomIndex={expandedPropertyRoomIndex}
               onExpandedRoomIndexChange={setExpandedPropertyRoomIndex}
-              preferOccupiedFirst={!editPropertyId && !editingLiveProperty}
+              preferOccupiedFirst={false}
               onRentRoomCountChange={setPropertyRentRoomCount}
               onOccupancyStatusChange={(roomIndex, status) =>
                 setDraft((d) => ({
@@ -1693,6 +1723,7 @@ export function PublishWizardPage() {
                   }),
                 )
               }
+              onUploadBatchComplete={() => void flushWizardAutosave()}
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
@@ -2057,6 +2088,7 @@ export function PublishWizardPage() {
                             }),
                           );
                         }}
+                        onBatchComplete={() => void flushWizardAutosave()}
                       />
                     </div>
                   ))}
@@ -2070,7 +2102,7 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, wizardDraftSaveNote, submitInFlight, editPropertyId, editingLiveProperty, me],
+    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, wizardDraftSaveNote, submitInFlight, editPropertyId, editingLiveProperty, me, flushWizardAutosave],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
@@ -2085,6 +2117,37 @@ export function PublishWizardPage() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!apiOn || !me || !storageReady) return;
+    if (prevWizardStepRef.current != null && prevWizardStepRef.current !== safeStep) {
+      void flushWizardAutosave();
+    }
+    prevWizardStepRef.current = safeStep;
+  }, [safeStep, apiOn, me, storageReady, flushWizardAutosave]);
+
+  useEffect(() => {
+    if (!apiOn || !me || !storageReady) return;
+    const err = validateWizardStepByTitle(current.title, draft, safeStep);
+    const valid = err === null;
+    if (prevStepValidRef.current === false && valid) {
+      void flushWizardAutosave();
+    }
+    prevStepValidRef.current = valid;
+  }, [draft, safeStep, current.title, apiOn, me, storageReady, flushWizardAutosave]);
+
+  useEffect(() => {
+    if (!apiOn || !me || !storageReady) return;
+    const sig = draftFieldAutosaveTriggers(draft);
+    if (
+      prevAutosaveTriggersRef.current &&
+      sig !== prevAutosaveTriggersRef.current &&
+      sig.length > prevAutosaveTriggersRef.current.length
+    ) {
+      void flushWizardAutosave();
+    }
+    prevAutosaveTriggersRef.current = sig;
+  }, [draft, apiOn, me, storageReady, flushWizardAutosave]);
 
   /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */
   const publishModeParam = searchParams.get("publishMode");
@@ -2497,6 +2560,7 @@ export function PublishWizardPage() {
               type="button"
               onClick={() => {
                 setPublishErr(null);
+                void flushWizardAutosave();
                 setStep((s) => Math.max(0, s - 1));
               }}
               className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
@@ -2530,6 +2594,7 @@ export function PublishWizardPage() {
                     return;
                   }
                   setPublishErr(null);
+                  void flushWizardAutosave();
                   setStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
                 disabled={submitInFlight !== null}

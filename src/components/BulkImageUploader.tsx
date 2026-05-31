@@ -24,6 +24,8 @@ type Props = {
   apiOn: boolean;
   /** Optional helper text */
   hint?: string;
+  /** Called after a batch of files finishes uploading (or fails). */
+  onBatchComplete?: () => void;
 };
 
 type BusyRow = {
@@ -126,7 +128,7 @@ async function convertIfNeeded(file: File): Promise<{
   }
 }
 
-export function BulkImageUploader({ title, images, maxCount, onImagesChange, apiOn, hint }: Props) {
+export function BulkImageUploader({ title, images, maxCount, onImagesChange, apiOn, hint, onBatchComplete }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyRow | null>(null);
   const batchIdRef = useRef<string>(
@@ -230,9 +232,10 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           ok: true,
           fileCount: take.length,
         }).catch(() => null);
+        onBatchComplete?.();
       }
     },
-    [apiOn, maxCount, onImagesChange, remaining],
+    [apiOn, maxCount, onBatchComplete, onImagesChange, remaining],
   );
 
   return (

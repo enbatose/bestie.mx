@@ -46,6 +46,7 @@ type Props = {
   onOccupancyStatusChange: (roomIndex: number, status: RoomOccupancyStatus) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onRoomPhotosChange: (roomIndex: number, photos: DraftImage[]) => void;
+  onUploadBatchComplete?: () => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
   apiOn?: boolean;
   showSaveProgress?: boolean;
@@ -304,6 +305,7 @@ function AvailableRoomFields({
   onChange,
   onToggleTag,
   onPhotosChange,
+  onUploadBatchComplete,
   apiOn = false,
 }: {
   room: RoomDraft;
@@ -311,6 +313,7 @@ function AvailableRoomFields({
   onChange: (patch: Partial<RoomDraft>) => void;
   onToggleTag: (tag: ListingTag, active: boolean) => void;
   onPhotosChange: (photos: DraftImage[]) => void;
+  onUploadBatchComplete?: () => void;
   apiOn?: boolean;
 }) {
   return (
@@ -506,6 +509,7 @@ function AvailableRoomFields({
           apiOn={apiOn}
           hint="Solo el interior de esta recámara. No incluyas sala, cocina ni otras áreas comunes."
           onImagesChange={onPhotosChange}
+          onBatchComplete={onUploadBatchComplete}
         />
       </div>
 
@@ -559,6 +563,7 @@ export function PropertyRoomManager({
   onOccupancyStatusChange,
   onUpdateRoom,
   onRoomPhotosChange,
+  onUploadBatchComplete,
   onToggleTag,
   apiOn = false,
   showSaveProgress = false,
@@ -785,6 +790,7 @@ export function PropertyRoomManager({
                     apiOn={apiOn}
                     onChange={(patch) => onUpdateRoom(i, patch)}
                     onPhotosChange={(photos) => onRoomPhotosChange(i, photos)}
+                    onUploadBatchComplete={onUploadBatchComplete}
                     onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
                   />
                   <p className="text-xs text-muted">

@@ -32,6 +32,12 @@ function randSubset<T>(arr: readonly T[], min = 0, max?: number): T[] {
   return shuffled.slice(0, count);
 }
 
+function randomSeedPhotos(pool: readonly string[], min = 1, max = 3) {
+  return hydrateDraftImagesFromUrls(
+    randSubset(pool, min, Math.min(max, pool.length)).map(seedImg),
+  );
+}
+
 function isoDateOffset(daysFromNow: number): string {
   const d = new Date();
   d.setDate(d.getDate() + daysFromNow);
@@ -187,18 +193,27 @@ const SEED_COMMON_IMAGES = [
 export function seedStep0(): Partial<Draft> {
   const postMode = pick(["room", "property"] as const);
   if (postMode === "room") {
+    const room = seedRoom(0);
+    const photos = randomSeedPhotos(SEED_ROOM_IMAGES, 1, 3);
     return {
       postMode: "room",
-      rooms: [seedRoom(0)],
-      roomImageUrls: [[]],
+      rooms: [{ ...room, photos }],
+      roomImageUrls: [photos],
       propertySummary: "",
     };
   }
   const roomCount = randInt(2, 3);
+  const rentCount = randInt(1, roomCount - 1);
+  const rooms = Array.from({ length: roomCount }, (_, i) => seedPropertyRoom(i, i < rentCount));
+  const commonAreaPhotos = randomSeedPhotos(SEED_COMMON_IMAGES, 1, 3);
   return {
     postMode: "property",
-    rooms: Array.from({ length: roomCount }, (_, i) => seedRoom(i)),
-    roomImageUrls: Array.from({ length: roomCount }, () => []),
+    propertyBedroomsTotal: roomCount,
+    propertyBathrooms: randInt(1, 2),
+    rooms,
+    roomImageUrls: rooms.map((room) => room.photos),
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
   };
 }
 
@@ -216,64 +231,105 @@ export function seedStep1(): Partial<Draft> {
 export function seedStep2(_draft: Draft): Partial<Draft> {
   const kind = pick(PROPERTY_KINDS);
   const bedroomsTotal = kind === "apartment" ? randInt(2, 3) : randInt(3, 5);
-  return {
+  const base = {
     propertyTitle: pick(PROPERTY_TITLES),
     neighborhood: pick(COLONIAS),
-    propertySummary: pick(PROPERTY_SUMMARIES),
     propertyKind: kind,
     propertyBedroomsTotal: bedroomsTotal,
     propertyBathrooms: randInt(1, 2),
-    occupiedByWomenCount: randInt(0, 2),
-    occupiedByMenCount: randInt(0, 2),
     propertyTags: [
       ...randSubset(PROPERTY_AMENITY_POOL, 4, 8),
       ...randSubset(PROPERTY_PERMITIDO_POOL, 0, 3),
     ] as ListingTag[],
   };
+  if (_draft.postMode === "property") {
+    const commonAreaPhotos = randomSeedPhotos(SEED_COMMON_IMAGES, 1, 3);
+    return {
+      ...base,
+      propertySummary: pick(PROPERTY_SUMMARIES),
+      commonAreaPhotos,
+      propertyImageUrls: commonAreaPhotos,
+    };
+  }
+  return base;
 }
 
 export function seedStep3(draft: Draft): Partial<Draft> {
+  if (draft.postMode === "property") {
+    return seedPropertyRoomsStep(draft);
+  }
   return {
     rooms: draft.rooms.map((_, i) => seedRoom(i)),
   };
 }
 
-export function seedStep4(draft: Draft): Partial<Draft> {
-  const roomImgPool = [...SEED_ROOM_IMAGES].sort(() => Math.random() - 0.5);
-  const commonImgPool = [...SEED_COMMON_IMAGES].sort(() => Math.random() - 0.5);
-
-  if (draft.postMode === "room") {
-    // Single-room mode: all images in roomImageUrls[0]
-    return {
-      roomImageUrls: [
-        hydrateDraftImagesFromUrls(
-          [...roomImgPool.slice(0, 4), ...commonImgPool].map(seedImg),
-        ),
-      ],
-      propertyImageUrls: [],
-      unassignedImageUrls: [],
-    };
-  }
-
-  // Property mode: spread room images across rooms, put commons as unassigned
-  const roomImageUrls = draft.rooms.map((_, i) => {
-    const imgs = roomImgPool.slice(i * 2, i * 2 + 2);
-    return hydrateDraftImagesFromUrls(imgs.map(seedImg));
-  });
-
+function seedPropertyRoomsStep(draft: Draft): Partial<Draft> {
+  const total = Math.max(1, Math.min(5, draft.propertyBedroomsTotal || randInt(2, 3)));
+  const rentCount = total <= 1 ? 1 : randInt(1, total - 1);
+  const rooms = Array.from({ length: total }, (_, i) => seedPropertyRoom(i, i < rentCount));
+  const commonAreaPhotos =
+    draft.commonAreaPhotos.length > 0
+      ? draft.commonAreaPhotos
+      : randomSeedPhotos(SEED_COMMON_IMAGES, 1, 3);
   return {
-    roomImageUrls,
-    unassignedImageUrls: hydrateDraftImagesFromUrls(commonImgPool.map(seedImg)),
-    propertyImageUrls: [],
+    propertyBedroomsTotal: total,
+    rooms,
+    roomImageUrls: rooms.map((room) => room.photos),
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
   };
 }
 
-/** Step 5 in property mode: auto-label all unassigned photos as shared areas. */
-export function seedStep5LabelPhotos(draft: Draft): Partial<Draft> {
-  if (!draft.unassignedImageUrls.length) return {};
+function seedPropertyRoom(index: number, available: boolean): RoomDraft {
+  if (!available) {
+    const femaleOccupant = Math.random() > 0.5;
+    return {
+      ...seedRoom(index),
+      occupancyStatus: "occupied",
+      occupantWomenCount: femaleOccupant ? randInt(1, 2) : 0,
+      occupantMenCount: femaleOccupant ? 0 : randInt(1, 2),
+      photos: [],
+      summary: "",
+      tags: [],
+      rentMxn: 0,
+      depositMxn: 0,
+    };
+  }
   return {
-    propertyImageUrls: [...draft.propertyImageUrls, ...draft.unassignedImageUrls].slice(0, 20),
+    ...seedRoom(index),
+    occupancyStatus: "available",
+    photos: randomSeedPhotos(SEED_ROOM_IMAGES, 1, 3),
+  };
+}
+
+export function seedStep4(draft: Draft): Partial<Draft> {
+  if (draft.postMode === "property") {
+    return seedStepPublish();
+  }
+
+  const photos = randomSeedPhotos([...SEED_ROOM_IMAGES, ...SEED_COMMON_IMAGES], 1, 3);
+  const rooms = draft.rooms.map((room, i) => (i === 0 ? { ...room, photos } : room));
+  return {
+    rooms,
+    roomImageUrls: [photos],
+    propertyImageUrls: [],
     unassignedImageUrls: [],
+  };
+}
+
+/** Legacy helper — property flow no longer has a separate photo-label step. */
+export function seedStep5LabelPhotos(draft: Draft): Partial<Draft> {
+  if (draft.postMode !== "property") return {};
+  if (draft.commonAreaPhotos.length > 0) {
+    return {
+      commonAreaPhotos: draft.commonAreaPhotos,
+      propertyImageUrls: draft.commonAreaPhotos,
+    };
+  }
+  const commonAreaPhotos = randomSeedPhotos(SEED_COMMON_IMAGES, 1, 3);
+  return {
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
   };
 }
 
@@ -296,7 +352,7 @@ function seedRoom(index: number): RoomDraft {
   const ageMax = randInt(28, 45);
   const tags = [
     ...randSubset(ROOM_TAGS_POOL, 2, 4),
-    ...randSubset(ROOM_IDEAL_PARA_POOL, 0, 3),
+    ...randSubset(ROOM_IDEAL_PARA_POOL, 1, 3),
   ] as ListingTag[];
   return {
     id: newRoomDraftId(),
@@ -304,6 +360,8 @@ function seedRoom(index: number): RoomDraft {
     occupancyStatus: "available" as const,
     occupantGender: pick(GENDER_PREFS),
     occupantAge: randInt(22, 40),
+    occupantWomenCount: 0,
+    occupantMenCount: 0,
     title: index === 0 ? "" : `Recámara ${index + 1}`,
     rentMxn: rent,
     depositMxn: rent * depositMultiplier,
@@ -318,6 +376,7 @@ function seedRoom(index: number): RoomDraft {
     minimalStayMonths: pick([1, 1, 3, 6] as const),
     roomDimension: pick(ROOM_DIMENSIONS),
     rentIncludesUtilities: Math.random() > 0.5,
+    photos: [],
   };
 }
 
@@ -338,13 +397,12 @@ export function seedForStep(safeStep: number, draft: Draft): Partial<Draft> {
     case 3:
       return seedStep3(draft);
     case 4:
+      if (isPropertyMode) return seedStepPublish();
       return seedStep4(draft);
     case 5:
-      // Step 5 is "Etiquetar fotos" in property mode, "Publicar" in room mode
-      if (isPropertyMode) return seedStep5LabelPhotos(draft);
+      if (isPropertyMode) return {};
       return seedStepPublish();
     case 6:
-      // Only reached in property mode (step 6 = Publicar)
       return seedStepPublish();
     default:
       return {};
