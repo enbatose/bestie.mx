@@ -64,6 +64,8 @@ function roomOccupancyFieldsFromBody(body: Partial<Room>): {
   occupancyStatus: "available" | "occupied";
   occupantGender: string | null;
   occupantAge: number | null;
+  occupantWomenCount: number | null;
+  occupantMenCount: number | null;
 } {
   const customName =
     typeof body.customName === "string" && body.customName.trim()
@@ -80,7 +82,18 @@ function roomOccupancyFieldsFromBody(body: Partial<Room>): {
     occupancyStatus === "occupied" && typeof body.occupantAge === "number"
       ? clampAge(body.occupantAge, 18)
       : null;
-  return { customName, occupancyStatus, occupantGender, occupantAge };
+  const occupantWomenCount =
+    occupancyStatus === "occupied" ? occupantCountOrNull((body as { occupantWomenCount?: unknown }).occupantWomenCount) : null;
+  const occupantMenCount =
+    occupancyStatus === "occupied" ? occupantCountOrNull((body as { occupantMenCount?: unknown }).occupantMenCount) : null;
+  return { customName, occupancyStatus, occupantGender, occupantAge, occupantWomenCount, occupantMenCount };
+}
+
+function occupiedRoomOccupantsOk(occFields: ReturnType<typeof roomOccupancyFieldsFromBody>): boolean {
+  const women = occFields.occupantWomenCount ?? 0;
+  const men = occFields.occupantMenCount ?? 0;
+  if (women + men >= 1) return true;
+  return Boolean(occFields.occupantGender && occFields.occupantAge != null);
 }
 
 function optLodging(v: unknown): LodgingType | undefined {
@@ -256,6 +269,14 @@ function rowToRoom(row: Record<string, unknown>): Room {
     row.occupant_age != null && Number.isFinite(Number(row.occupant_age))
       ? Math.min(99, Math.max(18, Math.floor(Number(row.occupant_age))))
       : undefined;
+  const occupantWomenCount =
+    row.occupant_women_count != null && Number.isFinite(Number(row.occupant_women_count))
+      ? Math.max(0, Math.floor(Number(row.occupant_women_count)))
+      : undefined;
+  const occupantMenCount =
+    row.occupant_men_count != null && Number.isFinite(Number(row.occupant_men_count))
+      ? Math.max(0, Math.floor(Number(row.occupant_men_count)))
+      : undefined;
   return {
     id: String(row.id),
     propertyId: String(row.property_id),
@@ -264,6 +285,8 @@ function rowToRoom(row: Record<string, unknown>): Room {
     occupancyStatus,
     ...(occupantGender ? { occupantGender } : {}),
     ...(occupantAge != null ? { occupantAge } : {}),
+    ...(occupantWomenCount != null ? { occupantWomenCount } : {}),
+    ...(occupantMenCount != null ? { occupantMenCount } : {}),
     title: String(row.title),
     rentMxn: Number(row.rent_mxn),
     depositMxn: dep,
@@ -373,6 +396,17 @@ export function propertiesRouter(db: DatabaseSync) {
 
     for (const raw of roomsIn) {
       const rm = raw as Partial<Room> & { availableFrom?: unknown; depositMxn?: unknown };
+      const occFields = roomOccupancyFieldsFromBody(rm);
+      if (occFields.occupancyStatus === "occupied") {
+        if (!occupiedRoomOccupantsOk(occFields)) {
+          res.status(400).json({
+            error: "invalid_room",
+            message: "Each occupied room needs at least one woman or man count.",
+          });
+          return;
+        }
+        continue;
+      }
       if (
         typeof rm.title !== "string" ||
         typeof rm.rentMxn !== "number" ||
@@ -450,6 +484,8 @@ export function propertiesRouter(db: DatabaseSync) {
       }
     } else {
       for (let i = 0; i < roomImagesList.length; i++) {
+        const rm = roomsIn[i] as Partial<Room>;
+        if (optOccupancyStatus(rm.occupancyStatus) === "occupied") continue;
         if (roomImagesList[i].length < 1) {
           res.status(400).json({
             error: "photos_required",
@@ -501,8 +537,8 @@ export function propertiesRouter(db: DatabaseSync) {
         id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
         aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at,
-        custom_name, occupancy_status, occupant_gender, occupant_age
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        custom_name, occupancy_status, occupant_gender, occupant_age, occupant_women_count, occupant_men_count
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
@@ -541,60 +577,36 @@ export function propertiesRouter(db: DatabaseSync) {
           (occFields.occupancyStatus === "occupied" ? "Ocupada" : "Recámara");
 
         if (occFields.occupancyStatus === "occupied") {
-          if (!occFields.occupantGender || occFields.occupantAge == null) throw new Error("bad_occupant");
-          insertRoom.run(
-            roomId,
-            propertyId,
-            displayTitle,
-            0,
-            1,
-            "[]",
-            occFields.occupantGender,
-            occFields.occupantAge,
-            occFields.occupantAge,
-            "",
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            order++,
-            0,
-            "[]",
-            createdAt,
-            createdAt,
-            occFields.customName,
-            occFields.occupancyStatus,
-            occFields.occupantGender,
-            occFields.occupantAge,
-          );
-          continue;
+          if (!occupiedRoomOccupantsOk(occFields)) throw new Error("bad_occupant");
         }
 
-        if (!isRoommateGenderPref(String(rm.roommateGenderPref))) {
-          throw new Error("bad_pref");
-        }
-        const tags = (rm.tags as unknown[]).filter(
+        const prefRaw = String(rm.roommateGenderPref ?? "any");
+        if (!isRoommateGenderPref(prefRaw)) throw new Error("bad_pref");
+        const pref = prefRaw as RoommateGenderPref;
+        const tags = (Array.isArray(rm.tags) ? rm.tags : []).filter(
           (t): t is ListingTag => typeof t === "string" && isListingTag(t),
         );
-        if (tags.length !== (rm.tags as unknown[]).length) throw new Error("bad_tags");
+        if (Array.isArray(rm.tags) && tags.length !== rm.tags.length) throw new Error("bad_tags");
         const title = displayTitle;
-        const summary = clampStr(String(rm.summary), SUMMARY_MAX_LEN);
-        if (!title || !summary) throw new Error("bad_room_text");
-        const rentMxn = clampRentMxn(Number(rm.rentMxn));
-        const roomsAvailable = clampRoomsAvailable(Number(rm.roomsAvailable));
-        const pref = String(rm.roommateGenderPref) as RoommateGenderPref;
-        const ageMin = clampAge(Number(rm.ageMin), 18);
-        const ageMax = clampAge(Number(rm.ageMax), 99);
+        const summary = clampStr(String(rm.summary ?? ""), SUMMARY_MAX_LEN);
+        if (occFields.occupancyStatus !== "occupied") {
+          if (!title || !summary) throw new Error("bad_room_text");
+        }
+        const rentMxn = clampRentMxn(Number(rm.rentMxn ?? 0));
+        const roomsAvailable = clampRoomsAvailable(Number(rm.roomsAvailable ?? 1));
+        const ageMin = clampAge(Number(rm.ageMin ?? 18), 18);
+        const ageMax = clampAge(Number(rm.ageMax ?? 99), 99);
         if (ageMin > ageMax) throw new Error("bad_age");
-        const availFrom = optIsoDate(rm.availableFrom);
-        const dim = optDim(rm.roomDimension);
-        const minStay = optPositiveInt(rm.minimalStayMonths);
-        if (!availFrom || !dim || minStay == null || minStay < 1) throw new Error("bad_room_fields");
-        const depositMxn = clampDepositMxn(Number((rm as { depositMxn?: unknown }).depositMxn));
-        const roomImagesJson = JSON.stringify(roomImagesList[order] ?? clampListingImageUrls((rm as { imageUrls?: unknown }).imageUrls));
+        const availFrom = optIsoDate(rm.availableFrom) ?? new Date().toISOString().slice(0, 10);
+        const dim = optDim(rm.roomDimension) ?? "medium";
+        const minStay = optPositiveInt(rm.minimalStayMonths) ?? 1;
+        if (occFields.occupancyStatus !== "occupied" && (!availFrom || !dim || minStay < 1)) {
+          throw new Error("bad_room_fields");
+        }
+        const depositMxn = clampDepositMxn(Number((rm as { depositMxn?: unknown }).depositMxn ?? 0));
+        const roomImagesJson = JSON.stringify(
+          roomImagesList[order] ?? clampListingImageUrls((rm as { imageUrls?: unknown }).imageUrls),
+        );
         insertRoom.run(
           roomId,
           propertyId,
@@ -619,8 +631,10 @@ export function propertiesRouter(db: DatabaseSync) {
           createdAt,
           occFields.customName,
           occFields.occupancyStatus,
-          null,
-          null,
+          occFields.occupantGender,
+          occFields.occupantAge,
+          occFields.occupantWomenCount,
+          occFields.occupantMenCount,
         );
       }
       db.exec("COMMIT;");
@@ -851,8 +865,8 @@ export function propertiesRouter(db: DatabaseSync) {
           id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
           age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
           aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at,
-          custom_name, occupancy_status, occupant_gender, occupant_age
-        ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          custom_name, occupancy_status, occupant_gender, occupant_age, occupant_women_count, occupant_men_count
+        ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         roomId,
         propertyId,
@@ -879,6 +893,8 @@ export function propertiesRouter(db: DatabaseSync) {
         occFields.occupancyStatus,
         occFields.occupantGender,
         occFields.occupantAge,
+        occFields.occupantWomenCount,
+        occFields.occupantMenCount,
       );
     } catch {
       res.status(409).json({ error: "conflict" });
@@ -999,6 +1015,18 @@ export function propertiesRouter(db: DatabaseSync) {
         : roomRow.occupant_age != null && Number.isFinite(Number(roomRow.occupant_age))
           ? Math.floor(Number(roomRow.occupant_age))
           : null;
+    const patchOccupantWomen =
+      body.occupantWomenCount !== undefined
+        ? occFields.occupantWomenCount
+        : roomRow.occupant_women_count != null && Number.isFinite(Number(roomRow.occupant_women_count))
+          ? Math.max(0, Math.floor(Number(roomRow.occupant_women_count)))
+          : null;
+    const patchOccupantMen =
+      body.occupantMenCount !== undefined
+        ? occFields.occupantMenCount
+        : roomRow.occupant_men_count != null && Number.isFinite(Number(roomRow.occupant_men_count))
+          ? Math.max(0, Math.floor(Number(roomRow.occupant_men_count)))
+          : null;
     const patchTitle = patchCustomName || title;
 
     db.prepare(
@@ -1007,6 +1035,7 @@ export function propertiesRouter(db: DatabaseSync) {
         age_min = ?, age_max = ?, summary = ?, lodging_type = ?, available_from = ?,
         minimal_stay_months = ?, room_dimension = ?, aval_required = ?, sublet_allowed = ?, deposit_mxn = ?,
         image_urls_json = ?, custom_name = ?, occupancy_status = ?, occupant_gender = ?, occupant_age = ?,
+        occupant_women_count = ?, occupant_men_count = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
     ).run(
@@ -1030,6 +1059,8 @@ export function propertiesRouter(db: DatabaseSync) {
       patchOccupancy,
       patchOccupantGender,
       patchOccupantAge,
+      patchOccupantWomen,
+      patchOccupantMen,
       roomId,
     );
 

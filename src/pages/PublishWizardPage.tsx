@@ -57,6 +57,12 @@ import {
   ROOM_SUMMARY_MIN,
 } from "@/lib/publishWizard/publishCore";
 import { firstRoomIndexWithIssues } from "@/lib/publishWizard/roomWizardValidation";
+import {
+  applyPropertyRentRoomCount,
+  hydrateRoomOccupantCounts,
+  propertyRentRoomCount,
+  syncPropertyRoomSlotsToTotal,
+} from "@/lib/publishWizard/propertyRoomSlots";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -83,7 +89,6 @@ const PROPERTY_SUMMARY_MIN = 200;
 const PROPERTY_SUMMARY_MAX = 1500;
 const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;
-const PROPERTY_OCCUPANTS_MAX = 50;
 
 /** Index in `steps` for paso 1 — tipo de espacio (banner de cuenta para invitados). */
 const WIZARD_STEP_POST_MODE = 0;
@@ -125,8 +130,9 @@ function normalizePersistedDraft(d: Draft): Draft {
 
 function normalizePropertyRoomSlots(d: Draft): Draft {
   if (d.postMode !== "property") return d;
-  const n = Math.max(1, Math.min(d.propertyBedroomsTotal, d.rooms.length || 1));
-  return syncPropertyRoomsToCount(d, n);
+  const synced = syncPropertyRoomSlotsToTotal(d, defaultRoom);
+  const rentCount = Math.min(synced.rooms.length, propertyRentRoomCount(synced));
+  return applyPropertyRentRoomCount(synced, rentCount, defaultRoom);
 }
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
@@ -227,6 +233,9 @@ export type RoomDraft = {
   occupancyStatus: RoomOccupancyStatus;
   occupantGender: RoommateGenderPref;
   occupantAge: number;
+  /** Current occupants when `occupancyStatus === 'occupied'`. */
+  occupantWomenCount: number;
+  occupantMenCount: number;
   title: string;
   rentMxn: number;
   depositMxn: number;
@@ -290,6 +299,8 @@ const defaultRoom = (): RoomDraft => ({
   occupancyStatus: "available",
   occupantGender: "any",
   occupantAge: 25,
+  occupantWomenCount: 0,
+  occupantMenCount: 0,
   title: "",
   rentMxn: 0,
   depositMxn: 0,
@@ -399,23 +410,6 @@ function convertRoomDraftToProperty(d: Draft): Draft {
   };
 }
 
-/** Resize property-mode room slots; each slot is a recámara en renta. */
-function syncPropertyRoomsToCount(d: Draft, count: number): Draft {
-  const maxTotal = Math.max(1, d.propertyBedroomsTotal);
-  const n = Math.max(1, Math.min(maxTotal, Math.floor(count)));
-  let rooms = [...d.rooms];
-  let roomImageUrls = [...d.roomImageUrls];
-  while (rooms.length < n) {
-    rooms.push(defaultRoom());
-    roomImageUrls.push([]);
-  }
-  if (rooms.length > n) {
-    rooms = rooms.slice(0, n);
-    roomImageUrls = roomImageUrls.slice(0, n);
-  }
-  rooms = rooms.map((room) => ({ ...room, occupancyStatus: "available" as const }));
-  return { ...d, rooms, roomImageUrls };
-}
 
 function isFreshDefaultDraft(d: Draft): boolean {
   return (
@@ -540,7 +534,8 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     (Math.abs(p.lat - anchor.lat) > 0.0002 || Math.abs(p.lng - anchor.lng) > 0.0002);
   let roomDrafts: RoomDraft[] =
     srvRooms.length > 0
-      ? srvRooms.map((r) => ({
+      ? srvRooms.map((r) =>
+          hydrateRoomOccupantCounts({
           ...defaultRoom(),
           id: r.id,
           customName: r.customName?.trim() ?? "",
@@ -550,6 +545,14 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
             r.occupantAge != null && Number.isFinite(r.occupantAge)
               ? Math.min(99, Math.max(18, r.occupantAge))
               : 25,
+          occupantWomenCount:
+            r.occupantWomenCount != null && Number.isFinite(Number(r.occupantWomenCount))
+              ? Math.max(0, Math.floor(Number(r.occupantWomenCount)))
+              : 0,
+          occupantMenCount:
+            r.occupantMenCount != null && Number.isFinite(Number(r.occupantMenCount))
+              ? Math.max(0, Math.floor(Number(r.occupantMenCount)))
+              : 0,
           title:
             r.status === "draft" && isDraftOnlyRoomTitleSeed(r.title)
               ? ""
@@ -571,7 +574,8 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           availableFrom: (r.availableFrom ?? isoDateInMexicoCity()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
           roomDimension: r.roomDimension ?? "medium",
-        }))
+        }),
+        )
       : [defaultRoom()];
 
   let propertyTags: ListingTag[] = [];
@@ -1103,27 +1107,38 @@ export function PublishWizardPage() {
     }));
   }
 
-  function setPropertyAvailableRoomCount(count: number) {
+  function setPropertyRentRoomCount(count: number) {
+    setDraft((draft) => applyPropertyRentRoomCount(draft, count, defaultRoom));
+  }
+
+  function setPropertyBedroomTotal(count: number) {
     const d = draftRef.current;
-    const prevCount = d.rooms.length;
-    const nextCount = Math.max(1, Math.min(d.propertyBedroomsTotal, Math.floor(count)));
-    setDraft((draft) => syncPropertyRoomsToCount(draft, nextCount));
-    if (nextCount >= prevCount) {
+    const prevTotal = d.rooms.length;
+    const nextTotal = Math.max(1, Math.min(PROPERTY_BEDROOMS_MAX, Math.floor(count)));
+    setDraft((draft) => {
+      const synced = syncPropertyRoomSlotsToTotal(
+        { ...draft, propertyBedroomsTotal: nextTotal },
+        defaultRoom,
+      );
+      const rentCount = Math.min(propertyRentRoomCount(synced), synced.rooms.length);
+      return applyPropertyRentRoomCount(synced, rentCount, defaultRoom);
+    });
+    if (nextTotal >= prevTotal) {
       setServerSync((s) => {
         const roomIds = [...s.roomIds];
-        while (roomIds.length < nextCount) roomIds.push("");
-        return { ...s, roomIds: roomIds.slice(0, nextCount) };
+        while (roomIds.length < nextTotal) roomIds.push("");
+        return { ...s, roomIds: roomIds.slice(0, nextTotal) };
       });
       return;
     }
     const pid = serverSyncRef.current.propertyId;
     if (apiOn && pid) {
-      for (let i = nextCount; i < prevCount; i++) {
+      for (let i = nextTotal; i < prevTotal; i++) {
         const rid = serverSyncRef.current.roomIds[i];
         if (rid) void deleteDraftRoom(pid, rid).catch(() => undefined);
       }
     }
-    setServerSync((s) => ({ ...s, roomIds: s.roomIds.slice(0, nextCount) }));
+    setServerSync((s) => ({ ...s, roomIds: s.roomIds.slice(0, nextTotal) }));
   }
 
   function addRoom() {
@@ -1202,14 +1217,14 @@ export function PublishWizardPage() {
                   onClick={() =>
                     setDraft((d) => {
                       if (d.postMode === "property") return d;
-                      return {
-                        ...d,
-                        postMode: "property",
-                        ...syncPropertyRoomsToCount(
+                      return applyPropertyRentRoomCount(
+                        syncPropertyRoomSlotsToTotal(
                           { ...d, postMode: "property", rooms: [defaultRoom()], roomImageUrls: [[]] },
-                          1,
+                          defaultRoom,
                         ),
-                      };
+                        1,
+                        defaultRoom,
+                      );
                     })
                   }
                   className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
@@ -1463,11 +1478,7 @@ export function PublishWizardPage() {
                     min={1}
                     max={PROPERTY_BEDROOMS_MAX}
                     disabled={draft.propertyKind === "loft"}
-                    onChange={(n) =>
-                      setDraft((d) =>
-                        syncPropertyRoomsToCount({ ...d, propertyBedroomsTotal: n }, Math.min(d.rooms.length, n)),
-                      )
-                    }
+                    onChange={(n) => setPropertyBedroomTotal(n)}
                     decrementLabel="Menos recámaras"
                     incrementLabel="Más recámaras"
                   />
@@ -1500,51 +1511,6 @@ export function PublishWizardPage() {
                     </label>
                   </div>
                 ) : null}
-              </div>
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold tracking-tight text-primary">
-                  Besties actuales en la propiedad
-                </h4>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="block text-sm font-medium text-body">
-                    <span className="block">
-                      Mujeres
-                      <span className="text-red-600"> *</span>
-                    </span>
-                    <WizardNumberStepper
-                      value={draft.occupiedByWomenCount ?? 0}
-                      min={0}
-                      max={PROPERTY_OCCUPANTS_MAX}
-                      onChange={(n) =>
-                        setDraft((d) => ({
-                          ...d,
-                          occupiedByWomenCount: n,
-                        }))
-                      }
-                      decrementLabel="Menos mujeres"
-                      incrementLabel="Más mujeres"
-                    />
-                  </div>
-                  <div className="block text-sm font-medium text-body">
-                    <span className="block">
-                      Hombres
-                      <span className="text-red-600"> *</span>
-                    </span>
-                    <WizardNumberStepper
-                      value={draft.occupiedByMenCount ?? 0}
-                      min={0}
-                      max={PROPERTY_OCCUPANTS_MAX}
-                      onChange={(n) =>
-                        setDraft((d) => ({
-                          ...d,
-                          occupiedByMenCount: n,
-                        }))
-                      }
-                      decrementLabel="Menos hombres"
-                      incrementLabel="Más hombres"
-                    />
-                  </div>
-                </div>
               </div>
               <div className="mt-4 space-y-4 border-t border-border pt-4">
                 <div className="space-y-2">
@@ -1609,7 +1575,15 @@ export function PublishWizardPage() {
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
               expandedRoomIndex={expandedPropertyRoomIndex}
               onExpandedRoomIndexChange={setExpandedPropertyRoomIndex}
-              onAvailableRoomCountChange={setPropertyAvailableRoomCount}
+              onRentRoomCountChange={setPropertyRentRoomCount}
+              onOccupancyStatusChange={(roomIndex, status) =>
+                setDraft((d) => ({
+                  ...d,
+                  rooms: d.rooms.map((room, i) =>
+                    i === roomIndex ? { ...room, occupancyStatus: status } : room,
+                  ),
+                }))
+              }
               onUpdateRoom={updateRoom}
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
@@ -1980,26 +1954,34 @@ export function PublishWizardPage() {
                   />
                 </div>
 
-                {draft.rooms.map((room, i) => (
+                {draft.rooms.map((room, i) => {
+                  const available = room.occupancyStatus !== "occupied";
+                  return (
                   <div
                     key={room.id}
                     className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4"
                   >
                     <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
-                      Recámara en renta {i + 1}
+                      {available ? `Recámara en renta ${i + 1}` : `Recámara ocupada ${i + 1}`}
                     </p>
                     <h3 className="text-[15px] font-bold text-primary">
                       Fotos de {room.customName?.trim() || room.title?.trim() || `Recámara ${i + 1}`}
                     </h3>
                     <p className="text-sm text-muted">
-                      Solo el interior de esta recámara: cama, clóset, ventanas, escritorio y baño privado si aplica.
+                      {available
+                        ? "Solo el interior de esta recámara: cama, clóset, ventanas, escritorio y baño privado si aplica."
+                        : "Opcional mientras esté ocupada — conservamos estas fotos para cuando vuelva a estar en renta."}
                     </p>
                     <BulkImageUploader
                       title={room.customName?.trim() || room.title?.trim() || `Recámara ${i + 1}`}
                       images={draft.roomImageUrls[i] ?? []}
                       maxCount={20}
                       apiOn={apiOn}
-                      hint="No incluyas sala, cocina ni otras áreas comunes."
+                      hint={
+                        available
+                          ? "No incluyas sala, cocina ni otras áreas comunes."
+                          : "Se guardan aunque la recámara esté ocupada."
+                      }
                       onImagesChange={(next) => {
                         setDraft((d) => ({
                           ...d,
@@ -2008,7 +1990,8 @@ export function PublishWizardPage() {
                       }}
                     />
                   </div>
-                ))}
+                  );
+                })}
               </>
             ) : null}
 

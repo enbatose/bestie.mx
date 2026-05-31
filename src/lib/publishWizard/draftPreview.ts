@@ -10,6 +10,7 @@ import {
   resolveLatLngForDraft,
   resolveListingContactForApi,
 } from "@/lib/publishWizard/publishCore";
+import { derivedPropertyOccupantCounts } from "@/lib/publishWizard/propertyRoomSlots";
 import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 
 const PREVIEW_PROPERTY_ID = "preview-property";
@@ -22,6 +23,14 @@ export function draftToPropertyWithRooms(
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
   const contact = resolveListingContactForApi(profilePhoneE164, draft);
+
+  const occupantTotals =
+    draft.postMode === "property"
+      ? derivedPropertyOccupantCounts(draft)
+      : {
+          occupiedByWomenCount: draft.occupiedByWomenCount,
+          occupiedByMenCount: draft.occupiedByMenCount,
+        };
 
   const property = {
     id: PREVIEW_PROPERTY_ID,
@@ -43,8 +52,8 @@ export function draftToPropertyWithRooms(
     commonAreaPhotos: draftPropertyImageUrls(draft),
     isApproximateLocation: draft.isApproximateLocation,
     ...(draft.streetViewPov ? { streetViewPov: draft.streetViewPov } : {}),
-    occupiedByWomenCount: draft.occupiedByWomenCount,
-    occupiedByMenCount: draft.occupiedByMenCount,
+    occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
+    occupiedByMenCount: occupantTotals.occupiedByMenCount,
   };
 
   const rooms = draft.rooms.map((r, i) => roomDraftToRoom(normalizeRoomDraft(r), i, draft));
@@ -61,6 +70,8 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
     occupancyStatus: r.occupancyStatus,
     occupantGender: r.occupantGender,
     occupantAge: r.occupantAge,
+    occupantWomenCount: r.occupantWomenCount,
+    occupantMenCount: r.occupantMenCount,
     title: effectiveRoomTitle(r, draft.postMode),
     rentMxn: Math.max(0, r.rentMxn),
     depositMxn: r.depositMxn,

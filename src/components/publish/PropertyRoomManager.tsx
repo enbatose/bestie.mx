@@ -7,17 +7,23 @@ import {
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
 import {
+  propertyOccupiedRoomCount,
+  propertyRentRoomCount,
+} from "@/lib/publishWizard/propertyRoomSlots";
+import {
   collectRoomFieldIssues,
   roomValidationIssuesByIndex,
   roomWizardLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
+import { isRoomAvailableForRent, occupancyStatusLabel } from "@/lib/roomDisplay";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
-import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
+import type { ListingTag, LodgingType, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 
 const ROOM_STAY_MAX = 36;
 const ROOM_SUMMARY_MIN = 200;
 const ROOM_SUMMARY_MAX = 1500;
+const ROOM_OCCUPANT_MAX = 12;
 
 const ROOM_SUMMARY_PLACEHOLDER =
   "Comparte los detalles que harían que alguien quiera vivir aquí. Describe la vista, el tipo de cama, si cuenta con espacio para trabajar y el ambiente general con los roomies.";
@@ -27,10 +33,52 @@ type Props = {
   propertyBedroomsTotal: number;
   expandedRoomIndex: number;
   onExpandedRoomIndexChange: (index: number) => void;
-  onAvailableRoomCountChange: (count: number) => void;
+  onRentRoomCountChange: (count: number) => void;
+  onOccupancyStatusChange: (roomIndex: number, status: RoomOccupancyStatus) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
 };
+
+function OccupiedRoomFields({
+  room,
+  onChange,
+}: {
+  room: RoomDraft;
+  onChange: (patch: Partial<RoomDraft>) => void;
+}) {
+  return (
+    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+      <div className="block text-sm font-medium text-body">
+        <span className="block">
+          Mujeres en esta recámara
+          <span className="text-red-600"> *</span>
+        </span>
+        <WizardNumberStepper
+          value={room.occupantWomenCount ?? 0}
+          min={0}
+          max={ROOM_OCCUPANT_MAX}
+          onChange={(n) => onChange({ occupantWomenCount: n })}
+          decrementLabel="Menos mujeres"
+          incrementLabel="Más mujeres"
+        />
+      </div>
+      <div className="block text-sm font-medium text-body">
+        <span className="block">
+          Hombres en esta recámara
+          <span className="text-red-600"> *</span>
+        </span>
+        <WizardNumberStepper
+          value={room.occupantMenCount ?? 0}
+          min={0}
+          max={ROOM_OCCUPANT_MAX}
+          onChange={(n) => onChange({ occupantMenCount: n })}
+          decrementLabel="Menos hombres"
+          incrementLabel="Más hombres"
+        />
+      </div>
+    </div>
+  );
+}
 
 function AvailableRoomFields({
   room,
@@ -269,19 +317,21 @@ export function PropertyRoomManager({
   propertyBedroomsTotal,
   expandedRoomIndex,
   onExpandedRoomIndexChange,
-  onAvailableRoomCountChange,
+  onRentRoomCountChange,
+  onOccupancyStatusChange,
   onUpdateRoom,
   onToggleTag,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
-  const availableCount = Math.max(1, Math.min(totalBedrooms, draft.rooms.length));
+  const rentCount = propertyRentRoomCount(draft);
+  const occupiedCount = propertyOccupiedRoomCount(draft);
   const issueRows = useMemo(() => roomValidationIssuesByIndex(draft), [draft]);
 
   useEffect(() => {
-    if (expandedRoomIndex >= availableCount) {
-      onExpandedRoomIndexChange(Math.max(0, availableCount - 1));
+    if (expandedRoomIndex >= draft.rooms.length) {
+      onExpandedRoomIndexChange(Math.max(0, draft.rooms.length - 1));
     }
-  }, [availableCount, expandedRoomIndex, onExpandedRoomIndexChange]);
+  }, [draft.rooms.length, expandedRoomIndex, onExpandedRoomIndexChange]);
 
   return (
     <div className="space-y-6">
@@ -292,7 +342,7 @@ export function PropertyRoomManager({
           <strong className="text-body">
             {totalBedrooms} {totalBedrooms === 1 ? "recámara" : "recámaras"}
           </strong>{" "}
-          en total (ocupadas y disponibles). ¿Cuántas de esas recámaras publicarás en renta?
+          en total. ¿Cuántas publicarás en renta ahora?
         </p>
         <div className="block text-sm font-medium text-body">
           <span className="block">
@@ -300,22 +350,24 @@ export function PropertyRoomManager({
             <span className="text-red-600"> *</span>
           </span>
           <WizardNumberStepper
-            value={availableCount}
-            min={1}
+            value={rentCount}
+            min={0}
             max={totalBedrooms}
-            onChange={onAvailableRoomCountChange}
+            onChange={onRentRoomCountChange}
             decrementLabel="Menos recámaras en renta"
             incrementLabel="Más recámaras en renta"
           />
           <span className="mt-1 block text-xs text-muted">
-            Crearemos una ficha por recámara (máximo {totalBedrooms}, según el total de la propiedad).
+            {occupiedCount > 0
+              ? `${occupiedCount} ${occupiedCount === 1 ? "recámara queda ocupada" : "recámaras quedan ocupadas"} — indica quién vive en cada una abajo.`
+              : "Todas las recámaras quedarán disponibles para renta."}
           </span>
         </div>
       </div>
 
       {draft.rooms.map((room, i) => {
-        if (i >= availableCount) return null;
         const expanded = expandedRoomIndex === i;
+        const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
         const heading = roomWizardLabel(draft, room, i);
         return (
@@ -337,19 +389,24 @@ export function PropertyRoomManager({
             >
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Recámara en renta {i + 1} de {availableCount}
+                  Recámara {i + 1} de {totalBedrooms}
                 </p>
                 <p className="mt-1 text-sm font-bold text-primary">{heading}</p>
                 {!expanded && issues.length > 0 ? (
-                  <p className="mt-1 text-xs text-amber-800">
-                    Faltan: {issues.join(", ")}
-                  </p>
+                  <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                 ) : null}
                 {!expanded && issues.length === 0 ? (
                   <p className="mt-1 text-xs text-muted">Completa — toca para revisar</p>
                 ) : null}
               </div>
-              <span className="inline-flex shrink-0 items-center gap-2">
+              <span className="inline-flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    available ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"
+                  }`}
+                >
+                  {occupancyStatusLabel(room.occupancyStatus ?? "available")}
+                </span>
                 {issues.length > 0 ? (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
                     Incompleta
@@ -369,7 +426,20 @@ export function PropertyRoomManager({
             {expanded ? (
               <div className="border-t border-border px-4 pb-4">
                 <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
-                  <h3 className="text-sm font-bold text-primary">Información principal</h3>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-sm font-bold text-primary">Información principal</h3>
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-body">
+                      <input
+                        type="checkbox"
+                        checked={!available}
+                        onChange={(e) =>
+                          onOccupancyStatusChange(i, e.target.checked ? "occupied" : "available")
+                        }
+                        className="size-4 rounded border-border text-primary"
+                      />
+                      Recámara ocupada
+                    </label>
+                  </div>
                   <label className="block text-sm font-medium text-body">
                     Título de la habitación
                     <span className="text-red-600"> *</span>
@@ -385,11 +455,28 @@ export function PropertyRoomManager({
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
-                  <AvailableRoomFields
-                    room={room}
-                    onChange={(patch) => onUpdateRoom(i, patch)}
-                    onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
-                  />
+
+                  {available ? (
+                    <>
+                      <AvailableRoomFields
+                        room={room}
+                        onChange={(patch) => onUpdateRoom(i, patch)}
+                        onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
+                      />
+                      <p className="text-xs text-muted">
+                        Si alguien renta esta recámara, puedes marcarla como ocupada más adelante. Guardamos
+                        descripción, fotos y precio para cuando vuelva a estar disponible.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
+                      <p className="text-xs text-muted">
+                        Mientras esté ocupada solo editas el título y quién vive aquí. La ficha de renta, fotos y
+                        descripción se conservan para la próxima vez que la marques disponible.
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             ) : null}

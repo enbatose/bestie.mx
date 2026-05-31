@@ -50,6 +50,14 @@ export function normalizeRoomDraft(raw: Partial<RoomDraft> | undefined | null): 
     occupancyStatus,
     occupantGender,
     occupantAge: clampAge(typeof r.occupantAge === "number" ? r.occupantAge : 25, 25),
+    occupantWomenCount:
+      typeof r.occupantWomenCount === "number" && Number.isFinite(r.occupantWomenCount)
+        ? Math.max(0, Math.floor(r.occupantWomenCount))
+        : 0,
+    occupantMenCount:
+      typeof r.occupantMenCount === "number" && Number.isFinite(r.occupantMenCount)
+        ? Math.max(0, Math.floor(r.occupantMenCount))
+        : 0,
     title,
     rentMxn: typeof r.rentMxn === "number" && Number.isFinite(r.rentMxn) ? r.rentMxn : 0,
     depositMxn: typeof r.depositMxn === "number" && Number.isFinite(r.depositMxn) ? r.depositMxn : 0,

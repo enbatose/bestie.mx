@@ -21,11 +21,13 @@ export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number
   const issues: string[] = [];
 
   if (d.postMode === "property" && !isRoomAvailableForRent(room)) {
-    if (!Number.isFinite(room.occupantAge) || room.occupantAge < 18 || room.occupantAge > 99) {
-      issues.push("Edad del ocupante actual");
+    const women = Math.max(0, Math.floor(room.occupantWomenCount ?? 0));
+    const men = Math.max(0, Math.floor(room.occupantMenCount ?? 0));
+    if (women + men < 1) {
+      issues.push("Al menos 1 mujer u hombre en la recámara ocupada");
     }
-    if (!["any", "female", "male"].includes(room.occupantGender)) {
-      issues.push("Género del ocupante actual");
+    if (women > 12 || men > 12) {
+      issues.push("Máximo 12 personas por género en la recámara");
     }
     return issues;
   }

@@ -209,6 +209,12 @@ function migrateRoomOccupancyFields(db: DatabaseSync): void {
   if (!tableHasColumn(db, "rooms", "occupant_age")) {
     db.exec("ALTER TABLE rooms ADD COLUMN occupant_age INTEGER");
   }
+  if (!tableHasColumn(db, "rooms", "occupant_women_count")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN occupant_women_count INTEGER");
+  }
+  if (!tableHasColumn(db, "rooms", "occupant_men_count")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN occupant_men_count INTEGER");
+  }
 }
 
 function migrateRoomTimestamps(db: DatabaseSync): void {

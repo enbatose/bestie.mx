@@ -125,6 +125,8 @@ export type PublishBundlePayload = {
     occupancyStatus?: RoomOccupancyStatus;
     occupantGender?: RoommateGenderPref;
     occupantAge?: number;
+    occupantWomenCount?: number;
+    occupantMenCount?: number;
     title: string;
     rentMxn: number;
     roomsAvailable: number;
@@ -210,6 +212,8 @@ export type AddDraftRoomPayload = {
   occupancyStatus?: RoomOccupancyStatus;
   occupantGender?: RoommateGenderPref;
   occupantAge?: number;
+  occupantWomenCount?: number;
+  occupantMenCount?: number;
   title: string;
   rentMxn: number;
   roomsAvailable: number;

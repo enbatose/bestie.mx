@@ -107,10 +107,14 @@ export type Room = {
    * `occupied` = demographic-only). Distinct from publication `status`.
    */
   occupancyStatus?: RoomOccupancyStatus;
-  /** Current occupant gender when `occupancyStatus === 'occupied'`. */
+  /** Current occupant gender when `occupancyStatus === 'occupied'` (legacy). */
   occupantGender?: RoommateGenderPref;
-  /** Current occupant age when `occupancyStatus === 'occupied'`. */
+  /** Current occupant age when `occupancyStatus === 'occupied'` (legacy). */
   occupantAge?: number;
+  /** Women currently living in the room when occupied. */
+  occupantWomenCount?: number;
+  /** Men currently living in the room when occupied. */
+  occupantMenCount?: number;
   title: string;
   rentMxn: number;
   /** One-time deposit in MXN. */

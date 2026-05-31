@@ -15,6 +15,7 @@ import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
 import { listingImageUrlsForApi } from "@/lib/listingImageUrls";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { formatRoomsValidationMessage } from "@/lib/publishWizard/roomWizardValidation";
+import { derivedPropertyOccupantCounts } from "@/lib/publishWizard/propertyRoomSlots";
 import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from "@/types/listing";
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 
@@ -123,32 +124,13 @@ export function effectiveRoomTitle(
 }
 
 export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex: number) {
+  const imageUrls = draftRoomImageUrlsForApi(draft, roomIndex);
   const occupied = !isRoomAvailableForRent(room);
   const base = {
     id: room.id,
     customName: room.customName?.trim() || undefined,
     occupancyStatus: room.occupancyStatus,
     title: effectiveRoomTitle(room, draft.postMode) || "Recámara en borrador",
-  };
-  if (occupied) {
-    return {
-      ...base,
-      rentMxn: 0,
-      roomsAvailable: 1,
-      tags: [] as ListingTag[],
-      roommateGenderPref: room.occupantGender,
-      ageMin: room.occupantAge,
-      ageMax: room.occupantAge,
-      summary: "",
-      depositMxn: 0,
-      occupantGender: room.occupantGender,
-      occupantAge: room.occupantAge,
-      imageUrls: [] as string[],
-    };
-  }
-  const imageUrls = draftRoomImageUrlsForApi(draft, roomIndex);
-  return {
-    ...base,
     rentMxn: room.rentMxn,
     roomsAvailable: effectiveRoomsAvailable(draft, roomIndex),
     tags: mergedRoomTagsForPayload(draft, roomIndex),
@@ -161,8 +143,18 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
     depositMxn: room.depositMxn,
+    occupantWomenCount: Math.max(0, Math.floor(room.occupantWomenCount ?? 0)),
+    occupantMenCount: Math.max(0, Math.floor(room.occupantMenCount ?? 0)),
     ...(imageUrls.length > 0 ? { imageUrls } : {}),
   };
+  if (occupied) {
+    return {
+      ...base,
+      occupantGender: room.occupantGender,
+      occupantAge: room.occupantAge,
+    };
+  }
+  return base;
 }
 
 export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number {
@@ -219,23 +211,7 @@ export function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTa
   return out;
 }
 
-function occupantCountsInvalidReason(d: Draft): string | null {
-  if (
-    d.occupiedByWomenCount == null ||
-    !Number.isInteger(d.occupiedByWomenCount) ||
-    d.occupiedByWomenCount < 0 ||
-    d.occupiedByWomenCount > PROPERTY_OCCUPANTS_MAX
-  ) {
-    return `Indica cuántas mujeres (Besties) hay en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
-  }
-  if (
-    d.occupiedByMenCount == null ||
-    !Number.isInteger(d.occupiedByMenCount) ||
-    d.occupiedByMenCount < 0 ||
-    d.occupiedByMenCount > PROPERTY_OCCUPANTS_MAX
-  ) {
-    return `Indica cuántos hombres (Besties) hay en la propiedad (entre 0 y ${PROPERTY_OCCUPANTS_MAX}).`;
-  }
+function occupantCountsInvalidReason(_d: Draft): string | null {
   return null;
 }
 
@@ -436,6 +412,11 @@ export async function syncDraftToServer(
   const { lat, lng } = resolveLatLngForDraft(draft);
   const contact = resolveListingContactForApi(profilePhoneE164, draft);
   const wa = wizardContactDigits(contact.contactWhatsApp, contact.showWhatsApp);
+  const occupantTotals =
+    draft.postMode === "property" ? derivedPropertyOccupantCounts(draft) : {
+      occupiedByWomenCount: draft.occupiedByWomenCount,
+      occupiedByMenCount: draft.occupiedByMenCount,
+    };
 
   for (let attempt = 0; attempt < 2; attempt++) {
     let propertyId = serverSync.propertyId;
@@ -458,8 +439,8 @@ export async function syncDraftToServer(
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
-        occupiedByWomenCount: draft.occupiedByWomenCount,
-        occupiedByMenCount: draft.occupiedByMenCount,
+        occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
+        occupiedByMenCount: occupantTotals.occupiedByMenCount,
       });
       propertyId = prop.id;
       roomIds = draft.rooms.map(() => "");
@@ -504,8 +485,8 @@ export async function syncDraftToServer(
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
-        occupiedByWomenCount: draft.occupiedByWomenCount,
-        occupiedByMenCount: draft.occupiedByMenCount,
+        occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
+        occupiedByMenCount: occupantTotals.occupiedByMenCount,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -546,6 +527,11 @@ export async function publishDraftFromWizard(opts: {
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
   const contact = resolveListingContactForApi(profilePhoneE164, draft);
   const digits = contact.contactWhatsApp;
+  const occupantTotals =
+    draft.postMode === "property" ? derivedPropertyOccupantCounts(draft) : {
+      occupiedByWomenCount: draft.occupiedByWomenCount,
+      occupiedByMenCount: draft.occupiedByMenCount,
+    };
 
   if (!isLoggedIn) {
     if (apiOn) {
@@ -585,8 +571,8 @@ export async function publishDraftFromWizard(opts: {
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
-        occupiedByWomenCount: draft.occupiedByWomenCount,
-        occupiedByMenCount: draft.occupiedByMenCount,
+        occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
+        occupiedByMenCount: occupantTotals.occupiedByMenCount,
       };
       if (editingLiveProperty?.status === "paused" || !editingLiveProperty) {
         propPatch.status = "published";
@@ -613,8 +599,8 @@ export async function publishDraftFromWizard(opts: {
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
-        occupiedByWomenCount: draft.occupiedByWomenCount,
-        occupiedByMenCount: draft.occupiedByMenCount,
+        occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
+        occupiedByMenCount: occupantTotals.occupiedByMenCount,
       },
       rooms: draft.rooms.map((r, i) => {
         const fields = roomApiFieldsFromDraft(draft, r, i);

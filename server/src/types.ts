@@ -98,6 +98,8 @@ export type Room = {
   occupancyStatus?: RoomOccupancyStatus;
   occupantGender?: RoommateGenderPref;
   occupantAge?: number;
+  occupantWomenCount?: number;
+  occupantMenCount?: number;
   /** Short label, e.g. “Cuarto planta alta”. */
   title: string;
   rentMxn: number;
