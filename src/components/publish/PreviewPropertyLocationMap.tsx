@@ -3,7 +3,7 @@ import { Maximize2, Pencil, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { WizardLocationMap, PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
-import type { PropertyListing } from "@/types/listing";
+import type { PropertyListing, StreetViewPov } from "@/types/listing";
 
 /** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
 const PREVIEW_LOCATION_MAP_ZOOM = 13;
@@ -14,6 +14,8 @@ type Props = {
   listing: PropertyListing;
   mapCenter: [number, number];
   isApproximateLocation: boolean;
+  useCustomMapPin?: boolean;
+  streetViewPov?: StreetViewPov;
   onSaveCoordinates: (lat: number, lng: number) => void;
 };
 
@@ -54,13 +56,17 @@ export function PreviewPropertyLocationMap({
   listing,
   mapCenter,
   isApproximateLocation,
+  useCustomMapPin,
+  streetViewPov: streetViewPovProp,
   onSaveCoordinates,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
   const [draftPosition, setDraftPosition] = useState<[number, number]>([listing.lat, listing.lng]);
   const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
-  const showStreetView = !hideExactAddress;
+  const streetViewPov = streetViewPovProp ?? listing.streetViewPov;
+  const showStreetView =
+    !hideExactAddress && (useCustomMapPin === true || Boolean(streetViewPov));
   const gridClass = showStreetView ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "grid grid-cols-1 gap-4";
 
   useEffect(() => {
@@ -175,12 +181,14 @@ export function PreviewPropertyLocationMap({
         <div className={showStreetView ? "" : "col-span-full"}>{mapPane("h-[260px] md:h-[320px]", 220)}</div>
         {showStreetView ? (
           <GoogleStreetViewPane
+            key={`${streetViewLat},${streetViewLng},${streetViewPov?.heading ?? ""},${streetViewPov?.pitch ?? ""},${streetViewPov?.zoom ?? ""}`}
             lat={streetViewLat}
             lng={streetViewLng}
-            streetViewPov={listing.streetViewPov}
+            streetViewPov={streetViewPov}
             trackingInterface="listing_preview"
             propertyId={listing.propertyId}
             listingId={listing.id}
+            loadEager
           />
         ) : null}
       </div>

@@ -82,12 +82,14 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
         </div>
         {showStreetView ? (
           <GoogleStreetViewPane
+            key={`${listing.lat},${listing.lng},${listing.streetViewPov?.heading ?? ""},${listing.streetViewPov?.pitch ?? ""},${listing.streetViewPov?.zoom ?? ""}`}
             lat={listing.lat}
             lng={listing.lng}
             streetViewPov={listing.streetViewPov}
             trackingInterface="public_listing"
             propertyId={listing.propertyId}
             listingId={listing.id}
+            loadEager
           />
         ) : null}
       </div>

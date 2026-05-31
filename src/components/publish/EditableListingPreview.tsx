@@ -235,7 +235,18 @@ export function EditableListingPreview({
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
-    [draft, roomIndex, profilePhoneE164],
+    [
+      draft,
+      roomIndex,
+      profilePhoneE164,
+      draft.streetViewPov?.heading,
+      draft.streetViewPov?.pitch,
+      draft.streetViewPov?.zoom,
+      draft.isApproximateLocation,
+      draft.useCustomMapPin,
+      draft.customLat,
+      draft.customLng,
+    ],
   );
   const room = draft.rooms[roomIndex];
 
@@ -275,6 +286,7 @@ export function EditableListingPreview({
       useCustomMapPin: true,
       customLat: lat.toFixed(7),
       customLng: lng.toFixed(7),
+      streetViewPov: undefined,
     }));
   };
 
@@ -929,6 +941,8 @@ export function EditableListingPreview({
           listing={listing}
           mapCenter={mapCenter}
           isApproximateLocation={draft.isApproximateLocation}
+          useCustomMapPin={draft.useCustomMapPin}
+          streetViewPov={draft.streetViewPov}
           onSaveCoordinates={saveMapCoordinates}
         />
       </PreviewSection>

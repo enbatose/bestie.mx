@@ -17,6 +17,8 @@ type Props = {
   trackingInterface?: StreetViewTrackingInterface;
   propertyId?: string;
   listingId?: string;
+  /** Load iframe immediately (use on below-the-fold listing maps). */
+  loadEager?: boolean;
 };
 
 function StreetViewFrame({
@@ -29,6 +31,7 @@ function StreetViewFrame({
   propertyId,
   listingId,
   variant,
+  loadEager = false,
 }: {
   lat: number;
   lng: number;
@@ -39,6 +42,7 @@ function StreetViewFrame({
   propertyId?: string;
   listingId?: string;
   variant: StreetViewEmbedVariant;
+  loadEager?: boolean;
 }) {
   const trackedRef = useRef(false);
   const src = useMemo(
@@ -66,7 +70,7 @@ function StreetViewFrame({
       title={title}
       src={src}
       className={`${heightClass} w-full rounded-xl border border-border bg-surface`}
-      loading="lazy"
+      loading={loadEager ? "eager" : "lazy"}
       referrerPolicy="no-referrer-when-downgrade"
       allowFullScreen
       onLoad={handleLoad}
@@ -83,6 +87,7 @@ export function GoogleStreetViewPane({
   trackingInterface,
   propertyId,
   listingId,
+  loadEager = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const externalUrl = useMemo(
@@ -121,6 +126,7 @@ export function GoogleStreetViewPane({
           propertyId={propertyId}
           listingId={listingId}
           variant="inline"
+          loadEager={loadEager}
         />
         <button
           type="button"
@@ -176,6 +182,7 @@ export function GoogleStreetViewPane({
                 propertyId={propertyId}
                 listingId={listingId}
                 variant="expanded"
+                loadEager={loadEager}
               />
             </div>
           </div>
