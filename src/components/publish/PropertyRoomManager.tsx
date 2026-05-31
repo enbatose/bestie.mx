@@ -17,8 +17,7 @@ import {
   collectRoomFieldIssues,
   roomValidationIssuesByIndex,
 } from "@/lib/publishWizard/roomWizardValidation";
-import { isRoomAvailableForRent, occupiedRoomOccupantSummary } from "@/lib/roomDisplay";
-import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
+import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
@@ -46,13 +45,8 @@ type Props = {
   onOccupancyStatusChange: (roomIndex: number, status: RoomOccupancyStatus) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onRoomPhotosChange: (roomIndex: number, photos: DraftImage[]) => void;
-  onUploadBatchComplete?: () => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
   apiOn?: boolean;
-  showSaveProgress?: boolean;
-  onSaveProgress?: () => void;
-  saveProgressInFlight?: boolean;
-  saveProgressSaved?: boolean;
 };
 
 function RoomStatusBadges({
@@ -91,44 +85,15 @@ function RoomStatusBadges({
 function RoomCardFooter({
   expanded,
   onCollapse,
-  showSaveProgress,
-  onSaveProgress,
-  saveProgressInFlight,
-  saveProgressSaved,
-}: Pick<Props, "showSaveProgress" | "onSaveProgress" | "saveProgressInFlight" | "saveProgressSaved"> & {
+}: {
   expanded: boolean;
   onCollapse: () => void;
 }) {
-  const showSave = showSaveProgress && onSaveProgress;
-
-  if (!expanded && !showSave) return null;
-
-  if (!expanded) {
-    return (
-      <div className="border-t border-border px-4 py-3">
-        <WizardSaveDraftButton
-          compact
-          onClick={onSaveProgress!}
-          inFlight={saveProgressInFlight}
-          saved={saveProgressSaved}
-        />
-      </div>
-    );
-  }
+  if (!expanded) return null;
 
   return (
     <div className="border-t border-border px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          {showSave ? (
-            <WizardSaveDraftButton
-              compact
-              onClick={onSaveProgress}
-              inFlight={saveProgressInFlight}
-              saved={saveProgressSaved}
-            />
-          ) : null}
-        </div>
+      <div className="flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={onCollapse}
@@ -305,7 +270,6 @@ function AvailableRoomFields({
   onChange,
   onToggleTag,
   onPhotosChange,
-  onUploadBatchComplete,
   apiOn = false,
 }: {
   room: RoomDraft;
@@ -313,7 +277,6 @@ function AvailableRoomFields({
   onChange: (patch: Partial<RoomDraft>) => void;
   onToggleTag: (tag: ListingTag, active: boolean) => void;
   onPhotosChange: (photos: DraftImage[]) => void;
-  onUploadBatchComplete?: () => void;
   apiOn?: boolean;
 }) {
   return (
@@ -509,7 +472,6 @@ function AvailableRoomFields({
           apiOn={apiOn}
           hint="Solo el interior de esta recámara. No incluyas sala, cocina ni otras áreas comunes."
           onImagesChange={onPhotosChange}
-          onBatchComplete={onUploadBatchComplete}
         />
       </div>
 
@@ -563,13 +525,8 @@ export function PropertyRoomManager({
   onOccupancyStatusChange,
   onUpdateRoom,
   onRoomPhotosChange,
-  onUploadBatchComplete,
   onToggleTag,
   apiOn = false,
-  showSaveProgress = false,
-  onSaveProgress,
-  saveProgressInFlight = false,
-  saveProgressSaved = false,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
   const rentCount = propertyRentRoomCount(draft);
@@ -586,13 +543,6 @@ export function PropertyRoomManager({
       onExpandedRoomIndexChange(null);
     }
   }, [draft.rooms.length, expandedRoomIndex, onExpandedRoomIndexChange]);
-
-  const saveFooterProps = {
-    showSaveProgress,
-    onSaveProgress,
-    saveProgressInFlight,
-    saveProgressSaved,
-  };
 
   return (
     <div className="space-y-6">
@@ -668,8 +618,6 @@ export function PropertyRoomManager({
         }`;
 
         if (!available) {
-          const occupantSummary = occupiedRoomOccupantSummary(room);
-
           return (
             <div key={room.id} className={cardClass}>
               <div className="p-4">
@@ -700,23 +648,9 @@ export function PropertyRoomManager({
               <div className="space-y-4 border-t border-border px-4 pb-4 pt-4">
                 {issues.length > 0 ? (
                   <p className="text-sm text-amber-800">Faltan: {issues.join(", ")}</p>
-                ) : occupantSummary ? (
-                  <p className="text-sm text-muted">Actualmente: {occupantSummary}</p>
-                ) : (
-                  <p className="text-sm text-muted">Indica cuántas personas ocupan esta recámara.</p>
-                )}
+                ) : null}
                 <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
                 </div>
-              {showSaveProgress ? (
-                <div className="border-t border-border px-4 py-3">
-                  <WizardSaveDraftButton
-                    compact
-                    onClick={onSaveProgress!}
-                    inFlight={saveProgressInFlight}
-                    saved={saveProgressSaved}
-                  />
-                </div>
-              ) : null}
             </div>
           );
         }
@@ -790,7 +724,6 @@ export function PropertyRoomManager({
                     apiOn={apiOn}
                     onChange={(patch) => onUpdateRoom(i, patch)}
                     onPhotosChange={(photos) => onRoomPhotosChange(i, photos)}
-                    onUploadBatchComplete={onUploadBatchComplete}
                     onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
                   />
                   <p className="text-xs text-muted">
@@ -802,7 +735,6 @@ export function PropertyRoomManager({
             ) : null}
 
             <RoomCardFooter
-              {...saveFooterProps}
               expanded={expanded}
               onCollapse={() => onExpandedRoomIndexChange(null)}
             />

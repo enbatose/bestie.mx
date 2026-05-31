@@ -9,7 +9,6 @@ import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
-import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
 import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
@@ -60,6 +59,7 @@ import {
   applyPropertyRentRoomCount,
   hydrateRoomOccupantCounts,
   propertyRentRoomCount,
+  setRoomOccupancyStatus,
   syncPropertyRoomSlotsToTotal,
 } from "@/lib/publishWizard/propertyRoomSlots";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
@@ -118,33 +118,31 @@ function formatAutosaveTime(ts: number | null): string | null {
   return new Date(ts).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   });
 }
 
-/** Tracks text/photo fields that crossed validation thresholds (for immediate autosave). */
-function draftFieldAutosaveTriggers(d: Draft): string {
-  const triggers: string[] = [];
-  const titleLen = d.propertyTitle.trim().length;
-  if (titleLen >= PROPERTY_TITLE_MIN) triggers.push(`title:${titleLen}`);
-  const nbhLen = d.neighborhood.trim().length;
-  if (nbhLen >= PROPERTY_NEIGHBORHOOD_MIN) triggers.push(`nbh:${nbhLen}`);
-  if (d.postMode === "property") {
-    const summaryLen = d.propertySummary.trim().length;
-    if (summaryLen >= PROPERTY_SUMMARY_MIN) triggers.push(`psummary:${summaryLen}`);
-    if (d.commonAreaPhotos.length >= 1) triggers.push(`commonPhotos:${d.commonAreaPhotos.length}`);
-  }
-  d.rooms.forEach((room, i) => {
-    const summaryLen = room.summary.trim().length;
-    if (summaryLen >= ROOM_SUMMARY_MIN) triggers.push(`room${i}summary:${summaryLen}`);
-    const photoCount = room.photos?.length ?? d.roomImageUrls[i]?.length ?? 0;
-    if (photoCount >= 1) triggers.push(`room${i}photos:${photoCount}`);
-  });
-  if (d.postMode === "room") {
-    const roomPhotos = d.rooms[0]?.photos?.length ?? d.roomImageUrls[0]?.length ?? 0;
-    if (roomPhotos >= 1) triggers.push(`singleRoomPhotos:${roomPhotos}`);
-  }
-  return triggers.join("|");
+const WIZARD_AUTOSAVE_DEBOUNCE_MS = 2800;
+
+function WizardAutosaveIndicator({
+  lastSavedAt,
+  flashKey,
+}: {
+  lastSavedAt: number | null;
+  flashKey: number;
+}) {
+  const timeLabel = formatAutosaveTime(lastSavedAt);
+  if (!timeLabel) return null;
+  return (
+    <div className="pointer-events-none fixed right-4 top-[72px] z-50" aria-live="polite">
+      <div
+        key={flashKey}
+        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm animate-[autosave-flash_0.75s_ease-out]"
+      >
+        <CloudCheck className="size-3.5" aria-hidden />
+        Auto-guardado {timeLabel}
+      </div>
+    </div>
+  );
 }
 
 function syncDraftPhotoFields(d: Draft): Draft {
@@ -180,9 +178,7 @@ function normalizePersistedDraft(d: Draft): Draft {
 
 function normalizePropertyRoomSlots(d: Draft): Draft {
   if (d.postMode !== "property") return d;
-  const synced = syncPropertyRoomSlotsToTotal(d, defaultRoom);
-  const rentCount = Math.min(synced.rooms.length, propertyRentRoomCount(synced));
-  return applyPropertyRentRoomCount(synced, rentCount, defaultRoom);
+  return syncPropertyRoomSlotsToTotal(d, defaultRoom);
 }
 
 /** Fecha local en `America/Mexico_City` como `YYYY-MM-DD` (compatible con `<input type="date">`). */
@@ -758,7 +754,7 @@ export function PublishWizardPage() {
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
-  const [showAutosaveToast, setShowAutosaveToast] = useState(false);
+  const [autosaveFlashKey, setAutosaveFlashKey] = useState(0);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
   const [storageReady, setStorageReady] = useState(false);
@@ -824,11 +820,8 @@ export function PublishWizardPage() {
   const didHydrateLocalForUserRef = useRef<string | null>(null);
 
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autosaveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
-  const prevWizardStepRef = useRef<number | null>(null);
-  const prevStepValidRef = useRef<boolean | null>(null);
-  const prevAutosaveTriggersRef = useRef("");
+  const autosaveGenerationRef = useRef(0);
 
   useEffect(() => {
     if (me === undefined) return;
@@ -842,7 +835,7 @@ export function PublishWizardPage() {
       setStep(0);
       setAutosaveNote("idle");
       setLastAutosavedAt(null);
-      setShowAutosaveToast(false);
+      setAutosaveFlashKey(0);
       return;
     }
     const uid = me.id;
@@ -863,7 +856,7 @@ export function PublishWizardPage() {
     setStep(0);
     setAutosaveNote("idle");
     setLastAutosavedAt(null);
-    setShowAutosaveToast(false);
+    setAutosaveFlashKey(0);
     setStorageReady(true);
   }, [me, editPropertyId, handoffToken]);
 
@@ -1120,6 +1113,7 @@ export function PublishWizardPage() {
       setAutosaveNote("idle");
       return null;
     }
+    const generation = ++autosaveGenerationRef.current;
     const d = draftRef.current;
     if (isFreshDefaultDraft(d) || !wizardHasMinimumFieldsForAutosave(d)) {
       setAutosaveNote("idle");
@@ -1129,17 +1123,23 @@ export function PublishWizardPage() {
     try {
       setAutosaveNote("saving");
       const synced = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164);
+      if (generation !== autosaveGenerationRef.current) {
+        return synced.serverSync;
+      }
       serverSyncRef.current = synced.serverSync;
       setServerSync(synced.serverSync);
       setDraft(synced.draft);
       setAutosaveNote("saved");
       setLastAutosavedAt(Date.now());
+      setAutosaveFlashKey((k) => k + 1);
       window.setTimeout(() => {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
       return synced.serverSync;
     } catch {
-      setAutosaveNote("error");
+      if (generation === autosaveGenerationRef.current) {
+        setAutosaveNote("error");
+      }
       return null;
     }
   };
@@ -1165,29 +1165,11 @@ export function PublishWizardPage() {
     autosaveTimerRef.current = setTimeout(() => {
       autosaveTimerRef.current = null;
       void runAutosaveRef.current();
-    }, 900);
+    }, WIZARD_AUTOSAVE_DEBOUNCE_MS);
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
   }, [draft, apiOn, me?.id, storageReady]);
-
-  useEffect(() => {
-    if (!apiOn || !me) return;
-    if (autosaveNote !== "saved") return;
-    setShowAutosaveToast(true);
-    if (autosaveToastTimerRef.current) {
-      clearTimeout(autosaveToastTimerRef.current);
-    }
-    autosaveToastTimerRef.current = setTimeout(() => {
-      setShowAutosaveToast(false);
-      autosaveToastTimerRef.current = null;
-    }, 2600);
-    return () => {
-      if (autosaveToastTimerRef.current) {
-        clearTimeout(autosaveToastTimerRef.current);
-      }
-    };
-  }, [autosaveNote, apiOn, me]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -1544,7 +1526,6 @@ export function PublishWizardPage() {
                           propertyImageUrls: next,
                         }))
                       }
-                      onBatchComplete={() => void flushWizardAutosave()}
                     />
                   </div>
                 </>
@@ -1707,12 +1688,7 @@ export function PublishWizardPage() {
               preferOccupiedFirst={false}
               onRentRoomCountChange={setPropertyRentRoomCount}
               onOccupancyStatusChange={(roomIndex, status) =>
-                setDraft((d) => ({
-                  ...d,
-                  rooms: d.rooms.map((room, i) =>
-                    i === roomIndex ? { ...room, occupancyStatus: status } : room,
-                  ),
-                }))
+                setDraft((d) => setRoomOccupancyStatus(d, roomIndex, status))
               }
               onUpdateRoom={updateRoom}
               onRoomPhotosChange={(roomIndex, photos) =>
@@ -1723,14 +1699,9 @@ export function PublishWizardPage() {
                   }),
                 )
               }
-              onUploadBatchComplete={() => void flushWizardAutosave()}
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
-              onSaveProgress={() => void submitWizardProgressDraft()}
-              saveProgressInFlight={submitInFlight === "draft"}
-              saveProgressSaved={wizardDraftSaveNote === "saved"}
-              showSaveProgress={apiOn}
               apiOn={apiOn}
             />
           ) : (
@@ -2088,7 +2059,6 @@ export function PublishWizardPage() {
                             }),
                           );
                         }}
-                        onBatchComplete={() => void flushWizardAutosave()}
                       />
                     </div>
                   ))}
@@ -2102,7 +2072,7 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, wizardDraftSaveNote, submitInFlight, editPropertyId, editingLiveProperty, me, flushWizardAutosave],
+    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, me],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
@@ -2117,37 +2087,6 @@ export function PublishWizardPage() {
     },
     [],
   );
-
-  useEffect(() => {
-    if (!apiOn || !me || !storageReady) return;
-    if (prevWizardStepRef.current != null && prevWizardStepRef.current !== safeStep) {
-      void flushWizardAutosave();
-    }
-    prevWizardStepRef.current = safeStep;
-  }, [safeStep, apiOn, me, storageReady, flushWizardAutosave]);
-
-  useEffect(() => {
-    if (!apiOn || !me || !storageReady) return;
-    const err = validateWizardStepByTitle(current.title, draft, safeStep);
-    const valid = err === null;
-    if (prevStepValidRef.current === false && valid) {
-      void flushWizardAutosave();
-    }
-    prevStepValidRef.current = valid;
-  }, [draft, safeStep, current.title, apiOn, me, storageReady, flushWizardAutosave]);
-
-  useEffect(() => {
-    if (!apiOn || !me || !storageReady) return;
-    const sig = draftFieldAutosaveTriggers(draft);
-    if (
-      prevAutosaveTriggersRef.current &&
-      sig !== prevAutosaveTriggersRef.current &&
-      sig.length > prevAutosaveTriggersRef.current.length
-    ) {
-      void flushWizardAutosave();
-    }
-    prevAutosaveTriggersRef.current = sig;
-  }, [draft, apiOn, me, storageReady, flushWizardAutosave]);
 
   /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */
   const publishModeParam = searchParams.get("publishMode");
@@ -2373,14 +2312,8 @@ export function PublishWizardPage() {
 
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        {showAutosaveToast && apiOn && me ? (
-          <div className="fixed right-4 top-[72px] z-50">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
-              <CloudCheck className="size-3.5" aria-hidden />
-              Auto-guardado
-              {autosaveTimeLabel ? ` ${autosaveTimeLabel}` : ""}
-            </div>
-          </div>
+        {apiOn && me && autosaveTimeLabel ? (
+          <WizardAutosaveIndicator lastSavedAt={lastAutosavedAt} flashKey={autosaveFlashKey} />
         ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
         {handoffBanner ? (
@@ -2468,14 +2401,8 @@ export function PublishWizardPage() {
   const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
-      {showAutosaveToast && apiOn && me ? (
-        <div className="fixed right-4 top-[72px] z-50">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
-            <CloudCheck className="size-3.5" aria-hidden />
-            Auto-guardado
-            {autosaveTimeLabel ? ` ${autosaveTimeLabel}` : ""}
-          </div>
-        </div>
+      {apiOn && me && autosaveTimeLabel ? (
+        <WizardAutosaveIndicator lastSavedAt={lastAutosavedAt} flashKey={autosaveFlashKey} />
       ) : null}
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
 
@@ -2569,14 +2496,6 @@ export function PublishWizardPage() {
             </button>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
-            {!isPublishStep && apiOn ? (
-              <WizardSaveDraftButton
-                onClick={() => void submitWizardProgressDraft()}
-                inFlight={submitInFlight === "draft"}
-                saved={wizardDraftSaveNote === "saved"}
-                disabled={submitInFlight === "publish"}
-              />
-            ) : null}
             {!isPublishStep ? (
               <button
                 type="button"

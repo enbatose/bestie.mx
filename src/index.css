@@ -56,7 +56,17 @@
   height: auto !important;
 }
 
-.bestie-selected-pin {
-  background: transparent !important;
-  border: none !important;
+@keyframes autosave-flash {
+  0% {
+    opacity: 0.55;
+    transform: translateY(-2px);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0.92;
+    transform: translateY(0);
+  }
 }
