@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, CloudCheck, Loader2, ShieldCheck, TriangleAlert, Wand2 } from "lucide-react";
+import { CheckCircle2, CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -119,39 +119,6 @@ function formatAutosaveTime(ts: number | null): string | null {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function AutosaveConfidenceBanner({
-  note,
-  lastSavedAt,
-}: {
-  note: "idle" | "saving" | "saved" | "error";
-  lastSavedAt: number | null;
-}) {
-  const lastSavedLabel = formatAutosaveTime(lastSavedAt);
-  if (note === "saving") {
-    return (
-      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800">
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-        Guardando cambios...
-      </div>
-    );
-  }
-  if (note === "error") {
-    return (
-      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900">
-        <TriangleAlert className="size-3.5" aria-hidden />
-        No se pudo sincronizar. Reintentaremos automáticamente.
-      </div>
-    );
-  }
-  return (
-    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900">
-      <CloudCheck className="size-3.5" aria-hidden />
-      Auto-guardado activo
-      {lastSavedLabel ? ` · Último guardado ${lastSavedLabel}` : " · Tus cambios se guardan automáticamente"}
-    </div>
-  );
 }
 
 function syncDraftPhotoFields(d: Draft): Draft {
@@ -765,6 +732,7 @@ export function PublishWizardPage() {
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
+  const [showAutosaveToast, setShowAutosaveToast] = useState(false);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
   const [storageReady, setStorageReady] = useState(false);
@@ -830,6 +798,7 @@ export function PublishWizardPage() {
   const didHydrateLocalForUserRef = useRef<string | null>(null);
 
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
 
   useEffect(() => {
@@ -844,6 +813,7 @@ export function PublishWizardPage() {
       setStep(0);
       setAutosaveNote("idle");
       setLastAutosavedAt(null);
+      setShowAutosaveToast(false);
       return;
     }
     const uid = me.id;
@@ -864,6 +834,7 @@ export function PublishWizardPage() {
     setStep(0);
     setAutosaveNote("idle");
     setLastAutosavedAt(null);
+    setShowAutosaveToast(false);
     setStorageReady(true);
   }, [me, editPropertyId, handoffToken]);
 
@@ -1170,6 +1141,24 @@ export function PublishWizardPage() {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
   }, [draft, apiOn, me?.id, storageReady]);
+
+  useEffect(() => {
+    if (!apiOn || !me) return;
+    if (autosaveNote !== "saved") return;
+    setShowAutosaveToast(true);
+    if (autosaveToastTimerRef.current) {
+      clearTimeout(autosaveToastTimerRef.current);
+    }
+    autosaveToastTimerRef.current = setTimeout(() => {
+      setShowAutosaveToast(false);
+      autosaveToastTimerRef.current = null;
+    }, 2600);
+    return () => {
+      if (autosaveToastTimerRef.current) {
+        clearTimeout(autosaveToastTimerRef.current);
+      }
+    };
+  }, [autosaveNote, apiOn, me]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -2291,10 +2280,8 @@ export function PublishWizardPage() {
       }
 
       setWizardDraftSaveNote("saved");
-      setAutosaveNote("saved");
       window.setTimeout(() => {
         setWizardDraftSaveNote((n) => (n === "saved" ? "idle" : n));
-        setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2500);
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.");
@@ -2319,15 +2306,20 @@ export function PublishWizardPage() {
     const reviewRoomIndex = Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1));
     const returnListingId =
       liveEditReturnListingId ?? serverSync.roomIds[reviewRoomIndex] ?? null;
+    const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
 
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
-        {apiOn && me ? (
-          <div aria-live="polite">
-            <AutosaveConfidenceBanner note={autosaveNote} lastSavedAt={lastAutosavedAt} />
+        {showAutosaveToast && apiOn && me ? (
+          <div className="fixed right-4 top-4 z-50">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
+              <CloudCheck className="size-3.5" aria-hidden />
+              Auto-guardado
+              {autosaveTimeLabel ? ` ${autosaveTimeLabel}` : ""}
+            </div>
           </div>
         ) : null}
+        <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
         {handoffBanner ? (
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             {handoffBanner}
@@ -2410,14 +2402,19 @@ export function PublishWizardPage() {
     );
   }
 
+  const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
-      <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
-      {apiOn && me ? (
-        <div aria-live="polite">
-          <AutosaveConfidenceBanner note={autosaveNote} lastSavedAt={lastAutosavedAt} />
+      {showAutosaveToast && apiOn && me ? (
+        <div className="fixed right-4 top-4 z-50">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
+            <CloudCheck className="size-3.5" aria-hidden />
+            Auto-guardado
+            {autosaveTimeLabel ? ` ${autosaveTimeLabel}` : ""}
+          </div>
         </div>
       ) : null}
+      <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
 
       {safeStep === WIZARD_STEP_POST_MODE && me === null ? (
         <div
