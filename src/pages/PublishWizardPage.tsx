@@ -2177,14 +2177,11 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
-  const publishBlockedReason = useMemo(
-    () => getPublishBlockedReason(draft, me?.phoneE164),
-    [draft, me?.phoneE164],
-  );
+  const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 
   async function submitPublish() {
     setPublishErr(null);
-    const blocked = getPublishBlockedReason(draftRef.current, meRef.current?.phoneE164);
+    const blocked = getPublishBlockedReason(draftRef.current);
     if (blocked) {
       setPublishErr(blocked);
       return;

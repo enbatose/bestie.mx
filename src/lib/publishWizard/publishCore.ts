@@ -265,22 +265,6 @@ export function contactStepInvalidReason(_d: Draft): string | null {
   return null;
 }
 
-/** WhatsApp comes from the user profile at publish time, not the wizard. */
-export function profileContactPublishBlockedReason(profilePhoneE164: string | null | undefined): string | null {
-  const raw = profilePhoneE164?.trim() ?? "";
-  if (!raw) {
-    return "Agrega tu WhatsApp en Mi cuenta antes de publicar.";
-  }
-  const digits = normalizeWhatsApp(raw.replace(/^\+/, ""));
-  if (digits.length < 10 || digits.length > 15) {
-    return "Tu WhatsApp en Mi cuenta no es válido. Actualízalo en Mi cuenta.";
-  }
-  if (/^0+$/.test(digits)) {
-    return "Actualiza tu WhatsApp en Mi cuenta con un número real.";
-  }
-  return null;
-}
-
 export function resolveListingContactForApi(
   profilePhoneE164: string | null | undefined,
   draft: Draft,
@@ -463,20 +447,12 @@ export function validateRoomsForSubmit(d: Draft): string | null {
   return null;
 }
 
-export function getPublishBlockedReason(
-  draft: Draft,
-  profilePhoneE164?: string | null,
-): string | null {
+export function getPublishBlockedReason(draft: Draft): string | null {
   const locationErr = locationStepInvalidReason(draft);
   if (locationErr) return `Paso · Ubicación: ${locationErr}`;
 
   const generalErr = propertyGeneralStepInvalidReason(draft);
   if (generalErr) return `Paso · Datos generales: ${generalErr}`;
-
-  if (profilePhoneE164 !== undefined) {
-    const profileContactErr = profileContactPublishBlockedReason(profilePhoneE164);
-    if (profileContactErr) return `Paso · Contacto: ${profileContactErr}`;
-  }
 
   const roomsErr = validateRoomsForSubmit(draft);
   if (roomsErr) return `Paso · Recámaras: ${roomsErr}`;
@@ -598,7 +574,7 @@ export async function publishDraftFromWizard(opts: {
   const { draft, editingLiveProperty, apiOn, isLoggedIn, profilePhoneE164 } = opts;
   let serverSync = opts.serverSync;
 
-  const blocked = getPublishBlockedReason(draft, profilePhoneE164 ?? null);
+  const blocked = getPublishBlockedReason(draft);
   if (blocked) return { kind: "error", message: blocked };
 
   const anchor = CITY_ANCHOR[draft.city];
