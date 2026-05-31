@@ -134,12 +134,18 @@ function WizardAutosaveIndicator({
   if (!timeLabel) return null;
   return (
     <div className="pointer-events-none fixed right-4 top-[72px] z-50" aria-live="polite">
-      <div
-        key={flashKey}
-        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm animate-[autosave-flash_0.75s_ease-out]"
-      >
-        <CloudCheck className="size-3.5" aria-hidden />
-        Auto-guardado {timeLabel}
+      <div className="relative inline-flex overflow-hidden rounded-full p-[2px]">
+        <div
+          key={flashKey}
+          className="pointer-events-none absolute inset-0 animate-[autosave-ring-spin_0.9s_ease-out_forwards]"
+          aria-hidden
+        >
+          <div className="size-full bg-[conic-gradient(from_0deg,transparent_0deg,transparent_288deg,#047857_312deg,#065f46_360deg)]" />
+        </div>
+        <div className="relative inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
+          <CloudCheck className="size-3.5" aria-hidden />
+          Auto-guardado {timeLabel}
+        </div>
       </div>
     </div>
   );

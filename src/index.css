@@ -56,17 +56,11 @@
   height: auto !important;
 }
 
-@keyframes autosave-flash {
-  0% {
-    opacity: 0.55;
-    transform: translateY(-2px);
+@keyframes autosave-ring-spin {
+  from {
+    transform: rotate(0deg);
   }
-  35% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0.92;
-    transform: translateY(0);
+  to {
+    transform: rotate(360deg);
   }
 }
