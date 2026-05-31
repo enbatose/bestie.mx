@@ -113,15 +113,37 @@ export function contactWhatsAppOkForPublish(showPublic: boolean, storedDigits: s
 const LISTING_IMAGE_URL_LEN_MAX = 240;
 const LISTING_IMAGE_COUNT_MAX = 12;
 
+function normalizeListingUploadPath(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+
+  if (t.startsWith("/api/uploads/") && !t.includes("..") && !t.includes("\\")) {
+    return t.length <= LISTING_IMAGE_URL_LEN_MAX ? t : null;
+  }
+
+  if (t.startsWith("http://") || t.startsWith("https://")) {
+    try {
+      const path = new URL(t).pathname;
+      if (path.startsWith("/api/uploads/") && !path.includes("..") && !path.includes("\\")) {
+        return path.length <= LISTING_IMAGE_URL_LEN_MAX ? path : null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 /** Only allow same-origin upload paths written by our API. */
 export function clampListingImageUrls(input: unknown, max = LISTING_IMAGE_COUNT_MAX): string[] {
   if (!Array.isArray(input)) return [];
   const out: string[] = [];
   for (const x of input) {
-    if (typeof x !== "string" || x.length > LISTING_IMAGE_URL_LEN_MAX) continue;
-    if (!x.startsWith("/api/uploads/")) continue;
-    if (x.includes("..") || x.includes("\\")) continue;
-    out.push(x);
+    if (typeof x !== "string") continue;
+    const path = normalizeListingUploadPath(x);
+    if (!path) continue;
+    out.push(path);
     if (out.length >= max) break;
   }
   return out;

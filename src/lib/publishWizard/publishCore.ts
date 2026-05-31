@@ -11,6 +11,7 @@ import {
 } from "@/lib/listingsApi";
 import { isRoomIdealParaTag, LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
+import { listingImageUrlsForApi } from "@/lib/listingImageUrls";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from "@/types/listing";
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
@@ -169,7 +170,7 @@ export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number
 }
 
 export function draftPropertyImageUrls(draft: Draft): string[] {
-  return draftImagesToUrls(draft.propertyImageUrls);
+  return listingImageUrlsForApi(draftImagesToUrls(draft.propertyImageUrls));
 }
 
 /** Room posts store photos on the room slot; mirror them on the property for API sync/publish. */
@@ -181,7 +182,12 @@ export function draftPropertyImageUrlsForSync(draft: Draft): string[] {
 }
 
 export function draftRoomImageUrls(draft: Draft, roomIndex: number): string[] {
-  return draftImagesToUrls(draft.roomImageUrls[roomIndex] ?? []);
+  return listingImageUrlsForApi(draftImagesToUrls(draft.roomImageUrls[roomIndex] ?? []));
+}
+
+function propertyImagePatch(draft: Draft): { imageUrls?: string[] } {
+  const imageUrls = draftPropertyImageUrlsForSync(draft);
+  return imageUrls.length > 0 ? { imageUrls } : {};
 }
 
 export function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTag[] {
@@ -493,6 +499,7 @@ export async function syncDraftToServer(
 
     if (!propertyId) {
       const prop = await createDraftProperty({
+        postMode: draft.postMode,
         title: draft.propertyTitle.trim() || "Sin título",
         city: draft.city,
         neighborhood,
@@ -504,7 +511,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrlsForSync(draft),
+        ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -550,7 +557,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrlsForSync(draft),
+        ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -630,7 +637,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrlsForSync(draft),
+        ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,
@@ -658,7 +665,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
-        imageUrls: draftPropertyImageUrlsForSync(draft),
+        ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: draft.occupiedByWomenCount,

@@ -813,4 +813,49 @@ describe("Phase B API hardening", () => {
       .expect(200);
     expect((patched.body as { rentMxn?: number }).rentMxn).toBe(3100);
   });
+
+  it("publishes room-mode draft when photos live on the room row", async () => {
+    const agent = request.agent(app);
+    const r1 = await agent
+      .post("/api/properties")
+      .send({
+        postMode: "room",
+        title: "Cuarto centro",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "523331234567",
+        summary: "corta",
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+    const rRoom = await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Recámara 1",
+        rentMxn: 4000,
+        roomsAvailable: 1,
+        tags: ["wifi"],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 99,
+        summary: "Descripción del cuarto lo bastante larga para publicar en modo recámara simple.",
+        availableFrom: "2026-01-15",
+        roomDimension: "medium",
+        minimalStayMonths: 1,
+        depositMxn: 0,
+      })
+      .expect(201);
+    const roomId = (rRoom.body as { id: string }).id;
+    await registerAndLinkAnonymousPublisher(agent);
+    await agent
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}/rooms/${encodeURIComponent(roomId)}`)
+      .send({ imageUrls: [TEST_LISTING_IMAGE_URL] })
+      .expect(200);
+    await agent
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
+      .send({ status: "published", postMode: "room", imageUrls: [] })
+      .expect(200);
+  });
 });

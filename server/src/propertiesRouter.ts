@@ -145,7 +145,11 @@ function draftPublishPhotosOk(
   const propRow = db
     .prepare("SELECT image_urls_json FROM properties WHERE id = ?")
     .get(propertyId) as { image_urls_json: unknown } | undefined;
-  const propImages = patchedPropImages ?? imageUrlsFromRow(propRow?.image_urls_json);
+  const storedPropImages = imageUrlsFromRow(propRow?.image_urls_json);
+  const propImages =
+    patchedPropImages !== undefined && patchedPropImages.length > 0
+      ? patchedPropImages
+      : storedPropImages;
   const roomRows = db
     .prepare(
       "SELECT image_urls_json, occupancy_status FROM rooms WHERE property_id = ? ORDER BY sort_order ASC, id ASC",
