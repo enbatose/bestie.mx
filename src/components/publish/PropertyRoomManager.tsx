@@ -19,7 +19,7 @@ import { isRoomAvailableForRent, occupancyStatusLabel } from "@/lib/roomDisplay"
 import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
-import type { ListingTag, LodgingType, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
+import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 
 const ROOM_STAY_MAX = 36;
 const ROOM_SUMMARY_MIN = 200;
@@ -31,7 +31,10 @@ const ROOM_SUMMARY_PLACEHOLDER =
 
 type Props = {
   draft: Draft;
+  propertyKind: PropertyKind;
   propertyBedroomsTotal: number;
+  propertyBedroomsMax: number;
+  onBedroomTotalChange: (count: number) => void;
   expandedRoomIndex: number | null;
   onExpandedRoomIndexChange: (index: number | null) => void;
   /** When true (new post), occupied rooms appear before available ones. */
@@ -45,6 +48,54 @@ type Props = {
   saveProgressInFlight?: boolean;
   saveProgressSaved?: boolean;
 };
+
+function RoomStatusBadges({
+  available,
+  issues,
+}: {
+  available: boolean;
+  issues: string[];
+}) {
+  return (
+    <span className="inline-flex shrink-0 flex-wrap items-center justify-end gap-2">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+          available ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"
+        }`}
+      >
+        {occupancyStatusLabel(available ? "available" : "occupied")}
+      </span>
+      {issues.length > 0 ? (
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+          Incompleta
+        </span>
+      ) : (
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-900">
+          Lista
+        </span>
+      )}
+    </span>
+  );
+}
+
+function RoomSaveFooter({
+  showSaveProgress,
+  onSaveProgress,
+  saveProgressInFlight,
+  saveProgressSaved,
+}: Pick<Props, "showSaveProgress" | "onSaveProgress" | "saveProgressInFlight" | "saveProgressSaved">) {
+  if (!showSaveProgress || !onSaveProgress) return null;
+  return (
+    <div className="border-t border-border px-4 py-3">
+      <WizardSaveDraftButton
+        compact
+        onClick={onSaveProgress}
+        inFlight={saveProgressInFlight}
+        saved={saveProgressSaved}
+      />
+    </div>
+  );
+}
 
 function propertyRoomDisplayOrder(draft: Draft, preferOccupiedFirst: boolean): number[] {
   const indices = draft.rooms.map((_, i) => i);
@@ -65,7 +116,7 @@ function OccupiedRoomFields({
   onChange: (patch: Partial<RoomDraft>) => void;
 }) {
   return (
-    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       <div className="block text-sm font-medium text-body">
         <span className="block">
           Mujeres en esta recámara
@@ -332,7 +383,10 @@ function AvailableRoomFields({
 
 export function PropertyRoomManager({
   draft,
+  propertyKind,
   propertyBedroomsTotal,
+  propertyBedroomsMax,
+  onBedroomTotalChange,
   expandedRoomIndex,
   onExpandedRoomIndexChange,
   preferOccupiedFirst = false,
@@ -361,16 +415,50 @@ export function PropertyRoomManager({
     }
   }, [draft.rooms.length, expandedRoomIndex, onExpandedRoomIndexChange]);
 
+  const saveFooterProps = {
+    showSaveProgress,
+    onSaveProgress,
+    saveProgressInFlight,
+    saveProgressSaved,
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-3">
+        <h3 className="text-[15px] font-bold text-primary">Capacidad de la propiedad</h3>
+        {propertyKind === "loft" ? (
+          <p className="text-sm text-muted">
+            Un loft cuenta como <strong className="text-body">1 recámara</strong> en total (ocupadas y disponibles).
+          </p>
+        ) : (
+          <div className="block text-sm font-medium text-body">
+            <span className="block">
+              ¿Cuántas recámaras tiene la propiedad?
+              <span className="text-red-600"> *</span>
+            </span>
+            <WizardNumberStepper
+              value={Math.min(propertyBedroomsMax, Math.max(1, propertyBedroomsTotal))}
+              min={1}
+              max={propertyBedroomsMax}
+              onChange={onBedroomTotalChange}
+              decrementLabel="Menos recámaras"
+              incrementLabel="Más recámaras"
+            />
+            <span className="mt-1 block text-xs text-muted">
+              Incluye recámaras habitadas y disponibles para renta.
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-3">
         <h3 className="text-[15px] font-bold text-primary">Recámaras en renta</h3>
         <p className="text-sm text-muted">
-          En el paso anterior indicaste que la propiedad tiene{" "}
+          De las{" "}
           <strong className="text-body">
             {totalBedrooms} {totalBedrooms === 1 ? "recámara" : "recámaras"}
           </strong>{" "}
-          en total. ¿Cuántas publicarás en renta ahora?
+          en total, ¿cuántas publicarás en renta ahora?
         </p>
         <div className="block text-sm font-medium text-body">
           <span className="block">
@@ -399,17 +487,66 @@ export function PropertyRoomManager({
         const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
         const heading = roomWizardLabel(draft, room, i);
+        const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
+          issues.length
+            ? "border-amber-300/80 ring-amber-200/60"
+            : expanded
+              ? "border-primary/30 ring-primary/10"
+              : "border-border ring-primary/10"
+        }`;
+
+        if (!available) {
+          return (
+            <div key={room.id} className={cardClass}>
+              <div className="space-y-4 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      Recámara {i + 1} de {totalBedrooms} · Ocupada
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-primary">{heading}</p>
+                    {issues.length > 0 ? (
+                      <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
+                    ) : null}
+                  </div>
+                  <RoomStatusBadges available={false} issues={issues} />
+                </div>
+
+                <label className="block text-sm font-medium text-body">
+                  Título de la habitación
+                  <span className="text-red-600"> *</span>
+                  <input
+                    value={room.customName || room.title}
+                    onChange={(e) =>
+                      onUpdateRoom(i, {
+                        customName: e.target.value,
+                        title: e.target.value,
+                      })
+                    }
+                    placeholder={`Ej. Cuarto con balcón · Habitación ${i + 1}`}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                  />
+                </label>
+
+                <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
+
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-body">
+                  <input
+                    type="checkbox"
+                    checked={false}
+                    onChange={() => onOccupancyStatusChange(i, "available")}
+                    className="size-4 rounded border-border text-primary"
+                  />
+                  Marcar como disponible para renta
+                </label>
+              </div>
+              <RoomSaveFooter {...saveFooterProps} />
+            </div>
+          );
+        }
+
         return (
-          <div
-            key={room.id}
-            className={`rounded-xl border bg-bg-light shadow-md ring-1 transition ${
-              issues.length
-                ? "border-amber-300/80 ring-amber-200/60"
-                : expanded
-                  ? "border-primary/30 ring-primary/10"
-                  : "border-border ring-primary/10"
-            }`}
-          >
+          <div key={room.id} className={cardClass}>
             <button
               type="button"
               aria-expanded={expanded}
@@ -418,33 +555,18 @@ export function PropertyRoomManager({
             >
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Recámara {i + 1} de {totalBedrooms}
+                  Recámara {i + 1} de {totalBedrooms} · En renta
                 </p>
                 <p className="mt-1 text-sm font-bold text-primary">{heading}</p>
                 {!expanded && issues.length > 0 ? (
                   <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                 ) : null}
                 {!expanded && issues.length === 0 ? (
-                  <p className="mt-1 text-xs text-muted">Completa — toca para revisar</p>
+                  <p className="mt-1 text-xs text-muted">Completa — toca para editar</p>
                 ) : null}
               </div>
-              <span className="inline-flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                    available ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"
-                  }`}
-                >
-                  {occupancyStatusLabel(room.occupancyStatus ?? "available")}
-                </span>
-                {issues.length > 0 ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
-                    Incompleta
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-900">
-                    Lista
-                  </span>
-                )}
+              <span className="inline-flex shrink-0 items-center gap-2">
+                <RoomStatusBadges available issues={issues} />
                 <ChevronDown
                   className={`size-5 text-muted transition ${expanded ? "rotate-180" : ""}`}
                   aria-hidden
@@ -460,10 +582,8 @@ export function PropertyRoomManager({
                     <label className="inline-flex items-center gap-2 text-sm font-medium text-body">
                       <input
                         type="checkbox"
-                        checked={!available}
-                        onChange={(e) =>
-                          onOccupancyStatusChange(i, e.target.checked ? "occupied" : "available")
-                        }
+                        checked={false}
+                        onChange={() => onOccupancyStatusChange(i, "occupied")}
                         className="size-4 rounded border-border text-primary"
                       />
                       Recámara ocupada
@@ -484,42 +604,20 @@ export function PropertyRoomManager({
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                   </label>
-
-                  {available ? (
-                    <>
-                      <AvailableRoomFields
-                        room={room}
-                        onChange={(patch) => onUpdateRoom(i, patch)}
-                        onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
-                      />
-                      <p className="text-xs text-muted">
-                        Si alguien renta esta recámara, puedes marcarla como ocupada más adelante. Guardamos
-                        descripción, fotos y precio para cuando vuelva a estar disponible.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
-                      <p className="text-xs text-muted">
-                        Mientras esté ocupada solo editas el título y quién vive aquí. La ficha de renta, fotos y
-                        descripción se conservan para la próxima vez que la marques disponible.
-                      </p>
-                    </>
-                  )}
+                  <AvailableRoomFields
+                    room={room}
+                    onChange={(patch) => onUpdateRoom(i, patch)}
+                    onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
+                  />
+                  <p className="text-xs text-muted">
+                    Si alguien renta esta recámara, puedes marcarla como ocupada más adelante. Guardamos descripción,
+                    fotos y precio para cuando vuelva a estar disponible.
+                  </p>
                 </div>
               </div>
             ) : null}
 
-            {showSaveProgress && onSaveProgress ? (
-              <div className="border-t border-border px-4 py-3">
-                <WizardSaveDraftButton
-                  compact
-                  onClick={onSaveProgress}
-                  inFlight={saveProgressInFlight}
-                  saved={saveProgressSaved}
-                />
-              </div>
-            ) : null}
+            <RoomSaveFooter {...saveFooterProps} />
           </div>
         );
       })}

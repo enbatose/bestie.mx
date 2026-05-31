@@ -93,7 +93,7 @@ export function wizardContactDigits(contactWhatsApp: string, showPublic: boolean
 }
 
 export function showWizardPropertyBathroomsField(d: Draft): boolean {
-  return d.propertyKind === "loft" || d.postMode === "property";
+  return d.postMode === "room";
 }
 
 export function effectiveWizardPropertyBathrooms(d: Draft): number {
@@ -240,12 +240,13 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
     }
   }
   if (
+    d.postMode !== "property" &&
     d.propertyKind !== "loft" &&
     (!Number.isFinite(d.propertyBedroomsTotal) || d.propertyBedroomsTotal < 1)
   ) {
     return "Indica cuántas recámaras tiene la propiedad (al menos 1).";
   }
-  if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
+  if (d.postMode !== "property" && d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
     return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
   }
   if (
@@ -372,6 +373,17 @@ export function validateWizardStepByTitle(
 }
 
 export function validateRoomsForSubmit(d: Draft): string | null {
+  if (d.postMode === "property") {
+    if (
+      d.propertyKind !== "loft" &&
+      (!Number.isFinite(d.propertyBedroomsTotal) || d.propertyBedroomsTotal < 1)
+    ) {
+      return "Indica cuántas recámaras tiene la propiedad (al menos 1).";
+    }
+    if (d.propertyBedroomsTotal > PROPERTY_BEDROOMS_MAX) {
+      return `El número de recámaras no puede exceder las ${PROPERTY_BEDROOMS_MAX}.`;
+    }
+  }
   return formatRoomsValidationMessage(d);
 }
 

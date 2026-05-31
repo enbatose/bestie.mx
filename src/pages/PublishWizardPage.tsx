@@ -1460,6 +1460,7 @@ export function PublishWizardPage() {
                   no se cuentan como habitaciones independientes.
                 </p>
               ) : null}
+              {draft.postMode === "room" ? (
               <div
                 className={`grid gap-4 ${showWizardPropertyBathroomsField(draft) ? "sm:grid-cols-2" : ""}`}
               >
@@ -1514,6 +1515,7 @@ export function PublishWizardPage() {
                   </div>
                 ) : null}
               </div>
+              ) : null}
               <div className="mt-4 space-y-4 border-t border-border pt-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-body">La propiedad cuenta con:</label>
@@ -1574,7 +1576,10 @@ export function PublishWizardPage() {
           draft.postMode === "property" ? (
             <PropertyRoomManager
               draft={draft}
+              propertyKind={draft.propertyKind}
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
+              propertyBedroomsMax={PROPERTY_BEDROOMS_MAX}
+              onBedroomTotalChange={setPropertyBedroomTotal}
               expandedRoomIndex={expandedPropertyRoomIndex}
               onExpandedRoomIndexChange={setExpandedPropertyRoomIndex}
               preferOccupiedFirst={!editPropertyId && !editingLiveProperty}
@@ -2177,7 +2182,7 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode],
+    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, wizardDraftSaveNote, submitInFlight, editPropertyId, editingLiveProperty, me],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
