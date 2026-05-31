@@ -20,6 +20,7 @@ import {
   type ListingUnavailableReason,
 } from "@/lib/listingsApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
 import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
 import { startConversationFromListing } from "@/lib/messagesApi";
@@ -298,13 +299,19 @@ export function ListingPage() {
       const room = propertyPack.rooms.find((r) => r.id === listing.id);
       return (room?.imageUrls ?? []).map((u) => apiAbsoluteUrl(u));
     }
-    const fromJoin = [...(listing.propertyImageUrls ?? []), ...(listing.roomImageUrls ?? [])];
-    if (fromJoin.length) return fromJoin.map((u) => apiAbsoluteUrl(u));
+    const fromListing = listingGalleryImageUrls({
+      postMode: listing.propertyPostMode,
+      propertyImageUrls: listing.propertyImageUrls,
+      roomImageUrls: listing.roomImageUrls,
+    });
+    if (fromListing.length) return fromListing.map((u) => apiAbsoluteUrl(u));
     if (!apiOn || !propertyPack) return [];
     const room = propertyPack.rooms.find((r) => r.id === listing.id);
-    return [...(propertyPack.property.imageUrls ?? []), ...(room?.imageUrls ?? [])].map((u) =>
-      apiAbsoluteUrl(u),
-    );
+    return listingGalleryImageUrls({
+      postMode: listing.propertyPostMode ?? propertyPack.property.postMode,
+      propertyImageUrls: propertyPack.property.imageUrls,
+      roomImageUrls: room?.imageUrls,
+    }).map((u) => apiAbsoluteUrl(u));
   }, [apiOn, listing, propertyPack, isPropertyPost, commonAreaUrls]);
 
   const siblingLinks = useMemo(() => {

@@ -12,6 +12,7 @@ import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from 
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
   PROPERTY_SUMMARY_MAX,
   PROPERTY_SUMMARY_MIN,
@@ -270,8 +271,13 @@ export function EditableListingPreview({
   const [roomDetailsDraft, setRoomDetailsDraft] = useState<RoomDraft | null>(null);
 
   const galleryUrls = useMemo(
-    () => [...(listing.propertyImageUrls ?? []), ...(listing.roomImageUrls ?? [])],
-    [listing.propertyImageUrls, listing.roomImageUrls],
+    () =>
+      listingGalleryImageUrls({
+        postMode: listing.propertyPostMode,
+        propertyImageUrls: listing.propertyImageUrls,
+        roomImageUrls: listing.roomImageUrls,
+      }),
+    [listing.propertyPostMode, listing.propertyImageUrls, listing.roomImageUrls],
   );
 
   const mapCenter = useMemo(

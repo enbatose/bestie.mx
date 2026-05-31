@@ -33,3 +33,17 @@ export function listingImageUrlsForApi(input: readonly string[]): string[] {
   }
   return out;
 }
+
+/** Public gallery URLs; room posts mirror room photos on the property row for API sync. */
+export function listingGalleryImageUrls(opts: {
+  postMode?: "room" | "property" | null;
+  propertyImageUrls?: readonly string[];
+  roomImageUrls?: readonly string[];
+}): string[] {
+  const property = opts.propertyImageUrls ?? [];
+  const room = opts.roomImageUrls ?? [];
+  if (opts.postMode === "room") {
+    return listingImageUrlsForApi(room.length > 0 ? room : property);
+  }
+  return listingImageUrlsForApi([...property, ...room]);
+}
