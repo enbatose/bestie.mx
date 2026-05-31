@@ -319,7 +319,7 @@ const defaultRoom = (): RoomDraft => ({
 });
 
 const DEFAULT_PROPERTY_SUMMARY =
-  "Cuéntanos qué hace especial a la propiedad en general. Describe las zonas comunes (sala, cocina, terraza, áreas del edificio) y la convivencia. (Importante: Los detalles específicos de la recámara disponible los llenaremos en el Paso 4).";
+  "Describe la propiedad en general y sus áreas comunes: sala, cocina, terraza, jardín, estacionamiento y reglas de convivencia compartidas.";
 
 /** Previous wizard placeholder; still treated as “example text” so borradores viejos piden sustitución. */
 const LEGACY_DEFAULT_PROPERTY_SUMMARY =
@@ -1378,10 +1378,24 @@ export function PublishWizardPage() {
         title: "¿Cómo es tu espacio?",
         body: (
           <form className="space-y-6">
+            {draft.postMode === "property" ? (
+              <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm leading-snug text-body">
+                <strong className="text-primary">Solo propiedad y áreas comunes.</strong> En este paso describe la
+                vivienda en general — sala, cocina, jardín, convivencia, etc.{" "}
+                <strong className="text-body">No incluyas detalles por habitación</strong>; la descripción de cada
+                recámara la completarás en el siguiente paso,{" "}
+                <strong className="text-body">Administrador de recámaras</strong>.
+              </p>
+            ) : null}
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">
                 Datos Generales
               </h3>
+              {draft.postMode === "property" ? (
+                <p className="text-xs text-muted leading-snug">
+                  Título, ubicación y descripción general de la propiedad. Las recámaras se configuran en el paso 4.
+                </p>
+              ) : null}
               <label className="block text-sm font-medium text-body">
                 Título del anuncio
                 <span className="text-red-600"> *</span>
@@ -1421,8 +1435,8 @@ export function PublishWizardPage() {
                       className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                     />
                     <span className="mt-1 block text-xs text-muted">
-                      Mínimo {PROPERTY_SUMMARY_MIN} caracteres (propiedad y zonas comunes) ·{" "}
-                      {draft.propertySummary.trim().length} ahora
+                      Mínimo {PROPERTY_SUMMARY_MIN} caracteres · Solo propiedad y áreas comunes (la descripción por
+                      recámara va en el paso 4) · {draft.propertySummary.trim().length} ahora
                     </span>
                   </label>
                 </>
