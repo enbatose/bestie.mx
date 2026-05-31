@@ -689,7 +689,7 @@ export function PublishWizardPage() {
   );
   const apiOn = isListingsApiConfigured();
   const [step, setStep] = useState(0);
-  const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState(0);
+  const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(() => defaultDraft());
   const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
@@ -1575,6 +1575,7 @@ export function PublishWizardPage() {
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
               expandedRoomIndex={expandedPropertyRoomIndex}
               onExpandedRoomIndexChange={setExpandedPropertyRoomIndex}
+              preferOccupiedFirst={!editPropertyId && !editingLiveProperty}
               onRentRoomCountChange={setPropertyRentRoomCount}
               onOccupancyStatusChange={(roomIndex, status) =>
                 setDraft((d) => ({

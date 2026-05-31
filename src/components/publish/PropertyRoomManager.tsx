@@ -31,13 +31,26 @@ const ROOM_SUMMARY_PLACEHOLDER =
 type Props = {
   draft: Draft;
   propertyBedroomsTotal: number;
-  expandedRoomIndex: number;
-  onExpandedRoomIndexChange: (index: number) => void;
+  expandedRoomIndex: number | null;
+  onExpandedRoomIndexChange: (index: number | null) => void;
+  /** When true (new post), occupied rooms appear before available ones. */
+  preferOccupiedFirst?: boolean;
   onRentRoomCountChange: (count: number) => void;
   onOccupancyStatusChange: (roomIndex: number, status: RoomOccupancyStatus) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
 };
+
+function propertyRoomDisplayOrder(draft: Draft, preferOccupiedFirst: boolean): number[] {
+  const indices = draft.rooms.map((_, i) => i);
+  if (!preferOccupiedFirst) return indices;
+  return [...indices].sort((a, b) => {
+    const aOccupied = draft.rooms[a]?.occupancyStatus === "occupied" ? 0 : 1;
+    const bOccupied = draft.rooms[b]?.occupancyStatus === "occupied" ? 0 : 1;
+    if (aOccupied !== bOccupied) return aOccupied - bOccupied;
+    return a - b;
+  });
+}
 
 function OccupiedRoomFields({
   room,
@@ -317,6 +330,7 @@ export function PropertyRoomManager({
   propertyBedroomsTotal,
   expandedRoomIndex,
   onExpandedRoomIndexChange,
+  preferOccupiedFirst = false,
   onRentRoomCountChange,
   onOccupancyStatusChange,
   onUpdateRoom,
@@ -326,10 +340,15 @@ export function PropertyRoomManager({
   const rentCount = propertyRentRoomCount(draft);
   const occupiedCount = propertyOccupiedRoomCount(draft);
   const issueRows = useMemo(() => roomValidationIssuesByIndex(draft), [draft]);
+  const roomOrder = useMemo(
+    () => propertyRoomDisplayOrder(draft, preferOccupiedFirst),
+    [draft, preferOccupiedFirst],
+  );
 
   useEffect(() => {
+    if (expandedRoomIndex == null) return;
     if (expandedRoomIndex >= draft.rooms.length) {
-      onExpandedRoomIndexChange(Math.max(0, draft.rooms.length - 1));
+      onExpandedRoomIndexChange(null);
     }
   }, [draft.rooms.length, expandedRoomIndex, onExpandedRoomIndexChange]);
 
@@ -365,7 +384,8 @@ export function PropertyRoomManager({
         </div>
       </div>
 
-      {draft.rooms.map((room, i) => {
+      {roomOrder.map((i) => {
+        const room = draft.rooms[i]!;
         const expanded = expandedRoomIndex === i;
         const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
@@ -384,7 +404,7 @@ export function PropertyRoomManager({
             <button
               type="button"
               aria-expanded={expanded}
-              onClick={() => onExpandedRoomIndexChange(i)}
+              onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
               className="flex w-full items-start justify-between gap-3 p-4 text-left"
             >
               <div className="min-w-0 flex-1">
