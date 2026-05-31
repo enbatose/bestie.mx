@@ -10,6 +10,7 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { isRoomIdealParaTag, LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
+import { ensureDraftListingImagesUploadedForApi } from "@/lib/publishWizard/draftImageUpload";
 import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
 import { listingImageUrlsForApi } from "@/lib/listingImageUrls";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
@@ -144,6 +145,7 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
       imageUrls: [] as string[],
     };
   }
+  const imageUrls = draftRoomImageUrlsForApi(draft, roomIndex);
   return {
     ...base,
     rentMxn: room.rentMxn,
@@ -158,7 +160,7 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
     depositMxn: room.depositMxn,
-    imageUrls: draftRoomImageUrlsForApi(draft, roomIndex),
+    ...(imageUrls.length > 0 ? { imageUrls } : {}),
   };
 }
 
@@ -488,12 +490,19 @@ export function getPublishBlockedReason(draft: Draft): string | null {
 
 export { PROPERTY_SUMMARY_MIN, PROPERTY_SUMMARY_MAX, ROOM_SUMMARY_MIN, ROOM_SUMMARY_MAX, PROPERTY_TITLE_MAX };
 
+export type SyncDraftToServerResult = {
+  serverSync: PublishWizardServerSync;
+  draft: Draft;
+};
+
 export async function syncDraftToServer(
   draft: Draft,
   serverSync: PublishWizardServerSync,
   profilePhoneE164?: string | null,
-): Promise<PublishWizardServerSync> {
-  if (!isListingsApiConfigured()) return serverSync;
+): Promise<SyncDraftToServerResult> {
+  if (!isListingsApiConfigured()) return { serverSync, draft };
+
+  draft = await ensureDraftListingImagesUploadedForApi(draft);
 
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
@@ -580,16 +589,16 @@ export async function syncDraftToServer(
       throw e;
     }
 
-    return { propertyId, roomIds };
+    return { serverSync: { propertyId, roomIds }, draft };
   }
 
   throw new Error("sync_draft_failed");
 }
 
 export type PublishDraftResult =
-  | { kind: "published"; roomId: string }
-  | { kind: "auth_required" }
-  | { kind: "error"; message: string };
+  | { kind: "published"; roomId: string; draft: Draft }
+  | { kind: "auth_required"; draft: Draft }
+  | { kind: "error"; message: string; draft: Draft };
 
 export async function publishDraftFromWizard(opts: {
   draft: Draft;
@@ -599,11 +608,12 @@ export async function publishDraftFromWizard(opts: {
   isLoggedIn: boolean;
   profilePhoneE164?: string | null;
 }): Promise<PublishDraftResult> {
-  const { draft, editingLiveProperty, apiOn, isLoggedIn, profilePhoneE164 } = opts;
+  let { draft } = opts;
+  const { editingLiveProperty, apiOn, isLoggedIn, profilePhoneE164 } = opts;
   let serverSync = opts.serverSync;
 
   const blocked = getPublishBlockedReason(draft);
-  if (blocked) return { kind: "error", message: blocked };
+  if (blocked) return { kind: "error", message: blocked, draft };
 
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
@@ -613,20 +623,20 @@ export async function publishDraftFromWizard(opts: {
   if (!isLoggedIn) {
     if (apiOn) {
       try {
-        serverSync = (await syncDraftToServer(draft, serverSync, profilePhoneE164)) ?? serverSync;
+        ({ serverSync, draft } = await syncDraftToServer(draft, serverSync, profilePhoneE164));
       } catch (e) {
-        return { kind: "error", message: e instanceof Error ? e.message : "No se pudo guardar el borrador." };
+        return { kind: "error", message: e instanceof Error ? e.message : "No se pudo guardar el borrador.", draft };
       }
     }
-    return { kind: "auth_required" };
+    return { kind: "auth_required", draft };
   }
 
   if (!apiOn) {
-    return { kind: "error", message: "Configura la API para publicar en el catálogo." };
+    return { kind: "error", message: "Configura la API para publicar en el catálogo.", draft };
   }
 
   try {
-    serverSync = (await syncDraftToServer(draft, serverSync, profilePhoneE164)) ?? serverSync;
+    ({ serverSync, draft } = await syncDraftToServer(draft, serverSync, profilePhoneE164));
     const { lat, lng } = resolveLatLngForDraft(draft);
     const firstRoomId =
       serverSync.roomIds.find((id) => typeof id === "string" && id.length > 0) ?? null;
@@ -655,7 +665,7 @@ export async function publishDraftFromWizard(opts: {
         propPatch.status = "published";
       }
       await updateProperty(serverSync.propertyId, propPatch);
-      return { kind: "published", roomId: firstRoomId };
+      return { kind: "published", roomId: firstRoomId, draft };
     }
 
     const res = await publishPropertyBundle({
@@ -688,10 +698,14 @@ export async function publishDraftFromWizard(opts: {
       }),
     });
     const first = res.rooms[0];
-    if (!first) return { kind: "error", message: "La API no devolvió recámaras." };
-    return { kind: "published", roomId: first.id };
+    if (!first) return { kind: "error", message: "La API no devolvió recámaras.", draft };
+    return { kind: "published", roomId: first.id, draft };
   } catch (e) {
-    return { kind: "error", message: e instanceof Error ? e.message : "No se pudo publicar." };
+    return {
+      kind: "error",
+      message: e instanceof Error ? e.message : "No se pudo publicar.",
+      draft,
+    };
   }
 }
 
@@ -700,21 +714,30 @@ export async function saveDraftFromWizard(opts: {
   serverSync: PublishWizardServerSync;
   apiOn: boolean;
   profilePhoneE164?: string | null;
-}): Promise<{ serverSync: PublishWizardServerSync; error?: string }> {
+}): Promise<{ serverSync: PublishWizardServerSync; draft: Draft; error?: string }> {
   const blocked =
     propertyGeneralStepInvalidReason(opts.draft) ?? validateRoomsForSubmit(opts.draft);
-  if (blocked) return { serverSync: opts.serverSync, error: blocked };
+  if (blocked) return { serverSync: opts.serverSync, draft: opts.draft, error: blocked };
 
   if (!opts.apiOn) {
-    return { serverSync: opts.serverSync, error: "Configura la API para guardar en el servidor." };
+    return {
+      serverSync: opts.serverSync,
+      draft: opts.draft,
+      error: "Configura la API para guardar en el servidor.",
+    };
   }
 
   try {
-    const serverSync = await syncDraftToServer(opts.draft, opts.serverSync, opts.profilePhoneE164);
-    return { serverSync };
+    const { serverSync, draft } = await syncDraftToServer(
+      opts.draft,
+      opts.serverSync,
+      opts.profilePhoneE164,
+    );
+    return { serverSync, draft };
   } catch (e) {
     return {
       serverSync: opts.serverSync,
+      draft: opts.draft,
       error: e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.",
     };
   }

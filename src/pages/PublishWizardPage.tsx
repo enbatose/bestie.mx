@@ -1028,14 +1028,15 @@ export function PublishWizardPage() {
 
     try {
       setAutosaveNote("saving");
-      const next = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164);
-      serverSyncRef.current = next;
-      setServerSync(next);
+      const synced = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164);
+      serverSyncRef.current = synced.serverSync;
+      setServerSync(synced.serverSync);
+      setDraft(synced.draft);
       setAutosaveNote("saved");
       window.setTimeout(() => {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
-      return next;
+      return synced.serverSync;
     } catch {
       setAutosaveNote("error");
       return null;
@@ -2193,21 +2194,24 @@ export function PublishWizardPage() {
     if (!me) {
       setSubmitInFlight("draft");
       try {
+        let resumeDraft = draftRef.current;
         if (apiOn) {
           const synced = await syncDraftToServer(
             draftRef.current,
             serverSyncRef.current,
             meRef.current?.phoneE164,
           );
-          serverSyncRef.current = synced;
-          setServerSync(synced);
+          serverSyncRef.current = synced.serverSync;
+          setServerSync(synced.serverSync);
+          setDraft(synced.draft);
+          resumeDraft = synced.draft;
         }
         navigate("/entrar", {
           replace: true,
           state: {
             registrationNotice:
               "Tu anuncio ya está creado como borrador. Para activarlo y publicarlo, inicia sesión o crea una cuenta.",
-            resumeDraft: draftRef.current,
+            resumeDraft,
             resumeServerSync: serverSyncRef.current,
             resumeStep: step,
           },
@@ -2231,6 +2235,7 @@ export function PublishWizardPage() {
         profilePhoneE164: me?.phoneE164,
       });
       if (result.kind === "published") {
+        setDraft(result.draft);
         const roomIdx = Math.min(
           previewRoomIndex,
           Math.max(0, draftRef.current.rooms.length - 1),
@@ -2253,6 +2258,7 @@ export function PublishWizardPage() {
         return;
       }
       if (result.kind === "error") {
+        setDraft(result.draft);
         setPublishErr(result.message);
       }
     } catch (e) {
@@ -2279,8 +2285,9 @@ export function PublishWizardPage() {
           serverSyncRef.current,
           meRef.current?.phoneE164,
         );
-        serverSyncRef.current = synced;
-        setServerSync(synced);
+        serverSyncRef.current = synced.serverSync;
+        setServerSync(synced.serverSync);
+        setDraft(synced.draft);
       } else {
         await flushWizardAutosave();
       }
