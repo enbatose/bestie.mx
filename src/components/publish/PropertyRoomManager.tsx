@@ -195,36 +195,81 @@ function OccupiedRoomFields({
   room: RoomDraft;
   onChange: (patch: Partial<RoomDraft>) => void;
 }) {
+  const women = Math.max(0, Math.floor(room.occupantWomenCount ?? 0));
+  const men = Math.max(0, Math.floor(room.occupantMenCount ?? 0));
+  const needsDetailSteppers = women > 1 || men > 1 || (women > 0 && men > 0);
+
+  const chipClass = (active: boolean) =>
+    `rounded-full px-2.5 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+      active
+        ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+        : "border border-border bg-surface text-body hover:bg-surface-elevated"
+    }`;
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="block text-sm font-medium text-body">
-        <span className="block">
-          Mujeres en esta recámara
-          <span className="text-red-600"> *</span>
-        </span>
-        <WizardNumberStepper
-          value={room.occupantWomenCount ?? 0}
-          min={0}
-          max={ROOM_OCCUPANT_MAX}
-          onChange={(n) => onChange({ occupantWomenCount: n })}
-          decrementLabel="Menos mujeres"
-          incrementLabel="Más mujeres"
-        />
+    <div className="mt-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-muted">Ocupa</span>
+        <button
+          type="button"
+          onClick={() => onChange({ occupantWomenCount: 1, occupantMenCount: 0 })}
+          className={chipClass(women === 1 && men === 0)}
+        >
+          1 Mujer
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange({ occupantMenCount: 1, occupantWomenCount: 0 })}
+          className={chipClass(men === 1 && women === 0)}
+        >
+          1 Hombre
+        </button>
+        {!needsDetailSteppers ? (
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                occupantWomenCount: women > 0 ? Math.max(2, women) : 2,
+                occupantMenCount: men,
+              })
+            }
+            className="rounded-full px-2 py-1 text-xs font-medium text-muted transition hover:bg-surface-elevated hover:text-body"
+          >
+            Más de una persona
+          </button>
+        ) : null}
       </div>
-      <div className="block text-sm font-medium text-body">
-        <span className="block">
-          Hombres en esta recámara
-          <span className="text-red-600"> *</span>
-        </span>
-        <WizardNumberStepper
-          value={room.occupantMenCount ?? 0}
-          min={0}
-          max={ROOM_OCCUPANT_MAX}
-          onChange={(n) => onChange({ occupantMenCount: n })}
-          decrementLabel="Menos hombres"
-          incrementLabel="Más hombres"
-        />
-      </div>
+
+      {needsDetailSteppers ? (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <label className="block min-w-0 text-[11px] font-medium text-body">
+            Mujeres
+            <span className="text-red-600"> *</span>
+            <WizardNumberStepper
+              compact
+              value={women}
+              min={0}
+              max={ROOM_OCCUPANT_MAX}
+              onChange={(n) => onChange({ occupantWomenCount: n })}
+              decrementLabel="Menos mujeres"
+              incrementLabel="Más mujeres"
+            />
+          </label>
+          <label className="block min-w-0 text-[11px] font-medium text-body">
+            Hombres
+            <span className="text-red-600"> *</span>
+            <WizardNumberStepper
+              compact
+              value={men}
+              min={0}
+              max={ROOM_OCCUPANT_MAX}
+              onChange={(n) => onChange({ occupantMenCount: n })}
+              decrementLabel="Menos hombres"
+              incrementLabel="Más hombres"
+            />
+          </label>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -608,7 +653,6 @@ export function PropertyRoomManager({
         const slotLabel = propertyRoomDefaultTitle(roomNumber);
         const customTitle = room.customName?.trim() || room.title?.trim() || "";
         const roomLabel = customTitle || slotLabel;
-        const showSlotLabel = customTitle.length > 0 && customTitle !== slotLabel;
         const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
           issues.length
             ? "border-amber-300/80 ring-amber-200/60"
@@ -623,15 +667,13 @@ export function PropertyRoomManager({
               <div className="p-4">
                 <div className="flex w-full items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="mt-1">
-                      <RoomTitleInlineEditor
-                        room={room}
-                        displayNumber={roomNumber}
-                        onUpdate={(patch) => onUpdateRoom(i, patch)}
-                      />
-                    </div>
-                    {showSlotLabel ? (
-                      <p className="mt-0.5 text-sm font-medium text-muted">{slotLabel}</p>
+                    <RoomTitleInlineEditor
+                      room={room}
+                      displayNumber={roomNumber}
+                      onUpdate={(patch) => onUpdateRoom(i, patch)}
+                    />
+                    {issues.length > 0 ? (
+                      <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                     ) : null}
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-2">
@@ -644,13 +686,8 @@ export function PropertyRoomManager({
                     <RoomStatusBadges issues={issues} />
                   </span>
                 </div>
-              </div>
-              <div className="space-y-4 border-t border-border px-4 pb-4 pt-4">
-                {issues.length > 0 ? (
-                  <p className="text-sm text-amber-800">Faltan: {issues.join(", ")}</p>
-                ) : null}
                 <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
-                </div>
+              </div>
             </div>
           );
         }
@@ -671,17 +708,12 @@ export function PropertyRoomManager({
                   }
                 }}
               >
-                <div className="mt-1">
-                  <RoomTitleInlineEditor
-                    room={room}
-                    displayNumber={roomNumber}
-                    onUpdate={(patch) => onUpdateRoom(i, patch)}
-                    stopClickPropagation
-                  />
-                </div>
-                {showSlotLabel ? (
-                  <p className="mt-0.5 text-sm font-medium text-muted">{slotLabel}</p>
-                ) : null}
+                <RoomTitleInlineEditor
+                  room={room}
+                  displayNumber={roomNumber}
+                  onUpdate={(patch) => onUpdateRoom(i, patch)}
+                  stopClickPropagation
+                />
                 {!expanded && issues.length > 0 ? (
                   <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                 ) : null}
