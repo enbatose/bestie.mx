@@ -17,7 +17,7 @@ import {
   collectRoomFieldIssues,
   roomValidationIssuesByIndex,
 } from "@/lib/publishWizard/roomWizardValidation";
-import { isRoomAvailableForRent, occupancyStatusLabel } from "@/lib/roomDisplay";
+import { isRoomAvailableForRent, occupiedRoomOccupantSummary, occupancyStatusLabel } from "@/lib/roomDisplay";
 import { WizardSaveDraftButton } from "@/components/publish/WizardSaveDraftButton";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
@@ -565,38 +565,76 @@ export function PropertyRoomManager({
         }`;
 
         if (!available) {
+          const occupantSummary = occupiedRoomOccupantSummary(room);
+
           return (
             <div key={room.id} className={cardClass}>
-              <div className="space-y-4 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">{contextLabel}</p>
-                    <div className="mt-2">
-                      <RoomTitleInlineEditor
-                        room={room}
-                        displayNumber={displayNumber}
-                        onUpdate={(patch) => onUpdateRoom(i, patch)}
-                      />
-                    </div>
-                    {issues.length > 0 ? (
-                      <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
-                    ) : null}
+              <div className="flex w-full items-start justify-between gap-3 p-4">
+                <div
+                  className="min-w-0 flex-1 cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expanded}
+                  onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onExpandedRoomIndexChange(expanded ? null : i);
+                    }
+                  }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">{contextLabel}</p>
+                  <div className="mt-1">
+                    <RoomTitleInlineEditor
+                      room={room}
+                      displayNumber={displayNumber}
+                      onUpdate={(patch) => onUpdateRoom(i, patch)}
+                      stopClickPropagation
+                    />
                   </div>
-                  <RoomStatusBadges available={false} issues={issues} />
+                  {!expanded && occupantSummary ? (
+                    <p className="mt-1 text-xs text-muted">{occupantSummary}</p>
+                  ) : null}
+                  {!expanded && issues.length > 0 ? (
+                    <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
+                  ) : null}
+                  {!expanded && !occupantSummary && issues.length === 0 ? (
+                    <p className="mt-1 text-xs text-muted">Toca para indicar quién ocupa</p>
+                  ) : null}
                 </div>
-
-                <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
-
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-body">
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    onChange={() => onOccupancyStatusChange(i, "available")}
-                    className="size-4 rounded border-border text-primary"
-                  />
-                  Marcar como disponible para renta
-                </label>
+                <span className="inline-flex shrink-0 items-center gap-2">
+                  <RoomStatusBadges available={false} issues={issues} />
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
+                    onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
+                    className="rounded-lg p-1 text-muted transition hover:bg-surface-elevated"
+                  >
+                    <ChevronDown
+                      className={`size-5 transition ${expanded ? "rotate-180" : ""}`}
+                      aria-hidden
+                    />
+                  </button>
+                </span>
               </div>
+
+              {expanded ? (
+                <div className="space-y-4 border-t border-border px-4 pb-4 pt-4">
+                  <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
+
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-body">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => onOccupancyStatusChange(i, "available")}
+                      className="size-4 rounded border-border text-primary"
+                    />
+                    Marcar como disponible para renta
+                  </label>
+                </div>
+              ) : null}
+
               <RoomSaveFooter {...saveFooterProps} />
             </div>
           );

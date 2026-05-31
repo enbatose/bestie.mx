@@ -44,3 +44,15 @@ export function occupantGenderLabel(pref: RoommateGenderPref): string {
       return "Sin especificar";
   }
 }
+
+/** Short label for collapsed occupied-room cards in the publish wizard. */
+export function occupiedRoomOccupantSummary(
+  room: { occupantWomenCount?: number; occupantMenCount?: number },
+): string | null {
+  const women = Math.max(0, Math.floor(room.occupantWomenCount ?? 0));
+  const men = Math.max(0, Math.floor(room.occupantMenCount ?? 0));
+  const parts: string[] = [];
+  if (women > 0) parts.push(women === 1 ? "1 Mujer" : `${women} Mujeres`);
+  if (men > 0) parts.push(men === 1 ? "1 Hombre" : `${men} Hombres`);
+  return parts.length ? parts.join(", ") : null;
+}
