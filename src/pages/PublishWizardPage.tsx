@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ShieldCheck, Wand2 } from "lucide-react";
+import { CheckCircle2, CloudCheck, Loader2, ShieldCheck, TriangleAlert, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -112,6 +112,47 @@ const WIZARD_PROPERTY_PERMITIDO_SLUGS = PROPERTY_PERMITIDO_TAG_SLUGS;
 const WIZARD_STEP3_TAG_SET = PROPERTY_SCOPE_TAG_SET;
 const WIZARD_STEP4_TAG_LABELS = LISTING_TAG_LABEL_OVERRIDES;
 const WIZARD_ROOM_TAG_GROUPS = ROOM_TAG_GROUPS;
+
+function formatAutosaveTime(ts: number | null): string | null {
+  if (!ts) return null;
+  return new Date(ts).toLocaleTimeString("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function AutosaveConfidenceBanner({
+  note,
+  lastSavedAt,
+}: {
+  note: "idle" | "saving" | "saved" | "error";
+  lastSavedAt: number | null;
+}) {
+  const lastSavedLabel = formatAutosaveTime(lastSavedAt);
+  if (note === "saving") {
+    return (
+      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800">
+        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+        Guardando cambios...
+      </div>
+    );
+  }
+  if (note === "error") {
+    return (
+      <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900">
+        <TriangleAlert className="size-3.5" aria-hidden />
+        No se pudo sincronizar. Reintentaremos automáticamente.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900">
+      <CloudCheck className="size-3.5" aria-hidden />
+      Auto-guardado activo
+      {lastSavedLabel ? ` · Último guardado ${lastSavedLabel}` : " · Tus cambios se guardan automáticamente"}
+    </div>
+  );
+}
 
 function syncDraftPhotoFields(d: Draft): Draft {
   const commonAreaPhotos = normalizeDraftImages(d.commonAreaPhotos ?? d.propertyImageUrls ?? []);
@@ -723,6 +764,7 @@ export function PublishWizardPage() {
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
   const [storageReady, setStorageReady] = useState(false);
@@ -801,6 +843,7 @@ export function PublishWizardPage() {
       setServerSync({ propertyId: null, roomIds: [] });
       setStep(0);
       setAutosaveNote("idle");
+      setLastAutosavedAt(null);
       return;
     }
     const uid = me.id;
@@ -820,6 +863,7 @@ export function PublishWizardPage() {
     setServerSync({ propertyId: null, roomIds: [] });
     setStep(0);
     setAutosaveNote("idle");
+    setLastAutosavedAt(null);
     setStorageReady(true);
   }, [me, editPropertyId, handoffToken]);
 
@@ -1089,6 +1133,7 @@ export function PublishWizardPage() {
       setServerSync(synced.serverSync);
       setDraft(synced.draft);
       setAutosaveNote("saved");
+      setLastAutosavedAt(Date.now());
       window.setTimeout(() => {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
@@ -2131,6 +2176,7 @@ export function PublishWizardPage() {
           serverSyncRef.current = synced.serverSync;
           setServerSync(synced.serverSync);
           setDraft(synced.draft);
+          setLastAutosavedAt(Date.now());
           resumeDraft = synced.draft;
         }
         navigate("/entrar", {
@@ -2222,6 +2268,7 @@ export function PublishWizardPage() {
       serverSyncRef.current = synced.serverSync;
       setServerSync(synced.serverSync);
       setDraft(synced.draft);
+      setLastAutosavedAt(Date.now());
       resumeDraft = synced.draft;
 
       if (!me) {
@@ -2244,8 +2291,10 @@ export function PublishWizardPage() {
       }
 
       setWizardDraftSaveNote("saved");
+      setAutosaveNote("saved");
       window.setTimeout(() => {
         setWizardDraftSaveNote((n) => (n === "saved" ? "idle" : n));
+        setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2500);
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.");
@@ -2275,15 +2324,9 @@ export function PublishWizardPage() {
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
         {apiOn && me ? (
-          <p className="mt-2 text-xs text-muted" aria-live="polite">
-            {autosaveNote === "saving"
-              ? "Guardando cambios en el servidor…"
-              : autosaveNote === "saved"
-                ? "Cambios guardados en el servidor."
-                : autosaveNote === "error"
-                  ? "No se pudo sincronizar con el servidor. Se reintentará al seguir editando."
-                  : "Los cambios se guardan solos en el servidor mientras editas."}
-          </p>
+          <div aria-live="polite">
+            <AutosaveConfidenceBanner note={autosaveNote} lastSavedAt={lastAutosavedAt} />
+          </div>
         ) : null}
         {handoffBanner ? (
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -2371,15 +2414,9 @@ export function PublishWizardPage() {
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
       {apiOn && me ? (
-        <p className="mt-2 text-xs text-muted" aria-live="polite">
-          {autosaveNote === "saving"
-            ? "Guardando borrador en el servidor…"
-            : autosaveNote === "saved"
-              ? "Borrador guardado en el servidor."
-              : autosaveNote === "error"
-                ? "No se pudo sincronizar con el servidor. Se reintentará al seguir editando."
-                : "Los cambios se guardan solos en el servidor unos segundos después de completar renta, plazas, fechas y datos básicos de la propiedad."}
-        </p>
+        <div aria-live="polite">
+          <AutosaveConfidenceBanner note={autosaveNote} lastSavedAt={lastAutosavedAt} />
+        </div>
       ) : null}
 
       {safeStep === WIZARD_STEP_POST_MODE && me === null ? (

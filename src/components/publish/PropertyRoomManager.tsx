@@ -260,6 +260,41 @@ function OccupiedRoomFields({
   );
 }
 
+function RoomAvailabilityToggle({
+  available,
+  onChange,
+}: {
+  available: boolean;
+  onChange: (nextAvailable: boolean) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-full border border-border bg-surface p-1 shadow-sm">
+      <button
+        type="button"
+        onClick={() => onChange(true)}
+        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+          available
+            ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
+            : "text-muted hover:bg-surface-elevated"
+        }`}
+      >
+        Disponible
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+          !available
+            ? "bg-slate-200 text-slate-800 ring-1 ring-slate-300"
+            : "text-muted hover:bg-surface-elevated"
+        }`}
+      >
+        Ocupada
+      </button>
+    </div>
+  );
+}
+
 function AvailableRoomFields({
   room,
   roomLabel,
@@ -628,77 +663,54 @@ export function PropertyRoomManager({
 
           return (
             <div key={room.id} className={cardClass}>
-              <div className="flex w-full items-start justify-between gap-3 p-4">
-                <div
-                  className="min-w-0 flex-1 cursor-pointer"
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={expanded}
-                  onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      onExpandedRoomIndexChange(expanded ? null : i);
-                    }
-                  }}
-                >
+              <div className="space-y-4 p-4">
+                <div className="flex w-full items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">{contextLabel}</p>
                   <div className="mt-1">
                     <RoomTitleInlineEditor
                       room={room}
                       displayNumber={roomNumber}
                       onUpdate={(patch) => onUpdateRoom(i, patch)}
-                      stopClickPropagation
                     />
                   </div>
-                  {!expanded && occupantSummary ? (
+                  {occupantSummary ? (
                     <p className="mt-1 text-xs text-muted">{occupantSummary}</p>
                   ) : null}
-                  {!expanded && issues.length > 0 ? (
+                  {issues.length > 0 ? (
                     <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
                   ) : null}
-                  {!expanded && !occupantSummary && issues.length === 0 ? (
+                  {!occupantSummary && issues.length === 0 ? (
                     <p className="mt-1 text-xs text-muted">Toca para indicar quién ocupa</p>
                   ) : null}
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-2">
+                <span className="inline-flex shrink-0 items-start gap-2">
                   <RoomStatusBadges available={false} issues={issues} />
-                  <button
-                    type="button"
-                    aria-expanded={expanded}
-                    aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
-                    onClick={() => onExpandedRoomIndexChange(expanded ? null : i)}
-                    className="rounded-lg p-1 text-muted transition hover:bg-surface-elevated"
-                  >
-                    <ChevronDown
-                      className={`size-5 transition ${expanded ? "rotate-180" : ""}`}
-                      aria-hidden
-                    />
-                  </button>
                 </span>
-              </div>
-
-              {expanded ? (
-                <div className="space-y-4 border-t border-border px-4 pb-4 pt-4">
-                  <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
-
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-body">
-                    <input
-                      type="checkbox"
-                      checked={false}
-                      onChange={() => onOccupancyStatusChange(i, "available")}
-                      className="size-4 rounded border-border text-primary"
+                </div>
+                <OccupiedRoomFields room={room} onChange={(patch) => onUpdateRoom(i, patch)} />
+                <div className="rounded-xl border border-border bg-surface p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Estado de la recámara</p>
+                  <div className="mt-2">
+                    <RoomAvailabilityToggle
+                      available={false}
+                      onChange={(nextAvailable) =>
+                        onOccupancyStatusChange(i, nextAvailable ? "available" : "occupied")
+                      }
                     />
-                    Marcar como disponible para renta
-                  </label>
+                  </div>
+                </div>
+              </div>
+              {showSaveProgress ? (
+                <div className="border-t border-border px-4 py-3">
+                  <WizardSaveDraftButton
+                    compact
+                    onClick={onSaveProgress!}
+                    inFlight={saveProgressInFlight}
+                    saved={saveProgressSaved}
+                  />
                 </div>
               ) : null}
-
-              <RoomCardFooter
-                {...saveFooterProps}
-                expanded={expanded}
-                onCollapse={() => onExpandedRoomIndexChange(null)}
-              />
             </div>
           );
         }
@@ -757,15 +769,12 @@ export function PropertyRoomManager({
                 <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <h3 className="text-sm font-bold text-primary">Información principal</h3>
-                    <label className="inline-flex items-center gap-2 text-sm font-medium text-body">
-                      <input
-                        type="checkbox"
-                        checked={false}
-                        onChange={() => onOccupancyStatusChange(i, "occupied")}
-                        className="size-4 rounded border-border text-primary"
-                      />
-                      Recámara ocupada
-                    </label>
+                    <RoomAvailabilityToggle
+                      available
+                      onChange={(nextAvailable) =>
+                        onOccupancyStatusChange(i, nextAvailable ? "available" : "occupied")
+                      }
+                    />
                   </div>
                   <AvailableRoomFields
                     room={room}
