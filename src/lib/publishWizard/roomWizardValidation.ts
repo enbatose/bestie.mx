@@ -1,0 +1,111 @@
+import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
+import { isRoomIdealParaTag } from "@/lib/listingTags";
+import { isRoomAvailableForRent } from "@/lib/roomDisplay";
+import type { LodgingType, RoommateGenderPref } from "@/types/listing";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ROOM_SUMMARY_MIN = 200;
+const ROOM_SUMMARY_MAX = 1500;
+const VALID_ROOM_LODGING_TYPES = ["private_room", "shared_room"] as const;
+const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "female", "male"];
+
+/** Label shown in accordion headers, validation errors, and photo sections. */
+export function roomWizardLabel(d: Draft, room: RoomDraft, index: number): string {
+  const custom = room.customName?.trim() || room.title?.trim();
+  if (custom) return custom;
+  return d.postMode === "property" ? `Habitación ${index + 1}` : `Recámara ${index + 1}`;
+}
+
+/** Human-readable missing/invalid field names for one room row. */
+export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number): string[] {
+  const issues: string[] = [];
+
+  if (d.postMode === "property" && !isRoomAvailableForRent(room)) {
+    if (!Number.isFinite(room.occupantAge) || room.occupantAge < 18 || room.occupantAge > 99) {
+      issues.push("Edad del ocupante actual");
+    }
+    if (!["any", "female", "male"].includes(room.occupantGender)) {
+      issues.push("Género del ocupante actual");
+    }
+    return issues;
+  }
+
+  if (d.postMode === "property" && !room.customName?.trim() && !room.title?.trim()) {
+    issues.push("Título de la habitación");
+  }
+
+  const lodgingOk =
+    d.postMode === "room"
+      ? VALID_ROOM_LODGING_TYPES.includes(room.lodgingType as (typeof VALID_ROOM_LODGING_TYPES)[number])
+      : room.lodgingType === "private_room" || room.lodgingType === "shared_room";
+  if (!lodgingOk) {
+    issues.push("Tipo de recámara");
+  }
+
+  if (!room.roomDimension) {
+    issues.push("Tamaño de la recámara");
+  }
+
+  if (!Number.isFinite(room.rentMxn) || room.rentMxn <= 0) {
+    issues.push("Renta (MXN / mes)");
+  }
+
+  if (!Number.isFinite(room.depositMxn) || room.depositMxn < 0) {
+    issues.push("Depósito (MXN)");
+  }
+
+  if (!ISO_DATE.test(room.availableFrom.trim())) {
+    issues.push("Disponible desde");
+  }
+
+  if (!Number.isFinite(room.minimalStayMonths) || room.minimalStayMonths < 1) {
+    issues.push("Estancia mínima (meses)");
+  }
+
+  if (!VALID_ROOMMATE_GENDER_PREFS.includes(room.roommateGenderPref)) {
+    issues.push("Preferencia de convivencia");
+  }
+
+  if (room.ageMin < 18 || room.ageMax < 18 || room.ageMax > 99) {
+    issues.push("Edad mínima y máxima (18–99)");
+  } else if (room.ageMin > room.ageMax) {
+    issues.push("Edad mínima no mayor que la máxima");
+  }
+
+  const summaryTrim = room.summary.trim();
+  if (!summaryTrim) {
+    issues.push("Descripción de la recámara");
+  } else if (summaryTrim.length < ROOM_SUMMARY_MIN) {
+    issues.push(`Descripción (mínimo ${ROOM_SUMMARY_MIN} caracteres)`);
+  } else if (summaryTrim.length > ROOM_SUMMARY_MAX) {
+    issues.push(`Descripción (máximo ${ROOM_SUMMARY_MAX} caracteres)`);
+  }
+
+  if (!room.tags.some((t) => isRoomIdealParaTag(t))) {
+    issues.push("Ideal para (al menos una opción)");
+  }
+
+  return issues;
+}
+
+export function roomValidationIssuesByIndex(d: Draft): string[][] {
+  return d.rooms.map((room, i) => collectRoomFieldIssues(d, room, i));
+}
+
+export function firstRoomIndexWithIssues(d: Draft): number {
+  const rows = roomValidationIssuesByIndex(d);
+  return rows.findIndex((issues) => issues.length > 0);
+}
+
+export function formatRoomsValidationMessage(d: Draft): string | null {
+  const lines: string[] = [];
+  for (let i = 0; i < d.rooms.length; i++) {
+    const room = d.rooms[i]!;
+    const issues = collectRoomFieldIssues(d, room, i);
+    if (!issues.length) continue;
+    lines.push(`${roomWizardLabel(d, room, i)}: ${issues.join("; ")}.`);
+  }
+  if (!lines.length) return null;
+  if (lines.length === 1) return lines[0]!;
+  return lines.join(" ");
+}

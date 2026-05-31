@@ -1,15 +1,20 @@
+import { useEffect, useMemo } from "react";
+import { ChevronDown } from "lucide-react";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
-import { roomDisplayName } from "@/lib/roomDisplay";
+import {
+  collectRoomFieldIssues,
+  roomValidationIssuesByIndex,
+  roomWizardLabel,
+} from "@/lib/publishWizard/roomWizardValidation";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
-const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
 const ROOM_SUMMARY_MIN = 200;
 const ROOM_SUMMARY_MAX = 1500;
@@ -20,6 +25,8 @@ const ROOM_SUMMARY_PLACEHOLDER =
 type Props = {
   draft: Draft;
   propertyBedroomsTotal: number;
+  expandedRoomIndex: number;
+  onExpandedRoomIndexChange: (index: number) => void;
   onAvailableRoomCountChange: (count: number) => void;
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
@@ -38,7 +45,7 @@ function AvailableRoomFields({
     <>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-body">
-          Tipo de espacio
+          Tipo de recámara
           <span className="text-red-600"> *</span>
           <select
             value={room.lodgingType === "whole_home" ? "private_room" : room.lodgingType}
@@ -47,7 +54,6 @@ function AvailableRoomFields({
           >
             <option value="private_room">Recámara privada</option>
             <option value="shared_room">Recámara compartida</option>
-            <option value="whole_home">Vivienda completa</option>
           </select>
         </label>
         <label className="block text-sm font-medium text-body">
@@ -58,9 +64,9 @@ function AvailableRoomFields({
             onChange={(e) => onChange({ roomDimension: e.target.value as RoomDimension })}
             className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
           >
-            <option value="small">Pequeño</option>
-            <option value="medium">Mediano</option>
-            <option value="large">Grande</option>
+            <option value="small">Individual (Cabe cama individual + buró)</option>
+            <option value="medium">Matrimonial (Cabe cama matrimonial + escritorio)</option>
+            <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
           </select>
         </label>
         <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
@@ -110,21 +116,7 @@ function AvailableRoomFields({
 
       <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-primary">Disponibilidad</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="block text-sm font-medium text-body">
-            <span className="block">
-              Plazas / espacios
-              <span className="text-red-600"> *</span>
-            </span>
-            <WizardNumberStepper
-              value={Math.min(ROOM_PLAZAS_MAX, Math.max(1, room.roomsAvailable))}
-              min={1}
-              max={ROOM_PLAZAS_MAX}
-              onChange={(n) => onChange({ roomsAvailable: n })}
-              decrementLabel="Menos plazas"
-              incrementLabel="Más plazas"
-            />
-          </div>
+        <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm font-medium text-body">
             Disponible desde
             <span className="text-red-600"> *</span>
@@ -275,12 +267,21 @@ function AvailableRoomFields({
 export function PropertyRoomManager({
   draft,
   propertyBedroomsTotal,
+  expandedRoomIndex,
+  onExpandedRoomIndexChange,
   onAvailableRoomCountChange,
   onUpdateRoom,
   onToggleTag,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
   const availableCount = Math.max(1, Math.min(totalBedrooms, draft.rooms.length));
+  const issueRows = useMemo(() => roomValidationIssuesByIndex(draft), [draft]);
+
+  useEffect(() => {
+    if (expandedRoomIndex >= availableCount) {
+      onExpandedRoomIndexChange(Math.max(0, availableCount - 1));
+    }
+  }, [availableCount, expandedRoomIndex, onExpandedRoomIndexChange]);
 
   return (
     <div className="space-y-6">
@@ -313,37 +314,85 @@ export function PropertyRoomManager({
       </div>
 
       {draft.rooms.map((room, i) => {
-        const label = roomDisplayName(room, i);
+        if (i >= availableCount) return null;
+        const expanded = expandedRoomIndex === i;
+        const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
+        const heading = roomWizardLabel(draft, room, i);
         return (
           <div
             key={room.id}
-            className="rounded-xl border border-border bg-bg-light p-4 shadow-md ring-1 ring-primary/10"
+            className={`rounded-xl border bg-bg-light shadow-md ring-1 transition ${
+              issues.length
+                ? "border-amber-300/80 ring-amber-200/60"
+                : expanded
+                  ? "border-primary/30 ring-primary/10"
+                  : "border-border ring-primary/10"
+            }`}
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Recámara en renta {i + 1} de {availableCount}
-            </p>
-            <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-primary">{label}</h3>
-              <label className="block text-sm font-medium text-body">
-                Nombre personalizado (opcional)
-                <input
-                  value={room.customName}
-                  onChange={(e) =>
-                    onUpdateRoom(i, {
-                      customName: e.target.value,
-                      title: e.target.value,
-                    })
-                  }
-                  placeholder={`Ej. Cuarto principal · ${label}`}
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => onExpandedRoomIndexChange(i)}
+              className="flex w-full items-start justify-between gap-3 p-4 text-left"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Recámara en renta {i + 1} de {availableCount}
+                </p>
+                <p className="mt-1 text-sm font-bold text-primary">{heading}</p>
+                {!expanded && issues.length > 0 ? (
+                  <p className="mt-1 text-xs text-amber-800">
+                    Faltan: {issues.join(", ")}
+                  </p>
+                ) : null}
+                {!expanded && issues.length === 0 ? (
+                  <p className="mt-1 text-xs text-muted">Completa — toca para revisar</p>
+                ) : null}
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-2">
+                {issues.length > 0 ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                    Incompleta
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-900">
+                    Lista
+                  </span>
+                )}
+                <ChevronDown
+                  className={`size-5 text-muted transition ${expanded ? "rotate-180" : ""}`}
+                  aria-hidden
                 />
-              </label>
-              <AvailableRoomFields
-                room={room}
-                onChange={(patch) => onUpdateRoom(i, patch)}
-                onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
-              />
-            </div>
+              </span>
+            </button>
+
+            {expanded ? (
+              <div className="border-t border-border px-4 pb-4">
+                <div className="mt-2 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+                  <h3 className="text-sm font-bold text-primary">Información principal</h3>
+                  <label className="block text-sm font-medium text-body">
+                    Título de la habitación
+                    <span className="text-red-600"> *</span>
+                    <input
+                      value={room.customName || room.title}
+                      onChange={(e) =>
+                        onUpdateRoom(i, {
+                          customName: e.target.value,
+                          title: e.target.value,
+                        })
+                      }
+                      placeholder={`Ej. Cuarto con balcón · Habitación ${i + 1}`}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                    />
+                  </label>
+                  <AvailableRoomFields
+                    room={room}
+                    onChange={(patch) => onUpdateRoom(i, patch)}
+                    onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         );
       })}

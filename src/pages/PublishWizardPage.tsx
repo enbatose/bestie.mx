@@ -56,6 +56,7 @@ import {
   syncDraftToServer,
   ROOM_SUMMARY_MIN,
 } from "@/lib/publishWizard/publishCore";
+import { firstRoomIndexWithIssues } from "@/lib/publishWizard/roomWizardValidation";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -477,8 +478,7 @@ function toggleRoomTag(d: Draft, roomIndex: number, tag: ListingTag, active: boo
           : [...tags, tag]
         : tags.filter((t) => t !== tag);
       const filtered = nextTags.filter(tagOk);
-      const roomsAvailable =
-        d.postMode === "room" ? roomsAvailableFromIdealTags(filtered) : r.roomsAvailable;
+      const roomsAvailable = roomsAvailableFromIdealTags(filtered);
       return { ...r, tags: filtered, roomsAvailable };
     }),
   };
@@ -685,6 +685,7 @@ export function PublishWizardPage() {
   );
   const apiOn = isListingsApiConfigured();
   const [step, setStep] = useState(0);
+  const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => defaultDraft());
   const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
@@ -1606,6 +1607,8 @@ export function PublishWizardPage() {
             <PropertyRoomManager
               draft={draft}
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
+              expandedRoomIndex={expandedPropertyRoomIndex}
+              onExpandedRoomIndexChange={setExpandedPropertyRoomIndex}
               onAvailableRoomCountChange={setPropertyAvailableRoomCount}
               onUpdateRoom={updateRoom}
               onToggleTag={(roomIndex, tag, active) =>
@@ -2593,6 +2596,13 @@ export function PublishWizardPage() {
                 const err = validateWizardStepByTitle(current.title, draft, safeStep);
                 if (err) {
                   setPublishErr(err);
+                  if (
+                    draft.postMode === "property" &&
+                    (current.title === "Administrador de recámaras" || current.title === "Recámaras")
+                  ) {
+                    const idx = firstRoomIndexWithIssues(draft);
+                    if (idx >= 0) setExpandedPropertyRoomIndex(idx);
+                  }
                   return;
                 }
                 setPublishErr(null);
