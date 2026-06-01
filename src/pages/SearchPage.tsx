@@ -17,7 +17,9 @@ import {
 import {
   filterListings,
   filtersToParams,
+  hasActiveSearchFilters,
   parseFilters,
+  resetSearchFilters,
   type Bbox,
   type SearchFilters,
 } from "@/lib/searchFilters";
@@ -93,6 +95,15 @@ export function SearchPage() {
     setSearchParams(filtersToParams({ ...next, q: withDefaultSearchCity(next.q) }), { replace: true });
   }
 
+  const clearFilters = useCallback(() => {
+    applyFilters(resetSearchFilters(normalizedFilters));
+  }, [normalizedFilters]);
+
+  const hasActiveFilters = useMemo(
+    () => hasActiveSearchFilters(normalizedFilters),
+    [normalizedFilters],
+  );
+
   const onViewportBbox = useCallback(
     (bbox: Bbox) => {
       setSearchParams(
@@ -114,7 +125,12 @@ export function SearchPage() {
         filters={normalizedFilters}
         onChange={applyFilters}
       />
-      <SearchTopBar filters={filters} onChange={applyFilters} />
+      <SearchTopBar
+        filters={filters}
+        onChange={applyFilters}
+        onClearFilters={clearFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ~2/3: rail + map */}
@@ -123,6 +139,8 @@ export function SearchPage() {
             filters={normalizedFilters}
             onChange={applyFilters}
             onOpenAdvanced={() => setAdvancedOpen(true)}
+            onClearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
           />
           <div className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
             <div className="absolute inset-0">

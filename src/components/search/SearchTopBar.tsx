@@ -3,12 +3,15 @@ import type { SearchFilters } from "@/lib/searchFilters";
 type Props = {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
+  onClearFilters: () => void;
+  hasActiveFilters: boolean;
 };
 
-export function SearchTopBar({ filters, onChange }: Props) {
+export function SearchTopBar({ filters, onChange, onClearFilters, hasActiveFilters }: Props) {
   return (
     <div className="border-b border-primary/15 bg-secondary px-3 py-3 text-primary shadow-sm sm:px-4">
-      <div className="mx-auto grid max-w-[1920px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end lg:gap-4">
+      <div className="mx-auto max-w-[1920px] space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end lg:gap-4">
         <div className="min-w-0 sm:col-span-2 lg:col-span-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
             Ubicación
@@ -116,6 +119,21 @@ export function SearchTopBar({ filters, onChange }: Props) {
             className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
           />
         </label>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onClearFilters}
+            disabled={!hasActiveFilters}
+            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-primary/25 bg-surface px-4 py-2 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+          >
+            <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+              <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
+            </svg>
+            Borrar filtros
+          </button>
+        </div>
       </div>
     </div>
   );

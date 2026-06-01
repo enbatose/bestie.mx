@@ -7,6 +7,8 @@ type Props = {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
   onOpenAdvanced: () => void;
+  onClearFilters: () => void;
+  hasActiveFilters: boolean;
 };
 
 function railTagLabel(tag: ListingTag): string {
@@ -123,6 +125,14 @@ function SlidersIcon({ className }: { className?: string }) {
   );
 }
 
+function ClearFiltersIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+      <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
 const railBtnClass = (active: boolean) =>
   `pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
     active
@@ -134,7 +144,13 @@ const railBtnClass = (active: boolean) =>
  * Mobile: horizontal chip strip above the map.
  * Desktop: floating column on the left margin of the map.
  */
-export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
+export function SearchFilterRail({
+  filters,
+  onChange,
+  onOpenAdvanced,
+  onClearFilters,
+  hasActiveFilters,
+}: Props) {
   function toggleTag(tag: ListingTag) {
     const has = filters.tags.includes(tag);
     const tags = has ? filters.tags.filter((t) => t !== tag) : [...filters.tags, tag];
@@ -232,6 +248,17 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
         className={`${railBtnClass(false)} mt-1 snap-start`}
       >
         <SlidersIcon className="size-[1.15rem]" />
+      </button>
+
+      <button
+        type="button"
+        title="Borrar filtros"
+        aria-label="Borrar filtros"
+        disabled={!hasActiveFilters}
+        onClick={onClearFilters}
+        className={`${railBtnClass(false)} mt-1 snap-start disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        <ClearFiltersIcon className="size-[1.15rem]" />
       </button>
     </aside>
   );

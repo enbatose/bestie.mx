@@ -343,3 +343,35 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
   avalRequired: null,
   subletAllowed: null,
 };
+
+/** True when any user-facing filter is active (excludes location text and map bbox). */
+export function hasActiveSearchFilters(f: SearchFilters): boolean {
+  return (
+    f.budgetMin != null ||
+    f.budgetMax != null ||
+    f.tags.length > 0 ||
+    f.pref != null ||
+    f.age != null ||
+    f.ageMin != null ||
+    f.ageMax != null ||
+    f.lodgingType != null ||
+    f.wantHouse ||
+    f.wantApartment ||
+    f.wantLoft ||
+    f.wantRecamara ||
+    f.availableFrom != null ||
+    f.minimalStayMonths != null ||
+    f.roomDimension != null ||
+    f.avalRequired != null ||
+    f.subletAllowed != null
+  );
+}
+
+/** Reset filters while preserving location query and current map viewport. */
+export function resetSearchFilters(current: SearchFilters): SearchFilters {
+  return {
+    ...DEFAULT_SEARCH_FILTERS,
+    q: current.q,
+    bbox: current.bbox,
+  };
+}
