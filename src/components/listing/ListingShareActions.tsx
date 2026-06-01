@@ -1,5 +1,4 @@
 import { MessageCircle, Share2 } from "lucide-react";
-import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 
 type ShareLink = { id: string; label: string };
 
@@ -37,30 +36,6 @@ export function ListingShareActions({
         <p className="max-w-[12rem] text-right text-[11px] text-muted" role="status" aria-live="polite">
           {shareMsg}
         </p>
-      ) : null}
-      {isPropertyPost && propertyId && roomShareLinks.length > 1 ? (
-        <details className="mt-1 text-right">
-          <summary className="cursor-pointer text-[11px] font-medium text-primary">Más enlaces</summary>
-          <div className="mt-2 flex flex-col items-end gap-1">
-            <button
-              type="button"
-              onClick={() => onSharePath(propertyPublicPath(propertyId), "Link de la propiedad")}
-              className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
-            >
-              Link de la propiedad
-            </button>
-            {roomShareLinks.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => onSharePath(listingPublicPath(r.id), `Link de ${r.label}`)}
-                className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
-              >
-                {r.id === currentListingId ? "Este cuarto" : r.label}
-              </button>
-            ))}
-          </div>
-        </details>
       ) : null}
     </div>
   );
