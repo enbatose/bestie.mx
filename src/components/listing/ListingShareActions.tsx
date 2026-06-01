@@ -58,7 +58,7 @@ export function ListingStickyContactBar({
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 py-3 shadow-[0_-4px_24px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:hidden">
-      <div className="mx-auto flex max-w-3xl items-center gap-3">
+      <div className="mx-auto flex max-w-7xl items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-body">{price}</p>
           <p className="truncate text-xs text-muted">¿Te interesa este cuarto?</p>

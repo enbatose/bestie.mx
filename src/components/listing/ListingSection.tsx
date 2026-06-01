@@ -10,7 +10,7 @@ type Props = {
 
 export function ListingSection({ title, subtitle, children, action, titleMuted = false }: Props) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <section className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2

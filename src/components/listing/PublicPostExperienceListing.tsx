@@ -200,7 +200,7 @@ export function PublicPostExperienceListing({
     };
 
     return (
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+      <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         {ownerActions ? <div className="flex flex-wrap items-center justify-end gap-2">{ownerActions}</div> : null}
         {statusBadge}
 
@@ -278,7 +278,7 @@ export function PublicPostExperienceListing({
   const singleSecondaryTags = listing.tags.filter((tag) => !KEY_LABEL_ROOM_TAG_SLUGS.has(tag));
 
   return (
-    <section className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+    <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
       {ownerActions ? <div className="flex flex-wrap items-center justify-end gap-2">{ownerActions}</div> : null}
       {statusBadge}
 
