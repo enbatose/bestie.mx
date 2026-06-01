@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { PropertyPublicRoomsSection } from "@/components/listing/PropertyPublicRoomsSection";
-import { useAuthModal } from "@/contexts/AuthModalContext";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ListingHeaderBadges,
-  ListingHeroPrice,
-  publicListingHeaderTitle,
-} from "@/components/listing/PublicListingHeader";
-import { PublicListingContent } from "@/components/listing/PublicListingContent";
-import { ListingContactPanel } from "@/components/listing/ListingContactPanel";
-import { ListingShareActions, ListingStickyContactBar } from "@/components/listing/ListingShareActions";
+  listingSharePath,
+  PublicPostExperienceListing,
+} from "@/components/listing/PublicPostExperienceListing";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+import { publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
+import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 import {
@@ -22,15 +19,9 @@ import {
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
-import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
-import { startConversationFromListing } from "@/lib/messagesApi";
-import type { PropertyKind, PropertyListing, PropertyWithRooms } from "@/types/listing";
-
-const money = new Intl.NumberFormat("es-MX", {
-  style: "currency",
-  currency: "MXN",
-  maximumFractionDigits: 0,
-});
+import { roomDisplayName } from "@/lib/roomDisplay";
+import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
+import type { PropertyKind, PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
 
 const MONTH_ABBREVIATIONS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -166,8 +157,6 @@ function unavailableCopy(reason: ListingUnavailableReason | null): {
 
 export function ListingPage() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const highlightRoomId = searchParams.get("roomId");
   const location = useLocation();
   const navigate = useNavigate();
   const listingUpdated = Boolean(
@@ -191,7 +180,6 @@ export function ListingPage() {
   const [propertyPack, setPropertyPack] = useState<PropertyWithRooms | null | undefined>(() =>
     apiOn ? undefined : null,
   );
-  const [revealed, setRevealed] = useState(false);
   const [viewer, setViewer] = useState<AuthMe | null | undefined>(() =>
     messagingOn ? undefined : null,
   );
@@ -209,7 +197,6 @@ export function ListingPage() {
   }, [messagingOn]);
 
   useEffect(() => {
-    setRevealed(false);
     setMsgErr(null);
     setShareMsg(null);
     setFailedImageUrls(new Set());
@@ -342,36 +329,65 @@ export function ListingPage() {
     }
   }, []);
 
-  const onInAppMessage = useCallback(async () => {
-    if (!id || !messagingOn) return;
-    setMsgErr(null);
-    if (viewer === undefined) return;
-    if (!viewer) {
-      openLogin();
-      return;
-    }
-    setMsgBusy(true);
-    try {
-      const { conversationId } = await startConversationFromListing(id);
-      navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
-    } catch (e) {
-      setMsgErr(e instanceof Error ? e.message : "No se pudo abrir el mensaje.");
-    } finally {
-      setMsgBusy(false);
-    }
-  }, [id, messagingOn, viewer, openLogin, navigate]);
+  const openConversation = useCallback(
+    async (listingRoomId: string, messageBody: string) => {
+      if (!messagingOn) return;
+      setMsgErr(null);
+      if (viewer === undefined) return;
+      if (!viewer) {
+        openLogin();
+        return;
+      }
+      setMsgBusy(true);
+      try {
+        const { conversationId } = await startConversationFromListing(listingRoomId);
+        const trimmed = messageBody.trim();
+        if (trimmed) {
+          await postConversationMessage(conversationId, trimmed);
+        }
+        navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+      } catch (e) {
+        setMsgErr(e instanceof Error ? e.message : "No se pudo abrir el mensaje.");
+      } finally {
+        setMsgBusy(false);
+      }
+    },
+    [messagingOn, viewer, openLogin, navigate],
+  );
+
+  const onSendSingleMessage = useCallback(
+    (message: string) => {
+      if (!id) return;
+      void openConversation(id, message);
+    },
+    [id, openConversation],
+  );
+
+  const onSendPropertyMessage = useCallback(
+    (message: string, roomIds: string[], availableRooms: readonly Room[]) => {
+      if (!id) return;
+      const targetRoomId = roomIds[0] ?? availableRooms[0]?.id ?? id;
+      const selectedRooms = roomIds
+        .map((roomId) => availableRooms.find((room) => room.id === roomId))
+        .filter((room): room is Room => Boolean(room));
+      let body = message.trim();
+      if (selectedRooms.length) {
+        const roomNames = selectedRooms.map((room) => room.customName || room.title).join(", ");
+        const interestLine = `Me interesan: ${roomNames}.`;
+        body = body ? `${body}\n\n${interestLine}` : interestLine;
+      }
+      void openConversation(targetRoomId, body);
+    },
+    [id, openConversation],
+  );
 
   const scrollToContact = useCallback(() => {
     document.getElementById("contacto")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   const handleStickyContact = useCallback(() => {
-    if (messagingOn && id) {
-      void onInAppMessage();
-      return;
-    }
     scrollToContact();
-  }, [id, messagingOn, onInAppMessage, scrollToContact]);
+  }, [scrollToContact]);
 
   if (apiOn && apiListing === undefined && !apiErr) {
     return (
@@ -435,21 +451,13 @@ export function ListingPage() {
     );
   }
 
-  const waDigits = listing.contactWhatsApp.replace(/\D/g, "");
-  const wa = waDigits.length >= 10 ? `https://wa.me/${waDigits}` : "";
   const listingStatus = listing.status ?? "published";
-  const showWhatsApp = listing.showWhatsApp !== false && waDigits.length >= 10;
-  const depositMxn = listing.depositMxn ?? 0;
   const createdAtLabel = formatListingDate(listing.createdAt);
   const updatedAtLabel = formatListingDate(listing.updatedAt);
-
   const postMode = listing.propertyPostMode ?? propertyPack?.property.postMode ?? "room";
   const propertyKind = (listing.propertyKind ??
     propertyPack?.property.propertyKind ??
     "house") as PropertyKind;
-  const propertyBedroomsTotal =
-    listing.propertyBedroomsTotal ?? propertyPack?.property.bedroomsTotal ?? 1;
-  const propertyBathrooms = listing.propertyBathrooms ?? propertyPack?.property.bathrooms ?? 1;
   const isApproximateLocation =
     listing.isApproximateLocation ?? propertyPack?.property.isApproximateLocation ?? false;
   const propertySummary = propertyPack?.property.summary.trim() ?? "";
@@ -459,23 +467,39 @@ export function ListingPage() {
     lodgingType: listing.lodgingType,
     propertyKind,
   });
-  const userTitle =
-    listing.propertyTitle?.trim() ||
-    listing.title?.trim() ||
-    categoryTitle;
-  const headerTitle = userTitle;
-  const publishedRoomCount =
-    propertyPack?.rooms.filter((r) => r.status === "published").length ?? seedSiblings.length + 1;
 
-  const canMessage = messagingOn && listingStatus === "published" && Boolean(id);
   const canContact = listingStatus === "published";
+  const stickyContactLabel = "Contactar";
 
-  const stickyContactLabel = canMessage && viewer
-    ? "Mensaje"
-    : "Contactar";
+  const ownerActions =
+    listing.viewerIsOwner && listingStatus === "published" ? (
+      <Link
+        to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}&room=${encodeURIComponent(listing.id)}`}
+        className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+      >
+        Editar anuncio
+      </Link>
+    ) : null;
+
+  const statusBadge =
+    listingStatus !== "published" ? (
+      <span
+        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+          listingStatus === "paused"
+            ? "bg-amber-100 text-amber-900"
+            : listingStatus === "draft"
+              ? "bg-slate-200 text-slate-800"
+              : "bg-slate-200 text-slate-600"
+        }`}
+      >
+        {listingStatus === "paused" ? "Pausado" : listingStatus === "draft" ? "Borrador" : "Archivado"}
+      </span>
+    ) : null;
+
+  const shareListingPath = listingSharePath(listing, isPropertyPost);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 pb-24 sm:px-6 sm:py-10 sm:pb-10">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
       <nav className="text-sm text-muted">
         <Link to="/buscar" className="font-medium text-primary underline-offset-2 hover:underline">
           Buscar
@@ -495,145 +519,49 @@ export function ListingPage() {
         </p>
       ) : null}
 
-      <header className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm text-muted">
-            {listing.neighborhood} · {listing.city}
-          </p>
-          <div className="flex flex-col items-end gap-2">
-            {listing.viewerIsOwner && listingStatus === "published" ? (
-              <Link
-                to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}&room=${encodeURIComponent(listing.id)}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
-              >
-                Editar anuncio
-              </Link>
-            ) : null}
-            <ListingShareActions
-              shareMsg={shareMsg}
-              onShareListing={() =>
-                void copyShareUrl(listingPublicPath(listing.id), "Link del anuncio")
-              }
-              isPropertyPost={isPropertyPost}
-              propertyId={listing.propertyId}
-              roomShareLinks={roomShareLinks}
-              currentListingId={listing.id}
-              onSharePath={(path, label) => void copyShareUrl(path, label)}
-            />
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{headerTitle}</h1>
-          {listingStatus !== "published" ? (
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
-                listingStatus === "paused"
-                  ? "bg-amber-100 text-amber-900"
-                  : listingStatus === "draft"
-                    ? "bg-slate-200 text-slate-800"
-                    : "bg-slate-200 text-slate-600"
-              }`}
-            >
-              {listingStatus === "paused"
-                ? "Pausado"
-                : listingStatus === "draft"
-                  ? "Borrador"
-                  : "Archivado"}
-            </span>
-          ) : null}
-        </div>
-        {categoryTitle && categoryTitle !== headerTitle ? (
-          <p className="mt-1 text-sm text-muted">{categoryTitle}</p>
-        ) : null}
-        {postMode === "property" && propertyPack ? (
-          <p className="mt-1 text-sm text-muted">
-            Recámara:{" "}
-            {roomDisplayName(
-              propertyPack.rooms.find((r) => r.id === listing.id) ?? {
-                customName: listing.roomCustomName,
-                title: listing.title,
-              },
-              Math.max(
-                0,
-                propertyPack.rooms.findIndex((r) => r.id === listing.id),
-              ),
-            )}
-          </p>
-        ) : null}
-        <ListingHeroPrice rentMxn={listing.rentMxn} />
-        <ListingHeaderBadges
-          postMode={postMode}
-          roommateGenderPref={listing.roommateGenderPref}
-          availableFrom={listing.availableFrom}
-          occupiedByMenCount={propertyPack?.property.occupiedByMenCount}
-          occupiedByWomenCount={propertyPack?.property.occupiedByWomenCount}
-          propertyBedroomsTotal={propertyBedroomsTotal}
-          propertyBathrooms={propertyBathrooms}
-          propertyKind={propertyKind}
-          tags={listing.tags}
-        />
-        {depositMxn > 0 ? (
-          <p className="mt-2 text-sm text-muted">Depósito · {money.format(depositMxn)}</p>
-        ) : null}
-        {canContact ? (
-          <button
-            type="button"
-            onClick={scrollToContact}
-            className="mt-4 inline-flex w-full justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 sm:w-auto"
-          >
-            Me interesa — contactar
-          </button>
-        ) : null}
-      </header>
-
-
-      {isPropertyPost && propertyPack ? (
-        <PropertyPublicRoomsSection
-          rooms={propertyPack.rooms}
-          highlightRoomId={highlightRoomId ?? listing.id}
-          commonAreaUrls={commonAreaUrls}
-          failedImageUrls={failedImageUrls}
-          onImageError={(u) => {
-            setFailedImageUrls((prev) => {
-              if (prev.has(u)) return prev;
-              const next = new Set(prev);
-              next.add(u);
-              return next;
-            });
-          }}
-        />
-      ) : null}
-
-      {isPropertyPost &&
-      propertyPack &&
-      !isRoomAvailableForRent(propertyPack.rooms.find((r) => r.id === listing.id) ?? {}) ? (
-        <p className="mt-6 rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-muted">
-          Esta recámara está marcada como ocupada y no se ofrece en renta en este momento.
-        </p>
-      ) : (
-        <PublicListingContent
-          listing={listing}
-          postMode={postMode}
-          propertyKind={propertyKind}
-          propertyBedroomsTotal={propertyBedroomsTotal}
-          propertySummary={propertySummary}
-          isApproximateLocation={isApproximateLocation}
-          occupiedByWomenCount={propertyPack?.property.occupiedByWomenCount}
-          occupiedByMenCount={propertyPack?.property.occupiedByMenCount}
-          galleryUrls={isPropertyPost && propertyPack ? [] : galleryUrls}
-          roomCount={publishedRoomCount}
-          failedImageUrls={failedImageUrls}
-          seekerLayout
-          onImageError={(u) => {
-            setFailedImageUrls((prev) => {
-              if (prev.has(u)) return prev;
-              const next = new Set(prev);
-              next.add(u);
-              return next;
-            });
-          }}
-        />
-      )}
+      <div className="mt-6">
+        {isPropertyPost && propertyPack === undefined ? (
+          <p className="text-sm text-muted">Cargando detalles de la propiedad…</p>
+        ) : (
+          <PublicPostExperienceListing
+            listing={listing}
+            propertyPack={propertyPack ?? null}
+            isPropertyPost={isPropertyPost}
+            galleryUrls={galleryUrls}
+            propertySummary={propertySummary}
+            isApproximateLocation={isApproximateLocation}
+            failedImageUrls={failedImageUrls}
+            onImageError={(u) => {
+              setFailedImageUrls((prev) => {
+                if (prev.has(u)) return prev;
+                const next = new Set(prev);
+                next.add(u);
+                return next;
+              });
+            }}
+            ownerActions={ownerActions}
+            statusBadge={statusBadge}
+            share={{
+              shareMsg,
+              onShareListing: () => void copyShareUrl(shareListingPath, "Link del anuncio"),
+              isPropertyPost,
+              propertyId: listing.propertyId,
+              roomShareLinks,
+              currentListingId: listing.id,
+              onSharePath: (path, label) => void copyShareUrl(path, label),
+            }}
+            contact={{
+              canContact,
+              messagingOn,
+              viewer,
+              msgBusy,
+              msgErr,
+              onSendSingle: onSendSingleMessage,
+              onSendProperty: onSendPropertyMessage,
+            }}
+          />
+        )}
+      </div>
 
       {siblingLinks.length && !isPropertyPost ? (
         <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -653,21 +581,6 @@ export function ListingPage() {
           </ul>
         </section>
       ) : null}
-
-      <ListingContactPanel
-        listingStatus={listingStatus}
-        messagingOn={messagingOn}
-        listingId={id}
-        viewer={viewer}
-        msgBusy={msgBusy}
-        msgErr={msgErr}
-        onInAppMessage={onInAppMessage}
-        showWhatsApp={showWhatsApp}
-        revealed={revealed}
-        onRevealWhatsApp={() => setRevealed(true)}
-        contactWhatsApp={listing.contactWhatsApp}
-        waUrl={wa}
-      />
 
       {createdAtLabel || updatedAtLabel ? (
         <p className="mt-6 text-center text-xs text-muted">
