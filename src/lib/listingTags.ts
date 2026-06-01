@@ -58,7 +58,6 @@ export const PROPERTY_AMENITY_TAG_SLUGS = [
   "agua",
   "luz",
   "gas",
-  "muebles",
   "cocina-equipada",
   "lavadora",
   "secadora",
@@ -105,6 +104,7 @@ const ROOM_PHYSICAL_TAG_SLUGS = [
   "baño-privado",
   "aire-acondicionado",
   "estacionamiento",
+  "muebles",
   "terraza",
   "cerradura-cuarto",
   "ventilador",
@@ -141,8 +141,9 @@ export const LEGACY_PROPERTY_TO_ROOM_TAG_SET = new Set<string>(LEGACY_PROPERTY_T
 
 /** Etiquetas con copy distinto en wizard / preview. */
 export const LISTING_TAG_LABEL_OVERRIDES: Partial<Record<ListingTag, string>> = {
-  estacionamiento: "Estacionamiento incluido",
-  "fumar-permitido-recamara": "Permitido fumar en la recámara",
+  estacionamiento: "Estacionamiento privado",
+  muebles: "Amueblado",
+  "fumar-permitido-recamara": "Permitido fumar",
 };
 
 export const LODGING_TYPE_LABELS: Record<LodgingType, string> = {
@@ -393,8 +394,9 @@ export function migrateDraftTagScopes<T extends { propertyTags: ListingTag[]; ro
   draft: T,
 ): T {
   const movedFromProperty = draft.propertyTags.filter((t) => LEGACY_PROPERTY_TO_ROOM_TAG_SET.has(t));
+  const hadMuebles = draft.propertyTags.includes("muebles");
   const propertyTags = filterPropertyScopeTags(draft.propertyTags);
-  if (!movedFromProperty.length && propertyTags.length === draft.propertyTags.length) {
+  if (!movedFromProperty.length && !hadMuebles && propertyTags.length === draft.propertyTags.length) {
     return { ...draft, propertyTags };
   }
 
@@ -407,13 +409,16 @@ export function migrateDraftTagScopes<T extends { propertyTags: ListingTag[]; ro
         tags.add(t);
       }
     }
+    if (hadMuebles) {
+      tags.add("muebles");
+    }
     return { ...room, tags: [...tags].filter((t): t is ListingTag => LISTING_TAG_SLUG_SET.has(t)) };
   });
 
   return { ...draft, propertyTags, rooms };
 }
 
-/** Chip order in publish wizard and search rail (most-used / comfort first). */
+/** Chip order in publish wizard (most-used / comfort first). */
 export const TAG_CHIP_ORDER: readonly ListingTag[] = [
   "wifi",
   "agua",
@@ -450,3 +455,21 @@ export const TAG_CHIP_ORDER: readonly ListingTag[] = [
   "closet",
   "fiestas",
 ];
+
+/** Quick-filter tags shown on the map rail (Detalle section). */
+export const SEARCH_RAIL_DETALLE_TAG_SLUGS = [
+  "baño-privado",
+  "estacionamiento",
+  "muebles",
+  "aire-acondicionado",
+  "mascotas",
+  "lgbt-friendly",
+  "parejas",
+  "fumar-permitido-recamara",
+] as const satisfies readonly ListingTag[];
+
+export const SEARCH_RAIL_TAG_LABELS: Partial<Record<ListingTag, string>> = {
+  estacionamiento: "Estacionamiento privado",
+  muebles: "Amueblado",
+  "fumar-permitido-recamara": "Permitido fumar",
+};

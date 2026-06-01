@@ -18,6 +18,7 @@ import {
   Users,
   Warehouse,
 } from "lucide-react";
+import { listingPublicPath } from "@/lib/listingReference";
 import { listingTagLabel } from "@/components/listing/ListingTagChips";
 import {
   filterPropertyScopeTags,
@@ -186,4 +187,59 @@ export function buildPropertyKeyLabels(
     },
     { icon: Home, title: "Vigilancia o portería", value: yesNo(propertyTags.includes("vigilancia")) },
   ];
+}
+
+const LISTING_CARD_KEY_TAG_ORDER: readonly ListingTag[] = [
+  "baño-privado",
+  "estacionamiento",
+  "muebles",
+  "aire-acondicionado",
+  "mascotas",
+  "lgbt-friendly",
+  "parejas",
+  "fumar-permitido-recamara",
+  "estudiantes",
+  "individuos-solo",
+  "profesionistas",
+  "nomadas-digitales",
+  "residentes-medicos",
+  "familiar-ninos",
+];
+
+/** Key tags for search list cards (matches listing post key labels). */
+export function listingCardKeyTags(tags: readonly ListingTag[]): ListingTag[] {
+  const set = new Set(tags);
+  if (tags.includes("fumar") || tags.includes("fumar-habitacion")) {
+    set.add("fumar-permitido-recamara");
+  }
+  return LISTING_CARD_KEY_TAG_ORDER.filter((tag) => set.has(tag));
+}
+
+export function listingCardTitle(listing: PropertyListing): string {
+  if (listing.propertyPostMode === "property") {
+    const custom = listing.roomCustomName?.trim();
+    if (custom) return custom;
+    const parts = listing.title.split(" · ");
+    if (parts.length > 1) return parts[parts.length - 1]!.trim();
+  }
+  return listing.title;
+}
+
+export function listingCardSubtitle(listing: PropertyListing): string {
+  if (listing.propertyPostMode === "property" && listing.propertyTitle?.trim()) {
+    return `${listing.propertyTitle.trim()} · ${listing.neighborhood} · ${listing.city}`;
+  }
+  return `${listing.neighborhood} · ${listing.city}`;
+}
+
+export function listingCardHref(listing: PropertyListing): string {
+  const base = listingPublicPath(listing.id);
+  if (listing.propertyPostMode === "property") {
+    return `${base}?roomId=${encodeURIComponent(listing.id)}#property-available-rooms`;
+  }
+  return base;
+}
+
+export function listingCardTagLabel(tag: ListingTag): string {
+  return listingTagLabel(tag);
 }

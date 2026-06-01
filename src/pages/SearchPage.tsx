@@ -118,13 +118,13 @@ export function SearchPage() {
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ~2/3: rail + map */}
-        <section className="relative flex min-h-0 min-w-0 flex-[2] flex-col border-border lg:border-r">
+        <section className="relative flex min-h-0 min-w-0 flex-[1.35] flex-col border-border lg:flex-[2] lg:border-r">
           <SearchFilterRail
             filters={normalizedFilters}
             onChange={applyFilters}
             onOpenAdvanced={() => setAdvancedOpen(true)}
           />
-          <div className="relative min-h-[42vh] flex-1 lg:min-h-[calc(100dvh-10.5rem)]">
+          <div className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
             <div className="absolute inset-0">
               <PropertyMap
                 embed
@@ -142,8 +142,8 @@ export function SearchPage() {
         </section>
 
         {/* ~1/3: scrollable listings */}
-        <aside className="flex max-h-[46vh] min-h-0 min-w-0 flex-1 flex-col border-t border-border bg-surface lg:max-h-none lg:min-w-[280px] lg:flex-[1] lg:border-l lg:border-t-0">
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4">
+        <aside className="flex max-h-[48vh] min-h-0 min-w-0 flex-1 flex-col border-t border-border bg-surface sm:max-h-[52vh] lg:max-h-none lg:min-w-[300px] lg:flex-[1] lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4 sm:py-3">
             <h2 className="text-sm font-semibold text-body sm:text-base">Listados</h2>
             <p className="text-xs text-muted sm:text-sm">
               {apiOn && apiBusy ? (

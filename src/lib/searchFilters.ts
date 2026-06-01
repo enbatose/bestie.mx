@@ -21,12 +21,16 @@ export type SearchFilters = {
   budgetMax: number | null;
   tags: ListingTag[];
   pref: RoommateGenderPref | null;
+  /** Seeker age — listing must accept this age. */
+  age: number | null;
   ageMin: number | null;
   ageMax: number | null;
   bbox: Bbox | null;
   lodgingType: LodgingType | null;
   wantHouse: boolean;
   wantApartment: boolean;
+  wantLoft: boolean;
+  wantRecamara: boolean;
   availableFrom: string | null;
   minimalStayMonths: number | null;
   roomDimension: RoomDimension | null;
@@ -98,12 +102,15 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
     budgetMax: num(params.get("max")),
     tags,
     pref,
+    age: num(params.get("age")) ?? num(params.get("ageMin")),
     ageMin: num(params.get("ageMin")),
     ageMax: num(params.get("ageMax")),
     bbox: parseBboxParam(params.get("bbox")),
     lodgingType: parseLodging(params.get("lodging")),
     wantHouse: flag(params.get("house")),
     wantApartment: flag(params.get("apartment")),
+    wantLoft: flag(params.get("loft")),
+    wantRecamara: flag(params.get("recamara")),
     availableFrom: isoDateOk(params.get("from")),
     minimalStayMonths: num(params.get("minStay")),
     roomDimension: parseDim(params.get("dim")),
@@ -119,8 +126,7 @@ export function filtersToParams(f: SearchFilters): URLSearchParams {
   if (f.budgetMax != null) p.set("max", String(f.budgetMax));
   if (f.tags.length) p.set("tags", f.tags.join(","));
   if (f.pref === "female" || f.pref === "male") p.set("gender", f.pref);
-  if (f.ageMin != null) p.set("ageMin", String(f.ageMin));
-  if (f.ageMax != null) p.set("ageMax", String(f.ageMax));
+  if (f.age != null) p.set("age", String(f.age));
   if (f.bbox != null) {
     const { minLat, minLng, maxLat, maxLng } = f.bbox;
     p.set("bbox", `${minLat},${minLng},${maxLat},${maxLng}`);
@@ -128,6 +134,8 @@ export function filtersToParams(f: SearchFilters): URLSearchParams {
   if (f.lodgingType != null) p.set("lodging", f.lodgingType);
   if (f.wantHouse) p.set("house", "1");
   if (f.wantApartment) p.set("apartment", "1");
+  if (f.wantLoft) p.set("loft", "1");
+  if (f.wantRecamara) p.set("recamara", "1");
   if (f.availableFrom) p.set("from", f.availableFrom);
   if (f.minimalStayMonths != null) p.set("minStay", String(f.minimalStayMonths));
   if (f.roomDimension != null) p.set("dim", f.roomDimension);
@@ -144,20 +152,42 @@ function matchesPref(listing: PropertyListing, pref: RoommateGenderPref | null) 
   return listing.roommateGenderPref === pref;
 }
 
-function matchesAge(listing: PropertyListing, ageMin: number | null, ageMax: number | null) {
+function matchesAge(listing: PropertyListing, age: number | null, ageMin: number | null, ageMax: number | null) {
+  if (age != null) {
+    return listing.ageMin <= age && listing.ageMax >= age;
+  }
   const uMin = ageMin ?? 18;
   const uMax = ageMax ?? 99;
   return listing.ageMax >= uMin && listing.ageMin <= uMax;
 }
 
-function inBbox(l: PropertyListing, b: Bbox): boolean {
-  return l.lat >= b.minLat && l.lat <= b.maxLat && l.lng >= b.minLng && l.lng <= b.maxLng;
+function matchesHospedaje(
+  listing: PropertyListing,
+  wantLoft: boolean,
+  wantRecamara: boolean,
+  lodgingType: LodgingType | null,
+): boolean {
+  if (lodgingType != null) {
+    if (listing.lodgingType == null) return true;
+    if (listing.lodgingType !== lodgingType) return false;
+  }
+  if (!wantLoft && !wantRecamara) return true;
+  const isLoft = listing.propertyKind === "loft";
+  const isRecamara =
+    listing.lodgingType === "private_room" ||
+    listing.lodgingType === "shared_room" ||
+    (listing.lodgingType == null && listing.propertyPostMode !== "room");
+  if (wantLoft && wantRecamara) return isLoft || isRecamara;
+  if (wantLoft) return isLoft;
+  return isRecamara;
 }
 
-function matchesLodging(l: PropertyListing, f: LodgingType | null): boolean {
-  if (f == null) return true;
-  if (l.lodgingType == null) return true;
-  return l.lodgingType === f;
+function isAvailableForSearch(listing: PropertyListing): boolean {
+  return listing.roomOccupancyStatus !== "occupied";
+}
+
+function inBbox(l: PropertyListing, b: Bbox): boolean {
+  return l.lat >= b.minLat && l.lat <= b.maxLat && l.lng >= b.minLng && l.lng <= b.maxLng;
 }
 
 function matchesPropertyKind(
@@ -221,6 +251,12 @@ function listingSatisfiesTagFilter(listTags: readonly ListingTag[], filterTag: L
       );
     case "servicios-incluidos":
       return listTags.includes("servicios-incluidos") || utilitiesBundleSatisfied(listTags);
+    case "fumar-permitido-recamara":
+      return (
+        listTags.includes("fumar-permitido-recamara") ||
+        listTags.includes("fumar-habitacion") ||
+        listTags.includes("fumar")
+      );
     default:
       return false;
   }
@@ -229,15 +265,16 @@ function listingSatisfiesTagFilter(listTags: readonly ListingTag[], filterTag: L
 export function filterListings(listings: PropertyListing[], f: SearchFilters): PropertyListing[] {
   const q = f.q.toLowerCase();
   return listings.filter((l) => {
+    if (!isAvailableForSearch(l)) return false;
     const haystack = `${l.city} ${l.neighborhood} ${l.title} ${l.summary}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
     if (f.budgetMin != null && l.rentMxn < f.budgetMin) return false;
     if (f.budgetMax != null && l.rentMxn > f.budgetMax) return false;
     if (f.tags.length && !f.tags.every((t) => listingSatisfiesTagFilter(l.tags, t))) return false;
     if (!matchesPref(l, f.pref)) return false;
-    if (!matchesAge(l, f.ageMin, f.ageMax)) return false;
+    if (!matchesAge(l, f.age, f.ageMin, f.ageMax)) return false;
     if (f.bbox != null && !inBbox(l, f.bbox)) return false;
-    if (!matchesLodging(l, f.lodgingType)) return false;
+    if (!matchesHospedaje(l, f.wantLoft, f.wantRecamara, f.lodgingType)) return false;
     if (!matchesPropertyKind(l, f.wantHouse, f.wantApartment)) return false;
     if (!matchesAvailableFrom(l, f.availableFrom)) return false;
     if (!matchesMinimalStay(l, f.minimalStayMonths)) return false;
@@ -254,12 +291,12 @@ export const TAG_LABELS: Record<ListingTag, string> = {
   luz: "Luz",
   gas: "Gas",
   mascotas: "Mascotas",
-  estacionamiento: "Estacionamiento",
-  muebles: "Muebles",
+  estacionamiento: "Estacionamiento privado",
+  muebles: "Amueblado",
   "baño-privado": "Baño privado",
   fumar: "Fumar en áreas comunes",
   "fumar-habitacion": "Fumar en la habitación",
-  "fumar-permitido-recamara": "Permitido Fumar en Recámara",
+  "fumar-permitido-recamara": "Permitido fumar",
   ventilador: "Ventilador",
   closet: "Closet",
   fiestas: "Fiestas",
@@ -291,12 +328,15 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
   budgetMax: null,
   tags: [],
   pref: null,
+  age: null,
   ageMin: null,
   ageMax: null,
   bbox: null,
   lodgingType: null,
   wantHouse: false,
   wantApartment: false,
+  wantLoft: false,
+  wantRecamara: false,
   availableFrom: null,
   minimalStayMonths: null,
   roomDimension: null,

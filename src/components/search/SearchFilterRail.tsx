@@ -1,5 +1,5 @@
 import type { ListingTag, RoommateGenderPref } from "@/types/listing";
-import { TAG_CHIP_ORDER } from "@/lib/listingTags";
+import { SEARCH_RAIL_DETALLE_TAG_SLUGS, SEARCH_RAIL_TAG_LABELS } from "@/lib/listingTags";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { TAG_LABELS } from "@/lib/searchFilters";
 
@@ -9,44 +9,13 @@ type Props = {
   onOpenAdvanced: () => void;
 };
 
+function railTagLabel(tag: ListingTag): string {
+  return SEARCH_RAIL_TAG_LABELS[tag] ?? TAG_LABELS[tag];
+}
+
 function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
   const cn = className ?? "size-[1.15rem]";
   switch (tag) {
-    case "wifi":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 9.5a10 10 0 0 1 14 0M8.5 12.5a5.5 5.5 0 0 1 7 0M12 18a1 1 0 1 1 0-0.01"
-          />
-        </svg>
-      );
-    case "agua":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path
-            strokeWidth="2"
-            strokeLinecap="round"
-            d="M12 3c-2 4-5 5-5 9a5 5 0 0 0 10 0c0-4-3-5-5-9Z"
-          />
-        </svg>
-      );
-    case "luz":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M12 3v2M5 6l1.5 1.5M3 12h2M5 18l1.5-1.5M12 19v2M18.5 16.5 20 18M19 12h2M18.5 7.5 20 6" />
-          <circle cx="12" cy="12" r="3.5" strokeWidth="2" />
-        </svg>
-      );
-    case "gas":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M12 3c-2 3-4 3.5-4 7a4 4 0 0 0 8 0c0-3.5-2-4-4-7Z" />
-          <path strokeWidth="2" strokeLinecap="round" d="M9 14c-2 1-3 3-3 5h12c0-2-1-4-3-5" />
-        </svg>
-      );
     case "muebles":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
@@ -63,16 +32,10 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <ellipse cx="8.5" cy="16" rx="2.5" ry="3.5" strokeWidth="2" />
           <ellipse cx="15.5" cy="16" rx="2.5" ry="3.5" strokeWidth="2" />
-          <path
-            strokeWidth="2"
-            strokeLinecap="round"
-            d="M6.5 12c-1-3 1.5-5.5 5.5-5.5S18.5 9 17.5 12"
-          />
+          <path strokeWidth="2" strokeLinecap="round" d="M6.5 12c-1-3 1.5-5.5 5.5-5.5S18.5 9 17.5 12" />
           <path strokeWidth="2" strokeLinecap="round" d="M9 7.5 7 4M15 7.5 17 4" />
         </svg>
       );
-    case "fumar":
-    case "fumar-habitacion":
     case "fumar-permitido-recamara":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
@@ -86,13 +49,6 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth="2" />
           <path strokeWidth="2" strokeLinecap="round" d="M10 8v8M10 8h2.5a2.5 2.5 0 0 1 0 5H10" />
-        </svg>
-      );
-    case "fiestas":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M8 10V8l4-3 2 3 4-2v12H8V10Z" />
-          <path strokeWidth="2" strokeLinecap="round" d="M6 20h12" />
         </svg>
       );
     case "baño-privado":
@@ -113,69 +69,6 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
           <circle cx="12" cy="12" r="4" strokeWidth="2" />
         </svg>
       );
-    case "seguridad-acceso":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <rect x="5" y="11" width="14" height="10" rx="1" strokeWidth="2" />
-          <path strokeWidth="2" strokeLinecap="round" d="M9 11V8a3 3 0 0 1 6 0v3" />
-          <circle cx="12" cy="16" r="1.5" fill="currentColor" />
-        </svg>
-      );
-    case "vigilancia":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M12 3 4 8v1c0 5 3.5 9 8 10 4.5-1 8-5 8-10V8l-8-5Z" />
-          <circle cx="12" cy="11" r="2.5" strokeWidth="2" />
-        </svg>
-      );
-    case "lavanderia":
-    case "lavadora":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <circle cx="12" cy="13" r="6" strokeWidth="2" />
-          <path strokeWidth="2" strokeLinecap="round" d="M8 7h8M10 4h4" />
-        </svg>
-      );
-    case "secadora":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <rect x="5" y="5" width="14" height="14" rx="2" strokeWidth="2" />
-          <circle cx="12" cy="12" r="3" strokeWidth="2" />
-          <path strokeWidth="2" strokeLinecap="round" d="M7 19h10" />
-        </svg>
-      );
-    case "cocina-equipada":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <rect x="4" y="6" width="16" height="14" rx="1" strokeWidth="2" />
-          <path strokeWidth="2" d="M8 10h8M8 14h5" />
-        </svg>
-      );
-    case "terraza":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M4 14h16M6 14V9h12v5M8 9V6M16 9V6" />
-          <path strokeWidth="2" strokeLinecap="round" d="M3 18h18" />
-        </svg>
-      );
-    case "ventilador":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <circle cx="12" cy="12" r="3" strokeWidth="2" />
-          <path
-            strokeWidth="2"
-            strokeLinecap="round"
-            d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4"
-          />
-        </svg>
-      );
-    case "closet":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <rect x="5" y="4" width="14" height="16" rx="1" strokeWidth="2" />
-          <path strokeWidth="2" d="M5 10h14M12 4v16" />
-        </svg>
-      );
     case "lgbt-friendly":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
@@ -183,31 +76,12 @@ function TagIcon({ tag, className }: { tag: ListingTag; className?: string }) {
           <path strokeWidth="2" strokeLinecap="round" d="M12 12v9M8 8l8 8M16 8l-8 8" />
         </svg>
       );
-    case "servicios-incluidos":
+    case "parejas":
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M4 12h3l2-6 4 12 2-6h5" />
-        </svg>
-      );
-    case "cerradura-cuarto":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <rect x="6" y="10" width="12" height="10" rx="1" strokeWidth="2" />
-          <path strokeWidth="2" strokeLinecap="round" d="M9 10V7a3 3 0 0 1 6 0v3" />
-        </svg>
-      );
-    case "agua-caliente":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <path strokeWidth="2" strokeLinecap="round" d="M12 3c-2 4-5 5-5 9a5 5 0 0 0 10 0c0-4-3-5-5-9Z" />
-        </svg>
-      );
-    case "cerca-transporte":
-      return (
-        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-          <rect x="4" y="5" width="16" height="12" rx="1" strokeWidth="2" />
-          <circle cx="8" cy="18" r="1.5" fill="currentColor" />
-          <circle cx="16" cy="18" r="1.5" fill="currentColor" />
+          <circle cx="9" cy="8" r="3" strokeWidth="2" />
+          <circle cx="16" cy="9" r="2.5" strokeWidth="2" />
+          <path strokeWidth="2" strokeLinecap="round" d="M4 20c0-3 2.5-5 5-5s5 2 5 5M14 20c0-2 1.5-3.5 3-3.5" />
         </svg>
       );
     default:
@@ -244,18 +118,21 @@ function BuildingIcon({ className }: { className?: string }) {
 function SlidersIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-      <path
-        strokeWidth="2"
-        strokeLinecap="round"
-        d="M4 6h16M8 12h8M10 18h4M6 4v4m4 4v4m4 4v2"
-      />
+      <path strokeWidth="2" strokeLinecap="round" d="M4 6h16M8 12h8M10 18h4M6 4v4m4 4v4m4 4v2" />
     </svg>
   );
 }
 
+const railBtnClass = (active: boolean) =>
+  `pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
+    active
+      ? "border-secondary bg-surface ring-2 ring-secondary/40"
+      : "border-border bg-surface/95 hover:border-secondary/60"
+  }`;
+
 /**
  * Mobile: horizontal chip strip above the map.
- * Desktop: floating column on the **left margin of the map**.
+ * Desktop: floating column on the left margin of the map.
  */
 export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
   function toggleTag(tag: ListingTag) {
@@ -270,7 +147,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
 
   return (
     <aside
-      className="flex w-full shrink-0 gap-2 overflow-x-auto border-b border-border bg-surface/95 px-2 py-2 backdrop-blur sm:px-3 lg:pointer-events-none lg:absolute lg:inset-y-8 lg:left-3 lg:z-[1100] lg:w-[3.25rem] lg:flex-col lg:items-center lg:gap-1.5 lg:overflow-y-auto lg:overflow-x-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-0"
+      className="flex w-full shrink-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain border-b border-border bg-surface/95 px-2 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:px-3 lg:pointer-events-none lg:absolute lg:inset-y-8 lg:left-3 lg:z-[1100] lg:w-[3.25rem] lg:snap-none lg:flex-col lg:items-center lg:gap-1.5 lg:overflow-y-auto lg:overflow-x-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-0"
       aria-label="Filtros rápidos"
     >
       <p className="hidden w-full select-none text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-primary/80 lg:block">
@@ -282,11 +159,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
         aria-pressed={filters.wantHouse}
         aria-label="Casa"
         onClick={() => onChange({ ...filters, wantHouse: !filters.wantHouse })}
-        className={`pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
-          filters.wantHouse
-            ? "border-secondary bg-surface ring-2 ring-secondary/40"
-            : "border-border bg-surface/95 hover:border-secondary/60"
-        }`}
+        className={`${railBtnClass(filters.wantHouse)} snap-start`}
       >
         <HouseIcon className="size-[1.25rem]" />
       </button>
@@ -296,29 +169,21 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
         aria-pressed={filters.wantApartment}
         aria-label="Departamento"
         onClick={() => onChange({ ...filters, wantApartment: !filters.wantApartment })}
-        className={`pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
-          filters.wantApartment
-            ? "border-secondary bg-surface ring-2 ring-secondary/40"
-            : "border-border bg-surface/95 hover:border-secondary/60"
-        }`}
+        className={`${railBtnClass(filters.wantApartment)} snap-start`}
       >
         <BuildingIcon className="size-[1.25rem]" />
       </button>
 
       <p className="mt-1 hidden w-full select-none text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-primary/80 lg:block">
-        Roomie
+        Bestie
       </p>
       <button
         type="button"
-        title="Sólo chicas (prefieren roomie mujer)"
+        title="Mujer"
         aria-pressed={filters.pref === "female"}
-        aria-label="Sólo chicas"
+        aria-label="Mujer"
         onClick={() => cyclePref("female")}
-        className={`pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
-          filters.pref === "female"
-            ? "border-secondary bg-surface ring-2 ring-secondary/40"
-            : "border-border bg-surface/95 hover:border-secondary/60"
-        }`}
+        className={`${railBtnClass(filters.pref === "female")} snap-start`}
       >
         <svg className="size-[1.1rem]" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <circle cx="12" cy="8" r="4" strokeWidth="2" />
@@ -327,15 +192,11 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
       </button>
       <button
         type="button"
-        title="Sólo chicos (prefieren roomie hombre)"
+        title="Hombre"
         aria-pressed={filters.pref === "male"}
-        aria-label="Sólo chicos"
+        aria-label="Hombre"
         onClick={() => cyclePref("male")}
-        className={`pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
-          filters.pref === "male"
-            ? "border-secondary bg-surface ring-2 ring-secondary/40"
-            : "border-border bg-surface/95 hover:border-secondary/60"
-        }`}
+        className={`${railBtnClass(filters.pref === "male")} snap-start`}
       >
         <svg className="size-[1.1rem]" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
           <circle cx="10" cy="14" r="4" strokeWidth="2" />
@@ -346,21 +207,17 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
       <p className="mt-1 hidden w-full select-none text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-primary/80 lg:block">
         Detalle
       </p>
-      {TAG_CHIP_ORDER.map((tag) => {
+      {SEARCH_RAIL_DETALLE_TAG_SLUGS.map((tag) => {
         const on = filters.tags.includes(tag);
         return (
           <button
             key={tag}
             type="button"
-            title={TAG_LABELS[tag]}
-            aria-label={TAG_LABELS[tag]}
+            title={railTagLabel(tag)}
+            aria-label={railTagLabel(tag)}
             aria-pressed={on}
             onClick={() => toggleTag(tag)}
-            className={`pointer-events-auto flex size-11 shrink-0 items-center justify-center rounded-lg border text-primary shadow-md transition sm:size-12 lg:size-11 ${
-              on
-                ? "border-secondary bg-surface ring-2 ring-secondary/40"
-                : "border-border bg-surface/95 hover:border-secondary/60"
-            }`}
+            className={`${railBtnClass(on)} snap-start`}
           >
             <TagIcon tag={tag} />
           </button>
@@ -372,7 +229,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
         title="Filtros avanzados"
         aria-label="Filtros avanzados"
         onClick={onOpenAdvanced}
-        className="pointer-events-auto mt-1 flex size-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface/95 text-primary shadow-md transition hover:border-secondary/60 sm:size-12 lg:size-11"
+        className={`${railBtnClass(false)} mt-1 snap-start`}
       >
         <SlidersIcon className="size-[1.15rem]" />
       </button>

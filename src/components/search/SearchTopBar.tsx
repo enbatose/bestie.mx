@@ -1,4 +1,3 @@
-import type { LodgingType } from "@/types/listing";
 import type { SearchFilters } from "@/lib/searchFilters";
 
 type Props = {
@@ -6,18 +5,11 @@ type Props = {
   onChange: (next: SearchFilters) => void;
 };
 
-const LODGING_OPTIONS: { value: LodgingType | ""; label: string }[] = [
-  { value: "", label: "Cualquiera" },
-  { value: "whole_home", label: "Hogar entero" },
-  { value: "private_room", label: "Cuarto privado" },
-  { value: "shared_room", label: "Cuarto compartido" },
-];
-
 export function SearchTopBar({ filters, onChange }: Props) {
   return (
     <div className="border-b border-primary/15 bg-secondary px-3 py-3 text-primary shadow-sm sm:px-4">
-      <div className="mx-auto flex max-w-[1920px] flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
-        <div className="min-w-0 flex-1 lg:max-w-xl">
+      <div className="mx-auto grid max-w-[1920px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end lg:gap-4">
+        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
             Ubicación
           </label>
@@ -27,7 +19,7 @@ export function SearchTopBar({ filters, onChange }: Props) {
               value={filters.q}
               onChange={(e) => onChange({ ...filters, q: e.target.value })}
               placeholder="Ciudad, colonia…"
-              className="w-full min-w-0 rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+              className="w-full min-w-0 rounded-lg border border-primary/20 bg-surface px-3 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
             />
             <span
               className="inline-flex shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-surface px-3 text-primary/70"
@@ -45,65 +37,54 @@ export function SearchTopBar({ filters, onChange }: Props) {
           </div>
         </div>
 
-        <fieldset className="min-w-0 flex-1 lg:max-w-md">
-          <legend className="text-xs font-semibold uppercase tracking-wide text-primary/80">
-            Presupuesto (MXN / mes)
-          </legend>
-          <div className="mt-1 grid grid-cols-2 gap-2">
-            <input
-              inputMode="numeric"
-              type="number"
-              min={0}
-              step={100}
-              value={filters.budgetMin ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  budgetMin: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="Mín"
-              className="w-full rounded-lg border border-primary/20 bg-surface px-2 py-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            />
-            <input
-              inputMode="numeric"
-              type="number"
-              min={0}
-              step={100}
-              value={filters.budgetMax ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  budgetMax: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="Máx"
-              className="w-full rounded-lg border border-primary/20 bg-surface px-2 py-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            />
-          </div>
-        </fieldset>
+        <label className="block min-w-0">
+          <span className="text-xs font-semibold uppercase tracking-wide text-primary/80">
+            Presupuesto máx (MXN / mes)
+          </span>
+          <input
+            inputMode="numeric"
+            type="number"
+            min={0}
+            step={100}
+            value={filters.budgetMax ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                budgetMin: null,
+                budgetMax: e.target.value === "" ? null : Number(e.target.value),
+              })
+            }
+            placeholder="Ej. 8000"
+            className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+          />
+        </label>
 
-        <fieldset className="min-w-0 flex-1 lg:max-w-xl">
+        <fieldset className="min-w-0">
           <legend className="text-xs font-semibold uppercase tracking-wide text-primary/80">
             Tipo de hospedaje
           </legend>
           <div className="mt-1 flex flex-wrap gap-1.5">
-            {LODGING_OPTIONS.map(({ value, label }) => {
-              const selected =
-                value === "" ? filters.lodgingType == null : filters.lodgingType === value;
+            {(
+              [
+                { key: "loft" as const, label: "Loft" },
+                { key: "recamara" as const, label: "Recámara" },
+              ] as const
+            ).map(({ key, label }) => {
+              const active = key === "loft" ? filters.wantLoft : filters.wantRecamara;
               return (
                 <button
-                  key={label}
+                  key={key}
                   type="button"
-                  aria-pressed={selected}
+                  aria-pressed={active}
                   onClick={() =>
-                    onChange({
-                      ...filters,
-                      lodgingType: value === "" ? null : (value as LodgingType),
-                    })
+                    onChange(
+                      key === "loft"
+                        ? { ...filters, wantLoft: !filters.wantLoft, lodgingType: null }
+                        : { ...filters, wantRecamara: !filters.wantRecamara, lodgingType: null },
+                    )
                   }
-                  className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition sm:text-sm ${
-                    selected
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                    active
                       ? "border-secondary bg-surface ring-2 ring-secondary/40"
                       : "border-primary/20 bg-surface/90 hover:border-secondary/50"
                   }`}
@@ -115,42 +96,26 @@ export function SearchTopBar({ filters, onChange }: Props) {
           </div>
         </fieldset>
 
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:max-w-md lg:flex-none">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
-            Edad mín.
-            <input
-              inputMode="numeric"
-              type="number"
-              min={16}
-              max={99}
-              value={filters.ageMin ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  ageMin: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-2 py-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            />
-          </label>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
-            Edad máx.
-            <input
-              inputMode="numeric"
-              type="number"
-              min={16}
-              max={99}
-              value={filters.ageMax ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  ageMax: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-2 py-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            />
-          </label>
-        </div>
+        <label className="block min-w-0">
+          <span className="text-xs font-semibold uppercase tracking-wide text-primary/80">Edad</span>
+          <input
+            inputMode="numeric"
+            type="number"
+            min={16}
+            max={99}
+            value={filters.age ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                age: e.target.value === "" ? null : Number(e.target.value),
+                ageMin: null,
+                ageMax: null,
+              })
+            }
+            placeholder="Tu edad"
+            className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+          />
+        </label>
       </div>
     </div>
   );
