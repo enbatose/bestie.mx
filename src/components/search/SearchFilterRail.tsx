@@ -163,7 +163,7 @@ export function SearchFilterRail({
 
   return (
     <aside
-      className="flex w-full shrink-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain border-b border-border bg-surface/95 px-2 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:px-3 lg:pointer-events-none lg:absolute lg:inset-y-8 lg:left-3 lg:z-[1100] lg:w-[3.25rem] lg:snap-none lg:flex-col lg:items-center lg:gap-1.5 lg:overflow-y-auto lg:overflow-x-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-0"
+      className="flex w-full shrink-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain border-b border-border bg-surface/95 px-2 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:px-3 lg:pointer-events-none lg:absolute lg:bottom-8 lg:left-3 lg:top-24 lg:z-[1100] lg:w-[3.25rem] lg:snap-none lg:flex-col lg:items-center lg:gap-1.5 lg:overflow-y-auto lg:overflow-x-visible lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-0"
       aria-label="Filtros rápidos"
     >
       <p className="hidden w-full select-none text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-primary/80 lg:block">
