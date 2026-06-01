@@ -322,6 +322,7 @@ export type RoomDraft = {
   availableFrom: string;
   minimalStayMonths: number;
   roomDimension: RoomDimension;
+  avalRequired: boolean;
   /** Renta incluye servicios (independiente de los chips Wi‑Fi / agua / luz / gas del paso 3). */
   rentIncludesUtilities: boolean;
   /** Room-specific photos (interior); distinct from property common areas. */
@@ -393,6 +394,7 @@ const defaultRoom = (): RoomDraft => ({
   availableFrom: isoDateInMexicoCity(),
   minimalStayMonths: 1,
   roomDimension: "medium",
+  avalRequired: false,
   rentIncludesUtilities: false,
   photos: [],
 });
@@ -653,6 +655,7 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
           availableFrom: (r.availableFrom ?? isoDateInMexicoCity()).slice(0, 10),
           minimalStayMonths: r.minimalStayMonths ?? 1,
           roomDimension: r.roomDimension ?? "medium",
+          avalRequired: Boolean(r.avalRequired),
           photos: hydrateDraftImagesFromUrls(r.photos ?? r.imageUrls ?? []),
         }),
         )
@@ -1849,25 +1852,6 @@ export function PublishWizardPage() {
                             className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                           />
                         </label>
-                        <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
-                          <input
-                            type="checkbox"
-                            checked={room.rentIncludesUtilities}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              updateRoom(i, { rentIncludesUtilities: checked });
-                            }}
-                            className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
-                          />
-                          <span>
-                            <span className="block text-sm font-medium text-body">
-                              Servicios básicos incluidos
-                            </span>
-                            <span className="mt-0.5 block text-xs text-muted leading-snug">
-                              Activa esta opción si el precio de renta ya cubre luz, agua, gas e internet (Wi-Fi).
-                            </span>
-                          </span>
-                        </label>
                       </div>
                       <label className="block text-sm font-medium text-body">
                         Depósito (MXN)
@@ -1883,6 +1867,39 @@ export function PublishWizardPage() {
                           placeholder="0"
                           className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                         />
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
+                        <input
+                          type="checkbox"
+                          checked={room.rentIncludesUtilities}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            updateRoom(i, { rentIncludesUtilities: checked });
+                          }}
+                          className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium text-body">
+                            Servicios básicos incluidos
+                          </span>
+                          <span className="mt-0.5 block text-xs text-muted leading-snug">
+                            Activa esta opción si el precio de renta ya cubre luz, agua, gas e internet (Wi-Fi).
+                          </span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
+                        <input
+                          type="checkbox"
+                          checked={room.avalRequired}
+                          onChange={(e) => updateRoom(i, { avalRequired: e.target.checked })}
+                          className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium text-body">Se requiere aval</span>
+                          <span className="mt-0.5 block text-xs text-muted leading-snug">
+                            Activa esta opción si para rentar esta recámara es obligatorio presentar aval.
+                          </span>
+                        </span>
                       </label>
                     </div>
                   </div>

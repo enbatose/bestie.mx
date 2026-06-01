@@ -153,6 +153,7 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
     availableFrom: room.availableFrom.trim(),
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
+    avalRequired: room.avalRequired,
     depositMxn: room.depositMxn,
     occupantWomenCount: Math.max(0, Math.floor(room.occupantWomenCount ?? 0)),
     occupantMenCount: Math.max(0, Math.floor(room.occupantMenCount ?? 0)),

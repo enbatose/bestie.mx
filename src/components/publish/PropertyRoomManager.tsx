@@ -438,6 +438,20 @@ function AvailableRoomFields({
               className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
             />
           </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
+            <input
+              type="checkbox"
+              checked={room.avalRequired}
+              onChange={(e) => onChange({ avalRequired: e.target.checked })}
+              className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+            />
+            <span>
+              <span className="block text-sm font-medium text-body">Se requiere aval</span>
+              <span className="mt-0.5 block text-xs text-muted leading-snug">
+                Activa esta opción si para rentar esta recámara es obligatorio presentar aval.
+              </span>
+            </span>
+          </label>
         </div>
       </div>
 

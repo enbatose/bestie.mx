@@ -80,6 +80,7 @@ export function normalizeRoomDraft(raw: Partial<RoomDraft> | undefined | null): 
         ? r.minimalStayMonths
         : 1,
     roomDimension,
+    avalRequired: Boolean(r.avalRequired),
     rentIncludesUtilities: Boolean(r.rentIncludesUtilities),
     photos: normalizeDraftImages(r.photos ?? []),
   };

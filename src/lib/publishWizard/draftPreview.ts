@@ -85,6 +85,7 @@ function roomDraftToRoom(r: RoomDraft, index: number, draft: Draft) {
     availableFrom: r.availableFrom,
     minimalStayMonths: r.minimalStayMonths,
     roomDimension: r.roomDimension,
+    avalRequired: r.avalRequired,
     sortOrder: index,
     imageUrls: draftRoomImageUrls(draft, index),
   };
@@ -132,6 +133,7 @@ export function draftToListingPreview(
     availableFrom: room.availableFrom,
     minimalStayMonths: room.minimalStayMonths,
     roomDimension: room.roomDimension,
+    avalRequired: room.avalRequired,
     isApproximateLocation: p.isApproximateLocation,
     ...(p.streetViewPov ? { streetViewPov: p.streetViewPov } : {}),
   };
