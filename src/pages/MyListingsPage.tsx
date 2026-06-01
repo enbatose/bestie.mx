@@ -461,14 +461,6 @@ export function MyListingsPage() {
                           >
                             Editar borrador
                           </Link>
-                          {head.propertyPostMode === "room" ? (
-                            <Link
-                              to={`/publicar?edit=${encodeURIComponent(propertyId)}&upgrade=1`}
-                              className="inline-flex flex-1 justify-center rounded-full border border-secondary/60 bg-secondary/15 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-secondary/25 sm:flex-none"
-                            >
-                              Pasar a propiedad
-                            </Link>
-                          ) : null}
                         </div>
                         <label className="flex cursor-pointer items-start gap-2 text-xs leading-snug text-body">
                           <input

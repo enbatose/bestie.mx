@@ -469,31 +469,6 @@ function effectiveRoomTitle(
   return "";
 }
 
-function convertRoomDraftToProperty(d: Draft): Draft {
-  if (d.postMode === "property") return d;
-  const rooms = d.rooms.length > 0 ? d.rooms : [defaultRoom()];
-  return {
-    ...d,
-    postMode: "property",
-    ...(d.propertyKind === "loft"
-      ? { propertyBedroomsTotal: 1 }
-      : {
-          propertyBedroomsTotal: Math.max(
-            1,
-            Math.min(
-              PROPERTY_BEDROOMS_MAX,
-              Number.isFinite(d.propertyBedroomsTotal) ? d.propertyBedroomsTotal : 1,
-            ),
-          ),
-        }),
-    propertyTitle: d.propertyTitle.trim().toLowerCase() === "sin título" ? "" : d.propertyTitle,
-    propertySummary: isDefaultPropertySummarySeed(d.propertySummary) ? "" : d.propertySummary,
-    rooms,
-    roomImageUrls: rooms.map((_, i) => d.roomImageUrls[i] ?? []),
-  };
-}
-
-
 function isFreshDefaultDraft(d: Draft): boolean {
   return (
     JSON.stringify({ ...d, legalAccepted: false }) === JSON.stringify({ ...defaultDraft(), legalAccepted: false })
@@ -512,9 +487,7 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   return true;
 }
 
-function resumeStepForDraft(draft: Draft, opts: { upgrade: boolean }): number {
-  if (opts.upgrade) return 2;
-
+function resumeStepForDraft(draft: Draft): number {
   if (locationStepInvalidReason(draft)) return 1;
 
   if (propertyGeneralStepInvalidReason(draft)) return 2;
@@ -760,7 +733,7 @@ export function PublishWizardPage() {
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
   const editListingId = searchParams.get("room");
-  const upgrade = searchParams.get("upgrade") === "1";
+  const [editPostModeLock, setEditPostModeLock] = useState<Draft["postMode"] | null>(null);
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
   /** Loaded property was published or paused — save sends PATCH (not publish-bundle). */
@@ -861,6 +834,7 @@ export function PublishWizardPage() {
       didHydrateLocalForUserRef.current = null;
       setStorageReady(false);
       setEditingLiveProperty(null);
+      setEditPostModeLock(null);
       setDraft(defaultDraft());
       setServerSync({ propertyId: null, roomIds: [] });
       setStep(0);
@@ -911,6 +885,7 @@ export function PublishWizardPage() {
             const mapped = draftFromPropertyBundle(bundle);
             setDraft(mapped.draft);
             setServerSync(mapped.serverSync);
+            setEditPostModeLock(mapped.draft.postMode);
             setHandoffBanner("Tu borrador desde Messenger está cargado.");
           }
         } else if (!cancelled) {
@@ -964,12 +939,10 @@ export function PublishWizardPage() {
           setEditingLiveProperty(
             ps === "published" || ps === "paused" ? { status: ps } : null,
           );
-          const nextDraft =
-            upgrade && mapped.draft.postMode === "room"
-              ? convertRoomDraftToProperty(mapped.draft)
-              : mapped.draft;
+          const nextDraft = mapped.draft;
           setDraft(nextDraft);
           setServerSync(mapped.serverSync);
+          setEditPostModeLock(mapped.draft.postMode);
 
           const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
           let previewIdx = 0;
@@ -984,17 +957,13 @@ export function PublishWizardPage() {
               : srvRooms[previewIdx]?.id) ?? srvRooms.find((r) => r.status === "published")?.id ?? srvRooms[0]?.id ?? null;
           setLiveEditReturnListingId(returnId);
 
-          if (!upgrade && (ps === "published" || ps === "paused")) {
+          if (ps === "published" || ps === "paused") {
             setStep(publishWizardLastStepIndex(nextDraft.postMode));
           } else {
-            setStep(resumeStepForDraft(nextDraft, { upgrade }));
+            setStep(resumeStepForDraft(nextDraft));
           }
 
-          if (upgrade && mapped.draft.postMode === "room") {
-            setHandoffBanner(
-              "Borrador cargado como propiedad con múltiples cuartos. Completa la información faltante para agregar cuartos y publicar.",
-            );
-          } else if (ps === "published" || ps === "paused") {
+          if (ps === "published" || ps === "paused") {
             setHandoffBanner(
               ps === "paused"
                 ? "Anuncio en pausa. Edita por sección y usa “Guardar y republicar” para volver a activarlo en búsqueda."
@@ -1019,7 +988,6 @@ export function PublishWizardPage() {
             (prev) => {
               const n = new URLSearchParams(prev);
               n.delete("edit");
-              n.delete("upgrade");
               n.delete("room");
               return n;
             },
@@ -1031,7 +999,7 @@ export function PublishWizardPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiOn, editPropertyId, editListingId, upgrade, setSearchParams]);
+  }, [apiOn, editPropertyId, editListingId, setSearchParams]);
 
   /** Drop any stale reverse-geocode label; the UI shows a coordinate fallback until Nominatim returns. */
   useLayoutEffect(() => {
@@ -1288,7 +1256,7 @@ export function PublishWizardPage() {
           <form className="space-y-6">
             <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-4">
               <h3 className="text-[15px] font-bold text-primary">Tipo de espacio</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className={`grid gap-3 ${editPostModeLock === "room" ? "" : "sm:grid-cols-2"}`}>
                 <button
                   type="button"
                   onClick={() =>
@@ -1322,6 +1290,7 @@ export function PublishWizardPage() {
                     Publica un cuarto o Loft de forma rápida y sencilla. Ideal para la búsqueda ocasional de un roomie.
                   </p>
                 </button>
+                {editPostModeLock !== "room" ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -1349,11 +1318,8 @@ export function PublishWizardPage() {
                     Ideal para viviendas con muchos roomies o alta rotación.
                   </p>
                 </button>
+                ) : null}
               </div>
-              <p className="text-xs text-muted">
-                <strong className="font-semibold text-body">Tip</strong>: Puedes cambiar el tipo de espacio de
-                &quot;Cuarto&quot; a &quot;Propiedad&quot; incluso después de haber publicado tu anuncio.
-              </p>
             </div>
           </form>
         ),
@@ -2125,14 +2091,14 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, me],
+    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
   const safeStep = Math.min(Math.max(0, step), maxStepIndex);
   const current = steps[safeStep]!;
   const isPublishStep = current.title === "Revisar y publicar";
-  const isLiveListingEdit = Boolean(editingLiveProperty && !upgrade);
+  const isLiveListingEdit = Boolean(editingLiveProperty);
 
   const autofillStep = useCallback(
     (stepIndex: number) => {
@@ -2167,15 +2133,19 @@ export function PublishWizardPage() {
           propertySummary: "",
         };
       }
-      if (d.postMode === "property") return d;
-      return {
-        ...d,
-        postMode: "property",
-        rooms: [defaultRoom()],
-        roomImageUrls: [[]],
-      };
+      if (publishModeParam === "property") {
+        if (editPostModeLock === "room") return d;
+        if (d.postMode === "property") return d;
+        return {
+          ...d,
+          postMode: "property",
+          rooms: [defaultRoom()],
+          roomImageUrls: [[]],
+        };
+      }
+      return d;
     });
-  }, [publishModeParam]);
+  }, [publishModeParam, editPostModeLock]);
 
   useEffect(() => {
     if (publishStepParam == null || publishStepParam === "") return;
