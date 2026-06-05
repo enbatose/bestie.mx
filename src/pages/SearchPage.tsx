@@ -135,13 +135,6 @@ export function SearchPage() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ~2/3: rail + map */}
         <section className="relative flex min-h-0 min-w-0 flex-[1.35] flex-col border-border lg:flex-[2] lg:border-r">
-          <SearchFilterRail
-            filters={normalizedFilters}
-            onChange={applyFilters}
-            onOpenAdvanced={() => setAdvancedOpen(true)}
-            onClearFilters={clearFilters}
-            hasActiveFilters={hasActiveFilters}
-          />
           <div className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
             <div className="absolute inset-0">
               <PropertyMap
@@ -156,6 +149,11 @@ export function SearchPage() {
                 onViewportBbox={onViewportBbox}
               />
             </div>
+            <SearchFilterRail
+              filters={normalizedFilters}
+              onChange={applyFilters}
+              onOpenAdvanced={() => setAdvancedOpen(true)}
+            />
           </div>
         </section>
 

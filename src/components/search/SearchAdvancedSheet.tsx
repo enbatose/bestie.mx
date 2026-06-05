@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef } from "react";
+import { ADVANCED_TAG_FILTERS } from "@/components/search/searchQuickAttributes";
+import { TAG_LABELS } from "@/lib/searchFilters";
 import type { RoomDimension } from "@/types/listing";
+import type { ListingTag } from "@/types/listing";
 import type { SearchFilters } from "@/lib/searchFilters";
 
 type Props = {
@@ -50,6 +53,13 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
+  function toggleTag(tag: ListingTag) {
+    const tags = filters.tags.includes(tag)
+      ? filters.tags.filter((current) => current !== tag)
+      : [...filters.tags, tag];
+    onChange({ ...filters, tags });
+  }
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -95,6 +105,85 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           <div>
+            <p className="text-sm font-medium text-body">Tipo de propiedad</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Mueve aquí los filtros rápidos adicionales de casa, depa o loft.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  {
+                    key: "clear" as const,
+                    label: "Cualquiera",
+                    active: !filters.wantHouse && !filters.wantApartment && !filters.wantLoft,
+                    next: { ...filters, wantHouse: false, wantApartment: false, wantLoft: false },
+                  },
+                  {
+                    key: "house" as const,
+                    label: "Casa",
+                    active: filters.wantHouse,
+                    next: { ...filters, wantHouse: !filters.wantHouse },
+                  },
+                  {
+                    key: "apartment" as const,
+                    label: "Depa",
+                    active: filters.wantApartment,
+                    next: { ...filters, wantApartment: !filters.wantApartment },
+                  },
+                  {
+                    key: "loft" as const,
+                    label: "Loft",
+                    active: filters.wantLoft,
+                    next: { ...filters, wantLoft: !filters.wantLoft },
+                  },
+                ] as const
+              ).map(({ key, label, active, next }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onChange(next)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                    active
+                      ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                      : "border-border bg-surface/90 text-body hover:border-secondary/50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-body">Tipo de habitación</p>
+            <p className="mt-0.5 text-xs text-muted">
+              El acceso rápido del mapa deja fija la opción privada; aquí puedes elegir compartida.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  { v: null as const, label: "Cualquiera" },
+                  { v: "private_room" as const, label: "Privada" },
+                  { v: "shared_room" as const, label: "Compartida" },
+                ] as const
+              ).map(({ v, label }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => onChange({ ...filters, lodgingType: v })}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                    filters.lodgingType === v
+                      ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                      : "border-border bg-surface/90 text-body hover:border-secondary/50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <p className="text-sm font-medium text-body">Convivencia (anuncio)</p>
             <p className="mt-0.5 text-xs text-muted">
               Filtra por la preferencia de convivencia del anuncio (por ejemplo sólo chicas o sólo chicos).
@@ -120,6 +209,33 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                   {label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-body">Detalles del anuncio</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Los demás quick filters del mapa viven aquí para no saturar la interfaz principal.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ADVANCED_TAG_FILTERS.map((tag) => {
+                const active = filters.tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleTag(tag)}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                      active
+                        ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                        : "border-border bg-surface/90 text-body hover:border-secondary/50"
+                    }`}
+                  >
+                    {TAG_LABELS[tag]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
