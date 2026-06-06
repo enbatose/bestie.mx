@@ -38,6 +38,13 @@ function highestVisibleRent(listings: PropertyListing[]) {
   return listings.reduce((max, listing) => Math.max(max, listing.rentMxn), 0);
 }
 
+function formatRentCompact(value: number) {
+  if (value < 1000) return String(value);
+  const compact = value / 1000;
+  const rounded = Number.isInteger(compact) ? String(compact) : compact.toFixed(1).replace(/\.0$/, "");
+  return `${rounded}K`;
+}
+
 export function SearchTopBar({
   filters,
   listings,
@@ -51,12 +58,15 @@ export function SearchTopBar({
   const maxVisibleRent = useMemo(() => highestVisibleRent(listings), [listings]);
   const displayedRent = filters.budgetMax ?? (maxVisibleRent > 0 ? maxVisibleRent : null);
   const displayedAge = filters.age ?? DEFAULT_MOBILE_AGE;
-  const [rentInput, setRentInput] = useState(displayedRent == null ? "" : String(displayedRent));
+  const [rentFocused, setRentFocused] = useState(false);
+  const [rentInput, setRentInput] = useState(
+    displayedRent == null ? "" : formatRentCompact(displayedRent),
+  );
   const [ageInput, setAgeInput] = useState(String(displayedAge));
 
   useEffect(() => {
-    setRentInput(displayedRent == null ? "" : String(displayedRent));
-  }, [displayedRent]);
+    setRentInput(displayedRent == null ? "" : rentFocused ? String(displayedRent) : formatRentCompact(displayedRent));
+  }, [displayedRent, rentFocused]);
 
   useEffect(() => {
     setAgeInput(String(displayedAge));
@@ -74,7 +84,7 @@ export function SearchTopBar({
     const base = displayedRent ?? 0;
     const next = Math.max(0, base + delta);
     setBudgetMax(next);
-    setRentInput(String(next));
+    setRentInput(rentFocused ? String(next) : formatRentCompact(next));
   }
 
   function commitBudget() {
@@ -133,101 +143,108 @@ export function SearchTopBar({
   return (
     <div className="border-b border-primary/15 bg-secondary px-3 py-3 text-primary shadow-sm sm:px-4">
       <div className="mx-auto max-w-[1920px] sm:hidden">
-        <div className="rounded-[2rem] bg-primary/10 p-1.5">
-          <div className="grid gap-3 rounded-[1.6rem] bg-secondary/55 p-3 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary/75">
-                Ciudad o colonia
-              </span>
-              <div className="relative mt-2">
-                <input
-                  id="mobile-search-location"
-                  type="search"
-                  list={locationListId}
-                  value={filters.q}
-                  onChange={(e) => onChange({ ...filters, q: e.target.value })}
-                  placeholder="Escribe una ciudad o colonia"
-                  className="h-16 w-full rounded-[1.4rem] border border-primary/15 bg-surface px-4 pr-12 text-[1.7rem] font-semibold tracking-[-0.02em] text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-                />
-                <span
-                  className="pointer-events-none absolute inset-y-0 right-4 inline-flex items-center text-primary/65"
-                  aria-hidden
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
-                    />
-                    <path strokeWidth="2" strokeLinecap="round" d="M16.2 16.2 21 21" />
-                  </svg>
-                </span>
-              </div>
-              <datalist id={locationListId}>
-                {locationOptions.map((option) => (
-                  <option key={option} value={option} />
-                ))}
-              </datalist>
+        <div className="rounded-[1.75rem] bg-secondary/55 p-2.5 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
+          <div className="grid gap-2.5">
+            <label className="sr-only" htmlFor="mobile-search-location">
+              Ciudad o colonia
             </label>
+            <div className="relative">
+              <input
+                id="mobile-search-location"
+                type="search"
+                list={locationListId}
+                value={filters.q}
+                onChange={(e) => onChange({ ...filters, q: e.target.value })}
+                placeholder="Ciudad o colonia"
+                className="h-14 w-full rounded-[1.2rem] border border-primary/15 bg-surface px-4 pr-12 text-[1.35rem] font-semibold tracking-[-0.02em] text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+              />
+              <span
+                className="pointer-events-none absolute inset-y-0 right-4 inline-flex items-center text-primary/65"
+                aria-hidden
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
+                  />
+                  <path strokeWidth="2" strokeLinecap="round" d="M16.2 16.2 21 21" />
+                </svg>
+              </span>
+            </div>
+            <datalist id={locationListId}>
+              {locationOptions.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-[1.5rem] bg-surface p-3 shadow-sm ring-1 ring-primary/10">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/75">
-                    Precio de renta
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
+                    Precio renta
                   </span>
-                  <span className="text-[11px] font-medium text-primary/60">MXN / mes</span>
+                  <span className="text-[10px] font-medium text-primary/55">MXN/mes</span>
                 </div>
-                <div className="mt-2 flex h-14 items-center overflow-hidden rounded-2xl border border-primary/15 bg-bg-light/55">
+                <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                   <button
                     type="button"
                     aria-label="Disminuir renta"
                     onClick={() => stepBudget(-RENT_STEP)}
-                    className="flex h-full w-11 items-center justify-center text-xl font-semibold text-primary transition active:bg-surface-elevated"
+                    className="flex h-full w-10 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
                   >
                     −
                   </button>
                   <input
                     inputMode="numeric"
-                    type="number"
-                    min={0}
-                    step={RENT_STEP}
+                    type="text"
                     value={rentInput}
-                    onChange={(e) => setRentInput(e.target.value.replace(/\D/g, ""))}
-                    onBlur={commitBudget}
+                    onFocus={() => {
+                      setRentFocused(true);
+                      setRentInput(displayedRent == null ? "" : String(displayedRent));
+                    }}
+                    onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onBlur={() => {
+                      commitBudget();
+                      setRentFocused(false);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         (e.target as HTMLInputElement).blur();
                       }
                     }}
-                    className="min-w-0 flex-1 bg-transparent px-1 text-center text-xl font-semibold tabular-nums text-body outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="min-w-0 flex-1 bg-transparent px-1 text-center text-[1.2rem] font-semibold tabular-nums text-body outline-none"
                   />
                   <button
                     type="button"
                     aria-label="Aumentar renta"
                     onClick={() => stepBudget(RENT_STEP)}
-                    className="flex h-full w-11 items-center justify-center text-xl font-semibold text-primary transition active:bg-surface-elevated"
+                    className="flex h-full w-10 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] bg-surface p-3 shadow-sm ring-1 ring-primary/10">
+              <div className="rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/75">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
                     Edad
                   </span>
-                  <span className={`text-[11px] font-medium ${filters.age == null ? "text-muted" : "text-primary/60"}`}>
+                  <span
+                    className={`text-[10px] font-medium ${
+                      filters.age == null ? "text-muted opacity-60" : "text-primary/60"
+                    }`}
+                  >
                     {filters.age == null ? "Default" : "Activa"}
                   </span>
                 </div>
-                <div className="mt-2 flex h-14 items-center overflow-hidden rounded-2xl border border-primary/15 bg-bg-light/55">
+                <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                   <button
                     type="button"
                     aria-label="Disminuir edad"
                     onClick={() => stepAge(-1)}
-                    className="flex h-full w-11 items-center justify-center text-xl font-semibold text-primary transition active:bg-surface-elevated"
+                    className="flex h-full w-10 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
                   >
                     −
                   </button>
@@ -244,15 +261,15 @@ export function SearchTopBar({
                         (e.target as HTMLInputElement).blur();
                       }
                     }}
-                    className={`min-w-0 flex-1 bg-transparent px-1 text-center text-xl font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                      filters.age == null ? "text-muted" : "text-body"
+                    className={`min-w-0 flex-1 bg-transparent px-1 text-center text-[1.2rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                      filters.age == null ? "text-muted opacity-60" : "text-body"
                     }`}
                   />
                   <button
                     type="button"
                     aria-label="Aumentar edad"
                     onClick={() => stepAge(1)}
-                    className="flex h-full w-11 items-center justify-center text-xl font-semibold text-primary transition active:bg-surface-elevated"
+                    className="flex h-full w-10 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
                   >
                     +
                   </button>
@@ -260,13 +277,13 @@ export function SearchTopBar({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={onOpenAdvanced}
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-[1.4rem] border border-primary/20 bg-surface px-4 text-sm font-semibold text-primary shadow-sm transition hover:border-primary/35"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[1.1rem] border border-primary/20 bg-surface px-3.5 text-[0.95rem] font-semibold text-primary shadow-sm transition hover:border-primary/35"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
                   <path strokeWidth="2" strokeLinecap="round" d="M4 7h16M7 12h10M10 17h4" />
                 </svg>
                 Filtros avanzados
@@ -276,7 +293,7 @@ export function SearchTopBar({
                 type="button"
                 onClick={onClearFilters}
                 disabled={!hasActiveFilters}
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-[1.4rem] border border-primary/20 bg-surface px-4 text-sm font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[1.1rem] border border-primary/20 bg-surface px-3.5 text-[0.95rem] font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
                   <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
