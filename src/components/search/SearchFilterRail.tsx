@@ -105,19 +105,18 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
           onClick={() => setMobileExpanded((current) => !current)}
           aria-label={mobileExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
           aria-expanded={mobileExpanded}
-          className="mt-3 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-r-2xl rounded-l-md border border-border/80 bg-surface/82 px-2.5 text-[11px] font-semibold text-primary shadow-md backdrop-blur-md transition hover:bg-surface/95 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+          className="mt-3 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
         >
-          <span>{mobileExpanded ? "Ocultar" : "Mostrar"}</span>
           <svg
-            width="12"
-            height="12"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             className={`transition-transform duration-200 ${mobileExpanded ? "" : "rotate-180"}`}
             aria-hidden
           >
-            <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="m15 6-6 6 6 6" />
+            <path strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" d="m14 6-6 6 6 6" />
           </svg>
         </button>
       </div>
