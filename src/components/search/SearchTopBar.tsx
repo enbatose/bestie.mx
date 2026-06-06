@@ -3,14 +3,110 @@ import type { SearchFilters } from "@/lib/searchFilters";
 type Props = {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
+  onOpenAdvanced: () => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
 };
 
-export function SearchTopBar({ filters, onChange, onClearFilters, hasActiveFilters }: Props) {
+const money = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+  maximumFractionDigits: 0,
+});
+
+function mobileFilterSummary(filters: SearchFilters): string[] {
+  const items: string[] = [];
+
+  if (filters.budgetMax != null) items.push(`Hasta ${money.format(filters.budgetMax)}`);
+  if (filters.wantLoft) items.push("Loft");
+  if (filters.wantRecamara) items.push("Recámara");
+  if (filters.age != null) items.push(`${filters.age} años`);
+
+  return items;
+}
+
+export function SearchTopBar({
+  filters,
+  onChange,
+  onOpenAdvanced,
+  onClearFilters,
+  hasActiveFilters,
+}: Props) {
+  const mobileSummary = mobileFilterSummary(filters);
+
   return (
     <div className="border-b border-primary/15 bg-secondary px-3 py-3 text-primary shadow-sm sm:px-4">
-      <div className="mx-auto grid max-w-[1920px] grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] lg:items-end lg:gap-4">
+      <div className="mx-auto max-w-[1920px] sm:hidden">
+        <label className="sr-only" htmlFor="mobile-search-location">
+          Ubicación
+        </label>
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <input
+              id="mobile-search-location"
+              type="search"
+              value={filters.q}
+              onChange={(e) => onChange({ ...filters, q: e.target.value })}
+              placeholder="Ciudad, colonia…"
+              className="h-11 w-full min-w-0 rounded-lg border border-primary/20 bg-surface px-3 pr-10 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+            />
+            <span
+              className="pointer-events-none absolute inset-y-0 right-3 inline-flex items-center text-primary/70"
+              aria-hidden
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
+                />
+                <path strokeWidth="2" strokeLinecap="round" d="M16.2 16.2 21 21" />
+              </svg>
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenAdvanced}
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-primary/20 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/35"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+              <path strokeWidth="2" strokeLinecap="round" d="M4 7h16M7 12h10M10 17h4" />
+            </svg>
+            Filtros
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-1">
+          {mobileSummary.length ? (
+            mobileSummary.map((item) => (
+              <span
+                key={item}
+                className="inline-flex shrink-0 items-center rounded-full border border-primary/20 bg-surface/90 px-2.5 py-1 text-[11px] font-semibold text-body shadow-sm"
+              >
+                {item}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs font-medium text-primary/75">Usa filtros para afinar el mapa</span>
+          )}
+
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-surface px-2.5 py-1 text-[11px] font-semibold text-primary shadow-sm transition hover:border-primary/40"
+            >
+              <svg className="size-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
+              </svg>
+              Limpiar
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mx-auto hidden max-w-[1920px] grid-cols-1 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] lg:items-end lg:gap-4">
         <div className="min-w-0 sm:col-span-2 lg:col-span-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
             Ubicación

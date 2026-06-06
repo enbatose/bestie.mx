@@ -104,6 +104,84 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium text-body">
+              Presupuesto máx (MXN / mes)
+              <input
+                inputMode="numeric"
+                type="number"
+                min={0}
+                step={100}
+                value={filters.budgetMax ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...filters,
+                    budgetMin: null,
+                    budgetMax: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="Ej. 8000"
+                className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+              />
+            </label>
+
+            <label className="block text-sm font-medium text-body">
+              Tu edad
+              <input
+                inputMode="numeric"
+                type="number"
+                min={16}
+                max={99}
+                value={filters.age ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...filters,
+                    age: e.target.value === "" ? null : Number(e.target.value),
+                    ageMin: null,
+                    ageMax: null,
+                  })
+                }
+                placeholder="Ej. 25"
+                className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+              />
+            </label>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-body">Tipo de hospedaje</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  { key: "loft" as const, label: "Loft" },
+                  { key: "recamara" as const, label: "Recámara" },
+                ] as const
+              ).map(({ key, label }) => {
+                const active = key === "loft" ? filters.wantLoft : filters.wantRecamara;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      onChange(
+                        key === "loft"
+                          ? { ...filters, wantLoft: !filters.wantLoft, lodgingType: null }
+                          : { ...filters, wantRecamara: !filters.wantRecamara, lodgingType: null },
+                      )
+                    }
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                      active
+                        ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                        : "border-border bg-surface/90 text-body hover:border-secondary/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <p className="text-sm font-medium text-body">Tipo de propiedad</p>
             <p className="mt-0.5 text-xs text-muted">
