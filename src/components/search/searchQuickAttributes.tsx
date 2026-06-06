@@ -114,11 +114,6 @@ export const ADVANCED_FILTERS_META: SearchQuickAttribute = {
 
 export const MAP_QUICK_FILTERS: readonly SearchQuickFilterDefinition[] = [
   {
-    ...PROPERTY_TYPE_META.house,
-    isActive: (filters) => filters.wantHouse,
-    toggle: (filters) => ({ ...filters, wantHouse: !filters.wantHouse }),
-  },
-  {
     ...ROOM_TYPE_META.private_room,
     isActive: (filters) => filters.lodgingType === "private_room",
     toggle: (filters) => ({

@@ -1,26 +1,65 @@
 import L from "leaflet";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+const BESTIE_DARK_GREEN = "#143D30";
+const BESTIE_DARK_GREEN_STROKE = "#0F2E24";
+const BESTIE_SECONDARY = "#84CC16";
+
+function svgToDataUrl(svg: string): string {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function pinSvg(opts: {
+  bodyFill: string;
+  centerFill: string;
+  ringFill?: string;
+  stroke?: string;
+}): string {
+  const { bodyFill, centerFill, ringFill = "#FFFFFF", stroke = BESTIE_DARK_GREEN_STROKE } = opts;
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42" fill="none">
+      <path
+        d="M15 40.2C13.2 38.05 3 26.1 3 15.15C3 8.44 8.37 3 15 3C21.63 3 27 8.44 27 15.15C27 26.1 16.8 38.05 15 40.2Z"
+        fill="${bodyFill}"
+        stroke="${stroke}"
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+      <circle cx="15" cy="15" r="6.5" fill="${ringFill}" />
+      <circle cx="15" cy="15" r="4.25" fill="${centerFill}" />
+    </svg>
+  `.trim();
+}
+
+function createPinIcon(svg: string, iconSize: [number, number], iconAnchor: [number, number]) {
+  return L.icon({
+    iconUrl: svgToDataUrl(svg),
+    iconRetinaUrl: svgToDataUrl(svg),
+    iconSize,
+    iconAnchor,
+    popupAnchor: [0, -34],
+  });
+}
 
 /** Default pin — always pass this explicitly; `icon={undefined}` breaks cleanup with react-leaflet. */
-export const standardMarkerIcon = L.icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+export const standardMarkerIcon = createPinIcon(
+  pinSvg({
+    bodyFill: BESTIE_DARK_GREEN,
+    centerFill: BESTIE_SECONDARY,
+  }),
+  [30, 42],
+  [15, 42],
+);
 
 /** Selected pin — single module-level instance so Leaflet event wiring stays stable. */
-export const selectedMarkerIcon = L.divIcon({
-  className: "bestie-selected-pin",
-  html: `<div style="width:18px;height:18px;border-radius:9999px;background:#84CC16;border:3px solid #143D30;box-shadow:0 2px 8px rgba(15,23,42,.25);"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-});
+export const selectedMarkerIcon = createPinIcon(
+  pinSvg({
+    bodyFill: BESTIE_DARK_GREEN,
+    centerFill: "#FFFFFF",
+    ringFill: BESTIE_SECONDARY,
+  }),
+  [34, 48],
+  [17, 48],
+);
 
 /** Vite/React omit Leaflet's default image paths; set once before creating markers. */
 export function ensureLeafletDefaultIcons() {
