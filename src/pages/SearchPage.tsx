@@ -158,7 +158,7 @@ export function SearchPage() {
         </section>
 
         {/* ~1/3: scrollable listings */}
-        <aside className="flex max-h-[48vh] min-h-0 min-w-0 flex-1 flex-col border-t border-border bg-surface sm:max-h-[52vh] lg:max-h-none lg:min-w-[300px] lg:flex-[1] lg:border-l lg:border-t-0">
+        <aside className="hidden max-h-[48vh] min-h-0 min-w-0 flex-1 flex-col border-t border-border bg-surface sm:max-h-[52vh] lg:flex lg:max-h-none lg:min-w-[300px] lg:flex-[1] lg:border-l lg:border-t-0">
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4 sm:py-3">
             <h2 className="text-sm font-semibold text-body sm:text-base">Listados</h2>
             <p className="text-xs text-muted sm:text-sm">
