@@ -127,6 +127,7 @@ export function SearchPage() {
       />
       <SearchTopBar
         filters={filters}
+        listings={filtered}
         onChange={applyFilters}
         onOpenAdvanced={() => setAdvancedOpen(true)}
         onClearFilters={clearFilters}
