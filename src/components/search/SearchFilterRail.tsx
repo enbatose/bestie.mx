@@ -51,7 +51,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
       className="pointer-events-none absolute left-2 top-20 z-[1100] sm:left-3 sm:top-24"
       aria-label="Filtros rápidos"
     >
-      <div className="pointer-events-auto flex items-start gap-1 sm:hidden">
+      <div className="pointer-events-auto flex items-start gap-0.5 sm:hidden">
         <div className="flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
           {MAP_QUICK_FILTERS.map((filterMeta) => {
             const active = filterMeta.isActive(filters);
@@ -105,8 +105,9 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
           onClick={() => setMobileExpanded((current) => !current)}
           aria-label={mobileExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
           aria-expanded={mobileExpanded}
-          className="mt-3 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-surface/70 text-primary/70 shadow-sm ring-1 ring-border/70 backdrop-blur-md transition hover:bg-surface/90 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+          className="mt-3 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-r-2xl rounded-l-md border border-border/80 bg-surface/82 px-2.5 text-[11px] font-semibold text-primary shadow-md backdrop-blur-md transition hover:bg-surface/95 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
         >
+          <span>{mobileExpanded ? "Ocultar" : "Mostrar"}</span>
           <svg
             width="12"
             height="12"
