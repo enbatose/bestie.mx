@@ -57,19 +57,19 @@ export function SearchTopBar({
   const locationOptions = useMemo(() => uniqueLocationOptions(listings), [listings]);
   const maxVisibleRent = useMemo(() => highestVisibleRent(listings), [listings]);
   const displayedRent = filters.budgetMax ?? (maxVisibleRent > 0 ? maxVisibleRent : null);
-  const displayedAge = filters.age ?? DEFAULT_MOBILE_AGE;
+  const displayedAge = filters.age;
   const [rentFocused, setRentFocused] = useState(false);
   const [rentInput, setRentInput] = useState(
     displayedRent == null ? "" : formatRentCompact(displayedRent),
   );
-  const [ageInput, setAgeInput] = useState(String(displayedAge));
+  const [ageInput, setAgeInput] = useState(displayedAge == null ? "" : String(displayedAge));
 
   useEffect(() => {
     setRentInput(displayedRent == null ? "" : rentFocused ? String(displayedRent) : formatRentCompact(displayedRent));
   }, [displayedRent, rentFocused]);
 
   useEffect(() => {
-    setAgeInput(String(displayedAge));
+    setAgeInput(displayedAge == null ? "" : String(displayedAge));
   }, [displayedAge]);
 
   function setBudgetMax(nextBudgetMax: number | null) {
@@ -116,7 +116,7 @@ export function SearchTopBar({
   }
 
   function stepAge(delta: number) {
-    const next = clamp(displayedAge + delta, MIN_AGE, MAX_AGE);
+    const next = displayedAge == null ? DEFAULT_MOBILE_AGE : clamp(displayedAge + delta, MIN_AGE, MAX_AGE);
     setAge(next);
     setAgeInput(String(next));
   }
@@ -125,7 +125,7 @@ export function SearchTopBar({
     const trimmed = ageInput.trim();
     if (trimmed === "") {
       setAge(null);
-      setAgeInput(String(DEFAULT_MOBILE_AGE));
+      setAgeInput("");
       return;
     }
 
@@ -182,9 +182,8 @@ export function SearchTopBar({
               <div className="rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
-                    Precio renta
+                    PRECIO RENTA MÁX.
                   </span>
-                  <span className="text-[10px] font-medium text-primary/55">MXN/mes</span>
                 </div>
                 <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                   <button
@@ -227,18 +226,9 @@ export function SearchTopBar({
               </div>
 
               <div className="rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
-                    Edad
-                  </span>
-                  <span
-                    className={`text-[10px] font-medium ${
-                      filters.age == null ? "text-muted opacity-60" : "text-primary/60"
-                    }`}
-                  >
-                    {filters.age == null ? "Default" : "Activa"}
-                  </span>
-                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
+                  Edad
+                </span>
                 <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                   <button
                     type="button"
@@ -262,7 +252,7 @@ export function SearchTopBar({
                       }
                     }}
                     className={`min-w-0 flex-1 bg-transparent px-1 text-center text-[1.2rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                      filters.age == null ? "text-muted opacity-60" : "text-body"
+                      filters.age == null ? "text-muted opacity-40" : "text-body"
                     }`}
                   />
                   <button

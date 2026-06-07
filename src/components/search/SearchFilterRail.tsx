@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ADVANCED_FILTERS_META,
   MAP_QUICK_FILTERS,
+  MOBILE_MAP_QUICK_FILTERS,
 } from "@/components/search/searchQuickAttributes";
 import type { SearchFilters } from "@/lib/searchFilters";
 
@@ -53,9 +54,10 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
     >
       <div className="pointer-events-auto flex items-start gap-0.5 sm:hidden">
         <div className="flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
-          {MAP_QUICK_FILTERS.map((filterMeta) => {
+          {MOBILE_MAP_QUICK_FILTERS.map((filterMeta) => {
             const active = filterMeta.isActive(filters);
             const Icon = filterMeta.icon;
+            const mobileLabel = filterMeta.mobileLabel ?? filterMeta.label;
             return (
               <div key={filterMeta.id} className="flex items-center">
                 <button
@@ -69,11 +71,11 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                   <Icon className="size-[0.95rem]" aria-hidden="true" />
                 </button>
                 <span
-                  className={`overflow-hidden whitespace-nowrap text-xs font-semibold leading-none transition-[width,opacity,margin] duration-200 ease-out ${
+                  className={`overflow-hidden text-[11px] font-semibold leading-tight transition-[width,opacity,margin] duration-200 ease-out ${
                     active ? "text-primary" : "text-body"
-                  } ${mobileExpanded ? "ml-2 w-[7.25rem] opacity-100" : "ml-0 w-0 opacity-0"}`}
+                  } ${mobileExpanded ? "ml-2 w-[8rem] opacity-100" : "ml-0 w-0 opacity-0"}`}
                 >
-                  {filterMeta.label}
+                  {mobileLabel}
                 </span>
               </div>
             );
@@ -91,11 +93,11 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                 <AdvancedIcon className="size-[0.95rem]" aria-hidden="true" />
               </button>
               <span
-                className={`overflow-hidden whitespace-nowrap text-xs font-semibold leading-none text-body transition-[width,opacity,margin] duration-200 ease-out ${
-                  mobileExpanded ? "ml-2 w-[7.25rem] opacity-100" : "ml-0 w-0 opacity-0"
+                className={`overflow-hidden text-[11px] font-semibold leading-tight text-body transition-[width,opacity,margin] duration-200 ease-out ${
+                  mobileExpanded ? "ml-2 w-[8rem] opacity-100" : "ml-0 w-0 opacity-0"
                 }`}
               >
-                {ADVANCED_FILTERS_META.label}
+                {ADVANCED_FILTERS_META.mobileLabel ?? ADVANCED_FILTERS_META.label}
               </span>
             </div>
           </div>

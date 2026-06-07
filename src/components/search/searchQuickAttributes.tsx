@@ -6,6 +6,7 @@ import {
   CarFront,
   DoorClosed,
   House,
+  Mars,
   SlidersHorizontal,
   UsersRound,
   Venus,
@@ -17,6 +18,7 @@ import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing"
 export type SearchQuickAttribute = {
   id: string;
   label: string;
+  mobileLabel?: string;
   tooltip: string;
   icon: LucideIcon;
 };
@@ -51,7 +53,8 @@ const ROOM_TYPE_META = {
   private_room: {
     id: "room-private",
     label: "Privado",
-    tooltip: "Recámara privada",
+    mobileLabel: "Cuarto Privado",
+    tooltip: "Buscar cuarto privado",
     icon: DoorClosed,
   },
   shared_room: {
@@ -66,8 +69,16 @@ const GENDER_META = {
   female: {
     id: "gender-female",
     label: "Mujeres",
-    tooltip: "Solo mujeres",
+    mobileLabel: "Soy Mujer",
+    tooltip: "Buscar opciones para mujer",
     icon: Venus,
+  },
+  male: {
+    id: "gender-male",
+    label: "Hombres",
+    mobileLabel: "Soy Hombre",
+    tooltip: "Buscar opciones para hombre",
+    icon: Mars,
   },
   any: {
     id: "gender-mixed",
@@ -80,21 +91,24 @@ const GENDER_META = {
 const PRIVATE_BATHROOM_META: SearchQuickAttribute = {
   id: "private-bathroom",
   label: "Baño",
-  tooltip: "Incluye baño privado",
+  mobileLabel: "Baño Privado",
+  tooltip: "Solo publicaciones con baño privado",
   icon: Bath,
 };
 
 const PRIVATE_PARKING_META: SearchQuickAttribute = {
   id: "private-parking",
   label: "Cochera",
-  tooltip: "Incluye cochera o estacionamiento privado",
+  mobileLabel: "Cochera Incluida",
+  tooltip: "Solo publicaciones con cochera incluida",
   icon: CarFront,
 };
 
 const FURNISHED_META: SearchQuickAttribute = {
   id: "furnished",
   label: "Amueblado",
-  tooltip: "Recámara amueblada",
+  mobileLabel: "Cuarto Amueblado",
+  tooltip: "Solo publicaciones con cuarto amueblado",
   icon: Armchair,
 };
 
@@ -108,38 +122,83 @@ function withTagToggle(filters: SearchFilters, tag: ListingTag): SearchFilters {
 export const ADVANCED_FILTERS_META: SearchQuickAttribute = {
   id: "advanced-filters",
   label: "Avanzado",
+  mobileLabel: "Mas filtros",
   tooltip: "Abrir filtros avanzados",
   icon: SlidersHorizontal,
 };
 
+const PRIVATE_ROOM_FILTER: SearchQuickFilterDefinition = {
+  ...ROOM_TYPE_META.private_room,
+  isActive: (filters) => filters.lodgingType === "private_room",
+  toggle: (filters) => ({
+    ...filters,
+    lodgingType: filters.lodgingType === "private_room" ? null : "private_room",
+  }),
+};
+
+const LOFT_FILTER: SearchQuickFilterDefinition = {
+  ...PROPERTY_TYPE_META.loft,
+  mobileLabel: "Busco Loft",
+  tooltip: "Buscar publicaciones tipo loft",
+  isActive: (filters) => filters.wantLoft,
+  toggle: (filters) => ({ ...filters, wantLoft: !filters.wantLoft }),
+};
+
+const FEMALE_FILTER: SearchQuickFilterDefinition = {
+  ...GENDER_META.female,
+  isActive: (filters) => filters.pref === "female",
+  toggle: (filters) => ({ ...filters, pref: filters.pref === "female" ? null : "female" }),
+};
+
+const MALE_FILTER: SearchQuickFilterDefinition = {
+  ...GENDER_META.male,
+  isActive: (filters) => filters.pref === "male",
+  toggle: (filters) => ({ ...filters, pref: filters.pref === "male" ? null : "male" }),
+};
+
+const PRIVATE_BATHROOM_FILTER: SearchQuickFilterDefinition = {
+  ...PRIVATE_BATHROOM_META,
+  isActive: (filters) => filters.tags.includes("baño-privado"),
+  toggle: (filters) => withTagToggle(filters, "baño-privado"),
+};
+
+const PRIVATE_PARKING_FILTER: SearchQuickFilterDefinition = {
+  ...PRIVATE_PARKING_META,
+  isActive: (filters) => filters.tags.includes("estacionamiento"),
+  toggle: (filters) => withTagToggle(filters, "estacionamiento"),
+};
+
+const FURNISHED_FILTER: SearchQuickFilterDefinition = {
+  ...FURNISHED_META,
+  isActive: (filters) => filters.tags.includes("muebles"),
+  toggle: (filters) => withTagToggle(filters, "muebles"),
+};
+
+export const MOBILE_MAP_QUICK_FILTERS: readonly SearchQuickFilterDefinition[] = [
+  PRIVATE_ROOM_FILTER,
+  LOFT_FILTER,
+  FEMALE_FILTER,
+  MALE_FILTER,
+  PRIVATE_BATHROOM_FILTER,
+  PRIVATE_PARKING_FILTER,
+  FURNISHED_FILTER,
+] as const;
+
 export const MAP_QUICK_FILTERS: readonly SearchQuickFilterDefinition[] = [
   {
-    ...ROOM_TYPE_META.private_room,
-    isActive: (filters) => filters.lodgingType === "private_room",
-    toggle: (filters) => ({
-      ...filters,
-      lodgingType: filters.lodgingType === "private_room" ? null : "private_room",
-    }),
+    ...PRIVATE_ROOM_FILTER,
   },
   {
-    ...GENDER_META.female,
-    isActive: (filters) => filters.pref === "female",
-    toggle: (filters) => ({ ...filters, pref: filters.pref === "female" ? null : "female" }),
+    ...FEMALE_FILTER,
   },
   {
-    ...PRIVATE_BATHROOM_META,
-    isActive: (filters) => filters.tags.includes("baño-privado"),
-    toggle: (filters) => withTagToggle(filters, "baño-privado"),
+    ...PRIVATE_BATHROOM_FILTER,
   },
   {
-    ...PRIVATE_PARKING_META,
-    isActive: (filters) => filters.tags.includes("estacionamiento"),
-    toggle: (filters) => withTagToggle(filters, "estacionamiento"),
+    ...PRIVATE_PARKING_FILTER,
   },
   {
-    ...FURNISHED_META,
-    isActive: (filters) => filters.tags.includes("muebles"),
-    toggle: (filters) => withTagToggle(filters, "muebles"),
+    ...FURNISHED_FILTER,
   },
 ] as const;
 
@@ -167,6 +226,8 @@ export function listingCardQuickAttributes(listing: PropertyListing): SearchQuic
 
   if (listing.roommateGenderPref === "female") {
     items.push(GENDER_META.female);
+  } else if (listing.roommateGenderPref === "male") {
+    items.push(GENDER_META.male);
   } else if (listing.roommateGenderPref === "any") {
     items.push(GENDER_META.any);
   }

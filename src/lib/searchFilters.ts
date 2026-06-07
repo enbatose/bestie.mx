@@ -153,6 +153,7 @@ function matchesPref(listing: PropertyListing, pref: RoommateGenderPref | null) 
 }
 
 function matchesAge(listing: PropertyListing, age: number | null, ageMin: number | null, ageMax: number | null) {
+  if (age == null && ageMin == null && ageMax == null) return true;
   if (age != null) {
     return listing.ageMin <= age && listing.ageMax >= age;
   }
@@ -167,19 +168,17 @@ function matchesHospedaje(
   wantRecamara: boolean,
   lodgingType: LodgingType | null,
 ): boolean {
-  if (lodgingType != null) {
-    if (listing.lodgingType == null) return true;
-    if (listing.lodgingType !== lodgingType) return false;
-  }
-  if (!wantLoft && !wantRecamara) return true;
   const isLoft = listing.propertyKind === "loft";
   const isRecamara =
     listing.lodgingType === "private_room" ||
     listing.lodgingType === "shared_room" ||
     (listing.lodgingType == null && listing.propertyPostMode !== "room");
-  if (wantLoft && wantRecamara) return isLoft || isRecamara;
-  if (wantLoft) return isLoft;
-  return isRecamara;
+  const matchesSelectedLodging =
+    lodgingType == null ? false : listing.lodgingType == null ? true : listing.lodgingType === lodgingType;
+
+  if (!wantLoft && !wantRecamara && lodgingType == null) return true;
+
+  return [wantLoft && isLoft, wantRecamara && isRecamara, matchesSelectedLodging].some(Boolean);
 }
 
 function isAvailableForSearch(listing: PropertyListing): boolean {
