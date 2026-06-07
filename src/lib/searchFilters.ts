@@ -121,7 +121,7 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
 
 export function filtersToParams(f: SearchFilters): URLSearchParams {
   const p = new URLSearchParams();
-  if (f.q) p.set("q", f.q);
+  p.set("q", f.q);
   if (f.budgetMin != null) p.set("min", String(f.budgetMin));
   if (f.budgetMax != null) p.set("max", String(f.budgetMax));
   if (f.tags.length) p.set("tags", f.tags.join(","));

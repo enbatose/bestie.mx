@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
@@ -12,7 +12,6 @@ import {
   GUADALAJARA_LA_MINERVA_CENTER,
   GUADALAJARA_LA_MINERVA_ZOOM,
   isDefaultSearchCity,
-  withDefaultSearchCity,
 } from "@/lib/searchDefaults";
 import {
   filterListings,
@@ -25,14 +24,53 @@ import {
 } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
+function bboxEquals(a: Bbox | null, b: Bbox | null) {
+  if (a == null && b == null) return true;
+  if (a == null || b == null) return false;
+  return (
+    a.minLat === b.minLat &&
+    a.minLng === b.minLng &&
+    a.maxLat === b.maxLat &&
+    a.maxLng === b.maxLng
+  );
+}
+
+function dominantCity(listings: PropertyListing[]) {
+  const counts = new Map<string, number>();
+  listings.forEach((listing) => {
+    const city = listing.city.trim();
+    if (!city) return;
+    counts.set(city, (counts.get(city) ?? 0) + 1);
+  });
+  let bestCity: string | null = null;
+  let bestCount = 0;
+  counts.forEach((count, city) => {
+    if (count > bestCount) {
+      bestCity = city;
+      bestCount = count;
+    }
+  });
+  return bestCity;
+}
+
+function listingsInBbox(listings: PropertyListing[], bbox: Bbox | null) {
+  if (bbox == null) return listings;
+  return listings.filter(
+    (listing) =>
+      listing.lat >= bbox.minLat &&
+      listing.lat <= bbox.maxLat &&
+      listing.lng >= bbox.minLng &&
+      listing.lng <= bbox.maxLng,
+  );
+}
+
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
-  const normalizedFilters = useMemo(
-    () => ({ ...filters, q: withDefaultSearchCity(filters.q) }),
-    [filters],
-  );
+  const normalizedFilters = useMemo(() => filters, [filters]);
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
+  const locationClearedRef = useRef(false);
+  const clearedBboxRef = useRef<Bbox | null>(null);
 
   const apiOn = isListingsApiConfigured();
   const [apiListings, setApiListings] = useState<PropertyListing[] | undefined>(undefined);
@@ -67,10 +105,20 @@ export function SearchPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const isGuadalajaraSearch = isDefaultSearchCity(normalizedFilters.q);
+  const isGuadalajaraSearch = searchParams.has("q")
+    ? isDefaultSearchCity(normalizedFilters.q)
+    : true;
+  const locationSourceListings = useMemo(
+    () => (apiOn ? (apiListings ?? []) : SEED_LISTINGS),
+    [apiOn, apiListings],
+  );
+  const bboxScopedLocationListings = useMemo(
+    () => listingsInBbox(locationSourceListings, filters.bbox),
+    [filters.bbox, locationSourceListings],
+  );
 
   useEffect(() => {
-    if (searchParams.get("q")?.trim()) return;
+    if (searchParams.has("q")) return;
     setSearchParams(
       (prev) => {
         const nextFilters = parseFilters(new URLSearchParams(prev));
@@ -92,7 +140,9 @@ export function SearchPage() {
   }, [filtered, isGuadalajaraSearch]);
 
   function applyFilters(next: SearchFilters) {
-    setSearchParams(filtersToParams({ ...next, q: withDefaultSearchCity(next.q) }), { replace: true });
+    locationClearedRef.current = next.q.trim() === "";
+    clearedBboxRef.current = next.q.trim() === "" ? next.bbox : null;
+    setSearchParams(filtersToParams(next), { replace: true });
   }
 
   const clearFilters = useCallback(() => {
@@ -116,6 +166,30 @@ export function SearchPage() {
     },
     [setSearchParams],
   );
+
+  useEffect(() => {
+    if (!locationClearedRef.current) return;
+    if (filters.q.trim() !== "") {
+      locationClearedRef.current = false;
+      clearedBboxRef.current = null;
+      return;
+    }
+    if (bboxEquals(filters.bbox, clearedBboxRef.current)) return;
+    if (apiOn && apiListings === undefined) return;
+
+    const detectedCity = dominantCity(bboxScopedLocationListings);
+    if (!detectedCity) return;
+
+    locationClearedRef.current = false;
+    clearedBboxRef.current = null;
+    setSearchParams(
+      (prev) => {
+        const nextFilters = parseFilters(new URLSearchParams(prev));
+        return filtersToParams({ ...nextFilters, q: detectedCity });
+      },
+      { replace: true },
+    );
+  }, [apiListings, apiOn, bboxScopedLocationListings, filters.bbox, filters.q, setSearchParams]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">

@@ -1,5 +1,5 @@
-import { Filter } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { ChevronDown, Filter, Search, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
@@ -39,6 +39,10 @@ function highestVisibleRent(listings: PropertyListing[]) {
   return listings.reduce((max, listing) => Math.max(max, listing.rentMxn), 0);
 }
 
+function normalizeLocationText(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 function formatRentCompact(value: number) {
   if (value < 1000) return String(value);
   const compact = value / 1000;
@@ -54,16 +58,29 @@ export function SearchTopBar({
   onClearFilters,
   hasActiveFilters,
 }: Props) {
-  const locationListId = useId();
+  const locationInputId = useId();
+  const mobileLocationMenuId = useId();
+  const desktopLocationMenuId = useId();
   const locationOptions = useMemo(() => uniqueLocationOptions(listings), [listings]);
   const maxVisibleRent = useMemo(() => highestVisibleRent(listings), [listings]);
   const displayedRent = filters.budgetMax ?? (maxVisibleRent > 0 ? maxVisibleRent : null);
   const displayedAge = filters.age;
+  const [locationInput, setLocationInput] = useState(filters.q);
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [rentFocused, setRentFocused] = useState(false);
   const [rentInput, setRentInput] = useState(
     displayedRent == null ? "" : formatRentCompact(displayedRent),
   );
   const [ageInput, setAgeInput] = useState(displayedAge == null ? "" : String(displayedAge));
+  const locationCloseTimerRef = useRef<number | null>(null);
+
+  const filteredLocationOptions = useMemo(() => {
+    const query = normalizeLocationText(locationInput.trim());
+    const matches = query
+      ? locationOptions.filter((option) => normalizeLocationText(option).includes(query))
+      : locationOptions;
+    return matches.slice(0, 12);
+  }, [locationInput, locationOptions]);
 
   useEffect(() => {
     setRentInput(displayedRent == null ? "" : rentFocused ? String(displayedRent) : formatRentCompact(displayedRent));
@@ -72,6 +89,149 @@ export function SearchTopBar({
   useEffect(() => {
     setAgeInput(displayedAge == null ? "" : String(displayedAge));
   }, [displayedAge]);
+
+  useEffect(() => {
+    setLocationInput(filters.q);
+  }, [filters.q]);
+
+  useEffect(() => {
+    return () => {
+      if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
+    };
+  }, []);
+
+  function applyLocationQuery(nextQ: string) {
+    onChange({
+      ...filters,
+      q: nextQ,
+    });
+  }
+
+  function handleLocationInputChange(nextValue: string) {
+    setLocationInput(nextValue);
+    setLocationMenuOpen(true);
+    applyLocationQuery(nextValue);
+  }
+
+  function handleLocationSelect(nextValue: string) {
+    if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
+    setLocationInput(nextValue);
+    setLocationMenuOpen(false);
+    applyLocationQuery(nextValue);
+  }
+
+  function handleLocationClear() {
+    if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
+    setLocationInput("");
+    setLocationMenuOpen(false);
+    applyLocationQuery("");
+  }
+
+  function scheduleLocationMenuClose() {
+    if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
+    locationCloseTimerRef.current = window.setTimeout(() => {
+      setLocationMenuOpen(false);
+      locationCloseTimerRef.current = null;
+    }, 120);
+  }
+
+  function openLocationMenu() {
+    if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
+    setLocationMenuOpen(true);
+  }
+
+  function renderLocationField(mobile: boolean) {
+    const locationMenuId = mobile ? mobileLocationMenuId : desktopLocationMenuId;
+    const showLocationMenu = locationMenuOpen;
+    const inputShellClass = mobile
+      ? "h-14 rounded-[1.2rem] border border-primary/15 bg-surface pl-4 pr-24 shadow-sm ring-primary/30 focus-within:ring-2"
+      : "rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+    const inputClass = mobile
+      ? "h-full w-full bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
+      : "h-11 w-full bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
+    const menuClass = mobile
+      ? "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[1.1rem] border border-primary/15 bg-surface shadow-xl"
+      : "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-primary/20 bg-surface shadow-xl";
+    const optionClass = mobile
+      ? "w-full px-4 py-3 text-left text-sm font-medium text-body transition hover:bg-bg-light"
+      : "w-full px-3 py-2.5 text-left text-sm font-medium text-body transition hover:bg-bg-light";
+
+    return (
+      <div className="relative" onFocus={openLocationMenu} onBlur={scheduleLocationMenuClose}>
+        <div className={inputShellClass}>
+          <input
+            id={mobile ? "mobile-search-location" : locationInputId}
+            type="text"
+            value={locationInput}
+            onChange={(e) => handleLocationInputChange(e.target.value)}
+            onFocus={openLocationMenu}
+            placeholder="Ciudad o colonia"
+            autoComplete="off"
+            spellCheck={false}
+            className={inputClass}
+            aria-autocomplete="list"
+            aria-controls={locationMenuId}
+            aria-expanded={showLocationMenu}
+          />
+          <div className="absolute inset-y-0 right-3 flex items-center gap-1.5">
+            {locationInput.length ? (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleLocationClear}
+                className="inline-flex size-7 items-center justify-center rounded-full text-body transition hover:bg-bg-light"
+                aria-label="Borrar ubicación"
+              >
+                <X className="size-4" aria-hidden="true" strokeWidth={2.5} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setLocationMenuOpen((current) => !current)}
+              className="inline-flex size-7 items-center justify-center rounded-full text-body transition hover:bg-bg-light"
+              aria-label={showLocationMenu ? "Ocultar sugerencias" : "Mostrar sugerencias"}
+            >
+              <ChevronDown
+                className={`size-4 transition-transform duration-200 ${showLocationMenu ? "rotate-180" : ""}`}
+                aria-hidden="true"
+                strokeWidth={2.5}
+              />
+            </button>
+            <span className="pointer-events-none inline-flex size-7 items-center justify-center text-primary/65" aria-hidden>
+              <Search className={mobile ? "size-6" : "size-5"} strokeWidth={2.2} />
+            </span>
+          </div>
+        </div>
+
+        {showLocationMenu ? (
+          <div id={locationMenuId} className={menuClass} role="listbox" aria-label="Opciones de ubicación">
+            <div className="max-h-56 overflow-y-auto overscroll-contain py-1">
+              {filteredLocationOptions.length ? (
+                filteredLocationOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="option"
+                    aria-selected={locationInput === option}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleLocationSelect(option)}
+                    className={optionClass}
+                  >
+                    {option}
+                  </button>
+                ))
+              ) : (
+                <div className={mobile ? "px-4 py-3 text-sm text-muted" : "px-3 py-2.5 text-sm text-muted"}>
+                  Sin coincidencias. Sigue escribiendo o ajusta el mapa.
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   function setBudgetMax(nextBudgetMax: number | null) {
     onChange({
@@ -149,35 +309,7 @@ export function SearchTopBar({
             <label className="sr-only" htmlFor="mobile-search-location">
               Ciudad o colonia
             </label>
-            <div className="relative">
-              <input
-                id="mobile-search-location"
-                type="search"
-                list={locationListId}
-                value={filters.q}
-                onChange={(e) => onChange({ ...filters, q: e.target.value })}
-                placeholder="Ciudad o colonia"
-                className="h-14 w-full rounded-[1.2rem] border border-primary/15 bg-surface px-4 pr-12 text-[1.35rem] font-semibold tracking-[-0.02em] text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-              />
-              <span
-                className="pointer-events-none absolute inset-y-0 right-4 inline-flex items-center text-primary/65"
-                aria-hidden
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
-                  />
-                  <path strokeWidth="2" strokeLinecap="round" d="M16.2 16.2 21 21" />
-                </svg>
-              </span>
-            </div>
-            <datalist id={locationListId}>
-              {locationOptions.map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
+            {renderLocationField(true)}
 
             <div className="grid grid-cols-2 gap-2.5">
               <div className="grid rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
@@ -301,28 +433,7 @@ export function SearchTopBar({
           <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
             Ubicación
           </label>
-          <div className="mt-1 flex items-stretch gap-2">
-            <input
-              type="search"
-              value={filters.q}
-              onChange={(e) => onChange({ ...filters, q: e.target.value })}
-              placeholder="Ciudad, colonia…"
-              className="w-full min-w-0 rounded-lg border border-primary/20 bg-surface px-3 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            />
-            <span
-              className="inline-flex shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-surface px-3 text-primary/70"
-              aria-hidden
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
-                />
-                <path strokeWidth="2" strokeLinecap="round" d="M16.2 16.2 21 21" />
-              </svg>
-            </span>
-          </div>
+          <div className="mt-1">{renderLocationField(false)}</div>
         </div>
 
         <label className="block min-w-0">
