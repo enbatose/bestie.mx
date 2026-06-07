@@ -111,24 +111,14 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
             );
           })}
 
-          <div className="mt-1 pt-2">
-            <div
-              className={`flex items-center transition-[width,opacity,margin] duration-200 ease-out ${
-                mobileExpanded ? "mb-2 ml-2 w-[8rem] opacity-100" : "mb-0 ml-0 w-0 opacity-0"
-              }`}
-              aria-hidden="true"
-            >
-              <span className="h-px w-3 rounded-full bg-primary/30" />
-              <span className="ml-1 h-px w-3 rounded-full bg-primary/30" />
-              <span className="ml-1 h-px w-3 rounded-full bg-primary/30" />
-            </div>
+          <div>
             <div className="flex items-center">
               <button
                 type="button"
                 title={ADVANCED_FILTERS_META.tooltip}
                 aria-label={ADVANCED_FILTERS_META.tooltip}
                 onClick={onOpenAdvanced}
-                className={railBtnClass(false)}
+                className="pointer-events-auto inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-primary bg-surface/95 text-body shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 hover:bg-surface"
               >
                 <Filter className="size-[0.95rem]" aria-hidden="true" />
               </button>
