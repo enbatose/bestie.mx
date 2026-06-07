@@ -15,7 +15,7 @@ type Props = {
 
 const MOBILE_FILTER_RAIL_SEEN_KEY = "bestie:mobile-search-filter-rail-seen";
 const MOBILE_RAIL_AUTO_COLLAPSE_DELAY_MS = 10_000;
-const MOBILE_RAIL_COLLAPSE_HINT_MS = 1_000;
+const MOBILE_RAIL_COLLAPSE_HINT_MS = 1_800;
 
 function getMobileRailDefaultExpanded() {
   if (typeof window === "undefined") return true;
@@ -111,7 +111,16 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
             );
           })}
 
-          <div className="mt-1 border-t border-border/80 pt-2">
+          <div className="mt-2 rounded-[1.35rem] border border-white/40 bg-surface/58 px-1.5 py-2 shadow-sm ring-1 ring-primary/10">
+            <div className="mb-2 px-1">
+              <span
+                className={`overflow-hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/55 transition-[width,opacity,margin] duration-200 ease-out ${
+                  mobileExpanded ? "ml-2 w-[8rem] opacity-100" : "ml-0 w-0 opacity-0"
+                }`}
+              >
+                Más opciones
+              </span>
+            </div>
             <div className="flex items-center">
               <button
                 type="button"
@@ -143,11 +152,11 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                 rx="14"
                 ry="14"
                 fill="none"
-                stroke="#d9f99d"
-                strokeWidth="2"
+                stroke="#ecfccb"
+                strokeWidth="3"
                 pathLength="1"
-                strokeDasharray="0.16 0.84"
-                className="animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
+                strokeDasharray="0.22 0.78"
+                className="animate-[autosave-ring-travel_1.8s_linear_forwards]"
               />
             </svg>
           ) : null}
