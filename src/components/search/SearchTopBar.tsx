@@ -1,3 +1,4 @@
+import { Filter } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
@@ -179,9 +180,9 @@ export function SearchTopBar({
             </datalist>
 
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
+              <div className="grid rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
+                <div className="flex min-h-[1rem] items-center gap-2">
+                  <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em] text-primary/75">
                     PRECIO RENTA MÁX.
                   </span>
                 </div>
@@ -225,10 +226,12 @@ export function SearchTopBar({
                 </div>
               </div>
 
-              <div className="rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75">
-                  Edad
-                </span>
+              <div className="grid rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
+                <div className="flex min-h-[1rem] items-center gap-2">
+                  <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em] text-primary/75">
+                    Edad
+                  </span>
+                </div>
                 <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                   <button
                     type="button"
@@ -271,12 +274,10 @@ export function SearchTopBar({
               <button
                 type="button"
                 onClick={onOpenAdvanced}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-[1.1rem] border border-primary/20 bg-surface px-3.5 text-[0.95rem] font-semibold text-primary shadow-sm transition hover:border-primary/35"
+                className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-[1.1rem] border border-primary/20 bg-surface px-3 text-[0.92rem] font-semibold text-primary shadow-sm transition hover:border-primary/35"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                  <path strokeWidth="2" strokeLinecap="round" d="M4 7h16M7 12h10M10 17h4" />
-                </svg>
-                Filtros avanzados
+                <Filter className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.2} />
+                Más filtros
               </button>
 
               <button

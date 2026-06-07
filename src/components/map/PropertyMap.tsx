@@ -206,7 +206,7 @@ export function PropertyMap({
     : `overflow-hidden rounded-2xl border border-border shadow-sm ${className}`;
 
   const mapHeight = embed
-    ? "z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]"
+    ? "z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px] max-sm:[&_.leaflet-top.leaflet-left]:left-auto max-sm:[&_.leaflet-top.leaflet-left]:right-3 max-sm:[&_.leaflet-top.leaflet-left]:top-auto max-sm:[&_.leaflet-top.leaflet-left]:bottom-3 max-sm:[&_.leaflet-top.leaflet-left_.leaflet-control]:m-0"
     : "z-0 h-[min(52vh,420px)] w-full min-h-[280px] bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]";
 
   return (
