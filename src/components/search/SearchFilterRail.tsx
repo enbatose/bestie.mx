@@ -14,7 +14,7 @@ type Props = {
 };
 
 const MOBILE_FILTER_RAIL_SEEN_KEY = "bestie:mobile-search-filter-rail-seen";
-const MOBILE_RAIL_AUTO_COLLAPSE_DELAY_MS = 10_000;
+const MOBILE_RAIL_AUTO_COLLAPSE_TOTAL_MS = 7_000;
 const MOBILE_RAIL_COLLAPSE_HINT_MS = 1_800;
 
 function getMobileRailDefaultExpanded() {
@@ -69,7 +69,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
         setShowCollapseHint(false);
         setMobileExpanded(false);
       }, MOBILE_RAIL_COLLAPSE_HINT_MS);
-    }, MOBILE_RAIL_AUTO_COLLAPSE_DELAY_MS);
+    }, Math.max(0, MOBILE_RAIL_AUTO_COLLAPSE_TOTAL_MS - MOBILE_RAIL_COLLAPSE_HINT_MS));
 
     return () => {
       if (mobileRailHintTimerRef.current != null) window.clearTimeout(mobileRailHintTimerRef.current);
@@ -111,15 +111,16 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
             );
           })}
 
-          <div className="mt-2 rounded-[1.35rem] border border-white/40 bg-surface/58 px-1.5 py-2 shadow-sm ring-1 ring-primary/10">
-            <div className="mb-2 px-1">
-              <span
-                className={`overflow-hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/55 transition-[width,opacity,margin] duration-200 ease-out ${
-                  mobileExpanded ? "ml-2 w-[8rem] opacity-100" : "ml-0 w-0 opacity-0"
-                }`}
-              >
-                Más opciones
-              </span>
+          <div className="mt-1 pt-2">
+            <div
+              className={`flex items-center transition-[width,opacity,margin] duration-200 ease-out ${
+                mobileExpanded ? "mb-2 ml-2 w-[8rem] opacity-100" : "mb-0 ml-0 w-0 opacity-0"
+              }`}
+              aria-hidden="true"
+            >
+              <span className="h-px w-3 rounded-full bg-primary/30" />
+              <span className="ml-1 h-px w-3 rounded-full bg-primary/30" />
+              <span className="ml-1 h-px w-3 rounded-full bg-primary/30" />
             </div>
             <div className="flex items-center">
               <button
@@ -152,11 +153,11 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                 rx="14"
                 ry="14"
                 fill="none"
-                stroke="#ecfccb"
-                strokeWidth="3"
+                stroke="#065f46"
+                strokeWidth="3.25"
                 pathLength="1"
                 strokeDasharray="0.22 0.78"
-                className="animate-[autosave-ring-travel_1.8s_linear_forwards]"
+                className="animate-[autosave-ring-travel_1.8s_linear_forwards] drop-shadow-[0_0_8px_rgba(6,95,70,0.55)]"
               />
             </svg>
           ) : null}
