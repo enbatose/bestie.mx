@@ -64,10 +64,14 @@ function listingsInBbox(listings: PropertyListing[], bbox: Bbox | null) {
   );
 }
 
+function stripLocationPrefix(value: string) {
+  return value.replace(/^[A-Z]{3}\s-\s/, "").trim();
+}
+
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
-  const normalizedFilters = useMemo(() => filters, [filters]);
+  const normalizedFilters = useMemo(() => ({ ...filters, q: stripLocationPrefix(filters.q) }), [filters]);
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
   const locationClearedRef = useRef(false);
   const clearedBboxRef = useRef<Bbox | null>(null);

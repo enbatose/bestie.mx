@@ -6,6 +6,7 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "@/types/listing";
+import { DEFAULT_SEARCH_CITY } from "@/lib/searchDefaults";
 import { LISTING_TAG_SLUGS, utilitiesBundleSatisfied } from "@/lib/listingTags";
 
 export type Bbox = {
@@ -366,11 +367,11 @@ export function hasActiveSearchFilters(f: SearchFilters): boolean {
   );
 }
 
-/** Reset filters while preserving location query and current map viewport. */
+/** Reset filters and return the user to the default search city. */
 export function resetSearchFilters(current: SearchFilters): SearchFilters {
   return {
     ...DEFAULT_SEARCH_FILTERS,
-    q: current.q,
-    bbox: current.bbox,
+    q: DEFAULT_SEARCH_CITY,
+    bbox: null,
   };
 }

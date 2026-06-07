@@ -1,5 +1,6 @@
 import { ChevronDown, Filter, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { DEFAULT_SEARCH_CITY } from "@/lib/searchDefaults";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
@@ -12,6 +13,13 @@ type Props = {
   hasActiveFilters: boolean;
 };
 
+type LocationOption = {
+  key: string;
+  label: string;
+  value: string;
+  searchText: string;
+};
+
 const DEFAULT_MOBILE_AGE = 27;
 const MIN_AGE = 16;
 const MAX_AGE = 99;
@@ -19,20 +27,6 @@ const RENT_STEP = 100;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
-}
-
-function uniqueLocationOptions(listings: PropertyListing[]): string[] {
-  const cities = new Set<string>();
-  const neighborhoods = new Set<string>();
-
-  listings.forEach((listing) => {
-    const city = listing.city.trim();
-    const neighborhood = listing.neighborhood.trim();
-    if (city) cities.add(city);
-    if (neighborhood) neighborhoods.add(neighborhood);
-  });
-
-  return [...cities, ...neighborhoods].sort((a, b) => a.localeCompare(b, "es-MX"));
 }
 
 function highestVisibleRent(listings: PropertyListing[]) {
@@ -76,6 +70,46 @@ function locationOptionMatchesQuery(option: string, query: string) {
   return queryTokens.every((token) => optionTokens.some((optionToken) => optionToken.includes(token)));
 }
 
+const CITY_ABBREVIATIONS: Record<string, string> = {
+  guadalajara: "GDL",
+  merida: "MID",
+  "puerto vallarta": "PVR",
+  sayulita: "SAY",
+  bucerias: "BUC",
+};
+
+function cityAbbreviation(city: string) {
+  const normalized = normalizeLocationText(city);
+  return CITY_ABBREVIATIONS[normalized] ?? normalized.replace(/[^a-z]/g, "").slice(0, 3).toUpperCase();
+}
+
+function uniqueLocationOptions(listings: PropertyListing[]): LocationOption[] {
+  const options = new Map<string, LocationOption>();
+
+  listings.forEach((listing) => {
+    const city = listing.city.trim();
+    const neighborhood = listing.neighborhood.trim();
+    if (city && !options.has(`city:${city}`)) {
+      options.set(`city:${city}`, {
+        key: `city:${city}`,
+        label: city,
+        value: city,
+        searchText: city,
+      });
+    }
+    if (city && neighborhood && !options.has(`neighborhood:${city}:${neighborhood}`)) {
+      options.set(`neighborhood:${city}:${neighborhood}`, {
+        key: `neighborhood:${city}:${neighborhood}`,
+        label: `${cityAbbreviation(city)} - ${neighborhood}`,
+        value: `${cityAbbreviation(city)} - ${neighborhood}`,
+        searchText: `${city} ${neighborhood}`,
+      });
+    }
+  });
+
+  return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, "es-MX"));
+}
+
 function formatRentCompact(value: number) {
   if (value < 1000) return String(value);
   const compact = value / 1000;
@@ -109,7 +143,9 @@ export function SearchTopBar({
   const locationCloseTimerRef = useRef<number | null>(null);
 
   const filteredLocationOptions = useMemo(() => {
-    const matches = locationOptionsSnapshot.filter((option) => locationOptionMatchesQuery(option, locationInput));
+    const matches = locationOptionsSnapshot.filter((option) =>
+      locationOptionMatchesQuery(`${option.label} ${option.searchText}`, locationInput),
+    );
     return matches.slice(0, 12);
   }, [locationInput, locationOptionsSnapshot]);
 
@@ -127,7 +163,11 @@ export function SearchTopBar({
 
   useEffect(() => {
     if (!locationOptions.length) return;
-    if (!locationOptionsSnapshot.length || filters.q.trim() === "") {
+    if (
+      !locationOptionsSnapshot.length ||
+      filters.q.trim() === "" ||
+      normalizeLocationText(filters.q) === normalizeLocationText(DEFAULT_SEARCH_CITY)
+    ) {
       setLocationOptionsSnapshot(locationOptions);
     }
   }, [filters.q, locationOptions, locationOptionsSnapshot.length]);
@@ -160,9 +200,9 @@ export function SearchTopBar({
 
   function handleLocationClear() {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
-    setLocationInput("");
+    setLocationInput(DEFAULT_SEARCH_CITY);
     setLocationMenuOpen(false);
-    applyLocationQuery("");
+    applyLocationQuery(DEFAULT_SEARCH_CITY);
   }
 
   function scheduleLocationMenuClose() {
@@ -248,15 +288,15 @@ export function SearchTopBar({
               {filteredLocationOptions.length ? (
                 filteredLocationOptions.map((option) => (
                   <button
-                    key={option}
+                    key={option.key}
                     type="button"
                     role="option"
-                    aria-selected={locationInput === option}
+                    aria-selected={locationInput === option.value}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleLocationSelect(option)}
+                    onClick={() => handleLocationSelect(option.value)}
                     className={optionClass}
                   >
-                    {option}
+                    {option.label}
                   </button>
                 ))
               ) : (
