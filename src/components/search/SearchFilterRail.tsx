@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Filter } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import {
   ADVANCED_FILTERS_META,
   MAP_QUICK_FILTERS,
@@ -13,6 +14,8 @@ type Props = {
 };
 
 const MOBILE_FILTER_RAIL_SEEN_KEY = "bestie:mobile-search-filter-rail-seen";
+const MOBILE_RAIL_AUTO_COLLAPSE_DELAY_MS = 10_000;
+const MOBILE_RAIL_COLLAPSE_HINT_MS = 1_000;
 
 function getMobileRailDefaultExpanded() {
   if (typeof window === "undefined") return true;
@@ -34,7 +37,12 @@ const railBtnClass = (active: boolean) =>
 
 export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
   const [mobileExpanded, setMobileExpanded] = useState(getMobileRailDefaultExpanded);
+  const [showCollapseHint, setShowCollapseHint] = useState(false);
   const AdvancedIcon = ADVANCED_FILTERS_META.icon;
+  const initialMobileExpandedRef = useRef(mobileExpanded);
+  const mobileRailInteractedRef = useRef(false);
+  const mobileRailHintTimerRef = useRef<number | null>(null);
+  const mobileRailCollapseTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -47,9 +55,31 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!initialMobileExpandedRef.current) return;
+    if (!window.matchMedia("(max-width: 639px)").matches) return;
+
+    mobileRailHintTimerRef.current = window.setTimeout(() => {
+      if (mobileRailInteractedRef.current) return;
+      setShowCollapseHint(true);
+
+      mobileRailCollapseTimerRef.current = window.setTimeout(() => {
+        if (mobileRailInteractedRef.current) return;
+        setShowCollapseHint(false);
+        setMobileExpanded(false);
+      }, MOBILE_RAIL_COLLAPSE_HINT_MS);
+    }, MOBILE_RAIL_AUTO_COLLAPSE_DELAY_MS);
+
+    return () => {
+      if (mobileRailHintTimerRef.current != null) window.clearTimeout(mobileRailHintTimerRef.current);
+      if (mobileRailCollapseTimerRef.current != null) window.clearTimeout(mobileRailCollapseTimerRef.current);
+    };
+  }, []);
+
   return (
     <aside
-      className="pointer-events-none absolute left-2 top-20 z-[1100] sm:left-3 sm:top-24"
+      className="pointer-events-none absolute left-2 top-3 z-[1100] sm:left-3 sm:top-24"
       aria-label="Filtros rápidos"
     >
       <div className="pointer-events-auto flex items-start gap-0.5 sm:hidden">
@@ -90,37 +120,63 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                 onClick={onOpenAdvanced}
                 className={railBtnClass(false)}
               >
-                <AdvancedIcon className="size-[0.95rem]" aria-hidden="true" />
+                <Filter className="size-[0.95rem]" aria-hidden="true" />
               </button>
               <span
                 className={`overflow-hidden text-[11px] font-semibold leading-tight text-body transition-[width,opacity,margin] duration-200 ease-out ${
                   mobileExpanded ? "ml-2 w-[8rem] opacity-100" : "ml-0 w-0 opacity-0"
                 }`}
               >
-                {ADVANCED_FILTERS_META.mobileLabel ?? ADVANCED_FILTERS_META.label}
+                Más Filtros
               </span>
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setMobileExpanded((current) => !current)}
-          aria-label={mobileExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
-          aria-expanded={mobileExpanded}
-          className="mt-3 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            className={`transition-transform duration-200 ${mobileExpanded ? "" : "rotate-180"}`}
-            aria-hidden
+        <div className="relative mt-3">
+          {showCollapseHint ? (
+            <svg className="pointer-events-none absolute -inset-1 z-10" viewBox="0 0 44 52" aria-hidden>
+              <rect
+                x="1.5"
+                y="1.5"
+                width="41"
+                height="49"
+                rx="14"
+                ry="14"
+                fill="none"
+                stroke="#d9f99d"
+                strokeWidth="2"
+                pathLength="1"
+                strokeDasharray="0.16 0.84"
+                className="animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
+              />
+            </svg>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              mobileRailInteractedRef.current = true;
+              if (mobileRailHintTimerRef.current != null) window.clearTimeout(mobileRailHintTimerRef.current);
+              if (mobileRailCollapseTimerRef.current != null) window.clearTimeout(mobileRailCollapseTimerRef.current);
+              setShowCollapseHint(false);
+              setMobileExpanded((current) => !current);
+            }}
+            aria-label={mobileExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
+            aria-expanded={mobileExpanded}
+            className="relative z-20 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
           >
-            <path strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" d="m14 6-6 6 6 6" />
-          </svg>
-        </button>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              className={`transition-transform duration-200 ${mobileExpanded ? "" : "rotate-180"}`}
+              aria-hidden
+            >
+              <path strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" d="m14 6-6 6 6 6" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="hidden sm:flex sm:flex-col sm:gap-2 sm:rounded-2xl sm:bg-surface/92 sm:p-2.5 sm:shadow-lg sm:ring-1 sm:ring-border sm:backdrop-blur">
