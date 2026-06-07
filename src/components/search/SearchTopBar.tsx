@@ -43,6 +43,39 @@ function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+const LOCATION_STOP_WORDS = new Set([
+  "colonia",
+  "col",
+  "barrio",
+  "fracc",
+  "fraccionamiento",
+  "zona",
+  "de",
+  "del",
+  "la",
+  "el",
+]);
+
+function locationTokens(value: string) {
+  return normalizeLocationText(value)
+    .split(/[\s,.-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0 && !LOCATION_STOP_WORDS.has(token));
+}
+
+function locationOptionMatchesQuery(option: string, query: string) {
+  const normalizedOption = normalizeLocationText(option);
+  const normalizedQuery = normalizeLocationText(query.trim());
+  if (!normalizedQuery) return true;
+  if (normalizedOption.includes(normalizedQuery)) return true;
+
+  const optionTokens = locationTokens(option);
+  const queryTokens = locationTokens(query);
+  if (!queryTokens.length) return normalizedOption.includes(normalizedQuery);
+
+  return queryTokens.every((token) => optionTokens.some((optionToken) => optionToken.includes(token)));
+}
+
 function formatRentCompact(value: number) {
   if (value < 1000) return String(value);
   const compact = value / 1000;
@@ -67,6 +100,7 @@ export function SearchTopBar({
   const displayedAge = filters.age;
   const [locationInput, setLocationInput] = useState(filters.q);
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [locationOptionsSnapshot, setLocationOptionsSnapshot] = useState(locationOptions);
   const [rentFocused, setRentFocused] = useState(false);
   const [rentInput, setRentInput] = useState(
     displayedRent == null ? "" : formatRentCompact(displayedRent),
@@ -75,12 +109,9 @@ export function SearchTopBar({
   const locationCloseTimerRef = useRef<number | null>(null);
 
   const filteredLocationOptions = useMemo(() => {
-    const query = normalizeLocationText(locationInput.trim());
-    const matches = query
-      ? locationOptions.filter((option) => normalizeLocationText(option).includes(query))
-      : locationOptions;
+    const matches = locationOptionsSnapshot.filter((option) => locationOptionMatchesQuery(option, locationInput));
     return matches.slice(0, 12);
-  }, [locationInput, locationOptions]);
+  }, [locationInput, locationOptionsSnapshot]);
 
   useEffect(() => {
     setRentInput(displayedRent == null ? "" : rentFocused ? String(displayedRent) : formatRentCompact(displayedRent));
@@ -93,6 +124,13 @@ export function SearchTopBar({
   useEffect(() => {
     setLocationInput(filters.q);
   }, [filters.q]);
+
+  useEffect(() => {
+    if (!locationOptions.length) return;
+    if (!locationOptionsSnapshot.length || filters.q.trim() === "") {
+      setLocationOptionsSnapshot(locationOptions);
+    }
+  }, [filters.q, locationOptions, locationOptionsSnapshot.length]);
 
   useEffect(() => {
     return () => {
