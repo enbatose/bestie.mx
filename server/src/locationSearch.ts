@@ -6,6 +6,8 @@ type NominatimSearchResult = {
   place_id: number;
   lat: string;
   lon: string;
+  name?: string;
+  display_name?: string;
   address?: NominatimAddress;
 };
 
@@ -59,6 +61,64 @@ function pickNeighborhood(address: NominatimAddress | undefined) {
     address.borough ||
     ""
   ).trim();
+}
+
+const LOCATION_STOP_WORDS = new Set([
+  "colonia",
+  "col",
+  "barrio",
+  "fracc",
+  "fraccionamiento",
+  "zona",
+  "de",
+  "del",
+  "la",
+  "el",
+]);
+
+function locationTokens(value: string) {
+  return normalizeLocationText(value)
+    .split(/[\s,.-]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0 && !LOCATION_STOP_WORDS.has(token));
+}
+
+function scoreLocationMatch(
+  query: string,
+  neighborhood: string,
+  displayName: string,
+  fallbackName: string,
+): number {
+  const normalizedQuery = normalizeLocationText(query);
+  const normalizedNeighborhood = normalizeLocationText(neighborhood);
+  const normalizedDisplayName = normalizeLocationText(displayName);
+  const normalizedFallbackName = normalizeLocationText(fallbackName);
+  const queryTokens = locationTokens(query);
+  const neighborhoodTokens = locationTokens(neighborhood);
+  const nameTokens = locationTokens(fallbackName);
+  let score = 0;
+
+  if (normalizedNeighborhood === normalizedQuery) score += 1000;
+  else if (normalizedNeighborhood.startsWith(normalizedQuery)) score += 800;
+  else if (normalizedNeighborhood.includes(normalizedQuery)) score += 700;
+
+  if (normalizedFallbackName === normalizedQuery) score += 500;
+  else if (normalizedFallbackName.startsWith(normalizedQuery)) score += 350;
+  else if (normalizedFallbackName.includes(normalizedQuery)) score += 250;
+
+  if (normalizedDisplayName.includes(normalizedQuery)) score += 120;
+
+  if (queryTokens.length) {
+    if (queryTokens.every((token) => neighborhoodTokens.some((candidate) => candidate.includes(token)))) {
+      score += 400;
+    }
+    if (queryTokens.every((token) => nameTokens.some((candidate) => candidate.includes(token)))) {
+      score += 180;
+    }
+    score += queryTokens.filter((token) => neighborhoodTokens.some((candidate) => candidate.includes(token))).length * 40;
+  }
+
+  return score;
 }
 
 export async function locationSearchHandler(req: Request, res: Response) {
@@ -115,6 +175,8 @@ export async function locationSearchHandler(req: Request, res: Response) {
         const neighborhood = pickNeighborhood(item.address);
         const city = GUADALAJARA_CITY;
         const label = neighborhood ? `${GUADALAJARA_LABEL_PREFIX} - ${neighborhood}` : city;
+        const displayName = item.display_name ?? "";
+        const fallbackName = item.name ?? (neighborhood || city);
         return {
           key: `${label}:${item.lat}:${item.lon}`,
           label,
@@ -124,8 +186,10 @@ export async function locationSearchHandler(req: Request, res: Response) {
           lat: Number(item.lat),
           lng: Number(item.lon),
           zoom: neighborhood ? GUADALAJARA_NEIGHBORHOOD_ZOOM : 13,
+          score: scoreLocationMatch(q, neighborhood || city, displayName, fallbackName),
         };
       })
+      .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
       .filter((item) => {
         if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) return false;
         if (seen.has(item.label)) return false;
@@ -133,7 +197,9 @@ export async function locationSearchHandler(req: Request, res: Response) {
         return true;
       });
 
-    res.json(suggestions);
+    res.json(
+      suggestions.map(({ score: _score, ...item }) => item),
+    );
   } catch {
     res.status(502).json({ error: "location_search_unavailable" });
   }
