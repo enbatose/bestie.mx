@@ -65,8 +65,8 @@ function LocationChip({
 }) {
   return (
     <span
-      className={`inline-flex max-w-full shrink-0 items-center gap-1 rounded-full border border-primary/20 bg-bg-light font-semibold text-body ${
-        mobile ? "px-2.5 py-1 text-sm" : "px-2 py-0.5 text-xs"
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full border border-primary/20 bg-bg-light font-semibold text-body ${
+        mobile ? "max-w-[6.75rem] px-2 py-0.5 text-[0.7rem] leading-tight" : "max-w-[9rem] px-2 py-0.5 text-xs"
       }`}
     >
       <span className="truncate">{label}</span>
@@ -74,10 +74,12 @@ function LocationChip({
         type="button"
         onMouseDown={(e) => e.preventDefault()}
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-body transition hover:bg-surface"
+        className={`inline-flex shrink-0 items-center justify-center rounded-full text-body transition hover:bg-surface ${
+          mobile ? "size-4" : "size-5"
+        }`}
         aria-label={removeLabel}
       >
-        <X className="size-3.5" aria-hidden="true" strokeWidth={2.5} />
+        <X className={mobile ? "size-3" : "size-3.5"} aria-hidden="true" strokeWidth={2.5} />
       </button>
     </span>
   );
@@ -299,11 +301,14 @@ export function SearchTopBar({
     const showLocationMenu = locationMenuOpen;
     const inputRef = mobile ? mobileLocationInputRef : desktopLocationInputRef;
     const inputShellClass = mobile
-      ? "min-h-14 rounded-[1.2rem] border border-primary/15 bg-surface pl-3 pr-24 shadow-sm ring-primary/30 focus-within:ring-2"
-      : "rounded-lg border border-primary/20 bg-surface pl-2 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+      ? "h-14 rounded-[1.2rem] border border-primary/15 bg-surface pl-4 pr-24 shadow-sm ring-primary/30 focus-within:ring-2"
+      : "rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+    const inputRowClass = mobile
+      ? "flex h-full min-w-0 items-center gap-1.5 overflow-hidden"
+      : "flex h-11 min-w-0 items-center gap-1.5 overflow-hidden";
     const inputClass = mobile
-      ? "min-w-[6rem] flex-1 bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
-      : "min-w-[6rem] flex-1 bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
+      ? "h-full min-w-[4.5rem] flex-1 bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
+      : "h-11 min-w-[4.5rem] flex-1 bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
     const menuClass = mobile
       ? "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[1.1rem] border border-primary/15 bg-surface shadow-xl"
       : "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-primary/20 bg-surface shadow-xl";
@@ -314,8 +319,8 @@ export function SearchTopBar({
 
     return (
       <div className="relative" onFocus={openLocationMenu} onBlur={scheduleLocationMenuClose}>
-        <div className={`flex items-center gap-1.5 py-2 ${inputShellClass}`}>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 pl-1">
+        <div className={inputShellClass}>
+          <div className={inputRowClass}>
             {cityChipVisible ? (
               <LocationChip
                 label={searchLocation.cityAbbr}
