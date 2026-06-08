@@ -120,9 +120,13 @@ export function SearchPage() {
     }
     setSelectedId((cur) => {
       if (cur && filtered.some((l) => l.id === cur)) return cur;
-      return isDefaultLocationView ? null : filtered[0]!.id;
+      return null;
     });
-  }, [filtered, isDefaultLocationView]);
+  }, [filtered]);
+
+  useEffect(() => {
+    setSelectedId(null);
+  }, [searchLocation.label, searchLocation.lat, searchLocation.lng, searchLocation.zoom]);
 
   function applyFilters(next: SearchFilters) {
     setLocationError(null);

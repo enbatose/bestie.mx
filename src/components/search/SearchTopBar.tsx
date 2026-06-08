@@ -169,18 +169,17 @@ export function SearchTopBar({
 
   function handleLocationClear() {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
-    setLocationInput(DEFAULT_SEARCH_CITY);
-    setLocationMenuOpen(false);
+    onLocationInput();
+    setLocationInput("");
+    setLocationMenuOpen(true);
     setLocationSuggestions([]);
     setShowLocationErrorToast(false);
-    onLocationReset();
     window.requestAnimationFrame(() => {
       const activeInput =
         typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
           ? mobileLocationInputRef.current
           : desktopLocationInputRef.current;
       activeInput?.focus();
-      activeInput?.select();
     });
   }
 
