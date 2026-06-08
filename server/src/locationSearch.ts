@@ -12,6 +12,12 @@ type NominatimSearchResult = {
 const GUADALAJARA_CITY = "Guadalajara";
 const GUADALAJARA_LABEL_PREFIX = "GDL";
 const GUADALAJARA_NEIGHBORHOOD_ZOOM = 14;
+const GUADALAJARA_METRO_VIEWBOX = {
+  left: -103.55,
+  top: 20.83,
+  right: -103.2,
+  bottom: 20.57,
+};
 const GUADALAJARA_METRO_AREAS = new Set([
   normalizeLocationText("Guadalajara"),
   normalizeLocationText("Zapopan"),
@@ -62,27 +68,46 @@ export async function locationSearchHandler(req: Request, res: Response) {
     return;
   }
 
-  const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("q", `${q}, ${GUADALAJARA_CITY}, Jalisco, Mexico`);
-  url.searchParams.set("format", "jsonv2");
-  url.searchParams.set("addressdetails", "1");
-  url.searchParams.set("limit", "8");
-  url.searchParams.set("countrycodes", "mx");
-
-  try {
+  async function runSearch(searchQuery: string) {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("q", searchQuery);
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("addressdetails", "1");
+    url.searchParams.set("limit", "8");
+    url.searchParams.set("countrycodes", "mx");
+    url.searchParams.set(
+      "viewbox",
+      `${GUADALAJARA_METRO_VIEWBOX.left},${GUADALAJARA_METRO_VIEWBOX.top},${GUADALAJARA_METRO_VIEWBOX.right},${GUADALAJARA_METRO_VIEWBOX.bottom}`,
+    );
+    url.searchParams.set("bounded", "1");
     const upstream = await fetch(url, {
       headers: {
         "User-Agent": "bestie.mx-search",
         "Accept-Language": "es-MX,es;q=0.9,en;q=0.8",
       },
     });
+    if (!upstream.ok) return null;
+    return (await upstream.json()) as NominatimSearchResult[];
+  }
 
-    if (!upstream.ok) {
-      res.status(502).json({ error: "location_search_unavailable" });
-      return;
+  try {
+    const searchQueries = [
+      `${q}, ${GUADALAJARA_CITY}, Jalisco, Mexico`,
+      `${q}, Jalisco, Mexico`,
+      q,
+    ];
+    let payload: NominatimSearchResult[] = [];
+    for (const searchQuery of searchQueries) {
+      const result = await runSearch(searchQuery);
+      if (!result?.length) continue;
+      payload = result;
+      const metroMatches = result.filter((item) => isWithinGuadalajara(item.address));
+      if (metroMatches.length) {
+        payload = metroMatches;
+        break;
+      }
     }
 
-    const payload = (await upstream.json()) as NominatimSearchResult[];
     const seen = new Set<string>();
     const suggestions = payload
       .filter((item) => isWithinGuadalajara(item.address))

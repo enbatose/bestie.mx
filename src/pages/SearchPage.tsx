@@ -179,6 +179,7 @@ export function SearchPage() {
         hasActiveFilters={hasActiveFilters}
         locationValue={searchLocation.label}
         locationError={locationError}
+        onLocationInput={() => setLocationError(null)}
         onLocationSelect={(location) => {
           setLocationError(null);
           setSearchParams(
@@ -210,6 +211,7 @@ export function SearchPage() {
         onLocationNotFound={(query) => {
           setLocationError(`No se encontró la colonia "${query}". Mostramos la última ubicación.`);
         }}
+        onLocationErrorDismiss={() => setLocationError(null)}
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">

@@ -16,13 +16,16 @@ type Props = {
   locationError: string | null;
   onLocationSelect: (location: LocationSuggestion) => void;
   onLocationReset: () => void;
+  onLocationInput: () => void;
   onLocationNotFound: (query: string) => void;
+  onLocationErrorDismiss: () => void;
 };
 
 const DEFAULT_MOBILE_AGE = 27;
 const MIN_AGE = 16;
 const MAX_AGE = 99;
 const RENT_STEP = 100;
+const LOCATION_ERROR_TOAST_MS = 3_000;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -50,7 +53,9 @@ export function SearchTopBar({
   locationError,
   onLocationSelect,
   onLocationReset,
+  onLocationInput,
   onLocationNotFound,
+  onLocationErrorDismiss,
 }: Props) {
   const locationInputId = useId();
   const mobileLocationMenuId = useId();
@@ -62,6 +67,8 @@ export function SearchTopBar({
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [showLocationErrorToast, setShowLocationErrorToast] = useState(false);
+  const [locationErrorCountdown, setLocationErrorCountdown] = useState(3);
   const [rentFocused, setRentFocused] = useState(false);
   const [rentInput, setRentInput] = useState(
     displayedRent == null ? "" : formatRentCompact(displayedRent),
@@ -88,7 +95,22 @@ export function SearchTopBar({
     setLocationInput(locationValue);
     setLocationMenuOpen(false);
     setLocationSuggestions([]);
-  }, [locationError, locationValue]);
+    setShowLocationErrorToast(true);
+    setLocationErrorCountdown(3);
+
+    const tickTimer = window.setInterval(() => {
+      setLocationErrorCountdown((current) => (current > 1 ? current - 1 : current));
+    }, 1000);
+    const closeTimer = window.setTimeout(() => {
+      setShowLocationErrorToast(false);
+      onLocationErrorDismiss();
+    }, LOCATION_ERROR_TOAST_MS);
+
+    return () => {
+      window.clearInterval(tickTimer);
+      window.clearTimeout(closeTimer);
+    };
+  }, [locationError, locationValue, onLocationErrorDismiss]);
 
   useEffect(() => {
     const query = locationInput.trim();
@@ -131,6 +153,7 @@ export function SearchTopBar({
   }, []);
 
   function handleLocationInputChange(nextValue: string) {
+    onLocationInput();
     setLocationInput(nextValue);
     setLocationMenuOpen(true);
   }
@@ -140,6 +163,7 @@ export function SearchTopBar({
     setLocationInput(option.value);
     setLocationMenuOpen(false);
     setLocationSuggestions([]);
+    setShowLocationErrorToast(false);
     onLocationSelect(option);
   }
 
@@ -148,6 +172,7 @@ export function SearchTopBar({
     setLocationInput(DEFAULT_SEARCH_CITY);
     setLocationMenuOpen(false);
     setLocationSuggestions([]);
+    setShowLocationErrorToast(false);
     onLocationReset();
     window.requestAnimationFrame(() => {
       const activeInput =
@@ -169,6 +194,7 @@ export function SearchTopBar({
 
   function openLocationMenu() {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
+    onLocationInput();
     setLocationMenuOpen(true);
   }
 
@@ -303,11 +329,31 @@ export function SearchTopBar({
             </div>
           </div>
         ) : null}
-        <div className={mobile ? "min-h-[3.5rem] pt-2" : "min-h-[1.75rem] pt-2"}>
-          {locationError ? (
-            <p className="text-sm font-medium leading-snug text-red-700">{locationError}</p>
-          ) : null}
-        </div>
+        {locationError && showLocationErrorToast ? (
+          <div className="pointer-events-auto absolute left-0 right-0 top-full z-40 mt-2">
+            <div className="rounded-[1rem] border border-red-200 bg-white/98 px-3 py-2 shadow-xl backdrop-blur">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-snug text-red-700">{locationError}</p>
+                  <p className="mt-1 text-xs font-semibold text-red-500">
+                    Cerrando en {locationErrorCountdown}s
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLocationErrorToast(false);
+                    onLocationErrorDismiss();
+                  }}
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-red-700 transition hover:bg-red-50"
+                  aria-label="Cerrar mensaje"
+                >
+                  <X className="size-4" aria-hidden="true" strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
