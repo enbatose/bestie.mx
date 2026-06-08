@@ -22,6 +22,17 @@ export function isListingsApiConfigured(): boolean {
 
 const cred: RequestCredentials = "include";
 
+export type LocationSuggestion = {
+  key: string;
+  label: string;
+  value: string;
+  city: string;
+  neighborhood: string | null;
+  lat: number;
+  lng: number;
+  zoom: number;
+};
+
 export type ListingUnavailableReason =
   | "invalid_id"
   | "listing_not_found"
@@ -48,6 +59,19 @@ export async function fetchListingsFromApi(
     throw new Error(`listings_http_${res.status}`);
   }
   return (await res.json()) as PropertyListing[];
+}
+
+export async function fetchLocationSuggestions(
+  query: string,
+  signal?: AbortSignal,
+): Promise<LocationSuggestion[]> {
+  const base = apiBase();
+  const url = `${base}/api/location-search?q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, { signal, credentials: cred });
+  if (!res.ok) {
+    throw new Error(`location_search_http_${res.status}`);
+  }
+  return (await res.json()) as LocationSuggestion[];
 }
 
 export async function fetchListingByIdFromApi(

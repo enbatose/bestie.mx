@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
@@ -11,7 +11,6 @@ import {
   DEFAULT_SEARCH_CITY,
   GUADALAJARA_LA_MINERVA_CENTER,
   GUADALAJARA_LA_MINERVA_ZOOM,
-  isDefaultSearchCity,
 } from "@/lib/searchDefaults";
 import {
   filterListings,
@@ -24,62 +23,54 @@ import {
 } from "@/lib/searchFilters";
 import type { PropertyListing } from "@/types/listing";
 
-function bboxEquals(a: Bbox | null, b: Bbox | null) {
-  if (a == null && b == null) return true;
-  if (a == null || b == null) return false;
-  return (
-    a.minLat === b.minLat &&
-    a.minLng === b.minLng &&
-    a.maxLat === b.maxLat &&
-    a.maxLng === b.maxLng
-  );
+type SearchMapLocation = {
+  label: string;
+  lat: number;
+  lng: number;
+  zoom: number;
+};
+
+const DEFAULT_SEARCH_LOCATION: SearchMapLocation = {
+  label: DEFAULT_SEARCH_CITY,
+  lat: GUADALAJARA_LA_MINERVA_CENTER[0],
+  lng: GUADALAJARA_LA_MINERVA_CENTER[1],
+  zoom: GUADALAJARA_LA_MINERVA_ZOOM,
+};
+
+function parseNumberParam(raw: string | null): number | null {
+  if (raw == null || raw.trim() === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
-function dominantCity(listings: PropertyListing[]) {
-  const counts = new Map<string, number>();
-  listings.forEach((listing) => {
-    const city = listing.city.trim();
-    if (!city) return;
-    counts.set(city, (counts.get(city) ?? 0) + 1);
-  });
-  let bestCity: string | null = null;
-  let bestCount = 0;
-  counts.forEach((count, city) => {
-    if (count > bestCount) {
-      bestCity = city;
-      bestCount = count;
-    }
-  });
-  return bestCity;
+function parseSearchLocation(params: URLSearchParams): SearchMapLocation {
+  const label = params.get("loc")?.trim() || DEFAULT_SEARCH_LOCATION.label;
+  const lat = parseNumberParam(params.get("lat")) ?? DEFAULT_SEARCH_LOCATION.lat;
+  const lng = parseNumberParam(params.get("lng")) ?? DEFAULT_SEARCH_LOCATION.lng;
+  const zoom = parseNumberParam(params.get("z")) ?? DEFAULT_SEARCH_LOCATION.zoom;
+  return { label, lat, lng, zoom };
 }
 
-function listingsInBbox(listings: PropertyListing[], bbox: Bbox | null) {
-  if (bbox == null) return listings;
-  return listings.filter(
-    (listing) =>
-      listing.lat >= bbox.minLat &&
-      listing.lat <= bbox.maxLat &&
-      listing.lng >= bbox.minLng &&
-      listing.lng <= bbox.maxLng,
-  );
-}
-
-function stripLocationPrefix(value: string) {
-  return value.replace(/^[A-Z]{3}\s-\s/, "").trim();
+function writeSearchLocation(params: URLSearchParams, location: SearchMapLocation) {
+  params.set("loc", location.label);
+  params.set("lat", String(location.lat));
+  params.set("lng", String(location.lng));
+  params.set("z", String(location.zoom));
+  return params;
 }
 
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
-  const normalizedFilters = useMemo(() => ({ ...filters, q: stripLocationPrefix(filters.q) }), [filters]);
+  const normalizedFilters = useMemo(() => ({ ...filters, q: "" }), [filters]);
+  const searchLocation = useMemo(() => parseSearchLocation(searchParams), [searchParams]);
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
-  const locationClearedRef = useRef(false);
-  const clearedBboxRef = useRef<Bbox | null>(null);
 
   const apiOn = isListingsApiConfigured();
   const [apiListings, setApiListings] = useState<PropertyListing[] | undefined>(undefined);
   const [apiBusy, setApiBusy] = useState(false);
   const [apiErr, setApiErr] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!apiOn) return;
@@ -109,24 +100,14 @@ export function SearchPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const isGuadalajaraSearch = searchParams.has("q")
-    ? isDefaultSearchCity(normalizedFilters.q)
-    : true;
-  const locationSourceListings = useMemo(
-    () => (apiOn ? (apiListings ?? []) : SEED_LISTINGS),
-    [apiOn, apiListings],
-  );
-  const bboxScopedLocationListings = useMemo(
-    () => listingsInBbox(locationSourceListings, filters.bbox),
-    [filters.bbox, locationSourceListings],
-  );
+  const isDefaultLocationView = searchLocation.label === DEFAULT_SEARCH_CITY;
 
   useEffect(() => {
-    if (searchParams.has("q")) return;
+    if (searchParams.has("loc") && searchParams.has("lat") && searchParams.has("lng") && searchParams.has("z")) return;
     setSearchParams(
       (prev) => {
-        const nextFilters = parseFilters(new URLSearchParams(prev));
-        return filtersToParams({ ...nextFilters, q: DEFAULT_SEARCH_CITY });
+        const next = new URLSearchParams(prev);
+        return writeSearchLocation(next, DEFAULT_SEARCH_LOCATION);
       },
       { replace: true },
     );
@@ -139,18 +120,27 @@ export function SearchPage() {
     }
     setSelectedId((cur) => {
       if (cur && filtered.some((l) => l.id === cur)) return cur;
-      return isGuadalajaraSearch ? null : filtered[0]!.id;
+      return isDefaultLocationView ? null : filtered[0]!.id;
     });
-  }, [filtered, isGuadalajaraSearch]);
+  }, [filtered, isDefaultLocationView]);
 
   function applyFilters(next: SearchFilters) {
-    locationClearedRef.current = next.q.trim() === "";
-    clearedBboxRef.current = next.q.trim() === "" ? next.bbox : null;
-    setSearchParams(filtersToParams(next), { replace: true });
+    setLocationError(null);
+    setSearchParams(
+      (prev) => {
+        const nextParams = filtersToParams({ ...next, q: "" });
+        return writeSearchLocation(nextParams, parseSearchLocation(new URLSearchParams(prev)));
+      },
+      { replace: true },
+    );
   }
 
   const clearFilters = useCallback(() => {
-    applyFilters(resetSearchFilters(normalizedFilters));
+    setLocationError(null);
+    setSearchParams(
+      () => writeSearchLocation(filtersToParams(resetSearchFilters(normalizedFilters)), DEFAULT_SEARCH_LOCATION),
+      { replace: true },
+    );
   }, [normalizedFilters]);
 
   const hasActiveFilters = useMemo(
@@ -160,40 +150,17 @@ export function SearchPage() {
 
   const onViewportBbox = useCallback(
     (bbox: Bbox) => {
+      setLocationError(null);
       setSearchParams(
         (prev) => {
           const f = parseFilters(new URLSearchParams(prev));
-          return filtersToParams({ ...f, bbox });
+          return writeSearchLocation(filtersToParams({ ...f, q: "", bbox }), parseSearchLocation(new URLSearchParams(prev)));
         },
         { replace: true },
       );
     },
     [setSearchParams],
   );
-
-  useEffect(() => {
-    if (!locationClearedRef.current) return;
-    if (filters.q.trim() !== "") {
-      locationClearedRef.current = false;
-      clearedBboxRef.current = null;
-      return;
-    }
-    if (bboxEquals(filters.bbox, clearedBboxRef.current)) return;
-    if (apiOn && apiListings === undefined) return;
-
-    const detectedCity = dominantCity(bboxScopedLocationListings);
-    if (!detectedCity) return;
-
-    locationClearedRef.current = false;
-    clearedBboxRef.current = null;
-    setSearchParams(
-      (prev) => {
-        const nextFilters = parseFilters(new URLSearchParams(prev));
-        return filtersToParams({ ...nextFilters, q: detectedCity });
-      },
-      { replace: true },
-    );
-  }, [apiListings, apiOn, bboxScopedLocationListings, filters.bbox, filters.q, setSearchParams]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
@@ -204,12 +171,45 @@ export function SearchPage() {
         onChange={applyFilters}
       />
       <SearchTopBar
-        filters={filters}
+        filters={normalizedFilters}
         listings={filtered}
         onChange={applyFilters}
         onOpenAdvanced={() => setAdvancedOpen(true)}
         onClearFilters={clearFilters}
         hasActiveFilters={hasActiveFilters}
+        locationValue={searchLocation.label}
+        locationError={locationError}
+        onLocationSelect={(location) => {
+          setLocationError(null);
+          setSearchParams(
+            (prev) => {
+              const f = parseFilters(new URLSearchParams(prev));
+              return writeSearchLocation(
+                filtersToParams({ ...f, q: "", bbox: null }),
+                {
+                  label: location.label,
+                  lat: location.lat,
+                  lng: location.lng,
+                  zoom: location.zoom,
+                },
+              );
+            },
+            { replace: true },
+          );
+        }}
+        onLocationReset={() => {
+          setLocationError(null);
+          setSearchParams(
+            (prev) => {
+              const f = parseFilters(new URLSearchParams(prev));
+              return writeSearchLocation(filtersToParams({ ...f, q: "", bbox: null }), DEFAULT_SEARCH_LOCATION);
+            },
+            { replace: true },
+          );
+        }}
+        onLocationNotFound={(query) => {
+          setLocationError(`No se encontró la colonia "${query}". Mostramos la última ubicación.`);
+        }}
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -223,9 +223,9 @@ export function SearchPage() {
                 listings={filtered}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
-                defaultCenter={isGuadalajaraSearch ? GUADALAJARA_LA_MINERVA_CENTER : undefined}
-                defaultZoom={isGuadalajaraSearch ? GUADALAJARA_LA_MINERVA_ZOOM : undefined}
-                preferDefaultView={isGuadalajaraSearch && selectedId == null}
+                defaultCenter={[searchLocation.lat, searchLocation.lng]}
+                defaultZoom={searchLocation.zoom}
+                preferDefaultView
                 onViewportBbox={onViewportBbox}
               />
             </div>

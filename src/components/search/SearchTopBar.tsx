@@ -2,6 +2,7 @@ import { ChevronDown, Filter, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { DEFAULT_SEARCH_CITY } from "@/lib/searchDefaults";
 import type { SearchFilters } from "@/lib/searchFilters";
+import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
 import type { PropertyListing } from "@/types/listing";
 
 type Props = {
@@ -11,13 +12,11 @@ type Props = {
   onOpenAdvanced: () => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
-};
-
-type LocationOption = {
-  key: string;
-  label: string;
-  value: string;
-  searchText: string;
+  locationValue: string;
+  locationError: string | null;
+  onLocationSelect: (location: LocationSuggestion) => void;
+  onLocationReset: () => void;
+  onLocationNotFound: (query: string) => void;
 };
 
 const DEFAULT_MOBILE_AGE = 27;
@@ -31,83 +30,6 @@ function clamp(n: number, min: number, max: number) {
 
 function highestVisibleRent(listings: PropertyListing[]) {
   return listings.reduce((max, listing) => Math.max(max, listing.rentMxn), 0);
-}
-
-function normalizeLocationText(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-const LOCATION_STOP_WORDS = new Set([
-  "colonia",
-  "col",
-  "barrio",
-  "fracc",
-  "fraccionamiento",
-  "zona",
-  "de",
-  "del",
-  "la",
-  "el",
-]);
-
-function locationTokens(value: string) {
-  return normalizeLocationText(value)
-    .split(/[\s,.-]+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 0 && !LOCATION_STOP_WORDS.has(token));
-}
-
-function locationOptionMatchesQuery(option: string, query: string) {
-  const normalizedOption = normalizeLocationText(option);
-  const normalizedQuery = normalizeLocationText(query.trim());
-  if (!normalizedQuery) return true;
-  if (normalizedOption.includes(normalizedQuery)) return true;
-
-  const optionTokens = locationTokens(option);
-  const queryTokens = locationTokens(query);
-  if (!queryTokens.length) return normalizedOption.includes(normalizedQuery);
-
-  return queryTokens.every((token) => optionTokens.some((optionToken) => optionToken.includes(token)));
-}
-
-const CITY_ABBREVIATIONS: Record<string, string> = {
-  guadalajara: "GDL",
-  merida: "MID",
-  "puerto vallarta": "PVR",
-  sayulita: "SAY",
-  bucerias: "BUC",
-};
-
-function cityAbbreviation(city: string) {
-  const normalized = normalizeLocationText(city);
-  return CITY_ABBREVIATIONS[normalized] ?? normalized.replace(/[^a-z]/g, "").slice(0, 3).toUpperCase();
-}
-
-function uniqueLocationOptions(listings: PropertyListing[]): LocationOption[] {
-  const options = new Map<string, LocationOption>();
-
-  listings.forEach((listing) => {
-    const city = listing.city.trim();
-    const neighborhood = listing.neighborhood.trim();
-    if (city && !options.has(`city:${city}`)) {
-      options.set(`city:${city}`, {
-        key: `city:${city}`,
-        label: city,
-        value: city,
-        searchText: city,
-      });
-    }
-    if (city && neighborhood && !options.has(`neighborhood:${city}:${neighborhood}`)) {
-      options.set(`neighborhood:${city}:${neighborhood}`, {
-        key: `neighborhood:${city}:${neighborhood}`,
-        label: `${cityAbbreviation(city)} - ${neighborhood}`,
-        value: `${cityAbbreviation(city)} - ${neighborhood}`,
-        searchText: `${city} ${neighborhood}`,
-      });
-    }
-  });
-
-  return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, "es-MX"));
 }
 
 function formatRentCompact(value: number) {
@@ -124,17 +46,22 @@ export function SearchTopBar({
   onOpenAdvanced,
   onClearFilters,
   hasActiveFilters,
+  locationValue,
+  locationError,
+  onLocationSelect,
+  onLocationReset,
+  onLocationNotFound,
 }: Props) {
   const locationInputId = useId();
   const mobileLocationMenuId = useId();
   const desktopLocationMenuId = useId();
-  const locationOptions = useMemo(() => uniqueLocationOptions(listings), [listings]);
   const maxVisibleRent = useMemo(() => highestVisibleRent(listings), [listings]);
   const displayedRent = filters.budgetMax ?? (maxVisibleRent > 0 ? maxVisibleRent : null);
   const displayedAge = filters.age;
-  const [locationInput, setLocationInput] = useState(filters.q);
+  const [locationInput, setLocationInput] = useState(locationValue);
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
-  const [locationOptionsSnapshot, setLocationOptionsSnapshot] = useState(locationOptions);
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [rentFocused, setRentFocused] = useState(false);
   const [rentInput, setRentInput] = useState(
     displayedRent == null ? "" : formatRentCompact(displayedRent),
@@ -158,19 +85,49 @@ export function SearchTopBar({
   }, [displayedAge]);
 
   useEffect(() => {
-    setLocationInput(filters.q);
-  }, [filters.q]);
+    setLocationInput(locationValue);
+  }, [locationValue]);
 
   useEffect(() => {
-    if (!locationOptions.length) return;
-    if (
-      !locationOptionsSnapshot.length ||
-      filters.q.trim() === "" ||
-      normalizeLocationText(filters.q) === normalizeLocationText(DEFAULT_SEARCH_CITY)
-    ) {
-      setLocationOptionsSnapshot(locationOptions);
+    if (!locationError) return;
+    setLocationInput(locationValue);
+    setLocationMenuOpen(false);
+    setLocationSuggestions([]);
+  }, [locationError, locationValue]);
+
+  useEffect(() => {
+    const query = locationInput.trim();
+    if (query.length < 2) {
+      setLocationSuggestions([]);
+      setLocationLoading(false);
+      return;
     }
-  }, [filters.q, locationOptions, locationOptionsSnapshot.length]);
+    if (!locationMenuOpen && query === locationValue.trim()) {
+      return;
+    }
+
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLocationLoading(true);
+      fetchLocationSuggestions(query, ac.signal)
+        .then((rows) => {
+          setLocationSuggestions(rows);
+          setLocationMenuOpen(true);
+        })
+        .catch(() => {
+          if (ac.signal.aborted) return;
+          setLocationSuggestions([]);
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setLocationLoading(false);
+        });
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [locationInput]);
 
   useEffect(() => {
     return () => {
@@ -178,31 +135,25 @@ export function SearchTopBar({
     };
   }, []);
 
-  function applyLocationQuery(nextQ: string) {
-    onChange({
-      ...filters,
-      q: nextQ,
-    });
-  }
-
   function handleLocationInputChange(nextValue: string) {
     setLocationInput(nextValue);
     setLocationMenuOpen(true);
-    applyLocationQuery(nextValue);
   }
 
-  function handleLocationSelect(nextValue: string) {
+  function handleLocationSelect(option: LocationSuggestion) {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
-    setLocationInput(nextValue);
+    setLocationInput(option.value);
     setLocationMenuOpen(false);
-    applyLocationQuery(nextValue);
+    setLocationSuggestions([]);
+    onLocationSelect(option);
   }
 
   function handleLocationClear() {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
     setLocationInput(DEFAULT_SEARCH_CITY);
     setLocationMenuOpen(false);
-    applyLocationQuery(DEFAULT_SEARCH_CITY);
+    setLocationSuggestions([]);
+    onLocationReset();
   }
 
   function scheduleLocationMenuClose() {
@@ -216,6 +167,24 @@ export function SearchTopBar({
   function openLocationMenu() {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
     setLocationMenuOpen(true);
+  }
+
+  async function resolveBestLocationMatch() {
+    const query = locationInput.trim();
+    if (query.length < 2) {
+      onLocationNotFound(query);
+      return;
+    }
+    try {
+      const rows = await fetchLocationSuggestions(query);
+      if (rows.length) {
+        handleLocationSelect(rows[0]!);
+        return;
+      }
+    } catch {
+      /* handled below */
+    }
+    onLocationNotFound(query);
   }
 
   function renderLocationField(mobile: boolean) {
@@ -247,6 +216,19 @@ export function SearchTopBar({
             autoComplete="off"
             spellCheck={false}
             className={inputClass}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (locationSuggestions.length) {
+                  handleLocationSelect(locationSuggestions[0]!);
+                  return;
+                }
+                void resolveBestLocationMatch();
+              }
+              if (e.key === "Escape") {
+                setLocationMenuOpen(false);
+              }
+            }}
             aria-autocomplete="list"
             aria-controls={locationMenuId}
             aria-expanded={showLocationMenu}
@@ -285,15 +267,19 @@ export function SearchTopBar({
         {showLocationMenu ? (
           <div id={locationMenuId} className={menuClass} role="listbox" aria-label="Opciones de ubicación">
             <div className="max-h-56 overflow-y-auto overscroll-contain py-1">
-              {filteredLocationOptions.length ? (
-                filteredLocationOptions.map((option) => (
+              {locationLoading ? (
+                <div className={mobile ? "px-4 py-3 text-sm text-muted" : "px-3 py-2.5 text-sm text-muted"}>
+                  Buscando colonias...
+                </div>
+              ) : locationSuggestions.length ? (
+                locationSuggestions.map((option) => (
                   <button
                     key={option.key}
                     type="button"
                     role="option"
                     aria-selected={locationInput === option.value}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleLocationSelect(option.value)}
+                    onClick={() => handleLocationSelect(option)}
                     className={optionClass}
                   >
                     {option.label}
@@ -306,6 +292,11 @@ export function SearchTopBar({
               )}
             </div>
           </div>
+        ) : null}
+        {locationError ? (
+          <p className={mobile ? "mt-2 text-sm font-medium text-red-700" : "mt-2 text-sm font-medium text-red-700"}>
+            {locationError}
+          </p>
         ) : null}
       </div>
     );

@@ -9,6 +9,7 @@ import { authRouter } from "./authRouter.js";
 import { complianceRouter } from "./complianceRouter.js";
 import { groupsRouter } from "./groupsRouter.js";
 import { listingsRouter } from "./listingsRouter.js";
+import { locationSearchHandler } from "./locationSearch.js";
 import { messagesRouter } from "./messagesRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
@@ -132,6 +133,9 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   );
 
   app.get("/api/my-listings", myListingsHandler(db));
+  app.get("/api/location-search", (req: Request, res: Response) => {
+    void locationSearchHandler(req, res);
+  });
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
 
