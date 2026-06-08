@@ -11,6 +11,17 @@ type NominatimSearchResult = {
   address?: NominatimAddress;
 };
 
+type LocationSuggestion = {
+  key: string;
+  label: string;
+  value: string;
+  city: string;
+  neighborhood: string | null;
+  lat: number;
+  lng: number;
+  zoom: number;
+};
+
 const GUADALAJARA_CITY = "Guadalajara";
 const GUADALAJARA_LABEL_PREFIX = "GDL";
 const GUADALAJARA_NEIGHBORHOOD_ZOOM = 14;
@@ -31,6 +42,73 @@ const GUADALAJARA_METRO_AREAS = new Set([
   normalizeLocationText("Tlajomulco de Zúñiga"),
   normalizeLocationText("El Salto"),
 ]);
+const CURATED_GUADALAJARA_NEIGHBORHOODS: Array<{
+  neighborhood: string;
+  lat: number;
+  lng: number;
+  aliases?: string[];
+}> = [
+  {
+    neighborhood: "Centro Histórico",
+    lat: 20.675138,
+    lng: -103.347345,
+    aliases: ["Centro", "Centro Histórico", "Downtown Guadalajara"],
+  },
+  {
+    neighborhood: "Colonia Americana",
+    lat: 20.67459,
+    lng: -103.35943,
+    aliases: ["Americana", "Colonia Americana"],
+  },
+  {
+    neighborhood: "Providencia",
+    lat: 20.6969,
+    lng: -103.3812,
+    aliases: ["Providencia", "Colomos Providencia", "Lomas Providencia"],
+  },
+  {
+    neighborhood: "Chapalita",
+    lat: 20.6644623,
+    lng: -103.3969701,
+    aliases: ["Chapalita"],
+  },
+  {
+    neighborhood: "Arcos Vallarta",
+    lat: 20.6724,
+    lng: -103.3796,
+    aliases: ["Arcos Vallarta"],
+  },
+  {
+    neighborhood: "Santa Teresita",
+    lat: 20.6831053,
+    lng: -103.3671819,
+    aliases: ["Santa Teresita", "Santa Tere"],
+  },
+  {
+    neighborhood: "Ladrón de Guevara",
+    lat: 20.6760789,
+    lng: -103.3779083,
+    aliases: ["Ladrón de Guevara", "Ladron de Guevara"],
+  },
+  {
+    neighborhood: "Lafayette",
+    lat: 20.6791077,
+    lng: -103.3684526,
+    aliases: ["Lafayette", "Colonia Lafayette"],
+  },
+  {
+    neighborhood: "Monraz",
+    lat: 20.6817797,
+    lng: -103.3957584,
+    aliases: ["Monraz"],
+  },
+  {
+    neighborhood: "Country Club",
+    lat: 20.70338,
+    lng: -103.37614,
+    aliases: ["Country Club", "Guadalajara Country Club"],
+  },
+];
 
 function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -88,14 +166,17 @@ function scoreLocationMatch(
   neighborhood: string,
   displayName: string,
   fallbackName: string,
+  aliases: string[] = [],
 ): number {
   const normalizedQuery = normalizeLocationText(query);
   const normalizedNeighborhood = normalizeLocationText(neighborhood);
   const normalizedDisplayName = normalizeLocationText(displayName);
   const normalizedFallbackName = normalizeLocationText(fallbackName);
+  const normalizedAliases = aliases.map(normalizeLocationText);
   const queryTokens = locationTokens(query);
   const neighborhoodTokens = locationTokens(neighborhood);
   const nameTokens = locationTokens(fallbackName);
+  const aliasTokens = aliases.flatMap((alias) => locationTokens(alias));
   let score = 0;
 
   if (normalizedNeighborhood === normalizedQuery) score += 1000;
@@ -107,6 +188,9 @@ function scoreLocationMatch(
   else if (normalizedFallbackName.includes(normalizedQuery)) score += 250;
 
   if (normalizedDisplayName.includes(normalizedQuery)) score += 120;
+  if (normalizedAliases.some((alias) => alias === normalizedQuery)) score += 850;
+  else if (normalizedAliases.some((alias) => alias.startsWith(normalizedQuery))) score += 650;
+  else if (normalizedAliases.some((alias) => alias.includes(normalizedQuery))) score += 420;
 
   if (queryTokens.length) {
     if (queryTokens.every((token) => neighborhoodTokens.some((candidate) => candidate.includes(token)))) {
@@ -115,10 +199,36 @@ function scoreLocationMatch(
     if (queryTokens.every((token) => nameTokens.some((candidate) => candidate.includes(token)))) {
       score += 180;
     }
+    if (queryTokens.every((token) => aliasTokens.some((candidate) => candidate.includes(token)))) {
+      score += 280;
+    }
     score += queryTokens.filter((token) => neighborhoodTokens.some((candidate) => candidate.includes(token))).length * 40;
   }
 
   return score;
+}
+
+function buildCuratedSuggestions(query: string): Array<LocationSuggestion & { score: number }> {
+  return CURATED_GUADALAJARA_NEIGHBORHOODS.map((item) => {
+    const label = `${GUADALAJARA_LABEL_PREFIX} - ${item.neighborhood}`;
+    return {
+      key: `curated:${item.neighborhood}`,
+      label,
+      value: label,
+      city: GUADALAJARA_CITY,
+      neighborhood: item.neighborhood,
+      lat: item.lat,
+      lng: item.lng,
+      zoom: GUADALAJARA_NEIGHBORHOOD_ZOOM,
+      score: scoreLocationMatch(
+        query,
+        item.neighborhood,
+        `${item.neighborhood}, Guadalajara, Jalisco`,
+        item.neighborhood,
+        item.aliases ?? [],
+      ),
+    };
+  }).filter((item) => item.score > 0);
 }
 
 export async function locationSearchHandler(req: Request, res: Response) {
@@ -169,7 +279,7 @@ export async function locationSearchHandler(req: Request, res: Response) {
     }
 
     const seen = new Set<string>();
-    const suggestions = payload
+    const nominatimSuggestions = payload
       .filter((item) => isWithinGuadalajara(item.address))
       .map((item) => {
         const neighborhood = pickNeighborhood(item.address);
@@ -189,9 +299,14 @@ export async function locationSearchHandler(req: Request, res: Response) {
           score: scoreLocationMatch(q, neighborhood || city, displayName, fallbackName),
         };
       })
-      .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
       .filter((item) => {
         if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) return false;
+        return true;
+      });
+
+    const suggestions = [...buildCuratedSuggestions(q), ...nominatimSuggestions]
+      .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
+      .filter((item) => {
         if (seen.has(item.label)) return false;
         seen.add(item.label);
         return true;
