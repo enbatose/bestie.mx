@@ -262,6 +262,59 @@ function scoreLocationMatch(
   return score;
 }
 
+function buildCuratedAliasToCanonicalMap() {
+  const map = new Map<string, string>();
+  for (const item of CURATED_GUADALAJARA_NEIGHBORHOODS) {
+    const canonical = normalizeLocationText(item.neighborhood);
+    const names = [item.neighborhood, ...(item.aliases ?? [])];
+    if (item.city) names.push(item.city);
+    for (const name of names) {
+      map.set(normalizeLocationText(name), canonical);
+    }
+  }
+  return map;
+}
+
+const CURATED_ALIAS_TO_CANONICAL = buildCuratedAliasToCanonicalMap();
+
+/** Canonical key for collapsing alias variants (e.g. Americana vs Colonia Americana). */
+export function suggestionDedupeKey(neighborhood: string | null, city: string) {
+  const primary = (neighborhood ?? city).trim();
+  if (!primary) return normalizeLocationText(city);
+  const normalized = normalizeLocationText(primary);
+  return CURATED_ALIAS_TO_CANONICAL.get(normalized) ?? normalized;
+}
+
+type ScoredLocationSuggestion = LocationSuggestion & { score: number };
+
+function isBetterSuggestion(candidate: ScoredLocationSuggestion, current: ScoredLocationSuggestion) {
+  const candidateCurated = candidate.key.startsWith("curated:");
+  const currentCurated = current.key.startsWith("curated:");
+  if (candidateCurated !== currentCurated) return candidateCurated;
+
+  if (candidate.score !== current.score) return candidate.score > current.score;
+  return candidate.label.length > current.label.length;
+}
+
+export function mergeLocationSuggestions(
+  curated: ScoredLocationSuggestion[],
+  nominatim: ScoredLocationSuggestion[],
+): LocationSuggestion[] {
+  const bestByKey = new Map<string, ScoredLocationSuggestion>();
+
+  for (const item of [...curated, ...nominatim]) {
+    const key = suggestionDedupeKey(item.neighborhood, item.city);
+    const prev = bestByKey.get(key);
+    if (!prev || isBetterSuggestion(item, prev)) {
+      bestByKey.set(key, item);
+    }
+  }
+
+  return [...bestByKey.values()]
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
+    .map(({ score: _score, ...item }) => item);
+}
+
 function buildCuratedSuggestions(query: string): Array<LocationSuggestion & { score: number }> {
   return CURATED_GUADALAJARA_NEIGHBORHOODS.map((item) => {
     const city = item.city ?? GUADALAJARA_CITY;
@@ -336,7 +389,6 @@ export async function locationSearchHandler(req: Request, res: Response) {
     }
     const payload = [...payloadById.values()];
 
-    const seen = new Set<string>();
     const nominatimSuggestions = payload
       .map((item) => {
         const neighborhood = pickNeighborhood(item.address);
@@ -364,17 +416,9 @@ export async function locationSearchHandler(req: Request, res: Response) {
         return true;
       });
 
-    const suggestions = [...buildCuratedSuggestions(q), ...nominatimSuggestions]
-      .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
-      .filter((item) => {
-        if (seen.has(item.label)) return false;
-        seen.add(item.label);
-        return true;
-      });
+    const suggestions = mergeLocationSuggestions(buildCuratedSuggestions(q), nominatimSuggestions);
 
-    res.json(
-      suggestions.map(({ score: _score, ...item }) => item),
-    );
+    res.json(suggestions);
   } catch {
     res.status(502).json({ error: "location_search_unavailable" });
   }
