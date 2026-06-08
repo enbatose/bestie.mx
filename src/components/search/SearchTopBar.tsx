@@ -69,13 +69,6 @@ export function SearchTopBar({
   const [ageInput, setAgeInput] = useState(displayedAge == null ? "" : String(displayedAge));
   const locationCloseTimerRef = useRef<number | null>(null);
 
-  const filteredLocationOptions = useMemo(() => {
-    const matches = locationOptionsSnapshot.filter((option) =>
-      locationOptionMatchesQuery(`${option.label} ${option.searchText}`, locationInput),
-    );
-    return matches.slice(0, 12);
-  }, [locationInput, locationOptionsSnapshot]);
-
   useEffect(() => {
     setRentInput(displayedRent == null ? "" : rentFocused ? String(displayedRent) : formatRentCompact(displayedRent));
   }, [displayedRent, rentFocused]);
