@@ -68,6 +68,8 @@ export function SearchTopBar({
   );
   const [ageInput, setAgeInput] = useState(displayedAge == null ? "" : String(displayedAge));
   const locationCloseTimerRef = useRef<number | null>(null);
+  const mobileLocationInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopLocationInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setRentInput(displayedRent == null ? "" : rentFocused ? String(displayedRent) : formatRentCompact(displayedRent));
@@ -147,6 +149,14 @@ export function SearchTopBar({
     setLocationMenuOpen(false);
     setLocationSuggestions([]);
     onLocationReset();
+    window.requestAnimationFrame(() => {
+      const activeInput =
+        typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
+          ? mobileLocationInputRef.current
+          : desktopLocationInputRef.current;
+      activeInput?.focus();
+      activeInput?.select();
+    });
   }
 
   function scheduleLocationMenuClose() {
@@ -183,6 +193,7 @@ export function SearchTopBar({
   function renderLocationField(mobile: boolean) {
     const locationMenuId = mobile ? mobileLocationMenuId : desktopLocationMenuId;
     const showLocationMenu = locationMenuOpen;
+    const inputRef = mobile ? mobileLocationInputRef : desktopLocationInputRef;
     const inputShellClass = mobile
       ? "h-14 rounded-[1.2rem] border border-primary/15 bg-surface pl-4 pr-24 shadow-sm ring-primary/30 focus-within:ring-2"
       : "rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
@@ -201,10 +212,16 @@ export function SearchTopBar({
         <div className={inputShellClass}>
           <input
             id={mobile ? "mobile-search-location" : locationInputId}
+            ref={inputRef}
             type="text"
             value={locationInput}
             onChange={(e) => handleLocationInputChange(e.target.value)}
-            onFocus={openLocationMenu}
+            onFocus={(e) => {
+              openLocationMenu();
+              if (e.currentTarget.value.trim() && e.currentTarget.value === locationValue) {
+                window.requestAnimationFrame(() => e.currentTarget.select());
+              }
+            }}
             placeholder="Ciudad o colonia"
             autoComplete="off"
             spellCheck={false}
@@ -286,11 +303,11 @@ export function SearchTopBar({
             </div>
           </div>
         ) : null}
-        {locationError ? (
-          <p className={mobile ? "mt-2 text-sm font-medium text-red-700" : "mt-2 text-sm font-medium text-red-700"}>
-            {locationError}
-          </p>
-        ) : null}
+        <div className={mobile ? "min-h-[3.5rem] pt-2" : "min-h-[1.75rem] pt-2"}>
+          {locationError ? (
+            <p className="text-sm font-medium leading-snug text-red-700">{locationError}</p>
+          ) : null}
+        </div>
       </div>
     );
   }

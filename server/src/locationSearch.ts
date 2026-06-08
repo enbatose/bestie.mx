@@ -12,6 +12,17 @@ type NominatimSearchResult = {
 const GUADALAJARA_CITY = "Guadalajara";
 const GUADALAJARA_LABEL_PREFIX = "GDL";
 const GUADALAJARA_NEIGHBORHOOD_ZOOM = 14;
+const GUADALAJARA_METRO_AREAS = new Set([
+  normalizeLocationText("Guadalajara"),
+  normalizeLocationText("Zapopan"),
+  normalizeLocationText("Tlaquepaque"),
+  normalizeLocationText("San Pedro Tlaquepaque"),
+  normalizeLocationText("Tonalá"),
+  normalizeLocationText("Tonalá"),
+  normalizeLocationText("Tlajomulco"),
+  normalizeLocationText("Tlajomulco de Zúñiga"),
+  normalizeLocationText("El Salto"),
+]);
 
 function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -21,13 +32,14 @@ function isWithinGuadalajara(address: NominatimAddress | undefined) {
   if (!address) return false;
   const candidates = [
     address.city,
+    address.town,
     address.municipality,
     address.county,
     address.state_district,
   ]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .map(normalizeLocationText);
-  return candidates.includes(normalizeLocationText(GUADALAJARA_CITY));
+  return candidates.some((value) => GUADALAJARA_METRO_AREAS.has(value));
 }
 
 function pickNeighborhood(address: NominatimAddress | undefined) {
