@@ -22,10 +22,14 @@ export function isListingsApiConfigured(): boolean {
 
 const cred: RequestCredentials = "include";
 
+export type LocationSuggestionKind = "city" | "neighborhood";
+
 export type LocationSuggestion = {
   key: string;
   label: string;
   value: string;
+  kind: LocationSuggestionKind;
+  cityCode: string;
   city: string;
   neighborhood: string | null;
   lat: number;
@@ -63,11 +67,14 @@ export async function fetchListingsFromApi(
 
 export async function fetchLocationSuggestions(
   query: string,
-  signal?: AbortSignal,
+  options?: { cityCode?: string | null; scope?: "city" | "neighborhood"; signal?: AbortSignal },
 ): Promise<LocationSuggestion[]> {
   const base = apiBase();
-  const url = `${base}/api/location-search?q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { signal, credentials: cred });
+  const params = new URLSearchParams({ q: query });
+  if (options?.cityCode) params.set("city", options.cityCode);
+  if (options?.scope) params.set("scope", options.scope);
+  const url = `${base}/api/location-search?${params.toString()}`;
+  const res = await fetch(url, { signal: options?.signal, credentials: cred });
   if (!res.ok) {
     throw new Error(`location_search_http_${res.status}`);
   }

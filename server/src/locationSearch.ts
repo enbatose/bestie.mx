@@ -1,4 +1,10 @@
 import type { Request, Response } from "express";
+import {
+  DEFAULT_METRO_CITY,
+  METRO_CITIES,
+  resolveMetroCity,
+  type MetroCity,
+} from "./metroCities.js";
 
 type NominatimAddress = Record<string, string | undefined>;
 
@@ -11,10 +17,14 @@ type NominatimSearchResult = {
   address?: NominatimAddress;
 };
 
-type LocationSuggestion = {
+export type LocationSuggestionKind = "city" | "neighborhood";
+
+export type LocationSuggestion = {
   key: string;
   label: string;
   value: string;
+  kind: LocationSuggestionKind;
+  cityCode: string;
   city: string;
   neighborhood: string | null;
   lat: number;
@@ -22,27 +32,6 @@ type LocationSuggestion = {
   zoom: number;
 };
 
-const GUADALAJARA_CITY = "Guadalajara";
-const GUADALAJARA_METRO_LABEL_PREFIX = "GDL";
-const GUADALAJARA_NEIGHBORHOOD_ZOOM = 14;
-const GUADALAJARA_MUNICIPALITY_ZOOM = 12;
-const GUADALAJARA_METRO_VIEWBOX = {
-  left: -103.55,
-  top: 20.83,
-  right: -103.2,
-  bottom: 20.57,
-};
-const GUADALAJARA_METRO_AREAS = new Set([
-  normalizeLocationText("Guadalajara"),
-  normalizeLocationText("Zapopan"),
-  normalizeLocationText("Tlaquepaque"),
-  normalizeLocationText("San Pedro Tlaquepaque"),
-  normalizeLocationText("Tonalá"),
-  normalizeLocationText("Tonalá"),
-  normalizeLocationText("Tlajomulco"),
-  normalizeLocationText("Tlajomulco de Zúñiga"),
-  normalizeLocationText("El Salto"),
-]);
 const CURATED_GUADALAJARA_NEIGHBORHOODS: Array<{
   city?: string;
   neighborhood: string;
@@ -144,12 +133,13 @@ function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
-function cityAbbreviation(_city: string) {
-  return GUADALAJARA_METRO_LABEL_PREFIX;
+function metroAreaSet(metro: MetroCity) {
+  return new Set(metro.metroAreas.map(normalizeLocationText));
 }
 
-function isWithinGuadalajara(address: NominatimAddress | undefined) {
+function isWithinMetro(address: NominatimAddress | undefined, metro: MetroCity) {
   if (!address) return false;
+  const areas = metroAreaSet(metro);
   const candidates = [
     address.city,
     address.town,
@@ -159,7 +149,7 @@ function isWithinGuadalajara(address: NominatimAddress | undefined) {
   ]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .map(normalizeLocationText);
-  return candidates.some((value) => GUADALAJARA_METRO_AREAS.has(value));
+  return candidates.some((value) => areas.has(value));
 }
 
 function pickNeighborhood(address: NominatimAddress | undefined) {
@@ -175,14 +165,14 @@ function pickNeighborhood(address: NominatimAddress | undefined) {
   ).trim();
 }
 
-function pickCity(address: NominatimAddress | undefined) {
-  if (!address) return GUADALAJARA_CITY;
+function pickCity(address: NominatimAddress | undefined, fallback: string) {
+  if (!address) return fallback;
   return (
     address.city ||
     address.town ||
     address.municipality ||
     address.county ||
-    GUADALAJARA_CITY
+    fallback
   ).trim();
 }
 
@@ -315,22 +305,54 @@ export function mergeLocationSuggestions(
     .map(({ score: _score, ...item }) => item);
 }
 
-function buildCuratedSuggestions(query: string): Array<LocationSuggestion & { score: number }> {
+function buildCitySuggestions(query: string): ScoredLocationSuggestion[] {
+  const normalizedQuery = normalizeLocationText(query);
+  return METRO_CITIES.filter((metro) => metro.enabled)
+    .map((metro) => {
+      const label = `${metro.abbr} - ${metro.label}`;
+      const score = Math.max(
+        scoreLocationMatch(query, metro.label, metro.label, label, metro.label, [metro.abbr, metro.metroName]),
+        scoreLocationMatch(query, metro.abbr, metro.label, label, metro.abbr, [metro.label, metro.metroName]),
+      );
+      return {
+        key: `city:${metro.code}`,
+        label,
+        value: label,
+        kind: "city" as const,
+        cityCode: metro.code,
+        city: metro.label,
+        neighborhood: null,
+        lat: metro.defaultCenter[0],
+        lng: metro.defaultCenter[1],
+        zoom: metro.defaultZoom,
+        score,
+      };
+    })
+    .filter((item) => item.score > 0 || normalizedQuery.length === 0);
+}
+
+function buildCuratedNeighborhoodSuggestions(
+  query: string,
+  metro: MetroCity,
+): Array<LocationSuggestion & { score: number }> {
+  if (metro.code !== "gdl") return [];
+
   return CURATED_GUADALAJARA_NEIGHBORHOODS.map((item) => {
-    const city = item.city ?? GUADALAJARA_CITY;
-    const prefix = cityAbbreviation(city);
+    const city = item.city ?? metro.label;
     const primaryName = item.neighborhood;
     const isMunicipality = normalizeLocationText(primaryName) === normalizeLocationText(city);
-    const label = `${prefix} - ${primaryName}`;
+    const label = `${metro.abbr} - ${primaryName}`;
     return {
       key: `curated:${item.neighborhood}`,
       label,
       value: label,
+      kind: "neighborhood" as const,
+      cityCode: metro.code,
       city,
       neighborhood: primaryName,
       lat: item.lat,
       lng: item.lng,
-      zoom: isMunicipality ? GUADALAJARA_MUNICIPALITY_ZOOM : GUADALAJARA_NEIGHBORHOOD_ZOOM,
+      zoom: isMunicipality ? metro.municipalityZoom : metro.neighborhoodZoom,
       score: scoreLocationMatch(
         query,
         primaryName,
@@ -345,8 +367,18 @@ function buildCuratedSuggestions(query: string): Array<LocationSuggestion & { sc
 
 export async function locationSearchHandler(req: Request, res: Response) {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  const cityCode = typeof req.query.city === "string" ? req.query.city.trim() : "";
+  const scope = typeof req.query.scope === "string" ? req.query.scope.trim() : "";
+  const metro = resolveMetroCity(cityCode || DEFAULT_METRO_CITY.code);
+  const searchNeighborhoods = scope === "neighborhood" || Boolean(cityCode);
+
   if (q.length < 2) {
     res.json([]);
+    return;
+  }
+
+  if (!searchNeighborhoods) {
+    res.json(buildCitySuggestions(q).map(({ score: _score, ...item }) => item));
     return;
   }
 
@@ -359,7 +391,7 @@ export async function locationSearchHandler(req: Request, res: Response) {
     url.searchParams.set("countrycodes", "mx");
     url.searchParams.set(
       "viewbox",
-      `${GUADALAJARA_METRO_VIEWBOX.left},${GUADALAJARA_METRO_VIEWBOX.top},${GUADALAJARA_METRO_VIEWBOX.right},${GUADALAJARA_METRO_VIEWBOX.bottom}`,
+      `${metro.viewbox.left},${metro.viewbox.top},${metro.viewbox.right},${metro.viewbox.bottom}`,
     );
     url.searchParams.set("bounded", "1");
     const upstream = await fetch(url, {
@@ -374,7 +406,7 @@ export async function locationSearchHandler(req: Request, res: Response) {
 
   try {
     const searchQueries = [
-      `${q}, ${GUADALAJARA_CITY}, Jalisco, Mexico`,
+      `${q}, ${metro.label}, Jalisco, Mexico`,
       `${q}, Jalisco, Mexico`,
       q,
     ];
@@ -383,7 +415,7 @@ export async function locationSearchHandler(req: Request, res: Response) {
       const result = await runSearch(searchQuery);
       if (!result?.length) continue;
       for (const item of result) {
-        if (!isWithinGuadalajara(item.address)) continue;
+        if (!isWithinMetro(item.address, metro)) continue;
         payloadById.set(item.place_id, item);
       }
     }
@@ -392,10 +424,9 @@ export async function locationSearchHandler(req: Request, res: Response) {
     const nominatimSuggestions = payload
       .map((item) => {
         const neighborhood = pickNeighborhood(item.address);
-        const city = pickCity(item.address);
+        const city = pickCity(item.address, metro.label);
         const primaryName = neighborhood || city;
-        const prefix = cityAbbreviation(city);
-        const label = `${prefix} - ${primaryName}`;
+        const label = `${metro.abbr} - ${primaryName}`;
         const displayName = item.display_name ?? "";
         const fallbackName = item.name ?? primaryName;
         const isMunicipality = normalizeLocationText(primaryName) === normalizeLocationText(city);
@@ -403,20 +434,22 @@ export async function locationSearchHandler(req: Request, res: Response) {
           key: `${label}:${item.lat}:${item.lon}`,
           label,
           value: label,
+          kind: "neighborhood" as const,
+          cityCode: metro.code,
           city,
           neighborhood: neighborhood || null,
           lat: Number(item.lat),
           lng: Number(item.lon),
-          zoom: isMunicipality ? GUADALAJARA_MUNICIPALITY_ZOOM : GUADALAJARA_NEIGHBORHOOD_ZOOM,
+          zoom: isMunicipality ? metro.municipalityZoom : metro.neighborhoodZoom,
           score: scoreLocationMatch(q, primaryName, city, displayName, fallbackName),
         };
       })
-      .filter((item) => {
-        if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) return false;
-        return true;
-      });
+      .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
 
-    const suggestions = mergeLocationSuggestions(buildCuratedSuggestions(q), nominatimSuggestions);
+    const suggestions = mergeLocationSuggestions(
+      buildCuratedNeighborhoodSuggestions(q, metro),
+      nominatimSuggestions,
+    );
 
     res.json(suggestions);
   } catch {

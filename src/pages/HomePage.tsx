@@ -21,12 +21,12 @@ export function HomePage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const goSearch = useCallback(() => {
-    navigate({ pathname: "/buscar", search: `?${buildSearchParams(searchQuery).toString()}` });
+    navigate({ pathname: "/buscar/gdl", search: `?${buildSearchParams(searchQuery).toString()}` });
   }, [navigate, searchQuery]);
 
   const goSearchForCity = useCallback(
     (city: string) => {
-      navigate({ pathname: "/buscar", search: `?${buildSearchParams(city).toString()}` });
+      navigate({ pathname: "/buscar/gdl", search: `?${buildSearchParams(city).toString()}` });
     },
     [navigate],
   );

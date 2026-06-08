@@ -1,17 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
 import { SEED_LISTINGS } from "@/data/seedListings";
-import { fetchListingsFromApi, isListingsApiConfigured } from "@/lib/listingsApi";
-import {
-  DEFAULT_SEARCH_CITY,
-  GUADALAJARA_LA_MINERVA_CENTER,
-  GUADALAJARA_LA_MINERVA_ZOOM,
-} from "@/lib/searchDefaults";
+import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
+import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
 import {
   filterListings,
   filtersToParams,
@@ -21,56 +17,74 @@ import {
   type Bbox,
   type SearchFilters,
 } from "@/lib/searchFilters";
+import {
+  metroDefaultLocation,
+  parseSearchLocation,
+  searchPathForCity,
+  stripMetroLabelPrefix,
+  writeSearchLocation,
+  type SearchLocationState,
+} from "@/lib/searchLocation";
 import type { PropertyListing } from "@/types/listing";
 
-type SearchMapLocation = {
-  label: string;
-  lat: number;
-  lng: number;
-  zoom: number;
-};
-
-const DEFAULT_SEARCH_LOCATION: SearchMapLocation = {
-  label: DEFAULT_SEARCH_CITY,
-  lat: GUADALAJARA_LA_MINERVA_CENTER[0],
-  lng: GUADALAJARA_LA_MINERVA_CENTER[1],
-  zoom: GUADALAJARA_LA_MINERVA_ZOOM,
-};
-
-function parseNumberParam(raw: string | null): number | null {
-  if (raw == null || raw.trim() === "") return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseSearchLocation(params: URLSearchParams): SearchMapLocation {
-  const label = params.get("loc")?.trim() || DEFAULT_SEARCH_LOCATION.label;
-  const lat = parseNumberParam(params.get("lat")) ?? DEFAULT_SEARCH_LOCATION.lat;
-  const lng = parseNumberParam(params.get("lng")) ?? DEFAULT_SEARCH_LOCATION.lng;
-  const zoom = parseNumberParam(params.get("z")) ?? DEFAULT_SEARCH_LOCATION.zoom;
-  return { label, lat, lng, zoom };
-}
-
-function writeSearchLocation(params: URLSearchParams, location: SearchMapLocation) {
-  params.set("loc", location.label);
-  params.set("lat", String(location.lat));
-  params.set("lng", String(location.lng));
-  params.set("z", String(location.zoom));
-  return params;
+function hasLocationCoords(params: URLSearchParams) {
+  return params.has("lat") && params.has("lng") && params.has("z");
 }
 
 export function SearchPage() {
+  const navigate = useNavigate();
+  const { cityCode: routeCityCode } = useParams<{ cityCode?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
   const normalizedFilters = useMemo(() => ({ ...filters, q: "" }), [filters]);
-  const searchLocation = useMemo(() => parseSearchLocation(searchParams), [searchParams]);
+  const metro = useMemo(() => resolveMetroCity(routeCityCode), [routeCityCode]);
+  const searchLocation = useMemo(
+    () => parseSearchLocation(searchParams, routeCityCode),
+    [routeCityCode, searchParams],
+  );
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
+  const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
 
   const apiOn = isListingsApiConfigured();
   const [apiListings, setApiListings] = useState<PropertyListing[] | undefined>(undefined);
   const [apiBusy, setApiBusy] = useState(false);
   const [apiErr, setApiErr] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    mapFallbackLocationRef.current = searchLocation;
+  }, [searchLocation]);
+
+  useEffect(() => {
+    const requested = findMetroCity(routeCityCode);
+    if (!routeCityCode) {
+      navigate(
+        {
+          pathname: searchPathForCity(metro.code),
+          search: searchParams.toString() ? `?${searchParams.toString()}` : "",
+        },
+        { replace: true },
+      );
+      return;
+    }
+    if (requested && !requested.enabled) {
+      navigate(
+        {
+          pathname: searchPathForCity(metro.code),
+          search: searchParams.toString() ? `?${searchParams.toString()}` : "",
+        },
+        { replace: true },
+      );
+    }
+  }, [metro.code, navigate, routeCityCode, searchParams]);
+
+  useEffect(() => {
+    if (hasLocationCoords(searchParams)) return;
+    setSearchParams(
+      (prev) => writeSearchLocation(new URLSearchParams(prev), metroDefaultLocation(metro)),
+      { replace: true },
+    );
+  }, [metro, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!apiOn) return;
@@ -100,18 +114,6 @@ export function SearchPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const isDefaultLocationView = searchLocation.label === DEFAULT_SEARCH_CITY;
-
-  useEffect(() => {
-    if (searchParams.has("loc") && searchParams.has("lat") && searchParams.has("lng") && searchParams.has("z")) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        return writeSearchLocation(next, DEFAULT_SEARCH_LOCATION);
-      },
-      { replace: true },
-    );
-  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -126,14 +128,27 @@ export function SearchPage() {
 
   useEffect(() => {
     setSelectedId(null);
-  }, [searchLocation.label, searchLocation.lat, searchLocation.lng, searchLocation.zoom]);
+  }, [searchLocation.cityCode, searchLocation.neighborhood, searchLocation.lat, searchLocation.lng, searchLocation.zoom]);
+
+  const applyLocation = useCallback(
+    (next: SearchLocationState) => {
+      setLocationError(null);
+      const path = searchPathForCity(next.cityCode);
+      const params = writeSearchLocation(
+        filtersToParams({ ...normalizedFilters, q: "", bbox: null }),
+        next,
+      );
+      navigate({ pathname: path, search: `?${params.toString()}` }, { replace: true });
+    },
+    [navigate, normalizedFilters],
+  );
 
   function applyFilters(next: SearchFilters) {
     setLocationError(null);
     setSearchParams(
       (prev) => {
         const nextParams = filtersToParams({ ...next, q: "" });
-        return writeSearchLocation(nextParams, parseSearchLocation(new URLSearchParams(prev)));
+        return writeSearchLocation(nextParams, parseSearchLocation(new URLSearchParams(prev), routeCityCode));
       },
       { replace: true },
     );
@@ -141,11 +156,13 @@ export function SearchPage() {
 
   const clearFilters = useCallback(() => {
     setLocationError(null);
+    const defaultLocation = metroDefaultLocation(metro);
     setSearchParams(
-      () => writeSearchLocation(filtersToParams(resetSearchFilters(normalizedFilters)), DEFAULT_SEARCH_LOCATION),
+      () => writeSearchLocation(filtersToParams(resetSearchFilters(normalizedFilters)), defaultLocation),
       { replace: true },
     );
-  }, [normalizedFilters]);
+    navigate({ pathname: searchPathForCity(metro.code), search: "" }, { replace: true });
+  }, [metro, navigate, normalizedFilters, setSearchParams]);
 
   const hasActiveFilters = useMemo(
     () => hasActiveSearchFilters(normalizedFilters),
@@ -158,13 +175,74 @@ export function SearchPage() {
       setSearchParams(
         (prev) => {
           const f = parseFilters(new URLSearchParams(prev));
-          return writeSearchLocation(filtersToParams({ ...f, q: "", bbox }), parseSearchLocation(new URLSearchParams(prev)));
+          return writeSearchLocation(
+            filtersToParams({ ...f, q: "", bbox }),
+            parseSearchLocation(new URLSearchParams(prev), routeCityCode),
+          );
         },
         { replace: true },
       );
     },
-    [setSearchParams],
+    [routeCityCode, setSearchParams],
   );
+
+  const handleCitySelect = useCallback(
+    (location: LocationSuggestion) => {
+      applyLocation({
+        cityCode: location.cityCode,
+        cityAbbr: resolveMetroCity(location.cityCode).abbr,
+        cityLabel: location.city,
+        neighborhood: null,
+        lat: location.lat,
+        lng: location.lng,
+        zoom: location.zoom,
+      });
+    },
+    [applyLocation],
+  );
+
+  const handleNeighborhoodSelect = useCallback(
+    (location: LocationSuggestion) => {
+      const metro = resolveMetroCity(location.cityCode);
+      const neighborhood =
+        stripMetroLabelPrefix(metro.abbr, location.neighborhood ?? location.label) ??
+        location.neighborhood;
+      applyLocation({
+        cityCode: location.cityCode,
+        cityAbbr: metro.abbr,
+        cityLabel: location.city,
+        neighborhood,
+        lat: location.lat,
+        lng: location.lng,
+        zoom: location.zoom,
+      });
+    },
+    [applyLocation],
+  );
+
+  const handleCityClear = useCallback(() => {
+    setLocationError(null);
+    applyLocation({
+      ...searchLocation,
+      neighborhood: null,
+    });
+  }, [applyLocation, searchLocation]);
+
+  const handleNeighborhoodClear = useCallback(() => {
+    setLocationError(null);
+    applyLocation({
+      ...searchLocation,
+      neighborhood: null,
+      lat: metro.defaultCenter[0],
+      lng: metro.defaultCenter[1],
+      zoom: metro.defaultZoom,
+    });
+  }, [applyLocation, metro, searchLocation]);
+
+  const handleCityRestore = useCallback(() => {
+    setLocationError(null);
+    applyLocation(mapFallbackLocationRef.current);
+  }, [applyLocation]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
@@ -181,37 +259,14 @@ export function SearchPage() {
         onOpenAdvanced={() => setAdvancedOpen(true)}
         onClearFilters={clearFilters}
         hasActiveFilters={hasActiveFilters}
-        locationValue={searchLocation.label}
+        searchLocation={searchLocation}
         locationError={locationError}
+        onCitySelect={handleCitySelect}
+        onNeighborhoodSelect={handleNeighborhoodSelect}
+        onCityClear={handleCityClear}
+        onNeighborhoodClear={handleNeighborhoodClear}
+        onCityRestore={handleCityRestore}
         onLocationInput={() => setLocationError(null)}
-        onLocationSelect={(location) => {
-          setLocationError(null);
-          setSearchParams(
-            (prev) => {
-              const f = parseFilters(new URLSearchParams(prev));
-              return writeSearchLocation(
-                filtersToParams({ ...f, q: "", bbox: null }),
-                {
-                  label: location.label,
-                  lat: location.lat,
-                  lng: location.lng,
-                  zoom: location.zoom,
-                },
-              );
-            },
-            { replace: true },
-          );
-        }}
-        onLocationReset={() => {
-          setLocationError(null);
-          setSearchParams(
-            (prev) => {
-              const f = parseFilters(new URLSearchParams(prev));
-              return writeSearchLocation(filtersToParams({ ...f, q: "", bbox: null }), DEFAULT_SEARCH_LOCATION);
-            },
-            { replace: true },
-          );
-        }}
         onLocationNotFound={(query) => {
           setLocationError(`No se encontró la colonia "${query}". Mostramos la última ubicación.`);
         }}
@@ -219,7 +274,6 @@ export function SearchPage() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* ~2/3: rail + map */}
         <section className="relative flex min-h-0 min-w-0 flex-[1.35] flex-col border-border lg:flex-[2] lg:border-r">
           <div className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
             <div className="absolute inset-0">
@@ -243,7 +297,6 @@ export function SearchPage() {
           </div>
         </section>
 
-        {/* ~1/3: scrollable listings */}
         <aside className="hidden max-h-[48vh] min-h-0 min-w-0 flex-1 flex-col border-t border-border bg-surface sm:max-h-[52vh] lg:flex lg:max-h-none lg:min-w-[300px] lg:flex-[1] lg:border-l lg:border-t-0">
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4 sm:py-3">
             <h2 className="text-sm font-semibold text-body sm:text-base">Listados</h2>

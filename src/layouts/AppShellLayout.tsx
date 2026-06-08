@@ -50,7 +50,7 @@ export function AppShellLayout() {
     return () => window.clearInterval(t);
   }, [me?.id]);
 
-  const isSearchPage = location.pathname === "/buscar";
+  const isSearchPage = location.pathname === "/buscar" || location.pathname.startsWith("/buscar/");
 
   return (
     <AuthModalProvider>
