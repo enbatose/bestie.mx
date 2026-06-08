@@ -23,6 +23,7 @@ type LocationSuggestion = {
 };
 
 const GUADALAJARA_CITY = "Guadalajara";
+const GUADALAJARA_METRO_LABEL_PREFIX = "GDL";
 const GUADALAJARA_NEIGHBORHOOD_ZOOM = 14;
 const GUADALAJARA_MUNICIPALITY_ZOOM = 12;
 const GUADALAJARA_METRO_VIEWBOX = {
@@ -139,26 +140,12 @@ const CURATED_GUADALAJARA_NEIGHBORHOODS: Array<{
   },
 ];
 
-const CITY_ABBREVIATIONS: Record<string, string> = {
-  guadalajara: "GDL",
-  zapopan: "ZAP",
-  tonala: "TON",
-  "tonalá": "TON",
-  tlaquepaque: "TLQ",
-  "san pedro tlaquepaque": "TLQ",
-  "el salto": "ELS",
-  tlajomulco: "TLJ",
-  "tlajomulco de zuniga": "TLJ",
-  "tlajomulco de zuñiga": "TLJ",
-};
-
 function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
-function cityAbbreviation(city: string) {
-  const normalized = normalizeLocationText(city);
-  return CITY_ABBREVIATIONS[normalized] ?? normalized.replace(/[^a-z]/g, "").slice(0, 3).toUpperCase();
+function cityAbbreviation(_city: string) {
+  return GUADALAJARA_METRO_LABEL_PREFIX;
 }
 
 function isWithinGuadalajara(address: NominatimAddress | undefined) {
