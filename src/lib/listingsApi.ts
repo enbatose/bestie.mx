@@ -15,7 +15,7 @@ import type {
 import { apiBase } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
 
-/** Always true: same-origin `/api` is valid; set `VITE_API_URL` only for a separate API host. */
+/** Always true on Railway (same-origin `/api`); set `VITE_API_URL` only for local dev against another port. */
 export function isListingsApiConfigured(): boolean {
   return true;
 }

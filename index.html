@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="es-MX">
   <head>
+    <script>
+      (function () {
+        if (window.location.hostname === "bestie.mx") {
+          var path = window.location.pathname + window.location.search + window.location.hash;
+          window.location.replace("https://www.bestie.mx" + path);
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

@@ -47,6 +47,12 @@ describe("SPA static from API process", () => {
     expect(res.text).toContain("spa");
   });
 
+  it("GET /buscar/gdl on apex host redirects to www preserving path", async () => {
+    const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
+    const res = await request(app).get("/buscar/gdl").set("Host", "bestie.mx").expect(301);
+    expect(res.headers.location).toBe("https://www.bestie.mx/buscar/gdl");
+  });
+
   it("GET /robots.txt serves a real file from dist", async () => {
     const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
     const res = await request(app).get("/robots.txt").expect(200);

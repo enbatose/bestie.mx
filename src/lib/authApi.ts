@@ -4,7 +4,7 @@ import { deviceHeaders } from "@/lib/deviceFingerprint";
 const cred: RequestCredentials = "include";
 
 const API_NET_ERR =
-  "No se pudo contactar la API. Si el sitio está en GitHub Pages, añade el secreto del repositorio VITE_API_URL con la URL pública del servidor (sin / al final; p. ej. https://tu-app.up.railway.app).";
+  "No se pudo contactar la API. Comprueba tu conexión o que el servidor en Railway esté en línea.";
 
 async function networkFetch(input: string, init?: RequestInit): Promise<Response> {
   try {
@@ -14,7 +14,7 @@ async function networkFetch(input: string, init?: RequestInit): Promise<Response
   }
 }
 
-/** Always true: same-origin `/api` is valid; set `VITE_API_URL` only for a separate API host. */
+/** Always true on Railway (same-origin `/api`); set `VITE_API_URL` only for local dev against another port. */
 export function isAuthApiConfigured(): boolean {
   return true;
 }

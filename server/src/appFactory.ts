@@ -83,6 +83,15 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
 
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const host = (req.headers.host ?? "").split(":")[0]?.toLowerCase();
+    if (host === "bestie.mx") {
+      res.redirect(301, `https://www.bestie.mx${req.originalUrl || "/"}`);
+      return;
+    }
+    next();
+  });
+
   app.get("/health", (_req: Request, res: Response) => {
     res.status(200).type("text/plain").send("ok");
   });

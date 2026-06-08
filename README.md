@@ -98,9 +98,16 @@ Listing photos are stored as files (and duplicated in SQLite `upload_blobs`). If
 
 - **support@bestie.mx** is referenced in UI (`/contacto`, footer). Ensure DNS + mailbox exist for production.
 
+### Hosting (Railway only)
+
+Production runs on **Railway** ([`Dockerfile`](Dockerfile) + [`railway.toml`](railway.toml)): one service serves the Vite SPA and the Express API on the same origin (`/api/...`). There is no GitHub Pages or other static frontend host.
+
+- **Canonical site:** `https://www.bestie.mx` (apex `bestie.mx` redirects to www with the same path).
+- **Local dev:** Vite on `:5173` proxies `/api` to the API process, or set `VITE_API_URL` via `npm run env:local`.
+
 ### Google Maps / Street View (Railway)
 
-Production deploys via **Railway** ([`Dockerfile`](Dockerfile) + [`railway.toml`](railway.toml)). Set build-time env vars on the Railway service:
+Set build-time env vars on the Railway service:
 
 - **`VITE_GOOGLE_MAPS_EMBED_KEY`** — Maps JavaScript API + Embed API key (Vite bakes `VITE_*` at `npm run build`).
 

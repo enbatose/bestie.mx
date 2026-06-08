@@ -301,8 +301,8 @@ export function SearchTopBar({
     const showLocationMenu = locationMenuOpen;
     const inputRef = mobile ? mobileLocationInputRef : desktopLocationInputRef;
     const inputShellClass = mobile
-      ? "h-14 rounded-[1.2rem] border border-primary/15 bg-surface pl-4 pr-24 shadow-sm ring-primary/30 focus-within:ring-2"
-      : "rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+      ? "relative h-14 w-full min-w-0 rounded-[1.2rem] border border-primary/15 bg-surface pl-3 pr-[4.75rem] shadow-sm ring-primary/30 focus-within:ring-2"
+      : "relative w-full min-w-0 rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
     const inputRowClass = mobile
       ? "flex h-full min-w-0 items-center gap-1.5 overflow-hidden"
       : "flex h-11 min-w-0 items-center gap-1.5 overflow-hidden";
@@ -318,7 +318,7 @@ export function SearchTopBar({
     const placeholder = searchNeighborhoods ? "Buscar colonia…" : "Buscar ciudad…";
 
     return (
-      <div className="relative" onFocus={openLocationMenu} onBlur={scheduleLocationMenuClose}>
+      <div className="relative w-full min-w-0" onFocus={openLocationMenu} onBlur={scheduleLocationMenuClose}>
         <div className={inputShellClass}>
           <div className={inputRowClass}>
             {cityChipVisible ? (
@@ -519,20 +519,20 @@ export function SearchTopBar({
   }
 
   return (
-    <div className="border-b border-primary/15 bg-secondary px-3 py-3 text-primary shadow-sm sm:px-4">
-      <div className="mx-auto max-w-[1920px] sm:hidden">
-        <div className="rounded-[1.75rem] bg-secondary/55 p-2.5 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
-          <div className="grid gap-2.5">
+    <div className="w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-2 py-3 text-primary shadow-sm sm:px-4">
+      <div className="mx-auto w-full min-w-0 max-w-[1920px] sm:hidden">
+        <div className="w-full min-w-0 rounded-[1.75rem] bg-secondary/55 p-2 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
+          <div className="grid w-full min-w-0 gap-2">
             <label className="sr-only" htmlFor="mobile-search-location">
               Ciudad o colonia
             </label>
             {renderLocationField(true)}
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="grid rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
-                <div className="flex min-h-[1rem] items-center gap-2">
-                  <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em] text-primary/75">
-                    PRECIO RENTA MÁX.
+            <div className="grid min-w-0 grid-cols-2 gap-2">
+              <div className="grid min-w-0 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10">
+                <div className="flex min-h-[1rem] items-center gap-1">
+                  <span className="text-[8px] font-semibold uppercase leading-tight tracking-[0.08em] text-primary/75">
+                    RENTA MÁX.
                   </span>
                 </div>
                 <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
@@ -575,9 +575,9 @@ export function SearchTopBar({
                 </div>
               </div>
 
-              <div className="grid rounded-[1.2rem] bg-surface p-2.5 shadow-sm ring-1 ring-primary/10">
-                <div className="flex min-h-[1rem] items-center gap-2">
-                  <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em] text-primary/75">
+              <div className="grid min-w-0 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10">
+                <div className="flex min-h-[1rem] items-center gap-1">
+                  <span className="text-[8px] font-semibold uppercase leading-tight tracking-[0.08em] text-primary/75">
                     Edad
                   </span>
                 </div>
@@ -619,33 +619,33 @@ export function SearchTopBar({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid min-w-0 grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={onOpenAdvanced}
-                className="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-[1.1rem] border border-primary/20 bg-surface px-3 text-[0.92rem] font-semibold text-primary shadow-sm transition hover:border-primary/35"
+                className="inline-flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-[1.1rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35"
               >
                 <Filter className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.2} />
-                Más filtros
+                <span className="truncate">Más filtros</span>
               </button>
 
               <button
                 type="button"
                 onClick={onClearFilters}
                 disabled={!hasActiveFilters}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-[1.1rem] border border-primary/20 bg-surface px-3.5 text-[0.95rem] font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
+                className="inline-flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-[1.1rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
                   <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
                 </svg>
-                Borrar filtros
+                <span className="truncate">Borrar filtros</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto hidden max-w-[1920px] grid-cols-1 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] lg:items-end lg:gap-4">
+      <div className="mx-auto hidden w-full min-w-0 max-w-[1920px] grid-cols-1 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] lg:items-end lg:gap-4">
         <div className="min-w-0 sm:col-span-2 lg:col-span-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
             Ciudad o colonia
