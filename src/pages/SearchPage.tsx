@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
@@ -25,6 +25,7 @@ import {
   writeSearchLocation,
   type SearchLocationState,
 } from "@/lib/searchLocation";
+import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
 
 function hasLocationCoords(params: URLSearchParams) {
@@ -33,6 +34,7 @@ function hasLocationCoords(params: URLSearchParams) {
 
 export function SearchPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cityCode: routeCityCode } = useParams<{ cityCode?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
@@ -44,6 +46,10 @@ export function SearchPage() {
   );
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
+  const searchReturn = useMemo(
+    (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
+    [location.pathname, location.search],
+  );
 
   const apiOn = isListingsApiConfigured();
   const [apiListings, setApiListings] = useState<PropertyListing[] | undefined>(undefined);
@@ -111,8 +117,13 @@ export function SearchPage() {
     return apiListings ?? [];
   }, [apiOn, apiListings, normalizedFilters]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  useEffect(() => {
+    const sel = searchParams.get(SEARCH_SELECTED_PARAM);
+    if (sel) setSelectedId(sel);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!filtered.length) {
@@ -128,7 +139,7 @@ export function SearchPage() {
 
   useEffect(() => {
     setSelectedId(null);
-  }, [searchLocation.cityCode, searchLocation.neighborhood, searchLocation.lat, searchLocation.lng, searchLocation.zoom]);
+  }, [searchLocation.cityCode, searchLocation.neighborhood]);
 
   const applyLocation = useCallback(
     (next: SearchLocationState) => {
@@ -283,6 +294,7 @@ export function SearchPage() {
                 listings={filtered}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
+                searchReturn={searchReturn}
                 defaultCenter={[searchLocation.lat, searchLocation.lng]}
                 defaultZoom={searchLocation.zoom}
                 preferDefaultView
@@ -319,6 +331,7 @@ export function SearchPage() {
               listings={filtered}
               selectedId={selectedId}
               onSelect={(id) => setSelectedId(id)}
+              searchReturn={searchReturn}
             />
           </div>
         </aside>

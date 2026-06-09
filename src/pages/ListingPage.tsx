@@ -4,6 +4,7 @@ import {
   listingSharePath,
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
+import { SearchReturnButtons } from "@/components/listing/SearchReturnButtons";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
@@ -19,6 +20,7 @@ import {
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
+import { buildSearchRestorePath, readSearchReturn } from "@/lib/searchReturn";
 import { roomDisplayName } from "@/lib/roomDisplay";
 import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
 import type { PropertyKind, PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
@@ -162,6 +164,7 @@ export function ListingPage() {
   const listingUpdated = Boolean(
     (location.state as { listingUpdated?: boolean } | null)?.listingUpdated,
   );
+  const searchReturn = useMemo(() => readSearchReturn(location.state), [location.state]);
   useEffect(() => {
     if (!listingUpdated) return;
     navigate(location.pathname + location.search, { replace: true, state: null });
@@ -234,6 +237,11 @@ export function ListingPage() {
   }, [apiOn, id]);
 
   const listing = apiOn ? (apiListing === undefined ? undefined : apiListing) : seedListing;
+
+  const searchRestorePath = useMemo(
+    () => (searchReturn && listing ? buildSearchRestorePath(searchReturn, listing) : null),
+    [listing, searchReturn],
+  );
 
   useEffect(() => {
     if (!listing?.id || !id) return;
@@ -499,11 +507,22 @@ export function ListingPage() {
   const shareListingPath = listingSharePath(listing, isPropertyPost);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
-      <nav className="text-sm text-muted">
-        <Link to="/buscar" className="font-medium text-primary underline-offset-2 hover:underline">
-          Buscar
-        </Link>
+    <div className="relative mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
+      {searchRestorePath ? <SearchReturnButtons to={searchRestorePath} /> : null}
+
+      <nav className={`text-sm text-muted ${searchRestorePath ? "mt-11 sm:mt-12" : ""}`}>
+        {searchRestorePath ? (
+          <Link
+            to={searchRestorePath}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Buscar
+          </Link>
+        ) : (
+          <Link to="/buscar/gdl" className="font-medium text-primary underline-offset-2 hover:underline">
+            Buscar
+          </Link>
+        )}
         <span aria-hidden className="mx-2">
           /
         </span>
@@ -572,6 +591,7 @@ export function ListingPage() {
               <li key={s.id}>
                 <Link
                   to={listingPublicPath(s.id)}
+                  state={searchReturn ? { searchReturn } : undefined}
                   className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   {s.label}

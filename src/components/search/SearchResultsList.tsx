@@ -5,12 +5,14 @@ import {
   listingCardSubtitle,
   listingCardTitle,
 } from "@/lib/listingKeyLabels";
+import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
 
 type Props = {
   listings: PropertyListing[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  searchReturn: SearchReturnContext;
   /** Tighter cards for the narrow list column. */
   dense?: boolean;
 };
@@ -21,7 +23,7 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
-export function SearchResultsList({ listings, selectedId, onSelect, dense = false }: Props) {
+export function SearchResultsList({ listings, selectedId, onSelect, searchReturn, dense = false }: Props) {
   if (!listings.length) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-bg-light p-6 text-sm text-muted">
@@ -42,6 +44,7 @@ export function SearchResultsList({ listings, selectedId, onSelect, dense = fals
           <li key={l.id}>
             <Link
               to={listingCardHref(l)}
+              state={listingNavigationState(searchReturn)}
               onMouseEnter={() => onSelect(l.id)}
               onFocus={() => onSelect(l.id)}
               onClick={() => onSelect(l.id)}

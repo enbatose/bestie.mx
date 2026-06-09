@@ -4,10 +4,12 @@ import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } 
 import L from "leaflet";
 import { Link } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
+import { listingCardHref } from "@/lib/listingKeyLabels";
 import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
+import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
 import { listingMapPosition } from "@/map/listingMapPosition";
 import {
   ensureLeafletDefaultIcons,
@@ -33,6 +35,8 @@ type Props = {
   approximateCircleRadiusM?: number;
   /** Skip fly-to on selection (e.g. fixed preview maps). */
   disableSelectionSync?: boolean;
+  /** When set, listing popup links preserve search return context. */
+  searchReturn?: SearchReturnContext;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -190,6 +194,7 @@ export function PropertyMap({
   approximateAsCircle = false,
   approximateCircleRadiusM = 400,
   disableSelectionSync = false,
+  searchReturn,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -272,7 +277,8 @@ export function PropertyMap({
             <Popup autoPan={false}>
               <div className="max-w-[220px] text-body">
                 <Link
-                  to={listingPublicPath(l.id)}
+                  to={searchReturn ? listingCardHref(l) : listingPublicPath(l.id)}
+                  state={searchReturn ? listingNavigationState(searchReturn) : undefined}
                   className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
                 >
                   {l.title}
