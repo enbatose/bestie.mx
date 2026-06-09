@@ -21,6 +21,7 @@ import {
 import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { Property, PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
+import { SearchReturnLink } from "@/components/listing/SearchReturnButtons";
 
 type ShareProps = {
   shareMsg: string | null;
@@ -55,6 +56,8 @@ type Props = {
   contact: ContactProps;
   ownerActions?: ReactNode;
   statusBadge?: ReactNode;
+  /** When set, show inline return-to-search controls (hidden for direct URL visits). */
+  searchRestorePath?: string | null;
 };
 
 const DEFAULT_SINGLE_MESSAGE = "Hola, me interesa este cuarto. ¿Podemos agendar visita entre semana?";
@@ -73,6 +76,39 @@ function propertyRoomSharePath(listingRoomId: string, roomId: string): string {
   return `${listingPublicPath(listingRoomId)}?roomId=${encodeURIComponent(roomId)}#property-available-rooms`;
 }
 
+function ListingTopActions({
+  searchRestorePath,
+  ownerActions,
+}: {
+  searchRestorePath?: string | null;
+  ownerActions?: ReactNode;
+}) {
+  if (!searchRestorePath && !ownerActions) return null;
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-2 ${
+        searchRestorePath && ownerActions ? "justify-between" : searchRestorePath ? "justify-start" : "justify-end"
+      }`}
+    >
+      {searchRestorePath ? <SearchReturnLink to={searchRestorePath} placement="top" /> : null}
+      {ownerActions ? (
+        <div className={`flex flex-wrap items-center justify-end gap-2 ${searchRestorePath ? "ml-auto" : ""}`}>
+          {ownerActions}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ListingBottomReturn({ searchRestorePath }: { searchRestorePath?: string | null }) {
+  if (!searchRestorePath) return null;
+  return (
+    <div className="flex justify-start pt-1">
+      <SearchReturnLink to={searchRestorePath} placement="bottom" />
+    </div>
+  );
+}
+
 export function PublicPostExperienceListing({
   listing,
   propertyPack,
@@ -86,6 +122,7 @@ export function PublicPostExperienceListing({
   contact,
   ownerActions,
   statusBadge,
+  searchRestorePath,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [singleMessage, setSingleMessage] = useState(DEFAULT_SINGLE_MESSAGE);
@@ -201,7 +238,7 @@ export function PublicPostExperienceListing({
 
     return (
       <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        {ownerActions ? <div className="flex flex-wrap items-center justify-end gap-2">{ownerActions}</div> : null}
+        <ListingTopActions searchRestorePath={searchRestorePath} ownerActions={ownerActions} />
         {statusBadge}
 
         <PropertyHeader property={property} availableRooms={availableRooms} shareActions={shareActions} />
@@ -246,6 +283,8 @@ export function PublicPostExperienceListing({
           onSend={() => contact.onSendProperty(propertyMessage, selectedRoomIds, availableRooms)}
         />
 
+        <ListingBottomReturn searchRestorePath={searchRestorePath} />
+
         {expandedRoom ? (
           <PropertyRoomDetailModal
             room={expandedRoom}
@@ -279,7 +318,7 @@ export function PublicPostExperienceListing({
 
   return (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-      {ownerActions ? <div className="flex flex-wrap items-center justify-end gap-2">{ownerActions}</div> : null}
+      <ListingTopActions searchRestorePath={searchRestorePath} ownerActions={ownerActions} />
       {statusBadge}
 
       <SingleRoomHeader
@@ -316,6 +355,8 @@ export function PublicPostExperienceListing({
         onMessageChange={setSingleMessage}
         onSend={() => contact.onSendSingle(singleMessage)}
       />
+
+      <ListingBottomReturn searchRestorePath={searchRestorePath} />
     </section>
   );
 }

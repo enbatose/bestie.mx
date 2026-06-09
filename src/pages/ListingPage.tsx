@@ -4,7 +4,6 @@ import {
   listingSharePath,
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
-import { SearchReturnButtons } from "@/components/listing/SearchReturnButtons";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
@@ -508,9 +507,7 @@ export function ListingPage() {
 
   return (
     <div className="relative mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
-      {searchRestorePath ? <SearchReturnButtons to={searchRestorePath} /> : null}
-
-      <nav className={`text-sm text-muted ${searchRestorePath ? "mt-11 sm:mt-12" : ""}`}>
+      <nav className="text-sm text-muted">
         {searchRestorePath ? (
           <Link
             to={searchRestorePath}
@@ -560,6 +557,7 @@ export function ListingPage() {
             }}
             ownerActions={ownerActions}
             statusBadge={statusBadge}
+            searchRestorePath={searchRestorePath}
             share={{
               shareMsg,
               onShareListing: () => void copyShareUrl(shareListingPath, "Link del anuncio"),
