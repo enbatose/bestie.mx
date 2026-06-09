@@ -60,11 +60,12 @@
 .search-listing-popup .leaflet-popup-content-wrapper {
   padding: 0;
   border-radius: 0.75rem;
+  overflow: hidden;
 }
 
 .search-listing-popup .leaflet-popup-content {
   margin: 0;
-  width: auto !important;
+  width: min(92vw, 20rem) !important;
   min-width: 0;
 }
 
