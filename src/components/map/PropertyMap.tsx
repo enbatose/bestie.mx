@@ -37,6 +37,8 @@ type Props = {
   disableSelectionSync?: boolean;
   /** When set, listing popup links preserve search return context. */
   searchReturn?: SearchReturnContext;
+  /** Render selected listing card outside Leaflet (above map chrome). */
+  selectedCardOverlay?: boolean;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -195,6 +197,7 @@ export function PropertyMap({
   approximateCircleRadiusM = 400,
   disableSelectionSync = false,
   searchReturn,
+  selectedCardOverlay = false,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -273,16 +276,17 @@ export function PropertyMap({
             );
           }
 
-          const popupContent = (
-            <Popup autoPan={false} className="search-listing-popup">
-              <SearchListingCard
-                listing={l}
-                variant="popup"
-                to={searchReturn ? listingCardHref(l) : listingPublicPath(l.id)}
-                state={searchReturn ? listingNavigationState(searchReturn) : undefined}
-              />
-            </Popup>
-          );
+          const popupContent =
+            selectedCardOverlay ? null : (
+              <Popup autoPan={false} className="search-listing-popup">
+                <SearchListingCard
+                  listing={l}
+                  variant="popup"
+                  to={searchReturn ? listingCardHref(l) : listingPublicPath(l.id)}
+                  state={searchReturn ? listingNavigationState(searchReturn) : undefined}
+                />
+              </Popup>
+            );
 
           const position = listingMapPosition(l);
           return (
@@ -307,6 +311,7 @@ export function PropertyMap({
             listings={listings}
             getMarker={getMarker}
             suppressViewportUntilRef={suppressViewportBboxUntilRef}
+            openMarkerPopup={!selectedCardOverlay}
           />
         ) : null}
       </MapContainer>

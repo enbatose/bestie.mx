@@ -56,22 +56,31 @@
   height: auto !important;
 }
 
-/* Search listing card inside map pin popups */
+/* Search listing card inside map pin popups — above header (z-40) and filter rail (z-1100) */
+.search-listing-popup.leaflet-popup {
+  z-index: 1300 !important;
+}
+
 .search-listing-popup .leaflet-popup-content-wrapper {
   padding: 0;
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   overflow: hidden;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
 }
 
 .search-listing-popup .leaflet-popup-content {
   margin: 0;
-  width: min(92vw, 20rem) !important;
+  width: min(84vw, 15rem) !important;
   min-width: 0;
 }
 
 .search-listing-popup .leaflet-popup-content a {
   text-decoration: none;
   color: inherit;
+}
+
+.search-listing-popup .leaflet-popup-tip-container {
+  z-index: 1300;
 }
 
 @keyframes autosave-ring-travel {

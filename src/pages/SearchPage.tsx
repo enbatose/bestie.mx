@@ -3,11 +3,13 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
+import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
 import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
+import { listingCardHref } from "@/lib/listingKeyLabels";
 import {
   filterListings,
   filtersToParams,
@@ -25,7 +27,7 @@ import {
   writeSearchLocation,
   type SearchLocationState,
 } from "@/lib/searchLocation";
-import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
+import { SEARCH_SELECTED_PARAM, listingNavigationState, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
 
 function hasLocationCoords(params: URLSearchParams) {
@@ -118,7 +120,23 @@ export function SearchPage() {
   }, [apiOn, apiListings, normalizedFilters]);
 
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
+
+  const selectedListing = useMemo(
+    () => (selectedId ? filtered.find((l) => l.id === selectedId) ?? null : null),
+    [filtered, selectedId],
+  );
+  const [mobileMapCardOverlay, setMobileMapCardOverlay] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 1023px)").matches : true,
+  );
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setMobileMapCardOverlay(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);
@@ -256,7 +274,7 @@ export function SearchPage() {
   }, [applyLocation]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-bg-light">
       <SearchAdvancedSheet
         open={advancedOpen}
         onClose={() => setAdvancedOpen(false)}
@@ -295,6 +313,7 @@ export function SearchPage() {
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 searchReturn={searchReturn}
+                selectedCardOverlay={mobileMapCardOverlay}
                 defaultCenter={[searchLocation.lat, searchLocation.lng]}
                 defaultZoom={searchLocation.zoom}
                 preferDefaultView
@@ -336,6 +355,19 @@ export function SearchPage() {
           </div>
         </aside>
       </div>
+
+      {mobileMapCardOverlay && selectedListing ? (
+        <div className="pointer-events-none absolute left-11 top-2 z-[1300] sm:left-14 sm:top-3">
+          <div className="pointer-events-auto">
+            <SearchListingCard
+              listing={selectedListing}
+              variant="popup"
+              to={listingCardHref(selectedListing)}
+              state={listingNavigationState(searchReturn)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

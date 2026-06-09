@@ -42,7 +42,7 @@ function ListingCardThumb({ listing, className }: { listing: PropertyListing; cl
       <img
         src={src}
         alt=""
-        className={`shrink-0 rounded-lg object-cover ring-1 ring-border ${className}`}
+        className={`object-cover ring-1 ring-border ${className}`}
         loading="lazy"
       />
     );
@@ -50,23 +50,10 @@ function ListingCardThumb({ listing, className }: { listing: PropertyListing; cl
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-lg bg-bg-light ring-1 ring-border ${className}`}
+      className={`flex items-center justify-center bg-bg-light ring-1 ring-border ${className}`}
       aria-hidden
     >
-      <Camera className="size-5 text-muted" strokeWidth={1.75} />
-    </div>
-  );
-}
-
-function ListingCardHero({ listing }: { listing: PropertyListing }) {
-  const src = listingCoverImageUrl(listing);
-  if (src) {
-    return <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />;
-  }
-
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-bg-light" aria-hidden>
-      <Camera className="size-8 text-muted" strokeWidth={1.75} />
+      <Camera className="size-4 text-muted" strokeWidth={1.75} />
     </div>
   );
 }
@@ -79,7 +66,7 @@ function SearchListingPopupCard({
 }: Pick<Props, "listing" | "to" | "state" | "onClick">) {
   const title = listingCardTitle(listing);
   const pills = listingCardQuickAttributes(listing)
-    .slice(0, 3)
+    .slice(0, 2)
     .map((item) => item.mobileLabel ?? item.label);
 
   return (
@@ -88,34 +75,34 @@ function SearchListingPopupCard({
       state={state}
       onClick={onClick}
       aria-label={popupAriaLabel(listing, title)}
-      className="block w-[min(92vw,20rem)] overflow-hidden rounded-xl bg-surface text-body shadow-sm transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+      className="block w-[min(84vw,15rem)] overflow-hidden rounded-lg bg-surface text-body shadow-md transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
     >
-      <div className="aspect-[16/10] w-full overflow-hidden bg-bg-light">
-        <ListingCardHero listing={listing} />
-      </div>
-      <div className="p-3">
-        <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-primary">{title}</h2>
-        <p className="mt-0.5 truncate text-xs text-muted">{listing.neighborhood}</p>
-        <p className="mt-2 text-base font-bold leading-none text-body">
-          {money.format(listing.rentMxn)}
-          <span className="ml-1 text-xs font-normal text-muted">/ mes</span>
-        </p>
-        {pills.length ? (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {pills.map((label) => (
-              <span
-                key={label}
-                className="rounded-full bg-bg-light px-2 py-0.5 text-[11px] font-semibold text-body ring-1 ring-border"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <div className="mt-3 flex min-h-11 items-center justify-between gap-2 rounded-lg bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary">
-          <span>{popupCtaLabel(listing)}</span>
-          <ChevronRight className="size-4 shrink-0" aria-hidden />
+      <div className="flex items-start gap-2 p-2">
+        <ListingCardThumb listing={listing} className="size-[3.25rem] shrink-0 rounded-md" />
+        <div className="min-w-0 flex-1">
+          <h2 className="line-clamp-2 text-xs font-semibold leading-snug text-primary">{title}</h2>
+          <p className="mt-0.5 truncate text-[11px] text-muted">{listing.neighborhood}</p>
+          <p className="mt-1 text-sm font-bold leading-none text-body">
+            {money.format(listing.rentMxn)}
+            <span className="ml-0.5 text-[10px] font-normal text-muted">/ mes</span>
+          </p>
+          {pills.length ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {pills.map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full bg-bg-light px-1.5 py-px text-[10px] font-semibold text-body ring-1 ring-border"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
+      </div>
+      <div className="flex min-h-9 items-center justify-between gap-2 border-t border-border bg-primary/8 px-2.5 py-1.5 text-xs font-semibold text-primary">
+        <span>{popupCtaLabel(listing)}</span>
+        <ChevronRight className="size-3.5 shrink-0" aria-hidden />
       </div>
     </Link>
   );
@@ -148,7 +135,7 @@ function SearchListingSidebarCard({
       }`}
     >
       <div className="flex items-start gap-3">
-        <ListingCardThumb listing={listing} className="size-16 sm:size-[4.5rem]" />
+        <ListingCardThumb listing={listing} className="size-16 shrink-0 rounded-lg sm:size-[4.5rem]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h2 className="min-w-0 text-sm font-semibold leading-snug text-primary sm:text-base">{title}</h2>

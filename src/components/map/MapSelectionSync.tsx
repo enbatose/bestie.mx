@@ -10,6 +10,8 @@ type Props = {
   getMarker: (id: string) => L.Marker | undefined;
   /** Skip geofenced bbox URL updates while programmatically centering on a pin. */
   suppressViewportUntilRef: MutableRefObject<number>;
+  /** When false, selection only pans the map (overlay card is rendered outside Leaflet). */
+  openMarkerPopup?: boolean;
 };
 
 export function MapSelectionSync({
@@ -17,6 +19,7 @@ export function MapSelectionSync({
   listings,
   getMarker,
   suppressViewportUntilRef,
+  openMarkerPopup = true,
 }: Props) {
   const map = useMap();
   const listingsRef = useRef(listings);
@@ -40,6 +43,7 @@ export function MapSelectionSync({
       const needsFly = !last || last.id !== hit.id || last.lat !== lat || last.lng !== lng;
 
       const openPopupOnce = () => {
+        if (!openMarkerPopup) return;
         if (cancelled || opened) return;
         const tryOpen = (attempt = 0) => {
           if (cancelled || opened) return;
@@ -84,7 +88,7 @@ export function MapSelectionSync({
     return () => {
       cancelled = true;
     };
-  }, [getMarker, map, selectedId, suppressViewportUntilRef]);
+  }, [getMarker, map, openMarkerPopup, selectedId, suppressViewportUntilRef]);
 
   return null;
 }
