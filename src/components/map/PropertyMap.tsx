@@ -1,5 +1,5 @@
 import type L from "leaflet";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { Link } from "react-router-dom";
@@ -67,16 +67,23 @@ function MapResizeInvalidate() {
   return null;
 }
 
-function MapViewportReporter({ onBbox }: { onBbox: (bbox: Bbox) => void }) {
+function MapViewportReporter({
+  onBbox,
+  suppressUntilRef,
+}: {
+  onBbox: (bbox: Bbox) => void;
+  suppressUntilRef: MutableRefObject<number>;
+}) {
   const map = useMap();
   const debounceRef = useRef<number>();
 
   const emit = useCallback(() => {
+    if (Date.now() < suppressUntilRef.current) return;
     const b = map.getBounds();
     const sw = b.getSouthWest();
     const ne = b.getNorthEast();
     onBbox({ minLat: sw.lat, minLng: sw.lng, maxLat: ne.lat, maxLng: ne.lng });
-  }, [map, onBbox]);
+  }, [map, onBbox, suppressUntilRef]);
 
   useEffect(() => {
     window.setTimeout(() => emit(), 0);
@@ -84,6 +91,7 @@ function MapViewportReporter({ onBbox }: { onBbox: (bbox: Bbox) => void }) {
 
   useMapEvents({
     moveend() {
+      if (Date.now() < suppressUntilRef.current) return;
       window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => emit(), 400);
     },
@@ -188,6 +196,7 @@ export function PropertyMap({
   }, []);
 
   const markerRefs = useRef(new Map<string, L.Marker>());
+  const suppressViewportBboxUntilRef = useRef(0);
 
   const registerMarker = useCallback((id: string, marker: L.Marker | null) => {
     if (marker) markerRefs.current.set(id, marker);
@@ -241,7 +250,9 @@ export function PropertyMap({
           preferDefaultView={preferDefaultView}
           skipListingDrivenRefit={Boolean(onViewportBbox)}
         />
-        {onViewportBbox ? <MapViewportReporter onBbox={onViewportBbox} /> : null}
+        {onViewportBbox ? (
+          <MapViewportReporter onBbox={onViewportBbox} suppressUntilRef={suppressViewportBboxUntilRef} />
+        ) : null}
         {listings.map((l) => {
           const selected = l.id === selectedId;
 
@@ -285,9 +296,12 @@ export function PropertyMap({
           return (
             <Marker
               key={l.id}
-              ref={(marker) => registerMarker(l.id, marker)}
               position={position}
-              eventHandlers={{ click: () => onSelect(l.id) }}
+              eventHandlers={{
+                add: (e) => registerMarker(l.id, e.target as L.Marker),
+                remove: () => registerMarker(l.id, null),
+                click: () => onSelect(l.id),
+              }}
               zIndexOffset={selected ? 700 : 0}
               icon={selected ? selectedMarkerIcon : standardMarkerIcon}
             >
@@ -296,7 +310,12 @@ export function PropertyMap({
           );
         })}
         {!disableSelectionSync ? (
-          <MapSelectionSync selectedId={selectedId} listings={listings} getMarker={getMarker} />
+          <MapSelectionSync
+            selectedId={selectedId}
+            listings={listings}
+            getMarker={getMarker}
+            suppressViewportUntilRef={suppressViewportBboxUntilRef}
+          />
         ) : null}
       </MapContainer>
     </div>

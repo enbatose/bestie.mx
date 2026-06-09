@@ -91,7 +91,6 @@ export function SearchPage() {
     const ac = new AbortController();
     setApiBusy(true);
     setApiErr(null);
-    setApiListings(undefined);
     fetchListingsFromApi(new URLSearchParams(filterQueryKey), ac.signal)
       .then((rows) => {
         setApiListings(rows);
@@ -117,6 +116,7 @@ export function SearchPage() {
 
   useEffect(() => {
     if (!filtered.length) {
+      if (apiOn && apiBusy) return;
       setSelectedId(null);
       return;
     }
@@ -124,7 +124,7 @@ export function SearchPage() {
       if (cur && filtered.some((l) => l.id === cur)) return cur;
       return null;
     });
-  }, [filtered]);
+  }, [apiBusy, apiOn, filtered]);
 
   useEffect(() => {
     setSelectedId(null);
