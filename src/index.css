@@ -56,6 +56,23 @@
   height: auto !important;
 }
 
+/* Search listing card inside map pin popups */
+.search-listing-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 0.75rem;
+}
+
+.search-listing-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+  min-width: 0;
+}
+
+.search-listing-popup .leaflet-popup-content a {
+  text-decoration: none;
+  color: inherit;
+}
+
 @keyframes autosave-ring-travel {
   from {
     stroke-dashoffset: 1;

@@ -2,11 +2,11 @@ import type L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import { Link } from "react-router-dom";
-import { listingPublicPath } from "@/lib/listingReference";
 import { listingCardHref } from "@/lib/listingKeyLabels";
+import { listingPublicPath } from "@/lib/listingReference";
 import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
+import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
 import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
@@ -274,27 +274,13 @@ export function PropertyMap({
           }
 
           const popupContent = (
-            <Popup autoPan={false}>
-              <div className="max-w-[220px] text-body">
-                <Link
-                  to={searchReturn ? listingCardHref(l) : listingPublicPath(l.id)}
-                  state={searchReturn ? listingNavigationState(searchReturn) : undefined}
-                  className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
-                >
-                  {l.title}
-                </Link>
-                <p className="mt-1 text-xs text-muted">
-                  {l.neighborhood}, {l.city}
-                </p>
-                <p className="mt-2 text-sm font-semibold">
-                  {new Intl.NumberFormat("es-MX", {
-                    style: "currency",
-                    currency: "MXN",
-                    maximumFractionDigits: 0,
-                  }).format(l.rentMxn)}
-                  <span className="text-xs font-normal text-muted"> / mes</span>
-                </p>
-              </div>
+            <Popup autoPan={false} className="search-listing-popup">
+              <SearchListingCard
+                listing={l}
+                variant="popup"
+                to={searchReturn ? listingCardHref(l) : listingPublicPath(l.id)}
+                state={searchReturn ? listingNavigationState(searchReturn) : undefined}
+              />
             </Popup>
           );
 

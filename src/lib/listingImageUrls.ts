@@ -1,3 +1,6 @@
+import type { PropertyListing } from "@/types/listing";
+import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+
 const LISTING_IMAGE_URL_LEN_MAX = 240;
 
 /** Keep only persisted upload paths the API accepts (`/api/uploads/...`). */
@@ -46,4 +49,15 @@ export function listingGalleryImageUrls(opts: {
     return listingImageUrlsForApi(room.length > 0 ? room : property);
   }
   return listingImageUrlsForApi([...property, ...room]);
+}
+
+/** First gallery image for search cards and map popups (portada). */
+export function listingCoverImageUrl(listing: PropertyListing): string | null {
+  const urls = listingGalleryImageUrls({
+    postMode: listing.propertyPostMode,
+    propertyImageUrls: listing.propertyImageUrls,
+    roomImageUrls: listing.roomImageUrls,
+  });
+  const first = urls[0];
+  return first ? apiAbsoluteUrl(first) : null;
 }
