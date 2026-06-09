@@ -105,6 +105,15 @@ Production runs on **Railway** ([`Dockerfile`](Dockerfile) + [`railway.toml`](ra
 - **Canonical site:** `https://www.bestie.mx` (apex `bestie.mx` redirects to www with the same path).
 - **Local dev:** Vite on `:5173` proxies `/api` to the API process, or set `VITE_API_URL` via `npm run env:local`.
 
+**Apex DNS (`bestie.mx`) must hit Railway.** If `www.bestie.mx` works but `bestie.mx/buscar` returns 404, apex DNS is still pointed at a registrar redirect or old host—not the Railway service. Fix:
+
+1. In **Railway** → service → **Settings** → **Networking** → add custom domain **`bestie.mx`** (in addition to `www.bestie.mx`).
+2. At your DNS provider, replace apex **A** records (registrar forwarding) with the **CNAME + TXT** pair Railway shows for `bestie.mx`. Providers without apex CNAME need **ALIAS/ANAME** or **Cloudflare** (CNAME flattening).
+3. Remove any **URL forwarding** / **domain redirect** rules for `bestie.mx` at the registrar.
+4. After DNS propagates, Express middleware in `server/src/appFactory.ts` 301s `bestie.mx/*` → `https://www.bestie.mx/*` with the path preserved.
+
+Verify: `curl -I https://bestie.mx/buscar/gdl` should return `301` with `Location: https://www.bestie.mx/buscar/gdl` and `Server: railway-hikari` (not a plain-text 404).
+
 ### Google Maps / Street View (Railway)
 
 Set build-time env vars on the Railway service:

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 
 export function publicWebOrigin(): string {
-  return process.env.PUBLIC_WEB_ORIGIN?.replace(/\/$/, "") || "https://bestie.mx";
+  return process.env.PUBLIC_WEB_ORIGIN?.replace(/\/$/, "") || "https://www.bestie.mx";
 }
 
 /** Base URL for API routes embedded in emails (e.g. verify-email). Defaults to {@link publicWebOrigin} when API and web share one host. */

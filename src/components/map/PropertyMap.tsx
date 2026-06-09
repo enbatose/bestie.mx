@@ -1,3 +1,4 @@
+import type L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
@@ -186,6 +187,15 @@ export function PropertyMap({
     ensureLeafletDefaultIcons();
   }, []);
 
+  const markerRefs = useRef(new Map<string, L.Marker>());
+
+  const registerMarker = useCallback((id: string, marker: L.Marker | null) => {
+    if (marker) markerRefs.current.set(id, marker);
+    else markerRefs.current.delete(id);
+  }, []);
+
+  const getMarker = useCallback((id: string) => markerRefs.current.get(id), []);
+
   const bounds = useMemo(() => {
     if (!listings.length) return null;
     const latLngs = listings.map((l) => listingMapPosition(l));
@@ -232,9 +242,6 @@ export function PropertyMap({
           skipListingDrivenRefit={Boolean(onViewportBbox)}
         />
         {onViewportBbox ? <MapViewportReporter onBbox={onViewportBbox} /> : null}
-        {!disableSelectionSync ? (
-          <MapSelectionSync selectedId={selectedId} listings={listings} />
-        ) : null}
         {listings.map((l) => {
           const selected = l.id === selectedId;
 
@@ -251,7 +258,7 @@ export function PropertyMap({
           }
 
           const popupContent = (
-            <Popup>
+            <Popup autoPan={false}>
               <div className="max-w-[220px] text-body">
                 <Link
                   to={listingPublicPath(l.id)}
@@ -278,6 +285,7 @@ export function PropertyMap({
           return (
             <Marker
               key={l.id}
+              ref={(marker) => registerMarker(l.id, marker)}
               position={position}
               eventHandlers={{ click: () => onSelect(l.id) }}
               zIndexOffset={selected ? 700 : 0}
@@ -287,6 +295,9 @@ export function PropertyMap({
             </Marker>
           );
         })}
+        {!disableSelectionSync ? (
+          <MapSelectionSync selectedId={selectedId} listings={listings} getMarker={getMarker} />
+        ) : null}
       </MapContainer>
     </div>
   );
