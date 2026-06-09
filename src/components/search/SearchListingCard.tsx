@@ -1,4 +1,4 @@
-import { Camera, ChevronRight } from "lucide-react";
+import { Camera, ChevronRight, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { listingCardQuickAttributes } from "@/components/search/searchQuickAttributes";
 import { listingCardSubtitle, listingCardTitle } from "@/lib/listingKeyLabels";
@@ -22,6 +22,7 @@ type Props = {
   onMouseEnter?: () => void;
   onFocus?: () => void;
   onClick?: () => void;
+  onClose?: () => void;
 };
 
 function popupCtaLabel(listing: PropertyListing): string {
@@ -63,48 +64,69 @@ function SearchListingPopupCard({
   to,
   state,
   onClick,
-}: Pick<Props, "listing" | "to" | "state" | "onClick">) {
+  onClose,
+}: Pick<Props, "listing" | "to" | "state" | "onClick" | "onClose">) {
   const title = listingCardTitle(listing);
   const pills = listingCardQuickAttributes(listing)
     .slice(0, 2)
     .map((item) => item.mobileLabel ?? item.label);
 
   return (
-    <Link
-      to={to}
-      state={state}
-      onClick={onClick}
-      aria-label={popupAriaLabel(listing, title)}
-      className="block w-[min(84vw,15rem)] overflow-hidden rounded-lg bg-surface text-body shadow-md transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
-    >
-      <div className="flex items-start gap-2 p-2">
-        <ListingCardThumb listing={listing} className="size-[3.25rem] shrink-0 rounded-md" />
-        <div className="min-w-0 flex-1">
-          <h2 className="line-clamp-2 text-xs font-semibold leading-snug text-primary">{title}</h2>
-          <p className="mt-0.5 truncate text-[11px] text-muted">{listing.neighborhood}</p>
-          <p className="mt-1 text-sm font-bold leading-none text-body">
-            {money.format(listing.rentMxn)}
-            <span className="ml-0.5 text-[10px] font-normal text-muted">/ mes</span>
-          </p>
-          {pills.length ? (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {pills.map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full bg-bg-light px-1.5 py-px text-[10px] font-semibold text-body ring-1 ring-border"
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-          ) : null}
+    <div className="relative w-[min(84vw,15rem)] drop-shadow-md">
+      {onClose ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
+          className="absolute right-1 top-1 z-10 inline-flex size-6 items-center justify-center rounded-full bg-surface/95 text-muted shadow-sm ring-1 ring-border transition hover:bg-surface hover:text-body"
+          aria-label="Cerrar"
+        >
+          <X className="size-3.5" strokeWidth={2.5} aria-hidden />
+        </button>
+      ) : null}
+      <Link
+        to={to}
+        state={state}
+        onClick={onClick}
+        aria-label={popupAriaLabel(listing, title)}
+        className="block overflow-hidden rounded-lg bg-surface text-body transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+      >
+        <div className="flex items-start gap-2 p-2">
+          <ListingCardThumb listing={listing} className="size-[3.25rem] shrink-0 rounded-md" />
+          <div className="min-w-0 flex-1 pr-5">
+            <h2 className="line-clamp-2 text-xs font-semibold leading-snug text-primary">{title}</h2>
+            <p className="mt-0.5 truncate text-[11px] text-muted">{listing.neighborhood}</p>
+            <p className="mt-1 text-sm font-bold leading-none text-body">
+              {money.format(listing.rentMxn)}
+              <span className="ml-0.5 text-[10px] font-normal text-muted">/ mes</span>
+            </p>
+            {pills.length ? (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {pills.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full bg-bg-light px-1.5 py-px text-[10px] font-semibold text-body ring-1 ring-border"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
-      <div className="flex min-h-9 items-center justify-between gap-2 border-t border-border bg-primary/8 px-2.5 py-1.5 text-xs font-semibold text-primary">
-        <span>{popupCtaLabel(listing)}</span>
-        <ChevronRight className="size-3.5 shrink-0" aria-hidden />
-      </div>
-    </Link>
+        <div className="flex min-h-9 items-center justify-between gap-2 border-t border-border bg-primary/8 px-2.5 py-1.5 text-xs font-semibold text-primary">
+          <span>{popupCtaLabel(listing)}</span>
+          <ChevronRight className="size-3.5 shrink-0" aria-hidden />
+        </div>
+      </Link>
+      <div
+        aria-hidden
+        className="absolute left-1/2 top-full -mt-px -translate-x-1/2 border-x-[7px] border-t-[8px] border-x-transparent border-t-surface"
+      />
+    </div>
   );
 }
 

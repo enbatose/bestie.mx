@@ -1,10 +1,11 @@
 import type L from "leaflet";
-import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from "react";
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { listingCardHref } from "@/lib/listingKeyLabels";
 import { listingPublicPath } from "@/lib/listingReference";
 import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
+import { MapListingPopupOverlay } from "@/components/map/MapListingPopupOverlay";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
@@ -21,7 +22,7 @@ import type { PropertyListing } from "@/types/listing";
 type Props = {
   listings: PropertyListing[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   /** Full-bleed map inside split layout (no outer card radius). */
   embed?: boolean;
   className?: string;
@@ -37,8 +38,8 @@ type Props = {
   disableSelectionSync?: boolean;
   /** When set, listing popup links preserve search return context. */
   searchReturn?: SearchReturnContext;
-  /** Render selected listing card outside Leaflet (above map chrome). */
-  selectedCardOverlay?: boolean;
+  /** Portal pin-tied popup into this host (above map chrome such as filter rails). */
+  popupOverlayHostRef?: RefObject<HTMLElement | null>;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -197,7 +198,7 @@ export function PropertyMap({
   approximateCircleRadiusM = 400,
   disableSelectionSync = false,
   searchReturn,
-  selectedCardOverlay = false,
+  popupOverlayHostRef,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -235,6 +236,8 @@ export function PropertyMap({
   const mapHeight = embed
     ? "z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px] max-sm:[&_.leaflet-top.leaflet-left]:left-auto max-sm:[&_.leaflet-top.leaflet-left]:right-3 max-sm:[&_.leaflet-top.leaflet-left]:top-auto max-sm:[&_.leaflet-top.leaflet-left]:bottom-3 max-sm:[&_.leaflet-top.leaflet-left_.leaflet-control]:m-0"
     : "z-0 h-[min(52vh,420px)] w-full min-h-[280px] bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]";
+
+  const usePinPopupOverlay = Boolean(popupOverlayHostRef);
 
   return (
     <div className={shell}>
@@ -277,7 +280,7 @@ export function PropertyMap({
           }
 
           const popupContent =
-            selectedCardOverlay ? null : (
+            usePinPopupOverlay ? null : (
               <Popup autoPan={false} className="search-listing-popup">
                 <SearchListingCard
                   listing={l}
@@ -311,7 +314,16 @@ export function PropertyMap({
             listings={listings}
             getMarker={getMarker}
             suppressViewportUntilRef={suppressViewportBboxUntilRef}
-            openMarkerPopup={!selectedCardOverlay}
+            openMarkerPopup={!usePinPopupOverlay}
+          />
+        ) : null}
+        {usePinPopupOverlay && popupOverlayHostRef ? (
+          <MapListingPopupOverlay
+            hostRef={popupOverlayHostRef}
+            selectedId={selectedId}
+            listings={listings}
+            onClose={() => onSelect(null)}
+            searchReturn={searchReturn}
           />
         ) : null}
       </MapContainer>

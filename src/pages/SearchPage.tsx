@@ -3,13 +3,11 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
-import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
 import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
-import { listingCardHref } from "@/lib/listingKeyLabels";
 import {
   filterListings,
   filtersToParams,
@@ -27,7 +25,7 @@ import {
   writeSearchLocation,
   type SearchLocationState,
 } from "@/lib/searchLocation";
-import { SEARCH_SELECTED_PARAM, listingNavigationState, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
+import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
 
 function hasLocationCoords(params: URLSearchParams) {
@@ -48,6 +46,7 @@ export function SearchPage() {
   );
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
+  const mapSectionRef = useRef<HTMLDivElement>(null);
   const searchReturn = useMemo(
     (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
     [location.pathname, location.search],
@@ -120,23 +119,7 @@ export function SearchPage() {
   }, [apiOn, apiListings, normalizedFilters]);
 
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
-
-  const selectedListing = useMemo(
-    () => (selectedId ? filtered.find((l) => l.id === selectedId) ?? null : null),
-    [filtered, selectedId],
-  );
-  const [mobileMapCardOverlay, setMobileMapCardOverlay] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia("(max-width: 1023px)").matches : true,
-  );
   const [advancedOpen, setAdvancedOpen] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px)");
-    const sync = () => setMobileMapCardOverlay(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
 
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);
@@ -274,7 +257,7 @@ export function SearchPage() {
   }, [applyLocation]);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-bg-light">
+    <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
       <SearchAdvancedSheet
         open={advancedOpen}
         onClose={() => setAdvancedOpen(false)}
@@ -304,7 +287,7 @@ export function SearchPage() {
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <section className="relative flex min-h-0 min-w-0 flex-[1.35] flex-col border-border lg:flex-[2] lg:border-r">
-          <div className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
+          <div ref={mapSectionRef} className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
             <div className="absolute inset-0">
               <PropertyMap
                 embed
@@ -313,7 +296,7 @@ export function SearchPage() {
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 searchReturn={searchReturn}
-                selectedCardOverlay={mobileMapCardOverlay}
+                popupOverlayHostRef={mapSectionRef}
                 defaultCenter={[searchLocation.lat, searchLocation.lng]}
                 defaultZoom={searchLocation.zoom}
                 preferDefaultView
@@ -355,19 +338,6 @@ export function SearchPage() {
           </div>
         </aside>
       </div>
-
-      {mobileMapCardOverlay && selectedListing ? (
-        <div className="pointer-events-none absolute left-11 top-2 z-[1300] sm:left-14 sm:top-3">
-          <div className="pointer-events-auto">
-            <SearchListingCard
-              listing={selectedListing}
-              variant="popup"
-              to={listingCardHref(selectedListing)}
-              state={listingNavigationState(searchReturn)}
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
