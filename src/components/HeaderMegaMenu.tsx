@@ -467,6 +467,25 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           Publicar
         </NavLink>
 
+        <NavLink
+          to="/buscar"
+          className={(props) =>
+            [iconBtnClass, "md:hidden", props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : ""].join(" ")
+          }
+          aria-label="Buscar"
+        >
+          <Search className="h-5 w-5 shrink-0" aria-hidden />
+        </NavLink>
+        <NavLink
+          to="/publicar"
+          className={(props) =>
+            [iconBtnClass, "md:hidden", props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : ""].join(" ")
+          }
+          aria-label="Publicar"
+        >
+          <CirclePlus className="h-5 w-5 shrink-0" aria-hidden />
+        </NavLink>
+
         {me?.id ? (
           <div className="hidden md:block">
             <LoggedInIconActions
