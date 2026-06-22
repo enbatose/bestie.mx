@@ -66,7 +66,7 @@ export function AuthModal() {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div className="flex min-h-[100dvh] w-full flex-col justify-end sm:justify-center">
+      <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center">
         <div
           className="mx-auto w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl dark:border-slate-600 dark:bg-slate-900 max-h-[min(32rem,calc(100dvh-6rem))] sm:max-h-[min(36rem,calc(100dvh-4rem))]"
           onClick={(e) => e.stopPropagation()}
