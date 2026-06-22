@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Bell,
   ChevronDown,
@@ -38,7 +37,7 @@ function DesktopMenuDivider() {
 }
 
 const mobileMenuItem =
-  "flex w-full items-center justify-start gap-3 rounded-lg px-4 py-3 text-sm font-medium text-body transition hover:bg-gray-50 dark:hover:bg-surface-elevated";
+  "flex w-full items-center justify-start gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
 
 function mobileNavClass({ isActive }: { isActive: boolean }) {
   return [
@@ -106,7 +105,7 @@ function LoggedInIconActions({
         aria-label={hasUnreadMessages ? "Mensajes (sin leer)" : "Mensajes"}
       >
         <span className="relative inline-flex">
-          <MessageSquare className="h-5 w-5 shrink-0" aria-hidden />
+          <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
           {hasUnreadMessages ? (
             <UnreadDot className="absolute -right-0.5 -top-0.5" />
           ) : null}
@@ -237,8 +236,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
     if (!avatarOpen && !notificationsOpen) return;
     const close = (e: MouseEvent) => {
       const t = e.target as Node;
-      const desktop = window.matchMedia("(min-width: 768px)").matches;
-      if (avatarOpen && desktop && avatarRef.current && !avatarRef.current.contains(t)) {
+      if (avatarOpen && avatarRef.current && !avatarRef.current.contains(t)) {
         setAvatarOpen(false);
       }
       if (notificationsOpen && notificationsRef.current && !notificationsRef.current.contains(t)) {
@@ -252,18 +250,13 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   useEffect(() => {
     if (!avatarOpen) return;
 
-    const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") dismissNav();
     };
 
-    if (window.matchMedia("(max-width: 767px)").matches) {
-      document.body.style.overflow = "hidden";
-    }
     document.addEventListener("keydown", closeOnEscape);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [avatarOpen, dismissNav]);
@@ -350,9 +343,9 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   );
 
   const mobileMenuPanel = me?.id ? (
-    <div className="flex w-full flex-col py-1">
+    <div className="flex w-full flex-col gap-0.5 p-1.5">
       <NavLink to="/buscar" className={mobileNavClass} onClick={dismissNav}>
-        <Search className="h-5 w-5 shrink-0" aria-hidden />
+        <Search className="h-4 w-4 shrink-0" aria-hidden />
         Buscar
       </NavLink>
       <NavLink
@@ -363,7 +356,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           dismissNav();
         }}
       >
-        <MessageSquare className="h-5 w-5 shrink-0" aria-hidden />
+        <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
         <span className="inline-flex min-w-0 flex-1 items-center gap-2">
           Mensajes
           {hasUnreadMessages ? (
@@ -378,18 +371,18 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         </span>
       </NavLink>
       <NavLink to="/mis-anuncios" className={mobileNavClass} onClick={dismissNav}>
-        <LayoutGrid className="h-5 w-5 shrink-0" aria-hidden />
+        <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
         Mis Anuncios
       </NavLink>
       <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>
-        <CirclePlus className="h-5 w-5 shrink-0" aria-hidden />
+        <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
         Publicar
       </NavLink>
 
       <MobileMenuDivider />
 
       <NavLink to="/perfil" className={mobileNavClass} onClick={dismissNav}>
-        <User className="h-5 w-5 shrink-0" aria-hidden />
+        <User className="h-4 w-4 shrink-0" aria-hidden />
         <span className="inline-flex items-center gap-2">
           Mi Perfil
           {profileIncomplete ? (
@@ -399,7 +392,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       </NavLink>
       {me.isAdmin ? (
         <NavLink to="/admin" className={mobileNavClass} onClick={dismissNav}>
-          <Shield className="h-5 w-5 shrink-0" aria-hidden />
+          <Shield className="h-4 w-4 shrink-0" aria-hidden />
           Administrador
         </NavLink>
       ) : null}
@@ -407,7 +400,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       <MobileMenuDivider />
 
       <Link to="/contacto" className={mobileMenuItem} onClick={dismissNav}>
-        <Mail className="h-5 w-5 shrink-0" aria-hidden />
+        <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
 
@@ -418,18 +411,18 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         className={`${mobileMenuItem} hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30`}
         onClick={() => void onLogout()}
       >
-        <LogOut className="h-5 w-5 shrink-0" aria-hidden />
+        <LogOut className="h-4 w-4 shrink-0" aria-hidden />
         Cerrar sesión
       </button>
     </div>
   ) : (
-    <div className="flex w-full flex-col py-1">
+    <div className="flex w-full flex-col gap-0.5 p-1.5">
       <NavLink to="/buscar" className={mobileNavClass} onClick={dismissNav}>
-        <Search className="h-5 w-5 shrink-0" aria-hidden />
+        <Search className="h-4 w-4 shrink-0" aria-hidden />
         Buscar
       </NavLink>
       <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>
-        <CirclePlus className="h-5 w-5 shrink-0" aria-hidden />
+        <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
         Publicar
       </NavLink>
 
@@ -443,44 +436,16 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           openLogin();
         }}
       >
-        <User className="h-5 w-5 shrink-0" aria-hidden />
+        <User className="h-4 w-4 shrink-0" aria-hidden />
         Iniciar sesión / Registrarse
       </button>
 
       <MobileMenuDivider />
 
       <Link to="/contacto" className={mobileMenuItem} onClick={dismissNav}>
-        <Mail className="h-5 w-5 shrink-0" aria-hidden />
+        <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
-    </div>
-  );
-
-  const mobileMenuSheet = (
-    <div className="fixed inset-0 z-[90] md:hidden">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/50"
-        aria-label="Cerrar menú"
-        onClick={dismissNav}
-      />
-      <div
-        className="absolute right-0 top-0 flex h-dvh w-[min(100%,20rem)] flex-col border-l border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Menú principal"
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 dark:border-slate-600">
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-body">
-            <UserAvatar displayName={me?.displayName} profilePictureUrl={me?.profilePictureUrl} size="sm" />
-            {me?.displayName ?? "Menú"}
-          </span>
-          <button type="button" className="text-muted" aria-label="Cerrar menú" onClick={dismissNav}>
-            ✕
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain p-2">{mobileMenuPanel}</div>
-      </div>
     </div>
   );
 
@@ -541,14 +506,18 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
             </span>
           </button>
           {avatarOpen ? (
-            <div className="absolute right-0 top-full z-50 mt-2 hidden min-w-[14rem] rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900 md:block">
-              {avatarDropdown}
+            <div
+              className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,16rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900 md:w-56"
+              role="menu"
+            >
+              <div className="max-h-[min(70dvh,28rem)] overflow-y-auto overscroll-contain md:max-h-none">
+                <div className="md:hidden">{mobileMenuPanel}</div>
+                <div className="hidden md:block">{avatarDropdown}</div>
+              </div>
             </div>
           ) : null}
         </div>
       </div>
-
-      {avatarOpen ? createPortal(mobileMenuSheet, document.body) : null}
     </>
   );
 }
