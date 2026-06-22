@@ -20,20 +20,22 @@ import { useNotifications } from "@/contexts/NotificationsContext";
 import type { NotificationItem } from "@/lib/notificationsMock";
 import { UserAvatar } from "@/components/UserAvatar";
 
-function navClass({ isActive }: { isActive: boolean }) {
+const desktopMenuItem =
+  "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+
+function desktopNavClass({ isActive }: { isActive: boolean }) {
   return [
-    "rounded-lg px-3 py-2 text-sm font-medium transition",
-    isActive
-      ? "bg-surface-elevated text-primary ring-1 ring-border"
-      : "text-body hover:bg-surface-elevated",
+    desktopMenuItem,
+    isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : "",
   ].join(" ");
 }
 
-const dropBtn =
-  "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+const desktopLogoutBtn =
+  `${desktopMenuItem} hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30`;
 
-const logoutBtn =
-  "block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30";
+function DesktopMenuDivider() {
+  return <div className="my-1 border-t border-gray-100 dark:border-slate-700" role="separator" />;
+}
 
 const mobileMenuItem =
   "flex w-full items-center justify-start gap-3 rounded-lg px-4 py-3 text-sm font-medium text-body transition hover:bg-gray-50 dark:hover:bg-surface-elevated";
@@ -201,25 +203,6 @@ function AvatarTrigger({
   );
 }
 
-function AvatarMenuSection({
-  children,
-  showDivider = true,
-}: {
-  children: React.ReactNode;
-  showDivider?: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "p-1",
-        showDivider ? "my-1 border-t border-gray-100 dark:border-slate-700" : "",
-      ].join(" ")}
-    >
-      {children}
-    </div>
-  );
-}
-
 type Props = {
   me: AuthMe | null | undefined;
   profileIncomplete: boolean;
@@ -293,82 +276,76 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   };
 
   const avatarDropdown = me?.id ? (
-    <div className="flex min-w-[14rem] flex-col py-1">
-      <AvatarMenuSection showDivider={false}>
-        <NavLink to="/perfil" className={navClass} onClick={dismissNav}>
-          <span className="inline-flex items-center gap-1">
-            Mi Perfil
-            {profileIncomplete ? (
-              <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
-            ) : null}
-          </span>
-        </NavLink>
-        <NavLink to="/mis-anuncios" className={navClass} onClick={dismissNav}>
-          Mis Anuncios
-        </NavLink>
-        <NavLink
-          to="/mensajes"
-          className={navClass}
-          onClick={() => {
-            onMessagesClick();
-            dismissNav();
-          }}
-        >
-          <span className="inline-flex items-center gap-1">
-            Mensajes
-            {hasUnreadMessages ? (
-              unreadCount > 0 ? (
-                <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              ) : (
-                <span className="h-2 w-2 rounded-full bg-error" aria-hidden />
-              )
-            ) : null}
-          </span>
-        </NavLink>
-      </AvatarMenuSection>
+    <div className="flex w-56 flex-col gap-0.5 p-1.5">
+      <NavLink to="/perfil" className={desktopNavClass} onClick={dismissNav}>
+        <span className="inline-flex items-center gap-1.5">
+          Mi Perfil
+          {profileIncomplete ? (
+            <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
+          ) : null}
+        </span>
+      </NavLink>
+      <NavLink to="/mis-anuncios" className={desktopNavClass} onClick={dismissNav}>
+        Mis Anuncios
+      </NavLink>
+      <NavLink
+        to="/mensajes"
+        className={desktopNavClass}
+        onClick={() => {
+          onMessagesClick();
+          dismissNav();
+        }}
+      >
+        <span className="inline-flex items-center gap-1.5">
+          Mensajes
+          {hasUnreadMessages ? (
+            unreadCount > 0 ? (
+              <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : (
+              <span className="h-2 w-2 rounded-full bg-error" aria-hidden />
+            )
+          ) : null}
+        </span>
+      </NavLink>
 
       {me.isAdmin ? (
-        <AvatarMenuSection>
-          <NavLink to="/admin" className={navClass} onClick={dismissNav}>
+        <>
+          <DesktopMenuDivider />
+          <NavLink to="/admin" className={desktopNavClass} onClick={dismissNav}>
             Administrador
           </NavLink>
-        </AvatarMenuSection>
+        </>
       ) : null}
 
-      <AvatarMenuSection>
-        <Link to="/contacto" className={dropBtn} onClick={dismissNav}>
-          Contacto
-        </Link>
-      </AvatarMenuSection>
+      <DesktopMenuDivider />
+      <Link to="/contacto" className={desktopMenuItem} onClick={dismissNav}>
+        Contacto
+      </Link>
 
-      <AvatarMenuSection>
-        <button type="button" className={logoutBtn} onClick={() => void onLogout()}>
-          Cerrar sesión
-        </button>
-      </AvatarMenuSection>
+      <DesktopMenuDivider />
+      <button type="button" className={desktopLogoutBtn} onClick={() => void onLogout()}>
+        Cerrar sesión
+      </button>
     </div>
   ) : (
-    <div className="flex min-w-[14rem] flex-col py-1">
-      <AvatarMenuSection showDivider={false}>
-        <button
-          type="button"
-          className={dropBtn}
-          onClick={() => {
-            dismissNav();
-            openLogin();
-          }}
-        >
-          Iniciar sesión / Registrarse
-        </button>
-      </AvatarMenuSection>
+    <div className="flex w-56 flex-col gap-0.5 p-1.5">
+      <button
+        type="button"
+        className={desktopMenuItem}
+        onClick={() => {
+          dismissNav();
+          openLogin();
+        }}
+      >
+        Iniciar sesión / Registrarse
+      </button>
 
-      <AvatarMenuSection>
-        <Link to="/contacto" className={dropBtn} onClick={dismissNav}>
-          Contacto
-        </Link>
-      </AvatarMenuSection>
+      <DesktopMenuDivider />
+      <Link to="/contacto" className={desktopMenuItem} onClick={dismissNav}>
+        Contacto
+      </Link>
     </div>
   );
 
