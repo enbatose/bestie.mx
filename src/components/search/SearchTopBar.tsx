@@ -2,7 +2,7 @@ import { Check, ChevronDown, Filter, Pencil, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
-import { neighborhoodChipLabel, type SearchLocationState } from "@/lib/searchLocation";
+import { neighborhoodChipLabel, neighborhoodNamesMatch, type SearchLocationState } from "@/lib/searchLocation";
 import type { PropertyListing } from "@/types/listing";
 
 type Props = {
@@ -17,7 +17,7 @@ type Props = {
   onCitySelect: (location: LocationSuggestion) => void;
   onNeighborhoodSelect: (location: LocationSuggestion) => void;
   onCityClear: () => void;
-  onNeighborhoodClear: () => void;
+  onNeighborhoodRemove: (name: string) => void;
   onCityRestore: () => void;
   onLocationInput: () => void;
   onLocationNotFound: (query: string) => void;
@@ -132,7 +132,7 @@ export function SearchTopBar({
   onCitySelect,
   onNeighborhoodSelect,
   onCityClear,
-  onNeighborhoodClear,
+  onNeighborhoodRemove,
   onCityRestore,
   onLocationInput,
   onLocationNotFound,
@@ -161,11 +161,13 @@ export function SearchTopBar({
   const desktopLocationInputRef = useRef<HTMLInputElement | null>(null);
   const searchNeighborhoods = cityChipVisible;
 
+  const neighborhoodSelectionKey = searchLocation.neighborhoods.map((pin) => pin.name).join("|");
+
   useEffect(() => {
     setLocationInput("");
     setLocationMenuOpen(false);
     setLocationSuggestions([]);
-  }, [searchLocation.cityCode, searchLocation.neighborhood]);
+  }, [searchLocation.cityCode, neighborhoodSelectionKey]);
 
   useEffect(() => {
     if (rentFocused) return;
@@ -280,9 +282,9 @@ export function SearchTopBar({
     });
   }
 
-  function handleNeighborhoodChipRemove() {
+  function handleNeighborhoodChipRemove(name: string) {
     if (locationCloseTimerRef.current != null) window.clearTimeout(locationCloseTimerRef.current);
-    onNeighborhoodClear();
+    onNeighborhoodRemove(name);
     setLocationInput("");
     setLocationMenuOpen(false);
     setLocationSuggestions([]);
@@ -355,6 +357,12 @@ export function SearchTopBar({
       ? "w-full px-4 py-3 text-left text-sm font-medium text-body transition hover:bg-bg-light"
       : "w-full px-3 py-2.5 text-left text-sm font-medium text-body transition hover:bg-bg-light";
     const placeholder = searchNeighborhoods ? "Buscar colonia…" : "Buscar ciudad…";
+    const visibleSuggestions = locationSuggestions.filter((option) => {
+      if (option.kind !== "neighborhood") return true;
+      const candidate = option.neighborhood ?? option.label;
+      if (!candidate) return true;
+      return !searchLocation.neighborhoods.some((pin) => neighborhoodNamesMatch(pin.name, candidate));
+    });
 
     return (
       <div className="relative w-full min-w-0" onFocus={openLocationMenu} onBlur={scheduleLocationMenuClose}>
@@ -368,14 +376,17 @@ export function SearchTopBar({
                 mobile={mobile}
               />
             ) : null}
-            {cityChipVisible && searchLocation.neighborhood ? (
-              <LocationChip
-                label={neighborhoodChipLabel(searchLocation)}
-                onRemove={handleNeighborhoodChipRemove}
-                removeLabel={`Quitar colonia ${neighborhoodChipLabel(searchLocation)}`}
-                mobile={mobile}
-              />
-            ) : null}
+            {cityChipVisible
+              ? searchLocation.neighborhoods.map((pin) => (
+                  <LocationChip
+                    key={pin.name}
+                    label={neighborhoodChipLabel(pin.name, searchLocation.cityAbbr)}
+                    onRemove={() => handleNeighborhoodChipRemove(pin.name)}
+                    removeLabel={`Quitar colonia ${neighborhoodChipLabel(pin.name, searchLocation.cityAbbr)}`}
+                    mobile={mobile}
+                  />
+                ))
+              : null}
             <input
               id={mobile ? "mobile-search-location" : locationInputId}
               ref={inputRef}
@@ -390,8 +401,8 @@ export function SearchTopBar({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  if (locationSuggestions.length) {
-                    handleSuggestionSelect(locationSuggestions[0]!);
+                  if (visibleSuggestions.length) {
+                    handleSuggestionSelect(visibleSuggestions[0]!);
                     return;
                   }
                   void resolveBestLocationMatch();
@@ -432,8 +443,8 @@ export function SearchTopBar({
                 <div className={mobile ? "px-4 py-3 text-sm text-muted" : "px-3 py-2.5 text-sm text-muted"}>
                   {searchNeighborhoods ? "Buscando colonias..." : "Buscando ciudades..."}
                 </div>
-              ) : locationSuggestions.length ? (
-                locationSuggestions.map((option) => (
+              ) : visibleSuggestions.length ? (
+                visibleSuggestions.map((option) => (
                   <button
                     key={option.key}
                     type="button"

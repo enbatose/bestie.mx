@@ -10,6 +10,7 @@ import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
+import type { SearchNeighborhoodPin } from "@/lib/searchLocation";
 import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
 import { listingMapPosition } from "@/map/listingMapPosition";
 import {
@@ -30,6 +31,7 @@ type Props = {
   onViewportBbox?: (bbox: Bbox) => void;
   defaultCenter?: [number, number];
   defaultZoom?: number;
+  locationPins?: readonly SearchNeighborhoodPin[];
   preferDefaultView?: boolean;
   /** Render approximate listings as a privacy circle at true coords (no pin). */
   approximateAsCircle?: boolean;
@@ -118,19 +120,25 @@ function FitBounds({
   bounds,
   defaultCenter,
   defaultZoom,
+  locationPins,
   preferDefaultView = false,
   /** When true, never pan/zoom the map when listing markers change — viewport is user-controlled (geofenced search). */
   skipListingDrivenRefit,
+  suppressViewportUntilRef,
 }: {
   bounds: L.LatLngBounds | null;
   defaultCenter?: [number, number];
   defaultZoom?: number;
+  locationPins?: readonly SearchNeighborhoodPin[];
   preferDefaultView?: boolean;
   skipListingDrivenRefit: boolean;
+  suppressViewportUntilRef?: MutableRefObject<number>;
 }) {
   const map = useMap();
   const didInitialView = useRef(false);
-  const appliedDefaultViewRef = useRef<{ lat: number; lng: number; zoom: number } | null>(null);
+  const appliedDefaultViewRef = useRef<string | null>(null);
+  const locationPinKey =
+    locationPins?.map((pin) => `${pin.name}:${pin.lat},${pin.lng}`).join("|") ?? "";
 
   useEffect(() => {
     const el = map.getContainer();
@@ -138,19 +146,36 @@ function FitBounds({
     try {
       map.invalidateSize({ animate: false });
 
+      if (preferDefaultView && locationPins?.length) {
+        if (appliedDefaultViewRef.current === locationPinKey) return;
+        if (suppressViewportUntilRef) {
+          suppressViewportUntilRef.current = Date.now() + 900;
+        }
+        if (locationPins.length === 1) {
+          const pin = locationPins[0]!;
+          map.setView([pin.lat, pin.lng], defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
+        } else {
+          const pinBounds = L.latLngBounds(
+            locationPins.map((pin) => [pin.lat, pin.lng] as [number, number]),
+          );
+          map.fitBounds(pinBounds, { padding: [40, 40], maxZoom: 14 });
+        }
+        appliedDefaultViewRef.current = locationPinKey;
+        didInitialView.current = true;
+        return;
+      }
+
       if (preferDefaultView && defaultCenter) {
         const zoom = defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM;
-        const prev = appliedDefaultViewRef.current;
-        if (
-          prev &&
-          prev.lat === defaultCenter[0] &&
-          prev.lng === defaultCenter[1] &&
-          prev.zoom === zoom
-        ) {
+        const viewKey = `${defaultCenter[0]},${defaultCenter[1]},${zoom}`;
+        if (appliedDefaultViewRef.current === viewKey) {
           return;
         }
+        if (suppressViewportUntilRef) {
+          suppressViewportUntilRef.current = Date.now() + 900;
+        }
         map.setView(defaultCenter, zoom);
-        appliedDefaultViewRef.current = { lat: defaultCenter[0], lng: defaultCenter[1], zoom };
+        appliedDefaultViewRef.current = viewKey;
         didInitialView.current = true;
         return;
       }
@@ -180,7 +205,17 @@ function FitBounds({
     } catch {
       /* map may be tearing down (React StrictMode / route change) */
     }
-  }, [bounds, defaultCenter, defaultZoom, map, preferDefaultView, skipListingDrivenRefit]);
+  }, [
+    bounds,
+    defaultCenter,
+    defaultZoom,
+    locationPinKey,
+    locationPins,
+    map,
+    preferDefaultView,
+    skipListingDrivenRefit,
+    suppressViewportUntilRef,
+  ]);
   return null;
 }
 
@@ -193,6 +228,7 @@ export function PropertyMap({
   onViewportBbox,
   defaultCenter,
   defaultZoom,
+  locationPins,
   preferDefaultView = false,
   approximateAsCircle = false,
   approximateCircleRadiusM = 400,
@@ -258,8 +294,10 @@ export function PropertyMap({
           bounds={bounds}
           defaultCenter={defaultCenter}
           defaultZoom={defaultZoom}
+          locationPins={locationPins}
           preferDefaultView={preferDefaultView}
           skipListingDrivenRefit={Boolean(onViewportBbox)}
+          suppressViewportUntilRef={suppressViewportBboxUntilRef}
         />
         {onViewportBbox ? (
           <MapViewportReporter onBbox={onViewportBbox} suppressUntilRef={suppressViewportBboxUntilRef} />

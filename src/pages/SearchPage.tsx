@@ -18,7 +18,9 @@ import {
   type SearchFilters,
 } from "@/lib/searchFilters";
 import {
+  computeNeighborhoodsViewport,
   metroDefaultLocation,
+  neighborhoodNamesMatch,
   parseSearchLocation,
   searchPathForCity,
   stripMetroLabelPrefix,
@@ -138,9 +140,14 @@ export function SearchPage() {
     });
   }, [apiBusy, apiOn, filtered]);
 
+  const neighborhoodSelectionKey = useMemo(
+    () => searchLocation.neighborhoods.map((pin) => pin.name).join("|"),
+    [searchLocation.neighborhoods],
+  );
+
   useEffect(() => {
     setSelectedId(null);
-  }, [searchLocation.cityCode, searchLocation.neighborhood]);
+  }, [searchLocation.cityCode, neighborhoodSelectionKey]);
 
   const applyLocation = useCallback(
     (next: SearchLocationState) => {
@@ -200,11 +207,12 @@ export function SearchPage() {
 
   const handleCitySelect = useCallback(
     (location: LocationSuggestion) => {
+      const metro = resolveMetroCity(location.cityCode);
       applyLocation({
         cityCode: location.cityCode,
-        cityAbbr: resolveMetroCity(location.cityCode).abbr,
+        cityAbbr: metro.abbr,
         cityLabel: location.city,
-        neighborhood: null,
+        neighborhoods: [],
         lat: location.lat,
         lng: location.lng,
         zoom: location.zoom,
@@ -216,40 +224,57 @@ export function SearchPage() {
   const handleNeighborhoodSelect = useCallback(
     (location: LocationSuggestion) => {
       const metro = resolveMetroCity(location.cityCode);
-      const neighborhood =
+      const name =
         stripMetroLabelPrefix(metro.abbr, location.neighborhood ?? location.label) ??
-        location.neighborhood;
+        location.neighborhood ??
+        location.label;
+      if (!name) return;
+
+      const alreadySelected = searchLocation.neighborhoods.some((pin) =>
+        neighborhoodNamesMatch(pin.name, name),
+      );
+      if (alreadySelected) return;
+
+      const neighborhoods = [
+        ...searchLocation.neighborhoods,
+        { name, lat: location.lat, lng: location.lng },
+      ];
+      const viewport = computeNeighborhoodsViewport(neighborhoods, metro);
+
       applyLocation({
         cityCode: location.cityCode,
         cityAbbr: metro.abbr,
         cityLabel: location.city,
-        neighborhood,
-        lat: location.lat,
-        lng: location.lng,
-        zoom: location.zoom,
+        neighborhoods,
+        ...viewport,
       });
     },
-    [applyLocation],
+    [applyLocation, searchLocation],
   );
 
   const handleCityClear = useCallback(() => {
     setLocationError(null);
     applyLocation({
       ...searchLocation,
-      neighborhood: null,
+      neighborhoods: [],
     });
   }, [applyLocation, searchLocation]);
 
-  const handleNeighborhoodClear = useCallback(() => {
-    setLocationError(null);
-    applyLocation({
-      ...searchLocation,
-      neighborhood: null,
-      lat: metro.defaultCenter[0],
-      lng: metro.defaultCenter[1],
-      zoom: metro.defaultZoom,
-    });
-  }, [applyLocation, metro, searchLocation]);
+  const handleNeighborhoodRemove = useCallback(
+    (name: string) => {
+      setLocationError(null);
+      const neighborhoods = searchLocation.neighborhoods.filter(
+        (pin) => !neighborhoodNamesMatch(pin.name, name),
+      );
+      const viewport = computeNeighborhoodsViewport(neighborhoods, metro);
+      applyLocation({
+        ...searchLocation,
+        neighborhoods,
+        ...viewport,
+      });
+    },
+    [applyLocation, metro, searchLocation],
+  );
 
   const handleCityRestore = useCallback(() => {
     setLocationError(null);
@@ -276,7 +301,7 @@ export function SearchPage() {
         onCitySelect={handleCitySelect}
         onNeighborhoodSelect={handleNeighborhoodSelect}
         onCityClear={handleCityClear}
-        onNeighborhoodClear={handleNeighborhoodClear}
+        onNeighborhoodRemove={handleNeighborhoodRemove}
         onCityRestore={handleCityRestore}
         onLocationInput={() => setLocationError(null)}
         onLocationNotFound={(query) => {
@@ -299,6 +324,7 @@ export function SearchPage() {
                 popupOverlayHostRef={mapSectionRef}
                 defaultCenter={[searchLocation.lat, searchLocation.lng]}
                 defaultZoom={searchLocation.zoom}
+                locationPins={searchLocation.neighborhoods}
                 preferDefaultView
                 onViewportBbox={onViewportBbox}
               />
