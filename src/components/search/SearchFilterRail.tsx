@@ -1,5 +1,5 @@
 import { Filter } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import {
   ADVANCED_FILTERS_META,
   MOBILE_MAP_QUICK_FILTERS,
@@ -55,7 +55,10 @@ function quickFilterIconClass(filterId: string) {
   return "size-[0.95rem] sm:size-4";
 }
 
-export function SearchFilterRail({ filters, onChange, onOpenAdvanced, onLabelsExpandedChange }: Props) {
+export const SearchFilterRail = forwardRef<HTMLElement, Props>(function SearchFilterRail(
+  { filters, onChange, onOpenAdvanced, onLabelsExpandedChange },
+  ref,
+) {
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
   const [showCollapseHint, setShowCollapseHint] = useState(false);
   const initialExpandedRef = useRef(labelsExpanded);
@@ -101,6 +104,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced, onLabelsEx
 
   return (
     <aside
+      ref={ref}
       className="pointer-events-none absolute left-2 top-1/2 z-[1100] -translate-y-1/2 sm:left-3"
       aria-label="Filtros rápidos"
     >
@@ -202,4 +206,4 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced, onLabelsEx
       </div>
     </aside>
   );
-}
+});

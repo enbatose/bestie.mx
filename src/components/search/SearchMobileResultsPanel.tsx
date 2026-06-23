@@ -1,6 +1,5 @@
 import { List } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { MOBILE_FILTER_RAIL_INSET_COLLAPSED } from "@/components/search/SearchFilterRail";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import type { SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
@@ -11,6 +10,7 @@ type Props = {
   onSelect: (id: string) => void;
   searchReturn: SearchReturnContext;
   filterRailLabelsExpanded: boolean;
+  drawerInsetPx: number;
   countLabel: ReactNode;
 };
 
@@ -22,6 +22,7 @@ export function SearchMobileResultsPanel({
   onSelect,
   searchReturn,
   filterRailLabelsExpanded,
+  drawerInsetPx,
   countLabel,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -50,15 +51,16 @@ export function SearchMobileResultsPanel({
     }
   }, [filterRailLabelsExpanded]);
 
-  const drawerStyle: CSSProperties = expanded
-    ? { left: MOBILE_FILTER_RAIL_INSET_COLLAPSED, right: 0 }
-    : { left: "auto", right: 0, width: LIST_TAB_WIDTH };
+  const insetPx = drawerInsetPx > 0 ? drawerInsetPx : 98;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
       <div
-        className="pointer-events-auto absolute inset-y-0 flex min-w-0 transition-[left,width] duration-300 ease-out"
-        style={drawerStyle}
+        className="pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-transform duration-300 ease-out"
+        style={{
+          left: insetPx,
+          transform: expanded ? "translateX(0)" : `translateX(calc(100% - ${LIST_TAB_WIDTH}))`,
+        }}
         aria-hidden={!expanded}
       >
         <button

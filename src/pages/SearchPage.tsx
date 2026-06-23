@@ -50,6 +50,8 @@ export function SearchPage() {
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
   const mapSectionRef = useRef<HTMLDivElement>(null);
+  const filterRailRef = useRef<HTMLElement>(null);
+  const [mobileDrawerInsetPx, setMobileDrawerInsetPx] = useState(0);
   const searchReturn = useMemo(
     (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
     [location.pathname, location.search],
@@ -125,6 +127,36 @@ export function SearchPage() {
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(getFilterRailDefaultExpanded);
+
+  const syncMobileDrawerInset = useCallback(() => {
+    const mapEl = mapSectionRef.current;
+    const railEl = filterRailRef.current;
+    if (!mapEl || !railEl) return;
+    const inset = railEl.getBoundingClientRect().right - mapEl.getBoundingClientRect().left + 4;
+    setMobileDrawerInsetPx(Math.max(0, Math.ceil(inset)));
+  }, []);
+
+  useEffect(() => {
+    syncMobileDrawerInset();
+    const mapEl = mapSectionRef.current;
+    const railEl = filterRailRef.current;
+    if (!mapEl || !railEl) return;
+
+    const ro = new ResizeObserver(syncMobileDrawerInset);
+    ro.observe(mapEl);
+    ro.observe(railEl);
+    window.addEventListener("resize", syncMobileDrawerInset);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncMobileDrawerInset);
+    };
+  }, [syncMobileDrawerInset, filterRailLabelsExpanded]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(syncMobileDrawerInset, 260);
+    return () => window.clearTimeout(timer);
+  }, [filterRailLabelsExpanded, syncMobileDrawerInset]);
 
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);
@@ -352,6 +384,7 @@ export function SearchPage() {
               />
             </div>
             <SearchFilterRail
+              ref={filterRailRef}
               filters={normalizedFilters}
               onChange={applyFilters}
               onOpenAdvanced={() => setAdvancedOpen(true)}
@@ -363,6 +396,7 @@ export function SearchPage() {
               onSelect={(id) => setSelectedId(id)}
               searchReturn={searchReturn}
               filterRailLabelsExpanded={filterRailLabelsExpanded}
+              drawerInsetPx={mobileDrawerInsetPx}
               countLabel={resultsCountLabel}
             />
           </div>
