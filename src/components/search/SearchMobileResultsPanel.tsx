@@ -13,7 +13,7 @@ type Props = {
   countLabel: ReactNode;
 };
 
-/** Filter rail + expand chevron + small gap before the list tab. */
+/** Keep expanded panel clear of filter rail + legend expand button. */
 const RAIL_CLEARANCE_COLLAPSED = "6.5rem";
 const RAIL_CLEARANCE_EXPANDED = "14.5rem";
 
@@ -59,7 +59,11 @@ export function SearchMobileResultsPanel({
       style={{ left: railClearance }}
       aria-hidden={!expanded}
     >
-      <div className="pointer-events-auto flex h-full w-full min-w-0">
+      <div
+        className={`pointer-events-auto ml-auto flex h-full w-full min-w-0 transition-transform duration-300 ease-out ${
+          expanded ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]"
+        }`}
+      >
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
@@ -71,8 +75,8 @@ export function SearchMobileResultsPanel({
         </button>
 
         <div
-          className={`flex min-w-0 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md transition-[flex-grow,opacity] duration-300 ease-out ${
-            expanded ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"
+          className={`flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md transition-opacity duration-200 ${
+            expanded ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         >
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
