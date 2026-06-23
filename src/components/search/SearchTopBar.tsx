@@ -1,4 +1,4 @@
-import { ChevronDown, Filter, Pencil, Search, X } from "lucide-react";
+import { Check, ChevronDown, Filter, Pencil, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
@@ -471,19 +471,16 @@ export function SearchTopBar({
     const trimmed = rentInput.trim();
     if (trimmed === "") {
       setBudgetMax(null);
-      setRentInput(displayedRent == null ? "" : String(displayedRent));
       return;
     }
 
     const next = Number(trimmed.replace(/\D/g, ""));
     if (!Number.isFinite(next)) {
-      setRentInput(displayedRent == null ? "" : String(displayedRent));
       return;
     }
 
     const normalized = Math.max(0, Math.trunc(next));
     setBudgetMax(normalized);
-    setRentInput(String(normalized));
   }
 
   function setAge(nextAge: number | null) {
@@ -534,6 +531,10 @@ export function SearchTopBar({
     if (mobileEditingField && mobileEditingField !== field) {
       finishMobileEdit(mobileEditingField);
     }
+    if (field === "rent") {
+      setRentFocused(false);
+      setRentInput(displayedRent == null ? "" : formatRentCompact(displayedRent));
+    }
     setMobileEditingField(field);
   }
 
@@ -542,6 +543,7 @@ export function SearchTopBar({
 
     const close = (e: MouseEvent) => {
       if (mobileFilterRowRef.current?.contains(e.target as Node)) return;
+      if (mobileEditingField === "rent") return;
       finishMobileEdit(mobileEditingField);
     };
 
@@ -569,29 +571,28 @@ export function SearchTopBar({
               style={{
                 gridTemplateColumns:
                   mobileEditingField === "rent"
-                    ? "minmax(0,1.45fr) minmax(0,0.55fr)"
+                    ? "minmax(0,1.6fr) minmax(0,0.4fr)"
                     : mobileEditingField === "age"
                       ? "minmax(0,0.55fr) minmax(0,1.45fr)"
                       : "minmax(0,1fr) minmax(0,1fr)",
               }}
             >
               <div
-                className={`grid min-w-0 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10 ${
+                className={`flex min-w-0 items-stretch gap-2 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10 ${
                   mobileEditingField === "rent" ? "z-[1]" : ""
                 }`}
               >
-                <div className="flex min-h-[1rem] items-center gap-1">
-                  <span className="text-[8px] font-semibold uppercase leading-tight tracking-[0.08em] text-primary/75">
-                    RENTA MÁX.
-                  </span>
-                </div>
+                <span className="flex w-[2.65rem] shrink-0 items-center text-[8px] font-semibold uppercase leading-[1.15] tracking-[0.06em] text-primary/75">
+                  Renta máx.
+                </span>
+                <div className="min-w-0 flex-1">
                 {mobileEditingField === "rent" ? (
-                  <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
+                  <div className="flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                     <button
                       type="button"
                       aria-label="Disminuir renta"
                       onClick={() => stepBudget(-RENT_STEP)}
-                      className="flex h-full w-10 shrink-0 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
+                      className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
                     >
                       −
                     </button>
@@ -604,32 +605,39 @@ export function SearchTopBar({
                         setRentInput(displayedRent == null ? "" : String(displayedRent));
                       }}
                       onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      onBlur={(e) => {
-                        const next = e.relatedTarget as Node | null;
-                        if (next && e.currentTarget.parentElement?.contains(next)) return;
-                        finishMobileEdit("rent");
+                      onBlur={() => {
+                        commitBudget();
+                        setRentFocused(false);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           (e.target as HTMLInputElement).blur();
                         }
                       }}
-                      className="min-w-0 flex-1 bg-transparent px-1 text-center text-[1.2rem] font-semibold tabular-nums text-body outline-none"
+                      className="min-w-0 flex-1 bg-transparent px-0.5 text-center text-[1.05rem] font-semibold tabular-nums text-body outline-none"
                     />
                     <button
                       type="button"
                       aria-label="Aumentar renta"
                       onClick={() => stepBudget(RENT_STEP)}
-                      className="flex h-full w-10 shrink-0 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
+                      className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
                     >
                       +
                     </button>
+                    <button
+                      type="button"
+                      aria-label="Aplicar renta máxima"
+                      onClick={() => finishMobileEdit("rent")}
+                      className="flex h-full w-9 shrink-0 items-center justify-center border-l border-primary/15 text-primary transition active:bg-surface-elevated"
+                    >
+                      <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
+                    </button>
                   </div>
                 ) : (
-                  <div className="mt-1.5 flex h-12 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2">
+                  <div className="flex h-12 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2">
                     <span
                       className={`min-w-0 flex-1 truncate text-center font-semibold tabular-nums text-body ${
-                        mobileEditingField === "age" ? "text-[0.95rem]" : "text-[1.2rem]"
+                        mobileEditingField === "age" ? "text-[0.95rem]" : "text-[1.1rem]"
                       }`}
                     >
                       {rentCollapsedDisplay}
@@ -638,26 +646,26 @@ export function SearchTopBar({
                       type="button"
                       aria-label="Editar renta máxima"
                       onClick={() => startMobileEdit("rent")}
-                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
                     >
-                      <Pencil className="size-4" aria-hidden="true" strokeWidth={2.2} />
+                      <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
                     </button>
                   </div>
                 )}
+                </div>
               </div>
 
               <div
-                className={`grid min-w-0 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10 ${
+                className={`flex min-w-0 items-stretch gap-2 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10 ${
                   mobileEditingField === "age" ? "z-[1]" : ""
                 }`}
               >
-                <div className="flex min-h-[1rem] items-center gap-1">
-                  <span className="text-[8px] font-semibold uppercase leading-tight tracking-[0.08em] text-primary/75">
-                    Edad
-                  </span>
-                </div>
+                <span className="flex w-[2.65rem] shrink-0 items-center text-[8px] font-semibold uppercase leading-[1.15] tracking-[0.06em] text-primary/75">
+                  Edad
+                </span>
+                <div className="min-w-0 flex-1">
                 {mobileEditingField === "age" ? (
-                  <div className="mt-1.5 flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
+                  <div className="flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
                     <button
                       type="button"
                       aria-label="Disminuir edad"
@@ -697,7 +705,7 @@ export function SearchTopBar({
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-1.5 flex h-12 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2">
+                  <div className="flex h-12 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2">
                     <span
                       className={`min-w-0 flex-1 truncate text-center font-semibold tabular-nums ${
                         mobileEditingField === "rent" ? "text-[0.95rem]" : "text-[1.2rem]"
@@ -709,12 +717,13 @@ export function SearchTopBar({
                       type="button"
                       aria-label="Editar edad"
                       onClick={() => startMobileEdit("age")}
-                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
                     >
-                      <Pencil className="size-4" aria-hidden="true" strokeWidth={2.2} />
+                      <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
                     </button>
                   </div>
                 )}
+                </div>
               </div>
             </div>
 
