@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail } from "@/components/search/SearchFilterRail";
+import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
 import { SEED_LISTINGS } from "@/data/seedListings";
@@ -123,6 +124,7 @@ export function SearchPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(false);
 
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);
@@ -282,6 +284,18 @@ export function SearchPage() {
     applyLocation(mapFallbackLocationRef.current);
   }, [applyLocation]);
 
+  const resultsCountLabel =
+    apiOn && apiBusy ? (
+      apiListings === undefined ? "Cargando…" : "Actualizando…"
+    ) : apiOn && apiErr ? (
+      <span className="text-red-600">{apiErr}</span>
+    ) : (
+      <>
+        {filtered.length}
+        {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
+      </>
+    );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
       <SearchAdvancedSheet
@@ -318,8 +332,8 @@ export function SearchPage() {
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <section className="relative flex min-h-0 min-w-0 flex-[1.35] flex-col border-border lg:flex-[2] lg:border-r">
-          <div ref={mapSectionRef} className="relative min-h-[38vh] flex-1 sm:min-h-[42vh] lg:min-h-[calc(100dvh-11rem)]">
+        <section className="relative flex min-h-0 min-w-0 flex-1 flex-col border-border lg:flex-[2] lg:border-r">
+          <div ref={mapSectionRef} className="relative min-h-0 flex-1 lg:min-h-[calc(100dvh-11rem)]">
             <div className="absolute inset-0">
               <PropertyMap
                 embed
@@ -341,27 +355,25 @@ export function SearchPage() {
               filters={normalizedFilters}
               onChange={applyFilters}
               onOpenAdvanced={() => setAdvancedOpen(true)}
+              onLabelsExpandedChange={setFilterRailLabelsExpanded}
+            />
+            <SearchMobileResultsPanel
+              listings={filtered}
+              selectedId={selectedId}
+              onSelect={(id) => setSelectedId(id)}
+              searchReturn={searchReturn}
+              filterRailLabelsExpanded={filterRailLabelsExpanded}
+              countLabel={resultsCountLabel}
             />
           </div>
         </section>
 
-        <aside className="hidden max-h-[48vh] min-h-0 min-w-0 flex-1 flex-col border-t border-border bg-surface sm:max-h-[52vh] lg:flex lg:max-h-none lg:min-w-[300px] lg:flex-[1] lg:border-l lg:border-t-0">
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4 sm:py-3">
-            <h2 className="text-sm font-semibold text-body sm:text-base">Listados</h2>
-            <p className="text-xs text-muted sm:text-sm">
-              {apiOn && apiBusy ? (
-                apiListings === undefined ? "Cargando…" : "Actualizando…"
-              ) : apiOn && apiErr ? (
-                <span className="text-red-600">{apiErr}</span>
-              ) : (
-                <>
-                  {filtered.length}
-                  {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
-                </>
-              )}
-            </p>
+        <aside className="hidden min-h-0 min-w-0 flex-col border-border bg-surface lg:flex lg:min-w-[300px] lg:flex-[1] lg:border-l">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <h2 className="text-base font-semibold text-body">Listados</h2>
+            <p className="text-sm text-muted">{resultsCountLabel}</p>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
             <SearchResultsList
               dense
               listings={filtered}

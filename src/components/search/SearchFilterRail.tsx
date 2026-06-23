@@ -10,6 +10,7 @@ type Props = {
   filters: SearchFilters;
   onChange: (next: SearchFilters) => void;
   onOpenAdvanced: () => void;
+  onLabelsExpandedChange?: (expanded: boolean) => void;
 };
 
 const FILTER_RAIL_SEEN_KEY = "bestie:search-filter-rail-seen";
@@ -45,7 +46,7 @@ function quickFilterIconClass(filterId: string) {
   return "size-[0.95rem] sm:size-4";
 }
 
-export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
+export function SearchFilterRail({ filters, onChange, onOpenAdvanced, onLabelsExpandedChange }: Props) {
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
   const [showCollapseHint, setShowCollapseHint] = useState(false);
   const initialExpandedRef = useRef(labelsExpanded);
@@ -63,6 +64,10 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
       /* session storage unavailable */
     }
   }, []);
+
+  useEffect(() => {
+    onLabelsExpandedChange?.(labelsExpanded);
+  }, [labelsExpanded, onLabelsExpandedChange]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
