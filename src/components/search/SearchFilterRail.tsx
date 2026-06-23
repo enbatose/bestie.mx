@@ -35,6 +35,14 @@ const railBtnClass = (active: boolean) =>
       : "border-border bg-surface/95 text-primary hover:border-secondary/60 hover:bg-surface"
   }`;
 
+function quickFilterIconClass(filterId: string) {
+  if (filterId === "tag-lgbt-friendly") {
+    return "h-full w-full px-0.5";
+  }
+
+  return "size-[0.95rem] sm:size-4";
+}
+
 export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
   const [mobileExpanded, setMobileExpanded] = useState(getMobileRailDefaultExpanded);
   const [showCollapseHint, setShowCollapseHint] = useState(false);
@@ -98,7 +106,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                   onClick={() => onChange(filterMeta.toggle(filters))}
                   className={railBtnClass(active)}
                 >
-                  <Icon className="size-[0.95rem]" aria-hidden="true" />
+                  <Icon className={quickFilterIconClass(filterMeta.id)} aria-hidden="true" />
                 </button>
                 <span
                   className={`overflow-hidden text-[11px] font-semibold leading-tight transition-[width,opacity,margin] duration-200 ease-out ${
@@ -193,7 +201,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
                 onClick={() => onChange(filterMeta.toggle(filters))}
                 className={railBtnClass(active)}
               >
-                <Icon className="size-4" aria-hidden="true" />
+                <Icon className={quickFilterIconClass(filterMeta.id)} aria-hidden="true" />
               </button>
               <span
                 className={`select-none text-[13px] font-semibold leading-none ${

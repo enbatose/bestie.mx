@@ -5,13 +5,13 @@ import {
   Building2,
   CarFront,
   DoorClosed,
-  Heart,
   House,
   PawPrint,
   SlidersHorizontal,
   UsersRound,
   Warehouse,
 } from "lucide-react";
+import { LgbtTextIcon } from "@/components/icons/LgbtTextIcon";
 import { RestroomFemaleIcon, RestroomMaleIcon } from "@/components/icons/RestroomGenderIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
@@ -126,7 +126,7 @@ const LGBT_META: SearchQuickAttribute = {
   label: "LGBT+",
   mobileLabel: "Comunidad LGBT+",
   tooltip: "Solo publicaciones LGBT+ friendly",
-  icon: Heart,
+  icon: LgbtTextIcon,
 };
 
 function withTagToggle(filters: SearchFilters, tag: ListingTag): SearchFilters {
