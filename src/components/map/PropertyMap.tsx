@@ -33,6 +33,7 @@ type Props = {
   defaultCenter?: [number, number];
   defaultZoom?: number;
   locationPins?: readonly SearchNeighborhoodPin[];
+  locationFitNonce?: number;
   preferDefaultView?: boolean;
   /** Render approximate listings as a privacy circle at true coords (no pin). */
   approximateAsCircle?: boolean;
@@ -47,13 +48,41 @@ type Props = {
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
 const NEIGHBORHOOD_FIT_PADDING: L.PointExpression = [56, 56];
+const NEIGHBORHOOD_LOOSE_VIEW_SLACK = 1.28;
 
 function latLngBoundsFromBox(box: LatLngBoundsBox): L.LatLngBounds {
   return L.latLngBounds([box.minLat, box.minLng], [box.maxLat, box.maxLng]);
 }
 
+function neighborhoodTargetBox(
+  locationPins: readonly SearchNeighborhoodPin[],
+): LatLngBoundsBox | null {
+  if (!locationPins.length) return null;
+  if (locationPins.length === 1) return neighborhoodPinBounds(locationPins[0]!);
+  return combinedNeighborhoodBounds(locationPins);
+}
+
 function mapViewContainsBox(map: L.Map, box: LatLngBoundsBox): boolean {
   return map.getBounds().contains(latLngBoundsFromBox(box));
+}
+
+function viewIsLooserThanNeeded(map: L.Map, box: LatLngBoundsBox): boolean {
+  const view = map.getBounds();
+  const targetLatSpan = Math.max(box.maxLat - box.minLat, 0.001);
+  const targetLngSpan = Math.max(box.maxLng - box.minLng, 0.001);
+  const viewLatSpan = view.getNorth() - view.getSouth();
+  const viewLngSpan = view.getEast() - view.getWest();
+  return (
+    viewLatSpan > targetLatSpan * NEIGHBORHOOD_LOOSE_VIEW_SLACK ||
+    viewLngSpan > targetLngSpan * NEIGHBORHOOD_LOOSE_VIEW_SLACK
+  );
+}
+
+function shouldRefitNeighborhoodPins(map: L.Map, locationPins: readonly SearchNeighborhoodPin[]): boolean {
+  const targetBox = neighborhoodTargetBox(locationPins);
+  if (!targetBox) return false;
+  if (!mapViewContainsBox(map, targetBox)) return true;
+  return viewIsLooserThanNeeded(map, targetBox);
 }
 
 function fitNeighborhoodPins(
@@ -63,21 +92,11 @@ function fitNeighborhoodPins(
 ) {
   if (!locationPins.length) return;
 
-  if (locationPins.length === 1) {
-    const target = latLngBoundsFromBox(neighborhoodPinBounds(locationPins[0]!));
-    if (mapViewContainsBox(map, neighborhoodPinBounds(locationPins[0]!))) return;
-    map.fitBounds(target, {
-      padding: NEIGHBORHOOD_FIT_PADDING,
-      maxZoom: defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM,
-    });
-    return;
-  }
+  const targetBox = neighborhoodTargetBox(locationPins);
+  if (!targetBox) return;
+  if (!shouldRefitNeighborhoodPins(map, locationPins)) return;
 
-  const combined = combinedNeighborhoodBounds(locationPins);
-  if (!combined) return;
-  if (mapViewContainsBox(map, combined)) return;
-
-  map.fitBounds(latLngBoundsFromBox(combined), {
+  map.fitBounds(latLngBoundsFromBox(targetBox), {
     padding: NEIGHBORHOOD_FIT_PADDING,
     maxZoom: defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM,
   });
@@ -158,6 +177,7 @@ function FitBounds({
   defaultCenter,
   defaultZoom,
   locationPins,
+  locationFitNonce = 0,
   preferDefaultView = false,
   /** When true, never pan/zoom the map when listing markers change — viewport is user-controlled (geofenced search). */
   skipListingDrivenRefit,
@@ -167,6 +187,7 @@ function FitBounds({
   defaultCenter?: [number, number];
   defaultZoom?: number;
   locationPins?: readonly SearchNeighborhoodPin[];
+  locationFitNonce?: number;
   preferDefaultView?: boolean;
   skipListingDrivenRefit: boolean;
   suppressViewportUntilRef?: MutableRefObject<number>;
@@ -176,6 +197,7 @@ function FitBounds({
   const appliedDefaultViewRef = useRef<string | null>(null);
   const locationPinKey =
     locationPins?.map((pin) => `${pin.name}:${pin.lat},${pin.lng}`).join("|") ?? "";
+  const locationFitKey = `${locationPinKey}#${locationFitNonce}`;
 
   useEffect(() => {
     const el = map.getContainer();
@@ -184,12 +206,15 @@ function FitBounds({
       map.invalidateSize({ animate: false });
 
       if (preferDefaultView && locationPins?.length) {
-        if (appliedDefaultViewRef.current === locationPinKey) return;
+        const needsRefit =
+          appliedDefaultViewRef.current !== locationFitKey ||
+          shouldRefitNeighborhoodPins(map, locationPins);
+        if (!needsRefit) return;
         if (suppressViewportUntilRef) {
           suppressViewportUntilRef.current = Date.now() + 900;
         }
         fitNeighborhoodPins(map, locationPins, defaultZoom);
-        appliedDefaultViewRef.current = locationPinKey;
+        appliedDefaultViewRef.current = locationFitKey;
         didInitialView.current = true;
         return;
       }
@@ -238,7 +263,8 @@ function FitBounds({
     bounds,
     defaultCenter,
     defaultZoom,
-    locationPinKey,
+    locationFitKey,
+    locationFitNonce,
     locationPins,
     map,
     preferDefaultView,
@@ -258,6 +284,7 @@ export function PropertyMap({
   defaultCenter,
   defaultZoom,
   locationPins,
+  locationFitNonce = 0,
   preferDefaultView = false,
   approximateAsCircle = false,
   approximateCircleRadiusM = 400,
@@ -324,6 +351,7 @@ export function PropertyMap({
           defaultCenter={defaultCenter}
           defaultZoom={defaultZoom}
           locationPins={locationPins}
+          locationFitNonce={locationFitNonce}
           preferDefaultView={preferDefaultView}
           skipListingDrivenRefit={Boolean(onViewportBbox)}
           suppressViewportUntilRef={suppressViewportBboxUntilRef}

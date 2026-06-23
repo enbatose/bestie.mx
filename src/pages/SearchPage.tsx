@@ -59,6 +59,7 @@ export function SearchPage() {
   const [apiBusy, setApiBusy] = useState(false);
   const [apiErr, setApiErr] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationFitNonce, setLocationFitNonce] = useState(0);
 
   useEffect(() => {
     mapFallbackLocationRef.current = searchLocation;
@@ -304,6 +305,12 @@ export function SearchPage() {
         onNeighborhoodRemove={handleNeighborhoodRemove}
         onCityRestore={handleCityRestore}
         onLocationInput={() => setLocationError(null)}
+        onNeighborhoodSearchCommit={() => {
+          setLocationError(null);
+          if (searchLocation.neighborhoods.length > 0) {
+            setLocationFitNonce((current) => current + 1);
+          }
+        }}
         onLocationNotFound={(query) => {
           setLocationError(`No se encontró la colonia "${query}". Mostramos la última ubicación.`);
         }}
@@ -325,6 +332,7 @@ export function SearchPage() {
                 defaultCenter={[searchLocation.lat, searchLocation.lng]}
                 defaultZoom={searchLocation.zoom}
                 locationPins={searchLocation.neighborhoods}
+                locationFitNonce={locationFitNonce}
                 preferDefaultView
                 onViewportBbox={onViewportBbox}
               />

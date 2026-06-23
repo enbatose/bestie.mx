@@ -19,6 +19,7 @@ type Props = {
   onCityClear: () => void;
   onNeighborhoodRemove: (name: string) => void;
   onCityRestore: () => void;
+  onNeighborhoodSearchCommit?: () => void;
   onLocationInput: () => void;
   onLocationNotFound: (query: string) => void;
   onLocationErrorDismiss: () => void;
@@ -43,6 +44,8 @@ const MOBILE_GENDER_SEGMENT_CLASS = (active: boolean) =>
   }`;
 const DESKTOP_FILTER_LABEL_CLASS =
   "block h-4 text-xs font-semibold uppercase leading-4 tracking-wide text-primary/80";
+const DESKTOP_LOCATION_LABEL_CLASS =
+  "block h-4 text-xs font-semibold uppercase leading-4 tracking-wide text-surface";
 const DESKTOP_FILTER_CONTROL_CLASS = "mt-1 h-[42px]";
 const DESKTOP_GENDER_SEGMENT_CLASS = (active: boolean) =>
   `flex-1 rounded-md px-1 py-1.5 text-center text-xs font-semibold leading-none transition sm:text-sm ${
@@ -136,11 +139,11 @@ function LocationChip({
     : "max-w-[9rem] px-2 py-0.5 text-xs";
   const toneClass =
     variant === "city"
-      ? "border-primary/35 bg-primary text-muted"
+      ? "border-primary/35 bg-primary text-surface"
       : "border-primary/20 bg-bg-light text-body";
   const removeBtnClass =
     variant === "city"
-      ? "text-muted transition hover:bg-primary/80"
+      ? "text-surface/85 transition hover:bg-primary/80"
       : "text-body transition hover:bg-surface";
 
   return (
@@ -177,6 +180,7 @@ export function SearchTopBar({
   onCityClear,
   onNeighborhoodRemove,
   onCityRestore,
+  onNeighborhoodSearchCommit,
   onLocationInput,
   onLocationNotFound,
   onLocationErrorDismiss,
@@ -359,10 +363,23 @@ export function SearchTopBar({
     setLocationMenuOpen(true);
   }
 
+  function commitNeighborhoodSelection() {
+    setLocationInput("");
+    setLocationMenuOpen(false);
+    setLocationSuggestions([]);
+    setShowLocationErrorToast(false);
+    onLocationInput();
+    onNeighborhoodSearchCommit?.();
+  }
+
   async function resolveBestLocationMatch() {
     const query = locationInput.trim();
+    if (query.length === 0) {
+      commitNeighborhoodSelection();
+      return;
+    }
     if (query.length < 2) {
-      onLocationNotFound(query);
+      commitNeighborhoodSelection();
       return;
     }
     try {
@@ -779,7 +796,7 @@ export function SearchTopBar({
 
       <div className="hidden w-full min-w-0 sm:flex sm:items-end sm:gap-3 lg:gap-4">
         <div className="relative z-50 min-w-0 flex-[2.4]">
-          <label className={DESKTOP_FILTER_LABEL_CLASS} htmlFor={locationInputId}>
+          <label className={DESKTOP_LOCATION_LABEL_CLASS} htmlFor={locationInputId}>
             Ciudad o colonia
           </label>
           <div className={`${DESKTOP_FILTER_CONTROL_CLASS} relative`}>{renderLocationField(false)}</div>
