@@ -13,7 +13,8 @@ type Props = {
   countLabel: ReactNode;
 };
 
-const RAIL_CLEARANCE_COLLAPSED = "5.75rem";
+/** Filter rail + expand chevron + small gap before the list tab. */
+const RAIL_CLEARANCE_COLLAPSED = "6.5rem";
 const RAIL_CLEARANCE_EXPANDED = "14.5rem";
 
 export function SearchMobileResultsPanel({
@@ -58,12 +59,7 @@ export function SearchMobileResultsPanel({
       style={{ left: railClearance }}
       aria-hidden={!expanded}
     >
-      <div
-        className={`pointer-events-auto ml-auto flex h-full max-w-md transition-transform duration-300 ease-out ${
-          expanded ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]"
-        }`}
-        style={{ width: "100%" }}
-      >
+      <div className="pointer-events-auto flex h-full w-full min-w-0">
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
@@ -75,17 +71,18 @@ export function SearchMobileResultsPanel({
         </button>
 
         <div
-          className={`flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md transition-[opacity] duration-200 ${
-            expanded ? "opacity-100" : "pointer-events-none opacity-0"
+          className={`flex min-w-0 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md transition-[flex-grow,opacity] duration-300 ease-out ${
+            expanded ? "flex-1 opacity-100" : "w-0 flex-none opacity-0"
           }`}
         >
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
             <h2 className="text-sm font-semibold text-body">Listados</h2>
             <p className="text-xs text-muted">{countLabel}</p>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             <SearchResultsList
               dense
+              cardVariant="mobile-drawer"
               listings={listings}
               selectedId={selectedId}
               onSelect={onSelect}

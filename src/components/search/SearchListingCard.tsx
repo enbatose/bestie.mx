@@ -11,7 +11,7 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
-type Variant = "sidebar" | "popup";
+type Variant = "sidebar" | "popup" | "mobile-drawer";
 
 type Props = {
   listing: PropertyListing;
@@ -130,6 +130,64 @@ function SearchListingPopupCard({
   );
 }
 
+function SearchListingMobileDrawerCard({
+  listing,
+  to,
+  state,
+  active,
+  onMouseEnter,
+  onFocus,
+  onClick,
+}: Pick<Props, "listing" | "to" | "state" | "active" | "onMouseEnter" | "onFocus" | "onClick">) {
+  const title = listingCardTitle(listing);
+  const subtitle = listingCardSubtitle(listing);
+  const quickAttributes = listingCardQuickAttributes(listing);
+
+  return (
+    <Link
+      to={to}
+      state={state}
+      onMouseEnter={onMouseEnter}
+      onFocus={onFocus}
+      onClick={onClick}
+      className={`block w-full cursor-pointer rounded-xl border p-2.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 ${
+        active
+          ? "border-secondary bg-surface shadow-sm ring-2 ring-secondary/25"
+          : "border-border bg-surface hover:border-secondary/60"
+      }`}
+    >
+      <h2 className="line-clamp-2 text-sm font-semibold leading-snug text-primary">{title}</h2>
+      <div className="mt-2 flex items-center gap-2.5">
+        <ListingCardThumb listing={listing} className="size-14 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold leading-none text-body">{money.format(listing.rentMxn)}</p>
+          <p className="mt-1 truncate text-xs text-muted">{subtitle}</p>
+        </div>
+      </div>
+      {quickAttributes.length ? (
+        <div className="mt-2.5 flex w-full items-center justify-between gap-1">
+          {quickAttributes.map((item) => {
+            const Icon = item.icon;
+            return (
+              <span key={item.id} className="group/icon relative inline-flex min-w-0 flex-1 justify-center">
+                <span
+                  className="inline-flex size-7 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border"
+                  aria-hidden="true"
+                >
+                  <Icon className="size-3.5" aria-hidden="true" />
+                </span>
+                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block">
+                  {item.tooltip}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
+    </Link>
+  );
+}
+
 function SearchListingSidebarCard({
   listing,
   to,
@@ -194,6 +252,9 @@ function SearchListingSidebarCard({
 export function SearchListingCard({ variant, ...props }: Props) {
   if (variant === "popup") {
     return <SearchListingPopupCard {...props} />;
+  }
+  if (variant === "mobile-drawer") {
+    return <SearchListingMobileDrawerCard {...props} />;
   }
   return <SearchListingSidebarCard {...props} />;
 }

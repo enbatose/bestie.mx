@@ -10,9 +10,17 @@ type Props = {
   searchReturn: SearchReturnContext;
   /** Tighter cards for the narrow list column. */
   dense?: boolean;
+  cardVariant?: "sidebar" | "mobile-drawer";
 };
 
-export function SearchResultsList({ listings, selectedId, onSelect, searchReturn, dense = false }: Props) {
+export function SearchResultsList({
+  listings,
+  selectedId,
+  onSelect,
+  searchReturn,
+  dense = false,
+  cardVariant = "sidebar",
+}: Props) {
   if (!listings.length) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-bg-light p-6 text-sm text-muted">
@@ -27,7 +35,7 @@ export function SearchResultsList({ listings, selectedId, onSelect, searchReturn
         <li key={l.id}>
           <SearchListingCard
             listing={l}
-            variant="sidebar"
+            variant={cardVariant}
             to={listingCardHref(l)}
             state={listingNavigationState(searchReturn)}
             active={l.id === selectedId}
