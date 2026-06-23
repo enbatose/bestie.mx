@@ -6,12 +6,11 @@ import {
   CarFront,
   DoorClosed,
   House,
-  Mars,
   SlidersHorizontal,
   UsersRound,
-  Venus,
   Warehouse,
 } from "lucide-react";
+import { RestroomFemaleIcon, RestroomMaleIcon } from "@/components/icons/RestroomGenderIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
 
@@ -71,14 +70,14 @@ const GENDER_META = {
     label: "Mujeres",
     mobileLabel: "Soy Mujer",
     tooltip: "Buscar opciones para mujer",
-    icon: Venus,
+    icon: RestroomFemaleIcon,
   },
   male: {
     id: "gender-male",
     label: "Hombres",
     mobileLabel: "Soy Hombre",
     tooltip: "Buscar opciones para hombre",
-    icon: Mars,
+    icon: RestroomMaleIcon,
   },
   any: {
     id: "gender-mixed",
