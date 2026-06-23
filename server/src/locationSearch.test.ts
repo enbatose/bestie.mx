@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mergeLocationSuggestions, suggestionDedupeKey } from "./locationSearch.js";
+import { DEFAULT_METRO_CITY } from "./metroCities.js";
+import {
+  buildCuratedNeighborhoodSuggestions,
+  mergeLocationSuggestions,
+  suggestionDedupeKey,
+} from "./locationSearch.js";
 
 describe("suggestionDedupeKey", () => {
   it("maps Americana alias to Colonia Americana", () => {
@@ -87,5 +92,12 @@ describe("mergeLocationSuggestions", () => {
     const result = mergeLocationSuggestions([], nominatim);
     expect(result).toHaveLength(1);
     expect(result[0]?.label).toBe("GDL - Chapalita");
+  });
+});
+
+describe("buildCuratedNeighborhoodSuggestions", () => {
+  it("includes Valle Real for Valle searches", () => {
+    const result = buildCuratedNeighborhoodSuggestions("Valle", DEFAULT_METRO_CITY);
+    expect(result.some((item) => item.neighborhood === "Valle Real")).toBe(true);
   });
 });

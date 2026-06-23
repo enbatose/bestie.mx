@@ -122,7 +122,15 @@ describe("computeNeighborhoodsViewport", () => {
       { name: "Colonia Americana", lat: 20.6739, lng: -103.362 },
       { name: "Centro Histórico", lat: 20.6772, lng: -103.3472 },
     ]);
-    expect(viewport.zoom).toBeGreaterThanOrEqual(11);
+    expect(viewport.zoom).toBeGreaterThanOrEqual(13);
+  });
+
+  it("does not zoom out three levels for nearby west Guadalajara neighborhoods", () => {
+    const viewport = computeNeighborhoodsViewport([
+      { name: "Arcos Vallarta", lat: 20.6724, lng: -103.3796 },
+      { name: "Colonia Americana", lat: 20.67459, lng: -103.35943 },
+    ]);
+    expect(viewport.zoom).toBeGreaterThan(11);
   });
 });
 

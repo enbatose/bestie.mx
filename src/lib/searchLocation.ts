@@ -170,9 +170,10 @@ export function computeNeighborhoodsViewport(
   const lngSpan = Math.max(bounds.maxLng - bounds.minLng, NEIGHBORHOOD_FIT_HALF_SPAN_LNG * 2);
   const span = Math.max(latSpan, lngSpan);
   const minMultiZoom = metro.neighborhoodZoom - 3;
+  const estimatedMultiZoom = minMultiZoom + Math.round(Math.log2(0.34 / span));
   const zoom = Math.min(
     metro.neighborhoodZoom,
-    Math.max(minMultiZoom, Math.round(Math.log2(0.34 / span))),
+    Math.max(minMultiZoom, estimatedMultiZoom),
   );
 
   return {

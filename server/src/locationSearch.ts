@@ -127,6 +127,13 @@ const CURATED_GUADALAJARA_NEIGHBORHOODS: Array<{
     lng: -103.37614,
     aliases: ["Country Club", "Guadalajara Country Club"],
   },
+  {
+    city: "Zapopan",
+    neighborhood: "Valle Real",
+    lat: 20.7269,
+    lng: -103.4308,
+    aliases: ["Valle Real", "Fraccionamiento Valle Real"],
+  },
 ];
 
 function normalizeLocationText(value: string) {
@@ -331,7 +338,7 @@ function buildCitySuggestions(query: string): ScoredLocationSuggestion[] {
     .filter((item) => item.score > 0 || normalizedQuery.length === 0);
 }
 
-function buildCuratedNeighborhoodSuggestions(
+export function buildCuratedNeighborhoodSuggestions(
   query: string,
   metro: MetroCity,
 ): Array<LocationSuggestion & { score: number }> {
