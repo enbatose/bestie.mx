@@ -48,6 +48,8 @@ type Props = {
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
 const NEIGHBORHOOD_FIT_PADDING: L.PointExpression = [56, 56];
+/** Allow fitBounds to zoom in tightly; do not reuse URL viewport zoom as a ceiling. */
+const NEIGHBORHOOD_FIT_MAX_ZOOM = 15;
 const NEIGHBORHOOD_LOOSE_VIEW_SLACK = 1.28;
 
 function latLngBoundsFromBox(box: LatLngBoundsBox): L.LatLngBounds {
@@ -85,11 +87,7 @@ function shouldRefitNeighborhoodPins(map: L.Map, locationPins: readonly SearchNe
   return viewIsLooserThanNeeded(map, targetBox);
 }
 
-function fitNeighborhoodPins(
-  map: L.Map,
-  locationPins: readonly SearchNeighborhoodPin[],
-  defaultZoom?: number,
-) {
+function fitNeighborhoodPins(map: L.Map, locationPins: readonly SearchNeighborhoodPin[]) {
   if (!locationPins.length) return;
 
   const targetBox = neighborhoodTargetBox(locationPins);
@@ -98,7 +96,7 @@ function fitNeighborhoodPins(
 
   map.fitBounds(latLngBoundsFromBox(targetBox), {
     padding: NEIGHBORHOOD_FIT_PADDING,
-    maxZoom: defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM,
+    maxZoom: NEIGHBORHOOD_FIT_MAX_ZOOM,
   });
 }
 
@@ -213,7 +211,7 @@ function FitBounds({
         if (suppressViewportUntilRef) {
           suppressViewportUntilRef.current = Date.now() + 900;
         }
-        fitNeighborhoodPins(map, locationPins, defaultZoom);
+        fitNeighborhoodPins(map, locationPins);
         appliedDefaultViewRef.current = locationFitKey;
         didInitialView.current = true;
         return;

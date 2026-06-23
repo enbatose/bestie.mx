@@ -114,6 +114,15 @@ describe("computeNeighborhoodsViewport", () => {
       { name: "Americana", lat: 20.74, lng: -103.31 },
     ]);
     expect(multi.zoom).toBeLessThan(single.zoom);
+    expect(multi.zoom).toBeGreaterThanOrEqual(11);
+  });
+
+  it("keeps nearby neighborhoods at a street-level zoom", () => {
+    const viewport = computeNeighborhoodsViewport([
+      { name: "Colonia Americana", lat: 20.6739, lng: -103.362 },
+      { name: "Centro Histórico", lat: 20.6772, lng: -103.3472 },
+    ]);
+    expect(viewport.zoom).toBeGreaterThanOrEqual(11);
   });
 });
 
