@@ -40,10 +40,6 @@ function MaleFigure() {
   );
 }
 
-const FILTER_GLYPH_FONT =
-  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-
-/** Traditional restroom woman icon: head, dress, arms, and legs. */
 export function RestroomFemaleIcon({ className, ...props }: LucideProps) {
   return (
     <svg
@@ -72,59 +68,3 @@ export function RestroomMaleIcon({ className, ...props }: LucideProps) {
     </svg>
   );
 }
-
-/** Woman filter button glyph: figure + M (Mujer). */
-export function RestroomFemaleFilterIcon({ className, ...props }: LucideProps) {
-  return (
-    <svg
-      viewBox="0 0 27 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-      {...props}
-    >
-      <g transform="translate(0.35, 1.2) scale(0.66)">
-        <FemaleFigure />
-      </g>
-      <text
-        x="20.35"
-        y="16.15"
-        fontSize="8.75"
-        fontWeight="700"
-        fontFamily={FILTER_GLYPH_FONT}
-        fill="currentColor"
-      >
-        M
-      </text>
-    </svg>
-  );
-}
-
-/** Man filter button glyph: figure + H (Hombre). */
-export function RestroomMaleFilterIcon({ className, ...props }: LucideProps) {
-  return (
-    <svg
-      viewBox="0 0 27 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-      {...props}
-    >
-      <g transform="translate(0.35, 1.2) scale(0.66)">
-        <MaleFigure />
-      </g>
-      <text
-        x="20.55"
-        y="16.15"
-        fontSize="8.75"
-        fontWeight="700"
-        fontFamily={FILTER_GLYPH_FONT}
-        fill="currentColor"
-      >
-        H
-      </text>
-    </svg>
-  );
-}
-
-export const GENDER_FILTER_ICON_CLASS = "h-4 w-[1.38rem] sm:h-[1.05rem] sm:w-[1.48rem]";

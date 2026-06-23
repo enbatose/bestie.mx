@@ -24,9 +24,6 @@ type Props = {
   onLocationErrorDismiss: () => void;
 };
 
-const DEFAULT_MOBILE_AGE = 27;
-const MIN_AGE = 16;
-const MAX_AGE = 99;
 const RENT_STEP = 100;
 const LOCATION_ERROR_TOAST_MS = 3_000;
 const MOBILE_FILTER_HEIGHT = "h-14";
@@ -40,12 +37,12 @@ const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGH
 const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2`;
 const MOBILE_FILTER_VALUE_CLASS =
   "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
+const MOBILE_GENDER_SEGMENT_CLASS = (active: boolean) =>
+  `flex-1 rounded-[0.65rem] px-0.5 py-1.5 text-center text-[0.78rem] font-semibold leading-none transition ${
+    active ? "bg-primary text-primary-fg shadow-sm" : "text-body active:bg-surface-elevated/80"
+  }`;
 const MOBILE_STEPPER_BTN_CLASS =
   "inline-flex h-full w-full items-center justify-center text-[1.2rem] font-semibold leading-none text-primary transition active:bg-surface-elevated";
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
 
 function highestVisibleRent(listings: PropertyListing[]) {
   return listings.reduce((max, listing) => Math.max(max, listing.rentMxn), 0);
@@ -139,7 +136,6 @@ export function SearchTopBar({
   const desktopLocationMenuId = useId();
   const maxVisibleRent = useMemo(() => highestVisibleRent(listings), [listings]);
   const displayedRent = filters.budgetMax ?? (maxVisibleRent > 0 ? maxVisibleRent : null);
-  const displayedAge = filters.age;
   const [locationInput, setLocationInput] = useState("");
   const [cityChipVisible, setCityChipVisible] = useState(true);
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
@@ -148,11 +144,10 @@ export function SearchTopBar({
   const [showLocationErrorToast, setShowLocationErrorToast] = useState(false);
   const [locationErrorCountdown, setLocationErrorCountdown] = useState(3);
   const [rentFocused, setRentFocused] = useState(false);
-  const [mobileEditingField, setMobileEditingField] = useState<"rent" | "age" | null>(null);
+  const [mobileEditingField, setMobileEditingField] = useState<"rent" | null>(null);
   const [rentInput, setRentInput] = useState(
     displayedRent == null ? "" : formatRentCompact(displayedRent),
   );
-  const [ageInput, setAgeInput] = useState(displayedAge == null ? "" : String(displayedAge));
   const locationCloseTimerRef = useRef<number | null>(null);
   const mobileFilterRowRef = useRef<HTMLDivElement | null>(null);
   const mobileLocationInputRef = useRef<HTMLInputElement | null>(null);
@@ -169,10 +164,6 @@ export function SearchTopBar({
     if (rentFocused) return;
     setRentInput(displayedRent == null ? "" : formatRentCompact(displayedRent));
   }, [displayedRent, rentFocused]);
-
-  useEffect(() => {
-    setAgeInput(displayedAge == null ? "" : String(displayedAge));
-  }, [displayedAge]);
 
   useEffect(() => {
     if (!hasActiveFilters) {
@@ -518,70 +509,33 @@ export function SearchTopBar({
     setBudgetMax(parsed);
   }
 
-  function setAge(nextAge: number | null) {
+  function setGenderPref(nextPref: "male" | "female") {
     onChange({
       ...filters,
-      age: nextAge,
-      ageMin: null,
-      ageMax: null,
+      pref: filters.pref === nextPref ? null : nextPref,
     });
   }
 
-  function stepAge(delta: number) {
-    const next = displayedAge == null ? DEFAULT_MOBILE_AGE : clamp(displayedAge + delta, MIN_AGE, MAX_AGE);
-    setAge(next);
-    setAgeInput(String(next));
-  }
-
-  function commitAge() {
-    const trimmed = ageInput.trim();
-    if (trimmed === "") {
-      setAge(null);
-      setAgeInput("");
-      return;
-    }
-
-    const next = Number(trimmed.replace(/\D/g, ""));
-    if (!Number.isFinite(next)) {
-      setAgeInput(String(displayedAge));
-      return;
-    }
-
-    const normalized = clamp(Math.trunc(next), MIN_AGE, MAX_AGE);
-    setAge(normalized);
-    setAgeInput(String(normalized));
-  }
-
-  function finishMobileEdit(field: "rent" | "age") {
-    if (field === "rent") {
-      commitBudget();
-      setRentFocused(false);
-      const parsed = parseRentMxnInput(rentInput);
-      if (parsed != null) {
-        setRentInput(formatRentCompact(parsed));
-      } else if (displayedRent != null) {
-        setRentInput(formatRentCompact(displayedRent));
-      }
-    } else {
-      commitAge();
+  function finishMobileEdit() {
+    commitBudget();
+    setRentFocused(false);
+    const parsed = parseRentMxnInput(rentInput);
+    if (parsed != null) {
+      setRentInput(formatRentCompact(parsed));
+    } else if (displayedRent != null) {
+      setRentInput(formatRentCompact(displayedRent));
     }
     setMobileEditingField(null);
   }
 
-  function startMobileEdit(field: "rent" | "age") {
-    if (mobileEditingField && mobileEditingField !== field) {
-      finishMobileEdit(mobileEditingField);
-    }
-    if (field === "rent") {
-      setRentFocused(false);
-      setRentInput(displayedRent == null ? "" : formatRentCompact(displayedRent));
-    }
-    setMobileEditingField(field);
+  function startMobileEdit() {
+    setRentFocused(false);
+    setRentInput(displayedRent == null ? "" : formatRentCompact(displayedRent));
+    setMobileEditingField("rent");
   }
 
   const rentCollapsedDisplay =
     displayedRent == null ? "" : formatRentCompact(displayedRent);
-  const ageCollapsedDisplay = displayedAge == null ? "" : String(displayedAge);
   const rentStepperDisplay =
     rentInput || rentCollapsedDisplay;
 
@@ -662,7 +616,7 @@ export function SearchTopBar({
                       <button
                         type="button"
                         aria-label="Aplicar renta máxima"
-                        onClick={() => finishMobileEdit("rent")}
+                        onClick={finishMobileEdit}
                         className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
                       >
                         <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
@@ -674,7 +628,7 @@ export function SearchTopBar({
                       <button
                         type="button"
                         aria-label="Editar renta máxima"
-                        onClick={() => startMobileEdit("rent")}
+                        onClick={startMobileEdit}
                         className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
                       >
                         <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
@@ -684,84 +638,34 @@ export function SearchTopBar({
                 </div>
               </div>
 
-              <div
-                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 ${
-                  mobileEditingField === "age" ? "relative z-[1] gap-0" : ""
-                }`}
-              >
-                {mobileEditingField === "age" ? null : (
-                  <span className={MOBILE_FILTER_LABEL_CLASS}>Edad</span>
-                )}
-                <div
-                  className={
-                    mobileEditingField === "age"
-                      ? "flex min-w-0 flex-1 items-center"
-                      : MOBILE_FILTER_FIELD_WRAPPER_CLASS
-                  }
-                >
-                  {mobileEditingField === "age" ? (
-                    <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
-                      <button
-                        type="button"
-                        aria-label="Disminuir edad"
-                        onClick={() => stepAge(-1)}
-                        className={MOBILE_STEPPER_BTN_CLASS}
-                      >
-                        −
-                      </button>
-                      <input
-                        inputMode="numeric"
-                        type="number"
-                        min={MIN_AGE}
-                        max={MAX_AGE}
-                        value={ageInput}
-                        onChange={(e) => setAgeInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                        onBlur={commitAge}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        className={`w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                          filters.age == null ? "text-muted opacity-40" : "text-body"
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Aumentar edad"
-                        onClick={() => stepAge(1)}
-                        className={MOBILE_STEPPER_BTN_CLASS}
-                      >
-                        +
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Aplicar edad"
-                        onClick={() => finishMobileEdit("age")}
-                        className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
-                      >
-                        <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className={MOBILE_FILTER_CONTROL_COLLAPSED_CLASS}>
-                      <span
-                        className={`${MOBILE_FILTER_VALUE_CLASS} ${
-                          filters.age == null ? "text-muted opacity-40" : ""
-                        }`}
-                      >
-                        {ageCollapsedDisplay}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Editar edad"
-                        onClick={() => startMobileEdit("age")}
-                        className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
-                      >
-                        <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
-                      </button>
-                    </div>
-                  )}
+              <div className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0`}>
+                <span className={MOBILE_FILTER_LABEL_CLASS}>Género</span>
+                <div className={MOBILE_FILTER_FIELD_WRAPPER_CLASS}>
+                  <div
+                    className={`${MOBILE_FILTER_CONTROL_COLLAPSED_CLASS} justify-center gap-0.5 px-1`}
+                    role="group"
+                    aria-label="Filtrar por género"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={filters.pref === "male"}
+                      onClick={() => setGenderPref("male")}
+                      className={MOBILE_GENDER_SEGMENT_CLASS(filters.pref === "male")}
+                    >
+                      Hombre
+                    </button>
+                    <span className="px-0.5 text-[0.82rem] font-semibold text-muted/70" aria-hidden>
+                      |
+                    </span>
+                    <button
+                      type="button"
+                      aria-pressed={filters.pref === "female"}
+                      onClick={() => setGenderPref("female")}
+                      className={MOBILE_GENDER_SEGMENT_CLASS(filters.pref === "female")}
+                    >
+                      Mujer
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

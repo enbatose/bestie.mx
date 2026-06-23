@@ -5,12 +5,14 @@ import {
   Building2,
   CarFront,
   DoorClosed,
+  Heart,
   House,
+  PawPrint,
   SlidersHorizontal,
   UsersRound,
   Warehouse,
 } from "lucide-react";
-import { RestroomFemaleIcon, RestroomFemaleFilterIcon, RestroomMaleIcon, RestroomMaleFilterIcon } from "@/components/icons/RestroomGenderIcons";
+import { RestroomFemaleIcon, RestroomMaleIcon } from "@/components/icons/RestroomGenderIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
 
@@ -111,6 +113,22 @@ const FURNISHED_META: SearchQuickAttribute = {
   icon: Armchair,
 };
 
+const PETS_META: SearchQuickAttribute = {
+  id: "tag-mascotas",
+  label: "Mascotas",
+  mobileLabel: "Aceptan Mascotas",
+  tooltip: "Solo publicaciones que aceptan mascotas",
+  icon: PawPrint,
+};
+
+const LGBT_META: SearchQuickAttribute = {
+  id: "tag-lgbt-friendly",
+  label: "LGBT+",
+  mobileLabel: "Comunidad LGBT+",
+  tooltip: "Solo publicaciones LGBT+ friendly",
+  icon: Heart,
+};
+
 function withTagToggle(filters: SearchFilters, tag: ListingTag): SearchFilters {
   const tags = filters.tags.includes(tag)
     ? filters.tags.filter((current) => current !== tag)
@@ -143,20 +161,6 @@ const LOFT_FILTER: SearchQuickFilterDefinition = {
   toggle: (filters) => ({ ...filters, wantLoft: !filters.wantLoft }),
 };
 
-const FEMALE_FILTER: SearchQuickFilterDefinition = {
-  ...GENDER_META.female,
-  icon: RestroomFemaleFilterIcon,
-  isActive: (filters) => filters.pref === "female",
-  toggle: (filters) => ({ ...filters, pref: filters.pref === "female" ? null : "female" }),
-};
-
-const MALE_FILTER: SearchQuickFilterDefinition = {
-  ...GENDER_META.male,
-  icon: RestroomMaleFilterIcon,
-  isActive: (filters) => filters.pref === "male",
-  toggle: (filters) => ({ ...filters, pref: filters.pref === "male" ? null : "male" }),
-};
-
 const PRIVATE_BATHROOM_FILTER: SearchQuickFilterDefinition = {
   ...PRIVATE_BATHROOM_META,
   isActive: (filters) => filters.tags.includes("baño-privado"),
@@ -175,11 +179,23 @@ const FURNISHED_FILTER: SearchQuickFilterDefinition = {
   toggle: (filters) => withTagToggle(filters, "muebles"),
 };
 
+const PETS_FILTER: SearchQuickFilterDefinition = {
+  ...PETS_META,
+  isActive: (filters) => filters.tags.includes("mascotas"),
+  toggle: (filters) => withTagToggle(filters, "mascotas"),
+};
+
+const LGBT_FILTER: SearchQuickFilterDefinition = {
+  ...LGBT_META,
+  isActive: (filters) => filters.tags.includes("lgbt-friendly"),
+  toggle: (filters) => withTagToggle(filters, "lgbt-friendly"),
+};
+
 export const MOBILE_MAP_QUICK_FILTERS: readonly SearchQuickFilterDefinition[] = [
   PRIVATE_ROOM_FILTER,
   LOFT_FILTER,
-  FEMALE_FILTER,
-  MALE_FILTER,
+  PETS_FILTER,
+  LGBT_FILTER,
   PRIVATE_BATHROOM_FILTER,
   PRIVATE_PARKING_FILTER,
   FURNISHED_FILTER,
@@ -190,7 +206,10 @@ export const MAP_QUICK_FILTERS: readonly SearchQuickFilterDefinition[] = [
     ...PRIVATE_ROOM_FILTER,
   },
   {
-    ...FEMALE_FILTER,
+    ...PETS_FILTER,
+  },
+  {
+    ...LGBT_FILTER,
   },
   {
     ...PRIVATE_BATHROOM_FILTER,
