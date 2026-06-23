@@ -87,7 +87,7 @@ export function SearchFilterRail({ filters, onChange, onOpenAdvanced }: Props) {
 
   return (
     <aside
-      className="pointer-events-none absolute left-2 top-3 z-[1100] sm:left-3 sm:top-24"
+      className="pointer-events-none absolute left-2 top-6 z-[1100] sm:left-3 sm:top-24"
       aria-label="Filtros rápidos"
     >
       <div className="pointer-events-auto flex items-start gap-0.5">
