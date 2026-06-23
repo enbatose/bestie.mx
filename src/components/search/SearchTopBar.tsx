@@ -41,6 +41,13 @@ const MOBILE_GENDER_SEGMENT_CLASS = (active: boolean) =>
   `flex-1 rounded-[0.65rem] px-0.5 py-1.5 text-center text-[0.78rem] font-semibold leading-none transition ${
     active ? "bg-primary text-primary-fg shadow-sm" : "text-body active:bg-surface-elevated/80"
   }`;
+const DESKTOP_FILTER_LABEL_CLASS =
+  "block h-4 text-xs font-semibold uppercase leading-4 tracking-wide text-primary/80";
+const DESKTOP_FILTER_CONTROL_CLASS = "mt-1 h-[42px]";
+const DESKTOP_GENDER_SEGMENT_CLASS = (active: boolean) =>
+  `flex-1 rounded-md px-1 py-1.5 text-center text-xs font-semibold leading-none transition sm:text-sm ${
+    active ? "bg-primary text-primary-fg shadow-sm" : "text-body hover:bg-bg-light"
+  }`;
 const MOBILE_STEPPER_BTN_CLASS =
   "inline-flex h-full w-full items-center justify-center text-[1.2rem] font-semibold leading-none text-primary transition active:bg-surface-elevated";
 
@@ -334,13 +341,13 @@ export function SearchTopBar({
     const inputRef = mobile ? mobileLocationInputRef : desktopLocationInputRef;
     const inputShellClass = mobile
       ? "relative h-14 w-full min-w-0 rounded-[1.2rem] border border-primary/15 bg-surface pl-3 pr-[4.75rem] shadow-sm ring-primary/30 focus-within:ring-2"
-      : "relative w-full min-w-0 rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+      : "relative h-[42px] w-full min-w-0 rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
     const inputRowClass = mobile
       ? "flex h-full min-w-0 items-center gap-1.5 overflow-hidden"
-      : "flex h-11 min-w-0 items-center gap-1.5 overflow-hidden";
+      : "flex h-full min-w-0 items-center gap-1.5 overflow-hidden";
     const inputClass = mobile
       ? "h-full min-w-[4.5rem] flex-1 bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
-      : "h-11 min-w-[4.5rem] flex-1 bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
+      : "h-full min-w-[4.5rem] flex-1 bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
     const menuClass = mobile
       ? "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[1.1rem] border border-primary/15 bg-surface shadow-xl"
       : "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-primary/20 bg-surface shadow-xl";
@@ -693,18 +700,16 @@ export function SearchTopBar({
         </div>
       </div>
 
-      <div className="mx-auto hidden w-full min-w-0 max-w-[1920px] grid-cols-1 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] lg:items-end lg:gap-4">
-        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-primary/80">
+      <div className="mx-auto hidden w-full min-w-0 max-w-[1920px] sm:flex sm:flex-wrap sm:items-end sm:gap-3 lg:flex-nowrap lg:gap-4">
+        <div className="min-w-0 flex-1 basis-full sm:basis-[calc(50%-0.375rem)] lg:min-w-[10rem] lg:max-w-[18rem] lg:flex-[1.1] lg:basis-auto">
+          <label className={DESKTOP_FILTER_LABEL_CLASS} htmlFor={locationInputId}>
             Ciudad o colonia
           </label>
-          <div className="mt-1">{renderLocationField(false)}</div>
+          <div className={DESKTOP_FILTER_CONTROL_CLASS}>{renderLocationField(false)}</div>
         </div>
 
-        <label className="block min-w-0">
-          <span className="text-xs font-semibold uppercase tracking-wide text-primary/80">
-            Presupuesto máx (MXN / mes)
-          </span>
+        <label className="block w-[5.5rem] shrink-0 sm:w-24">
+          <span className={DESKTOP_FILTER_LABEL_CLASS}>Renta</span>
           <input
             inputMode="numeric"
             type="number"
@@ -719,15 +724,63 @@ export function SearchTopBar({
               })
             }
             placeholder="Ej. 8000"
-            className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
+            className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
           />
         </label>
 
-        <fieldset className="min-w-0">
-          <legend className="text-xs font-semibold uppercase tracking-wide text-primary/80">
-            Tipo de hospedaje
-          </legend>
-          <div className="mt-1 flex flex-wrap gap-1.5">
+        <fieldset className="shrink-0">
+          <legend className={DESKTOP_FILTER_LABEL_CLASS}>Género</legend>
+          <div
+            className={`${DESKTOP_FILTER_CONTROL_CLASS} flex w-[9.75rem] items-center gap-0.5 rounded-lg border border-primary/20 bg-surface px-1 shadow-sm`}
+            role="group"
+            aria-label="Filtrar por género"
+          >
+            <button
+              type="button"
+              aria-pressed={filters.pref === "female"}
+              onClick={() => setGenderPref("female")}
+              className={DESKTOP_GENDER_SEGMENT_CLASS(filters.pref === "female")}
+            >
+              Mujer
+            </button>
+            <span className="px-0.5 text-xs font-semibold text-muted/70" aria-hidden>
+              |
+            </span>
+            <button
+              type="button"
+              aria-pressed={filters.pref === "male"}
+              onClick={() => setGenderPref("male")}
+              className={DESKTOP_GENDER_SEGMENT_CLASS(filters.pref === "male")}
+            >
+              Hombre
+            </button>
+          </div>
+        </fieldset>
+
+        <label className="block w-[4.75rem] shrink-0 sm:w-20">
+          <span className={DESKTOP_FILTER_LABEL_CLASS}>Edad</span>
+          <input
+            inputMode="numeric"
+            type="number"
+            min={16}
+            max={99}
+            value={filters.age ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...filters,
+                age: e.target.value === "" ? null : Number(e.target.value),
+                ageMin: null,
+                ageMax: null,
+              })
+            }
+            placeholder="Tu edad"
+            className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
+          />
+        </label>
+
+        <fieldset className="shrink-0">
+          <legend className={DESKTOP_FILTER_LABEL_CLASS}>Tipo de hospedaje</legend>
+          <div className={`${DESKTOP_FILTER_CONTROL_CLASS} flex items-center gap-1.5`}>
             {(
               [
                 { key: "loft" as const, label: "Loft" },
@@ -747,7 +800,7 @@ export function SearchTopBar({
                         : { ...filters, wantRecamara: !filters.wantRecamara, lodgingType: null },
                     )
                   }
-                  className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                  className={`h-full rounded-lg border px-2.5 text-xs font-semibold shadow-sm transition sm:px-3 sm:text-sm ${
                     active
                       ? "border-secondary bg-surface ring-2 ring-secondary/40"
                       : "border-primary/20 bg-surface/90 hover:border-secondary/50"
@@ -760,32 +813,20 @@ export function SearchTopBar({
           </div>
         </fieldset>
 
-        <div className="flex min-w-0 items-end gap-2 sm:col-span-2 lg:col-span-1">
-          <label className="block w-[5.25rem] shrink-0 sm:w-24">
-            <span className="text-xs font-semibold uppercase tracking-wide text-primary/80">Edad</span>
-            <input
-              inputMode="numeric"
-              type="number"
-              min={16}
-              max={99}
-              value={filters.age ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  age: e.target.value === "" ? null : Number(e.target.value),
-                  ageMin: null,
-                  ageMax: null,
-                })
-              }
-              placeholder="Tu edad"
-              className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-2.5 py-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-            />
-          </label>
+        <div className="flex shrink-0 items-end gap-2">
+          <button
+            type="button"
+            onClick={onOpenAdvanced}
+            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 sm:px-4 sm:text-sm"
+          >
+            <Filter className="size-3.5 shrink-0" aria-hidden="true" strokeWidth={2.2} />
+            Más Filtros
+          </button>
           <button
             type="button"
             onClick={onClearFilters}
             disabled={!hasActiveFilters}
-            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-sm"
+            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-sm"
           >
             <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
               <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
