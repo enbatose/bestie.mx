@@ -87,6 +87,37 @@ function suggestionMenuLabel(option: LocationSuggestion, includeMetroPrefix: boo
   return option.label;
 }
 
+function estimateLocationChipRows(
+  mobile: boolean,
+  cityVisible: boolean,
+  neighborhoodCount: number,
+): number {
+  const totalChips = (cityVisible ? 1 : 0) + neighborhoodCount;
+  if (totalChips <= 1) return 1;
+  const chipsPerRow = mobile ? 2 : 4;
+  return Math.min(3, Math.ceil(totalChips / chipsPerRow));
+}
+
+function locationFieldShellClass(mobile: boolean, chipRows: number) {
+  if (mobile) {
+    if (chipRows <= 1) {
+      return "relative min-h-14 w-full min-w-0 rounded-[1.2rem] border border-primary/15 bg-surface py-2 pl-3 pr-[4.75rem] shadow-sm ring-primary/30 focus-within:ring-2";
+    }
+    if (chipRows === 2) {
+      return "relative min-h-[4.6rem] w-full min-w-0 rounded-[1.2rem] border border-primary/15 bg-surface py-2 pl-3 pr-[4.75rem] shadow-sm ring-primary/30 focus-within:ring-2";
+    }
+    return "relative min-h-[5.85rem] w-full min-w-0 rounded-[1.2rem] border border-primary/15 bg-surface py-2 pl-3 pr-[4.75rem] shadow-sm ring-primary/30 focus-within:ring-2";
+  }
+
+  if (chipRows <= 1) {
+    return "relative min-h-[42px] w-full min-w-0 rounded-lg border border-primary/20 bg-surface py-1.5 pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+  }
+  if (chipRows === 2) {
+    return "relative min-h-[58px] w-full min-w-0 rounded-lg border border-primary/20 bg-surface py-1.5 pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+  }
+  return "relative min-h-[74px] w-full min-w-0 rounded-lg border border-primary/20 bg-surface py-1.5 pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
+}
+
 function LocationChip({
   label,
   onRemove,
@@ -341,15 +372,19 @@ export function SearchTopBar({
     const locationMenuId = mobile ? mobileLocationMenuId : desktopLocationMenuId;
     const showLocationMenu = locationMenuOpen;
     const inputRef = mobile ? mobileLocationInputRef : desktopLocationInputRef;
-    const inputShellClass = mobile
-      ? "relative h-14 w-full min-w-0 rounded-[1.2rem] border border-primary/15 bg-surface pl-3 pr-[4.75rem] shadow-sm ring-primary/30 focus-within:ring-2"
-      : "relative h-[42px] w-full min-w-0 rounded-lg border border-primary/20 bg-surface pl-3 pr-[5.5rem] shadow-sm ring-primary/30 focus-within:ring-2";
-    const inputRowClass = mobile
-      ? "flex h-full min-w-0 items-center gap-1.5 overflow-hidden"
-      : "flex h-full min-w-0 items-center gap-1.5 overflow-hidden";
+    const chipRows = estimateLocationChipRows(
+      mobile,
+      cityChipVisible,
+      searchLocation.neighborhoods.length,
+    );
+    const inputShellClass = locationFieldShellClass(mobile, chipRows);
+    const chipWrapClass = mobile
+      ? "flex max-h-[3.6rem] min-w-0 flex-1 flex-col flex-wrap items-start gap-x-1.5 gap-y-1 overflow-hidden content-start"
+      : "flex max-h-[3.1rem] min-w-0 flex-1 flex-col flex-wrap items-start gap-x-1.5 gap-y-1 overflow-hidden content-start";
+    const inputRowClass = "flex min-w-0 items-start gap-1.5";
     const inputClass = mobile
-      ? "h-full min-w-[4.5rem] flex-1 bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
-      : "h-full min-w-[4.5rem] flex-1 bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
+      ? "min-h-[1.35rem] min-w-[4.5rem] flex-1 basis-[38%] bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
+      : "min-h-[1.25rem] min-w-[4.5rem] flex-1 basis-[38%] bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
     const menuClass = mobile
       ? "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[1.1rem] border border-primary/15 bg-surface shadow-xl"
       : "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-primary/20 bg-surface shadow-xl";
@@ -368,55 +403,61 @@ export function SearchTopBar({
       <div className="relative w-full min-w-0" onFocus={openLocationMenu} onBlur={scheduleLocationMenuClose}>
         <div className={inputShellClass}>
           <div className={inputRowClass}>
-            {cityChipVisible ? (
-              <LocationChip
-                label={searchLocation.cityAbbr}
-                onRemove={handleCityChipRemove}
-                removeLabel={`Quitar ciudad ${searchLocation.cityLabel}`}
-                mobile={mobile}
-              />
-            ) : null}
-            {cityChipVisible
-              ? searchLocation.neighborhoods.map((pin) => (
-                  <LocationChip
-                    key={pin.name}
-                    label={neighborhoodChipLabel(pin.name, searchLocation.cityAbbr)}
-                    onRemove={() => handleNeighborhoodChipRemove(pin.name)}
-                    removeLabel={`Quitar colonia ${neighborhoodChipLabel(pin.name, searchLocation.cityAbbr)}`}
-                    mobile={mobile}
-                  />
-                ))
-              : null}
-            <input
-              id={mobile ? "mobile-search-location" : locationInputId}
-              ref={inputRef}
-              type="text"
-              value={locationInput}
-              onChange={(e) => handleLocationInputChange(e.target.value)}
-              onFocus={openLocationMenu}
-              placeholder={placeholder}
-              autoComplete="off"
-              spellCheck={false}
-              className={inputClass}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (visibleSuggestions.length) {
-                    handleSuggestionSelect(visibleSuggestions[0]!);
-                    return;
+            <div className={chipWrapClass}>
+              {cityChipVisible ? (
+                <LocationChip
+                  label={searchLocation.cityAbbr}
+                  onRemove={handleCityChipRemove}
+                  removeLabel={`Quitar ciudad ${searchLocation.cityLabel}`}
+                  mobile={mobile}
+                />
+              ) : null}
+              {cityChipVisible
+                ? searchLocation.neighborhoods.map((pin) => (
+                    <LocationChip
+                      key={pin.name}
+                      label={neighborhoodChipLabel(pin.name, searchLocation.cityAbbr)}
+                      onRemove={() => handleNeighborhoodChipRemove(pin.name)}
+                      removeLabel={`Quitar colonia ${neighborhoodChipLabel(pin.name, searchLocation.cityAbbr)}`}
+                      mobile={mobile}
+                    />
+                  ))
+                : null}
+              <input
+                id={mobile ? "mobile-search-location" : locationInputId}
+                ref={inputRef}
+                type="text"
+                value={locationInput}
+                onChange={(e) => handleLocationInputChange(e.target.value)}
+                onFocus={openLocationMenu}
+                placeholder={placeholder}
+                autoComplete="off"
+                spellCheck={false}
+                className={inputClass}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (visibleSuggestions.length) {
+                      handleSuggestionSelect(visibleSuggestions[0]!);
+                      return;
+                    }
+                    void resolveBestLocationMatch();
                   }
-                  void resolveBestLocationMatch();
-                }
-                if (e.key === "Escape") {
-                  setLocationMenuOpen(false);
-                }
-              }}
-              aria-autocomplete="list"
-              aria-controls={locationMenuId}
-              aria-expanded={showLocationMenu}
-            />
+                  if (e.key === "Escape") {
+                    setLocationMenuOpen(false);
+                  }
+                }}
+                aria-autocomplete="list"
+                aria-controls={locationMenuId}
+                aria-expanded={showLocationMenu}
+              />
+            </div>
           </div>
-          <div className="absolute inset-y-0 right-3 flex items-center gap-1.5">
+          <div
+            className={`absolute right-3 flex items-center gap-1.5 ${
+              chipRows > 1 ? "top-2" : "inset-y-0"
+            }`}
+          >
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}

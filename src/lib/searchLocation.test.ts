@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  combinedNeighborhoodBounds,
   computeNeighborhoodsViewport,
   metroDefaultLocation,
   neighborhoodChipLabel,
@@ -92,6 +93,14 @@ describe("neighborhoodNamesMatch", () => {
   it("matches case-insensitively", () => {
     expect(neighborhoodNamesMatch("Chapalita", "chapalita")).toBe(true);
     expect(neighborhoodNamesMatch("Chapalita", "Americana")).toBe(false);
+  });
+});
+
+describe("combinedNeighborhoodBounds", () => {
+  it("expands each pin to a neighborhood-sized box", () => {
+    const bounds = combinedNeighborhoodBounds([{ name: "Chapalita", lat: 20.66, lng: -103.39 }]);
+    expect(bounds).not.toBeNull();
+    expect(bounds!.maxLat - bounds!.minLat).toBeGreaterThan(0.03);
   });
 });
 

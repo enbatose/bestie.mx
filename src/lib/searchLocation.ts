@@ -12,6 +12,47 @@ export type SearchNeighborhoodPin = {
   lng: number;
 };
 
+/** Approx. half-span (degrees) around a neighborhood pin at neighborhood zoom. */
+export const NEIGHBORHOOD_FIT_HALF_SPAN_LAT = 0.016;
+export const NEIGHBORHOOD_FIT_HALF_SPAN_LNG = 0.018;
+
+export type LatLngBoundsBox = {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+};
+
+export function neighborhoodPinBounds(pin: SearchNeighborhoodPin): LatLngBoundsBox {
+  return {
+    minLat: pin.lat - NEIGHBORHOOD_FIT_HALF_SPAN_LAT,
+    maxLat: pin.lat + NEIGHBORHOOD_FIT_HALF_SPAN_LAT,
+    minLng: pin.lng - NEIGHBORHOOD_FIT_HALF_SPAN_LNG,
+    maxLng: pin.lng + NEIGHBORHOOD_FIT_HALF_SPAN_LNG,
+  };
+}
+
+export function combinedNeighborhoodBounds(
+  neighborhoods: readonly SearchNeighborhoodPin[],
+): LatLngBoundsBox | null {
+  if (!neighborhoods.length) return null;
+
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+
+  for (const pin of neighborhoods) {
+    const bounds = neighborhoodPinBounds(pin);
+    minLat = Math.min(minLat, bounds.minLat);
+    maxLat = Math.max(maxLat, bounds.maxLat);
+    minLng = Math.min(minLng, bounds.minLng);
+    maxLng = Math.max(maxLng, bounds.maxLng);
+  }
+
+  return { minLat, maxLat, minLng, maxLng };
+}
+
 export type SearchLocationState = {
   cityCode: string;
   cityAbbr: string;
@@ -109,27 +150,30 @@ export function computeNeighborhoodsViewport(
 
   if (neighborhoods.length === 1) {
     const pin = neighborhoods[0]!;
-    return { lat: pin.lat, lng: pin.lng, zoom: metro.neighborhoodZoom };
+    return {
+      lat: pin.lat,
+      lng: pin.lng,
+      zoom: metro.neighborhoodZoom,
+    };
   }
 
-  let minLat = Infinity;
-  let maxLat = -Infinity;
-  let minLng = Infinity;
-  let maxLng = -Infinity;
-  for (const pin of neighborhoods) {
-    minLat = Math.min(minLat, pin.lat);
-    maxLat = Math.max(maxLat, pin.lat);
-    minLng = Math.min(minLng, pin.lng);
-    maxLng = Math.max(maxLng, pin.lng);
+  const bounds = combinedNeighborhoodBounds(neighborhoods);
+  if (!bounds) {
+    return {
+      lat: metro.defaultCenter[0],
+      lng: metro.defaultCenter[1],
+      zoom: metro.defaultZoom,
+    };
   }
-  const latSpan = Math.max(maxLat - minLat, 0.004);
-  const lngSpan = Math.max(maxLng - minLng, 0.004);
+
+  const latSpan = Math.max(bounds.maxLat - bounds.minLat, NEIGHBORHOOD_FIT_HALF_SPAN_LAT * 2);
+  const lngSpan = Math.max(bounds.maxLng - bounds.minLng, NEIGHBORHOOD_FIT_HALF_SPAN_LNG * 2);
   const span = Math.max(latSpan, lngSpan);
-  const zoom = Math.min(metro.neighborhoodZoom, Math.max(10, Math.round(Math.log2(0.34 / span))));
+  const zoom = Math.min(metro.neighborhoodZoom, Math.max(9, Math.round(Math.log2(0.42 / span))));
 
   return {
-    lat: (minLat + maxLat) / 2,
-    lng: (minLng + maxLng) / 2,
+    lat: (bounds.minLat + bounds.maxLat) / 2,
+    lng: (bounds.minLng + bounds.maxLng) / 2,
     zoom,
   };
 }

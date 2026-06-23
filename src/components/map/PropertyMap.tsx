@@ -10,7 +10,8 @@ import { MapSelectionSync } from "@/components/map/MapSelectionSync";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
-import type { SearchNeighborhoodPin } from "@/lib/searchLocation";
+import type { LatLngBoundsBox, SearchNeighborhoodPin } from "@/lib/searchLocation";
+import { combinedNeighborhoodBounds, neighborhoodPinBounds } from "@/lib/searchLocation";
 import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
 import { listingMapPosition } from "@/map/listingMapPosition";
 import {
@@ -45,6 +46,42 @@ type Props = {
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
+const NEIGHBORHOOD_FIT_PADDING: L.PointExpression = [56, 56];
+
+function latLngBoundsFromBox(box: LatLngBoundsBox): L.LatLngBounds {
+  return L.latLngBounds([box.minLat, box.minLng], [box.maxLat, box.maxLng]);
+}
+
+function mapViewContainsBox(map: L.Map, box: LatLngBoundsBox): boolean {
+  return map.getBounds().contains(latLngBoundsFromBox(box));
+}
+
+function fitNeighborhoodPins(
+  map: L.Map,
+  locationPins: readonly SearchNeighborhoodPin[],
+  defaultZoom?: number,
+) {
+  if (!locationPins.length) return;
+
+  if (locationPins.length === 1) {
+    const target = latLngBoundsFromBox(neighborhoodPinBounds(locationPins[0]!));
+    if (mapViewContainsBox(map, neighborhoodPinBounds(locationPins[0]!))) return;
+    map.fitBounds(target, {
+      padding: NEIGHBORHOOD_FIT_PADDING,
+      maxZoom: defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM,
+    });
+    return;
+  }
+
+  const combined = combinedNeighborhoodBounds(locationPins);
+  if (!combined) return;
+  if (mapViewContainsBox(map, combined)) return;
+
+  map.fitBounds(latLngBoundsFromBox(combined), {
+    padding: NEIGHBORHOOD_FIT_PADDING,
+    maxZoom: defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM,
+  });
+}
 
 /** Leaflet caches pixel bounds at init; flex/absolute layouts often finish sizing later — reflow tiles after resize. */
 function MapResizeInvalidate() {
@@ -151,15 +188,7 @@ function FitBounds({
         if (suppressViewportUntilRef) {
           suppressViewportUntilRef.current = Date.now() + 900;
         }
-        if (locationPins.length === 1) {
-          const pin = locationPins[0]!;
-          map.setView([pin.lat, pin.lng], defaultZoom ?? GUADALAJARA_LA_MINERVA_ZOOM);
-        } else {
-          const pinBounds = L.latLngBounds(
-            locationPins.map((pin) => [pin.lat, pin.lng] as [number, number]),
-          );
-          map.fitBounds(pinBounds, { padding: [40, 40], maxZoom: 14 });
-        }
+        fitNeighborhoodPins(map, locationPins, defaultZoom);
         appliedDefaultViewRef.current = locationPinKey;
         didInitialView.current = true;
         return;
