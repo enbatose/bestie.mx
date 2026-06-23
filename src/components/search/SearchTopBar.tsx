@@ -58,6 +58,24 @@ function formatRentCompact(value: number) {
   return `${rounded}K`;
 }
 
+function parseRentMxnInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+
+  const compactMatch = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*k$/i);
+  if (compactMatch) {
+    const amount = Number(compactMatch[1]!.replace(",", "."));
+    if (!Number.isFinite(amount)) return null;
+    return Math.max(0, Math.round(amount * 1000));
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits === "") return null;
+  const next = Number(digits);
+  if (!Number.isFinite(next)) return null;
+  return Math.max(0, Math.trunc(next));
+}
+
 function suggestionMenuLabel(option: LocationSuggestion, includeMetroPrefix: boolean) {
   if (!includeMetroPrefix && option.kind === "neighborhood" && option.neighborhood) {
     return option.neighborhood;
@@ -489,19 +507,15 @@ export function SearchTopBar({
   }
 
   function commitBudget() {
-    const trimmed = rentInput.trim();
-    if (trimmed === "") {
+    if (rentInput.trim() === "") {
       setBudgetMax(null);
       return;
     }
 
-    const next = Number(trimmed.replace(/\D/g, ""));
-    if (!Number.isFinite(next)) {
-      return;
-    }
+    const parsed = parseRentMxnInput(rentInput);
+    if (parsed == null) return;
 
-    const normalized = Math.max(0, Math.trunc(next));
-    setBudgetMax(normalized);
+    setBudgetMax(parsed);
   }
 
   function setAge(nextAge: number | null) {
@@ -542,6 +556,12 @@ export function SearchTopBar({
     if (field === "rent") {
       commitBudget();
       setRentFocused(false);
+      const parsed = parseRentMxnInput(rentInput);
+      if (parsed != null) {
+        setRentInput(formatRentCompact(parsed));
+      } else if (displayedRent != null) {
+        setRentInput(formatRentCompact(displayedRent));
+      }
     } else {
       commitAge();
     }
