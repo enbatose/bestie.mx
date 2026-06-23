@@ -418,8 +418,8 @@ export function SearchTopBar({
         : "Buscar colonia…"
       : "Buscar ciudad…";
     const inputClass = mobile
-      ? `min-h-[1.35rem] min-w-[1.5rem] flex-[1_1_1.5rem] bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body caret-body outline-none ${
-          locationPlaceholder ? "placeholder:text-muted/80" : "placeholder:text-transparent"
+      ? `min-h-[1.25rem] min-w-[1.5rem] flex-[1_1_1.5rem] bg-transparent text-[0.86rem] font-semibold leading-none tracking-normal text-primary caret-primary outline-none ${
+          locationPlaceholder ? "placeholder:text-primary" : "placeholder:text-transparent"
         }`
       : `min-h-[1.25rem] min-w-[1.5rem] flex-[1_1_1.5rem] bg-transparent text-sm font-medium text-body caret-body outline-none ${
           locationPlaceholder ? "placeholder:text-muted/80" : "placeholder:text-transparent"

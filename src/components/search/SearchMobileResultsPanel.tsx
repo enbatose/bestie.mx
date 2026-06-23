@@ -12,6 +12,7 @@ type Props = {
   searchReturn: SearchReturnContext;
   filterRailLabelsExpanded: boolean;
   countLabel: ReactNode;
+  autoExpandKey?: string;
   onDrawerOpen?: () => void;
 };
 
@@ -24,12 +25,14 @@ export function SearchMobileResultsPanel({
   searchReturn,
   filterRailLabelsExpanded,
   countLabel,
+  autoExpandKey,
   onDrawerOpen,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const restoreAfterLegendCollapseRef = useRef(false);
   const userClosedListRef = useRef(false);
   const prevLegendExpandedRef = useRef(filterRailLabelsExpanded);
+  const lastAutoExpandKeyRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const wasLegend = prevLegendExpandedRef.current;
@@ -58,6 +61,15 @@ export function SearchMobileResultsPanel({
       setExpanded(true);
     }
   }, [filterRailLabelsExpanded]);
+
+  useEffect(() => {
+    if (!autoExpandKey || autoExpandKey === lastAutoExpandKeyRef.current) return;
+    lastAutoExpandKeyRef.current = autoExpandKey;
+    userClosedListRef.current = false;
+    restoreAfterLegendCollapseRef.current = false;
+    onDrawerOpen?.();
+    setExpanded(true);
+  }, [autoExpandKey, onDrawerOpen]);
 
   const toggleDrawer = () => {
     setExpanded((current) => {

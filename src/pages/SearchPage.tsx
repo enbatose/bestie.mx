@@ -300,6 +300,10 @@ export function SearchPage() {
         {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
       </>
     );
+  const farNeighborhoodAutoOpenKey =
+    searchLocation.neighborhoods.length > 1 && searchLocation.zoom <= metro.neighborhoodZoom - 3
+      ? `${searchLocation.cityCode}:${neighborhoodSelectionKey}:${searchLocation.zoom}`
+      : undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg-light">
@@ -370,6 +374,7 @@ export function SearchPage() {
               searchReturn={searchReturn}
               filterRailLabelsExpanded={filterRailLabelsExpanded}
               countLabel={resultsCountLabel}
+              autoExpandKey={farNeighborhoodAutoOpenKey}
               onDrawerOpen={handleMobileDrawerOpen}
             />
           </div>
