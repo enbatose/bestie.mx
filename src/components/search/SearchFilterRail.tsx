@@ -15,8 +15,11 @@ type Props = {
 
 export type SearchFilterRailHandle = {
   collapseLegend: () => void;
-  measureLayoutAnchor: () => HTMLElement | null;
 };
+
+/** Collapsed rail: map inset + icon pill + gap + chevron + 4px before list tab. */
+export const MOBILE_LIST_DRAWER_LEFT_CLASS =
+  "left-[calc(0.5rem+3.25rem+0.125rem+2.25rem+0.25rem)] sm:left-[calc(0.75rem+3.5rem+0.125rem+2.25rem+0.25rem)]";
 
 const FILTER_RAIL_SEEN_KEY = "bestie:search-filter-rail-seen";
 const LEGACY_FILTER_RAIL_SEEN_KEY = "bestie:mobile-search-filter-rail-seen";
@@ -65,7 +68,6 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
   { filters, onChange, onOpenAdvanced, onLabelsExpandedChange },
   ref,
 ) {
-  const expandButtonRef = useRef<HTMLButtonElement>(null);
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
   const [showCollapseHint, setShowCollapseHint] = useState(false);
   const initialExpandedRef = useRef(labelsExpanded);
@@ -83,7 +85,6 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
         setShowCollapseHint(false);
         setLabelsExpanded(false);
       },
-      measureLayoutAnchor: () => expandButtonRef.current,
     }),
     [],
   );
@@ -187,7 +188,6 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
             </svg>
           ) : null}
           <button
-            ref={expandButtonRef}
             type="button"
             onClick={() => {
               railInteractedRef.current = true;
