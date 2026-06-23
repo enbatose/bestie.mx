@@ -83,7 +83,7 @@ export function SearchMobileResultsPanel({
   return (
     <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
       <div
-        className={`pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-[left,width] duration-300 ease-out ${
+        className={`pointer-events-none absolute inset-y-0 right-0 flex min-w-0 transition-[left,width] duration-300 ease-out ${
           expanded ? MOBILE_LIST_DRAWER_LEFT_CLASS : "left-auto"
         }`}
         style={{
@@ -95,13 +95,13 @@ export function SearchMobileResultsPanel({
           onClick={toggleDrawer}
           aria-label={expanded ? "Ocultar listado" : "Mostrar listado"}
           aria-expanded={expanded}
-          className="relative z-10 inline-flex h-11 w-10 shrink-0 items-center justify-center self-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          className="pointer-events-auto relative z-10 inline-flex h-11 w-10 shrink-0 items-center justify-center self-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
         >
           <List className="size-4" aria-hidden="true" />
         </button>
 
         {expanded ? (
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md">
+          <div className="pointer-events-auto flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
               <h2 className="text-sm font-semibold text-body">Listados</h2>
               <div className="flex items-center gap-2">
