@@ -35,6 +35,27 @@ function hasLocationCoords(params: URLSearchParams) {
   return params.has("lat") && params.has("lng") && params.has("z");
 }
 
+function normalizeMobileNeighborhoodFilter(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}\s]/gu, " ")
+    .replace(/\b(colonia|col|barrio|zona)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mobileListingMatchesSelectedNeighborhood(listing: PropertyListing, selectedName: string) {
+  const selected = normalizeMobileNeighborhoodFilter(selectedName);
+  if (!selected) return false;
+
+  return [listing.neighborhood, listing.city].some((candidate) => {
+    const normalized = normalizeMobileNeighborhoodFilter(candidate);
+    return normalized === selected;
+  });
+}
+
 export function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -303,7 +324,9 @@ export function SearchPage() {
   const mobileDrawerListings = useMemo(() => {
     if (!searchLocation.neighborhoods.length) return filtered;
     return filtered.filter((listing) =>
-      searchLocation.neighborhoods.some((pin) => neighborhoodNamesMatch(pin.name, listing.neighborhood)),
+      searchLocation.neighborhoods.some((pin) =>
+        mobileListingMatchesSelectedNeighborhood(listing, pin.name),
+      ),
     );
   }, [filtered, searchLocation.neighborhoods]);
   const mobileResultsCountLabel =
