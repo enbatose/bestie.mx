@@ -547,8 +547,8 @@ export function SearchTopBar({
     rentInput || rentCollapsedDisplay;
 
   return (
-    <div className="w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-2 py-3 text-primary shadow-sm sm:px-4">
-      <div className="mx-auto w-full min-w-0 max-w-[1920px] sm:hidden">
+    <div className="w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-4 py-3 text-primary shadow-sm sm:px-6 lg:px-8">
+      <div className="w-full min-w-0 sm:hidden">
         <div className="w-full min-w-0 rounded-[1.75rem] bg-secondary/55 p-2 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
           <div className="grid w-full min-w-0 gap-2">
             <label className="sr-only" htmlFor="mobile-search-location">
@@ -700,15 +700,15 @@ export function SearchTopBar({
         </div>
       </div>
 
-      <div className="mx-auto hidden w-full min-w-0 max-w-[1920px] sm:flex sm:flex-wrap sm:items-end sm:gap-3 lg:flex-nowrap lg:gap-4">
-        <div className="min-w-0 flex-1 basis-full sm:basis-[calc(50%-0.375rem)] lg:min-w-[10rem] lg:max-w-[18rem] lg:flex-[1.1] lg:basis-auto">
+      <div className="hidden w-full min-w-0 sm:flex sm:items-end sm:gap-3 lg:gap-4">
+        <div className="min-w-0 flex-[2.4]">
           <label className={DESKTOP_FILTER_LABEL_CLASS} htmlFor={locationInputId}>
             Ciudad o colonia
           </label>
           <div className={DESKTOP_FILTER_CONTROL_CLASS}>{renderLocationField(false)}</div>
         </div>
 
-        <label className="block w-[5.5rem] shrink-0 sm:w-24">
+        <label className="block min-w-[7.5rem] flex-[1] max-w-[11rem] shrink-0">
           <span className={DESKTOP_FILTER_LABEL_CLASS}>Renta</span>
           <input
             inputMode="numeric"
@@ -764,7 +764,7 @@ export function SearchTopBar({
             type="number"
             min={16}
             max={99}
-            value={filters.age ?? ""}
+            value={filters.age != null ? filters.age : ""}
             onChange={(e) =>
               onChange({
                 ...filters,
@@ -773,47 +773,12 @@ export function SearchTopBar({
                 ageMax: null,
               })
             }
-            placeholder="Tu edad"
+            placeholder="Ej. 25"
             className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
           />
         </label>
 
-        <fieldset className="shrink-0">
-          <legend className={DESKTOP_FILTER_LABEL_CLASS}>Tipo de hospedaje</legend>
-          <div className={`${DESKTOP_FILTER_CONTROL_CLASS} flex items-center gap-1.5`}>
-            {(
-              [
-                { key: "loft" as const, label: "Loft" },
-                { key: "recamara" as const, label: "Recámara" },
-              ] as const
-            ).map(({ key, label }) => {
-              const active = key === "loft" ? filters.wantLoft : filters.wantRecamara;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() =>
-                    onChange(
-                      key === "loft"
-                        ? { ...filters, wantLoft: !filters.wantLoft, lodgingType: null }
-                        : { ...filters, wantRecamara: !filters.wantRecamara, lodgingType: null },
-                    )
-                  }
-                  className={`h-full rounded-lg border px-2.5 text-xs font-semibold shadow-sm transition sm:px-3 sm:text-sm ${
-                    active
-                      ? "border-secondary bg-surface ring-2 ring-secondary/40"
-                      : "border-primary/20 bg-surface/90 hover:border-secondary/50"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        <div className="flex shrink-0 items-end gap-2">
+        <div className="ml-auto flex shrink-0 items-end gap-2">
           <button
             type="button"
             onClick={onOpenAdvanced}
