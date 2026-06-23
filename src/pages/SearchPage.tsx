@@ -204,17 +204,28 @@ export function SearchPage() {
 
   const clearFilters = useCallback(() => {
     setLocationError(null);
-    const defaultLocation = metroDefaultLocation(metro);
-    setSearchParams(
-      () => writeSearchLocation(filtersToParams(resetSearchFilters(normalizedFilters)), defaultLocation),
+    const viewport = computeNeighborhoodsViewport([], metro);
+    const nextLocation = {
+      ...searchLocation,
+      neighborhoods: [],
+      ...viewport,
+    };
+    const nextParams = writeSearchLocation(
+      filtersToParams(resetSearchFilters(normalizedFilters)),
+      nextLocation,
+    );
+    navigate(
+      {
+        pathname: searchPathForCity(nextLocation.cityCode),
+        search: `?${nextParams.toString()}`,
+      },
       { replace: true },
     );
-    navigate({ pathname: searchPathForCity(metro.code), search: "" }, { replace: true });
-  }, [metro, navigate, normalizedFilters, setSearchParams]);
+  }, [metro, navigate, normalizedFilters, searchLocation]);
 
   const hasActiveFilters = useMemo(
-    () => hasActiveSearchFilters(normalizedFilters),
-    [normalizedFilters],
+    () => hasActiveSearchFilters(normalizedFilters) || searchLocation.neighborhoods.length > 0,
+    [normalizedFilters, searchLocation.neighborhoods.length],
   );
 
   const onViewportBbox = useCallback(
