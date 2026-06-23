@@ -36,10 +36,12 @@ const MOBILE_FILTER_LABEL_CLASS =
 const MOBILE_FILTER_SHELL_CLASS =
   "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
 const MOBILE_FILTER_FIELD_WRAPPER_CLASS = "flex min-w-0 flex-1 items-center";
-const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
+const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[1.75rem_minmax(2.75rem,1fr)_1.75rem_1.75rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
 const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2`;
 const MOBILE_FILTER_VALUE_CLASS =
-  "shrink-0 whitespace-nowrap text-center text-[1rem] font-semibold leading-none tabular-nums text-body";
+  "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
+const MOBILE_STEPPER_BTN_CLASS =
+  "inline-flex h-full w-full items-center justify-center text-[1.2rem] font-semibold leading-none text-primary transition active:bg-surface-elevated";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -146,9 +148,9 @@ export function SearchTopBar({
   }, [searchLocation.cityCode, searchLocation.neighborhood]);
 
   useEffect(() => {
-    if (rentFocused || mobileEditingField === "rent") return;
+    if (rentFocused) return;
     setRentInput(displayedRent == null ? "" : formatRentCompact(displayedRent));
-  }, [displayedRent, rentFocused, mobileEditingField]);
+  }, [displayedRent, rentFocused]);
 
   useEffect(() => {
     setAgeInput(displayedAge == null ? "" : String(displayedAge));
@@ -560,6 +562,8 @@ export function SearchTopBar({
   const rentCollapsedDisplay =
     displayedRent == null ? "" : formatRentCompact(displayedRent);
   const ageCollapsedDisplay = displayedAge == null ? "" : String(displayedAge);
+  const rentStepperDisplay =
+    rentInput || rentCollapsedDisplay;
 
   return (
     <div className="w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-2 py-3 text-primary shadow-sm sm:px-4">
@@ -573,7 +577,7 @@ export function SearchTopBar({
 
             <div ref={mobileFilterRowRef} className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
               <div
-                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 overflow-hidden ${
+                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 ${
                   mobileEditingField === "rent" ? "relative z-[1]" : ""
                 }`}
               >
@@ -585,35 +589,45 @@ export function SearchTopBar({
                         type="button"
                         aria-label="Disminuir renta"
                         onClick={() => stepBudget(-RENT_STEP)}
-                        className="flex h-full w-8 shrink-0 items-center justify-center text-[1.35rem] font-semibold text-primary transition active:bg-surface-elevated"
+                        className={MOBILE_STEPPER_BTN_CLASS}
                       >
                         −
                       </button>
-                      <input
-                        inputMode="numeric"
-                        type="text"
-                        value={rentInput}
-                        onFocus={() => {
-                          setRentFocused(true);
-                          setRentInput(displayedRent == null ? "" : String(displayedRent));
-                        }}
-                        onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        onBlur={() => {
-                          commitBudget();
-                          setRentFocused(false);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        className="min-w-0 flex-1 bg-transparent px-0.5 text-center text-[0.98rem] font-semibold tabular-nums text-body outline-none"
-                      />
+                      {rentFocused ? (
+                        <input
+                          inputMode="numeric"
+                          type="text"
+                          autoFocus
+                          value={rentInput}
+                          onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          onBlur={() => {
+                            commitBudget();
+                            setRentFocused(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums text-body outline-none"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRentFocused(true);
+                            setRentInput(displayedRent == null ? "" : String(displayedRent));
+                          }}
+                          className={`${MOBILE_FILTER_VALUE_CLASS} h-full w-full px-0.5`}
+                        >
+                          {rentStepperDisplay}
+                        </button>
+                      )}
                       <button
                         type="button"
                         aria-label="Aumentar renta"
                         onClick={() => stepBudget(RENT_STEP)}
-                        className="flex h-full w-8 shrink-0 items-center justify-center text-[1.35rem] font-semibold text-primary transition active:bg-surface-elevated"
+                        className={MOBILE_STEPPER_BTN_CLASS}
                       >
                         +
                       </button>
@@ -621,16 +635,14 @@ export function SearchTopBar({
                         type="button"
                         aria-label="Aplicar renta máxima"
                         onClick={() => finishMobileEdit("rent")}
-                        className="flex h-full w-8 shrink-0 items-center justify-center border-l border-primary/15 text-primary transition active:bg-surface-elevated"
+                        className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
                       >
                         <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
                       </button>
                     </div>
                   ) : (
                     <div className={MOBILE_FILTER_CONTROL_COLLAPSED_CLASS}>
-                      <span className={`${MOBILE_FILTER_VALUE_CLASS} min-w-[2.85rem] flex-1`}>
-                        {rentCollapsedDisplay}
-                      </span>
+                      <span className={MOBILE_FILTER_VALUE_CLASS}>{rentCollapsedDisplay}</span>
                       <button
                         type="button"
                         aria-label="Editar renta máxima"
@@ -645,7 +657,7 @@ export function SearchTopBar({
               </div>
 
               <div
-                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 overflow-hidden ${
+                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 ${
                   mobileEditingField === "age" ? "relative z-[1]" : ""
                 }`}
               >
@@ -657,7 +669,7 @@ export function SearchTopBar({
                         type="button"
                         aria-label="Disminuir edad"
                         onClick={() => stepAge(-1)}
-                        className="flex h-full w-8 shrink-0 items-center justify-center text-[1.35rem] font-semibold text-primary transition active:bg-surface-elevated"
+                        className={MOBILE_STEPPER_BTN_CLASS}
                       >
                         −
                       </button>
@@ -674,7 +686,7 @@ export function SearchTopBar({
                             (e.target as HTMLInputElement).blur();
                           }
                         }}
-                        className={`min-w-0 flex-1 bg-transparent px-0.5 text-center text-[0.98rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                        className={`w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
                           filters.age == null ? "text-muted opacity-40" : "text-body"
                         }`}
                       />
@@ -682,7 +694,7 @@ export function SearchTopBar({
                         type="button"
                         aria-label="Aumentar edad"
                         onClick={() => stepAge(1)}
-                        className="flex h-full w-8 shrink-0 items-center justify-center text-[1.35rem] font-semibold text-primary transition active:bg-surface-elevated"
+                        className={MOBILE_STEPPER_BTN_CLASS}
                       >
                         +
                       </button>
@@ -690,7 +702,7 @@ export function SearchTopBar({
                         type="button"
                         aria-label="Aplicar edad"
                         onClick={() => finishMobileEdit("age")}
-                        className="flex h-full w-8 shrink-0 items-center justify-center border-l border-primary/15 text-primary transition active:bg-surface-elevated"
+                        className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
                       >
                         <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
                       </button>
@@ -698,7 +710,7 @@ export function SearchTopBar({
                   ) : (
                     <div className={MOBILE_FILTER_CONTROL_COLLAPSED_CLASS}>
                       <span
-                        className={`${MOBILE_FILTER_VALUE_CLASS} min-w-[2.85rem] flex-1 ${
+                        className={`${MOBILE_FILTER_VALUE_CLASS} ${
                           filters.age == null ? "text-muted opacity-40" : ""
                         }`}
                       >
