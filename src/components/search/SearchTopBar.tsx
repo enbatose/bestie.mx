@@ -139,18 +139,18 @@ function LocationChip({
     : "max-w-[9rem] px-2 py-0.5 text-xs";
   const toneClass =
     variant === "city"
-      ? "border-primary/35 bg-primary text-surface"
+      ? "border-primary/35 bg-primary text-primary-fg"
       : "border-primary/20 bg-bg-light text-body";
   const removeBtnClass =
     variant === "city"
-      ? "text-surface/85 transition hover:bg-primary/80"
+      ? "text-primary-fg transition hover:bg-primary/80"
       : "text-body transition hover:bg-surface";
 
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-0.5 rounded-full border font-semibold ${toneClass} ${sizeClass}`}
     >
-      <span className="truncate">{label}</span>
+      <span className={`truncate ${variant === "city" ? "text-primary-fg" : ""}`}>{label}</span>
       <button
         type="button"
         onMouseDown={(e) => e.preventDefault()}
