@@ -32,7 +32,7 @@ const LOCATION_ERROR_TOAST_MS = 3_000;
 const MOBILE_FILTER_HEIGHT = "h-14";
 const MOBILE_FILTER_CONTROL_HEIGHT = "h-10";
 const MOBILE_FILTER_LABEL_CLASS =
-  "flex w-[2.65rem] shrink-0 items-center text-[8px] font-semibold uppercase leading-[1.15] tracking-[0.06em] text-primary";
+  "flex shrink-0 items-center text-[0.86rem] font-semibold leading-none text-primary";
 const MOBILE_FILTER_SHELL_CLASS =
   "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
 const MOBILE_FILTER_FIELD_WRAPPER_CLASS = "flex min-w-0 flex-1 items-center";
@@ -602,7 +602,7 @@ export function SearchTopBar({
                 }`}
               >
                 {mobileEditingField === "rent" ? null : (
-                  <span className={MOBILE_FILTER_LABEL_CLASS}>Renta máx.</span>
+                  <span className={MOBILE_FILTER_LABEL_CLASS}>Renta</span>
                 )}
                 <div
                   className={
