@@ -29,6 +29,13 @@ const MIN_AGE = 16;
 const MAX_AGE = 99;
 const RENT_STEP = 100;
 const LOCATION_ERROR_TOAST_MS = 3_000;
+const MOBILE_FILTER_HEIGHT = "h-14";
+const MOBILE_FILTER_LABEL_CLASS =
+  "flex w-[2.65rem] shrink-0 items-center text-[8px] font-semibold uppercase leading-[1.15] tracking-[0.06em] text-primary";
+const MOBILE_FILTER_SHELL_CLASS =
+  "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
+const MOBILE_FILTER_CONTROL_CLASS =
+  "flex h-full w-full min-w-[4.5rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -141,6 +148,13 @@ export function SearchTopBar({
   useEffect(() => {
     setAgeInput(displayedAge == null ? "" : String(displayedAge));
   }, [displayedAge]);
+
+  useEffect(() => {
+    if (!hasActiveFilters) {
+      setMobileEditingField(null);
+      setRentFocused(false);
+    }
+  }, [hasActiveFilters]);
 
   useEffect(() => {
     if (!locationError) return;
@@ -538,19 +552,6 @@ export function SearchTopBar({
     setMobileEditingField(field);
   }
 
-  useEffect(() => {
-    if (!mobileEditingField) return;
-
-    const close = (e: MouseEvent) => {
-      if (mobileFilterRowRef.current?.contains(e.target as Node)) return;
-      if (mobileEditingField === "rent") return;
-      finishMobileEdit(mobileEditingField);
-    };
-
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [mobileEditingField, displayedRent, rentInput, displayedAge, ageInput, filters]);
-
   const rentCollapsedDisplay =
     displayedRent == null ? "" : formatRentCompact(displayedRent);
   const ageCollapsedDisplay = displayedAge == null ? "" : String(displayedAge);
@@ -567,171 +568,167 @@ export function SearchTopBar({
 
             <div
               ref={mobileFilterRowRef}
-              className="grid min-w-0 gap-2 transition-[grid-template-columns] duration-200 ease-out"
+              className={`grid min-w-0 gap-2 transition-[grid-template-columns] duration-200 ease-out ${MOBILE_FILTER_HEIGHT}`}
               style={{
                 gridTemplateColumns:
                   mobileEditingField === "rent"
-                    ? "minmax(0,1.6fr) minmax(0,0.4fr)"
+                    ? "minmax(0,1.55fr) minmax(0,0.45fr)"
                     : mobileEditingField === "age"
-                      ? "minmax(0,0.55fr) minmax(0,1.45fr)"
+                      ? "minmax(0,0.45fr) minmax(0,1.55fr)"
                       : "minmax(0,1fr) minmax(0,1fr)",
               }}
             >
               <div
-                className={`flex min-w-0 items-stretch gap-2 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10 ${
+                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} ${
                   mobileEditingField === "rent" ? "z-[1]" : ""
                 }`}
               >
-                <span className="flex w-[2.65rem] shrink-0 items-center text-[8px] font-semibold uppercase leading-[1.15] tracking-[0.06em] text-primary/75">
-                  Renta máx.
-                </span>
-                <div className="min-w-0 flex-1">
-                {mobileEditingField === "rent" ? (
-                  <div className="flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
-                    <button
-                      type="button"
-                      aria-label="Disminuir renta"
-                      onClick={() => stepBudget(-RENT_STEP)}
-                      className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
-                    >
-                      −
-                    </button>
-                    <input
-                      inputMode="numeric"
-                      type="text"
-                      value={rentInput}
-                      onFocus={() => {
-                        setRentFocused(true);
-                        setRentInput(displayedRent == null ? "" : String(displayedRent));
-                      }}
-                      onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      onBlur={() => {
-                        commitBudget();
-                        setRentFocused(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          (e.target as HTMLInputElement).blur();
-                        }
-                      }}
-                      className="min-w-0 flex-1 bg-transparent px-0.5 text-center text-[1.05rem] font-semibold tabular-nums text-body outline-none"
-                    />
-                    <button
-                      type="button"
-                      aria-label="Aumentar renta"
-                      onClick={() => stepBudget(RENT_STEP)}
-                      className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Aplicar renta máxima"
-                      onClick={() => finishMobileEdit("rent")}
-                      className="flex h-full w-9 shrink-0 items-center justify-center border-l border-primary/15 text-primary transition active:bg-surface-elevated"
-                    >
-                      <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex h-12 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2">
-                    <span
-                      className={`min-w-0 flex-1 truncate text-center font-semibold tabular-nums text-body ${
-                        mobileEditingField === "age" ? "text-[0.95rem]" : "text-[1.1rem]"
-                      }`}
-                    >
-                      {rentCollapsedDisplay}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="Editar renta máxima"
-                      onClick={() => startMobileEdit("rent")}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
-                    >
-                      <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
-                    </button>
-                  </div>
-                )}
+                <span className={MOBILE_FILTER_LABEL_CLASS}>Renta máx.</span>
+                <div className={`min-w-0 flex-1 ${MOBILE_FILTER_HEIGHT}`}>
+                  {mobileEditingField === "rent" ? (
+                    <div className={MOBILE_FILTER_CONTROL_CLASS}>
+                      <button
+                        type="button"
+                        aria-label="Disminuir renta"
+                        onClick={() => stepBudget(-RENT_STEP)}
+                        className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
+                      >
+                        −
+                      </button>
+                      <input
+                        inputMode="numeric"
+                        type="text"
+                        value={rentInput}
+                        onFocus={() => {
+                          setRentFocused(true);
+                          setRentInput(displayedRent == null ? "" : String(displayedRent));
+                        }}
+                        onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        onBlur={() => {
+                          commitBudget();
+                          setRentFocused(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        className="min-w-[3.25rem] flex-1 bg-transparent px-0.5 text-center text-[1.05rem] font-semibold tabular-nums text-body outline-none"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Aumentar renta"
+                        onClick={() => stepBudget(RENT_STEP)}
+                        className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Aplicar renta máxima"
+                        onClick={() => finishMobileEdit("rent")}
+                        className="flex h-full w-9 shrink-0 items-center justify-center border-l border-primary/15 text-primary transition active:bg-surface-elevated"
+                      >
+                        <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`${MOBILE_FILTER_CONTROL_CLASS} justify-between gap-1 px-2`}>
+                      <span className="min-w-[3.25rem] flex-1 whitespace-nowrap text-center text-[1.05rem] font-semibold tabular-nums text-body">
+                        {rentCollapsedDisplay}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Editar renta máxima"
+                        onClick={() => startMobileEdit("rent")}
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
+                      >
+                        <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div
-                className={`flex min-w-0 items-stretch gap-2 rounded-[1.2rem] bg-surface p-2 shadow-sm ring-1 ring-primary/10 ${
+                className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} ${
                   mobileEditingField === "age" ? "z-[1]" : ""
                 }`}
               >
-                <span className="flex w-[2.65rem] shrink-0 items-center text-[8px] font-semibold uppercase leading-[1.15] tracking-[0.06em] text-primary/75">
-                  Edad
-                </span>
-                <div className="min-w-0 flex-1">
-                {mobileEditingField === "age" ? (
-                  <div className="flex h-12 items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55">
-                    <button
-                      type="button"
-                      aria-label="Disminuir edad"
-                      onClick={() => stepAge(-1)}
-                      className="flex h-full w-10 shrink-0 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
-                    >
-                      −
-                    </button>
-                    <input
-                      inputMode="numeric"
-                      type="number"
-                      min={MIN_AGE}
-                      max={MAX_AGE}
-                      value={ageInput}
-                      onChange={(e) => setAgeInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                      onBlur={(e) => {
-                        const next = e.relatedTarget as Node | null;
-                        if (next && e.currentTarget.parentElement?.contains(next)) return;
-                        finishMobileEdit("age");
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          (e.target as HTMLInputElement).blur();
-                        }
-                      }}
-                      className={`min-w-0 flex-1 bg-transparent px-1 text-center text-[1.2rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                        filters.age == null ? "text-muted opacity-40" : "text-body"
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Aumentar edad"
-                      onClick={() => stepAge(1)}
-                      className="flex h-full w-10 shrink-0 items-center justify-center text-[1.65rem] font-semibold text-primary transition active:bg-surface-elevated"
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex h-12 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2">
-                    <span
-                      className={`min-w-0 flex-1 truncate text-center font-semibold tabular-nums ${
-                        mobileEditingField === "rent" ? "text-[0.95rem]" : "text-[1.2rem]"
-                      } ${filters.age == null ? "text-muted opacity-40" : "text-body"}`}
-                    >
-                      {ageCollapsedDisplay}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="Editar edad"
-                      onClick={() => startMobileEdit("age")}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
-                    >
-                      <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
-                    </button>
-                  </div>
-                )}
+                <span className={MOBILE_FILTER_LABEL_CLASS}>Edad</span>
+                <div className={`min-w-0 flex-1 ${MOBILE_FILTER_HEIGHT}`}>
+                  {mobileEditingField === "age" ? (
+                    <div className={MOBILE_FILTER_CONTROL_CLASS}>
+                      <button
+                        type="button"
+                        aria-label="Disminuir edad"
+                        onClick={() => stepAge(-1)}
+                        className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
+                      >
+                        −
+                      </button>
+                      <input
+                        inputMode="numeric"
+                        type="number"
+                        min={MIN_AGE}
+                        max={MAX_AGE}
+                        value={ageInput}
+                        onChange={(e) => setAgeInput(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                        onBlur={commitAge}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        className={`min-w-[3.25rem] flex-1 bg-transparent px-0.5 text-center text-[1.05rem] font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                          filters.age == null ? "text-muted opacity-40" : "text-body"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Aumentar edad"
+                        onClick={() => stepAge(1)}
+                        className="flex h-full w-9 shrink-0 items-center justify-center text-[1.5rem] font-semibold text-primary transition active:bg-surface-elevated"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Aplicar edad"
+                        onClick={() => finishMobileEdit("age")}
+                        className="flex h-full w-9 shrink-0 items-center justify-center border-l border-primary/15 text-primary transition active:bg-surface-elevated"
+                      >
+                        <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`${MOBILE_FILTER_CONTROL_CLASS} justify-between gap-1 px-2`}>
+                      <span
+                        className={`min-w-[3.25rem] flex-1 whitespace-nowrap text-center text-[1.05rem] font-semibold tabular-nums ${
+                          filters.age == null ? "text-muted opacity-40" : "text-body"
+                        }`}
+                      >
+                        {ageCollapsedDisplay}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Editar edad"
+                        onClick={() => startMobileEdit("age")}
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
+                      >
+                        <Pencil className="size-3.5" aria-hidden="true" strokeWidth={2.2} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="grid min-w-0 grid-cols-2 gap-2">
+            <div className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
               <button
                 type="button"
                 onClick={onOpenAdvanced}
-                className="inline-flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-[1.1rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35"
+                className={`inline-flex ${MOBILE_FILTER_HEIGHT} min-w-0 items-center justify-center gap-1.5 rounded-[1.2rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35`}
               >
                 <Filter className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.2} />
                 <span className="truncate">Más filtros</span>
@@ -741,7 +738,7 @@ export function SearchTopBar({
                 type="button"
                 onClick={onClearFilters}
                 disabled={!hasActiveFilters}
-                className="inline-flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-[1.1rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
+                className={`inline-flex ${MOBILE_FILTER_HEIGHT} min-w-0 items-center justify-center gap-1.5 rounded-[1.2rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45`}
               >
                 <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
                   <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
