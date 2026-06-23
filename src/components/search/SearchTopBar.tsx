@@ -94,7 +94,7 @@ function estimateLocationChipRows(
 ): number {
   const totalChips = (cityVisible ? 1 : 0) + neighborhoodCount;
   if (totalChips <= 1) return 1;
-  const chipsPerRow = mobile ? 2 : 4;
+  const chipsPerRow = mobile ? 3 : 5;
   return Math.min(3, Math.ceil(totalChips / chipsPerRow));
 }
 
@@ -123,24 +123,36 @@ function LocationChip({
   onRemove,
   removeLabel,
   mobile,
+  variant = "neighborhood",
 }: {
   label: string;
   onRemove: () => void;
   removeLabel: string;
   mobile: boolean;
+  variant?: "city" | "neighborhood";
 }) {
+  const sizeClass = mobile
+    ? "max-w-[6.75rem] px-2 py-0.5 text-[0.7rem] leading-tight"
+    : "max-w-[9rem] px-2 py-0.5 text-xs";
+  const toneClass =
+    variant === "city"
+      ? "border-primary/35 bg-primary text-muted"
+      : "border-primary/20 bg-bg-light text-body";
+  const removeBtnClass =
+    variant === "city"
+      ? "text-muted transition hover:bg-primary/80"
+      : "text-body transition hover:bg-surface";
+
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full border border-primary/20 bg-bg-light font-semibold text-body ${
-        mobile ? "max-w-[6.75rem] px-2 py-0.5 text-[0.7rem] leading-tight" : "max-w-[9rem] px-2 py-0.5 text-xs"
-      }`}
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full border font-semibold ${toneClass} ${sizeClass}`}
     >
       <span className="truncate">{label}</span>
       <button
         type="button"
         onMouseDown={(e) => e.preventDefault()}
         onClick={onRemove}
-        className={`inline-flex shrink-0 items-center justify-center rounded-full text-body transition hover:bg-surface ${
+        className={`inline-flex shrink-0 items-center justify-center rounded-full ${removeBtnClass} ${
           mobile ? "size-4" : "size-5"
         }`}
         aria-label={removeLabel}
@@ -379,19 +391,28 @@ export function SearchTopBar({
     );
     const inputShellClass = locationFieldShellClass(mobile, chipRows);
     const chipWrapClass = mobile
-      ? "flex max-h-[3.6rem] min-w-0 flex-1 flex-col flex-wrap items-start gap-x-1.5 gap-y-1 overflow-hidden content-start"
-      : "flex max-h-[3.1rem] min-w-0 flex-1 flex-col flex-wrap items-start gap-x-1.5 gap-y-1 overflow-hidden content-start";
-    const inputRowClass = "flex min-w-0 items-start gap-1.5";
+      ? "flex max-h-[3.6rem] min-w-0 flex-1 flex-row flex-wrap items-center gap-x-1.5 gap-y-1 overflow-hidden"
+      : "flex max-h-[3.1rem] min-w-0 flex-1 flex-row flex-wrap items-center gap-x-1.5 gap-y-1 overflow-hidden";
+    const inputRowClass = "flex min-w-0 items-start";
+    const hasNeighborhoodChips = searchNeighborhoods && searchLocation.neighborhoods.length > 0;
+    const locationPlaceholder = searchNeighborhoods
+      ? hasNeighborhoodChips
+        ? ""
+        : "Buscar colonia…"
+      : "Buscar ciudad…";
     const inputClass = mobile
-      ? "min-h-[1.35rem] min-w-[4.5rem] flex-1 basis-[38%] bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body outline-none placeholder:text-muted/80"
-      : "min-h-[1.25rem] min-w-[4.5rem] flex-1 basis-[38%] bg-transparent text-sm font-medium text-body outline-none placeholder:text-muted/80";
+      ? `min-h-[1.35rem] min-w-[1.5rem] flex-[1_1_1.5rem] bg-transparent text-[1.35rem] font-semibold tracking-[-0.02em] text-body caret-body outline-none ${
+          locationPlaceholder ? "placeholder:text-muted/80" : "placeholder:text-transparent"
+        }`
+      : `min-h-[1.25rem] min-w-[1.5rem] flex-[1_1_1.5rem] bg-transparent text-sm font-medium text-body caret-body outline-none ${
+          locationPlaceholder ? "placeholder:text-muted/80" : "placeholder:text-transparent"
+        }`;
     const menuClass = mobile
       ? "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-[1.1rem] border border-primary/15 bg-surface shadow-xl"
-      : "absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-primary/20 bg-surface shadow-xl";
+      : "absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-primary/20 bg-surface shadow-xl";
     const optionClass = mobile
       ? "w-full px-4 py-3 text-left text-sm font-medium text-body transition hover:bg-bg-light"
       : "w-full px-3 py-2.5 text-left text-sm font-medium text-body transition hover:bg-bg-light";
-    const placeholder = searchNeighborhoods ? "Buscar colonia…" : "Buscar ciudad…";
     const visibleSuggestions = locationSuggestions.filter((option) => {
       if (option.kind !== "neighborhood") return true;
       const candidate = option.neighborhood ?? option.label;
@@ -406,6 +427,7 @@ export function SearchTopBar({
             <div className={chipWrapClass}>
               {cityChipVisible ? (
                 <LocationChip
+                  variant="city"
                   label={searchLocation.cityAbbr}
                   onRemove={handleCityChipRemove}
                   removeLabel={`Quitar ciudad ${searchLocation.cityLabel}`}
@@ -430,7 +452,10 @@ export function SearchTopBar({
                 value={locationInput}
                 onChange={(e) => handleLocationInputChange(e.target.value)}
                 onFocus={openLocationMenu}
-                placeholder={placeholder}
+                placeholder={locationPlaceholder}
+                aria-label={
+                  hasNeighborhoodChips ? "Agregar otra colonia" : locationPlaceholder || "Buscar ubicación"
+                }
                 autoComplete="off"
                 spellCheck={false}
                 className={inputClass}
@@ -599,7 +624,7 @@ export function SearchTopBar({
     rentInput || rentCollapsedDisplay;
 
   return (
-    <div className="w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-4 py-3 text-primary shadow-sm sm:px-6 lg:px-8">
+    <div className="relative z-30 w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-4 py-3 text-primary shadow-sm sm:overflow-visible sm:px-6 lg:px-8">
       <div className="w-full min-w-0 sm:hidden">
         <div className="w-full min-w-0 rounded-[1.75rem] bg-secondary/55 p-2 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
           <div className="grid w-full min-w-0 gap-2">
@@ -753,11 +778,11 @@ export function SearchTopBar({
       </div>
 
       <div className="hidden w-full min-w-0 sm:flex sm:items-end sm:gap-3 lg:gap-4">
-        <div className="min-w-0 flex-[2.4]">
+        <div className="relative z-50 min-w-0 flex-[2.4]">
           <label className={DESKTOP_FILTER_LABEL_CLASS} htmlFor={locationInputId}>
             Ciudad o colonia
           </label>
-          <div className={DESKTOP_FILTER_CONTROL_CLASS}>{renderLocationField(false)}</div>
+          <div className={`${DESKTOP_FILTER_CONTROL_CLASS} relative`}>{renderLocationField(false)}</div>
         </div>
 
         <label className="block min-w-[7.5rem] flex-[1] max-w-[11rem] shrink-0">
