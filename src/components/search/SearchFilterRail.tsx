@@ -19,8 +19,8 @@ const RAIL_AUTO_COLLAPSE_TOTAL_MS = 7_000;
 const RAIL_COLLAPSE_HINT_MS = 1_800;
 
 /** Room for filter pill + legend expand chevron + 2px gap before the list tab. */
-export const MOBILE_FILTER_RAIL_INSET_COLLAPSED = "6.25rem";
-/** Room for expanded legend labels + chevron + gap. */
+export const MOBILE_FILTER_RAIL_INSET_COLLAPSED = "6.125rem";
+/** Room for expanded legend labels + chevron + gap (list auto-collapses when legend opens). */
 export const MOBILE_FILTER_RAIL_INSET_EXPANDED = "14.5rem";
 
 export function getFilterRailDefaultExpanded() {
