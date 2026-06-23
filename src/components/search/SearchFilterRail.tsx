@@ -17,9 +17,9 @@ export type SearchFilterRailHandle = {
   collapseLegend: () => void;
 };
 
-/** Collapsed rail: map inset + icon pill + gap + chevron + 4px before list tab. */
+/** Expanded drawer tab edge: map inset + icon pill + 4px gap. The tab width keeps the list body clear of the chevron. */
 export const MOBILE_LIST_DRAWER_LEFT_CLASS =
-  "left-[calc(0.5rem+3.25rem+0.125rem+2.25rem+0.25rem)] sm:left-[calc(0.75rem+3.5rem+0.125rem+2.25rem+0.25rem)]";
+  "left-[calc(0.5rem+3.25rem+0.25rem)] sm:left-[calc(0.75rem+3.5rem+0.25rem)]";
 
 const FILTER_RAIL_SEEN_KEY = "bestie:search-filter-rail-seen";
 const LEGACY_FILTER_RAIL_SEEN_KEY = "bestie:mobile-search-filter-rail-seen";
