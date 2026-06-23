@@ -36,7 +36,7 @@ const MOBILE_FILTER_LABEL_CLASS =
 const MOBILE_FILTER_SHELL_CLASS =
   "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
 const MOBILE_FILTER_FIELD_WRAPPER_CLASS = "flex min-w-0 flex-1 items-center";
-const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[1.75rem_minmax(2.75rem,1fr)_1.75rem_1.75rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
+const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[2rem_minmax(3rem,1fr)_2rem_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
 const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2`;
 const MOBILE_FILTER_VALUE_CLASS =
   "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
@@ -578,11 +578,19 @@ export function SearchTopBar({
             <div ref={mobileFilterRowRef} className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
               <div
                 className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 ${
-                  mobileEditingField === "rent" ? "relative z-[1]" : ""
+                  mobileEditingField === "rent" ? "relative z-[1] gap-0" : ""
                 }`}
               >
-                <span className={MOBILE_FILTER_LABEL_CLASS}>Renta máx.</span>
-                <div className={MOBILE_FILTER_FIELD_WRAPPER_CLASS}>
+                {mobileEditingField === "rent" ? null : (
+                  <span className={MOBILE_FILTER_LABEL_CLASS}>Renta máx.</span>
+                )}
+                <div
+                  className={
+                    mobileEditingField === "rent"
+                      ? "flex min-w-0 flex-1 items-center"
+                      : MOBILE_FILTER_FIELD_WRAPPER_CLASS
+                  }
+                >
                   {mobileEditingField === "rent" ? (
                     <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
                       <button
@@ -658,11 +666,19 @@ export function SearchTopBar({
 
               <div
                 className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0 ${
-                  mobileEditingField === "age" ? "relative z-[1]" : ""
+                  mobileEditingField === "age" ? "relative z-[1] gap-0" : ""
                 }`}
               >
-                <span className={MOBILE_FILTER_LABEL_CLASS}>Edad</span>
-                <div className={MOBILE_FILTER_FIELD_WRAPPER_CLASS}>
+                {mobileEditingField === "age" ? null : (
+                  <span className={MOBILE_FILTER_LABEL_CLASS}>Edad</span>
+                )}
+                <div
+                  className={
+                    mobileEditingField === "age"
+                      ? "flex min-w-0 flex-1 items-center"
+                      : MOBILE_FILTER_FIELD_WRAPPER_CLASS
+                  }
+                >
                   {mobileEditingField === "age" ? (
                     <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
                       <button
