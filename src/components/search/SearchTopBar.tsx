@@ -639,33 +639,30 @@ export function SearchTopBar({
               </div>
 
               <div className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0`}>
-                <span className={MOBILE_FILTER_LABEL_CLASS}>Género</span>
-                <div className={MOBILE_FILTER_FIELD_WRAPPER_CLASS}>
-                  <div
-                    className={`${MOBILE_FILTER_CONTROL_COLLAPSED_CLASS} justify-center gap-0.5 px-1`}
-                    role="group"
-                    aria-label="Filtrar por género"
+                <div
+                  className={`${MOBILE_FILTER_CONTROL_COLLAPSED_CLASS} w-full justify-center gap-0.5 px-1`}
+                  role="group"
+                  aria-label="Filtrar por género"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={filters.pref === "female"}
+                    onClick={() => setGenderPref("female")}
+                    className={MOBILE_GENDER_SEGMENT_CLASS(filters.pref === "female")}
                   >
-                    <button
-                      type="button"
-                      aria-pressed={filters.pref === "male"}
-                      onClick={() => setGenderPref("male")}
-                      className={MOBILE_GENDER_SEGMENT_CLASS(filters.pref === "male")}
-                    >
-                      Hombre
-                    </button>
-                    <span className="px-0.5 text-[0.82rem] font-semibold text-muted/70" aria-hidden>
-                      |
-                    </span>
-                    <button
-                      type="button"
-                      aria-pressed={filters.pref === "female"}
-                      onClick={() => setGenderPref("female")}
-                      className={MOBILE_GENDER_SEGMENT_CLASS(filters.pref === "female")}
-                    >
-                      Mujer
-                    </button>
-                  </div>
+                    Mujer
+                  </button>
+                  <span className="px-0.5 text-[0.82rem] font-semibold text-muted/70" aria-hidden>
+                    |
+                  </span>
+                  <button
+                    type="button"
+                    aria-pressed={filters.pref === "male"}
+                    onClick={() => setGenderPref("male")}
+                    className={MOBILE_GENDER_SEGMENT_CLASS(filters.pref === "male")}
+                  >
+                    Hombre
+                  </button>
                 </div>
               </div>
             </div>
