@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
-import { SearchFilterRail } from "@/components/search/SearchFilterRail";
+import { SearchFilterRail, getFilterRailDefaultExpanded } from "@/components/search/SearchFilterRail";
 import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
@@ -124,7 +124,7 @@ export function SearchPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(false);
+  const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(getFilterRailDefaultExpanded);
 
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);

@@ -1,5 +1,9 @@
 import { List } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  MOBILE_FILTER_RAIL_INSET_COLLAPSED,
+  MOBILE_FILTER_RAIL_INSET_EXPANDED,
+} from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import type { SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
@@ -13,9 +17,7 @@ type Props = {
   countLabel: ReactNode;
 };
 
-/** Keep expanded panel clear of filter rail + legend expand button. */
-const RAIL_CLEARANCE_COLLAPSED = "6.5rem";
-const RAIL_CLEARANCE_EXPANDED = "14.5rem";
+const LIST_TAB_WIDTH = "2.5rem";
 
 export function SearchMobileResultsPanel({
   listings,
@@ -51,18 +53,18 @@ export function SearchMobileResultsPanel({
     }
   }, [filterRailLabelsExpanded]);
 
-  const railClearance = filterRailLabelsExpanded ? RAIL_CLEARANCE_EXPANDED : RAIL_CLEARANCE_COLLAPSED;
+  const railInset = filterRailLabelsExpanded
+    ? MOBILE_FILTER_RAIL_INSET_EXPANDED
+    : MOBILE_FILTER_RAIL_INSET_COLLAPSED;
 
   return (
-    <div
-      className="pointer-events-none absolute inset-y-0 right-0 z-[1090] transition-[left] duration-200 ease-out lg:hidden"
-      style={{ left: railClearance }}
-      aria-hidden={!expanded}
-    >
+    <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
       <div
-        className={`pointer-events-auto ml-auto flex h-full w-full min-w-0 transition-transform duration-300 ease-out ${
-          expanded ? "translate-x-0" : "translate-x-[calc(100%-2.5rem)]"
-        }`}
+        className="pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-[width] duration-300 ease-out"
+        style={{
+          width: expanded ? `calc(100% - ${railInset})` : LIST_TAB_WIDTH,
+        }}
+        aria-hidden={!expanded}
       >
         <button
           type="button"
