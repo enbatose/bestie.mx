@@ -10,7 +10,7 @@ import {
   UsersRound,
   Warehouse,
 } from "lucide-react";
-import { RestroomFemaleIcon, RestroomMaleIcon } from "@/components/icons/RestroomGenderIcons";
+import { RestroomFemaleIcon, RestroomFemaleFilterIcon, RestroomMaleIcon, RestroomMaleFilterIcon } from "@/components/icons/RestroomGenderIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
 
@@ -145,12 +145,14 @@ const LOFT_FILTER: SearchQuickFilterDefinition = {
 
 const FEMALE_FILTER: SearchQuickFilterDefinition = {
   ...GENDER_META.female,
+  icon: RestroomFemaleFilterIcon,
   isActive: (filters) => filters.pref === "female",
   toggle: (filters) => ({ ...filters, pref: filters.pref === "female" ? null : "female" }),
 };
 
 const MALE_FILTER: SearchQuickFilterDefinition = {
   ...GENDER_META.male,
+  icon: RestroomMaleFilterIcon,
   isActive: (filters) => filters.pref === "male",
   toggle: (filters) => ({ ...filters, pref: filters.pref === "male" ? null : "male" }),
 };
