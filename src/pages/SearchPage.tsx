@@ -51,6 +51,7 @@ export function SearchPage() {
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
   const mapSectionRef = useRef<HTMLDivElement>(null);
   const filterRailRef = useRef<SearchFilterRailHandle>(null);
+  const [mobileDrawerInsetPx, setMobileDrawerInsetPx] = useState(0);
   const searchReturn = useMemo(
     (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
     [location.pathname, location.search],
@@ -127,9 +128,43 @@ export function SearchPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(getFilterRailDefaultExpanded);
 
+  const syncMobileDrawerInset = useCallback(() => {
+    const mapEl = mapSectionRef.current;
+    const anchor = filterRailRef.current?.measureLayoutAnchor();
+    if (!mapEl || !anchor) return;
+    const inset = anchor.getBoundingClientRect().right - mapEl.getBoundingClientRect().left + 4;
+    setMobileDrawerInsetPx(Math.max(0, Math.ceil(inset)));
+  }, []);
+
   const handleMobileDrawerOpen = useCallback(() => {
     filterRailRef.current?.collapseLegend();
-  }, []);
+    window.requestAnimationFrame(() => {
+      syncMobileDrawerInset();
+      window.setTimeout(syncMobileDrawerInset, 280);
+    });
+  }, [syncMobileDrawerInset]);
+
+  useEffect(() => {
+    syncMobileDrawerInset();
+    const mapEl = mapSectionRef.current;
+    const anchor = filterRailRef.current?.measureLayoutAnchor();
+    if (!mapEl || !anchor) return;
+
+    const ro = new ResizeObserver(syncMobileDrawerInset);
+    ro.observe(mapEl);
+    ro.observe(anchor);
+    window.addEventListener("resize", syncMobileDrawerInset);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncMobileDrawerInset);
+    };
+  }, [syncMobileDrawerInset, filterRailLabelsExpanded]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(syncMobileDrawerInset, 280);
+    return () => window.clearTimeout(timer);
+  }, [filterRailLabelsExpanded, syncMobileDrawerInset]);
 
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);
@@ -369,6 +404,7 @@ export function SearchPage() {
               onSelect={(id) => setSelectedId(id)}
               searchReturn={searchReturn}
               filterRailLabelsExpanded={filterRailLabelsExpanded}
+              drawerInsetPx={mobileDrawerInsetPx}
               countLabel={resultsCountLabel}
               onDrawerOpen={handleMobileDrawerOpen}
             />

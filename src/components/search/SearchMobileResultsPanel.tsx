@@ -1,6 +1,5 @@
 import { List } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { MOBILE_LIST_DRAWER_INSET_CLASS } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import type { SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
@@ -11,9 +10,12 @@ type Props = {
   onSelect: (id: string) => void;
   searchReturn: SearchReturnContext;
   filterRailLabelsExpanded: boolean;
+  drawerInsetPx: number;
   countLabel: ReactNode;
   onDrawerOpen?: () => void;
 };
+
+const LIST_TAB_WIDTH = "2.5rem";
 
 export function SearchMobileResultsPanel({
   listings,
@@ -21,11 +23,13 @@ export function SearchMobileResultsPanel({
   onSelect,
   searchReturn,
   filterRailLabelsExpanded,
+  drawerInsetPx,
   countLabel,
   onDrawerOpen,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const restoreAfterLegendCollapseRef = useRef(false);
+  const userClosedListRef = useRef(false);
   const prevLegendExpandedRef = useRef(filterRailLabelsExpanded);
 
   useEffect(() => {
@@ -37,6 +41,7 @@ export function SearchMobileResultsPanel({
       setExpanded((current) => {
         if (current) {
           restoreAfterLegendCollapseRef.current = true;
+          userClosedListRef.current = false;
           return false;
         }
         return current;
@@ -44,56 +49,73 @@ export function SearchMobileResultsPanel({
       return;
     }
 
-    if (wasLegend && !isLegend && restoreAfterLegendCollapseRef.current) {
+    if (
+      wasLegend &&
+      !isLegend &&
+      restoreAfterLegendCollapseRef.current &&
+      !userClosedListRef.current
+    ) {
       restoreAfterLegendCollapseRef.current = false;
       setExpanded(true);
     }
   }, [filterRailLabelsExpanded]);
 
+  const insetPx = drawerInsetPx > 0 ? drawerInsetPx : 102;
+
+  const toggleDrawer = () => {
+    setExpanded((current) => {
+      const next = !current;
+      if (next) {
+        userClosedListRef.current = false;
+        restoreAfterLegendCollapseRef.current = false;
+        onDrawerOpen?.();
+      } else {
+        userClosedListRef.current = true;
+        restoreAfterLegendCollapseRef.current = false;
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
       <div
-        className={`pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-[left,width] duration-300 ease-out ${
-          expanded ? MOBILE_LIST_DRAWER_INSET_CLASS : "left-auto w-10"
-        }`}
-        aria-hidden={!expanded}
+        className="pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-transform duration-300 ease-out"
+        style={{
+          left: expanded ? insetPx : undefined,
+          right: 0,
+          width: expanded ? undefined : LIST_TAB_WIDTH,
+          transform: expanded ? "translateX(0)" : undefined,
+        }}
       >
         <button
           type="button"
-          onClick={() => {
-            setExpanded((current) => {
-              const next = !current;
-              if (next) onDrawerOpen?.();
-              return next;
-            });
-          }}
+          onClick={toggleDrawer}
           aria-label={expanded ? "Ocultar listado" : "Mostrar listado"}
           aria-expanded={expanded}
-          className="inline-flex h-11 w-10 shrink-0 items-center justify-center self-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          className="relative z-10 inline-flex h-11 w-10 shrink-0 items-center justify-center self-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
         >
           <List className="size-4" aria-hidden="true" />
         </button>
 
-        <div
-          className={`flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md transition-opacity duration-200 ${
-            expanded ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-        >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-            <h2 className="text-sm font-semibold text-body">Listados</h2>
-            <p className="text-xs text-muted">{countLabel}</p>
+        {expanded ? (
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+              <h2 className="text-sm font-semibold text-body">Listados</h2>
+              <p className="text-xs text-muted">{countLabel}</p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+              <SearchResultsList
+                dense
+                cardVariant="mobile-drawer"
+                listings={listings}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                searchReturn={searchReturn}
+              />
+            </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
-            <SearchResultsList
-              dense
-              cardVariant="mobile-drawer"
-              listings={listings}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              searchReturn={searchReturn}
-            />
-          </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );

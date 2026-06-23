@@ -15,11 +15,8 @@ type Props = {
 
 export type SearchFilterRailHandle = {
   collapseLegend: () => void;
+  measureLayoutAnchor: () => HTMLElement | null;
 };
-
-/** Fixed tab edge: map padding + icon pill + small gap. The tab width keeps the drawer body clear of the chevron. */
-export const MOBILE_LIST_DRAWER_INSET_CLASS =
-  "left-[calc(0.5rem+3.25rem+0.25rem)] sm:left-[calc(0.75rem+3.5rem+0.25rem)]";
 
 const FILTER_RAIL_SEEN_KEY = "bestie:search-filter-rail-seen";
 const LEGACY_FILTER_RAIL_SEEN_KEY = "bestie:mobile-search-filter-rail-seen";
@@ -59,15 +56,16 @@ function quickFilterIconClass(filterId: string) {
 }
 
 function legendLabelClass(expanded: boolean, active?: boolean) {
-  return `pointer-events-none absolute left-[calc(100%+0.5rem)] top-1/2 z-30 max-w-[8rem] -translate-y-1/2 whitespace-nowrap rounded-md bg-surface/95 px-2 py-1 text-[11px] font-semibold leading-tight shadow-md ring-1 ring-border transition-[opacity,visibility] duration-200 ${
+  return `overflow-hidden text-[11px] font-semibold leading-tight transition-[width,opacity,margin] duration-200 ease-out ${
     active ? "text-primary" : "text-body"
-  } ${expanded ? "visible opacity-100" : "invisible opacity-0"}`;
+  } ${expanded ? "ml-2 w-[8rem] opacity-100" : "ml-0 w-0 opacity-0"}`;
 }
 
 export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(function SearchFilterRail(
   { filters, onChange, onOpenAdvanced, onLabelsExpandedChange },
   ref,
 ) {
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
   const [showCollapseHint, setShowCollapseHint] = useState(false);
   const initialExpandedRef = useRef(labelsExpanded);
@@ -85,6 +83,7 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
         setShowCollapseHint(false);
         setLabelsExpanded(false);
       },
+      measureLayoutAnchor: () => expandButtonRef.current,
     }),
     [],
   );
@@ -130,21 +129,21 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
       className="pointer-events-none absolute left-2 top-1/2 z-[1100] -translate-y-1/2 sm:left-3"
       aria-label="Filtros rápidos"
     >
-      <div className="pointer-events-auto flex w-max items-start gap-0.5">
-        <div className="flex w-max flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
+      <div className="pointer-events-auto flex items-start gap-0.5">
+        <div className="flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
           {MOBILE_MAP_QUICK_FILTERS.map((filterMeta) => {
             const active = filterMeta.isActive(filters);
             const Icon = filterMeta.icon;
             const mobileLabel = filterMeta.mobileLabel ?? filterMeta.label;
             return (
-              <div key={filterMeta.id} className="relative size-9 sm:size-10">
+              <div key={filterMeta.id} className="flex items-center">
                 <button
                   type="button"
                   title={filterMeta.tooltip}
                   aria-label={filterMeta.tooltip}
                   aria-pressed={active}
                   onClick={() => onChange(filterMeta.toggle(filters))}
-                  className={`${railBtnClass(active)} absolute inset-0`}
+                  className={railBtnClass(active)}
                 >
                   <Icon className={quickFilterIconClass(filterMeta.id)} aria-hidden="true" />
                 </button>
@@ -153,20 +152,22 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
             );
           })}
 
-          <div className="relative size-9 sm:size-10">
-            <button
-              type="button"
-              title={ADVANCED_FILTERS_META.tooltip}
-              aria-label={ADVANCED_FILTERS_META.tooltip}
-              onClick={onOpenAdvanced}
-              className="pointer-events-auto absolute inset-0 inline-flex cursor-pointer items-center justify-center rounded-xl border-2 border-primary bg-surface/95 text-body shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 hover:bg-surface sm:size-10"
-            >
-              <Filter className="size-[0.95rem]" aria-hidden="true" />
-            </button>
-            <span className={legendLabelClass(labelsExpanded)}>Más Filtros</span>
+          <div>
+            <div className="flex items-center">
+              <button
+                type="button"
+                title={ADVANCED_FILTERS_META.tooltip}
+                aria-label={ADVANCED_FILTERS_META.tooltip}
+                onClick={onOpenAdvanced}
+                className="pointer-events-auto inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-primary bg-surface/95 text-body shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 hover:bg-surface sm:size-10"
+              >
+                <Filter className="size-[0.95rem]" aria-hidden="true" />
+              </button>
+              <span className={legendLabelClass(labelsExpanded)}>Más Filtros</span>
+            </div>
           </div>
         </div>
-        <div className="relative mt-3 shrink-0">
+        <div className="relative mt-3">
           {showCollapseHint ? (
             <svg className="pointer-events-none absolute -inset-1 z-10" viewBox="0 0 44 52" aria-hidden>
               <rect
@@ -186,6 +187,7 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
             </svg>
           ) : null}
           <button
+            ref={expandButtonRef}
             type="button"
             onClick={() => {
               railInteractedRef.current = true;
