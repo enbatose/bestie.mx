@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
-import { SearchFilterRail, getFilterRailDefaultExpanded } from "@/components/search/SearchFilterRail";
+import { SearchFilterRail, getFilterRailDefaultExpanded, type SearchFilterRailHandle } from "@/components/search/SearchFilterRail";
 import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar } from "@/components/search/SearchTopBar";
@@ -50,7 +50,7 @@ export function SearchPage() {
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
   const mapSectionRef = useRef<HTMLDivElement>(null);
-  const filterRailRef = useRef<HTMLElement>(null);
+  const filterRailRef = useRef<SearchFilterRailHandle>(null);
   const [mobileDrawerInsetPx, setMobileDrawerInsetPx] = useState(0);
   const searchReturn = useMemo(
     (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
@@ -130,21 +130,29 @@ export function SearchPage() {
 
   const syncMobileDrawerInset = useCallback(() => {
     const mapEl = mapSectionRef.current;
-    const railEl = filterRailRef.current;
-    if (!mapEl || !railEl) return;
-    const inset = railEl.getBoundingClientRect().right - mapEl.getBoundingClientRect().left + 4;
+    const anchor = filterRailRef.current?.measureLayoutAnchor();
+    if (!mapEl || !anchor) return;
+    const inset = anchor.getBoundingClientRect().right - mapEl.getBoundingClientRect().left + 4;
     setMobileDrawerInsetPx(Math.max(0, Math.ceil(inset)));
   }, []);
+
+  const handleMobileDrawerOpen = useCallback(() => {
+    filterRailRef.current?.collapseLegend();
+    window.requestAnimationFrame(() => {
+      syncMobileDrawerInset();
+      window.setTimeout(syncMobileDrawerInset, 280);
+    });
+  }, [syncMobileDrawerInset]);
 
   useEffect(() => {
     syncMobileDrawerInset();
     const mapEl = mapSectionRef.current;
-    const railEl = filterRailRef.current;
-    if (!mapEl || !railEl) return;
+    const anchor = filterRailRef.current?.measureLayoutAnchor();
+    if (!mapEl || !anchor) return;
 
     const ro = new ResizeObserver(syncMobileDrawerInset);
     ro.observe(mapEl);
-    ro.observe(railEl);
+    ro.observe(anchor);
     window.addEventListener("resize", syncMobileDrawerInset);
 
     return () => {
@@ -398,6 +406,7 @@ export function SearchPage() {
               filterRailLabelsExpanded={filterRailLabelsExpanded}
               drawerInsetPx={mobileDrawerInsetPx}
               countLabel={resultsCountLabel}
+              onDrawerOpen={handleMobileDrawerOpen}
             />
           </div>
         </section>

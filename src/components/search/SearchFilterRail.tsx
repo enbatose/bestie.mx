@@ -1,5 +1,5 @@
 import { Filter } from "lucide-react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   ADVANCED_FILTERS_META,
   MOBILE_MAP_QUICK_FILTERS,
@@ -11,6 +11,11 @@ type Props = {
   onChange: (next: SearchFilters) => void;
   onOpenAdvanced: () => void;
   onLabelsExpandedChange?: (expanded: boolean) => void;
+};
+
+export type SearchFilterRailHandle = {
+  collapseLegend: () => void;
+  measureLayoutAnchor: () => HTMLElement | null;
 };
 
 const FILTER_RAIL_SEEN_KEY = "bestie:search-filter-rail-seen";
@@ -55,16 +60,32 @@ function quickFilterIconClass(filterId: string) {
   return "size-[0.95rem] sm:size-4";
 }
 
-export const SearchFilterRail = forwardRef<HTMLElement, Props>(function SearchFilterRail(
+export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(function SearchFilterRail(
   { filters, onChange, onOpenAdvanced, onLabelsExpandedChange },
   ref,
 ) {
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
   const [showCollapseHint, setShowCollapseHint] = useState(false);
   const initialExpandedRef = useRef(labelsExpanded);
   const railInteractedRef = useRef(false);
   const railHintTimerRef = useRef<number | null>(null);
   const railCollapseTimerRef = useRef<number | null>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      collapseLegend: () => {
+        railInteractedRef.current = true;
+        if (railHintTimerRef.current != null) window.clearTimeout(railHintTimerRef.current);
+        if (railCollapseTimerRef.current != null) window.clearTimeout(railCollapseTimerRef.current);
+        setShowCollapseHint(false);
+        setLabelsExpanded(false);
+      },
+      measureLayoutAnchor: () => expandButtonRef.current,
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -104,7 +125,6 @@ export const SearchFilterRail = forwardRef<HTMLElement, Props>(function SearchFi
 
   return (
     <aside
-      ref={ref}
       className="pointer-events-none absolute left-2 top-1/2 z-[1100] -translate-y-1/2 sm:left-3"
       aria-label="Filtros rápidos"
     >
@@ -178,6 +198,7 @@ export const SearchFilterRail = forwardRef<HTMLElement, Props>(function SearchFi
             </svg>
           ) : null}
           <button
+            ref={expandButtonRef}
             type="button"
             onClick={() => {
               railInteractedRef.current = true;

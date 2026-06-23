@@ -12,6 +12,7 @@ type Props = {
   filterRailLabelsExpanded: boolean;
   drawerInsetPx: number;
   countLabel: ReactNode;
+  onDrawerOpen?: () => void;
 };
 
 const LIST_TAB_WIDTH = "2.5rem";
@@ -24,6 +25,7 @@ export function SearchMobileResultsPanel({
   filterRailLabelsExpanded,
   drawerInsetPx,
   countLabel,
+  onDrawerOpen,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const restoreAfterLegendCollapseRef = useRef(false);
@@ -59,13 +61,20 @@ export function SearchMobileResultsPanel({
         className="pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-transform duration-300 ease-out"
         style={{
           left: insetPx,
+          right: 0,
           transform: expanded ? "translateX(0)" : `translateX(calc(100% - ${LIST_TAB_WIDTH}))`,
         }}
         aria-hidden={!expanded}
       >
         <button
           type="button"
-          onClick={() => setExpanded((current) => !current)}
+          onClick={() => {
+            setExpanded((current) => {
+              const next = !current;
+              if (next) onDrawerOpen?.();
+              return next;
+            });
+          }}
           aria-label={expanded ? "Ocultar listado" : "Mostrar listado"}
           aria-expanded={expanded}
           className="inline-flex h-11 w-10 shrink-0 items-center justify-center self-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
