@@ -204,10 +204,7 @@ function FitBounds({
       map.invalidateSize({ animate: false });
 
       if (preferDefaultView && locationPins?.length) {
-        const needsRefit =
-          appliedDefaultViewRef.current !== locationFitKey ||
-          shouldRefitNeighborhoodPins(map, locationPins);
-        if (!needsRefit) return;
+        if (appliedDefaultViewRef.current === locationFitKey) return;
         if (suppressViewportUntilRef) {
           suppressViewportUntilRef.current = Date.now() + 900;
         }

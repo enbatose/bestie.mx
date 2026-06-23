@@ -333,7 +333,7 @@ export function SearchPage() {
       </>
     );
   const mobileDrawerListings = useMemo(() => {
-    if (!searchLocation.neighborhoods.length) return filtered;
+    if (searchLocation.neighborhoods.length < 2) return filtered;
     return filtered.filter((listing) =>
       searchLocation.neighborhoods.some((pin) =>
         mobileListingMatchesSelectedNeighborhood(listing, pin.name),
