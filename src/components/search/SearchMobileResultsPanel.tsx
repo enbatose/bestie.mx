@@ -1,5 +1,6 @@
 import { List } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { MOBILE_LIST_DRAWER_INSET_CLASS } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import type { SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
@@ -10,12 +11,9 @@ type Props = {
   onSelect: (id: string) => void;
   searchReturn: SearchReturnContext;
   filterRailLabelsExpanded: boolean;
-  drawerInsetPx: number;
   countLabel: ReactNode;
   onDrawerOpen?: () => void;
 };
-
-const LIST_TAB_WIDTH = "2.5rem";
 
 export function SearchMobileResultsPanel({
   listings,
@@ -23,7 +21,6 @@ export function SearchMobileResultsPanel({
   onSelect,
   searchReturn,
   filterRailLabelsExpanded,
-  drawerInsetPx,
   countLabel,
   onDrawerOpen,
 }: Props) {
@@ -53,17 +50,12 @@ export function SearchMobileResultsPanel({
     }
   }, [filterRailLabelsExpanded]);
 
-  const insetPx = drawerInsetPx > 0 ? drawerInsetPx : 98;
-
   return (
     <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
       <div
-        className="pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-transform duration-300 ease-out"
-        style={{
-          left: insetPx,
-          right: 0,
-          transform: expanded ? "translateX(0)" : `translateX(calc(100% - ${LIST_TAB_WIDTH}))`,
-        }}
+        className={`pointer-events-auto absolute inset-y-0 right-0 flex min-w-0 transition-[left,width] duration-300 ease-out ${
+          expanded ? MOBILE_LIST_DRAWER_INSET_CLASS : "left-auto w-10"
+        }`}
         aria-hidden={!expanded}
       >
         <button
