@@ -300,6 +300,23 @@ export function SearchPage() {
         {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
       </>
     );
+  const mobileDrawerListings = useMemo(() => {
+    if (!searchLocation.neighborhoods.length) return filtered;
+    return filtered.filter((listing) =>
+      searchLocation.neighborhoods.some((pin) => neighborhoodNamesMatch(pin.name, listing.neighborhood)),
+    );
+  }, [filtered, searchLocation.neighborhoods]);
+  const mobileResultsCountLabel =
+    apiOn && apiBusy ? (
+      apiListings === undefined ? "Cargando…" : "Actualizando…"
+    ) : apiOn && apiErr ? (
+      <span className="text-red-600">{apiErr}</span>
+    ) : (
+      <>
+        {mobileDrawerListings.length}
+        {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
+      </>
+    );
   const farNeighborhoodAutoOpenKey =
     searchLocation.neighborhoods.length > 1 && searchLocation.zoom <= metro.neighborhoodZoom - 3
       ? `${searchLocation.cityCode}:${neighborhoodSelectionKey}:${searchLocation.zoom}`
@@ -368,12 +385,12 @@ export function SearchPage() {
               onLabelsExpandedChange={setFilterRailLabelsExpanded}
             />
             <SearchMobileResultsPanel
-              listings={filtered}
+              listings={mobileDrawerListings}
               selectedId={selectedId}
               onSelect={(id) => setSelectedId(id)}
               searchReturn={searchReturn}
               filterRailLabelsExpanded={filterRailLabelsExpanded}
-              countLabel={resultsCountLabel}
+              countLabel={mobileResultsCountLabel}
               autoExpandKey={farNeighborhoodAutoOpenKey}
               onDrawerOpen={handleMobileDrawerOpen}
             />
