@@ -130,8 +130,8 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
       className="pointer-events-none absolute left-2 top-1/2 z-[1100] -translate-y-1/2 sm:left-3"
       aria-label="Filtros rápidos"
     >
-      <div className="pointer-events-auto flex items-start gap-0.5">
-        <div className="flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
+      <div className="pointer-events-none flex items-start gap-0.5">
+        <div className="pointer-events-auto flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
           {MOBILE_MAP_QUICK_FILTERS.map((filterMeta) => {
             const active = filterMeta.isActive(filters);
             const Icon = filterMeta.icon;
@@ -168,7 +168,7 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
             </div>
           </div>
         </div>
-        <div className="relative mt-3">
+        <div className="pointer-events-none relative mt-3">
           {showCollapseHint ? (
             <svg className="pointer-events-none absolute -inset-1 z-10" viewBox="0 0 44 52" aria-hidden>
               <rect
@@ -198,7 +198,7 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
             }}
             aria-label={labelsExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
             aria-expanded={labelsExpanded}
-            className="relative z-20 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className="pointer-events-auto relative z-20 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
           >
             <svg
               width="16"

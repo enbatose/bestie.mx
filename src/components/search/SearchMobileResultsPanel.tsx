@@ -1,4 +1,4 @@
-import { List } from "lucide-react";
+import { List, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MOBILE_LIST_DRAWER_LEFT_CLASS } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
@@ -74,6 +74,12 @@ export function SearchMobileResultsPanel({
     });
   };
 
+  const closeDrawer = () => {
+    userClosedListRef.current = true;
+    restoreAfterLegendCollapseRef.current = false;
+    setExpanded(false);
+  };
+
   return (
     <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
       <div
@@ -98,7 +104,17 @@ export function SearchMobileResultsPanel({
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
               <h2 className="text-sm font-semibold text-body">Listados</h2>
-              <p className="text-xs text-muted">{countLabel}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted">{countLabel}</p>
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  aria-label="Cerrar listado"
+                  className="inline-flex size-7 items-center justify-center rounded-full border border-border bg-surface/90 text-primary shadow-sm transition hover:border-secondary/60 hover:bg-bg-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
               <SearchResultsList
@@ -109,6 +125,16 @@ export function SearchMobileResultsPanel({
                 onSelect={onSelect}
                 searchReturn={searchReturn}
               />
+              {listings.length ? (
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface/95 px-3 py-3 text-sm font-semibold text-primary shadow-sm transition hover:border-secondary/60 hover:bg-bg-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                  Cerrar listado
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
