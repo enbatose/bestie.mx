@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
-  Bookmark,
   ChevronDown,
   CirclePlus,
   LayoutGrid,
@@ -12,6 +11,7 @@ import {
   Shield,
   User,
 } from "lucide-react";
+import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
@@ -272,7 +272,10 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         Mis Anuncios
       </NavLink>
       <NavLink to="/mis-busquedas" className={desktopNavClass} onClick={dismissNav}>
-        Mis Búsquedas
+        <span className="inline-flex items-center gap-1.5">
+          <SavedSearchIcon className="h-4 w-4 shrink-0" />
+          Mis Búsquedas
+        </span>
       </NavLink>
       <NavLink
         to="/mensajes"
@@ -366,7 +369,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         Mis Anuncios
       </NavLink>
       <NavLink to="/mis-busquedas" className={mobileNavClass} onClick={dismissNav}>
-        <Bookmark className="h-4 w-4 shrink-0" aria-hidden />
+        <SavedSearchIcon className="h-4 w-4 shrink-0" />
         Mis Búsquedas
       </NavLink>
       <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>

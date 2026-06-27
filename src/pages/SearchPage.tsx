@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
+import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
 import { FollowSearchNotifyModal } from "@/components/search/FollowSearchNotifyModal";
 import { SaveSearchModal } from "@/components/search/SaveSearchModal";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
@@ -175,6 +176,8 @@ export function SearchPage() {
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followSuccessOpen, setFollowSuccessOpen] = useState(false);
   const [followEmailSent, setFollowEmailSent] = useState<boolean | null>(null);
+  const [followReplaceNotifyLabel, setFollowReplaceNotifyLabel] = useState<string | null>(null);
+  const [followEnableBusy, setFollowEnableBusy] = useState(false);
   const [searchDraft, setSearchDraft] = useState<SavedSearchDto | null>(null);
   const [saveSearchPulse, setSaveSearchPulse] = useState(false);
   const [guestNudgeVisible, setGuestNudgeVisible] = useState(false);
@@ -258,37 +261,55 @@ export function SearchPage() {
     [openLogin, returnTo],
   );
 
+  const finishFollowEnable = useCallback(async () => {
+    await upsertSearchDraft(saveSearchPayload);
+    const promoted = await promoteSearchDraft();
+    const result = await enableSavedSearchNotify(promoted.id);
+    setSearchDraft(null);
+    setFollowEmailSent(result.emailSent ?? true);
+    setFollowSuccessOpen(true);
+    setSaveNotice("Alertas por correo activadas para esta búsqueda.");
+    window.setTimeout(() => setSaveNotice(null), 5000);
+  }, [saveSearchPayload]);
+
   const runFollowEnable = useCallback(
-    async (emailOverride?: string) => {
+    async (skipReplaceConfirm = false) => {
       if (!me?.id) return;
 
       if (!me.email?.trim()) {
-        if (!emailOverride?.trim()) {
-          setFollowModalOpen(true);
+        setFollowModalOpen(true);
+        return;
+      }
+
+      if (!skipReplaceConfirm) {
+        const rows = await fetchSavedSearches();
+        const other = rows.find((r) => r.emailNotifyEnabled);
+        if (other) {
+          setFollowReplaceNotifyLabel(other.label);
           return;
         }
       }
 
-      const rows = await fetchSavedSearches();
-      const other = rows.find((r) => r.emailNotifyEnabled);
-      if (other) {
-        const ok = window.confirm(
-          `Ya tienes alertas activas para «${other.label}». ¿Quieres recibir alertas de esta búsqueda en su lugar?`,
-        );
-        if (!ok) return;
+      setFollowEnableBusy(true);
+      try {
+        await finishFollowEnable();
+      } finally {
+        setFollowEnableBusy(false);
       }
-
-      await upsertSearchDraft(saveSearchPayload);
-      const promoted = await promoteSearchDraft();
-      const result = await enableSavedSearchNotify(promoted.id);
-      setSearchDraft(null);
-      setFollowEmailSent(result.emailSent ?? true);
-      setFollowSuccessOpen(true);
-      setSaveNotice("Alertas por correo activadas para esta búsqueda.");
-      window.setTimeout(() => setSaveNotice(null), 5000);
     },
-    [me, saveSearchPayload],
+    [me, finishFollowEnable],
   );
+
+  const onConfirmFollowReplaceNotify = useCallback(() => {
+    setFollowReplaceNotifyLabel(null);
+    setFollowEnableBusy(true);
+    void finishFollowEnable()
+      .catch((x) => {
+        setSaveNotice(x instanceof Error ? x.message : "No se pudieron activar las alertas.");
+        window.setTimeout(() => setSaveNotice(null), 5000);
+      })
+      .finally(() => setFollowEnableBusy(false));
+  }, [finishFollowEnable]);
 
   const onSaveSearchClick = useCallback(() => {
     searchTopBarRef.current?.commitPendingHorizontalFilters();
@@ -661,6 +682,15 @@ export function SearchPage() {
 
       {me?.id ? (
         <>
+          <AppConfirmDialog
+            open={followReplaceNotifyLabel != null}
+            title="Cambiar alertas activas"
+            message={replaceActiveSavedSearchNotifyMessage(followReplaceNotifyLabel ?? "")}
+            confirmLabel="Sí, cambiar"
+            busy={followEnableBusy}
+            onConfirm={onConfirmFollowReplaceNotify}
+            onCancel={() => setFollowReplaceNotifyLabel(null)}
+          />
           <SaveSearchModal
             open={saveModalOpen}
             onClose={() => {

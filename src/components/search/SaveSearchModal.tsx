@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
 import { ActiveSearchFilterChips } from "@/components/search/ActiveSearchFilterChips";
 import { HorizontalBarFilterSummary } from "@/components/search/HorizontalBarFilterSummary";
 import { authUpdateMe, type AuthMe } from "@/lib/authApi";
@@ -48,6 +49,7 @@ export function SaveSearchModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [draft, setDraft] = useState<SavedSearchDto | null>(draftProp);
+  const [replaceNotifyLabel, setReplaceNotifyLabel] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(draftProp);
@@ -58,6 +60,7 @@ export function SaveSearchModal({
     setErr(null);
     setEmailNotifyOn(false);
     setEmail(me.email ?? "");
+    setReplaceNotifyLabel(null);
 
     const loadDraft = async () => {
       if (draftProp) {
@@ -85,6 +88,21 @@ export function SaveSearchModal({
     : null;
   const needsEmail = emailNotifyOn && !me.email?.trim();
 
+  const finishSave = async () => {
+    await upsertSearchDraft({ ...payload, filters });
+    const promoted = await promoteSearchDraft(label.trim() || draft?.label);
+
+    if (emailNotifyOn) {
+      await enableSavedSearchNotify(promoted.id);
+    } else {
+      await updateSavedSearch(promoted.id, { emailNotifyEnabled: false });
+    }
+
+    onDraftChange?.(null);
+    onSaved?.();
+    onClose();
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -104,25 +122,12 @@ export function SaveSearchModal({
         const rows = await fetchSavedSearches();
         const other = rows.find((r) => r.emailNotifyEnabled);
         if (other) {
-          const ok = window.confirm(
-            `Ya tienes alertas activas para «${other.label}». ¿Quieres recibir alertas de esta búsqueda en su lugar?`,
-          );
-          if (!ok) return;
+          setReplaceNotifyLabel(other.label);
+          return;
         }
       }
 
-      await upsertSearchDraft({ ...payload, filters });
-      const promoted = await promoteSearchDraft(label.trim() || draft?.label);
-
-      if (emailNotifyOn) {
-        await enableSavedSearchNotify(promoted.id);
-      } else {
-        await updateSavedSearch(promoted.id, { emailNotifyEnabled: false });
-      }
-
-      onDraftChange?.(null);
-      onSaved?.();
-      onClose();
+      await finishSave();
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo guardar la búsqueda.");
     } finally {
@@ -130,8 +135,34 @@ export function SaveSearchModal({
     }
   };
 
+  const onConfirmReplaceNotify = () => {
+    const prevLabel = replaceNotifyLabel;
+    setReplaceNotifyLabel(null);
+    setBusy(true);
+    void (async () => {
+      try {
+        await finishSave();
+      } catch (x) {
+        setErr(x instanceof Error ? x.message : "No se pudo guardar la búsqueda.");
+        if (prevLabel) setReplaceNotifyLabel(prevLabel);
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
   return (
-    <div
+    <>
+      <AppConfirmDialog
+        open={replaceNotifyLabel != null}
+        title="Cambiar alertas activas"
+        message={replaceActiveSavedSearchNotifyMessage(replaceNotifyLabel ?? "")}
+        confirmLabel="Sí, cambiar"
+        busy={busy}
+        onConfirm={onConfirmReplaceNotify}
+        onCancel={() => setReplaceNotifyLabel(null)}
+      />
+      <div
       className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/45 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
@@ -263,5 +294,6 @@ export function SaveSearchModal({
         </form>
       </div>
     </div>
+    </>
   );
 }

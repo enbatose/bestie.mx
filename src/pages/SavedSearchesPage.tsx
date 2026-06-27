@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
 import {
   deleteSavedSearch,
   enableSavedSearchNotify,
@@ -16,6 +17,10 @@ export function SavedSearchesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [replaceNotifyPending, setReplaceNotifyPending] = useState<{
+    otherLabel: string;
+    row: SavedSearchDto;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setErr(null);
@@ -59,12 +64,14 @@ export function SavedSearchesPage() {
 
     const other = rows?.find((r) => r.emailNotifyEnabled && r.id !== row.id);
     if (other) {
-      const ok = window.confirm(
-        `Ya tienes alertas activas para «${other.label}». ¿Quieres recibir alertas de «${row.label}» en su lugar?`,
-      );
-      if (!ok) return;
+      setReplaceNotifyPending({ otherLabel: other.label, row });
+      return;
     }
 
+    await enableNotifyForRow(row);
+  };
+
+  const enableNotifyForRow = async (row: SavedSearchDto) => {
     setBusyId(row.id);
     setErr(null);
     try {
@@ -80,6 +87,13 @@ export function SavedSearchesPage() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const onConfirmReplaceNotify = () => {
+    const pending = replaceNotifyPending;
+    if (!pending) return;
+    setReplaceNotifyPending(null);
+    void enableNotifyForRow(pending.row);
   };
 
   const onRename = async (row: SavedSearchDto) => {
@@ -130,7 +144,24 @@ export function SavedSearchesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <>
+      <AppConfirmDialog
+        open={replaceNotifyPending != null}
+        title="Cambiar alertas activas"
+        message={
+          replaceNotifyPending
+            ? replaceActiveSavedSearchNotifyMessage(
+                replaceNotifyPending.otherLabel,
+                replaceNotifyPending.row.label,
+              )
+            : ""
+        }
+        confirmLabel="Sí, cambiar"
+        busy={replaceNotifyPending != null && busyId === replaceNotifyPending.row.id}
+        onConfirm={onConfirmReplaceNotify}
+        onCancel={() => setReplaceNotifyPending(null)}
+      />
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary">Mis Búsquedas</h1>
@@ -225,5 +256,6 @@ export function SavedSearchesPage() {
         )}
       </div>
     </div>
+    </>
   );
 }
