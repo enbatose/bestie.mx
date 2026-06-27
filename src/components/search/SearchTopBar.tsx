@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Filter, Pencil, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { SaveSearchButton, SaveSearchButtonMobile } from "@/components/search/SaveSearchButton";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
 import { neighborhoodChipLabel, neighborhoodNamesMatch, type SearchLocationState } from "@/lib/searchLocation";
@@ -23,6 +24,7 @@ type Props = {
   onLocationInput: () => void;
   onLocationNotFound: (query: string) => void;
   onLocationErrorDismiss: () => void;
+  onSaveSearch?: () => void;
 };
 
 const RENT_STEP = 100;
@@ -184,6 +186,7 @@ export function SearchTopBar({
   onLocationInput,
   onLocationNotFound,
   onLocationErrorDismiss,
+  onSaveSearch,
 }: Props) {
   const locationInputId = useId();
   const mobileLocationMenuId = useId();
@@ -209,6 +212,34 @@ export function SearchTopBar({
   const searchNeighborhoods = cityChipVisible;
 
   const neighborhoodSelectionKey = searchLocation.neighborhoods.map((pin) => pin.name).join("|");
+
+  const filterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        filters,
+        location: {
+          cityCode: searchLocation.cityCode,
+          neighborhoods: neighborhoodSelectionKey,
+          lat: searchLocation.lat,
+          lng: searchLocation.lng,
+          zoom: searchLocation.zoom,
+        },
+      }),
+    [filters, neighborhoodSelectionKey, searchLocation.cityCode, searchLocation.lat, searchLocation.lng, searchLocation.zoom],
+  );
+
+  const filterSignatureBootRef = useRef(true);
+  const [saveSearchPulse, setSaveSearchPulse] = useState(false);
+
+  useEffect(() => {
+    if (filterSignatureBootRef.current) {
+      filterSignatureBootRef.current = false;
+      return;
+    }
+    setSaveSearchPulse(true);
+    const t = window.setTimeout(() => setSaveSearchPulse(false), 2400);
+    return () => window.clearTimeout(t);
+  }, [filterSignature]);
 
   useEffect(() => {
     setLocationInput("");
@@ -768,6 +799,12 @@ export function SearchTopBar({
               </div>
             </div>
 
+            <div className={`flex min-w-0 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
+              {onSaveSearch ? (
+                <SaveSearchButtonMobile onClick={onSaveSearch} pulseActive={saveSearchPulse} />
+              ) : null}
+            </div>
+
             <div className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
               <button
                 type="button"
@@ -794,89 +831,94 @@ export function SearchTopBar({
         </div>
       </div>
 
-      <div className="hidden w-full min-w-0 sm:flex sm:items-end sm:gap-3 lg:gap-4">
-        <div className="relative z-50 min-w-0 flex-[2.4]">
+      <div className="hidden w-full min-w-0 sm:flex sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-2 lg:gap-x-4">
+        <div className="relative z-50 min-w-[12rem] flex-[2] basis-[14rem]">
           <label className={DESKTOP_LOCATION_LABEL_CLASS} htmlFor={locationInputId}>
             Ciudad o colonia
           </label>
           <div className={`${DESKTOP_FILTER_CONTROL_CLASS} relative`}>{renderLocationField(false)}</div>
         </div>
 
-        <label className="block min-w-[7.5rem] flex-[1] max-w-[11rem] shrink-0">
-          <span className={DESKTOP_FILTER_LABEL_CLASS}>Renta</span>
-          <input
-            inputMode="numeric"
-            type="number"
-            min={0}
-            step={100}
-            value={filters.budgetMax ?? ""}
-            onChange={(e) =>
-              onChange({
-                ...filters,
-                budgetMin: null,
-                budgetMax: e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
-            placeholder="Ej. 8000"
-            className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
-          />
-        </label>
+        <div className="flex shrink-0 flex-wrap items-end gap-2 lg:gap-3">
+          <label className="block w-[6.5rem] shrink-0 sm:w-[7.5rem] lg:max-w-[9rem] lg:flex-1">
+            <span className={DESKTOP_FILTER_LABEL_CLASS}>Renta</span>
+            <input
+              inputMode="numeric"
+              type="number"
+              min={0}
+              step={100}
+              value={filters.budgetMax ?? ""}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  budgetMin: null,
+                  budgetMax: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              placeholder="Ej. 8000"
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
+            />
+          </label>
 
-        <fieldset className="shrink-0">
-          <legend className={DESKTOP_FILTER_LABEL_CLASS}>Género</legend>
-          <div
-            className={`${DESKTOP_FILTER_CONTROL_CLASS} flex w-[9.75rem] items-center gap-0.5 rounded-lg border border-primary/20 bg-surface px-1 shadow-sm`}
-            role="group"
-            aria-label="Filtrar por género"
-          >
-            <button
-              type="button"
-              aria-pressed={filters.pref === "female"}
-              onClick={() => setGenderPref("female")}
-              className={DESKTOP_GENDER_SEGMENT_CLASS(filters.pref === "female")}
+          <fieldset className="shrink-0">
+            <legend className={DESKTOP_FILTER_LABEL_CLASS}>Género</legend>
+            <div
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} flex w-[9.25rem] items-center gap-0.5 rounded-lg border border-primary/20 bg-surface px-1 shadow-sm lg:w-[9.75rem]`}
+              role="group"
+              aria-label="Filtrar por género"
             >
-              Mujer
-            </button>
-            <span className="px-0.5 text-xs font-semibold text-muted/70" aria-hidden>
-              |
-            </span>
-            <button
-              type="button"
-              aria-pressed={filters.pref === "male"}
-              onClick={() => setGenderPref("male")}
-              className={DESKTOP_GENDER_SEGMENT_CLASS(filters.pref === "male")}
-            >
-              Hombre
-            </button>
-          </div>
-        </fieldset>
+              <button
+                type="button"
+                aria-pressed={filters.pref === "female"}
+                onClick={() => setGenderPref("female")}
+                className={DESKTOP_GENDER_SEGMENT_CLASS(filters.pref === "female")}
+              >
+                Mujer
+              </button>
+              <span className="px-0.5 text-xs font-semibold text-muted/70" aria-hidden>
+                |
+              </span>
+              <button
+                type="button"
+                aria-pressed={filters.pref === "male"}
+                onClick={() => setGenderPref("male")}
+                className={DESKTOP_GENDER_SEGMENT_CLASS(filters.pref === "male")}
+              >
+                Hombre
+              </button>
+            </div>
+          </fieldset>
 
-        <label className="block w-[4.75rem] shrink-0 sm:w-20">
-          <span className={DESKTOP_FILTER_LABEL_CLASS}>Edad</span>
-          <input
-            inputMode="numeric"
-            type="number"
-            min={16}
-            max={99}
-            value={filters.age != null ? filters.age : ""}
-            onChange={(e) =>
-              onChange({
-                ...filters,
-                age: e.target.value === "" ? null : Number(e.target.value),
-                ageMin: null,
-                ageMax: null,
-              })
-            }
-            placeholder="Ej. 25"
-            className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
-          />
-        </label>
+          <label className="block w-[4.25rem] shrink-0 sm:w-20">
+            <span className={DESKTOP_FILTER_LABEL_CLASS}>Edad</span>
+            <input
+              inputMode="numeric"
+              type="number"
+              min={16}
+              max={99}
+              value={filters.age != null ? filters.age : ""}
+              onChange={(e) =>
+                onChange({
+                  ...filters,
+                  age: e.target.value === "" ? null : Number(e.target.value),
+                  ageMin: null,
+                  ageMax: null,
+                })
+              }
+              placeholder="Ej. 25"
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
+            />
+          </label>
+        </div>
 
-        <div className="ml-auto flex shrink-0 items-end gap-2">
+        <div className="ml-auto flex shrink-0 flex-wrap items-end justify-end gap-2">
+          {onSaveSearch ? (
+            <SaveSearchButton onClick={onSaveSearch} pulseActive={saveSearchPulse} compact />
+          ) : null}
           <button
             type="button"
             onClick={onOpenAdvanced}
-            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 sm:px-4 sm:text-sm"
+            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 sm:text-sm"
           >
             <Filter className="size-3.5 shrink-0" aria-hidden="true" strokeWidth={2.2} />
             Más Filtros
@@ -885,7 +927,7 @@ export function SearchTopBar({
             type="button"
             onClick={onClearFilters}
             disabled={!hasActiveFilters}
-            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-sm"
+            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
           >
             <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
               <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />

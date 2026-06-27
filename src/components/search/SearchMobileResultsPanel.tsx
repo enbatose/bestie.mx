@@ -1,4 +1,4 @@
-import { Bookmark, List, X } from "lucide-react";
+import { List, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MOBILE_LIST_DRAWER_LEFT_CLASS } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
@@ -14,7 +14,6 @@ type Props = {
   countLabel: ReactNode;
   autoExpandKey?: string;
   onDrawerOpen?: () => void;
-  onSaveSearch?: () => void;
 };
 
 const LIST_TAB_WIDTH = "2.5rem";
@@ -28,7 +27,6 @@ export function SearchMobileResultsPanel({
   countLabel,
   autoExpandKey,
   onDrawerOpen,
-  onSaveSearch,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const restoreAfterLegendCollapseRef = useRef(false);
@@ -120,16 +118,6 @@ export function SearchMobileResultsPanel({
               <h2 className="text-sm font-semibold text-body">Listados</h2>
               <div className="flex items-center gap-2">
                 <p className="text-xs text-muted">{countLabel}</p>
-                {onSaveSearch ? (
-                  <button
-                    type="button"
-                    onClick={onSaveSearch}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-body"
-                  >
-                    <Bookmark className="h-3 w-3" aria-hidden />
-                    Guardar
-                  </button>
-                ) : null}
                 <button
                   type="button"
                   onClick={closeDrawer}
