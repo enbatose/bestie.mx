@@ -1,4 +1,4 @@
-import { Mail, Save as SaveIcon, Trash2, X } from "lucide-react";
+import { Filter, Mail, Save as SaveIcon, Trash2, X } from "lucide-react";
 import { useEffect } from "react";
 
 type SaveGroupProps = {
@@ -135,7 +135,7 @@ export function SaveSearchButton(props: SaveGroupProps) {
 }
 
 export function SaveSearchButtonMobile(props: Omit<SaveGroupProps, "compact" | "className">) {
-  return <SaveSearchGroup {...props} mobile className="min-w-0 flex-1" />;
+  return <SaveSearchGroup {...props} mobile className="min-w-0 flex-1 self-end" />;
 }
 
 const MOBILE_FILTER_HEIGHT = "h-14";
@@ -162,8 +162,8 @@ export function FilterActionsGroup({
   const textClass = mobile ? "text-[0.86rem]" : "text-xs sm:text-sm";
 
   return (
-    <fieldset className={mobile ? "min-w-0 flex-1" : "shrink-0"}>
-      <legend className={labelClass}>Filtros</legend>
+    <fieldset className={mobile ? "flex min-w-0 flex-1 flex-col justify-end" : "shrink-0"}>
+      <legend className={mobile ? "sr-only" : labelClass}>Filtros</legend>
       <div
         className={`${mobile ? "" : DESKTOP_FILTER_CONTROL_CLASS} inline-flex w-full overflow-hidden border border-primary/25 bg-surface shadow-sm ${heightClass}`}
         role="group"
@@ -175,7 +175,7 @@ export function FilterActionsGroup({
           aria-label="Más filtros"
           className={`inline-flex flex-1 items-center justify-center gap-1.5 border-r border-primary/20 px-3 font-semibold text-primary transition hover:bg-bg-light/60 ${textClass}`}
         >
-          <FilterIcon className={mobile ? "size-4" : "size-3.5"} />
+          <Filter className={mobile ? "size-4" : "size-3.5"} aria-hidden strokeWidth={2.2} />
           {mobile ? null : "Más"}
         </button>
         <button
@@ -185,26 +185,10 @@ export function FilterActionsGroup({
           aria-label="Borrar filtros"
           className={`inline-flex flex-1 items-center justify-center gap-1.5 px-3 font-semibold text-primary transition hover:bg-bg-light/60 disabled:cursor-not-allowed disabled:opacity-40 ${textClass}`}
         >
-          {mobile ? <Trash2 className="size-4" aria-hidden strokeWidth={2.2} /> : <ClearIcon className="size-3.5" />}
+          <Trash2 className={mobile ? "size-4" : "size-3.5"} aria-hidden strokeWidth={2.2} />
           {mobile ? null : "Borrar"}
         </button>
       </div>
     </fieldset>
-  );
-}
-
-function FilterIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden strokeWidth={2.2}>
-      <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ClearIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-      <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
-    </svg>
   );
 }

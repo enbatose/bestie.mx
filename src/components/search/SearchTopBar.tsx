@@ -850,7 +850,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
               </div>
             </div>
 
-            <div className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
+            <div className={`grid min-w-0 grid-cols-2 items-end gap-2 ${MOBILE_FILTER_HEIGHT}`}>
               <FilterActionsGroup
                 mobile
                 onOpenAdvanced={onOpenAdvanced}
