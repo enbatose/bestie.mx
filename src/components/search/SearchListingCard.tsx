@@ -174,7 +174,7 @@ function SearchListingMobileDrawerCard({
               <span key={item.id} className="group/icon relative inline-flex min-w-0 flex-1 justify-center">
                 <span
                   className={`inline-flex items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border ${
-                    mixedGender ? "h-7 w-10 px-0.5" : "size-7"
+                    mixedGender ? "h-7 w-10 px-0.5" : item.id === "gender-female" ? "h-7 w-8 px-0.5" : "size-7"
                   }`}
                   aria-hidden="true"
                 >
@@ -236,7 +236,11 @@ function SearchListingSidebarCard({
                   <span key={item.id} className="group/icon relative inline-flex">
                     <span
                       className={`inline-flex items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border ${
-                        mixedGender ? "h-8 w-11 px-0.5 sm:h-9 sm:w-12" : "size-8 sm:size-9"
+                        mixedGender
+                          ? "h-8 w-11 px-0.5 sm:h-9 sm:w-12"
+                          : item.id === "gender-female"
+                            ? "h-8 w-9 px-0.5 sm:h-9 sm:w-10"
+                            : "size-8 sm:size-9"
                       }`}
                       aria-hidden="true"
                     >
