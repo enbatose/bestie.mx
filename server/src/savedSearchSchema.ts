@@ -20,7 +20,6 @@ export function ensureSavedSearchSchema(db: DatabaseSync): void {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_saved_searches_user ON saved_searches(user_id, updated_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_saved_searches_user_draft ON saved_searches(user_id, is_draft);
 
     CREATE TABLE IF NOT EXISTS saved_search_notified_rooms (
       saved_search_id TEXT NOT NULL,
@@ -31,11 +30,15 @@ export function ensureSavedSearchSchema(db: DatabaseSync): void {
     );
   `);
 
+  // Migration: add is_draft column to existing tables (no-op for new tables that already have it)
   try {
     db.exec(`ALTER TABLE saved_searches ADD COLUMN is_draft INTEGER NOT NULL DEFAULT 0`);
   } catch {
     /* column already exists */
   }
+
+  // Create index after migration ensures the column exists on both new and existing databases
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_saved_searches_user_draft ON saved_searches(user_id, is_draft)`);
 }
 
 export const MAX_SAVED_SEARCHES_PER_USER = 20;
