@@ -1,6 +1,6 @@
-import { Check, ChevronDown, Filter, Pencil, Search, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { SaveSearchButton, SaveSearchButtonMobile } from "@/components/search/SaveSearchButton";
+import { SaveSearchButton, SaveSearchButtonMobile, FilterActionsGroup } from "@/components/search/SaveSearchButton";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
 import { neighborhoodChipLabel, neighborhoodNamesMatch, type SearchLocationState } from "@/lib/searchLocation";
@@ -24,7 +24,14 @@ type Props = {
   onLocationInput: () => void;
   onLocationNotFound: (query: string) => void;
   onLocationErrorDismiss: () => void;
-  onSaveSearch?: () => void;
+  onSaveClick?: () => void;
+  onFollowClick?: () => void;
+  saveSearchPulse?: boolean;
+  guestSaveNudge?: {
+    visible: boolean;
+    onDismiss: () => void;
+    onClick: () => void;
+  };
 };
 
 const RENT_STEP = 100;
@@ -186,7 +193,10 @@ export function SearchTopBar({
   onLocationInput,
   onLocationNotFound,
   onLocationErrorDismiss,
-  onSaveSearch,
+  onSaveClick,
+  onFollowClick,
+  saveSearchPulse = false,
+  guestSaveNudge,
 }: Props) {
   const locationInputId = useId();
   const mobileLocationMenuId = useId();
@@ -229,15 +239,16 @@ export function SearchTopBar({
   );
 
   const filterSignatureBootRef = useRef(true);
-  const [saveSearchPulse, setSaveSearchPulse] = useState(false);
+  const [internalSavePulse, setInternalSavePulse] = useState(false);
+  const pulseActive = saveSearchPulse || internalSavePulse;
 
   useEffect(() => {
     if (filterSignatureBootRef.current) {
       filterSignatureBootRef.current = false;
       return;
     }
-    setSaveSearchPulse(true);
-    const t = window.setTimeout(() => setSaveSearchPulse(false), 2400);
+    setInternalSavePulse(true);
+    const t = window.setTimeout(() => setInternalSavePulse(false), 2400);
     return () => window.clearTimeout(t);
   }, [filterSignature]);
 
@@ -799,33 +810,21 @@ export function SearchTopBar({
               </div>
             </div>
 
-            <div className={`flex min-w-0 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
-              {onSaveSearch ? (
-                <SaveSearchButtonMobile onClick={onSaveSearch} pulseActive={saveSearchPulse} />
-              ) : null}
-            </div>
-
             <div className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
-              <button
-                type="button"
-                onClick={onOpenAdvanced}
-                className={`inline-flex ${MOBILE_FILTER_HEIGHT} min-w-0 items-center justify-center gap-1.5 rounded-[1.2rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35`}
-              >
-                <Filter className="size-4 shrink-0" aria-hidden="true" strokeWidth={2.2} />
-                <span className="truncate">Más filtros</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onClearFilters}
-                disabled={!hasActiveFilters}
-                className={`inline-flex ${MOBILE_FILTER_HEIGHT} min-w-0 items-center justify-center gap-1.5 rounded-[1.2rem] border border-primary/20 bg-surface px-2 text-[0.86rem] font-semibold text-primary shadow-sm transition hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45`}
-              >
-                <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                  <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
-                </svg>
-                <span className="truncate">Borrar filtros</span>
-              </button>
+              <FilterActionsGroup
+                mobile
+                onOpenAdvanced={onOpenAdvanced}
+                onClearFilters={onClearFilters}
+                clearDisabled={!hasActiveFilters}
+              />
+              {onSaveClick && onFollowClick ? (
+                <SaveSearchButtonMobile
+                  onSaveClick={onSaveClick}
+                  onFollowClick={onFollowClick}
+                  pulseActive={pulseActive}
+                  guestNudge={guestSaveNudge}
+                />
+              ) : null}
             </div>
           </div>
         </div>
@@ -911,30 +910,22 @@ export function SearchTopBar({
           </label>
         </div>
 
-        <div className="ml-auto flex shrink-0 flex-wrap items-end justify-end gap-2">
-          {onSaveSearch ? (
-            <SaveSearchButton onClick={onSaveSearch} pulseActive={saveSearchPulse} compact />
-          ) : null}
-          <button
-            type="button"
-            onClick={onOpenAdvanced}
-            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 sm:text-sm"
-          >
-            <Filter className="size-3.5 shrink-0" aria-hidden="true" strokeWidth={2.2} />
-            Más Filtros
-          </button>
-          <button
-            type="button"
-            onClick={onClearFilters}
-            disabled={!hasActiveFilters}
-            className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/25 bg-surface px-3 text-xs font-semibold text-primary shadow-sm transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
-          >
-            <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-              <path strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
-            </svg>
-            Borrar filtros
-          </button>
-        </div>
+        <FilterActionsGroup
+          onOpenAdvanced={onOpenAdvanced}
+          onClearFilters={onClearFilters}
+          clearDisabled={!hasActiveFilters}
+        />
+
+        {onSaveClick && onFollowClick ? (
+          <SaveSearchButton
+            onSaveClick={onSaveClick}
+            onFollowClick={onFollowClick}
+            pulseActive={pulseActive}
+            compact
+            guestNudge={guestSaveNudge}
+            className="ml-auto"
+          />
+        ) : null}
       </div>
     </div>
   );

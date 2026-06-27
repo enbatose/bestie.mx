@@ -78,6 +78,115 @@ function parseBodyLocation(raw: unknown): SavedSearchLocationSnapshot | null {
   };
 }
 
+type SaveSearchBody = {
+  label?: unknown;
+  cityCode?: unknown;
+  filters?: unknown;
+  location?: unknown;
+  searchUrl?: unknown;
+  enableEmailNotify?: unknown;
+};
+
+function parseSavePayload(body: SaveSearchBody): {
+  filters: SearchFilters;
+  location: SavedSearchLocationSnapshot;
+  cityCode: string;
+  searchUrl: string;
+} | null {
+  const filters = parseBodyFilters(body.filters);
+  const location = parseBodyLocation(body.location);
+  const cityCode =
+    typeof body.cityCode === "string" && body.cityCode.trim()
+      ? body.cityCode.trim()
+      : location?.cityCode;
+  const searchUrl = typeof body.searchUrl === "string" ? body.searchUrl.trim() : "";
+  if (!filters || !location || !cityCode || !searchUrl.startsWith("/buscar")) return null;
+  return { filters, location, cityCode, searchUrl };
+}
+
+function countSavedNonDrafts(db: DatabaseSync, userId: string): number {
+  return (
+    db
+      .prepare(`SELECT COUNT(*) AS c FROM saved_searches WHERE user_id = ? AND is_draft = 0`)
+      .get(userId) as { c: number }
+  ).c;
+}
+
+function loadUserDraft(db: DatabaseSync, userId: string): SavedSearchRow | null {
+  const row = db
+    .prepare(`SELECT * FROM saved_searches WHERE user_id = ? AND is_draft = 1 LIMIT 1`)
+    .get(userId) as SavedSearchRow | undefined;
+  return row ?? null;
+}
+
+function upsertUserDraft(
+  db: DatabaseSync,
+  userId: string,
+  payload: {
+    filters: SearchFilters;
+    location: SavedSearchLocationSnapshot;
+    cityCode: string;
+    searchUrl: string;
+  },
+): SavedSearchRow {
+  const filtersJson = JSON.stringify(payload.filters);
+  const locationJson = JSON.stringify(payload.location);
+  const now = isoNow();
+  const label = autoLabelFromSearch(payload.location, payload.filters, new Date(now));
+  const existing = loadUserDraft(db, userId);
+
+  if (existing) {
+    db.prepare(
+      `UPDATE saved_searches
+       SET label = ?, city_code = ?, filters_json = ?, location_json = ?, search_url = ?, updated_at = ?
+       WHERE id = ?`,
+    ).run(label, payload.cityCode, filtersJson, locationJson, payload.searchUrl, now, existing.id);
+    return {
+      ...existing,
+      label,
+      city_code: payload.cityCode,
+      filters_json: filtersJson,
+      location_json: locationJson,
+      search_url: payload.searchUrl,
+      updated_at: now,
+    };
+  }
+
+  const row: SavedSearchRow = {
+    id: newSavedSearchId(),
+    user_id: userId,
+    label,
+    city_code: payload.cityCode,
+    filters_json: filtersJson,
+    location_json: locationJson,
+    search_url: payload.searchUrl,
+    email_notify_enabled: 0,
+    unsubscribe_token: generateUnsubscribeToken(),
+    last_notified_at: null,
+    is_draft: 1,
+    created_at: now,
+    updated_at: now,
+  };
+  db.prepare(
+    `INSERT INTO saved_searches (
+      id, user_id, label, city_code, filters_json, location_json, search_url,
+      email_notify_enabled, unsubscribe_token, last_notified_at, is_draft, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 1, ?, ?)`,
+  ).run(
+    row.id,
+    row.user_id,
+    row.label,
+    row.city_code,
+    row.filters_json,
+    row.location_json,
+    row.search_url,
+    row.unsubscribe_token,
+    row.created_at,
+    row.updated_at,
+  );
+  return row;
+}
+
 export function savedSearchesRouter(db: DatabaseSync) {
   const r = express.Router();
 
@@ -106,7 +215,9 @@ export function savedSearchesRouter(db: DatabaseSync) {
     const uid = requireUser(req, res);
     if (!uid) return;
     const rows = db
-      .prepare(`SELECT * FROM saved_searches WHERE user_id = ? ORDER BY updated_at DESC`)
+      .prepare(
+        `SELECT * FROM saved_searches WHERE user_id = ? AND is_draft = 0 ORDER BY updated_at DESC`,
+      )
       .all(uid) as SavedSearchRow[];
     res.json(
       rows.map((row) => {
@@ -125,13 +236,64 @@ export function savedSearchesRouter(db: DatabaseSync) {
     );
   });
 
+  r.get("/draft", (req: Request, res: Response) => {
+    const uid = requireUser(req, res);
+    if (!uid) return;
+    const draft = loadUserDraft(db, uid);
+    if (!draft) {
+      res.json(null);
+      return;
+    }
+    res.json(rowToApi(draft));
+  });
+
+  r.put("/draft", jsonMw(), (req: Request, res: Response) => {
+    const uid = requireUser(req, res);
+    if (!uid) return;
+    const parsed = parseSavePayload(req.body as SaveSearchBody);
+    if (!parsed) {
+      res.status(400).json({ error: "invalid_body" });
+      return;
+    }
+    const row = upsertUserDraft(db, uid, parsed);
+    res.json(rowToApi(row));
+  });
+
+  r.post("/draft/promote", jsonMw(), (req: Request, res: Response) => {
+    const uid = requireUser(req, res);
+    if (!uid) return;
+    const draft = loadUserDraft(db, uid);
+    if (!draft) {
+      res.status(404).json({ error: "no_draft" });
+      return;
+    }
+
+    const body = req.body as { label?: unknown };
+    const now = isoNow();
+    const label =
+      typeof body.label === "string" && body.label.trim()
+        ? body.label.trim().slice(0, 200)
+        : draft.label;
+
+    if (countSavedNonDrafts(db, uid) >= MAX_SAVED_SEARCHES_PER_USER) {
+      res.status(400).json({ error: "limit_reached", message: "Máximo de búsquedas guardadas alcanzado." });
+      return;
+    }
+
+    db.prepare(`UPDATE saved_searches SET label = ?, is_draft = 0, updated_at = ? WHERE id = ?`).run(
+      label,
+      now,
+      draft.id,
+    );
+    const row = loadOwned(db, uid, draft.id)!;
+    res.json(rowToApi(row));
+  });
+
   r.post("/", jsonMw(), async (req: Request, res: Response) => {
     const uid = requireUser(req, res);
     if (!uid) return;
 
-    const count = (
-      db.prepare(`SELECT COUNT(*) AS c FROM saved_searches WHERE user_id = ?`).get(uid) as { c: number }
-    ).c;
+    const count = countSavedNonDrafts(db, uid);
     if (count >= MAX_SAVED_SEARCHES_PER_USER) {
       res.status(400).json({ error: "limit_reached", message: "Máximo de búsquedas guardadas alcanzado." });
       return;
@@ -164,7 +326,7 @@ export function savedSearchesRouter(db: DatabaseSync) {
 
     const dup = db
       .prepare(
-        `SELECT * FROM saved_searches WHERE user_id = ? AND filters_json = ? AND location_json = ? LIMIT 1`,
+        `SELECT * FROM saved_searches WHERE user_id = ? AND is_draft = 0 AND filters_json = ? AND location_json = ? LIMIT 1`,
       )
       .get(uid, filtersJson, locationJson) as SavedSearchRow | undefined;
 
@@ -200,14 +362,15 @@ export function savedSearchesRouter(db: DatabaseSync) {
         email_notify_enabled: 0,
         unsubscribe_token: generateUnsubscribeToken(),
         last_notified_at: null,
+        is_draft: 0,
         created_at: now,
         updated_at: now,
       };
       db.prepare(
         `INSERT INTO saved_searches (
           id, user_id, label, city_code, filters_json, location_json, search_url,
-          email_notify_enabled, unsubscribe_token, last_notified_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, ?, ?)`,
+          email_notify_enabled, unsubscribe_token, last_notified_at, is_draft, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 0, ?, ?)`,
       ).run(
         row.id,
         row.user_id,

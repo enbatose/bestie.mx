@@ -1,4 +1,5 @@
 import { apiBase } from "@/lib/apiBase";
+import { formatSavedSearchDraftLabel } from "@/lib/savedSearchDraftLabel";
 import { filtersToParams, type SearchFilters } from "@/lib/searchFilters";
 import { writeSearchLocation, type SearchLocationState } from "@/lib/searchLocation";
 
@@ -8,6 +9,7 @@ export type SavedSearchDto = {
   cityCode: string;
   searchUrl: string;
   emailNotifyEnabled: boolean;
+  isDraft?: boolean;
   createdAt: string;
   updatedAt: string;
   matchCount?: number;
@@ -50,24 +52,42 @@ export function buildSavedSearchUrl(
 
 export function autoLabelFromFilters(
   searchLocation: SearchLocationState,
-  filters: SearchFilters,
+  _filters?: SearchFilters,
 ): string {
-  const parts: string[] = [];
-  if (searchLocation.neighborhoods.length) {
-    parts.push(searchLocation.neighborhoods.map((n) => n.name).join(", "));
-  } else {
-    parts.push(searchLocation.cityLabel);
-  }
-  if (filters.budgetMax != null) {
-    parts.push(`hasta $${filters.budgetMax.toLocaleString("es-MX")}`);
-  } else if (filters.budgetMin != null) {
-    parts.push(`desde $${filters.budgetMin.toLocaleString("es-MX")}`);
-  }
-  return parts.join(" · ") || "Mi búsqueda";
+  return formatSavedSearchDraftLabel(searchLocation);
 }
 
 export async function fetchSavedSearches(signal?: AbortSignal): Promise<SavedSearchDto[]> {
   const res = await fetch(`${apiBase()}/api/saved-searches`, { credentials: cred, signal });
+  return parseJson(res);
+}
+
+export async function fetchSearchDraft(signal?: AbortSignal): Promise<SavedSearchDto | null> {
+  const res = await fetch(`${apiBase()}/api/saved-searches/draft`, { credentials: cred, signal });
+  const body = (await res.json().catch(() => null)) as SavedSearchDto | null;
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return body;
+}
+
+export async function upsertSearchDraft(payload: SaveSavedSearchPayload): Promise<SavedSearchDto> {
+  const res = await fetch(`${apiBase()}/api/saved-searches/draft`, {
+    method: "PUT",
+    credentials: cred,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+export async function promoteSearchDraft(label?: string): Promise<SavedSearchDto> {
+  const res = await fetch(`${apiBase()}/api/saved-searches/draft/promote`, {
+    method: "POST",
+    credentials: cred,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(label?.trim() ? { label: label.trim() } : {}),
+  });
   return parseJson(res);
 }
 

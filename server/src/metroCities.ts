@@ -80,3 +80,12 @@ export function resolveMetroCity(code: string | null | undefined): MetroCity {
   if (match?.enabled) return match;
   return DEFAULT_METRO_CITY;
 }
+
+export function metroTimeZone(code: string | null | undefined): string {
+  switch (normalizeMetroCode(code)) {
+    case "mty":
+      return "America/Monterrey";
+    default:
+      return "America/Mexico_City";
+  }
+}

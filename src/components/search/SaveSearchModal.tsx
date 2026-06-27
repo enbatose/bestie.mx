@@ -1,11 +1,14 @@
-import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type { AuthMe } from "@/lib/authApi";
 import {
-  autoLabelFromFilters,
-  createSavedSearch,
-  fetchSavedSearches,
+  describeActiveSearchFilters,
+  formatSavedSearchTimestamp,
+} from "@/lib/savedSearchDraftLabel";
+import {
+  fetchSearchDraft,
+  promoteSearchDraft,
   type SaveSavedSearchPayload,
+  type SavedSearchDto,
 } from "@/lib/savedSearchesApi";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { SearchLocationState } from "@/lib/searchLocation";
@@ -17,6 +20,8 @@ type Props = {
   payload: Omit<SaveSavedSearchPayload, "label" | "enableEmailNotify">;
   filters: SearchFilters;
   searchLocation: SearchLocationState;
+  draft: SavedSearchDto | null;
+  onDraftChange?: (draft: SavedSearchDto | null) => void;
   onSaved?: () => void;
 };
 
@@ -24,53 +29,58 @@ export function SaveSearchModal({
   open,
   onClose,
   me,
-  payload,
+  payload: _payload,
   filters,
   searchLocation,
+  draft: draftProp,
+  onDraftChange,
   onSaved,
 }: Props) {
   const [label, setLabel] = useState("");
-  const [enableEmail, setEnableEmail] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [activeNotifyLabel, setActiveNotifyLabel] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SavedSearchDto | null>(draftProp);
+
+  useEffect(() => {
+    setDraft(draftProp);
+  }, [draftProp]);
 
   useEffect(() => {
     if (!open) return;
-    setLabel(autoLabelFromFilters(searchLocation, filters));
-    setEnableEmail(false);
     setErr(null);
-    void fetchSavedSearches()
-      .then((rows) => {
-        const active = rows.find((r) => r.emailNotifyEnabled);
-        setActiveNotifyLabel(active?.label ?? null);
+    if (draftProp) {
+      setLabel(draftProp.label);
+      return;
+    }
+    void fetchSearchDraft()
+      .then((row) => {
+        setDraft(row);
+        onDraftChange?.(row);
+        setLabel(row?.label ?? "");
       })
-      .catch(() => setActiveNotifyLabel(null));
-  }, [open, filters, searchLocation]);
+      .catch(() => {
+        setDraft(null);
+        setLabel("");
+      });
+  }, [open, draftProp, onDraftChange]);
 
   if (!open) return null;
 
-  const hasEmail = Boolean(me.email?.trim());
-  const emailDisabled = !hasEmail;
+  const summary = describeActiveSearchFilters(filters, searchLocation);
+  const lastSaved = draft?.updatedAt
+    ? formatSavedSearchTimestamp(draft.updatedAt, searchLocation.cityCode)
+    : null;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
-
-    if (enableEmail && activeNotifyLabel && activeNotifyLabel !== label.trim()) {
-      const ok = window.confirm(
-        `Ya tienes alertas activas para «${activeNotifyLabel}». ¿Quieres recibir alertas de esta búsqueda en su lugar?`,
-      );
-      if (!ok) return;
-    }
-
     setBusy(true);
     try {
-      await createSavedSearch({
-        ...payload,
-        label: label.trim() || autoLabelFromFilters(searchLocation, filters),
-        enableEmailNotify: enableEmail && hasEmail,
-      });
+      if (!draft?.id) {
+        setErr("Aún no hay una búsqueda auto-guardada. Ajusta los filtros y espera unos segundos.");
+        return;
+      }
+      await promoteSearchDraft(label.trim() || draft.label);
       onSaved?.();
       onClose();
     } catch (x) {
@@ -98,8 +108,26 @@ export function SaveSearchModal({
           Guardar búsqueda
         </h2>
         <p className="mt-1 text-sm text-muted">
-          Guarda tus filtros actuales para volver a esta búsqueda cuando quieras.
+          Confirma el nombre de tu búsqueda auto-guardada. Puedes editarlo antes de guardarla en Mis
+          Búsquedas.
         </p>
+
+        {lastSaved ? (
+          <p className="mt-3 text-xs text-muted">
+            Última auto-guardada: <span className="font-medium text-body">{lastSaved}</span>
+          </p>
+        ) : null}
+
+        {summary.length ? (
+          <div className="mt-3 rounded-xl border border-border bg-bg-light/40 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Filtros activos</p>
+            <ul className="mt-2 space-y-1 text-xs text-body">
+              {summary.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {err ? (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
@@ -117,32 +145,12 @@ export function SaveSearchModal({
             />
           </label>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={enableEmail}
-              disabled={emailDisabled}
-              onChange={(ev) => setEnableEmail(ev.target.checked)}
-            />
-            <span className="text-sm">
-              <span className="font-medium text-body">Recibir alertas por correo electrónico</span>
-              {emailDisabled ? (
-                <span className="mt-1 block text-xs text-muted">
-                  Agrega un correo en{" "}
-                  <Link to="/perfil/editar" className="font-semibold text-primary underline" onClick={onClose}>
-                    tu perfil
-                  </Link>{" "}
-                  para activar alertas.
-                </span>
-              ) : (
-                <span className="mt-1 block text-xs text-muted">
-                  Te enviaremos un correo con los anuncios que coincidan. Solo una búsqueda puede tener alertas
-                  activas a la vez.
-                </span>
-              )}
-            </span>
-          </label>
+          {!me.email?.trim() ? (
+            <p className="text-xs text-muted">
+              Para alertas por correo usa el botón <span className="font-semibold text-body">Seguir</span> en la
+              barra de filtros.
+            </p>
+          ) : null}
 
           <div className="flex gap-2 pt-1">
             <button
@@ -154,7 +162,7 @@ export function SaveSearchModal({
             </button>
             <button
               type="submit"
-              disabled={busy}
+              disabled={busy || !draft}
               className="flex-1 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-60"
             >
               {busy ? "Guardando…" : "Guardar"}

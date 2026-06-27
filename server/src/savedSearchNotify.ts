@@ -10,10 +10,12 @@ import {
 import type { SearchFilters } from "./searchFilters.js";
 import type { PropertyListing } from "./types.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
+import { formatSavedSearchDraftLabel } from "./savedSearchDraftLabel.js";
 
 const INITIAL_EMAIL_LISTING_CAP = 50;
 const FOLLOW_UP_OTHER_CAP = 5;
-const FOLLOW_UP_DEBOUNCE_MS = 10 * 60 * 1000;
+/** Minimum interval between follow-up alert emails (aggregate new matches in this window). */
+const FOLLOW_UP_DEBOUNCE_MS = 3 * 60 * 60 * 1000;
 
 export type SavedSearchRow = {
   id: string;
@@ -26,6 +28,7 @@ export type SavedSearchRow = {
   email_notify_enabled: number;
   unsubscribe_token: string;
   last_notified_at: string | null;
+  is_draft: number;
   created_at: string;
   updated_at: string;
 };
@@ -71,22 +74,10 @@ export function generateUnsubscribeToken(): string {
 
 export function autoLabelFromSearch(
   location: SavedSearchLocationSnapshot,
-  filters: SearchFilters,
+  _filters: SearchFilters,
+  at: Date = new Date(),
 ): string {
-  const parts: string[] = [];
-  if (location.neighborhoods.length) {
-    parts.push(location.neighborhoods.map((n) => n.name).join(", "));
-  } else if (location.cityLabel) {
-    parts.push(location.cityLabel);
-  } else {
-    parts.push(location.cityCode.toUpperCase());
-  }
-  if (filters.budgetMax != null) {
-    parts.push(`hasta $${filters.budgetMax.toLocaleString("es-MX")}`);
-  } else if (filters.budgetMin != null) {
-    parts.push(`desde $${filters.budgetMin.toLocaleString("es-MX")}`);
-  }
-  return parts.join(" · ") || "Mi búsqueda";
+  return formatSavedSearchDraftLabel(location, at);
 }
 
 export type EnableNotifyResult = {
@@ -257,6 +248,7 @@ export function rowToApi(row: SavedSearchRow, matchCount?: number) {
     cityCode: row.city_code,
     searchUrl: row.search_url,
     emailNotifyEnabled: row.email_notify_enabled === 1,
+    isDraft: row.is_draft === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(matchCount != null ? { matchCount } : {}),

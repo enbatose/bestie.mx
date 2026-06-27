@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
+import { FollowSearchNotifyModal } from "@/components/search/FollowSearchNotifyModal";
 import { SaveSearchModal } from "@/components/search/SaveSearchModal";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail, getFilterRailDefaultExpanded, type SearchFilterRailHandle } from "@/components/search/SearchFilterRail";
@@ -32,8 +33,23 @@ import {
 import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
 import { authMe, type AuthMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { buildSavedSearchUrl } from "@/lib/savedSearchesApi";
+import {
+  buildSavedSearchUrl,
+  enableSavedSearchNotify,
+  fetchSavedSearches,
+  promoteSearchDraft,
+  upsertSearchDraft,
+  type SavedSearchDto,
+} from "@/lib/savedSearchesApi";
+import {
+  consumeSaveSearchPendingAction,
+  dismissSaveSearchGuestNudge,
+  isSaveSearchGuestNudgeDismissed,
+  setSaveSearchPendingAction,
+} from "@/lib/saveSearchSession";
 import type { PropertyListing } from "@/types/listing";
+
+const AUTO_SAVE_DEBOUNCE_MS = 5000;
 
 function hasLocationCoords(params: URLSearchParams) {
   return params.has("lat") && params.has("lng") && params.has("z");
@@ -154,6 +170,12 @@ export function SearchPage() {
   const { openLogin } = useAuthModal();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [followModalOpen, setFollowModalOpen] = useState(false);
+  const [followSuccessOpen, setFollowSuccessOpen] = useState(false);
+  const [followEmailSent, setFollowEmailSent] = useState<boolean | null>(null);
+  const [searchDraft, setSearchDraft] = useState<SavedSearchDto | null>(null);
+  const [saveSearchPulse, setSaveSearchPulse] = useState(false);
+  const [guestNudgeVisible, setGuestNudgeVisible] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -180,14 +202,113 @@ export function SearchPage() {
     [location.pathname, normalizedFilters, searchLocation],
   );
 
-  const onSaveSearchClick = useCallback(() => {
-    const returnTo = `${location.pathname}${location.search}`;
-    if (!me?.id) {
+  const autoSaveSignature = useMemo(
+    () => JSON.stringify(saveSearchPayload),
+    [saveSearchPayload],
+  );
+
+  useEffect(() => {
+    if (!me?.id) return;
+    const t = window.setTimeout(() => {
+      void upsertSearchDraft(saveSearchPayload)
+        .then((row) => {
+          setSearchDraft(row);
+          setSaveSearchPulse(true);
+          window.setTimeout(() => setSaveSearchPulse(false), 2400);
+        })
+        .catch(() => {});
+    }, AUTO_SAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [me?.id, autoSaveSignature, saveSearchPayload]);
+
+  const returnTo = `${location.pathname}${location.search}`;
+
+  const openAuthForSearchAction = useCallback(
+    (action: "save" | "follow") => {
+      setSaveSearchPendingAction(action);
       openLogin(returnTo);
+    },
+    [openLogin, returnTo],
+  );
+
+  const runFollowEnable = useCallback(
+    async (emailOverride?: string) => {
+      if (!me?.id) return;
+
+      if (!me.email?.trim()) {
+        if (!emailOverride?.trim()) {
+          setFollowModalOpen(true);
+          return;
+        }
+      }
+
+      const rows = await fetchSavedSearches();
+      const other = rows.find((r) => r.emailNotifyEnabled);
+      if (other) {
+        const ok = window.confirm(
+          `Ya tienes alertas activas para «${other.label}». ¿Quieres recibir alertas de esta búsqueda en su lugar?`,
+        );
+        if (!ok) return;
+      }
+
+      await upsertSearchDraft(saveSearchPayload);
+      const promoted = await promoteSearchDraft();
+      const result = await enableSavedSearchNotify(promoted.id);
+      setSearchDraft(null);
+      setFollowEmailSent(result.emailSent ?? true);
+      setFollowSuccessOpen(true);
+      setSaveNotice("Alertas por correo activadas para esta búsqueda.");
+      window.setTimeout(() => setSaveNotice(null), 5000);
+    },
+    [me, saveSearchPayload],
+  );
+
+  const onSaveSearchClick = useCallback(() => {
+    if (!me?.id) {
+      openAuthForSearchAction("save");
       return;
     }
     setSaveModalOpen(true);
-  }, [location.pathname, location.search, me?.id, openLogin]);
+  }, [me?.id, openAuthForSearchAction]);
+
+  const onFollowSearchClick = useCallback(() => {
+    if (!me?.id) {
+      openAuthForSearchAction("follow");
+      return;
+    }
+    if (!me.email?.trim()) {
+      setFollowModalOpen(true);
+      return;
+    }
+    void runFollowEnable().catch((x) => {
+      setSaveNotice(x instanceof Error ? x.message : "No se pudieron activar las alertas.");
+      window.setTimeout(() => setSaveNotice(null), 5000);
+    });
+  }, [me, openAuthForSearchAction, runFollowEnable]);
+
+  const onGuestNudgeClick = useCallback(() => {
+    dismissSaveSearchGuestNudge();
+    setGuestNudgeVisible(false);
+    onSaveSearchClick();
+  }, [onSaveSearchClick]);
+
+  const dismissGuestNudge = useCallback(() => {
+    dismissSaveSearchGuestNudge();
+    setGuestNudgeVisible(false);
+  }, []);
+
+  useEffect(() => {
+    if (!me?.id) return;
+    const action = consumeSaveSearchPendingAction();
+    if (action === "save") setSaveModalOpen(true);
+    if (action === "follow") {
+      if (me.email?.trim()) {
+        void runFollowEnable().catch(() => setFollowModalOpen(true));
+      } else {
+        setFollowModalOpen(true);
+      }
+    }
+  }, [me, runFollowEnable]);
 
   const handleMobileDrawerOpen = useCallback(() => {
     filterRailRef.current?.collapseLegend();
@@ -268,6 +389,13 @@ export function SearchPage() {
     () => hasActiveSearchFilters(normalizedFilters) || searchLocation.neighborhoods.length > 0,
     [normalizedFilters, searchLocation.neighborhoods.length],
   );
+
+  useEffect(() => {
+    if (me?.id) return;
+    if (isSaveSearchGuestNudgeDismissed()) return;
+    if (!hasActiveFilters) return;
+    setGuestNudgeVisible(true);
+  }, [me?.id, hasActiveFilters]);
 
   const onViewportBbox = useCallback(
     (bbox: Bbox) => {
@@ -430,7 +558,14 @@ export function SearchPage() {
           setLocationError(`No se encontró la colonia "${query}". Mostramos la última ubicación.`);
         }}
         onLocationErrorDismiss={() => setLocationError(null)}
-        onSaveSearch={onSaveSearchClick}
+        onSaveClick={onSaveSearchClick}
+        onFollowClick={onFollowSearchClick}
+        saveSearchPulse={saveSearchPulse}
+        guestSaveNudge={
+          !me?.id && guestNudgeVisible
+            ? { visible: true, onDismiss: dismissGuestNudge, onClick: onGuestNudgeClick }
+            : undefined
+        }
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -494,18 +629,74 @@ export function SearchPage() {
       </div>
 
       {me?.id ? (
-        <SaveSearchModal
-          open={saveModalOpen}
-          onClose={() => setSaveModalOpen(false)}
-          me={me}
-          payload={saveSearchPayload}
-          filters={normalizedFilters}
-          searchLocation={searchLocation}
-          onSaved={() => {
-            setSaveNotice("Búsqueda guardada. Puedes verla en Mis Búsquedas.");
-            window.setTimeout(() => setSaveNotice(null), 5000);
+        <>
+          <SaveSearchModal
+            open={saveModalOpen}
+            onClose={() => setSaveModalOpen(false)}
+            me={me}
+            payload={saveSearchPayload}
+            filters={normalizedFilters}
+            searchLocation={searchLocation}
+            draft={searchDraft}
+            onDraftChange={setSearchDraft}
+            onSaved={() => {
+              setSearchDraft(null);
+              setSaveNotice("Búsqueda guardada. Puedes verla en Mis Búsquedas.");
+              window.setTimeout(() => setSaveNotice(null), 5000);
+            }}
+          />
+          <FollowSearchNotifyModal
+            open={followModalOpen}
+            onClose={() => setFollowModalOpen(false)}
+            me={me}
+            payload={saveSearchPayload}
+            onMeUpdated={(next) => {
+              setMe(next);
+              window.dispatchEvent(new Event("bestie:me-changed"));
+            }}
+            onEnabled={(emailSent) => {
+              setSearchDraft(null);
+              setFollowEmailSent(emailSent);
+              setFollowModalOpen(false);
+              setFollowSuccessOpen(true);
+              setSaveNotice("Alertas por correo activadas para esta búsqueda.");
+              window.setTimeout(() => setSaveNotice(null), 5000);
+            }}
+          />
+        </>
+      ) : null}
+
+      {followSuccessOpen ? (
+        <div
+          className="fixed inset-0 z-[95] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="follow-success-title"
+          onClick={(ev) => {
+            if (ev.target === ev.currentTarget) setFollowSuccessOpen(false);
           }}
-        />
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-xl"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <h2 id="follow-success-title" className="text-lg font-bold text-primary">
+              Alertas activadas
+            </h2>
+            <p className="mt-2 text-sm text-body">
+              {followEmailSent === false
+                ? "Las alertas quedaron activas. No pudimos enviar el correo inicial (revisa la configuración del servidor)."
+                : "Te enviaremos un correo con los anuncios que coincidan. Las alertas se agrupan como máximo cada 3 horas."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setFollowSuccessOpen(false)}
+              className="mt-5 w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

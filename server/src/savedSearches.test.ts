@@ -41,6 +41,66 @@ describe("saved searches API", () => {
     await request(app).get("/api/saved-searches").expect(401);
   });
 
+  it("upserts draft, promotes, and excludes draft from list", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: `draft-${testId}@test.mx`, password: "longenough1", displayName: "Draft" })
+      .expect(201);
+
+    const payload = {
+      cityCode: "gdl",
+      filters: {
+        q: "",
+        budgetMin: null,
+        budgetMax: 9000,
+        tags: [],
+        pref: null,
+        age: null,
+        ageMin: null,
+        ageMax: null,
+        bbox: null,
+        lodgingType: null,
+        wantHouse: false,
+        wantApartment: false,
+        wantLoft: false,
+        wantRecamara: false,
+        availableFrom: null,
+        minimalStayMonths: null,
+        roomDimension: null,
+        avalRequired: null,
+        subletAllowed: null,
+      },
+      location: {
+        cityCode: "gdl",
+        cityLabel: "Guadalajara",
+        neighborhoods: [{ name: "Providencia", lat: 20.69, lng: -103.38 }],
+        lat: 20.67,
+        lng: -103.34,
+        zoom: 12,
+      },
+      searchUrl: "/buscar/gdl?max=9000&lat=20.67&lng=-103.34&z=12",
+    };
+
+    const draft = await agent.put("/api/saved-searches/draft").send(payload).expect(200);
+    expect(draft.body.isDraft).toBe(true);
+    expect(draft.body.label).toContain("Guadalajara");
+    expect(draft.body.label).toContain("Providencia");
+
+    const listWhileDraft = await agent.get("/api/saved-searches").expect(200);
+    expect(listWhileDraft.body).toHaveLength(0);
+
+    const promoted = await agent
+      .post("/api/saved-searches/draft/promote")
+      .send({ label: "Mi búsqueda GDL" })
+      .expect(200);
+    expect(promoted.body.isDraft).toBe(false);
+    expect(promoted.body.label).toBe("Mi búsqueda GDL");
+
+    const listAfter = await agent.get("/api/saved-searches").expect(200);
+    expect(listAfter.body).toHaveLength(1);
+  });
+
   it("creates, lists, enables notify (one active), unsubscribes", async () => {
     vi.spyOn(mailer, "sendTransactionalEmail").mockResolvedValue(true);
 
