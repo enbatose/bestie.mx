@@ -1,6 +1,7 @@
 import { Camera, ChevronRight, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { listingCardQuickAttributes } from "@/components/search/searchQuickAttributes";
+import { quickAttributeGenderIconClass } from "@/components/icons/RestroomGenderIcons";
 import { listingCardSubtitle, listingCardTitle } from "@/lib/listingKeyLabels";
 import { listingCoverImageUrl } from "@/lib/listingImageUrls";
 import type { PropertyListing } from "@/types/listing";
@@ -168,13 +169,16 @@ function SearchListingMobileDrawerCard({
         <div className="mt-2.5 flex w-full items-center justify-between gap-1">
           {quickAttributes.map((item) => {
             const Icon = item.icon;
+            const mixedGender = item.id === "gender-mixed";
             return (
               <span key={item.id} className="group/icon relative inline-flex min-w-0 flex-1 justify-center">
                 <span
-                  className="inline-flex size-7 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border"
+                  className={`inline-flex items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border ${
+                    mixedGender ? "h-7 w-10 px-0.5" : "size-7"
+                  }`}
                   aria-hidden="true"
                 >
-                  <Icon className="size-3.5" aria-hidden="true" />
+                  <Icon className={quickAttributeGenderIconClass(item.id, true)} aria-hidden="true" />
                 </span>
                 <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block">
                   {item.tooltip}
@@ -227,13 +231,16 @@ function SearchListingSidebarCard({
             <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3">
               {quickAttributes.map((item) => {
                 const Icon = item.icon;
+                const mixedGender = item.id === "gender-mixed";
                 return (
                   <span key={item.id} className="group/icon relative inline-flex">
                     <span
-                      className="inline-flex size-8 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border sm:size-9"
+                      className={`inline-flex items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border ${
+                        mixedGender ? "h-8 w-11 px-0.5 sm:h-9 sm:w-12" : "size-8 sm:size-9"
+                      }`}
                       aria-hidden="true"
                     >
-                      <Icon className="size-4 sm:size-[1.05rem]" aria-hidden="true" />
+                      <Icon className={quickAttributeGenderIconClass(item.id, false)} aria-hidden="true" />
                     </span>
                     <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md md:group-hover/icon:block">
                       {item.tooltip}
