@@ -25,8 +25,12 @@ const GUEST_NUDGE_MS = 7_000;
 function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean }) {
   const height = compact ? 40 : mobile ? 56 : 44;
   const cornerRadius = compact ? 16 : mobile ? 19.2 : 10;
-  const strokeWidth = 3;
+  const strokeWidth = compact ? 4.5 : 3;
   const inset = strokeWidth / 2 + 1;
+  const dashArray = compact ? "0.28 0.72" : "0.18 0.82";
+  const ringClass = compact
+    ? "animate-[autosave-ring-travel_1.35s_linear_forwards] drop-shadow-[0_0_10px_rgba(6,95,70,0.85)]"
+    : "animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]";
 
   return (
     <svg
@@ -47,8 +51,8 @@ function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean })
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         pathLength="1"
-        strokeDasharray="0.18 0.82"
-        className="animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]"
+        strokeDasharray={dashArray}
+        className={ringClass}
       />
     </svg>
   );
