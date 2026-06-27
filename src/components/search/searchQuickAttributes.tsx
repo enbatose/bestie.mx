@@ -8,12 +8,15 @@ import {
   House,
   PawPrint,
   SlidersHorizontal,
-  UsersRound,
   Warehouse,
 } from "lucide-react";
 import { LgbtTextIcon } from "@/components/icons/LgbtTextIcon";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
-import { RestroomFemaleIcon, RestroomMaleIcon } from "@/components/icons/RestroomGenderIcons";
+import {
+  RestroomFemaleIcon,
+  RestroomMaleIcon,
+  RestroomMixedIcon,
+} from "@/components/icons/RestroomGenderIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
 
@@ -86,7 +89,7 @@ const GENDER_META = {
     id: "gender-mixed",
     label: "Mixto",
     tooltip: "Acepta convivencia mixta o grupal",
-    icon: UsersRound,
+    icon: RestroomMixedIcon,
   },
 } as const satisfies Record<string, SearchQuickAttribute>;
 
