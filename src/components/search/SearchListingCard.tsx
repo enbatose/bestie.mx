@@ -169,13 +169,10 @@ function SearchListingMobileDrawerCard({
         <div className="mt-2.5 flex w-full items-center justify-between gap-1">
           {quickAttributes.map((item) => {
             const Icon = item.icon;
-            const mixedGender = item.id === "gender-mixed";
             return (
               <span key={item.id} className="group/icon relative inline-flex min-w-0 flex-1 justify-center">
                 <span
-                  className={`inline-flex items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border ${
-                    mixedGender ? "h-7 w-10 px-0.5" : item.id === "gender-female" ? "h-7 w-8 px-0.5" : item.id === "gender-male" ? "h-7 w-9 px-0.5" : "size-7"
-                  }`}
+                  className="inline-flex size-7 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border"
                   aria-hidden="true"
                 >
                   <Icon className={quickAttributeGenderIconClass(item.id, true)} aria-hidden="true" />
@@ -231,19 +228,10 @@ function SearchListingSidebarCard({
             <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3">
               {quickAttributes.map((item) => {
                 const Icon = item.icon;
-                const mixedGender = item.id === "gender-mixed";
                 return (
                   <span key={item.id} className="group/icon relative inline-flex">
                     <span
-                      className={`inline-flex items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border ${
-                        mixedGender
-                          ? "h-8 w-11 px-0.5 sm:h-9 sm:w-12"
-                          : item.id === "gender-female"
-                            ? "h-8 w-9 px-0.5 sm:h-9 sm:w-10"
-                            : item.id === "gender-male"
-                              ? "h-8 w-10 px-0.5 sm:h-9 sm:w-11"
-                              : "size-8 sm:size-9"
-                      }`}
+                      className="inline-flex size-8 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border sm:size-9"
                       aria-hidden="true"
                     >
                       <Icon className={quickAttributeGenderIconClass(item.id, false)} aria-hidden="true" />

@@ -100,7 +100,7 @@ export function MustacheIcon({ className }: LucideProps) {
   return <TintedPngIcon className={className} src={mustachePng} />;
 }
 
-export const GENDER_MIXED_ICON_CLASS = "h-full w-[1.9rem] sm:w-[2.1rem]";
+export const GENDER_MIXED_ICON_CLASS = "h-full w-full";
 
 /** Mixto gender filter: exact provided neutral icon, recolored to match filter icons. */
 export function GenderMixedIcon({ className }: LucideProps) {
@@ -115,13 +115,13 @@ export function GenderMixedIcon({ className }: LucideProps) {
 
 function quickAttributeGenderIconClass(id: string, mobile: boolean): string {
   if (id === "gender-mixed") {
-    return mobile ? "h-4 w-[1.85rem]" : "h-[1.05rem] w-[2.05rem] sm:h-[1.1rem] sm:w-[2.15rem]";
+    return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
   }
   if (id === "gender-female") {
-    return mobile ? "h-[1.15rem] w-[1.45rem]" : "h-[1.2rem] w-[1.55rem] sm:h-[1.25rem] sm:w-[1.65rem]";
+    return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
   }
   if (id === "gender-male") {
-    return mobile ? "h-[1.05rem] w-[1.55rem]" : "h-[1.1rem] w-[1.65rem] sm:h-[1.15rem] sm:w-[1.75rem]";
+    return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
   }
   return mobile ? "size-3.5" : "size-4 sm:size-[1.05rem]";
 }
