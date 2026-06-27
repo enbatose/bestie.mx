@@ -25,7 +25,7 @@ const GUEST_NUDGE_MS = 7_000;
 function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean }) {
   const height = compact ? 40 : mobile ? 56 : 44;
   const cornerRadius = compact ? 16 : mobile ? 19.2 : 10;
-  const strokeWidth = compact ? 4.5 : 3;
+  const strokeWidth = compact ? 3.375 : 3;
   const inset = strokeWidth / 2 + 1;
   const dashArray = compact ? "0.38 0.62" : "0.18 0.82";
   const svgClass = compact
@@ -53,7 +53,7 @@ function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean })
           ry={cornerRadius}
           fill="none"
           stroke="#ffffff"
-          strokeWidth={strokeWidth + 2.25}
+          strokeWidth={strokeWidth + 1.6875}
           strokeLinecap="round"
           pathLength="1"
           strokeDasharray={dashArray}
