@@ -1,7 +1,7 @@
 import { Camera, ChevronRight, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { listingCardQuickAttributes } from "@/components/search/searchQuickAttributes";
-import { quickAttributeGenderIconClass } from "@/components/icons/RestroomGenderIcons";
+import { quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { listingCardSubtitle, listingCardTitle } from "@/lib/listingKeyLabels";
 import { listingCoverImageUrl } from "@/lib/listingImageUrls";
 import type { PropertyListing } from "@/types/listing";

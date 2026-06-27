@@ -13,10 +13,10 @@ import {
 import { LgbtTextIcon } from "@/components/icons/LgbtTextIcon";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
 import {
-  RestroomFemaleIcon,
-  RestroomMaleIcon,
-  RestroomMixedIcon,
-} from "@/components/icons/RestroomGenderIcons";
+  GenderMixedIcon,
+  HighHeelIcon,
+  MustacheIcon,
+} from "@/components/icons/GenderFilterIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
 
@@ -76,20 +76,20 @@ const GENDER_META = {
     label: "Mujeres",
     mobileLabel: "Soy Mujer",
     tooltip: "Buscar opciones para mujer",
-    icon: RestroomFemaleIcon,
+    icon: HighHeelIcon,
   },
   male: {
     id: "gender-male",
     label: "Hombres",
     mobileLabel: "Soy Hombre",
     tooltip: "Buscar opciones para hombre",
-    icon: RestroomMaleIcon,
+    icon: MustacheIcon,
   },
   any: {
     id: "gender-mixed",
     label: "Mixto",
     tooltip: "Acepta convivencia mixta o grupal",
-    icon: RestroomMixedIcon,
+    icon: GenderMixedIcon,
   },
 } as const satisfies Record<string, SearchQuickAttribute>;
 
