@@ -1,5 +1,6 @@
-import { Filter, Mail, Save as SaveIcon, Trash2, X } from "lucide-react";
+import { Filter, Mail, Trash2, X } from "lucide-react";
 import { useEffect } from "react";
+import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
 
 type SaveGroupProps = {
   onSaveClick: () => void;
@@ -118,7 +119,7 @@ function SaveSearchGroup({
           aria-label={mobile ? "Guardar búsqueda" : undefined}
           className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-[#c9a600]/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
         >
-          <SaveIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} aria-hidden strokeWidth={2.2} />
+          <SavedSearchIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} />
           {mobile ? null : <span className="truncate whitespace-nowrap">Guardar Búsqueda</span>}
         </button>
         <button
