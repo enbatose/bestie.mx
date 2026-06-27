@@ -229,36 +229,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
   const desktopLocationInputRef = useRef<HTMLInputElement | null>(null);
   const searchNeighborhoods = cityChipVisible;
 
-  const neighborhoodSelectionKey = searchLocation.neighborhoods.map((pin) => pin.name).join("|");
-
-  const filterSignature = useMemo(
-    () =>
-      JSON.stringify({
-        filters,
-        location: {
-          cityCode: searchLocation.cityCode,
-          neighborhoods: neighborhoodSelectionKey,
-          lat: searchLocation.lat,
-          lng: searchLocation.lng,
-          zoom: searchLocation.zoom,
-        },
-      }),
-    [filters, neighborhoodSelectionKey, searchLocation.cityCode, searchLocation.lat, searchLocation.lng, searchLocation.zoom],
-  );
-
-  const filterSignatureBootRef = useRef(true);
-  const [internalSavePulse, setInternalSavePulse] = useState(false);
-  const pulseActive = saveSearchPulse || internalSavePulse;
-
-  useEffect(() => {
-    if (filterSignatureBootRef.current) {
-      filterSignatureBootRef.current = false;
-      return;
-    }
-    setInternalSavePulse(true);
-    const t = window.setTimeout(() => setInternalSavePulse(false), 2400);
-    return () => window.clearTimeout(t);
-  }, [filterSignature]);
+  const pulseActive = saveSearchPulse;
 
   useEffect(() => {
     setLocationInput("");
