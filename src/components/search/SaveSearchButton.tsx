@@ -24,24 +24,27 @@ const GUEST_NUDGE_MS = 7_000;
 function PulseRing({ mobile }: { mobile?: boolean }) {
   const height = mobile ? 56 : 44;
   const cornerRadius = mobile ? 19.2 : 10;
+  const strokeWidth = 3;
+  const inset = strokeWidth / 2 + 1;
 
   return (
     <svg
-      className="pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)]"
+      className="pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)] overflow-visible"
       viewBox={`0 0 100 ${height}`}
       preserveAspectRatio="none"
       aria-hidden
     >
       <rect
-        x="1.5"
-        y="1.5"
-        width="97"
-        height={height - 3}
+        x={inset}
+        y={inset}
+        width={100 - inset * 2}
+        height={height - inset * 2}
         rx={cornerRadius}
         ry={cornerRadius}
         fill="none"
         stroke="#065f46"
-        strokeWidth="3"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
         pathLength="1"
         strokeDasharray="0.18 0.82"
         className="animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]"
@@ -103,19 +106,20 @@ function SaveSearchGroup({
 
   return (
     <div className={`relative min-w-0 ${mobile ? "w-full" : "shrink-0"} ${className}`}>
+      {pulseActive ? <PulseRing mobile={mobile} /> : null}
       <div
         className={`relative z-20 overflow-hidden border border-[#c9a600] shadow-sm ${heightClass} ${mobile ? "flex w-full" : "inline-flex"}`}
         role="group"
         aria-label="Guardar búsqueda"
       >
-        {pulseActive ? <PulseRing mobile={mobile} /> : null}
         <button
           type="button"
           onClick={onSaveClick}
+          aria-label={mobile ? "Guardar búsqueda" : undefined}
           className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-[#c9a600]/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
         >
           <SaveIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} aria-hidden strokeWidth={2.2} />
-          <span className="truncate whitespace-nowrap">{mobile ? "Guardar" : "Guardar Búsqueda"}</span>
+          {mobile ? null : <span className="truncate whitespace-nowrap">Guardar Búsqueda</span>}
         </button>
         <button
           type="button"
