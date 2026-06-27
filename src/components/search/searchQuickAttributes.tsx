@@ -37,13 +37,13 @@ const PROPERTY_TYPE_META: Record<PropertyKind, SearchQuickAttribute> = {
   house: {
     id: "property-house",
     label: "Casa",
-    tooltip: "Propiedad tipo casa",
+    tooltip: "Casa",
     icon: House,
   },
   apartment: {
     id: "property-apartment",
     label: "Depa",
-    tooltip: "Propiedad tipo departamento",
+    tooltip: "Departamento",
     icon: Building2,
   },
   loft: {
@@ -88,7 +88,7 @@ const GENDER_META = {
   any: {
     id: "gender-mixed",
     label: "Mixto",
-    tooltip: "Mujer o Hombre",
+    tooltip: "Hombre o Mujer",
     icon: GenderMixedIcon,
   },
 } as const satisfies Record<string, SearchQuickAttribute>;

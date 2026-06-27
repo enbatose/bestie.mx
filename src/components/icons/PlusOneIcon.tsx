@@ -73,7 +73,7 @@ export function PlusOneIcon({ className }: LucideProps) {
 
   return (
     <span className={["inline-flex h-full w-full items-center justify-center", className].filter(Boolean).join(" ")} aria-hidden>
-      <img src={tintedSrc} alt="" className="h-full w-full object-contain" />
+      <img src={tintedSrc} alt="" className="h-[118%] w-[118%] object-cover object-center" />
     </span>
   );
 }
