@@ -25,20 +25,42 @@ const GUEST_NUDGE_MS = 7_000;
 function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean }) {
   const height = compact ? 40 : mobile ? 56 : 44;
   const cornerRadius = compact ? 16 : mobile ? 19.2 : 10;
-  const strokeWidth = compact ? 4.5 : 3;
+  const strokeWidth = compact ? 5.5 : 3;
   const inset = strokeWidth / 2 + 1;
-  const dashArray = compact ? "0.28 0.72" : "0.18 0.82";
+  const dashArray = compact ? "0.38 0.62" : "0.18 0.82";
+  const svgClass = compact
+    ? "pointer-events-none absolute -inset-[5px] z-40 h-[calc(100%+10px)] w-[calc(100%+10px)] overflow-visible"
+    : "pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)] overflow-visible";
   const ringClass = compact
-    ? "animate-[autosave-ring-travel_1.35s_linear_forwards] drop-shadow-[0_0_10px_rgba(6,95,70,0.85)]"
+    ? "animate-[autosave-ring-travel_1.2s_linear_forwards] drop-shadow-[0_0_12px_rgba(255,255,255,0.95)]"
     : "animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]";
+  const strokeColor = compact ? "#102a43" : "#065f46";
 
   return (
     <svg
-      className="pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)] overflow-visible"
+      className={svgClass}
       viewBox={`0 0 100 ${height}`}
       preserveAspectRatio="none"
       aria-hidden
     >
+      {compact ? (
+        <rect
+          x={inset}
+          y={inset}
+          width={100 - inset * 2}
+          height={height - inset * 2}
+          rx={cornerRadius}
+          ry={cornerRadius}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth={strokeWidth + 3}
+          strokeLinecap="round"
+          pathLength="1"
+          strokeDasharray={dashArray}
+          opacity={0.95}
+          className={ringClass}
+        />
+      ) : null}
       <rect
         x={inset}
         y={inset}
@@ -47,7 +69,7 @@ function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean })
         rx={cornerRadius}
         ry={cornerRadius}
         fill="none"
-        stroke="#065f46"
+        stroke={strokeColor}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         pathLength="1"
