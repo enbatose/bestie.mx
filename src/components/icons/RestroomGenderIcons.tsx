@@ -16,7 +16,7 @@ export function RestroomFemaleIcon({ className, ...props }: LucideProps) {
   );
 }
 
-/** Classic restroom man pictogram: round head + torso block + separated legs. */
+/** Classic restroom man pictogram: round head + broad shoulders + separated trouser legs. */
 export function RestroomMaleIcon({ className, ...props }: LucideProps) {
   return (
     <svg
@@ -26,10 +26,8 @@ export function RestroomMaleIcon({ className, ...props }: LucideProps) {
       aria-hidden
       {...props}
     >
-      <circle cx="12" cy="5.5" r="3" />
-      <rect x="9.15" y="9.25" width="5.7" height="6.85" rx="0.55" />
-      <rect x="7.35" y="16.85" width="3.35" height="4.65" rx="0.55" />
-      <rect x="13.3" y="16.85" width="3.35" height="4.65" rx="0.55" />
+      <circle cx="12" cy="5.25" r="2.85" />
+      <path d="M7.5 8.25h9L16.35 15.1H13.35V21.35H10.65V15.1H7.65L7.5 8.25Z" />
     </svg>
   );
 }
