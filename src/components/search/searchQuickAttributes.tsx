@@ -59,13 +59,13 @@ const ROOM_TYPE_META = {
     id: "room-private",
     label: "Privado",
     mobileLabel: "Cuarto Privado",
-    tooltip: "Buscar cuarto privado",
+    tooltip: "Cuarto Privado",
     icon: DoorClosed,
   },
   shared_room: {
     id: "room-shared",
     label: "Compartido",
-    tooltip: "Recámara compartida",
+    tooltip: "Recámara Compartida",
     icon: PlusOneIcon,
   },
 } as const satisfies Record<string, SearchQuickAttribute>;
@@ -75,20 +75,20 @@ const GENDER_META = {
     id: "gender-female",
     label: "Mujeres",
     mobileLabel: "Soy Mujer",
-    tooltip: "Buscar opciones para mujer",
+    tooltip: "Solo Mujeres",
     icon: HighHeelIcon,
   },
   male: {
     id: "gender-male",
     label: "Hombres",
     mobileLabel: "Soy Hombre",
-    tooltip: "Buscar opciones para hombre",
+    tooltip: "Solo Hombres",
     icon: MustacheIcon,
   },
   any: {
     id: "gender-mixed",
     label: "Mixto",
-    tooltip: "Acepta convivencia mixta o grupal",
+    tooltip: "Mujer o Hombre",
     icon: GenderMixedIcon,
   },
 } as const satisfies Record<string, SearchQuickAttribute>;
@@ -97,7 +97,7 @@ const PRIVATE_BATHROOM_META: SearchQuickAttribute = {
   id: "private-bathroom",
   label: "Baño",
   mobileLabel: "Baño Privado",
-  tooltip: "Solo publicaciones con baño privado",
+  tooltip: "Baño Privado",
   icon: Bath,
 };
 
@@ -105,7 +105,7 @@ const PRIVATE_PARKING_META: SearchQuickAttribute = {
   id: "private-parking",
   label: "Cochera",
   mobileLabel: "Cochera Incluida",
-  tooltip: "Solo publicaciones con cochera incluida",
+  tooltip: "Cochera Incluida",
   icon: CarFront,
 };
 
@@ -113,7 +113,7 @@ const FURNISHED_META: SearchQuickAttribute = {
   id: "furnished",
   label: "Amueblado",
   mobileLabel: "Cuarto Amueblado",
-  tooltip: "Solo publicaciones con cuarto amueblado",
+  tooltip: "Recámara Amueblada",
   icon: Armchair,
 };
 
@@ -121,7 +121,7 @@ const PETS_META: SearchQuickAttribute = {
   id: "tag-mascotas",
   label: "Mascotas",
   mobileLabel: "Aceptan Mascotas",
-  tooltip: "Solo publicaciones que aceptan mascotas",
+  tooltip: "Aceptan Mascotas",
   icon: PawPrint,
 };
 
@@ -129,7 +129,7 @@ const LGBT_META: SearchQuickAttribute = {
   id: "tag-lgbt-friendly",
   label: "LGBT+",
   mobileLabel: "Comunidad LGBT+",
-  tooltip: "Solo publicaciones LGBT+ friendly",
+  tooltip: "LGBT+ Friendly",
   icon: LgbtTextIcon,
 };
 
@@ -143,8 +143,8 @@ function withTagToggle(filters: SearchFilters, tag: ListingTag): SearchFilters {
 export const ADVANCED_FILTERS_META: SearchQuickAttribute = {
   id: "advanced-filters",
   label: "Avanzado",
-  mobileLabel: "Mas filtros",
-  tooltip: "Abrir filtros avanzados",
+  mobileLabel: "Más filtros",
+  tooltip: "Filtros Avanzados",
   icon: SlidersHorizontal,
 };
 
@@ -160,7 +160,7 @@ const PRIVATE_ROOM_FILTER: SearchQuickFilterDefinition = {
 const LOFT_FILTER: SearchQuickFilterDefinition = {
   ...PROPERTY_TYPE_META.loft,
   mobileLabel: "Busco Loft",
-  tooltip: "Buscar publicaciones tipo loft",
+  tooltip: "Loft",
   isActive: (filters) => filters.wantLoft,
   toggle: (filters) => ({ ...filters, wantLoft: !filters.wantLoft }),
 };
