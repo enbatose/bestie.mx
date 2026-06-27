@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import type { LucideProps } from "lucide-react";
 import savedSearchPng from "@/assets/icons/saved-search.png";
 
+const ICON_MASK_VERSION = 2;
+
 const WHITE_THRESHOLD = 240;
 const maskCache = new Map<string, string>();
 
 function buildIconMask(src: string): Promise<string> {
-  const cached = maskCache.get(src);
+  const cacheKey = `${src}@${ICON_MASK_VERSION}`;
+  const cached = maskCache.get(cacheKey);
   if (cached) return Promise.resolve(cached);
 
   return new Promise((resolve, reject) => {
@@ -84,7 +87,7 @@ function buildIconMask(src: string): Promise<string> {
       }
       outCtx.putImageData(cropped, 0, 0);
       const dataUrl = out.toDataURL("image/png");
-      maskCache.set(src, dataUrl);
+      maskCache.set(cacheKey, dataUrl);
       resolve(dataUrl);
     };
     img.onerror = () => reject(new Error(`Unable to load icon source: ${src}`));
@@ -94,7 +97,7 @@ function buildIconMask(src: string): Promise<string> {
 
 /** Magnifying glass + floppy disk — saved search navigation icon. */
 export function SavedSearchIcon({ className }: LucideProps) {
-  const [maskUrl, setMaskUrl] = useState(() => maskCache.get(savedSearchPng) ?? "");
+  const [maskUrl, setMaskUrl] = useState(() => maskCache.get(`${savedSearchPng}@${ICON_MASK_VERSION}`) ?? "");
 
   useEffect(() => {
     let cancelled = false;
