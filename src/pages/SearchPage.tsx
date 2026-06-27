@@ -7,7 +7,7 @@ import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail, getFilterRailDefaultExpanded, type SearchFilterRailHandle } from "@/components/search/SearchFilterRail";
 import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
-import { SearchTopBar } from "@/components/search/SearchTopBar";
+import { SearchTopBar, type SearchTopBarHandle } from "@/components/search/SearchTopBar";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
 import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
@@ -92,6 +92,7 @@ export function SearchPage() {
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
   const mapSectionRef = useRef<HTMLDivElement>(null);
   const filterRailRef = useRef<SearchFilterRailHandle>(null);
+  const searchTopBarRef = useRef<SearchTopBarHandle>(null);
   const searchReturn = useMemo(
     (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
     [location.pathname, location.search],
@@ -170,6 +171,7 @@ export function SearchPage() {
   const { openLogin } = useAuthModal();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveModalFilters, setSaveModalFilters] = useState<SearchFilters | null>(null);
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followSuccessOpen, setFollowSuccessOpen] = useState(false);
   const [followEmailSent, setFollowEmailSent] = useState<boolean | null>(null);
@@ -201,6 +203,31 @@ export function SearchPage() {
     }),
     [location.pathname, normalizedFilters, searchLocation],
   );
+
+  const saveModalEffectiveFilters = saveModalFilters ?? normalizedFilters;
+
+  const saveModalPayload = useMemo(
+    () => ({
+      cityCode: searchLocation.cityCode,
+      filters: saveModalEffectiveFilters,
+      location: {
+        cityCode: searchLocation.cityCode,
+        cityLabel: searchLocation.cityLabel,
+        neighborhoods: searchLocation.neighborhoods,
+        lat: searchLocation.lat,
+        lng: searchLocation.lng,
+        zoom: searchLocation.zoom,
+      },
+      searchUrl: buildSavedSearchUrl(location.pathname, saveModalEffectiveFilters, searchLocation),
+    }),
+    [location.pathname, saveModalEffectiveFilters, searchLocation],
+  );
+
+  const openSaveSearchModal = useCallback(() => {
+    const flushed = searchTopBarRef.current?.commitPendingHorizontalFilters() ?? normalizedFilters;
+    setSaveModalFilters(flushed);
+    setSaveModalOpen(true);
+  }, [normalizedFilters]);
 
   const autoSaveSignature = useMemo(
     () => JSON.stringify(saveSearchPayload),
@@ -264,14 +291,17 @@ export function SearchPage() {
   );
 
   const onSaveSearchClick = useCallback(() => {
+    searchTopBarRef.current?.commitPendingHorizontalFilters();
     if (!me?.id) {
-      openAuthForSearchAction("save");
+      setSaveSearchPendingAction("save");
+      openLogin(returnTo);
       return;
     }
-    setSaveModalOpen(true);
-  }, [me?.id, openAuthForSearchAction]);
+    openSaveSearchModal();
+  }, [me?.id, openLogin, openSaveSearchModal, returnTo]);
 
   const onFollowSearchClick = useCallback(() => {
+    searchTopBarRef.current?.commitPendingHorizontalFilters();
     if (!me?.id) {
       openAuthForSearchAction("follow");
       return;
@@ -300,7 +330,7 @@ export function SearchPage() {
   useEffect(() => {
     if (!me?.id) return;
     const action = consumeSaveSearchPendingAction();
-    if (action === "save") setSaveModalOpen(true);
+    if (action === "save") openSaveSearchModal();
     if (action === "follow") {
       if (me.email?.trim()) {
         void runFollowEnable().catch(() => setFollowModalOpen(true));
@@ -534,6 +564,7 @@ export function SearchPage() {
         onChange={applyFilters}
       />
       <SearchTopBar
+        ref={searchTopBarRef}
         filters={normalizedFilters}
         listings={filtered}
         onChange={applyFilters}
@@ -632,10 +663,13 @@ export function SearchPage() {
         <>
           <SaveSearchModal
             open={saveModalOpen}
-            onClose={() => setSaveModalOpen(false)}
+            onClose={() => {
+              setSaveModalOpen(false);
+              setSaveModalFilters(null);
+            }}
             me={me}
-            payload={saveSearchPayload}
-            filters={normalizedFilters}
+            payload={saveModalPayload}
+            filters={saveModalEffectiveFilters}
             searchLocation={searchLocation}
             draft={searchDraft}
             onDraftChange={setSearchDraft}

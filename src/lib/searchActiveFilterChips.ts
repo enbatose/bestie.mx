@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Banknote,
   Building2,
   Calendar,
   DoorClosed,
@@ -8,17 +7,12 @@ import {
   MapPin,
   Scan,
   Tag,
-  UserRound,
   Warehouse,
 } from "lucide-react";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
-import {
-  HighHeelIcon,
-  MustacheIcon,
-} from "@/components/icons/GenderFilterIcons";
 import { MOBILE_MAP_QUICK_FILTERS } from "@/components/search/searchQuickAttributes";
 import { listingTagLabel } from "@/components/listing/ListingTagChips";
-import { LODGING_TYPE_LABELS, roommateGenderPrefLabel } from "@/lib/listingTags";
+import { LODGING_TYPE_LABELS } from "@/lib/listingTags";
 import { TAG_LABELS, type SearchFilters } from "@/lib/searchFilters";
 import type { SearchLocationState } from "@/lib/searchLocation";
 import type { ListingTag, RoomDimension } from "@/types/listing";
@@ -69,48 +63,6 @@ export function activeSearchFilterChips(
       id: "location-city",
       label: searchLocation.cityLabel,
       icon: MapPin,
-    });
-  }
-
-  if (filters.budgetMax != null) {
-    pushChip(chips, {
-      id: "rent-max",
-      label: `Renta máx. $${filters.budgetMax.toLocaleString("es-MX")}`,
-      icon: Banknote,
-    });
-  } else if (filters.budgetMin != null) {
-    pushChip(chips, {
-      id: "rent-min",
-      label: `Renta mín. $${filters.budgetMin.toLocaleString("es-MX")}`,
-      icon: Banknote,
-    });
-  }
-
-  if (filters.pref === "female") {
-    pushChip(chips, {
-      id: "gender-female",
-      label: roommateGenderPrefLabel("female"),
-      icon: HighHeelIcon,
-    });
-  } else if (filters.pref === "male") {
-    pushChip(chips, {
-      id: "gender-male",
-      label: roommateGenderPrefLabel("male"),
-      icon: MustacheIcon,
-    });
-  }
-
-  if (filters.age != null) {
-    pushChip(chips, {
-      id: "age",
-      label: `Edad ${filters.age}`,
-      icon: UserRound,
-    });
-  } else if (filters.ageMin != null || filters.ageMax != null) {
-    pushChip(chips, {
-      id: "age-range",
-      label: `Edad ${filters.ageMin ?? 18}–${filters.ageMax ?? 99}`,
-      icon: UserRound,
     });
   }
 

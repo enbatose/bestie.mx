@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Pencil, Search, X } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { SaveSearchButton, SaveSearchButtonMobile, FilterActionsGroup } from "@/components/search/SaveSearchButton";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
@@ -175,29 +175,37 @@ function LocationChip({
   );
 }
 
-export function SearchTopBar({
-  filters,
-  listings,
-  onChange,
-  onOpenAdvanced,
-  onClearFilters,
-  hasActiveFilters,
-  searchLocation,
-  locationError,
-  onCitySelect,
-  onNeighborhoodSelect,
-  onCityClear,
-  onNeighborhoodRemove,
-  onCityRestore,
-  onNeighborhoodSearchCommit,
-  onLocationInput,
-  onLocationNotFound,
-  onLocationErrorDismiss,
-  onSaveClick,
-  onFollowClick,
-  saveSearchPulse = false,
-  guestSaveNudge,
-}: Props) {
+export type SearchTopBarHandle = {
+  /** Applies pending rent input from the horizontal bar before saving a search. */
+  commitPendingHorizontalFilters: () => SearchFilters;
+};
+
+export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function SearchTopBar(
+  {
+    filters,
+    listings,
+    onChange,
+    onOpenAdvanced,
+    onClearFilters,
+    hasActiveFilters,
+    searchLocation,
+    locationError,
+    onCitySelect,
+    onNeighborhoodSelect,
+    onCityClear,
+    onNeighborhoodRemove,
+    onCityRestore,
+    onNeighborhoodSearchCommit,
+    onLocationInput,
+    onLocationNotFound,
+    onLocationErrorDismiss,
+    onSaveClick,
+    onFollowClick,
+    saveSearchPulse = false,
+    guestSaveNudge,
+  },
+  ref,
+) {
   const locationInputId = useId();
   const mobileLocationMenuId = useId();
   const desktopLocationMenuId = useId();
@@ -671,6 +679,38 @@ export function SearchTopBar({
     setMobileEditingField(null);
   }
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      commitPendingHorizontalFilters(): SearchFilters {
+        if (mobileEditingField !== "rent" && !rentFocused) {
+          return filters;
+        }
+
+        if (rentInput.trim() === "") {
+          const next = { ...filters, budgetMin: null, budgetMax: null };
+          onChange(next);
+          setMobileEditingField(null);
+          setRentFocused(false);
+          return next;
+        }
+
+        const parsed = parseRentMxnInput(rentInput);
+        if (parsed == null) {
+          return filters;
+        }
+
+        const next = { ...filters, budgetMin: null, budgetMax: parsed };
+        onChange(next);
+        setMobileEditingField(null);
+        setRentFocused(false);
+        setRentInput(formatRentCompact(parsed));
+        return next;
+      },
+    }),
+    [filters, mobileEditingField, onChange, rentFocused, rentInput],
+  );
+
   function startMobileEdit() {
     setRentFocused(false);
     setRentInput(displayedRent == null ? "" : formatRentCompact(displayedRent));
@@ -929,4 +969,4 @@ export function SearchTopBar({
       </div>
     </div>
   );
-}
+});

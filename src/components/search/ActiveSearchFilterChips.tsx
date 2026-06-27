@@ -5,11 +5,18 @@ import type { SearchLocationState } from "@/lib/searchLocation";
 type Props = {
   filters: SearchFilters;
   searchLocation: Pick<SearchLocationState, "cityLabel" | "neighborhoods">;
+  emptyLabel?: string;
 };
 
-export function ActiveSearchFilterChips({ filters, searchLocation }: Props) {
+export function ActiveSearchFilterChips({
+  filters,
+  searchLocation,
+  emptyLabel = "Sin filtros adicionales.",
+}: Props) {
   const chips = activeSearchFilterChips(filters, searchLocation);
-  if (!chips.length) return null;
+  if (!chips.length) {
+    return <p className="text-xs text-muted">{emptyLabel}</p>;
+  }
 
   return (
     <div className="flex flex-wrap gap-2">

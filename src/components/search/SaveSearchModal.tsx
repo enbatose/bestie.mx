@@ -1,5 +1,7 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActiveSearchFilterChips } from "@/components/search/ActiveSearchFilterChips";
+import { HorizontalBarFilterSummary } from "@/components/search/HorizontalBarFilterSummary";
 import { authUpdateMe, type AuthMe } from "@/lib/authApi";
 import { formatSavedSearchTimestamp } from "@/lib/savedSearchDraftLabel";
 import {
@@ -109,7 +111,7 @@ export function SaveSearchModal({
         }
       }
 
-      await upsertSearchDraft(payload);
+      await upsertSearchDraft({ ...payload, filters });
       const promoted = await promoteSearchDraft(label.trim() || draft?.label);
 
       if (emailNotifyOn) {
@@ -142,9 +144,20 @@ export function SaveSearchModal({
         className="w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-xl"
         onClick={(ev) => ev.stopPropagation()}
       >
-        <h2 id="save-search-title" className="text-lg font-bold text-primary">
-          Guardar búsqueda
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 id="save-search-title" className="text-lg font-bold text-primary">
+            Guardar búsqueda
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface-elevated hover:text-body disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Cerrar"
+          >
+            <X className="size-4" aria-hidden strokeWidth={2.5} />
+          </button>
+        </div>
         <p className="mt-1 text-sm text-muted">
           Confirma el nombre de tu búsqueda auto-guardada. Puedes editarlo antes de guardarla en Mis
           Búsquedas.
@@ -157,7 +170,12 @@ export function SaveSearchModal({
         ) : null}
 
         <div className="mt-3 rounded-xl border border-border bg-bg-light/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Filtros activos</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Barra de filtros</p>
+          <HorizontalBarFilterSummary filters={filters} />
+        </div>
+
+        <div className="mt-3 rounded-xl border border-border bg-bg-light/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Más filtros</p>
           <div className="mt-2">
             <ActiveSearchFilterChips filters={filters} searchLocation={searchLocation} />
           </div>
