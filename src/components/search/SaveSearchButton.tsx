@@ -1,4 +1,4 @@
-import { Bookmark, Mail, X } from "lucide-react";
+import { Mail, Save as SaveIcon, Trash2, X } from "lucide-react";
 import { useEffect } from "react";
 
 type SaveGroupProps = {
@@ -111,8 +111,8 @@ function SaveSearchGroup({
           onClick={onSaveClick}
           className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-[#c9a600]/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
         >
-          <Bookmark className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} aria-hidden strokeWidth={2.2} />
-          <span className="truncate whitespace-nowrap">Guardar Búsqueda</span>
+          <SaveIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} aria-hidden strokeWidth={2.2} />
+          <span className="truncate whitespace-nowrap">{mobile ? "Guardar" : "Guardar Búsqueda"}</span>
         </button>
         <button
           type="button"
@@ -172,19 +172,21 @@ export function FilterActionsGroup({
         <button
           type="button"
           onClick={onOpenAdvanced}
+          aria-label="Más filtros"
           className={`inline-flex flex-1 items-center justify-center gap-1.5 border-r border-primary/20 px-3 font-semibold text-primary transition hover:bg-bg-light/60 ${textClass}`}
         >
           <FilterIcon className={mobile ? "size-4" : "size-3.5"} />
-          Más
+          {mobile ? null : "Más"}
         </button>
         <button
           type="button"
           onClick={onClearFilters}
           disabled={clearDisabled}
+          aria-label="Borrar filtros"
           className={`inline-flex flex-1 items-center justify-center gap-1.5 px-3 font-semibold text-primary transition hover:bg-bg-light/60 disabled:cursor-not-allowed disabled:opacity-40 ${textClass}`}
         >
-          <ClearIcon className={mobile ? "size-4" : "size-3.5"} />
-          Borrar
+          {mobile ? <Trash2 className="size-4" aria-hidden strokeWidth={2.2} /> : <ClearIcon className="size-3.5" />}
+          {mobile ? null : "Borrar"}
         </button>
       </div>
     </fieldset>
