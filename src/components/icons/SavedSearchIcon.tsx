@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { LucideProps } from "lucide-react";
 import savedSearchPng from "@/assets/icons/saved-search.png";
 
-const ICON_MASK_VERSION = 3;
+const ICON_MASK_VERSION = 4;
 
 const WHITE_THRESHOLD = 240;
 const maskCache = new Map<string, string>();
