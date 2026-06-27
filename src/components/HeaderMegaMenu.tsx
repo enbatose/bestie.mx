@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
+  Bookmark,
   ChevronDown,
   CirclePlus,
   LayoutGrid,
@@ -281,6 +282,9 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       <NavLink to="/mis-anuncios" className={desktopNavClass} onClick={dismissNav}>
         Mis Anuncios
       </NavLink>
+      <NavLink to="/mis-busquedas" className={desktopNavClass} onClick={dismissNav}>
+        Mis Búsquedas
+      </NavLink>
       <NavLink
         to="/mensajes"
         className={desktopNavClass}
@@ -373,6 +377,10 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       <NavLink to="/mis-anuncios" className={mobileNavClass} onClick={dismissNav}>
         <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
         Mis Anuncios
+      </NavLink>
+      <NavLink to="/mis-busquedas" className={mobileNavClass} onClick={dismissNav}>
+        <Bookmark className="h-4 w-4 shrink-0" aria-hidden />
+        Mis Búsquedas
       </NavLink>
       <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>
         <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />

@@ -1312,6 +1312,18 @@ export function propertiesRouter(db: DatabaseSync) {
     }
 
     const updated = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
+
+    if (patch.status === "published" && curStatus !== "published") {
+      const roomIds = db
+        .prepare(`SELECT id FROM rooms WHERE property_id = ? AND status = 'published'`)
+        .all(propertyId) as { id: string }[];
+      void import("./savedSearchNotify.js").then(({ onRoomPublished }) => {
+        for (const { id } of roomIds) {
+          void onRoomPublished(db, id);
+        }
+      });
+    }
+
     res.json(rowToProperty(updated));
   });
 

@@ -425,6 +425,9 @@ export function listingsRouter(db: DatabaseSync) {
 
     db.prepare("UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(next, listing.id);
     const updated = db.prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`).get(listing.id) as Record<string, unknown>;
+    if (next === "published" && listing.status !== "published") {
+      void import("./savedSearchNotify.js").then(({ onRoomPublished }) => onRoomPublished(db, listing.id));
+    }
     res.json(listingForPublic(joinRowToPropertyListing(updated)));
   });
 

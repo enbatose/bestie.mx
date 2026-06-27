@@ -1,6 +1,8 @@
+import { Bookmark } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PropertyMap } from "@/components/map/PropertyMap";
+import { SaveSearchModal } from "@/components/search/SaveSearchModal";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail, getFilterRailDefaultExpanded, type SearchFilterRailHandle } from "@/components/search/SearchFilterRail";
 import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
@@ -29,6 +31,9 @@ import {
   type SearchLocationState,
 } from "@/lib/searchLocation";
 import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
+import { authMe, type AuthMe } from "@/lib/authApi";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+import { buildSavedSearchUrl } from "@/lib/savedSearchesApi";
 import type { PropertyListing } from "@/types/listing";
 
 function hasLocationCoords(params: URLSearchParams) {
@@ -147,6 +152,43 @@ export function SearchPage() {
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(getFilterRailDefaultExpanded);
+  const { openLogin } = useAuthModal();
+  const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () => void authMe().then(setMe).catch(() => setMe(null));
+    load();
+    window.addEventListener("bestie:me-changed", load);
+    return () => window.removeEventListener("bestie:me-changed", load);
+  }, []);
+
+  const saveSearchPayload = useMemo(
+    () => ({
+      cityCode: searchLocation.cityCode,
+      filters: normalizedFilters,
+      location: {
+        cityCode: searchLocation.cityCode,
+        cityLabel: searchLocation.cityLabel,
+        neighborhoods: searchLocation.neighborhoods,
+        lat: searchLocation.lat,
+        lng: searchLocation.lng,
+        zoom: searchLocation.zoom,
+      },
+      searchUrl: buildSavedSearchUrl(location.pathname, normalizedFilters, searchLocation),
+    }),
+    [location.pathname, normalizedFilters, searchLocation],
+  );
+
+  const onSaveSearchClick = useCallback(() => {
+    const returnTo = `${location.pathname}${location.search}`;
+    if (!me?.id) {
+      openLogin(returnTo);
+      return;
+    }
+    setSaveModalOpen(true);
+  }, [location.pathname, location.search, me?.id, openLogin]);
 
   const handleMobileDrawerOpen = useCallback(() => {
     filterRailRef.current?.collapseLegend();
@@ -427,6 +469,7 @@ export function SearchPage() {
               countLabel={mobileResultsCountLabel}
               autoExpandKey={farNeighborhoodAutoOpenKey}
               onDrawerOpen={handleMobileDrawerOpen}
+              onSaveSearch={onSaveSearchClick}
             />
           </div>
         </section>
@@ -434,8 +477,21 @@ export function SearchPage() {
         <aside className="hidden min-h-0 min-w-0 flex-col border-border bg-surface lg:flex lg:min-w-[300px] lg:flex-[1] lg:border-l">
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 className="text-base font-semibold text-body">Listados</h2>
-            <p className="text-sm text-muted">{resultsCountLabel}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted">{resultsCountLabel}</p>
+              <button
+                type="button"
+                onClick={onSaveSearchClick}
+                className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+              >
+                <Bookmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Guardar
+              </button>
+            </div>
           </div>
+          {saveNotice ? (
+            <p className="border-b border-border bg-secondary/10 px-4 py-2 text-xs text-body">{saveNotice}</p>
+          ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
             <SearchResultsList
               dense
@@ -447,6 +503,21 @@ export function SearchPage() {
           </div>
         </aside>
       </div>
+
+      {me?.id ? (
+        <SaveSearchModal
+          open={saveModalOpen}
+          onClose={() => setSaveModalOpen(false)}
+          me={me}
+          payload={saveSearchPayload}
+          filters={normalizedFilters}
+          searchLocation={searchLocation}
+          onSaved={() => {
+            setSaveNotice("Búsqueda guardada. Puedes verla en Mis Búsquedas.");
+            window.setTimeout(() => setSaveNotice(null), 5000);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

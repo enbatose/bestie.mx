@@ -243,3 +243,37 @@ export async function verifySmtpConnection(): Promise<void> {
     console.error(`[email] SMTP verify FAILED: ${diagnostics.verifyError}`);
   }
 }
+
+export type SendTransactionalEmailOpts = {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+};
+
+/** Send one outbound message when SMTP is configured; otherwise logs and returns false. */
+export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): Promise<boolean> {
+  if (!smtpConfigured()) {
+    console.warn("[email] send skipped: SMTP not configured");
+    return false;
+  }
+  const from = resolveSmtpUser();
+  if (!from) {
+    console.warn("[email] send skipped: no SMTP from address");
+    return false;
+  }
+  try {
+    const t = createTransporter();
+    await t.sendMail({
+      from,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      ...(opts.text ? { text: opts.text } : {}),
+    });
+    return true;
+  } catch (e) {
+    console.error(`[email] send failed: ${sanitizeSmtpError(e)}`);
+    return false;
+  }
+}

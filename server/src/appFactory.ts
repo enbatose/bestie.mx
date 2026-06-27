@@ -14,6 +14,7 @@ import { messagesRouter } from "./messagesRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
+import { savedSearchesRouter } from "./savedSearchesRouter.js";
 import { uploadsRouter } from "./uploadsRouter.js";
 import {
   getSmtpDiagnostics,
@@ -153,6 +154,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
   app.use("/api/auth", authRouter(db));
   app.use("/api/messages", messagesRouter(db));
+  app.use("/api/saved-searches", savedSearchesRouter(db));
   app.use("/api/admin", adminRouter(db));
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));

@@ -17,6 +17,7 @@ import { PropertyPage } from "@/pages/PropertyPage";
 import { PublishPreviewPage } from "@/pages/PublishPreviewPage";
 import { PublishWizardPage } from "@/pages/PublishWizardPage";
 import { RegisterPage } from "@/pages/RegisterPage";
+import { SavedSearchesPage } from "@/pages/SavedSearchesPage";
 import { SearchPage } from "@/pages/SearchPage";
 import { SignInPage } from "@/pages/SignInPage";
 
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
       { path: "publicar/vista-previa", element: <PublishPreviewPage /> },
       { path: "mockups/post-proposals", element: <PostExperienceMockupsPage /> },
       { path: "mis-anuncios", element: <MyListingsPage /> },
+      { path: "mis-busquedas", element: <SavedSearchesPage /> },
       { path: "perfil", element: <ProfilePage /> },
       { path: "perfil/editar", element: <AccountEditPage /> },
       { path: "mensajes", element: <MessagesPage /> },

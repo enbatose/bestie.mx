@@ -6,6 +6,7 @@ import type { ListingStatus } from "./types.js";
 import { backfillUserEmailCanonical } from "./authEmail.js";
 import { ensurePhaseCDSchema } from "./phaseCDSchema.js";
 import { ensureMessagingSchema } from "./messagingSchema.js";
+import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
 
 const SEED_PUBLISHER_ID = "__seed__";
 
@@ -463,6 +464,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensurePhaseCDSchema(db);
   backfillUserEmailCanonical(db);
   ensureMessagingSchema(db);
+  ensureSavedSearchSchema(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
   if (countRow.c === 0) {
