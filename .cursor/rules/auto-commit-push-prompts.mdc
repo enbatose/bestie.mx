@@ -1,0 +1,30 @@
+---
+description: After implementing prompt-driven changes, commit and push without being asked.
+alwaysApply: true
+---
+
+# Git: auto commit and push after prompt work
+
+When you **implement code or asset changes** in **this repository** (`bestie.mx`) in response to a user prompt, **commit and push automatically** at the end of that work — do **not** wait for a separate “commit and push” request.
+
+## When to commit
+
+- Do commit after completing the requested implementation (features, fixes, UI, assets, config tied to the task).
+- Do **not** commit for question-only or review-only turns with no repo changes.
+- Do **not** commit if the user explicitly says not to commit or push in that message.
+
+## What to include
+
+- Stage only files changed for the current task.
+- Exclude unrelated untracked or modified files (e.g. `_tmp_prod_bundle.js`, `.env`, credentials).
+- Follow the repo’s commit message style: concise, focused on **why**.
+
+## After commit
+
+- Always push immediately per `git-always-push.mdc` (`git push origin <current-branch>`).
+- If push fails, report the error and the exact command for the user to run locally.
+
+## Safety (unchanged)
+
+- Never force-push, amend pushed commits, or skip hooks unless the user explicitly requests it.
+- Never commit secrets.
