@@ -68,7 +68,7 @@ export function FollowSearchNotifyModal({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+      className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/45 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="follow-search-title"
