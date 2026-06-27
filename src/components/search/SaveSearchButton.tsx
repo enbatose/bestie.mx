@@ -211,7 +211,7 @@ export function MobileCombinedFilterBar({
       <span className={MOBILE_ROW_LABEL_CLASS}>Filtros</span>
       <div className="relative min-w-0 flex-1">
         <div
-          className={`flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm`}
+          className={`flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-visible rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm`}
           role="group"
           aria-label="Acciones de filtros y búsqueda guardada"
         >
@@ -219,7 +219,7 @@ export function MobileCombinedFilterBar({
             type="button"
             onClick={onOpenAdvanced}
             aria-label="Más filtros"
-            className={`${filterBtnClass} border-r border-primary/20`}
+            className={`${filterBtnClass} rounded-l-[0.95rem] border-r border-primary/20`}
           >
             <Filter className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
           </button>
@@ -235,7 +235,7 @@ export function MobileCombinedFilterBar({
           <div className={`relative flex min-w-0 flex-[2] ${MOBILE_CONTROL_HEIGHT}`}>
             {pulseActive ? <PulseRing mobile compact /> : null}
             <div
-              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden border-l border-[#c9a600]/70`}
+              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-r-[0.95rem] border-l border-[#c9a600]/70`}
               role="group"
               aria-label="Guardar búsqueda"
             >
