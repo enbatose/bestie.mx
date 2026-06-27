@@ -24,6 +24,14 @@ export function AppShellLayout() {
     }
   }, []);
 
+  const refreshUnread = useCallback(async () => {
+    try {
+      setUnread(await fetchUnreadMessageCount());
+    } catch {
+      setUnread(0);
+    }
+  }, []);
+
   useEffect(() => {
     void analyticsHeartbeat();
   }, []);
@@ -44,11 +52,16 @@ export function AppShellLayout() {
       setUnread(0);
       return;
     }
-    const load = () => void fetchUnreadMessageCount().then(setUnread).catch(() => setUnread(0));
-    load();
-    const t = window.setInterval(load, 25_000);
+    void refreshUnread();
+    const t = window.setInterval(() => void refreshUnread(), 25_000);
     return () => window.clearInterval(t);
-  }, [me?.id]);
+  }, [me?.id, refreshUnread]);
+
+  useEffect(() => {
+    const onReadChange = () => void refreshUnread();
+    window.addEventListener("bestie:messages-read-changed", onReadChange);
+    return () => window.removeEventListener("bestie:messages-read-changed", onReadChange);
+  }, [refreshUnread]);
 
   const isSearchPage = location.pathname === "/buscar" || location.pathname.startsWith("/buscar/");
 

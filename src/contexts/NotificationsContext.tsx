@@ -10,15 +10,55 @@ type NotificationsContextValue = {
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
+const STORAGE_KEY = "bestie:notifications:read-state:v1";
+
+function readStoredReadIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as { readIds?: unknown };
+    if (!Array.isArray(parsed.readIds)) return new Set();
+    return new Set(parsed.readIds.filter((value): value is string => typeof value === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function buildInitialNotifications(): NotificationItem[] {
+  const readIds = readStoredReadIds();
+  return INITIAL_NOTIFICATIONS.map((notification) =>
+    readIds.has(notification.id) ? { ...notification, isRead: true } : notification,
+  );
+}
+
+function persistNotifications(notifications: NotificationItem[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const readIds = notifications.filter((notification) => notification.isRead).map((notification) => notification.id);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ readIds }));
+  } catch {
+    // Ignore storage failures; in-memory state still works.
+  }
+}
+
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => buildInitialNotifications());
 
   const markNotificationRead = useCallback((id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setNotifications((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, isRead: true } : n));
+      persistNotifications(next);
+      return next;
+    });
   }, []);
 
   const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, isRead: true }));
+      persistNotifications(next);
+      return next;
+    });
   }, []);
 
   const hasUnreadNotifications = notifications.some((n) => !n.isRead);

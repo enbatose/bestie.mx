@@ -44,7 +44,12 @@ export function MessagesPage() {
     }
     try {
       setLoadingThread(true);
-      setMessages(await fetchConversationMessages(activeId));
+      const nextMessages = await fetchConversationMessages(activeId);
+      setMessages(nextMessages);
+      setRows((prev) =>
+        prev.map((row) => (row.id === activeId && row.unreadCount > 0 ? { ...row, unreadCount: 0 } : row)),
+      );
+      window.dispatchEvent(new Event("bestie:messages-read-changed"));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
       setMessages([]);

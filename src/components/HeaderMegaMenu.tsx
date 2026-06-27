@@ -78,7 +78,6 @@ type NotificationItemProps = NotificationItem;
 
 function LoggedInIconActions({
   hasUnreadMessages,
-  onMessagesClick,
   notifications,
   hasUnreadNotifications,
   notificationsOpen,
@@ -88,7 +87,6 @@ function LoggedInIconActions({
   onDismiss,
 }: {
   hasUnreadMessages: boolean;
-  onMessagesClick: () => void;
   notifications: NotificationItemProps[];
   hasUnreadNotifications: boolean;
   notificationsOpen: boolean;
@@ -102,7 +100,6 @@ function LoggedInIconActions({
       <NavLink
         to="/mensajes"
         className={iconBtnClass}
-        onClick={onMessagesClick}
         aria-label={hasUnreadMessages ? "Mensajes (sin leer)" : "Mensajes"}
       >
         <span className="relative inline-flex">
@@ -214,23 +211,15 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   const navigate = useNavigate();
   const { openLogin } = useAuthModal();
   const { notifications, hasUnreadNotifications, markNotificationRead } = useNotifications();
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (unreadCount > 0) setHasUnreadMessages(true);
-  }, [unreadCount]);
+  const hasUnreadMessages = unreadCount > 0;
 
   const dismissNav = useCallback(() => {
     setAvatarOpen(false);
     setNotificationsOpen(false);
-  }, []);
-
-  const onMessagesClick = useCallback(() => {
-    setHasUnreadMessages(false);
   }, []);
 
   useEffect(() => {
@@ -289,7 +278,6 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         to="/mensajes"
         className={desktopNavClass}
         onClick={() => {
-          onMessagesClick();
           dismissNav();
         }}
       >
@@ -356,7 +344,6 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         to="/mensajes"
         className={mobileNavClass}
         onClick={() => {
-          onMessagesClick();
           dismissNav();
         }}
       >
@@ -498,7 +485,6 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           <div className="hidden md:block">
             <LoggedInIconActions
               hasUnreadMessages={hasUnreadMessages}
-              onMessagesClick={onMessagesClick}
               notifications={notifications}
               hasUnreadNotifications={hasUnreadNotifications}
               notificationsOpen={notificationsOpen}
