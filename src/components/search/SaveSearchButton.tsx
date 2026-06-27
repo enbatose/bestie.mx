@@ -85,7 +85,6 @@ function SaveSearchGroup({
   onSaveClick,
   onFollowClick,
   pulseActive = false,
-  compact = false,
   guestNudge,
   className = "",
   mobile = false,
@@ -113,16 +112,15 @@ function SaveSearchGroup({
           className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-[#c9a600]/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
         >
           <Bookmark className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} aria-hidden strokeWidth={2.2} />
-          <span className="truncate">{compact && !mobile ? "Guardar" : "Guardar búsqueda"}</span>
+          <span className="truncate whitespace-nowrap">Guardar Búsqueda</span>
         </button>
         <button
           type="button"
           onClick={onFollowClick}
-          className={`inline-flex shrink-0 items-center justify-center gap-1 px-2.5 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW} ${textClass}`}
+          className={`inline-flex shrink-0 items-center justify-center px-2.5 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW} ${mobile ? "px-3" : "px-2.5"}`}
           aria-label="Seguir con alertas por correo"
         >
           <Mail className={mobile ? "size-4" : "size-3.5"} aria-hidden strokeWidth={2.2} />
-          <span>Seguir</span>
         </button>
       </div>
       {guestNudge?.visible ? (

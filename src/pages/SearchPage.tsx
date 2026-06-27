@@ -639,6 +639,10 @@ export function SearchPage() {
             searchLocation={searchLocation}
             draft={searchDraft}
             onDraftChange={setSearchDraft}
+            onMeUpdated={(next) => {
+              setMe(next);
+              window.dispatchEvent(new Event("bestie:me-changed"));
+            }}
             onSaved={() => {
               setSearchDraft(null);
               setSaveNotice("Búsqueda guardada. Puedes verla en Mis Búsquedas.");
