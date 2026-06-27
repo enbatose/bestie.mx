@@ -1,6 +1,6 @@
 import { Check, ChevronDown, Pencil, Search, X } from "lucide-react";
 import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { SaveSearchButton, SaveSearchButtonMobile, FilterActionsGroup } from "@/components/search/SaveSearchButton";
+import { SaveSearchButton, MobileCombinedFilterBar, FilterActionsGroup } from "@/components/search/SaveSearchButton";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
 import { neighborhoodChipLabel, neighborhoodNamesMatch, type SearchLocationState } from "@/lib/searchLocation";
@@ -850,21 +850,25 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
               </div>
             </div>
 
-            <div className={`grid min-w-0 grid-cols-2 gap-2 ${MOBILE_FILTER_HEIGHT}`}>
-              <FilterActionsGroup
-                mobile
-                onOpenAdvanced={onOpenAdvanced}
-                onClearFilters={onClearFilters}
-                clearDisabled={!hasActiveFilters}
-              />
+            <div className={`min-w-0 ${MOBILE_FILTER_HEIGHT}`}>
               {onSaveClick && onFollowClick ? (
-                <SaveSearchButtonMobile
+                <MobileCombinedFilterBar
+                  onOpenAdvanced={onOpenAdvanced}
+                  onClearFilters={onClearFilters}
+                  clearDisabled={!hasActiveFilters}
                   onSaveClick={onSaveClick}
                   onFollowClick={onFollowClick}
                   pulseActive={pulseActive}
                   guestNudge={guestSaveNudge}
                 />
-              ) : null}
+              ) : (
+                <FilterActionsGroup
+                  mobile
+                  onOpenAdvanced={onOpenAdvanced}
+                  onClearFilters={onClearFilters}
+                  clearDisabled={!hasActiveFilters}
+                />
+              )}
             </div>
           </div>
         </div>

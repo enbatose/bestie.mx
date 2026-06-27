@@ -22,9 +22,9 @@ const GOLD_FOLLOW =
 
 const GUEST_NUDGE_MS = 7_000;
 
-function PulseRing({ mobile }: { mobile?: boolean }) {
-  const height = mobile ? 56 : 44;
-  const cornerRadius = mobile ? 19.2 : 10;
+function PulseRing({ mobile, compact }: { mobile?: boolean; compact?: boolean }) {
+  const height = compact ? 40 : mobile ? 56 : 44;
+  const cornerRadius = compact ? 16 : mobile ? 19.2 : 10;
   const strokeWidth = 3;
   const inset = strokeWidth / 2 + 1;
 
@@ -144,6 +144,100 @@ export function SaveSearchButton(props: SaveGroupProps) {
 
 export function SaveSearchButtonMobile(props: Omit<SaveGroupProps, "compact" | "className">) {
   return <SaveSearchGroup {...props} mobile className="w-full" />;
+}
+
+const MOBILE_ROW_LABEL_CLASS =
+  "flex shrink-0 items-center text-[0.86rem] font-semibold leading-none text-primary";
+const MOBILE_ROW_SHELL_CLASS =
+  "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
+const MOBILE_ROW_HEIGHT = "h-14";
+const MOBILE_CONTROL_HEIGHT = "h-10";
+
+/** Mobile: Más, Borrar, Guardar, and alertas in one evenly spaced bar with a Filtros label. */
+export function MobileCombinedFilterBar({
+  onOpenAdvanced,
+  onClearFilters,
+  clearDisabled,
+  onSaveClick,
+  onFollowClick,
+  pulseActive = false,
+  guestNudge,
+}: {
+  onOpenAdvanced: () => void;
+  onClearFilters: () => void;
+  clearDisabled: boolean;
+  onSaveClick: () => void;
+  onFollowClick: () => void;
+  pulseActive?: boolean;
+  guestNudge?: SaveGroupProps["guestNudge"];
+}) {
+  useEffect(() => {
+    if (!guestNudge?.visible) return;
+    const t = window.setTimeout(() => guestNudge.onDismiss(), GUEST_NUDGE_MS);
+    return () => window.clearTimeout(t);
+  }, [guestNudge]);
+
+  const filterBtnClass =
+    "inline-flex min-w-0 flex-1 items-center justify-center text-primary transition hover:bg-bg-light/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40";
+
+  return (
+    <div className={`${MOBILE_ROW_SHELL_CLASS} ${MOBILE_ROW_HEIGHT} w-full min-w-0`}>
+      <span className={MOBILE_ROW_LABEL_CLASS}>Filtros</span>
+      <div className="relative min-w-0 flex-1">
+        <div
+          className={`flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm`}
+          role="group"
+          aria-label="Acciones de filtros y búsqueda guardada"
+        >
+          <button
+            type="button"
+            onClick={onOpenAdvanced}
+            aria-label="Más filtros"
+            className={`${filterBtnClass} border-r border-primary/20`}
+          >
+            <Filter className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+          </button>
+          <button
+            type="button"
+            onClick={onClearFilters}
+            disabled={clearDisabled}
+            aria-label="Borrar filtros"
+            className={`${filterBtnClass} border-r border-primary/20`}
+          >
+            <Trash2 className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+          </button>
+          <div className={`relative flex min-w-0 flex-[2] ${MOBILE_CONTROL_HEIGHT}`}>
+            {pulseActive ? <PulseRing mobile compact /> : null}
+            <div
+              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden border-l border-[#c9a600]/70`}
+              role="group"
+              aria-label="Guardar búsqueda"
+            >
+              <button
+                type="button"
+                onClick={onSaveClick}
+                aria-label="Guardar búsqueda"
+                className={`inline-flex min-w-0 flex-1 items-center justify-center border-r border-[#c9a600]/60 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN}`}
+              >
+                <SavedSearchIcon className="size-4 shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={onFollowClick}
+                aria-label="Seguir con alertas por correo"
+                className={`inline-flex min-w-0 flex-1 items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW}`}
+              >
+                <Mail className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+              </button>
+            </div>
+          </div>
+        </div>
+        {guestNudge?.visible ? (
+          <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 const MOBILE_FILTER_HEIGHT = "h-14";
