@@ -12,15 +12,17 @@ const money = new Intl.NumberFormat("es-MX", {
 export const EMAIL_ATTRIBUTE_LEGEND: { label: string; tooltip: string }[] = [
   { label: "Casa", tooltip: "Propiedad tipo casa" },
   { label: "Depa", tooltip: "Propiedad tipo departamento" },
-  { label: "Loft", tooltip: "Propiedad tipo loft" },
-  { label: "Privado", tooltip: "Cuarto privado" },
-  { label: "Compartido", tooltip: "Cuarto compartido" },
-  { label: "Mujer", tooltip: "Prefieren roomie mujer" },
-  { label: "Hombre", tooltip: "Prefieren roomie hombre" },
-  { label: "Baño privado", tooltip: "Baño privado en la recámara" },
-  { label: "Estacionamiento", tooltip: "Estacionamiento privado" },
-  { label: "Amueblado", tooltip: "Recámara amueblada" },
-  { label: "Mascotas", tooltip: "Se permiten mascotas" },
+  { label: "Loft", tooltip: "Loft" },
+  { label: "Privado", tooltip: "Cuarto Privado" },
+  { label: "Compartido", tooltip: "Recámara Compartida" },
+  { label: "Mujer", tooltip: "Solo Mujeres" },
+  { label: "Hombre", tooltip: "Solo Hombres" },
+  { label: "Mixto", tooltip: "Mujer o Hombre" },
+  { label: "Baño privado", tooltip: "Baño Privado" },
+  { label: "Cochera", tooltip: "Cochera Incluida" },
+  { label: "Amueblado", tooltip: "Recámara Amueblada" },
+  { label: "Mascotas", tooltip: "Aceptan Mascotas" },
+  { label: "LGBT+", tooltip: "LGBT+ Friendly" },
   { label: "Wi‑Fi", tooltip: "Wi‑Fi incluido" },
 ];
 
@@ -72,10 +74,12 @@ function listingAttributeLabels(listing: PropertyListing): string[] {
   else if (listing.lodgingType === "shared_room") labels.push("Compartido");
   if (listing.roommateGenderPref === "female") labels.push("Mujer");
   else if (listing.roommateGenderPref === "male") labels.push("Hombre");
+  else if (listing.roommateGenderPref === "any") labels.push("Mixto");
   if (listing.tags.includes("baño-privado")) labels.push("Baño privado");
-  if (listing.tags.includes("estacionamiento")) labels.push("Estacionamiento");
+  if (listing.tags.includes("estacionamiento")) labels.push("Cochera");
   if (listing.tags.includes("muebles")) labels.push("Amueblado");
   if (listing.tags.includes("mascotas")) labels.push("Mascotas");
+  if (listing.tags.includes("lgbt-friendly")) labels.push("LGBT+");
   if (listing.tags.includes("wifi")) labels.push("Wi‑Fi");
   return labels.slice(0, 6);
 }
