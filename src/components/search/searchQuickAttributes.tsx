@@ -12,6 +12,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { LgbtTextIcon } from "@/components/icons/LgbtTextIcon";
+import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
 import { RestroomFemaleIcon, RestroomMaleIcon } from "@/components/icons/RestroomGenderIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
@@ -62,7 +63,7 @@ const ROOM_TYPE_META = {
     id: "room-shared",
     label: "Compartido",
     tooltip: "Recámara compartida",
-    icon: UsersRound,
+    icon: PlusOneIcon,
   },
 } as const satisfies Record<string, SearchQuickAttribute>;
 
