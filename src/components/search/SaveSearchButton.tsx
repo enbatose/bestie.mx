@@ -22,20 +22,23 @@ const GOLD_FOLLOW =
 const GUEST_NUDGE_MS = 7_000;
 
 function PulseRing({ mobile }: { mobile?: boolean }) {
+  const height = mobile ? 56 : 44;
+  const cornerRadius = mobile ? 19.2 : 10;
+
   return (
     <svg
-      className="pointer-events-none absolute -inset-[3px] z-10 size-[calc(100%+6px)]"
-      viewBox={mobile ? "0 0 100 56" : "0 0 100 44"}
+      className="pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)]"
+      viewBox={`0 0 100 ${height}`}
       preserveAspectRatio="none"
       aria-hidden
     >
       <rect
-        x="2"
-        y="2"
-        width="96"
-        height={mobile ? 52 : 40}
-        rx={mobile ? 14 : 10}
-        ry={mobile ? 14 : 10}
+        x="1.5"
+        y="1.5"
+        width="97"
+        height={height - 3}
+        rx={cornerRadius}
+        ry={cornerRadius}
         fill="none"
         stroke="#065f46"
         strokeWidth="3"
@@ -99,13 +102,13 @@ function SaveSearchGroup({
   const textClass = mobile ? "text-[0.86rem]" : "text-xs sm:text-sm";
 
   return (
-    <div className={`relative shrink-0 ${className}`}>
-      {pulseActive ? <PulseRing mobile={mobile} /> : null}
+    <div className={`relative min-w-0 ${mobile ? "w-full" : "shrink-0"} ${className}`}>
       <div
-        className={`relative z-20 inline-flex overflow-hidden border border-[#c9a600] shadow-sm ${heightClass}`}
+        className={`relative z-20 overflow-hidden border border-[#c9a600] shadow-sm ${heightClass} ${mobile ? "flex w-full" : "inline-flex"}`}
         role="group"
         aria-label="Guardar búsqueda"
       >
+        {pulseActive ? <PulseRing mobile={mobile} /> : null}
         <button
           type="button"
           onClick={onSaveClick}
@@ -117,7 +120,7 @@ function SaveSearchGroup({
         <button
           type="button"
           onClick={onFollowClick}
-          className={`inline-flex shrink-0 items-center justify-center px-2.5 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW} ${mobile ? "px-3" : "px-2.5"}`}
+          className={`inline-flex items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW} ${mobile ? "w-[3.25rem] shrink-0 px-0" : "shrink-0 px-2.5"}`}
           aria-label="Seguir con alertas por correo"
         >
           <Mail className={mobile ? "size-4" : "size-3.5"} aria-hidden strokeWidth={2.2} />
@@ -135,7 +138,7 @@ export function SaveSearchButton(props: SaveGroupProps) {
 }
 
 export function SaveSearchButtonMobile(props: Omit<SaveGroupProps, "compact" | "className">) {
-  return <SaveSearchGroup {...props} mobile className="min-w-0 flex-1 self-end" />;
+  return <SaveSearchGroup {...props} mobile className="w-full" />;
 }
 
 const MOBILE_FILTER_HEIGHT = "h-14";
@@ -162,7 +165,7 @@ export function FilterActionsGroup({
   const textClass = mobile ? "text-[0.86rem]" : "text-xs sm:text-sm";
 
   return (
-    <fieldset className={mobile ? "flex min-w-0 flex-1 flex-col justify-end" : "shrink-0"}>
+    <fieldset className={mobile ? "min-w-0 w-full" : "shrink-0"}>
       <legend className={mobile ? "sr-only" : labelClass}>Filtros</legend>
       <div
         className={`${mobile ? "" : DESKTOP_FILTER_CONTROL_CLASS} inline-flex w-full overflow-hidden border border-primary/25 bg-surface shadow-sm ${heightClass}`}
