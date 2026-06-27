@@ -228,6 +228,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
   const mobileLocationInputRef = useRef<HTMLInputElement | null>(null);
   const desktopLocationInputRef = useRef<HTMLInputElement | null>(null);
   const searchNeighborhoods = cityChipVisible;
+  const neighborhoodSelectionKey = searchLocation.neighborhoods.map((pin) => pin.name).join("|");
 
   const pulseActive = saveSearchPulse;
 
