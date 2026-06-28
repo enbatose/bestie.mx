@@ -93,7 +93,7 @@ function GuestNudge({
       role="status"
     >
       <span
-        className="absolute left-[43%] top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-primary/20 bg-surface shadow-[-2px_-2px_4px_rgba(15,23,42,0.04)]"
+        className="absolute left-[67%] top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l-2 border-t-2 border-primary bg-surface shadow-[-2px_-2px_4px_rgba(20,61,48,0.18)]"
         aria-hidden
       />
       <button
