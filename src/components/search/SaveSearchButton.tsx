@@ -89,13 +89,17 @@ function GuestNudge({
 }) {
   return (
     <div
-      className="absolute right-0 top-[calc(100%+0.5rem)] z-[1250] w-[min(18rem,calc(100vw-2rem))]"
+      className="absolute left-1/2 top-[calc(100%+0.65rem)] z-[1250] w-[min(18rem,calc(100vw-2rem))] -translate-x-[58%]"
       role="status"
     >
+      <span
+        className="absolute left-[43%] top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-primary/20 bg-surface shadow-[-2px_-2px_4px_rgba(15,23,42,0.04)]"
+        aria-hidden
+      />
       <button
         type="button"
         onClick={onClick}
-        className="w-full rounded-xl border border-primary/20 bg-surface px-3 py-2.5 pr-9 text-left text-xs font-medium leading-snug text-body shadow-lg ring-1 ring-primary/10 transition hover:bg-surface-elevated"
+        className="relative w-full rounded-xl border border-primary/20 bg-surface px-3 py-2.5 pr-9 text-left text-xs font-medium leading-snug text-body shadow-lg ring-1 ring-primary/10 transition hover:bg-surface-elevated"
       >
         ¡Sé el primero en ver nuevas publicaciones!
       </button>
