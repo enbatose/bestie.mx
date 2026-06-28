@@ -27,6 +27,8 @@ function usage() {
 Examples:
   dns add bestie.mx --type TXT --name send --data "v=spf1 include:amazonses.com ~all"
   dns add bestie.mx --type CNAME --name resend._domainkey --data "xxx.dkim.resend.dev"
+  ns set bestie.mx --ns apollo.ns.cloudflare.com --ns joselyn.ns.cloudflare.com
+  ns get bestie.mx
 `);
   process.exit(1);
 }
@@ -60,12 +62,14 @@ async function api(path, init = {}) {
 }
 
 function parseFlags(argv) {
-  const flags = {};
+  const flags = { ns: [] };
   const positional = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--type" || a === "--name" || a === "--data" || a === "--ttl" || a === "--priority") {
       flags[a.slice(2)] = argv[++i];
+    } else if (a === "--ns") {
+      flags.ns.push(argv[++i]);
     } else {
       positional.push(a);
     }
@@ -109,6 +113,26 @@ async function addDns(domain, flags) {
   console.log("Note: GoDaddy may take 30–120s before changes appear. Re-check with dns list.");
 }
 
+async function getNameservers(domain) {
+  const data = await api(`/v1/domains/${encodeURIComponent(domain)}`);
+  console.log(JSON.stringify({ domain: data.domain, nameServers: data.nameServers, status: data.status }, null, 2));
+}
+
+async function setNameservers(domain, nameservers) {
+  if (nameservers.length < 2) {
+    console.error("ns set requires at least two --ns values");
+    usage();
+  }
+  await api(`/v1/domains/${encodeURIComponent(domain)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nameServers: nameservers }),
+  });
+  console.log(`Updated nameservers for ${domain}:`);
+  for (const ns of nameservers) console.log(`  ${ns}`);
+  console.log("Propagation can take minutes to 48h. Verify with: ns get", domain);
+}
+
 const [cmd, sub, domain, ...rest] = process.argv.slice(2);
 const { flags } = parseFlags(rest);
 
@@ -118,6 +142,10 @@ if (cmd === "domains") {
   await listDns(domain, flags.type?.toUpperCase());
 } else if (cmd === "dns" && sub === "add" && domain) {
   await addDns(domain, flags);
+} else if (cmd === "ns" && sub === "get" && domain) {
+  await getNameservers(domain);
+} else if (cmd === "ns" && sub === "set" && domain) {
+  await setNameservers(domain, flags.ns);
 } else {
   usage();
 }
