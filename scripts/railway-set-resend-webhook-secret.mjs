@@ -15,9 +15,9 @@ if (!line) {
   process.exit(1);
 }
 const value = line.slice("RESEND_WEBHOOK_SECRET=".length).trim();
-const r = spawnSync("railway", ["variables", "set", `RESEND_WEBHOOK_SECRET=${value}`], {
+const r = spawnSync("railway", ["variable", "set", `RESEND_WEBHOOK_SECRET=${value}`], {
   stdio: "inherit",
-  shell: true,
+  shell: false,
   cwd: resolve(dirname(fileURLToPath(import.meta.url)), ".."),
 });
 process.exit(r.status ?? 1);

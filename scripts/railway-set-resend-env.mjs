@@ -36,9 +36,14 @@ for (const [k, v] of [
   ["RESEND_API_KEY", apiKey],
   ["EMAIL_FROM", emailFrom],
 ]) {
-  const r = spawnSync("railway", ["variables", "set", `${k}=${v}`], {
-    stdio: "inherit",
-    shell: true,
+  const args =
+    /[\s<>"]/.test(v) && k === "EMAIL_FROM"
+      ? ["variable", "set", k, "--stdin"]
+      : ["variable", "set", `${k}=${v}`];
+  const r = spawnSync("railway", args, {
+    stdio: /[\s<>"]/.test(v) && k === "EMAIL_FROM" ? ["pipe", "inherit", "inherit"] : "inherit",
+    input: /[\s<>"]/.test(v) && k === "EMAIL_FROM" ? v : undefined,
+    shell: false,
     cwd: root,
   });
   if ((r.status ?? 1) !== 0) process.exit(r.status ?? 1);
