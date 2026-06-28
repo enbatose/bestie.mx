@@ -12,6 +12,7 @@ import { listingsRouter } from "./listingsRouter.js";
 import { locationSearchHandler } from "./locationSearch.js";
 import { messagesRouter } from "./messagesRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
+import { resendWebhookPost } from "./resendWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { savedSearchesRouter } from "./savedSearchesRouter.js";
@@ -139,6 +140,14 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
     express.raw({ type: "application/json", limit: "4mb" }),
     (req, res, next) => {
       void messengerWebhookPost(db)(req, res).catch(next);
+    },
+  );
+
+  app.post(
+    "/api/resend/webhook",
+    express.raw({ type: "application/json", limit: "1mb" }),
+    (req, res, next) => {
+      void resendWebhookPost(req, res).catch(next);
     },
   );
 

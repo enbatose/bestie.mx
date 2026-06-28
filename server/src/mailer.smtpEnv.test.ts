@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getRawSmtpUrl, getSmtpMode, resolveSmtpPass, resolveSmtpUser, smtpConfigured } from "./mailer.js";
+import {
+  getRawSmtpUrl,
+  getResendApiKey,
+  getSmtpMode,
+  resolveFromAddress,
+  resolveSmtpPass,
+  resolveSmtpUser,
+  smtpConfigured,
+} from "./mailer.js";
 
 describe("mailer SMTP env detection", () => {
   afterEach(() => {
@@ -46,5 +54,31 @@ describe("mailer SMTP env detection", () => {
     vi.stubEnv("SMTP_PASS", "");
     expect(smtpConfigured()).toBe(false);
     expect(getSmtpMode()).toBe("off");
+  });
+
+  it("treats RESEND_API_KEY + EMAIL_FROM as configured (API mode)", () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "Bestie <notifications@bestie.mx>");
+    expect(smtpConfigured()).toBe(true);
+    expect(getSmtpMode()).toBe("resend_api");
+    expect(getResendApiKey()).toBe("re_test_key");
+    expect(resolveFromAddress()).toBe("Bestie <notifications@bestie.mx>");
+  });
+
+  it("not configured when RESEND_API_KEY is set without EMAIL_FROM", () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "");
+    vi.stubEnv("SMTP_FROM", "");
+    expect(smtpConfigured()).toBe(false);
+    expect(getSmtpMode()).toBe("off");
+  });
+
+  it("detects Resend SMTP host", () => {
+    vi.stubEnv("SMTP_HOST", "smtp.resend.com");
+    vi.stubEnv("SMTP_USER", "resend");
+    vi.stubEnv("SMTP_PASS", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "Bestie <notifications@bestie.mx>");
+    expect(smtpConfigured()).toBe(true);
+    expect(getSmtpMode()).toBe("resend_smtp");
   });
 });

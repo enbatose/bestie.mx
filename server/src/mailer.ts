@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 export type SmtpDiagnostics = {
   configured: boolean;
@@ -9,7 +10,7 @@ export type SmtpDiagnostics = {
 
 /** Shown in `GET /api/health` when outbound mail is off (no secrets). */
 export const OUTBOUND_SMTP_SETUP_HINT =
-  "Optional: set GMAIL_USER + GMAIL_APP_PASSWORD, or SMTP_URL, on the **Node/API** service for future transactional email — not on the static front-end build.";
+  "Optional: set RESEND_API_KEY + EMAIL_FROM (recommended), or GMAIL_USER + GMAIL_APP_PASSWORD / SMTP_URL, on the **Node/API** service — not on the static front-end build.";
 
 const diagnostics: SmtpDiagnostics = {
   configured: false,
@@ -65,6 +66,31 @@ function tryParsePassFromSmtpUrl(): string {
   return "";
 }
 
+/** Resend HTTP API key (`re_…`). */
+export function getResendApiKey(): string | undefined {
+  return (
+    cleanEnv(process.env.RESEND_API_KEY) ||
+    cleanEnv(process.env.RESEND_KEY) ||
+    undefined
+  );
+}
+
+function isResendSmtpHost(hostOrUrl: string): boolean {
+  return hostOrUrl.toLowerCase().includes("resend.com");
+}
+
+/** Sender shown to recipients (`Bestie <notifications@bestie.mx>`). Required for Resend. */
+export function resolveFromAddress(): string | undefined {
+  const explicit =
+    cleanEnv(process.env.EMAIL_FROM) ||
+    cleanEnv(process.env.SMTP_FROM) ||
+    cleanEnv(process.env.RESEND_FROM);
+  if (explicit) return explicit;
+  const user = resolveSmtpUser();
+  if (user && user.toLowerCase() !== "resend" && user.includes("@")) return user;
+  return undefined;
+}
+
 /** Login / from address (supports common Railway-style `GMAIL_*` names and user embedded in `SMTP_URL`). */
 export function resolveSmtpUser(): string | undefined {
   const u =
@@ -101,10 +127,21 @@ export function wantsImplicitGmail(): boolean {
 }
 
 /** For `/api/health` — how outbound mail is configured (no secrets). */
-export function getSmtpMode(): "off" | "smtp_url" | "gmail_implicit" | "gmail_host" | "smtp_host" {
+export function getSmtpMode():
+  | "off"
+  | "resend_api"
+  | "resend_smtp"
+  | "smtp_url"
+  | "gmail_implicit"
+  | "gmail_host"
+  | "smtp_host" {
   if (!smtpConfigured()) return "off";
-  if (getRawSmtpUrl()) return "smtp_url";
+  if (getResendApiKey() && resolveFromAddress()) return "resend_api";
+  const url = getRawSmtpUrl();
+  if (url && isResendSmtpHost(url)) return "resend_smtp";
+  if (url) return "smtp_url";
   const h = cleanEnv(process.env.SMTP_HOST).toLowerCase();
+  if (isResendSmtpHost(h)) return "resend_smtp";
   if (h.includes("gmail.com")) return "gmail_host";
   if (cleanEnv(process.env.SMTP_HOST)) return "smtp_host";
   return "gmail_implicit";
@@ -112,13 +149,15 @@ export function getSmtpMode(): "off" | "smtp_url" | "gmail_implicit" | "gmail_ho
 
 /**
  * True when mail can be attempted:
+ * - `RESEND_API_KEY` + `EMAIL_FROM` / `SMTP_FROM`, or
  * - `SMTP_URL` / `EMAIL_URL` / etc., or
  * - any `SMTP_HOST`, or
  * - Gmail-style credentials without host (`GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_SERVICE=gmail`, etc.).
  */
 export function smtpConfigured(): boolean {
-  if (getRawSmtpUrl()) return true;
-  if (cleanEnv(process.env.SMTP_HOST)) return true;
+  if (getResendApiKey() && resolveFromAddress()) return true;
+  if (getRawSmtpUrl()) return Boolean(resolveFromAddress());
+  if (cleanEnv(process.env.SMTP_HOST)) return Boolean(resolveFromAddress() && resolveSmtpPass());
   const user = resolveSmtpUser();
   const pass = resolveSmtpPass();
   if (!user || !pass) return false;
@@ -229,6 +268,13 @@ export async function verifySmtpConnection(): Promise<void> {
     diagnostics.verifiedAt = null;
     return;
   }
+  if (getResendApiKey() && resolveFromAddress()) {
+    diagnostics.verifiedAt = new Date().toISOString();
+    diagnostics.verifyOk = true;
+    diagnostics.verifyError = null;
+    console.log("[email] Resend API configured");
+    return;
+  }
   try {
     const t = createTransporter();
     await t.verify();
@@ -251,18 +297,42 @@ export type SendTransactionalEmailOpts = {
   text?: string;
 };
 
-/** Send one outbound message when SMTP is configured; otherwise logs and returns false. */
-export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): Promise<boolean> {
-  if (!smtpConfigured()) {
-    console.warn("[email] send skipped: SMTP not configured");
+async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts): Promise<boolean> {
+  const key = getResendApiKey();
+  if (!key) return false;
+  const resend = new Resend(key);
+  const { data, error } = await resend.emails.send({
+    from,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    ...(opts.text ? { text: opts.text } : {}),
+  });
+  if (error) {
+    console.error(`[email] Resend send failed: ${sanitizeSmtpError(error)}`);
     return false;
   }
-  const from = resolveSmtpUser();
+  if (data?.id) {
+    console.log(`[email] Resend sent id=${data.id}`);
+  }
+  return true;
+}
+
+/** Send one outbound message when mail is configured; otherwise logs and returns false. */
+export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): Promise<boolean> {
+  if (!smtpConfigured()) {
+    console.warn("[email] send skipped: outbound mail not configured");
+    return false;
+  }
+  const from = resolveFromAddress();
   if (!from) {
-    console.warn("[email] send skipped: no SMTP from address");
+    console.warn("[email] send skipped: no from address (set EMAIL_FROM or SMTP_FROM)");
     return false;
   }
   try {
+    if (getResendApiKey()) {
+      return await sendViaResendApi(from, opts);
+    }
     const t = createTransporter();
     await t.sendMail({
       from,

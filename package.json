@@ -11,7 +11,11 @@
     "server:dev": "npm run dev --prefix server",
     "server:build": "npm run build --prefix server",
     "server:start": "npm run start --prefix server",
-    "env:local": "node scripts/write-env-local.mjs"
+    "env:local": "node scripts/write-env-local.mjs",
+    "godaddy:domains": "node --env-file=server/.env scripts/godaddy-api.mjs domains",
+    "godaddy:dns": "node --env-file=server/.env scripts/godaddy-api.mjs dns list bestie.mx",
+    "godaddy:validate": "node scripts/godaddy-validate.mjs",
+    "resend:validate": "node scripts/resend-validate.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
