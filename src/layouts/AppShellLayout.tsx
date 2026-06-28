@@ -69,7 +69,7 @@ export function AppShellLayout() {
     <AuthModalProvider>
       <NotificationsProvider>
       <div className={`flex flex-col dark:bg-bg-dark ${isSearchPage ? "h-dvh min-h-0" : "min-h-screen"}`}>
-        <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+        <header className="sticky top-0 z-[1800] border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
           <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <BrandLogo />
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">

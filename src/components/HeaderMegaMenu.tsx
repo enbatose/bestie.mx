@@ -130,7 +130,7 @@ function LoggedInIconActions({
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
         </button>
         {notificationsOpen ? (
-          <div className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,22rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
+          <div className="absolute right-0 top-full z-[1850] mt-2 w-[min(92vw,22rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
             <p className="border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted dark:border-slate-600">
               Notificaciones
             </p>
@@ -523,7 +523,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           </button>
           {avatarOpen ? (
             <div
-              className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,16rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900 md:w-56"
+              className="absolute right-0 top-full z-[1850] mt-2 w-[min(92vw,16rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900 md:w-56"
               role="menu"
             >
               <div className="max-h-[min(70dvh,28rem)] overflow-y-auto overscroll-contain md:max-h-none">

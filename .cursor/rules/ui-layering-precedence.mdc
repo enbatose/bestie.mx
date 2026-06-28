@@ -1,0 +1,27 @@
+---
+description: UI z-index and overlay precedence for Bestie.mx.
+alwaysApply: true
+---
+
+# UI Layering Precedence
+
+Before adding or moving floating UI, check the stacking order. Prefer existing layers over inventing new z-index values.
+
+## Layer Order
+
+- Base content and map: default / `z-0`.
+- Mobile list drawer: around `z-[1090]`.
+- Quick filter rail: around `z-[1100]`.
+- Search top bar and its nudges: around `z-[1200]` to `z-[1400]`.
+- Map listing popups: around `z-[1300]`.
+- App chrome dropdowns (avatar menu, notification menu): around `z-[1800]` to `z-[1850]`.
+- Sheets and modals: `z-[2000]` and above.
+- Confirmation dialogs: `z-[2200]`.
+
+## Rules
+
+- Header/avatar/notification menus must appear above search filters, map overlays, nudges, and rails.
+- Search nudges must appear above the map and not be clipped by parent overflow.
+- Do not raise page controls above modals.
+- When an element is still hidden despite a high child z-index, inspect parent stacking contexts (`position`, `z-index`, `transform`, `opacity`, `overflow`) before increasing the child value.
+- Avoid `overflow-hidden` on containers that need tooltips, nudges, dropdowns, or pulse rings to escape.
