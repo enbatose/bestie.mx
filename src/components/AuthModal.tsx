@@ -54,7 +54,7 @@ export function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] overflow-y-auto overscroll-y-contain bg-black/50 px-4 py-4 sm:py-8"
+      className="fixed inset-0 z-[2100] overflow-y-auto overscroll-y-contain bg-black/50 px-4 py-4 sm:py-8"
       style={{
         paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
