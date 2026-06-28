@@ -1,0 +1,28 @@
+---
+description: Checklist for updating filter/quick-attribute icon rendering.
+alwaysApply: true
+---
+
+# Icon Filter Rendering Updates
+
+When changing any filter or quick-attribute icon asset, color, size, or proportion, audit the whole rendering path before finishing.
+
+## Check The Actual Icon Path
+
+- Confirm the visible icon id first. In listing cards this comes from `listingCardQuickAttributes()` in `src/components/search/searchQuickAttributes.tsx`.
+- Do not assume a visually similar icon is the one being rendered. For example, shared-room/plus-one uses `room-shared` and `PlusOneIcon`, not `gender-mixed`.
+- Check the source component too. PNG-backed icons may scale internally (`img` classes like `h-full`, `w-full`, `object-contain`, or custom percentages), so wrapper size changes alone may not update the visible result.
+
+## Update All Relevant Contexts
+
+- Mobile listing cards: `SearchListingCard.tsx` plus `quickAttributeGenderIconClass()` in `GenderFilterIcons.tsx`.
+- Desktop listing cards: the non-mobile branch of the same helper.
+- Mobile map quick filter rail: `MOBILE_MAP_QUICK_FILTERS` and `SearchFilterRail.tsx`.
+- Active filter chips and saved-search summaries: `searchActiveFilterChips.ts`, `horizontalBarFilters.ts`, and any icon metadata they import.
+
+## Refresh And Verify
+
+- Keep Tailwind arbitrary size classes as literal strings (for example `size-[8.96px]`) so the build can include them.
+- Run `npm run build` after changing icon classes or assets. This refreshes generated CSS/asset hashes and catches missing classes/imports.
+- If an icon asset is replaced but the same component caches a processed data URL, ensure the cache key or asset URL changes, or add a versioned cache key.
+- Commit and push only the files related to the icon change; exclude unrelated files such as `_tmp_prod_bundle.js`.
