@@ -118,7 +118,7 @@ function quickAttributeGenderIconClass(id: string, mobile: boolean): string {
     return mobile ? "size-[10.5px]" : "size-4 sm:size-[1.05rem]";
   }
   if (id === "gender-mixed") {
-    return mobile ? "size-[7.5px]" : "size-4 sm:size-[1.05rem]";
+    return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
   }
   if (id === "gender-female") {
     return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
