@@ -115,7 +115,7 @@ export function GenderMixedIcon({ className }: LucideProps) {
 
 function quickAttributeGenderIconClass(id: string, mobile: boolean): string {
   if (id === "room-shared") {
-    return mobile ? "size-[3.78px]" : "size-5 sm:size-[1.3125rem]";
+    return mobile ? "size-[1.89px]" : "size-5 sm:size-[1.3125rem]";
   }
   if (id === "gender-mixed") {
     return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
