@@ -182,6 +182,57 @@ function sanitizeSmtpError(err: unknown): string {
     .slice(0, 280);
 }
 
+const RESEND_QUOTA_ERROR_CODES = new Set([
+  "daily_quota_exceeded",
+  "monthly_quota_exceeded",
+  "rate_limit_exceeded",
+]);
+
+/** Classify a Resend SDK `{ error }` payload for logging (no secrets). */
+export function formatResendSendError(error: unknown): {
+  code: string;
+  statusCode: number | null;
+  message: string;
+  isQuotaOrRateLimit: boolean;
+} {
+  const o = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const code = typeof o.name === "string" ? o.name : "unknown";
+  const statusCode = typeof o.statusCode === "number" ? o.statusCode : null;
+  const message = sanitizeSmtpError(typeof o.message === "string" ? o.message : error);
+  const isQuotaOrRateLimit =
+    statusCode === 429 ||
+    RESEND_QUOTA_ERROR_CODES.has(code) ||
+    /quota|rate limit/i.test(message);
+  return { code, statusCode, message, isQuotaOrRateLimit };
+}
+
+/** Log Resend send failures; quota / 429 responses get explicit guidance. */
+export function logResendSendError(error: unknown): void {
+  const { code, statusCode, message, isQuotaOrRateLimit } = formatResendSendError(error);
+  const status = statusCode != null ? ` HTTP ${statusCode}` : "";
+  if (code === "daily_quota_exceeded") {
+    console.error(
+      `[email] Resend daily quota exceeded${status}: ${message} — free tier 100/day; upgrade or wait 24h`,
+    );
+    return;
+  }
+  if (code === "monthly_quota_exceeded") {
+    console.error(
+      `[email] Resend monthly quota exceeded${status}: ${message} — free tier 3k/month; upgrade at resend.com/settings`,
+    );
+    return;
+  }
+  if (code === "rate_limit_exceeded") {
+    console.warn(`[email] Resend rate limited${status}: ${message} — backoff and retry`);
+    return;
+  }
+  if (isQuotaOrRateLimit) {
+    console.error(`[email] Resend quota/rate limit${status} (${code}): ${message}`);
+    return;
+  }
+  console.error(`[email] Resend send failed${status} (${code}): ${message}`);
+}
+
 function createGmailTransporter(): nodemailer.Transporter {
   const user = resolveSmtpUser();
   const pass = resolveSmtpPass();
@@ -309,7 +360,7 @@ async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts):
     ...(opts.text ? { text: opts.text } : {}),
   });
   if (error) {
-    console.error(`[email] Resend send failed: ${sanitizeSmtpError(error)}`);
+    logResendSendError(error);
     return false;
   }
   if (data?.id) {
