@@ -7,6 +7,30 @@ alwaysApply: true
 
 When changing any filter or quick-attribute icon asset, color, size, or proportion, audit the whole rendering path before finishing.
 
+## Critical: The Size Class Must Reach A Non-Conflicting Element
+
+A passed `size-*`/`size-[...]` class only changes the visible icon if the element that
+receives `className` does NOT also hardcode a conflicting size. This bit us repeatedly
+with `room-shared`/`PlusOneIcon`: its shell `<span>` hardcoded `h-full w-full`, which
+sits on the same element as the incoming `className`. Because `h-full`/`w-full` and
+`size-*` are all single-class selectors, the winner is decided by Tailwind's CSS source
+order (not class attribute order), so `h-full w-full` always won and every numeric size
+tweak was silently ignored while the icon filled its badge.
+
+Rules to keep resizing working first try:
+
+- The icon component's outer element (the one that receives `className`) must NOT hardcode
+  `h-full`, `w-full`, `size-*`, `w-*`, or `h-*`. Keep it layout-only, e.g.
+  `inline-flex items-center justify-center` (see `TintedPngIcon`/`imageShellClass`).
+- Put `h-full w-full object-contain` on the INNER `<img>` only, so it scales to the sized
+  shell rather than overriding the shell.
+- The single source of truth for quick-attribute icon size is
+  `quickAttributeGenderIconClass()` in `GenderFilterIcons.tsx`. Change sizes there.
+- Text-based icons (e.g. `LgbtTextIcon`) are sized by `text-[...]` (font-size), NOT by
+  `size-*`. To resize those, change the `text-[...]` classes in the component.
+- If a resize "does nothing", suspect a hardcoded size on the className-receiving element
+  before tweaking the number again.
+
 ## Check The Actual Icon Path
 
 - Confirm the visible icon id first. In listing cards this comes from `listingCardQuickAttributes()` in `src/components/search/searchQuickAttributes.tsx`.

@@ -4,7 +4,7 @@ import type { LucideProps } from "lucide-react";
 export function LgbtTextIcon({ className, ...props }: LucideProps) {
   return (
     <span
-      className={`inline-flex h-full w-full items-center justify-center text-[0.56rem] font-extrabold leading-none tracking-[-0.04em] sm:text-[0.62rem] ${className ?? ""}`}
+      className={`inline-flex items-center justify-center text-[0.56rem] font-extrabold leading-none tracking-[-0.04em] sm:text-[0.62rem] ${className ?? ""}`}
       aria-hidden
       {...props}
     >
