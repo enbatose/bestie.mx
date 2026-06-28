@@ -89,7 +89,7 @@ function GuestNudge({
 }) {
   return (
     <div
-      className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[min(18rem,calc(100vw-2rem))]"
+      className="absolute right-0 top-[calc(100%+0.5rem)] z-[1250] w-[min(18rem,calc(100vw-2rem))]"
       role="status"
     >
       <button

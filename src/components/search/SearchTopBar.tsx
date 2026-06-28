@@ -695,7 +695,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
     rentInput || rentCollapsedDisplay;
 
   return (
-    <div className="relative z-30 w-full min-w-0 overflow-x-hidden border-b border-primary/15 bg-secondary px-4 py-3 text-primary shadow-sm sm:overflow-visible sm:px-6 lg:px-8">
+    <div className="relative z-[1200] w-full min-w-0 overflow-visible border-b border-primary/15 bg-secondary px-4 py-3 text-primary shadow-sm sm:px-6 lg:px-8">
       <div className="w-full min-w-0 sm:hidden">
         <div className="w-full min-w-0 rounded-[1.75rem] bg-secondary/55 p-2 shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
           <div className="grid w-full min-w-0 gap-2">
