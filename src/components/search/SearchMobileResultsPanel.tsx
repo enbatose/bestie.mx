@@ -93,7 +93,7 @@ export function SearchMobileResultsPanel({
   };
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[1090] lg:hidden">
+    <div className={`pointer-events-none absolute inset-0 lg:hidden ${expanded ? "z-[1450]" : "z-[1090]"}`}>
       <div
         className={`pointer-events-none absolute inset-y-0 right-0 flex min-w-0 transition-[left,width] duration-300 ease-out ${
           expanded ? MOBILE_LIST_DRAWER_LEFT_CLASS : "left-auto"
