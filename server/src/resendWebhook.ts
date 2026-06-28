@@ -8,7 +8,7 @@ function resendClient(): Resend | null {
   return new Resend(key);
 }
 
-/** POST /api/resend/webhook — delivery, open, click, bounce events (Svix-signed). */
+/** POST /api/resend/webhook — Resend email + domain events (Svix-signed). See docs/integrations/resend-webhooks.md */
 export async function resendWebhookPost(req: Request, res: Response): Promise<void> {
   const secret = cleanEnv(process.env.RESEND_WEBHOOK_SECRET);
   if (!secret) {
@@ -36,11 +36,20 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
       webhookSecret: secret,
     });
 
-    const emailId = (event.data as { email_id?: string } | undefined)?.email_id;
-    const to = (event.data as { to?: string[] } | undefined)?.to;
-    console.log(
-      `[resend] ${event.type}${emailId ? ` email_id=${emailId}` : ""}${to?.length ? ` to=${to.join(",")}` : ""}`,
-    );
+    const data = event.data as Record<string, unknown> | undefined;
+    const emailId = typeof data?.email_id === "string" ? data.email_id : undefined;
+    const to = Array.isArray(data?.to) ? (data.to as string[]) : undefined;
+    const domain =
+      typeof data?.name === "string"
+        ? data.name
+        : typeof data?.domain === "string"
+          ? data.domain
+          : undefined;
+    const parts = [event.type];
+    if (emailId) parts.push(`email_id=${emailId}`);
+    if (to?.length) parts.push(`to=${to.join(",")}`);
+    if (domain) parts.push(`domain=${domain}`);
+    console.log(`[resend] ${parts.join(" ")}`);
 
     res.status(200).json({ ok: true });
   } catch (err) {
