@@ -36,7 +36,7 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
       webhookSecret: secret,
     });
 
-    const data = event.data as Record<string, unknown> | undefined;
+    const data = event.data as unknown as Record<string, unknown> | undefined;
     const emailId = typeof data?.email_id === "string" ? data.email_id : undefined;
     const to = Array.isArray(data?.to) ? (data.to as string[]) : undefined;
     const domain =
@@ -45,7 +45,7 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
         : typeof data?.domain === "string"
           ? data.domain
           : undefined;
-    const parts = [event.type];
+    const parts: string[] = [event.type];
     if (emailId) parts.push(`email_id=${emailId}`);
     if (to?.length) parts.push(`to=${to.join(",")}`);
     if (domain) parts.push(`domain=${domain}`);
