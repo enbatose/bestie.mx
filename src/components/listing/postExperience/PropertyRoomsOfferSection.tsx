@@ -41,7 +41,7 @@ export function PropertyRoomsOfferSection({ occupiedRooms, availableRooms, onOpe
       ) : null}
 
       {availableRooms.length ? (
-        <div id="property-available-rooms">
+        <div id="property-available-rooms" className="scroll-mt-24">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Cuartos disponibles</h3>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {availableRooms.map((room) => (

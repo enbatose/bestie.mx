@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   listingSharePath,
@@ -168,6 +168,12 @@ export function ListingPage() {
     if (!listingUpdated) return;
     navigate(location.pathname + location.search, { replace: true, state: null });
   }, [listingUpdated, location.pathname, location.search, navigate]);
+
+  useLayoutEffect(() => {
+    const roomId = new URLSearchParams(location.search).get("roomId");
+    if (roomId) return;
+    document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [id, location.search]);
 
   const { openLogin } = useAuthModal();
   const apiOn = isListingsApiConfigured();

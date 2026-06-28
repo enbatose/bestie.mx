@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { MessageCircle } from "lucide-react";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { ListingPhotoCarousel } from "@/components/listing/ListingPhotoCarousel";
@@ -33,7 +33,12 @@ export function PropertyRoomDetailModal({
   onContact,
   onClose,
 }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const photos = (room.imageUrls ?? room.photos ?? []).map((url) => apiAbsoluteUrl(url));
+
+  useEffect(() => {
+    panelRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [room.id]);
   const headerListing: PropertyListing = {
     ...listingForHeader,
     id: room.id,
@@ -62,6 +67,7 @@ export function PropertyRoomDetailModal({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >

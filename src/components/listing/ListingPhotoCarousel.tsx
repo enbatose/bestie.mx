@@ -276,11 +276,11 @@ export function ListingPhotoCarousel({ urls, failedUrls, onImageError }: Props) 
   }, []);
 
   useEffect(() => {
-    thumbRefs.current[index]?.scrollIntoView({
-      inline: "center",
-      block: "nearest",
-      behavior: "smooth",
-    });
+    const thumb = thumbRefs.current[index];
+    const container = thumb?.parentElement;
+    if (!thumb || !container) return;
+    const targetLeft = thumb.offsetLeft - (container.clientWidth - thumb.offsetWidth) / 2;
+    container.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
   }, [index, fullscreen]);
 
   useEffect(() => {

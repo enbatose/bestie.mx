@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
@@ -176,6 +176,17 @@ export function PublicPostExperienceListing({
     [closeExpandedRoom],
   );
 
+  useLayoutEffect(() => {
+    if (!isPropertyPost) return;
+    const roomId = searchParams.get("roomId");
+    if (!roomId) return;
+
+    const room = availableRooms.find((entry) => entry.id === roomId);
+    if (!room) return;
+
+    document.getElementById("property-available-rooms")?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [availableRooms, isPropertyPost, searchParams]);
+
   useEffect(() => {
     if (!isPropertyPost) return;
     const roomId = searchParams.get("roomId");
@@ -184,9 +195,7 @@ export function PublicPostExperienceListing({
     const room = availableRooms.find((entry) => entry.id === roomId);
     if (!room) return;
 
-    document.getElementById("property-available-rooms")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    const timer = window.setTimeout(() => setExpandedRoom(room), 350);
-    return () => window.clearTimeout(timer);
+    setExpandedRoom(room);
   }, [availableRooms, isPropertyPost, searchParams]);
 
   const photosBlock = galleryUrls.length ? (
