@@ -52,6 +52,7 @@ import {
   wizardContactDigits,
   publishDraftFromWizard,
   syncDraftToServer,
+  PROPERTY_SUMMARY_MIN,
   ROOM_SUMMARY_MIN,
 } from "@/lib/publishWizard/publishCore";
 import { firstRoomIndexWithIssues } from "@/lib/publishWizard/roomWizardValidation";
@@ -83,7 +84,6 @@ const PROPERTY_TITLE_MIN = 10;
 const PROPERTY_TITLE_MAX = 70;
 const PROPERTY_NEIGHBORHOOD_MIN = 3;
 const PROPERTY_NEIGHBORHOOD_MAX = 50;
-const PROPERTY_SUMMARY_MIN = 200;
 const PROPERTY_SUMMARY_MAX = 1500;
 const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;

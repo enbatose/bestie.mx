@@ -8,8 +8,10 @@ export const ROOM_TITLE_MAX_LEN = 120;
 export const RENT_MXN_MAX = 2_000_000;
 export const DEPOSIT_MXN_MAX = 2_000_000;
 export const ROOMS_AVAILABLE_MAX = 99;
-/** Minimum property description length (“Descripción de propiedad”). */
-export const PROPERTY_SUMMARY_MIN_LEN = 20;
+/** Minimum property description length (“ambiente y áreas comunes”). */
+export const PROPERTY_SUMMARY_MIN_LEN = 100;
+/** Minimum room description length (“detalles de esta recámara”). */
+export const ROOM_SUMMARY_MIN_LEN = 100;
 export const PROPERTY_BEDROOMS_MAX = 35;
 export const PROPERTY_BATHROOMS_MAX = 99;
 export const PUBLIC_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -83,6 +85,10 @@ export function clampDepositMxn(n: number): number {
 
 export function minimalPropertySummaryOk(s: string): boolean {
   return typeof s === "string" && s.trim().length >= PROPERTY_SUMMARY_MIN_LEN;
+}
+
+export function minimalRoomSummaryOk(s: string): boolean {
+  return typeof s === "string" && s.trim().length >= ROOM_SUMMARY_MIN_LEN;
 }
 
 /** Autosave drafts may use an all-zero placeholder until the user enters a real number. Publishing must reject it. */

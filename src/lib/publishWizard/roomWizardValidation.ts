@@ -4,7 +4,7 @@ import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { LodgingType, RoommateGenderPref } from "@/types/listing";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const ROOM_SUMMARY_MIN = 200;
+const ROOM_SUMMARY_MIN = 100;
 const ROOM_SUMMARY_MAX = 1500;
 const VALID_ROOM_LODGING_TYPES = ["private_room", "shared_room"] as const;
 const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "female", "male"];

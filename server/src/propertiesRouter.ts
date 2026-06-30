@@ -27,7 +27,9 @@ import {
   isSafePropertyId,
   isSafeRoomOrListingId,
   minimalPropertySummaryOk,
+  minimalRoomSummaryOk,
   PROPERTY_SUMMARY_MIN_LEN,
+  ROOM_SUMMARY_MIN_LEN,
   NEIGHBORHOOD_MAX_LEN,
   storedContactWhatsApp,
   ROOM_TITLE_MAX_LEN,
@@ -537,7 +539,7 @@ export function propertiesRouter(db: DatabaseSync) {
         const title = displayTitle;
         const summary = clampStr(String(rm.summary ?? ""), SUMMARY_MAX_LEN);
         if (occFields.occupancyStatus !== "occupied") {
-          if (!title || !summary) throw new Error("bad_room_text");
+          if (!title || !minimalRoomSummaryOk(summary)) throw new Error("bad_room_text");
         }
         const rentMxn = clampRentMxn(Number(rm.rentMxn ?? 0));
         const roomsAvailable = clampRoomsAvailable(Number(rm.roomsAvailable ?? 1));
@@ -1191,6 +1193,19 @@ export function propertiesRouter(db: DatabaseSync) {
           message: `Property description must be at least ${PROPERTY_SUMMARY_MIN_LEN} characters before publishing.`,
         });
         return;
+      }
+      const rentRooms = db
+        .prepare("SELECT summary, occupancy_status FROM rooms WHERE property_id = ?")
+        .all(propertyId) as { summary: string | null; occupancy_status: string | null }[];
+      for (const row of rentRooms) {
+        if (String(row.occupancy_status ?? "") === "occupied") continue;
+        if (!minimalRoomSummaryOk(String(row.summary ?? ""))) {
+          res.status(400).json({
+            error: "invalid_body",
+            message: `Each room description must be at least ${ROOM_SUMMARY_MIN_LEN} characters before publishing.`,
+          });
+          return;
+        }
       }
     }
 

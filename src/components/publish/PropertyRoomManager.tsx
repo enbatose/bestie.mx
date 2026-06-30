@@ -24,7 +24,7 @@ import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 
 const ROOM_STAY_MAX = 36;
-const ROOM_SUMMARY_MIN = 200;
+const ROOM_SUMMARY_MIN = 100;
 const ROOM_SUMMARY_MAX = 1500;
 const ROOM_OCCUPANT_MAX = 12;
 
