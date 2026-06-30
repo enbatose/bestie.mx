@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { MessageCircle } from "lucide-react";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { ListingPhotoCarousel } from "@/components/listing/ListingPhotoCarousel";
@@ -39,6 +40,22 @@ export function PropertyRoomDetailModal({
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [room.id]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const headerListing: PropertyListing = {
     ...listingForHeader,
     id: room.id,
@@ -58,12 +75,12 @@ export function PropertyRoomDetailModal({
     propertyKind: property.propertyKind,
   };
 
-  return (
+  const modal = (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`Detalles de ${room.customName || room.title}`}
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4"
+      className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/55 p-4"
       onClick={onClose}
     >
       <div
@@ -131,4 +148,6 @@ export function PropertyRoomDetailModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modal, document.body) : modal;
 }

@@ -356,7 +356,7 @@ export function ListingPhotoCarousel({ urls, failedUrls, onImageError }: Props) 
     fullscreen && typeof document !== "undefined"
       ? createPortal(
           <div
-            className="fixed inset-0 z-[200] flex flex-col bg-black/95"
+            className="fixed inset-0 z-[2100] flex flex-col bg-black/95"
             role="dialog"
             aria-modal="true"
             aria-label="Galería de fotos en pantalla completa"

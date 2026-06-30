@@ -17,6 +17,7 @@ Before adding or moving floating UI, check the stacking order. Prefer existing l
 - Expanded mobile post list: around `z-[1450]`.
 - App chrome dropdowns (avatar menu, notification menu): around `z-[1800]` to `z-[1850]`.
 - Sheets and app modals, including sign-in/sign-up: `z-[2000]` to `z-[2100]`.
+- Property room detail modal (room opened inside a property listing): `z-[2100]`, portaled to `document.body` — never use page-local values like `z-[120]`; content inside `<main>` cannot stack above the sticky header (`z-[1800]`).
 - Confirmation dialogs: `z-[2200]`.
 
 ## Rules
@@ -26,5 +27,6 @@ Before adding or moving floating UI, check the stacking order. Prefer existing l
 - Expanded mobile post list must appear above map pin post cards. If keeping both visible creates confusion, close the pin card when the list opens.
 - Search nudges must appear above the map and not be clipped by parent overflow.
 - Do not raise page controls above modals.
+- Full-screen overlays on listing pages (property room detail, photo gallery) must portal to `document.body` at the app-modal layer so they sit above app chrome.
 - When an element is still hidden despite a high child z-index, inspect parent stacking contexts (`position`, `z-index`, `transform`, `opacity`, `overflow`) before increasing the child value.
 - Avoid `overflow-hidden` on containers that need tooltips, nudges, dropdowns, or pulse rings to escape.
