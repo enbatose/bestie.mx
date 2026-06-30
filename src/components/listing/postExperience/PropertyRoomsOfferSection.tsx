@@ -18,9 +18,15 @@ type Props = {
   occupiedRooms: readonly Room[];
   availableRooms: readonly Room[];
   onOpenRoom: (room: Room) => void;
+  onViewPropertyDetails: () => void;
 };
 
-export function PropertyRoomsOfferSection({ occupiedRooms, availableRooms, onOpenRoom }: Props) {
+export function PropertyRoomsOfferSection({
+  occupiedRooms,
+  availableRooms,
+  onOpenRoom,
+  onViewPropertyDetails,
+}: Props) {
   return (
     <div className="space-y-6">
       {occupiedRooms.length ? (
@@ -73,6 +79,15 @@ export function PropertyRoomsOfferSection({ occupiedRooms, availableRooms, onOpe
                 </button>
               </article>
             ))}
+          </div>
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={onViewPropertyDetails}
+              className="inline-flex w-full max-w-sm items-center justify-center rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-body shadow-sm transition hover:bg-bg-light sm:w-auto"
+            >
+              Ver detalles de propiedad
+            </button>
           </div>
         </div>
       ) : null}

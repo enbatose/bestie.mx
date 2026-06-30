@@ -202,6 +202,10 @@ export function PublicPostExperienceListing({
     document.getElementById("property-available-rooms")?.scrollIntoView({ behavior: "auto", block: "start" });
   }, [isPropertyPost, searchParams]);
 
+  const scrollToPropertyPostTop = useCallback(() => {
+    document.getElementById("property-post-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const photosBlock = galleryUrls.length ? (
     <ListingPhotoCarousel urls={galleryUrls} failedUrls={failedImageUrls} onImageError={onImageError} />
   ) : (
@@ -250,7 +254,7 @@ export function PublicPostExperienceListing({
     };
 
     return (
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <section id="property-post-top" className="scroll-mt-24 space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <ListingTopActions searchRestorePath={searchRestorePath} ownerActions={ownerActions} />
         {statusBadge}
 
@@ -270,6 +274,7 @@ export function PublicPostExperienceListing({
           occupiedRooms={occupiedRooms}
           availableRooms={availableRooms}
           onOpenRoom={openRoom}
+          onViewPropertyDetails={scrollToPropertyPostTop}
         />
 
         <ListingSection title="Mapa y Street View">
