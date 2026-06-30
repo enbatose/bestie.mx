@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
@@ -128,13 +128,33 @@ export function PublicPostExperienceListing({
   const [singleMessage, setSingleMessage] = useState(DEFAULT_SINGLE_MESSAGE);
   const [propertyMessage, setPropertyMessage] = useState(DEFAULT_PROPERTY_MESSAGE);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
-  const [expandedRoom, setExpandedRoom] = useState<Room | null>(null);
 
   const property = propertyPack?.property;
   const allRooms = propertyPack ? publishedRooms(propertyPack.rooms) : [];
   const occupiedRooms = allRooms.filter((room) => !isRoomAvailableForRent(room));
   const availableRooms = allRooms.filter((room) => isRoomAvailableForRent(room));
   const propertyTags = useMemo(() => mergePropertyScopeTagsFromRooms(allRooms), [allRooms]);
+
+  const expandedRoom = useMemo(() => {
+    if (!isPropertyPost) return null;
+    const roomId = searchParams.get("roomId");
+    if (!roomId) return null;
+    return availableRooms.find((entry) => entry.id === roomId) ?? null;
+  }, [availableRooms, isPropertyPost, searchParams]);
+
+  const openRoom = useCallback(
+    (room: Room) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("roomId", room.id);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const menCount = property?.occupiedByMenCount ?? 0;
   const womenCount = property?.occupiedByWomenCount ?? 0;
@@ -152,17 +172,15 @@ export function PublicPostExperienceListing({
   );
 
   const closeExpandedRoom = useCallback(() => {
-    setExpandedRoom(null);
-    if (searchParams.get("roomId")) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("roomId");
-          return next;
-        },
-        { replace: true },
-      );
-    }
+    if (!searchParams.get("roomId")) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("roomId");
+        return next;
+      },
+      { replace: true },
+    );
   }, [searchParams, setSearchParams]);
 
   const contactFromExpandedRoom = useCallback(
@@ -181,22 +199,8 @@ export function PublicPostExperienceListing({
     const roomId = searchParams.get("roomId");
     if (!roomId) return;
 
-    const room = availableRooms.find((entry) => entry.id === roomId);
-    if (!room) return;
-
     document.getElementById("property-available-rooms")?.scrollIntoView({ behavior: "auto", block: "start" });
-  }, [availableRooms, isPropertyPost, searchParams]);
-
-  useEffect(() => {
-    if (!isPropertyPost) return;
-    const roomId = searchParams.get("roomId");
-    if (!roomId) return;
-
-    const room = availableRooms.find((entry) => entry.id === roomId);
-    if (!room) return;
-
-    setExpandedRoom(room);
-  }, [availableRooms, isPropertyPost, searchParams]);
+  }, [isPropertyPost, searchParams]);
 
   const photosBlock = galleryUrls.length ? (
     <ListingPhotoCarousel urls={galleryUrls} failedUrls={failedImageUrls} onImageError={onImageError} />
@@ -265,7 +269,7 @@ export function PublicPostExperienceListing({
         <PropertyRoomsOfferSection
           occupiedRooms={occupiedRooms}
           availableRooms={availableRooms}
-          onOpenRoom={setExpandedRoom}
+          onOpenRoom={openRoom}
         />
 
         <ListingSection title="Mapa y Street View">
@@ -288,7 +292,7 @@ export function PublicPostExperienceListing({
             )
           }
           availableRooms={availableRooms}
-          onRoomClick={setExpandedRoom}
+          onRoomClick={openRoom}
           onSend={() => contact.onSendProperty(propertyMessage, selectedRoomIds, availableRooms)}
         />
 

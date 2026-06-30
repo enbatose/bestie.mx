@@ -17,7 +17,7 @@ Before adding or moving floating UI, check the stacking order. Prefer existing l
 - Expanded mobile post list: around `z-[1450]`.
 - App chrome dropdowns (avatar menu, notification menu): around `z-[1800]` to `z-[1850]`.
 - Sheets and app modals, including sign-in/sign-up: `z-[2000]` to `z-[2100]`.
-- Property room detail modal (room opened inside a property listing): `z-[2100]`, portaled to `document.body` — never use page-local values like `z-[120]`; content inside `<main>` cannot stack above the sticky header (`z-[1800]`).
+- Property room detail modal (room opened inside a property listing): `z-[2100]`, portaled to `document.body` — never use page-local values like `z-[120]`; content inside `<main>` cannot stack above the sticky header (`z-[1800]`). Open/close via the `roomId` search param only (derive the open room from URL + `availableRooms`; do not keep a separate `expandedRoom` state that can reopen after close).
 - Confirmation dialogs: `z-[2200]`.
 
 ## Rules
