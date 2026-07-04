@@ -19,6 +19,29 @@ export function isAuthApiConfigured(): boolean {
   return true;
 }
 
+/** Full-page redirect URL to start Google OAuth (server sets session cookie on callback). */
+export function googleSignInUrl(returnTo?: string): string {
+  const base = apiBase();
+  const path = "/api/auth/google";
+  if (!returnTo?.trim()) return `${base}${path}`;
+  return `${base}${path}?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+const GOOGLE_OAUTH_ERRORS: Record<string, string> = {
+  google_denied: "Cancelaste el inicio de sesión con Google.",
+  google_not_configured: "Google no está configurado en el servidor.",
+  google_state_mismatch: "La sesión de Google expiró. Inténtalo de nuevo.",
+  google_token_failed: "No pudimos validar tu cuenta de Google. Inténtalo de nuevo.",
+  google_profile_failed: "Google no compartió tu correo. Elige otra cuenta o usa correo y contraseña.",
+  google_account_failed: "No pudimos crear tu cuenta con Google.",
+  google_oauth_failed: "Error al iniciar sesión con Google. Inténtalo de nuevo.",
+};
+
+export function googleOAuthErrorMessage(code: string | null | undefined): string | null {
+  if (!code?.trim()) return null;
+  return GOOGLE_OAUTH_ERRORS[code] ?? GOOGLE_OAUTH_ERRORS.google_oauth_failed!;
+}
+
 export type AuthMe = {
   id: string;
   email: string | null;
@@ -104,6 +127,9 @@ export async function authLogin(
       throw new Error(
         "Esta cuenta no tiene contraseña y el acceso por código WhatsApp está desactivado. Contacta soporte si necesitas recuperarla.",
       );
+    }
+    if (j.error === "google_only_account") {
+      throw new Error("Esta cuenta usa Google para entrar. Usa «Continuar con Google».");
     }
     throw new Error(j.error || `login_${res.status}`);
   }

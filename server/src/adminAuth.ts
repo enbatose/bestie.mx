@@ -4,6 +4,7 @@ import type { DatabaseSync } from "node:sqlite";
 const BUILTIN_ADMIN_EMAILS: readonly string[] = ["saava.iren@gmail.com", "batani.enrique@gmail.com"];
 
 const WA_ONLY_MARKER = "wa-only-no-password";
+const GOOGLE_OAUTH_MARKER = "google-oauth-no-password";
 
 export function isWaOnlyPasswordHash(stored: string): boolean {
   return stored === WA_ONLY_MARKER;
@@ -11,6 +12,18 @@ export function isWaOnlyPasswordHash(stored: string): boolean {
 
 export function waOnlyPasswordPlaceholder(): string {
   return WA_ONLY_MARKER;
+}
+
+export function isGoogleOAuthPasswordHash(stored: string): boolean {
+  return stored === GOOGLE_OAUTH_MARKER;
+}
+
+export function googleOAuthPasswordPlaceholder(): string {
+  return GOOGLE_OAUTH_MARKER;
+}
+
+export function isOAuthOnlyPasswordHash(stored: string): boolean {
+  return isWaOnlyPasswordHash(stored) || isGoogleOAuthPasswordHash(stored);
 }
 
 export function parseAdminEmails(): Set<string> {

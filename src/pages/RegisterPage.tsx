@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
+import { AuthMethodDivider, GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { authRegister, needsEmailVerification } from "@/lib/authApi";
 
 export function RegisterPage() {
@@ -16,9 +17,14 @@ export function RegisterPage() {
     <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Crear cuenta</h1>
       <p className="mt-2 text-sm text-muted">
-        Correo y contraseña (mínimo 8 caracteres). Debes escribir la contraseña dos veces; no se puede pegar en la
-        confirmación. Te enviaremos un código para confirmar tu correo.
+        Regístrate con Google o con correo y contraseña (mínimo 8 caracteres). Con correo te enviaremos un código para
+        confirmarlo.
       </p>
+
+      <div className="mt-6">
+        <GoogleSignInButton returnTo="/mis-anuncios" />
+      </div>
+      <AuthMethodDivider />
 
       {err ? (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>

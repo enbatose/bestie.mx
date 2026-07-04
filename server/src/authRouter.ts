@@ -5,7 +5,7 @@ import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { sendWhatsAppOtpTemplate } from "./whatsappMeta.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.js";
-import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash } from "./adminAuth.js";
+import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash, isGoogleOAuthPasswordHash } from "./adminAuth.js";
 import { createPublishHandoff } from "./handoffTokens.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { canonicalLookupEmail, displayStorageEmail } from "./authEmail.js";
@@ -24,6 +24,7 @@ import {
   passwordResetDevReturnEnabled,
   requestPasswordResetForEmail,
 } from "./passwordReset.js";
+import { registerGoogleOAuthRoutes } from "./googleOAuth.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 8;
@@ -181,6 +182,10 @@ export function authRouter(db: DatabaseSync) {
       res.status(401).json({ error: "wa_only_account" });
       return;
     }
+    if (isGoogleOAuthPasswordHash(row.password_hash)) {
+      res.status(401).json({ error: "google_only_account" });
+      return;
+    }
     if (!verifyPassword(password, row.password_hash)) {
       res.status(401).json({ error: "invalid_password" });
       return;
@@ -286,7 +291,7 @@ export function authRouter(db: DatabaseSync) {
         return;
       }
       if (emailDisplay !== (row.email ?? "")) {
-        if (!isWaOnlyPasswordHash(row.password_hash)) {
+        if (!isWaOnlyPasswordHash(row.password_hash) && !isGoogleOAuthPasswordHash(row.password_hash)) {
           const cp = typeof body.currentPassword === "string" ? body.currentPassword : "";
           if (!cp || !verifyPassword(cp, row.password_hash)) {
             res.status(401).json({ error: "invalid_password" });
@@ -357,6 +362,10 @@ export function authRouter(db: DatabaseSync) {
     }
     if (isWaOnlyPasswordHash(row.password_hash)) {
       res.status(400).json({ error: "wa_only_account" });
+      return;
+    }
+    if (isGoogleOAuthPasswordHash(row.password_hash)) {
+      res.status(400).json({ error: "google_only_account" });
       return;
     }
     const body = req.body as { currentPassword?: unknown; newPassword?: unknown };
@@ -449,6 +458,10 @@ export function authRouter(db: DatabaseSync) {
     }
     if (isWaOnlyPasswordHash(user.password_hash)) {
       res.status(400).json({ error: "wa_only_account" });
+      return;
+    }
+    if (isGoogleOAuthPasswordHash(user.password_hash)) {
+      res.status(400).json({ error: "google_only_account" });
       return;
     }
     const ph = hashPassword(next);
@@ -738,6 +751,8 @@ export function authRouter(db: DatabaseSync) {
       message: "Admin impersonation is not supported by design.",
     });
   });
+
+  registerGoogleOAuthRoutes(db, r);
 
   return r;
 }

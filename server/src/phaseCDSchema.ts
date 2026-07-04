@@ -67,6 +67,16 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
 
+    CREATE TABLE IF NOT EXISTS oauth_identities (
+      provider TEXT NOT NULL,
+      provider_user_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (provider, provider_user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_oauth_identities_user ON oauth_identities(user_id);
+
     CREATE TABLE IF NOT EXISTS messenger_handoff_tokens (
       token TEXT PRIMARY KEY,
       publisher_id TEXT NOT NULL,

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
+import { AuthMethodDivider, GoogleSignInButton } from "@/components/GoogleSignInButton";
 import {
   authLinkPublisher,
   authLogin,
   authLogout,
   authMe,
   authUpdateMe,
+  googleOAuthErrorMessage,
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
@@ -39,6 +41,11 @@ export function SignInPage() {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
+
+  useEffect(() => {
+    const oauthErr = googleOAuthErrorMessage(new URLSearchParams(location.search).get("error"));
+    if (oauthErr) setErr(oauthErr);
+  }, [location.search]);
 
   const wantsWaTab = (() => {
     const t = new URLSearchParams(location.search).get("tab");
@@ -207,9 +214,14 @@ export function SignInPage() {
         </p>
       ) : null}
       <p className="mt-2 text-sm text-muted">
-        Entra con correo y contraseña. La sesión usa cookies seguras con la API. El inicio solo con WhatsApp no está
-        disponible por ahora.
+        Entra con Google o con correo y contraseña. La sesión usa cookies seguras con la API. El inicio solo con
+        WhatsApp no está disponible por ahora.
       </p>
+
+      <div className="mt-6">
+        <GoogleSignInButton returnTo="/mis-anuncios" />
+      </div>
+      <AuthMethodDivider />
 
       <div className="mt-6 flex rounded-full border border-border bg-bg-light p-1 text-sm font-medium">
         <button
