@@ -11,7 +11,7 @@ Docs: [Resend webhooks](https://resend.com/docs/webhooks/introduction)
 
 ## Currently subscribed (production)
 
-These events are enabled on the Bestie webhook as of 2026-06-28.
+These events are enabled on the Bestie webhook as of 2026-07-04.
 
 | Event | Category | Bestie use today | Future product ideas |
 |-------|----------|------------------|----------------------|
@@ -25,12 +25,24 @@ These events are enabled on the Bestie webhook as of 2026-06-28.
 | `email.complained` | Email | Logs | **Disable notifications**; protect domain reputation |
 | `email.failed` | Email | Logs | Retry / alert ops |
 | `email.suppressed` | Email | Logs | **Stop sending** to suppressed recipients |
+| `email.received` | Email | **Forward `contacto@bestie.mx` → `batani.enrique@gmail.com`** | Inbound helpdesk for other addresses |
 | `domain.created` | Domain | Logs | Audit when domains are added in Resend |
 | `domain.updated` | Domain | Logs | Track tracking/DNS setting changes |
 | `domain.deleted` | Domain | Logs | Alert if domain removed accidentally |
 
-Handler behavior today: verify Svix signature → log event → `200 OK`.  
+Handler behavior today: verify Svix signature → log event → for `email.received` to `contacto@bestie.mx`, call `resend.emails.receiving.forward()` → `200 OK`.  
 Planned: persist bounces/suppressions and auto-disable `email_notify` on saved searches.
+
+## Inbound mail — `contacto@bestie.mx`
+
+Resend receives any `@bestie.mx` address once domain **receiving** is enabled and the apex MX record is published:
+
+- MX `@` → `inbound-smtp.us-east-1.amazonaws.com` (priority 10) — added via `scripts/cloudflare-setup.mjs`
+- Resend domain `bestie.mx`: receiving **enabled**
+- Forward target env: `RESEND_CONTACT_FORWARD_TO` (default `batani.enrique@gmail.com`)
+- Forward from env: `RESEND_CONTACT_FORWARD_FROM` (default `Bestie Contacto <contacto@bestie.mx>`)
+
+Deploy note: production must run the updated `server/src/resendWebhook.ts` before inbound mail is forwarded.
 
 ---
 
@@ -52,7 +64,7 @@ Use this table when designing features — propose adding events only when there
 | `email.complained` | Yes | — |
 | `email.failed` | Yes | — |
 | `email.suppressed` | Yes | — |
-| `email.received` | **No** | Inbound mail (`support@bestie.mx`), reply parsing, helpdesk |
+| `email.received` | Yes | Forward `contacto@bestie.mx`; extend for other inbound addresses |
 
 ### Contact events (marketing / audiences)
 

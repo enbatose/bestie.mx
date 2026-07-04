@@ -97,7 +97,15 @@ const DNS_RECORDS = [
     content: "feedback-smtp.us-east-1.amazonses.com",
     priority: 10,
     proxied: false,
-    comment: "Resend/SES mail",
+    comment: "Resend/SES outbound mail",
+  },
+  {
+    type: "MX",
+    name: "@",
+    content: "inbound-smtp.us-east-1.amazonaws.com",
+    priority: 10,
+    proxied: false,
+    comment: "Resend inbound mail (contacto@bestie.mx)",
   },
   {
     type: "TXT",
@@ -228,7 +236,10 @@ async function upsertDns(zoneId) {
       console.log(`DNS update ${spec.type} ${spec.name}`);
       continue;
     }
-    if (existing.some((r) => namesMatch(r.name, spec.name) && ["A", "AAAA", "CNAME"].includes(r.type) && r.type !== spec.type)) {
+    if (
+      spec.type !== "MX" &&
+      existing.some((r) => namesMatch(r.name, spec.name) && ["A", "AAAA", "CNAME"].includes(r.type) && r.type !== spec.type)
+    ) {
       const blockers = existing.filter(
         (r) => namesMatch(r.name, spec.name) && ["A", "AAAA", "CNAME"].includes(r.type) && r.type !== spec.type,
       );
@@ -236,6 +247,19 @@ async function upsertDns(zoneId) {
         await cf("DELETE", `/zones/${zoneId}/dns_records/${b.id}`);
         console.log(`DNS remove conflicting ${b.type} ${b.name}`);
       }
+    }
+    if (spec.type === "MX" && isRootName(spec.name)) {
+      const matchContent = existing.find(
+        (r) => r.type === "MX" && namesMatch(r.name, spec.name) && r.content === spec.content,
+      );
+      if (matchContent) {
+        console.log(`DNS keep ${spec.type} ${spec.name}`);
+        continue;
+      }
+      await cf("POST", `/zones/${zoneId}/dns_records`, payload);
+      console.log(`DNS add ${spec.type} ${spec.name}`);
+      byKey.set(recordKey(spec), spec);
+      continue;
     }
     await cf("POST", `/zones/${zoneId}/dns_records`, payload);
     console.log(`DNS add ${spec.type} ${spec.name}`);

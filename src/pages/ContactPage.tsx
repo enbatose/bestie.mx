@@ -12,10 +12,10 @@ export function ContactPage() {
       <div className="mt-8 rounded-2xl border border-border bg-surface p-6 shadow-sm">
         <p className="text-sm font-medium text-body">Correo</p>
         <a
-          href="mailto:support@bestie.mx?subject=Bestie%20—%20Soporte"
+          href="mailto:contacto@bestie.mx?subject=Bestie%20—%20Contacto"
           className="mt-2 inline-block text-lg font-semibold text-primary underline-offset-2 hover:underline"
         >
-          support@bestie.mx
+          contacto@bestie.mx
         </a>
         <p className="mt-4 text-xs text-muted">
           Asegúrate de que el dominio <strong>bestie.mx</strong> esté permitido en tu bandeja si usas
