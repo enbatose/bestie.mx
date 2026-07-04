@@ -40,6 +40,7 @@ export function AccountEditPage() {
   const [profileErr, setProfileErr] = useState<string | null>(null);
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [pwErr, setPwErr] = useState<string | null>(null);
+  const [passwordResetSuccessOpen, setPasswordResetSuccessOpen] = useState(false);
 
   const load = useCallback(async () => {
     const next = await authMe().catch(() => null);
@@ -95,6 +96,14 @@ export function AccountEditPage() {
     }, 80);
     return () => window.clearTimeout(t);
   }, [shouldScrollToPassword, me]);
+
+  useEffect(() => {
+    if (!passwordResetSuccessOpen) return;
+    const t = window.setTimeout(() => {
+      navigate("/mis-anuncios", { replace: true });
+    }, 3000);
+    return () => window.clearTimeout(t);
+  }, [passwordResetSuccessOpen, navigate]);
 
   if (me === undefined) {
     return (
@@ -217,7 +226,7 @@ export function AccountEditPage() {
         await authCompletePasswordReset({ token: resetToken, newPassword: pwNew });
         setResetMode(false);
         setResetToken(null);
-        setPwMsg("Contraseña restablecida. Ya puedes entrar con tu nueva contraseña.");
+        setPasswordResetSuccessOpen(true);
       } else {
         await authChangePassword({ currentPassword: pwCurrent, newPassword: pwNew });
         setPwMsg("Contraseña actualizada.");
@@ -234,6 +243,7 @@ export function AccountEditPage() {
   };
 
   return (
+    <>
     <div className="mx-auto max-w-lg px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:py-14">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-primary">Editar cuenta</h1>
@@ -414,5 +424,30 @@ export function AccountEditPage() {
         </section>
       )}
     </div>
+
+    {passwordResetSuccessOpen ? (
+      <div
+        className="fixed inset-0 z-[2200] flex items-center justify-center bg-black/45 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="password-reset-success-title"
+      >
+        <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-surface p-6 text-center shadow-xl dark:border-emerald-900/40">
+          <div
+            className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+            aria-hidden="true"
+          >
+            ✓
+          </div>
+          <h2 id="password-reset-success-title" className="mt-4 text-lg font-bold text-primary">
+            Contraseña actualizada
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Tu contraseña se cambió correctamente. Te llevamos a Mis anuncios en unos segundos…
+          </p>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
