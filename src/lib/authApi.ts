@@ -27,6 +27,14 @@ export function googleSignInUrl(returnTo?: string): string {
   return `${base}${path}?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
+/** Full-page redirect URL to start Facebook OAuth. */
+export function facebookSignInUrl(returnTo?: string): string {
+  const base = apiBase();
+  const path = "/api/auth/facebook";
+  if (!returnTo?.trim()) return `${base}${path}`;
+  return `${base}${path}?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
 const GOOGLE_OAUTH_ERRORS: Record<string, string> = {
   google_denied: "Cancelaste el inicio de sesión con Google.",
   google_not_configured: "Google no está configurado en el servidor.",
@@ -37,9 +45,23 @@ const GOOGLE_OAUTH_ERRORS: Record<string, string> = {
   google_oauth_failed: "Error al iniciar sesión con Google. Inténtalo de nuevo.",
 };
 
+const FACEBOOK_OAUTH_ERRORS: Record<string, string> = {
+  facebook_denied: "Cancelaste el inicio de sesión con Facebook.",
+  facebook_not_configured: "Facebook no está configurado en el servidor.",
+  facebook_state_mismatch: "La sesión de Facebook expiró. Inténtalo de nuevo.",
+  facebook_token_failed: "No pudimos validar tu cuenta de Facebook. Inténtalo de nuevo.",
+  facebook_profile_failed: "Facebook no compartió tu perfil. Inténtalo de nuevo.",
+  facebook_email_required:
+    "Facebook no compartió tu correo. Autoriza el permiso de email o usa correo y contraseña.",
+  facebook_account_failed: "No pudimos crear tu cuenta con Facebook.",
+  facebook_oauth_failed: "Error al iniciar sesión con Facebook. Inténtalo de nuevo.",
+};
+
+const OAUTH_ERRORS: Record<string, string> = { ...GOOGLE_OAUTH_ERRORS, ...FACEBOOK_OAUTH_ERRORS };
+
 export function googleOAuthErrorMessage(code: string | null | undefined): string | null {
   if (!code?.trim()) return null;
-  return GOOGLE_OAUTH_ERRORS[code] ?? GOOGLE_OAUTH_ERRORS.google_oauth_failed!;
+  return OAUTH_ERRORS[code] ?? GOOGLE_OAUTH_ERRORS.google_oauth_failed!;
 }
 
 export type AuthMe = {
@@ -130,6 +152,9 @@ export async function authLogin(
     }
     if (j.error === "google_only_account") {
       throw new Error("Esta cuenta usa Google para entrar. Usa «Continuar con Google».");
+    }
+    if (j.error === "facebook_only_account") {
+      throw new Error("Esta cuenta usa Facebook para entrar. Usa «Continuar con Facebook».");
     }
     throw new Error(j.error || `login_${res.status}`);
   }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { AuthMethodDivider, GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import {
   authLinkPublisher,
   authLogin,
@@ -214,12 +214,12 @@ export function SignInPage() {
         </p>
       ) : null}
       <p className="mt-2 text-sm text-muted">
-        Entra con Google o con correo y contraseña. La sesión usa cookies seguras con la API. El inicio solo con
-        WhatsApp no está disponible por ahora.
+        Entra con Google, Facebook o con correo y contraseña. La sesión usa cookies seguras con la API. El inicio solo
+        con WhatsApp no está disponible por ahora.
       </p>
 
       <div className="mt-6">
-        <GoogleSignInButton returnTo="/mis-anuncios" />
+        <SocialSignInButtons returnTo="/mis-anuncios" />
       </div>
       <AuthMethodDivider />
 

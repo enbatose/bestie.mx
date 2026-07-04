@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { AuthMethodDivider, GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -118,7 +118,7 @@ export function AuthModal() {
           {err ? <p className="mt-2 text-sm text-error">{err}</p> : null}
 
           <div className="mt-3">
-            <GoogleSignInButton returnTo={redirectTo} onClick={close} />
+            <SocialSignInButtons returnTo={redirectTo} onClick={close} />
           </div>
           <AuthMethodDivider />
 

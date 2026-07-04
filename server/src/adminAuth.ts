@@ -5,6 +5,7 @@ const BUILTIN_ADMIN_EMAILS: readonly string[] = ["saava.iren@gmail.com", "batani
 
 const WA_ONLY_MARKER = "wa-only-no-password";
 const GOOGLE_OAUTH_MARKER = "google-oauth-no-password";
+const FACEBOOK_OAUTH_MARKER = "facebook-oauth-no-password";
 
 export function isWaOnlyPasswordHash(stored: string): boolean {
   return stored === WA_ONLY_MARKER;
@@ -22,8 +23,16 @@ export function googleOAuthPasswordPlaceholder(): string {
   return GOOGLE_OAUTH_MARKER;
 }
 
+export function isFacebookOAuthPasswordHash(stored: string): boolean {
+  return stored === FACEBOOK_OAUTH_MARKER;
+}
+
+export function facebookOAuthPasswordPlaceholder(): string {
+  return FACEBOOK_OAUTH_MARKER;
+}
+
 export function isOAuthOnlyPasswordHash(stored: string): boolean {
-  return isWaOnlyPasswordHash(stored) || isGoogleOAuthPasswordHash(stored);
+  return isWaOnlyPasswordHash(stored) || isGoogleOAuthPasswordHash(stored) || isFacebookOAuthPasswordHash(stored);
 }
 
 export function parseAdminEmails(): Set<string> {
