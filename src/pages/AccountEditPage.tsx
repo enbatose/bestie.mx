@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import {
   authChangePassword,
+  authCompletePasswordReset,
+  authConsumePasswordReset,
   authLinkPublisher,
   authMe,
   authUpdateMe,
@@ -13,7 +15,14 @@ import { parsePhoneInputToE164 } from "@/lib/mxPhone";
 
 export function AccountEditPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const passwordSectionRef = useRef<HTMLElement | null>(null);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [resetErr, setResetErr] = useState<string | null>(null);
+  const [resetReady, setResetReady] = useState(false);
+  const [shouldScrollToPassword, setShouldScrollToPassword] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,6 +55,47 @@ export function AccountEditPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const token = searchParams.get("reset")?.trim();
+    if (!token) return;
+
+    let cancelled = false;
+    void (async () => {
+      setResetErr(null);
+      try {
+        await authConsumePasswordReset(token);
+        if (cancelled) return;
+        setResetMode(true);
+        setResetToken(token);
+        setResetReady(true);
+        setShouldScrollToPassword(true);
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        await load();
+        const next = new URLSearchParams(searchParams);
+        next.delete("reset");
+        setSearchParams(next, { replace: true });
+      } catch (x) {
+        if (!cancelled) {
+          setResetErr(x instanceof Error ? x.message : "Enlace inválido.");
+          setResetReady(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [load, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!shouldScrollToPassword || me === undefined) return;
+    const t = window.setTimeout(() => {
+      passwordSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setShouldScrollToPassword(false);
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [shouldScrollToPassword, me]);
+
   if (me === undefined) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
@@ -54,17 +104,37 @@ export function AccountEditPage() {
     );
   }
 
+  const resetTokenFromUrl = searchParams.get("reset")?.trim();
+  if (!me && resetTokenFromUrl && !resetReady) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-10">
+        <p className="text-sm text-muted">Validando enlace…</p>
+      </div>
+    );
+  }
+
   if (!me) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
         <h1 className="text-2xl font-bold text-primary">Editar cuenta</h1>
-        <p className="mt-2 text-sm text-muted">Inicia sesión para editar tus datos.</p>
+        {resetErr ? (
+          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{resetErr}</p>
+        ) : (
+          <p className="mt-2 text-sm text-muted">Inicia sesión para editar tus datos.</p>
+        )}
         <Link
           to="/entrar"
           className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg"
         >
           Entrar
         </Link>
+        {resetErr ? (
+          <p className="mt-4 text-sm text-muted">
+            <Link to="/recuperar-contrasena" className="font-semibold text-primary underline-offset-2 hover:underline">
+              Solicitar un enlace nuevo
+            </Link>
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -143,11 +213,19 @@ export function AccountEditPage() {
     }
     setSavingPassword(true);
     try {
-      await authChangePassword({ currentPassword: pwCurrent, newPassword: pwNew });
-      setPwMsg("Contraseña actualizada.");
+      if (resetMode && resetToken) {
+        await authCompletePasswordReset({ token: resetToken, newPassword: pwNew });
+        setResetMode(false);
+        setResetToken(null);
+        setPwMsg("Contraseña restablecida. Ya puedes entrar con tu nueva contraseña.");
+      } else {
+        await authChangePassword({ currentPassword: pwCurrent, newPassword: pwNew });
+        setPwMsg("Contraseña actualizada.");
+      }
       setPwCurrent("");
       setPwNew("");
       setPwConfirm("");
+      window.dispatchEvent(new Event("bestie:me-changed"));
     } catch (x) {
       setPwErr(x instanceof Error ? x.message : "Error");
     } finally {
@@ -168,9 +246,21 @@ export function AccountEditPage() {
         </button>
       </div>
       <p className="mt-2 text-sm text-muted">
-        Actualiza el nombre para mostrar, el correo, el número (WhatsApp) y tu contraseña.
+        {resetMode
+          ? "Elige una contraseña nueva para tu cuenta."
+          : "Actualiza el nombre para mostrar, el correo, el número (WhatsApp) y tu contraseña."}
       </p>
 
+      {resetErr ? (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{resetErr}</p>
+      ) : null}
+      {resetMode ? (
+        <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
+          Restablecimiento de contraseña activo. Guarda la nueva contraseña abajo.
+        </p>
+      ) : null}
+
+      {!resetMode ? (
       <section className="mt-8 rounded-2xl border border-border bg-surface p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Datos de la cuenta</h2>
 
@@ -253,9 +343,13 @@ export function AccountEditPage() {
           </button>
         </form>
       </section>
+      ) : null}
 
       {!isWaOnly ? (
-        <section className="mt-8 rounded-2xl border border-border bg-surface p-5">
+        <section
+          ref={passwordSectionRef}
+          className={`rounded-2xl border border-border bg-surface p-5 ${resetMode ? "mt-0" : "mt-8"}`}
+        >
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Cambiar contraseña</h2>
 
           {pwMsg ? (
@@ -266,15 +360,17 @@ export function AccountEditPage() {
           ) : null}
 
           <form className="mt-5 space-y-4" onSubmit={onChangePassword}>
-            <label className="block text-sm font-medium text-body">
-              Contraseña actual
-              <PasswordField
-                autoComplete="current-password"
-                value={pwCurrent}
-                onChange={(ev) => setPwCurrent(ev.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-              />
-            </label>
+            {!resetMode ? (
+              <label className="block text-sm font-medium text-body">
+                Contraseña actual
+                <PasswordField
+                  autoComplete="current-password"
+                  value={pwCurrent}
+                  onChange={(ev) => setPwCurrent(ev.target.value)}
+                  className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
+              </label>
+            ) : null}
             <label className="block text-sm font-medium text-body">
               Nueva contraseña
               <PasswordField
@@ -297,10 +393,15 @@ export function AccountEditPage() {
             </label>
             <button
               type="submit"
-              disabled={savingPassword || !pwCurrent || pwNew.length < 8 || pwNew !== pwConfirm}
+              disabled={
+                savingPassword ||
+                pwNew.length < 8 ||
+                pwNew !== pwConfirm ||
+                (!resetMode && !pwCurrent)
+              }
               className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
             >
-              {savingPassword ? "Actualizando…" : "Cambiar contraseña"}
+              {savingPassword ? "Actualizando…" : resetMode ? "Guardar nueva contraseña" : "Cambiar contraseña"}
             </button>
           </form>
         </section>

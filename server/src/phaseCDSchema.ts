@@ -58,6 +58,15 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_email_verify_user ON email_verification_challenges(user_id);
 
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used_at INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+
     CREATE TABLE IF NOT EXISTS messenger_handoff_tokens (
       token TEXT PRIMARY KEY,
       publisher_id TEXT NOT NULL,

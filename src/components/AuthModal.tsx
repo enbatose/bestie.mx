@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -138,6 +139,15 @@ export function AuthModal() {
                   className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
+              <p className="text-right text-xs">
+                <Link
+                  to="/recuperar-contrasena"
+                  onClick={close}
+                  className="font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </p>
               <button
                 type="submit"
                 disabled={busy}

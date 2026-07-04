@@ -275,6 +275,11 @@ export function SignInPage() {
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
             />
           </label>
+          <p className="text-right text-sm">
+            <Link to="/recuperar-contrasena" className="font-semibold text-primary underline-offset-2 hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
           <button
             type="submit"
             disabled={emailBusy}

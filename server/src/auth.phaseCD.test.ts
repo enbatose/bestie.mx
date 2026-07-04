@@ -239,6 +239,31 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     await agent.post("/api/auth/login").send({ email: em, password: "newlongenough1" }).expect(200);
   });
 
+  it("forgot-password sends a reset link and complete sets a new password", async () => {
+    const em = `reset-pw-${testId}@test.mx`;
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
+    await agent.post("/api/auth/logout").expect(200);
+
+    const forgot = await agent.post("/api/auth/forgot-password").send({ email: em }).expect(200);
+    expect(forgot.body.ok).toBe(true);
+    const devResetUrl = forgot.body.devResetUrl as string | undefined;
+    expect(devResetUrl).toMatch(/\/perfil\/editar\?reset=/);
+    const token = new URL(devResetUrl!, "https://www.bestie.mx").searchParams.get("reset");
+    expect(token).toBeTruthy();
+
+    const resetAgent = request.agent(app);
+    await resetAgent.post("/api/auth/password-reset/consume").send({ token }).expect(200);
+    await resetAgent
+      .post("/api/auth/password-reset/complete")
+      .send({ token, newPassword: "resetlongenough1" })
+      .expect(200);
+
+    await resetAgent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(401);
+    await agent.post("/api/auth/login").send({ email: em, password: "resetlongenough1" }).expect(200);
+  });
+
   it("admin can list users", async () => {
     const agent = request.agent(app);
     await agent.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" }).expect(201);

@@ -17,6 +17,13 @@ import {
   userAccountStatus,
   verifyEmailVerificationCode,
 } from "./emailVerification.js";
+import {
+  isPasswordResetTokenValid,
+  loadPasswordResetToken,
+  markPasswordResetTokenUsed,
+  passwordResetDevReturnEnabled,
+  requestPasswordResetForEmail,
+} from "./passwordReset.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 8;
@@ -24,6 +31,7 @@ const OTP_MAX_ATTEMPTS = 8;
 const otpRequestLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
 const otpVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
 const emailVerifyResendLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 3 });
+const forgotPasswordLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
 function otpPepper(): string {
   return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
 }
@@ -364,6 +372,89 @@ export function authRouter(db: DatabaseSync) {
     }
     const ph = hashPassword(next);
     db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(ph, uid);
+    res.json({ ok: true });
+  });
+
+  /** Request a password-reset link by email (always 200 — no account enumeration). */
+  r.post("/forgot-password", jsonMw(), async (req: Request, res: Response) => {
+    const body = req.body as { email?: unknown };
+    const rawEmail = typeof body.email === "string" ? body.email.trim() : "";
+    if (!rawEmail.includes("@") || rawEmail.length > 200) {
+      res.status(400).json({ error: "invalid_email" });
+      return;
+    }
+    const lim = forgotPasswordLimiter(`${req.ip ?? "ip"}:${canonicalLookupEmail(rawEmail)}`);
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const result = await requestPasswordResetForEmail(db, rawEmail);
+    const payload: Record<string, unknown> = {
+      ok: true,
+      message: "Si existe una cuenta con ese correo, enviamos un enlace para restablecer la contraseña.",
+    };
+    if (passwordResetDevReturnEnabled() && result.devResetUrl) {
+      payload.devResetUrl = result.devResetUrl;
+    }
+    res.json(payload);
+  });
+
+  /** Validate a reset token from the email link and start a session for the account. */
+  r.post("/password-reset/consume", jsonMw(), (req: Request, res: Response) => {
+    const token = typeof (req.body as { token?: unknown }).token === "string"
+      ? (req.body as { token: string }).token.trim()
+      : "";
+    if (!token || token.length > 200) {
+      res.status(400).json({ error: "invalid_token" });
+      return;
+    }
+    const row = loadPasswordResetToken(db, token);
+    if (!isPasswordResetTokenValid(row)) {
+      res.status(400).json({ error: "token_invalid_or_expired" });
+      return;
+    }
+    issueAuthCookie(res, row.user_id);
+    res.json({ ok: true, resetToken: token });
+  });
+
+  /** Set a new password using a valid reset token (no current password required). */
+  r.post("/password-reset/complete", jsonMw(), (req: Request, res: Response) => {
+    const body = req.body as { token?: unknown; newPassword?: unknown };
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    const next = typeof body.newPassword === "string" ? body.newPassword : "";
+    if (!token || token.length > 200) {
+      res.status(400).json({ error: "invalid_token" });
+      return;
+    }
+    if (next.length < 8) {
+      res.status(400).json({ error: "password_too_short", message: "Use at least 8 characters." });
+      return;
+    }
+    const row = loadPasswordResetToken(db, token);
+    if (!isPasswordResetTokenValid(row)) {
+      res.status(400).json({ error: "token_invalid_or_expired" });
+      return;
+    }
+    const uid = readAuthUserId(req);
+    if (uid && uid !== row.user_id) {
+      res.status(403).json({ error: "token_user_mismatch" });
+      return;
+    }
+    const user = db
+      .prepare("SELECT id, password_hash FROM users WHERE id = ?")
+      .get(row.user_id) as { id: string; password_hash: string } | undefined;
+    if (!user) {
+      res.status(400).json({ error: "token_invalid_or_expired" });
+      return;
+    }
+    if (isWaOnlyPasswordHash(user.password_hash)) {
+      res.status(400).json({ error: "wa_only_account" });
+      return;
+    }
+    const ph = hashPassword(next);
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(ph, row.user_id);
+    markPasswordResetTokenUsed(db, token);
+    issueAuthCookie(res, row.user_id);
     res.json({ ok: true });
   });
 

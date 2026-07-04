@@ -17,6 +17,7 @@ import { PropertyPage } from "@/pages/PropertyPage";
 import { PublishPreviewPage } from "@/pages/PublishPreviewPage";
 import { PublishWizardPage } from "@/pages/PublishWizardPage";
 import { EmailVerifyPage } from "@/pages/EmailVerifyPage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { SavedSearchesPage } from "@/pages/SavedSearchesPage";
 import { SearchPage } from "@/pages/SearchPage";
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
       { path: "faq", element: <FaqPage /> },
       { path: "legal", element: <LegalPage /> },
       { path: "entrar", element: <SignInPage /> },
+      { path: "recuperar-contrasena", element: <ForgotPasswordPage /> },
       { path: "registro", element: <RegisterPage /> },
       { path: "verificar-correo", element: <EmailVerifyPage /> },
       { path: "grupos", element: <GroupsPage /> },

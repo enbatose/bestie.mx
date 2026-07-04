@@ -235,6 +235,73 @@ export async function authChangePassword(
   }
 }
 
+export async function authForgotPassword(
+  email: string,
+  signal?: AbortSignal,
+): Promise<{ devResetUrl?: string }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; devResetUrl?: string; message?: string };
+  if (!res.ok) {
+    if (j.error === "rate_limited") {
+      throw new Error("Espera un momento antes de volver a intentarlo.");
+    }
+    if (j.error === "invalid_email") {
+      throw new Error("Correo inválido.");
+    }
+    throw new Error(j.error || `forgot_password_${res.status}`);
+  }
+  return j.devResetUrl ? { devResetUrl: j.devResetUrl } : {};
+}
+
+export async function authConsumePasswordReset(token: string, signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/password-reset/consume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ token }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    if (j.error === "token_invalid_or_expired") {
+      throw new Error("El enlace expiró o ya se usó. Solicita uno nuevo.");
+    }
+    throw new Error(j.error || `password_reset_consume_${res.status}`);
+  }
+}
+
+export async function authCompletePasswordReset(
+  body: { token: string; newPassword: string },
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/password-reset/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  if (!res.ok) {
+    if (j.error === "token_invalid_or_expired") {
+      throw new Error("El enlace expiró o ya se usó. Solicita uno nuevo.");
+    }
+    if (j.error === "password_too_short") {
+      throw new Error("La nueva contraseña debe tener al menos 8 caracteres.");
+    }
+    throw new Error(j.message || j.error || `password_reset_complete_${res.status}`);
+  }
+}
+
 export async function authLogout(signal?: AbortSignal): Promise<void> {
   const base = apiBase();
   await networkFetch(`${base}/api/auth/logout`, { method: "POST", credentials: cred, signal });
