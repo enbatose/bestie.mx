@@ -411,6 +411,59 @@ describe("Phase B API hardening", () => {
     expect(ids).toContain(roomId);
   });
 
+  it("GET /api/my-listings ignores a stale publisher cookie linked to another account", async () => {
+    const agent = request.agent(app);
+
+    const r1 = await agent
+      .post("/api/properties")
+      .send({
+        title: "Casa cookie ajena",
+        city: "CDMX",
+        neighborhood: "Roma",
+        lat: 19.41,
+        lng: -99.16,
+        contactWhatsApp: "525512345678",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+
+    const r2 = await agent
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto cookie ajena",
+        rentMxn: 4200,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: "Descripción del cuarto para prueba de cookie ajena en mis listados.",
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+
+    const userA = uniqueTestEmail("pub-a");
+    await agent
+      .post("/api/auth/register")
+      .send({ email: userA, password: "longenough1", displayName: "User A" })
+      .expect(201);
+    await agent.post("/api/auth/link-publisher").expect(200);
+
+    await agent.post("/api/auth/logout").expect(200);
+
+    const userB = uniqueTestEmail("pub-b");
+    await agent
+      .post("/api/auth/register")
+      .send({ email: userB, password: "longenough1", displayName: "User B" })
+      .expect(201);
+    await agent.post("/api/auth/link-publisher").expect(409);
+
+    const mine = await agent.get("/api/my-listings").expect(200);
+    const ids = (mine.body as { id: string }[]).map((l) => l.id);
+    expect(ids).not.toContain(roomId);
+  });
+
   it("GET /api/listings/:id reports room and property status reasons for anonymous visitors", async () => {
     const agent = request.agent(app);
     const r1 = await agent

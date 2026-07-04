@@ -11,11 +11,13 @@ export function myListingsHandler(db: DatabaseSync) {
     const publisherIds = publisherIdsForOwnerSession(db, req);
     if (publisherIds.length === 0) {
       const loggedIn = readAuthUserId(req) != null;
+      if (loggedIn) {
+        res.json([]);
+        return;
+      }
       res.status(401).json({
         error: "publisher_session_required",
-        message: loggedIn
-          ? "No hay anuncios vinculados a esta cuenta todavía. Publica desde este navegador o abre el enlace donde creaste el anuncio."
-          : "Publish at least once from this browser to see your listings here.",
+        message: "Publish at least once from this browser to see your listings here.",
       });
       return;
     }
