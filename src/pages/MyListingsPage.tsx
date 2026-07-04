@@ -26,6 +26,98 @@ type FlashMessage = {
   linkText?: string;
 };
 
+function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
+  if (head.propertyPostMode === "property") {
+    return roomDisplayName(
+      { customName: l.roomCustomName, title: l.title },
+      list.findIndex((x) => x.id === l.id),
+    );
+  }
+  return l.title;
+}
+
+function ListingRowActions({
+  l,
+  head,
+  propSt,
+  propertyId,
+  acting,
+  st,
+  mobile = false,
+  onPause,
+  onRepublish,
+  onArchive,
+}: {
+  l: PropertyListing;
+  head: PropertyListing;
+  propSt: ListingStatus;
+  propertyId: string;
+  acting: boolean;
+  st: ListingStatus;
+  mobile?: boolean;
+  onPause: () => void;
+  onRepublish: () => void;
+  onArchive: () => void;
+}) {
+  const actionClass = mobile
+    ? "inline-flex min-h-9 w-full items-center justify-center rounded-full px-3 py-2 text-xs font-semibold"
+    : "rounded-full px-3 py-1 text-xs font-semibold";
+  const wrapClass = mobile ? "grid grid-cols-2 gap-2" : "flex flex-wrap justify-end gap-2";
+
+  return (
+    <div className={wrapClass}>
+      {propSt === "draft" || propSt === "published" || propSt === "paused" ? (
+        <Link
+          to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
+          className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15`}
+        >
+          Editar
+        </Link>
+      ) : null}
+      <Link
+        to={
+          head.propertyPostMode === "property"
+            ? `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`
+            : listingPublicPath(l.id)
+        }
+        className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
+      >
+        {st === "published" && propSt === "published" ? "Ver público" : "Vista previa"}
+      </Link>
+      {st === "published" ? (
+        <button
+          type="button"
+          disabled={acting}
+          onClick={onPause}
+          className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15 disabled:opacity-50`}
+        >
+          {acting ? "…" : "Pausar"}
+        </button>
+      ) : null}
+      {st === "paused" ? (
+        <button
+          type="button"
+          disabled={acting}
+          onClick={onRepublish}
+          className={`${actionClass} border border-border text-body hover:bg-surface-elevated disabled:opacity-50`}
+        >
+          {acting ? "…" : "Republicar"}
+        </button>
+      ) : null}
+      {st === "published" || st === "paused" ? (
+        <button
+          type="button"
+          disabled={acting}
+          onClick={onArchive}
+          className={`${actionClass} border border-border text-muted hover:bg-surface-elevated disabled:opacity-50`}
+        >
+          {acting ? "…" : "Archivar"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function statusLabel(s: ListingStatus | undefined): string {
   switch (s) {
     case "paused":
@@ -306,9 +398,9 @@ export function MyListingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <div className="mx-auto max-w-4xl overflow-x-hidden px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           {me ? (
             <p className="mb-1 text-sm text-muted">
               Hola, <span className="font-semibold text-body">{me.displayName}</span>
@@ -327,7 +419,7 @@ export function MyListingsPage() {
           type="button"
           disabled={busy}
           onClick={() => void load()}
-          className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition enabled:hover:bg-surface-elevated disabled:opacity-50"
+          className="w-full shrink-0 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition enabled:hover:bg-surface-elevated disabled:opacity-50 sm:w-auto"
         >
           Actualizar
         </button>
@@ -403,7 +495,7 @@ export function MyListingsPage() {
                       </p>
                       <ListingReferenceChip code={propRef} label="Propiedad" title={`Referencia de propiedad: ${propRef}`} />
                     </div>
-                    <h3 className="mt-1 text-lg font-semibold text-body">
+                    <h3 className="mt-1 break-words text-lg font-semibold text-body">
                       {head.propertyTitle ?? head.title}
                     </h3>
                     <p className="mt-1 text-xs text-muted">
@@ -534,7 +626,49 @@ export function MyListingsPage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <ul className="divide-y divide-border md:hidden">
+                  {list.map((l) => {
+                    const st = l.status ?? "published";
+                    const acting = rowBusy(l);
+                    const roomRef = roomReferenceCode(l.id);
+                    const title = listingRowTitle(head, l, list);
+                    const meta =
+                      head.propertyPostMode === "property"
+                        ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
+                        : l.city;
+                    return (
+                      <li key={l.id} className="space-y-3 px-4 py-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <ListingReferenceChip
+                            code={roomRef}
+                            label="Anuncio"
+                            title={`Referencia del anuncio: ${roomRef}`}
+                          />
+                          <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-body ring-1 ring-border">
+                            {statusLabel(st)}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="break-words font-medium text-body">{title}</p>
+                          <p className="mt-1 text-xs text-muted">{meta}</p>
+                        </div>
+                        <ListingRowActions
+                          l={l}
+                          head={head}
+                          propSt={propSt}
+                          propertyId={propertyId}
+                          acting={acting}
+                          st={st}
+                          mobile
+                          onPause={() => void pause(l.id)}
+                          onRepublish={() => void republish(l.id)}
+                          onArchive={() => void archive(l.id)}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="hidden overflow-x-auto md:block">
                   <table className="min-w-full text-left text-sm">
                     <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                       <tr>
@@ -566,12 +700,7 @@ export function MyListingsPage() {
                               />
                             </td>
                             <td className="px-4 py-3 font-medium">
-                              {head.propertyPostMode === "property"
-                                ? roomDisplayName(
-                                    { customName: l.roomCustomName, title: l.title },
-                                    list.findIndex((x) => x.id === l.id),
-                                  )
-                                : l.title}
+                              {listingRowTitle(head, l, list)}
                             </td>
                             <td className="hidden px-4 py-3 text-muted sm:table-cell">
                               {head.propertyPostMode === "property"
@@ -580,58 +709,17 @@ export function MyListingsPage() {
                             </td>
                             <td className="px-4 py-3">{statusLabel(st)}</td>
                             <td className="px-4 py-3 text-right">
-                              <div className="flex flex-wrap justify-end gap-2">
-                                {propSt === "draft" || propSt === "published" || propSt === "paused" ? (
-                                  <Link
-                                    to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
-                                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15"
-                                  >
-                                    Editar
-                                  </Link>
-                                ) : null}
-                                <Link
-                                  to={
-                                    head.propertyPostMode === "property"
-                                      ? `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`
-                                      : listingPublicPath(l.id)
-                                  }
-                                  className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated"
-                                >
-                                  {st === "published" && propSt === "published"
-                                    ? "Ver público"
-                                    : "Vista previa"}
-                                </Link>
-                                {st === "published" ? (
-                                  <button
-                                    type="button"
-                                    disabled={acting}
-                                    onClick={() => void pause(l.id)}
-                                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
-                                  >
-                                    {acting ? "…" : "Pausar"}
-                                  </button>
-                                ) : null}
-                                {st === "paused" ? (
-                                  <button
-                                    type="button"
-                                    disabled={acting}
-                                    onClick={() => void republish(l.id)}
-                                    className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
-                                  >
-                                    {acting ? "…" : "Republicar"}
-                                  </button>
-                                ) : null}
-                                {st === "published" || st === "paused" ? (
-                                  <button
-                                    type="button"
-                                    disabled={acting}
-                                    onClick={() => void archive(l.id)}
-                                    className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted hover:bg-surface-elevated disabled:opacity-50"
-                                  >
-                                    {acting ? "…" : "Archivar"}
-                                  </button>
-                                ) : null}
-                              </div>
+                              <ListingRowActions
+                                l={l}
+                                head={head}
+                                propSt={propSt}
+                                propertyId={propertyId}
+                                acting={acting}
+                                st={st}
+                                onPause={() => void pause(l.id)}
+                                onRepublish={() => void republish(l.id)}
+                                onArchive={() => void archive(l.id)}
+                              />
                             </td>
                           </tr>
                         );

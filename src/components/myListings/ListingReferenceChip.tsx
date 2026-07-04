@@ -47,10 +47,10 @@ export function ListingReferenceChip({ code, label = "Ref.", title }: Props) {
       type="button"
       onClick={() => void onCopy()}
       title={title ?? `Copiar referencia ${code}`}
-      className="inline-flex items-center gap-1 rounded-full border border-border bg-bg-light px-2 py-0.5 font-mono text-[11px] font-semibold text-muted transition hover:border-primary/30 hover:text-body"
+      className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-bg-light px-2 py-0.5 font-mono text-[11px] font-semibold text-muted transition hover:border-primary/30 hover:text-body"
     >
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted/80">{label}</span>
-      <span className="text-body">{code}</span>
+      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted/80">{label}</span>
+      <span className="truncate text-body">{code}</span>
       {copied ? (
         <Check className="size-3 text-primary" aria-hidden />
       ) : (
