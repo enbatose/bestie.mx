@@ -6,6 +6,7 @@ import {
   authLinkPublisher,
   authMe,
   authUpdateMe,
+  needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
 import { parsePhoneInputToE164 } from "@/lib/mxPhone";
@@ -112,6 +113,11 @@ export function AccountEditPage() {
       const r = await authUpdateMe(body);
       if (phoneChanged) {
         await authLinkPublisher().catch(() => undefined);
+      }
+      if (r.emailChanged) {
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        navigate("/verificar-correo", { replace: true });
+        return;
       }
       setProfileMsg(r.changed ? "Datos actualizados." : "Sin cambios.");
       setCurrentPassword("");

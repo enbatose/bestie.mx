@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PasswordField } from "@/components/PasswordField";
-import { authLogin, authRegister } from "@/lib/authApi";
+import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
 export function AuthModal() {
@@ -21,7 +21,10 @@ export function AuthModal() {
     try {
       await authLogin({ email: email.trim().toLowerCase(), password });
       close();
-      window.location.assign(redirectTo);
+      const me = await authMe().catch(() => null);
+      window.location.assign(
+        me && needsEmailVerification(me) ? "/verificar-correo" : redirectTo,
+      );
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {
@@ -38,13 +41,13 @@ export function AuthModal() {
     }
     setBusy(true);
     try {
-      await authRegister({
+      const { me } = await authRegister({
         email: email.trim().toLowerCase(),
         password,
         displayName: displayName.trim() || undefined,
       });
       close();
-      window.location.assign(redirectTo);
+      window.location.assign(needsEmailVerification(me) ? "/verificar-correo" : redirectTo);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");
     } finally {

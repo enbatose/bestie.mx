@@ -7,6 +7,7 @@ import {
   authLogout,
   authMe,
   authUpdateMe,
+  needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
 
@@ -77,7 +78,12 @@ export function SignInPage() {
       await authLogin({ email: email.trim().toLowerCase(), password });
       await authLinkPublisher();
       setMsg("Sesión iniciada.");
+      const session = await authMe().catch(() => null);
       await refreshMe();
+      if (session && needsEmailVerification(session)) {
+        navigate("/verificar-correo", { replace: true });
+        return;
+      }
       navigate("/mis-anuncios", { replace: true });
     } catch (x) {
       setErr(x instanceof Error ? x.message : "Error");

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { authRegister } from "@/lib/authApi";
+import { authRegister, needsEmailVerification } from "@/lib/authApi";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export function RegisterPage() {
       <h1 className="text-2xl font-bold tracking-tight text-primary">Crear cuenta</h1>
       <p className="mt-2 text-sm text-muted">
         Correo y contraseña (mínimo 8 caracteres). Debes escribir la contraseña dos veces; no se puede pegar en la
-        confirmación. Al terminar iniciarás sesión de inmediato.
+        confirmación. Te enviaremos un código para confirmar tu correo.
       </p>
 
       {err ? (
@@ -34,12 +34,12 @@ export function RegisterPage() {
           }
           setBusy(true);
           try {
-            await authRegister({
+            const { me } = await authRegister({
               email: email.trim().toLowerCase(),
               password,
               displayName: displayName.trim() || undefined,
             });
-            navigate("/mis-anuncios", { replace: true });
+            navigate(needsEmailVerification(me) ? "/verificar-correo" : "/mis-anuncios", { replace: true });
           } catch (x) {
             setErr(x instanceof Error ? x.message : "Error");
           } finally {

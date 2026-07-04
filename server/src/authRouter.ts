@@ -10,12 +10,20 @@ import { createPublishHandoff } from "./handoffTokens.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { canonicalLookupEmail, displayStorageEmail } from "./authEmail.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
+import {
+  issueEmailVerificationChallenge,
+  markUserEmailVerified,
+  shouldReturnDevVerificationCode,
+  userAccountStatus,
+  verifyEmailVerificationCode,
+} from "./emailVerification.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 8;
 
 const otpRequestLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
 const otpVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
+const emailVerifyResendLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 3 });
 function otpPepper(): string {
   return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
 }
@@ -41,6 +49,32 @@ function jsonMw() {
 const SAFE_UPLOAD_PATH =
   /^\/api\/uploads\/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|svg|bmp)$/i;
 
+function authUserPayload(u: {
+  id: string;
+  email: string | null;
+  phone_e164: string | null;
+  display_name: string;
+  profile_picture_url: string | null;
+  created_at: string;
+  email_verified_at: string | null;
+  linkedPublisherIds: string[];
+  isAdmin: boolean;
+}) {
+  const emailVerified = u.email_verified_at != null && String(u.email_verified_at).trim() !== "";
+  return {
+    id: u.id,
+    email: u.email,
+    phoneE164: u.phone_e164,
+    displayName: u.display_name,
+    profilePictureUrl: u.profile_picture_url,
+    createdAt: u.created_at,
+    linkedPublisherIds: u.linkedPublisherIds,
+    isAdmin: u.isAdmin,
+    emailVerified,
+    accountStatus: userAccountStatus(u.email, u.email_verified_at),
+  };
+}
+
 function parseProfilePictureUrl(raw: unknown): string | null | undefined {
   if (raw === undefined) return undefined;
   if (raw === null || raw === "") return null;
@@ -53,7 +87,7 @@ function parseProfilePictureUrl(raw: unknown): string | null | undefined {
 export function authRouter(db: DatabaseSync) {
   const r = express.Router();
 
-  r.post("/register", jsonMw(), (req: Request, res: Response) => {
+  r.post("/register", jsonMw(), async (req: Request, res: Response) => {
     const body = req.body as { email?: unknown; password?: unknown; displayName?: unknown };
     const emailDisplay = typeof body.email === "string" ? displayStorageEmail(body.email) : "";
     const emailCanonical = typeof body.email === "string" ? canonicalLookupEmail(body.email) : "";
@@ -80,7 +114,7 @@ export function authRouter(db: DatabaseSync) {
         ph,
         displayName || emailDisplay.split("@")[0]!,
         createdAt,
-        createdAt,
+        null,
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -96,11 +130,29 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     issueAuthCookie(res, id);
-    res.status(201).json({
+    const dn = displayName || emailDisplay.split("@")[0]!;
+    const { code, emailSent } = await issueEmailVerificationChallenge(
+      db,
+      id,
+      emailDisplay,
+      emailCanonical,
+      dn,
+    );
+    const responseBody: Record<string, unknown> = {
       id,
       email: emailDisplay,
-      displayName: displayName || emailDisplay.split("@")[0],
-    });
+      displayName: dn,
+      emailVerified: false,
+      accountStatus: "pending_validation",
+      verificationEmailSent: emailSent,
+    };
+    if (shouldReturnDevVerificationCode(emailSent)) {
+      responseBody.devCode = code;
+      responseBody.message = "Correo no configurado; código mostrado solo en dev.";
+    } else if (!emailSent) {
+      console.warn(`[auth] verification email not sent for ${emailDisplay}`);
+    }
+    res.status(201).json(responseBody);
   });
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
@@ -135,7 +187,7 @@ export function authRouter(db: DatabaseSync) {
   });
 
   /** Update profile fields for the logged-in user (display name and/or email). */
-  r.patch("/me", jsonMw(), (req: Request, res: Response) => {
+  r.patch("/me", jsonMw(), async (req: Request, res: Response) => {
     const uid = readAuthUserId(req);
     if (!uid) {
       res.status(401).json({ error: "unauthorized" });
@@ -217,6 +269,7 @@ export function authRouter(db: DatabaseSync) {
 
     let emailChanged = false;
     let nextEmail: string | null = null;
+    let nextEmailCanonical: string | null = null;
     if (typeof body.email === "string") {
       const emailDisplay = displayStorageEmail(body.email);
       const emailCanonical = canonicalLookupEmail(body.email);
@@ -234,12 +287,13 @@ export function authRouter(db: DatabaseSync) {
         }
         emailChanged = true;
         nextEmail = emailDisplay;
+        nextEmailCanonical = emailCanonical;
         sets.push("email = ?");
         params.push(emailDisplay);
         sets.push("email_canonical = ?");
         params.push(emailCanonical);
         sets.push("email_verified_at = ?");
-        params.push(isoNow());
+        params.push(null);
       }
     }
 
@@ -265,7 +319,17 @@ export function authRouter(db: DatabaseSync) {
       res.status(500).json({ error: "update_failed" });
       return;
     }
-    res.json({ ok: true, changed: true, emailChanged, email: nextEmail ?? row.email });
+    if (emailChanged && nextEmail && nextEmailCanonical) {
+      await issueEmailVerificationChallenge(db, uid, nextEmail, nextEmailCanonical, row.display_name);
+    }
+    res.json({
+      ok: true,
+      changed: true,
+      emailChanged,
+      email: nextEmail ?? row.email,
+      emailVerified: emailChanged ? false : undefined,
+      accountStatus: emailChanged ? "pending_validation" : undefined,
+    });
   });
 
   /** Change the password for the logged-in user (email accounts only). */
@@ -332,17 +396,101 @@ export function authRouter(db: DatabaseSync) {
     const pubs = db
       .prepare("SELECT publisher_id FROM user_publishers WHERE user_id = ? ORDER BY created_at ASC")
       .all(uid) as { publisher_id: string }[];
-    res.json({
-      id: u.id,
-      email: u.email,
-      phoneE164: u.phone_e164,
-      displayName: u.display_name,
-      profilePictureUrl: u.profile_picture_url,
-      createdAt: u.created_at,
-      linkedPublisherIds: pubs.map((p) => p.publisher_id),
-      isAdmin: isAdminUser(db, uid),
-      emailVerified: u.email_verified_at != null && String(u.email_verified_at).trim() !== "",
-    });
+    res.json(
+      authUserPayload({
+        ...u,
+        linkedPublisherIds: pubs.map((p) => p.publisher_id),
+        isAdmin: isAdminUser(db, uid),
+      }),
+    );
+  });
+
+  /** Verify email with a 6-digit code from the confirmation email. */
+  r.post("/email/verify", jsonMw(), (req: Request, res: Response) => {
+    const lim = otpVerifyLimiter(req.ip ?? "ip");
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const row = db
+      .prepare("SELECT id, email, email_canonical, email_verified_at FROM users WHERE id = ?")
+      .get(uid) as
+      | { id: string; email: string | null; email_canonical: string | null; email_verified_at: string | null }
+      | undefined;
+    if (!row?.email?.trim() || !row.email_canonical?.trim()) {
+      res.status(400).json({ error: "email_required" });
+      return;
+    }
+    if (row.email_verified_at != null && String(row.email_verified_at).trim() !== "") {
+      res.json({ ok: true, alreadyVerified: true, emailVerified: true, accountStatus: "active" });
+      return;
+    }
+    const code = typeof (req.body as { code?: unknown }).code === "string" ? (req.body as { code: string }).code.trim() : "";
+    const result = verifyEmailVerificationCode(db, uid, row.email_canonical, code);
+    if (!result.ok) {
+      const status =
+        result.error === "too_many_attempts"
+          ? 429
+          : result.error === "invalid_input" || result.error === "invalid_code" || result.error === "code_expired"
+            ? 400
+            : 400;
+      res.status(status).json({ error: result.error });
+      return;
+    }
+    const verifiedAt = isoNow();
+    markUserEmailVerified(db, uid, verifiedAt);
+    res.json({ ok: true, emailVerified: true, accountStatus: "active", verifiedAt });
+  });
+
+  /** Resend the email verification code. */
+  r.post("/email/resend", jsonMw(), async (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const lim = emailVerifyResendLimiter(uid);
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const row = db
+      .prepare("SELECT id, email, email_canonical, display_name, email_verified_at FROM users WHERE id = ?")
+      .get(uid) as
+      | {
+          id: string;
+          email: string | null;
+          email_canonical: string | null;
+          display_name: string;
+          email_verified_at: string | null;
+        }
+      | undefined;
+    if (!row?.email?.trim() || !row.email_canonical?.trim()) {
+      res.status(400).json({ error: "email_required" });
+      return;
+    }
+    if (row.email_verified_at != null && String(row.email_verified_at).trim() !== "") {
+      res.json({ ok: true, alreadyVerified: true, emailVerified: true, accountStatus: "active" });
+      return;
+    }
+    const { code, emailSent } = await issueEmailVerificationChallenge(
+      db,
+      uid,
+      row.email,
+      row.email_canonical,
+      row.display_name,
+    );
+    const body: Record<string, unknown> = { ok: true, emailSent };
+    if (shouldReturnDevVerificationCode(emailSent)) {
+      body.devCode = code;
+      body.message = "Correo no configurado; código mostrado solo en dev.";
+    }
+    res.json(body);
   });
 
   /** Link current anonymous publisher cookie to the logged-in user (merge listings identity). */

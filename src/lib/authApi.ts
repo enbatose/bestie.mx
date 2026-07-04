@@ -29,7 +29,14 @@ export type AuthMe = {
   linkedPublisherIds: string[];
   isAdmin?: boolean;
   emailVerified?: boolean;
+  accountStatus?: "active" | "pending_validation";
 };
+
+export function needsEmailVerification(me: AuthMe): boolean {
+  if (!me.email?.trim()) return false;
+  if (me.accountStatus === "pending_validation") return true;
+  return me.emailVerified === false;
+}
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
   const base = apiBase();
@@ -41,6 +48,7 @@ export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
 
 export type RegisterResult = {
   me: AuthMe;
+  devCode?: string;
 };
 
 export async function authRegister(
@@ -64,10 +72,12 @@ export async function authRegister(
     }
     throw new Error(j.message || j.error || `register_${res.status}`);
   }
-  await res.json().catch(() => ({}));
+  const reg = (await res.json().catch(() => ({}))) as {
+    devCode?: string;
+  };
   const me = await authMe(signal);
   if (!me) throw new Error("register_session_missing");
-  return { me };
+  return { me, ...(reg.devCode ? { devCode: reg.devCode } : {}) };
 }
 
 export async function authLogin(
@@ -97,6 +107,41 @@ export async function authLogin(
     }
     throw new Error(j.error || `login_${res.status}`);
   }
+}
+
+export async function authVerifyEmail(code: string, signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/email/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ code }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new Error(j.error || `verify_email_${res.status}`);
+  }
+}
+
+export async function authResendVerificationEmail(
+  signal?: AbortSignal,
+): Promise<{ devCode?: string }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/email/resend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; devCode?: string };
+  if (!res.ok) {
+    if (j.error === "rate_limited") {
+      throw new Error("Espera un momento antes de pedir otro código.");
+    }
+    throw new Error(j.error || `resend_verification_${res.status}`);
+  }
+  return j.devCode ? { devCode: j.devCode } : {};
 }
 
 export type UpdateMeBody = {

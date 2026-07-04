@@ -9,6 +9,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 
+async function verifyEmailWithDevCode(agent: request.SuperAgentTest): Promise<void> {
+  const resend = await agent.post("/api/auth/email/resend").expect(200);
+  const code = resend.body.devCode as string | undefined;
+  expect(code).toMatch(/^\d{6}$/);
+  await agent.post("/api/auth/email/verify").send({ code }).expect(200);
+}
+
 describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   const testId = randomUUID().slice(0, 8);
   const bossEmail = `boss-${testId}@test.mx`;
@@ -59,6 +66,9 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
     const meAfterReg = await agent.get("/api/auth/me").expect(200);
     expect(meAfterReg.body.email).toBe(em);
+    expect(meAfterReg.body.emailVerified).toBe(false);
+    expect(meAfterReg.body.accountStatus).toBe("pending_validation");
+    await verifyEmailWithDevCode(agent);
     await agent.post("/api/auth/logout").expect(200);
     await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
     const me1 = await agent.get("/api/auth/me").expect(200);
@@ -82,7 +92,12 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
       .expect(201);
     const me1 = await agent.get("/api/auth/me").expect(200);
     expect(me1.body.isAdmin).toBe(false);
-    expect(me1.body.emailVerified).toBe(true);
+    expect(me1.body.emailVerified).toBe(false);
+    expect(me1.body.accountStatus).toBe("pending_validation");
+    await verifyEmailWithDevCode(agent);
+    const meVerified = await agent.get("/api/auth/me").expect(200);
+    expect(meVerified.body.emailVerified).toBe(true);
+    expect(meVerified.body.accountStatus).toBe("active");
     await agent.post("/api/auth/logout").expect(200);
     await agent.get("/api/auth/me").expect(401);
     await agent.post("/api/auth/login").send({ email: userEmail, password: "longenough1" }).expect(200);
@@ -150,6 +165,11 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
       .patch("/api/auth/me")
       .send({ email: em2, currentPassword: "longenough1" })
       .expect(200);
+    const mePending = await agent.get("/api/auth/me").expect(200);
+    expect(mePending.body.email).toBe(em2);
+    expect(mePending.body.emailVerified).toBe(false);
+    expect(mePending.body.accountStatus).toBe("pending_validation");
+    await verifyEmailWithDevCode(agent);
     const me = await agent.get("/api/auth/me").expect(200);
     expect(me.body.email).toBe(em2);
     expect(me.body.emailVerified).toBe(true);
@@ -362,8 +382,10 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   it("production: register starts session; login works immediately", async () => {
     const prevEnv = process.env.NODE_ENV;
     const prevCookie = process.env.TEST_DISABLE_SECURE_COOKIE;
+    const prevEmailDev = process.env.EMAIL_VERIFICATION_DEV_RETURN;
     process.env.NODE_ENV = "production";
     process.env.TEST_DISABLE_SECURE_COOKIE = "1";
+    process.env.EMAIL_VERIFICATION_DEV_RETURN = "1";
     const dir2 = mkdtempSync(join(tmpdir(), "bestie-prodauth-"));
     const dbPath2 = join(dir2, "prod.db");
     const db2 = openDb(dbPath2);
@@ -373,16 +395,23 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
       const agent = request.agent(app2);
       await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
       const meAfterReg = await agent.get("/api/auth/me").expect(200);
-      expect(meAfterReg.body.emailVerified).toBe(true);
+      expect(meAfterReg.body.emailVerified).toBe(false);
+      expect(meAfterReg.body.accountStatus).toBe("pending_validation");
+      const reg = await agent.post("/api/auth/email/resend").expect(200);
+      const code = reg.body.devCode as string;
+      await agent.post("/api/auth/email/verify").send({ code }).expect(200);
       await agent.post("/api/auth/logout").expect(200);
       await agent.get("/api/auth/me").expect(401);
       await agent.post("/api/auth/login").send({ email: em, password: "longenough1" }).expect(200);
       const me = await agent.get("/api/auth/me").expect(200);
       expect(me.body.emailVerified).toBe(true);
+      expect(me.body.accountStatus).toBe("active");
     } finally {
       process.env.NODE_ENV = prevEnv;
       if (prevCookie === undefined) delete process.env.TEST_DISABLE_SECURE_COOKIE;
       else process.env.TEST_DISABLE_SECURE_COOKIE = prevCookie;
+      if (prevEmailDev === undefined) delete process.env.EMAIL_VERIFICATION_DEV_RETURN;
+      else process.env.EMAIL_VERIFICATION_DEV_RETURN = prevEmailDev;
       db2.close();
       try {
         rmSync(dir2, { recursive: true, force: true });

@@ -47,6 +47,17 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_otp_phone ON whatsapp_otp_challenges(phone_e164);
 
+    CREATE TABLE IF NOT EXISTS email_verification_challenges (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      email_canonical TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_email_verify_user ON email_verification_challenges(user_id);
+
     CREATE TABLE IF NOT EXISTS messenger_handoff_tokens (
       token TEXT PRIMARY KEY,
       publisher_id TEXT NOT NULL,
@@ -131,7 +142,4 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
     db.exec("ALTER TABLE users ADD COLUMN profile_picture_url TEXT");
   }
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_canonical ON users(email_canonical) WHERE email_canonical IS NOT NULL");
-  db.prepare(
-    `UPDATE users SET email_verified_at = created_at WHERE email IS NOT NULL AND (email_verified_at IS NULL OR trim(email_verified_at) = '')`,
-  ).run();
 }

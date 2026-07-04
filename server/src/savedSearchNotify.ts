@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { buildSavedSearchEmail } from "./emails/savedSearchEmail.js";
+import { isUserEmailVerified } from "./emailVerification.js";
 import { sendTransactionalEmail } from "./mailer.js";
 import {
   fetchMatchingListingsForSavedSearch,
@@ -42,9 +43,12 @@ function loadSavedSearch(db: DatabaseSync, id: string): SavedSearchRow | undefin
 }
 
 function loadUserEmail(db: DatabaseSync, userId: string): string | null {
-  const row = db.prepare(`SELECT email FROM users WHERE id = ?`).get(userId) as { email: string | null } | undefined;
+  const row = db
+    .prepare(`SELECT email, email_verified_at FROM users WHERE id = ?`)
+    .get(userId) as { email: string | null; email_verified_at: string | null } | undefined;
   const e = row?.email?.trim();
-  return e || null;
+  if (!e || !isUserEmailVerified(row?.email_verified_at)) return null;
+  return e;
 }
 
 function notifiedRoomIds(db: DatabaseSync, savedSearchId: string): Set<string> {
