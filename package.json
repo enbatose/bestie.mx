@@ -19,7 +19,8 @@
     "dns:cleanup": "node --env-file=server/.env scripts/dns-cutover-cleanup.mjs",
     "dns:cleanup:watch": "node --env-file=server/.env scripts/dns-cutover-cleanup.mjs --watch",
     "dns:cleanup:follow-up": "node --env-file=server/.env scripts/dns-cutover-cleanup.mjs --follow-up --interval 20m",
-    "resend:validate": "node scripts/resend-validate.mjs"
+    "resend:validate": "node scripts/resend-validate.mjs",
+    "google:validate": "node scripts/google-validate.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
