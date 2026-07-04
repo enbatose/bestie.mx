@@ -9,10 +9,13 @@ describe("emailVerificationEmail", () => {
     expect(subject).toContain("482931");
   });
 
-  it("includes the code in html and text bodies", () => {
+  it("includes copy links and the code in html and text bodies", () => {
     const mail = buildEmailVerificationEmail({ code: "123456", displayName: "Ana" });
     expect(mail.html).toContain("123456");
     expect(mail.text).toContain("123456");
+    expect(mail.html).toContain("Copiar Código");
+    expect(mail.html).toContain("/verificar-correo?code=123456");
+    expect(mail.html).toContain("copy=1");
     expect(mail.html).toContain("spam");
     expect(mail.subject).toBe("Bestie · código 123456");
   });

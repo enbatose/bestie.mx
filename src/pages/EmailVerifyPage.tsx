@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   authLogout,
   authMe,
@@ -13,8 +13,22 @@ function notifyMeChanged() {
   window.dispatchEvent(new Event("bestie:me-changed"));
 }
 
+function digitsFromClipboardText(text: string): string {
+  return text.replace(/\D/g, "").slice(0, 6);
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function EmailVerifyPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,7 +36,9 @@ export function EmailVerifyPage() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [pasteBusy, setPasteBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const urlParamsHandled = useRef(false);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -35,6 +51,38 @@ export function EmailVerifyPage() {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (me === undefined) return;
+    if (urlParamsHandled.current) return;
+    const fromUrl = digitsFromClipboardText(searchParams.get("code") ?? "");
+    if (fromUrl.length !== 6) return;
+    if (!me) return;
+
+    urlParamsHandled.current = true;
+
+    setCode(fromUrl);
+    setErr(null);
+
+    const shouldCopy = searchParams.get("copy") === "1";
+    void (async () => {
+      if (shouldCopy) {
+        const copied = await copyTextToClipboard(fromUrl);
+        setMsg(
+          copied
+            ? "Código copiado al portapapeles y listo para verificar."
+            : "Código cargado. Puedes confirmarlo abajo.",
+        );
+      } else {
+        setMsg("Código cargado desde el enlace del correo.");
+      }
+    })();
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("code");
+    next.delete("copy");
+    setSearchParams(next, { replace: true });
+  }, [me, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (me && !needsEmailVerification(me)) {
@@ -151,6 +199,33 @@ export function EmailVerifyPage() {
             className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.35em] text-body outline-none ring-accent focus:ring-2"
           />
         </label>
+        <button
+          type="button"
+          disabled={pasteBusy}
+          onClick={async () => {
+            setErr(null);
+            setMsg(null);
+            setPasteBusy(true);
+            try {
+              const text = await navigator.clipboard.readText();
+              const digits = digitsFromClipboardText(text);
+              if (digits.length !== 6) {
+                setErr("No hay un código de 6 dígitos en el portapapeles.");
+                return;
+              }
+              setCode(digits);
+              setMsg("Código pegado desde el portapapeles.");
+              inputRef.current?.focus();
+            } catch {
+              setErr("No pudimos leer el portapapeles. Pega manualmente en el campo o usa el enlace del correo.");
+            } finally {
+              setPasteBusy(false);
+            }
+          }}
+          className="w-full rounded-full border border-border bg-surface py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-60"
+        >
+          {pasteBusy ? "Leyendo portapapeles…" : "Pegar código copiado"}
+        </button>
         <button
           type="submit"
           disabled={busy || code.length !== 6}
