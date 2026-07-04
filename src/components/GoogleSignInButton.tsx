@@ -7,7 +7,7 @@ type Props = {
 };
 
 const socialButtonClass =
-  "inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-border bg-surface py-2.5 text-sm font-semibold text-body shadow-sm transition hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800";
+  "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-2 py-2 text-xs font-semibold text-body shadow-sm transition hover:bg-surface-elevated sm:gap-2 sm:px-3 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800";
 
 export function SocialSignInButtons({
   returnTo,
@@ -19,7 +19,7 @@ export function SocialSignInButtons({
   className?: string;
 }) {
   return (
-    <div className={`space-y-2 ${className}`.trim()}>
+    <div className={`flex gap-2 ${className}`.trim()}>
       <GoogleSignInButton returnTo={returnTo} onClick={onClick} />
       <FacebookSignInButton returnTo={returnTo} onClick={onClick} />
     </div>
@@ -33,10 +33,11 @@ export function GoogleSignInButton({ returnTo, className = "", onClick }: Props)
     <a
       href={href}
       onClick={onClick}
+      aria-label="Continuar con Google"
       className={`${socialButtonClass} ${className}`.trim()}
     >
-      <GoogleLogo className="size-5 shrink-0" aria-hidden />
-      Continuar con Google
+      <GoogleLogo className="size-4 shrink-0 sm:size-5" aria-hidden />
+      <span className="truncate">Google</span>
     </a>
   );
 }
@@ -48,10 +49,11 @@ export function FacebookSignInButton({ returnTo, className = "", onClick }: Prop
     <a
       href={href}
       onClick={onClick}
+      aria-label="Continuar con Facebook"
       className={`${socialButtonClass} ${className}`.trim()}
     >
-      <FacebookLogo className="size-5 shrink-0" aria-hidden />
-      Continuar con Facebook
+      <FacebookLogo className="size-4 shrink-0 sm:size-5" aria-hidden />
+      <span className="truncate">Facebook</span>
     </a>
   );
 }
