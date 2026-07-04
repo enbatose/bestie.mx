@@ -58,7 +58,7 @@ export function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[2100] overflow-y-auto overscroll-y-contain bg-black/50 px-4 py-4 sm:py-8"
+      className="fixed inset-0 z-[2100] overflow-y-auto overscroll-y-contain bg-black/50 px-3 py-2 sm:px-4 sm:py-8"
       style={{
         paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))",
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))",
@@ -72,11 +72,11 @@ export function AuthModal() {
     >
       <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center">
         <div
-          className="mx-auto w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl dark:border-slate-600 dark:bg-slate-900 max-h-[min(32rem,calc(100dvh-6rem))] sm:max-h-[min(36rem,calc(100dvh-4rem))]"
+          className="mx-auto w-full max-w-md rounded-2xl border border-border bg-surface p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900 sm:p-5"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 id="auth-modal-title" className="text-lg font-bold text-primary">
+            <h2 id="auth-modal-title" className="text-lg font-bold leading-tight text-primary">
               {tab === "login" ? "Iniciar sesión" : "Regístrate"}
             </h2>
             <button
@@ -89,10 +89,10 @@ export function AuthModal() {
             </button>
           </div>
 
-          <div className="mt-4 flex rounded-full border border-border bg-bg-light p-1 text-sm font-semibold">
+          <div className="mt-3 flex rounded-full border border-border bg-bg-light p-0.5 text-sm font-semibold">
             <button
               type="button"
-              className={`flex-1 rounded-full py-2 ${tab === "login" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+              className={`flex-1 rounded-full py-1.5 ${tab === "login" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
               onClick={() => {
                 openLogin();
                 setErr(null);
@@ -103,7 +103,7 @@ export function AuthModal() {
             </button>
             <button
               type="button"
-              className={`flex-1 rounded-full py-2 ${tab === "register" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+              className={`flex-1 rounded-full py-1.5 ${tab === "register" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
               onClick={() => {
                 openRegister();
                 setErr(null);
@@ -114,10 +114,10 @@ export function AuthModal() {
             </button>
           </div>
 
-          {err ? <p className="mt-3 text-sm text-error">{err}</p> : null}
+          {err ? <p className="mt-2 text-sm text-error">{err}</p> : null}
 
           {tab === "login" ? (
-            <form className="mt-4 space-y-3" onSubmit={submitLogin}>
+            <form className="mt-3 space-y-2.5" onSubmit={submitLogin}>
               <label className="block text-sm font-medium text-body">
                 Correo
                 <input
@@ -157,27 +157,27 @@ export function AuthModal() {
               </button>
             </form>
           ) : (
-            <form className="mt-4 space-y-3" onSubmit={submitRegister}>
-              <label className="block text-sm font-medium text-body">
+            <form className="mt-3 space-y-2" onSubmit={submitRegister}>
+              <label className="block text-sm font-medium leading-snug text-body">
                 Nombre
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <label className="block text-sm font-medium text-body">
+              <label className="block text-sm font-medium leading-snug text-body">
                 Correo
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <label className="block text-sm font-medium text-body">
+              <label className="block text-sm font-medium leading-snug text-body">
                 Contraseña (mín. 8)
                 <PasswordField
                   required
@@ -191,10 +191,10 @@ export function AuthModal() {
                   }}
                   onCopy={(e) => e.preventDefault()}
                   onCut={(e) => e.preventDefault()}
-                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <label className="block text-sm font-medium text-body">
+              <label className="block text-sm font-medium leading-snug text-body">
                 Confirmar contraseña
                 <PasswordField
                   required
@@ -205,14 +205,13 @@ export function AuthModal() {
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   onPaste={(e) => e.preventDefault()}
                   onDrop={(e) => e.preventDefault()}
-                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <p className="text-xs text-muted">Escribe la confirmación a mano; no se admite pegar en este campo.</p>
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg disabled:opacity-50"
+                className="w-full rounded-full bg-primary py-2 text-sm font-semibold text-primary-fg disabled:opacity-50"
               >
                 {busy ? "Creando…" : "Crear cuenta"}
               </button>
