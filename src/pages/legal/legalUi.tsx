@@ -12,6 +12,7 @@ export const LEGAL_OPERATOR = {
   site: "https://www.bestie.mx",
   contactEmail: "contacto@bestie.mx",
   fiscalRegime: "Régimen Simplificado de Confianza (RESICO)",
+  address: "Calle La Ley 3048, Juan Manuel, C.P. 44680, Guadalajara, Jalisco, México",
 } as const;
 
 export type LegalTocItem = { id: string; label: string };
@@ -153,10 +154,7 @@ export function LegalOperatorReference() {
         </div>
         <div>
           <dt className="inline font-semibold text-primary">Domicilio: </dt>
-          <dd className="inline text-muted">
-            Domicilio para oír y recibir notificaciones en los Estados Unidos Mexicanos, disponible a
-            solicitud del titular a través del correo de contacto.
-          </dd>
+          <dd className="inline">{LEGAL_OPERATOR.address}</dd>
         </div>
       </dl>
     </div>

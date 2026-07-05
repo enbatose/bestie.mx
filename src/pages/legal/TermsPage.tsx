@@ -283,9 +283,10 @@ export function TermsPage() {
         <p>
           Estos Términos se rigen por las leyes de los Estados Unidos Mexicanos. Para la interpretación y
           cumplimiento de los mismos, las partes se someten a la jurisdicción de los tribunales
-          competentes de México, renunciando a cualquier otro fuero que pudiera corresponderles. Lo
-          anterior sin perjuicio de los derechos que la Ley Federal de Protección al Consumidor y demás
-          normatividad aplicable otorguen a los consumidores.
+          competentes de la ciudad de <strong>Guadalajara, Jalisco</strong>, renunciando a cualquier
+          otro fuero que pudiera corresponderles. Lo anterior sin perjuicio de los derechos que la Ley
+          Federal de Protección al Consumidor y demás normatividad aplicable otorguen a los
+          consumidores.
         </p>
       </LegalSection>
 
