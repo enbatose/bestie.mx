@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
+import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authRegister, needsEmailVerification } from "@/lib/authApi";
 
 export function RegisterPage() {
@@ -24,6 +24,7 @@ export function RegisterPage() {
       <div className="mt-6">
         <SocialSignInButtons returnTo="/mis-anuncios" />
       </div>
+      <AuthLegalConsent action="registrarte" />
       <AuthMethodDivider />
 
       {err ? (

@@ -206,7 +206,7 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): {
         </td></tr>
         <tr><td style="padding:16px 24px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;">
           <p style="margin:0 0 8px;font-size:12px;color:#6b7280;text-align:center;"><a href="${escapeHtml(unsubLink)}" style="color:#6b7280;">Dejar de recibir alertas de esta búsqueda</a></p>
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">¿Necesitas ayuda? <a href="mailto:support@bestie.mx" style="color:#6b7280;">support@bestie.mx</a></p>
+          <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">¿Necesitas ayuda? <a href="mailto:contacto@bestie.mx" style="color:#6b7280;">contacto@bestie.mx</a></p>
         </td></tr>
       </table>
     </td></tr>

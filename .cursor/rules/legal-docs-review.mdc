@@ -1,0 +1,40 @@
+---
+description: Evaluate Terms & Conditions / Privacy Notice impact on every functionality change
+alwaysApply: true
+---
+
+# Legal docs review on functionality changes
+
+The Terms & Conditions and the Aviso de Privacidad are legal representations of what Bestie
+actually does. Google OAuth and Facebook Login approvals depend on them staying accurate. Any
+change to functionality MUST be checked against these documents before finishing the task.
+
+## Where the documents live
+
+- Terms: `src/pages/legal/TermsPage.tsx` → `/legal/terminos`
+- Privacy: `src/pages/legal/PrivacyPage.tsx` → `/legal/privacidad`
+- Shared operator identity / dates: `src/pages/legal/legalUi.tsx` (`LEGAL_OPERATOR`, `LEGAL_LAST_UPDATED`)
+
+## When to review (triggers)
+
+Re-read and evaluate the docs whenever a change touches:
+
+- **New/changed data collected or stored** (DB columns, new form fields, new profile data). → Privacy §2 "Datos que recabamos".
+- **New third party / SDK / API** (analytics, payments, maps, email, chat, ads, new OAuth scope). → Privacy §5 (Google/Facebook), §8 "Transferencias y encargados".
+- **New user-facing feature** (chat, reviews, payments, verification, listings behavior). → Terms §3 "Servicio", §6 conduct, §7 content.
+- **Monetization / fees** (paid plans, boosts, commissions). → Terms §11 "Tarifas y monetización".
+- **Auth changes** (new login method, scope, session/cookie behavior). → Privacy §5, §7 cookies; Terms §5.
+- **Data deletion / retention / export changes.** → Privacy §10 "eliminacion-de-datos", §11.
+- **Cookies / tracking changes.** → Privacy §7.
+
+## Required actions when a trigger applies
+
+1. Update the relevant section(s) so the doc matches the new reality (do not leave the doc stale).
+2. Bump `LEGAL_LAST_UPDATED` in `legalUi.tsx`.
+3. Keep the Facebook data-deletion anchor (`#eliminacion-de-datos`) accurate.
+4. If new Google API scopes beyond `openid/email/profile` are added, flag that Google may require
+   additional verification (sensitive/restricted scopes) — tell the user.
+5. If unsure whether a change is legally material, note it and ask the user rather than guessing.
+
+If a change clearly needs no legal update (pure styling, refactor, copy that doesn't affect data or
+obligations), no doc edit is required — but state briefly that you checked.

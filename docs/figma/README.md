@@ -81,7 +81,7 @@ The board is based on the route map in `src/App.tsx`, navigation in `src/compone
 
 - Groups: `/grupos`, with a path back to `/publicar`.
 - Profile: `/perfil` and `/perfil/editar`.
-- Support/legal: `/contacto`, `/faq`, `/legal`, `support@bestie.mx`.
+- Support/legal: `/contacto`, `/faq`, `/legal`, `contacto@bestie.mx`.
 - Admin: `/admin`, shown only for admin users, covering users, cities, analytics, and property/listing moderation actions.
 
 ## Design tokens used

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { facebookSignInUrl, googleSignInUrl } from "@/lib/authApi";
 
 type Props = {
@@ -55,6 +56,22 @@ export function FacebookSignInButton({ returnTo, className = "", onClick }: Prop
       <FacebookLogo className="size-4 shrink-0 sm:size-5" aria-hidden />
       <span className="truncate">Facebook</span>
     </a>
+  );
+}
+
+export function AuthLegalConsent({ action = "continuar" }: { action?: string }) {
+  return (
+    <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+      Al {action} confirmas que eres mayor de 18 años y aceptas nuestros{" "}
+      <Link to="/legal/terminos" className="font-medium text-primary underline-offset-2 hover:underline">
+        Términos y Condiciones
+      </Link>{" "}
+      y el{" "}
+      <Link to="/legal/privacidad" className="font-medium text-primary underline-offset-2 hover:underline">
+        Aviso de Privacidad
+      </Link>
+      .
+    </p>
   );
 }
 

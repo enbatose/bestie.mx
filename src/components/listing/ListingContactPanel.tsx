@@ -103,8 +103,8 @@ export function ListingContactPanel({
               ? "El anunciante eligió no mostrar su número. Usa el mensaje en Bestie arriba."
               : "El anunciante eligió no mostrar su número públicamente."}{" "}
             Si necesitas ayuda para conectar, escribe a{" "}
-            <a href="mailto:support@bestie.mx" className="font-medium text-primary underline-offset-2 hover:underline">
-              support@bestie.mx
+            <a href="mailto:contacto@bestie.mx" className="font-medium text-primary underline-offset-2 hover:underline">
+              contacto@bestie.mx
             </a>
             .
           </p>

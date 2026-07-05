@@ -77,7 +77,7 @@ export function buildEmailVerificationEmail(payload: EmailVerificationEmailPaylo
           <p style="margin:0;text-align:center;"><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:999px;">Ir a verificar</a></p>
         </td></tr>
         <tr><td style="padding:16px 24px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;">
-          <p style="margin:0;font-size:11px;line-height:1.5;color:#9ca3af;text-align:center;">Si no creaste una cuenta en Bestie, ignora este correo.<br/>¿Necesitas ayuda? <a href="mailto:support@bestie.mx" style="color:#6b7280;">support@bestie.mx</a></p>
+          <p style="margin:0;font-size:11px;line-height:1.5;color:#9ca3af;text-align:center;">Si no creaste una cuenta en Bestie, ignora este correo.<br/>¿Necesitas ayuda? <a href="mailto:contacto@bestie.mx" style="color:#6b7280;">contacto@bestie.mx</a></p>
         </td></tr>
       </table>
     </td></tr>

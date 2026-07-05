@@ -96,7 +96,7 @@ Listing photos are stored as files (and duplicated in SQLite `upload_blobs`). If
 
 ### Support inbox
 
-- **support@bestie.mx** is referenced in UI (`/contacto`, footer). Ensure DNS + mailbox exist for production.
+- **contacto@bestie.mx** is referenced in UI (`/contacto`, footer, legal docs, transactional emails). Ensure DNS + mailbox exist for production.
 
 ### Hosting (Railway only)
 

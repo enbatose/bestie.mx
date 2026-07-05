@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
+import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import {
   authLinkPublisher,
   authLogin,
@@ -221,6 +221,7 @@ export function SignInPage() {
       <div className="mt-6">
         <SocialSignInButtons returnTo="/mis-anuncios" />
       </div>
+      <AuthLegalConsent action="continuar" />
       <AuthMethodDivider />
 
       <div className="mt-6 flex rounded-full border border-border bg-bg-light p-1 text-sm font-medium">

@@ -47,7 +47,7 @@ export function buildPasswordResetEmail(payload: PasswordResetEmailPayload): {
           <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#9ca3af;word-break:break-all;">Enlace directo:<br/><a href="${escapeHtml(resetUrl)}" style="color:#2563eb;">${escapeHtml(resetUrl)}</a></p>
         </td></tr>
         <tr><td style="padding:16px 24px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;">
-          <p style="margin:0;font-size:11px;line-height:1.5;color:#9ca3af;text-align:center;">Si no solicitaste este cambio, ignora este correo.<br/>¿Necesitas ayuda? <a href="mailto:support@bestie.mx" style="color:#6b7280;">support@bestie.mx</a></p>
+          <p style="margin:0;font-size:11px;line-height:1.5;color:#9ca3af;text-align:center;">Si no solicitaste este cambio, ignora este correo.<br/>¿Necesitas ayuda? <a href="mailto:contacto@bestie.mx" style="color:#6b7280;">contacto@bestie.mx</a></p>
         </td></tr>
       </table>
     </td></tr>

@@ -36,14 +36,14 @@ Use this in **Jira Cloud** or **Jira Data Center** to create a **Project** (Jira
 - If cookie session: issue **publisher_id** on first publish; store on listing row (schema migration).
 - Frontend: send credentials/cookie on `fetch` to API; CORS + `credentials` configuration.
 
-### Story A3 — Support contact (support@bestie.mx)
+### Story A3 — Support contact (contacto@bestie.mx)
 
 **As a** user **I want** to reach support **so that** I can report issues or ask questions.
 
 **Tasks**
 
-- Add **/contacto** (or footer on all pages): copy + `mailto:support@bestie.mx` and/or embedded form (Formspree, Getform, or backend `POST` that emails).
-- Verify **support@bestie.mx** inbox exists and is monitored.
+- Add **/contacto** (or footer on all pages): copy + `mailto:contacto@bestie.mx` and/or embedded form (Formspree, Getform, or backend `POST` that emails).
+- Verify **contacto@bestie.mx** inbox exists and is monitored.
 
 ### Story A4 — FAQ and legal pages (static)
 

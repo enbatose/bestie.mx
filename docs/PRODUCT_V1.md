@@ -1,6 +1,6 @@
 # Bestie — product v1 (authoritative summary)
 
-**Brand & domain:** Bestie · **bestie.mx** · **support@bestie.mx**  
+**Brand & domain:** Bestie · **bestie.mx** · **contacto@bestie.mx**  
 **Mark:** ™ while IMPI pending; ® after registration.
 
 ## Vision
@@ -38,7 +38,7 @@
 ## Messaging & support
 
 - No in-app chat v1; **reveal contact** OK.
-- **Support:** route to **support@bestie.mx** (form vs light ticketing — product choice).
+- **Support:** route to **contacto@bestie.mx** (form vs light ticketing — product choice).
 
 ## Admin v1
 
