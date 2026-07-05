@@ -17,6 +17,35 @@
       name="description"
       content="Bestie — comparte depa en México. Busca y publica cuartos con mapa, filtros y confianza."
     />
+    <meta name="author" content="Enrique Batani Oseguera" />
+    <meta name="publisher" content="Enrique Batani Oseguera" />
+    <meta property="og:site_name" content="Bestie" />
+    <meta property="og:title" content="Bestie — bestie.mx" />
+    <meta
+      property="og:description"
+      content="Bestie es una plataforma para encontrar roomies y rentas compartidas en México. Operado por Enrique Batani Oseguera."
+    />
+    <meta property="og:url" content="https://www.bestie.mx" />
+    <meta property="og:type" content="website" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Bestie",
+        "legalName": "Enrique Batani Oseguera",
+        "url": "https://www.bestie.mx",
+        "email": "contacto@bestie.mx",
+        "founder": { "@type": "Person", "name": "Enrique Batani Oseguera" },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Calle La Ley 3048, Juan Manuel",
+          "postalCode": "44680",
+          "addressLocality": "Guadalajara",
+          "addressRegion": "Jalisco",
+          "addressCountry": "MX"
+        }
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,6 +56,23 @@
   </head>
   <body class="min-h-screen bg-bg-light text-body antialiased">
     <div id="root"></div>
+    <noscript>
+      <div style="max-width: 40rem; margin: 0 auto; padding: 2rem 1rem; font-family: sans-serif;">
+        <h1>Bestie</h1>
+        <p>
+          Bestie es una plataforma para encontrar roomies y rentas compartidas en México, con
+          búsqueda por mapa, filtros y contacto directo.
+        </p>
+        <p>
+          Operado por <strong>Enrique Batani Oseguera</strong> (marca Bestie, bestie.mx, en trámite de
+          registro ante el IMPI). Contacto: <a href="mailto:contacto@bestie.mx">contacto@bestie.mx</a>.
+        </p>
+        <p>
+          <a href="/legal/terminos">Términos y Condiciones</a> ·
+          <a href="/legal/privacidad">Aviso de Privacidad</a>
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

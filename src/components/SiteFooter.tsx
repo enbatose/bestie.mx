@@ -29,6 +29,8 @@ export function SiteFooter() {
           <BrandLogo imgClassName="h-7 w-auto max-w-[min(100%,200px)] object-left sm:h-8" />
           <p className="text-center text-sm text-muted sm:text-right">
             © {new Date().getFullYear()} Bestie™
+            <br />
+            <span className="text-xs">Operado por Enrique Batani Oseguera</span>
           </p>
         </div>
       </div>
