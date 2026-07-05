@@ -7,6 +7,8 @@ import { FaqPage } from "@/pages/FaqPage";
 import { GroupsPage } from "@/pages/GroupsPage";
 import { HomePage } from "@/pages/HomePage";
 import { LegalPage } from "@/pages/LegalPage";
+import { TermsPage } from "@/pages/legal/TermsPage";
+import { PrivacyPage } from "@/pages/legal/PrivacyPage";
 import { ListingPage } from "@/pages/ListingPage";
 import { MessagesPage } from "@/pages/MessagesPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
@@ -45,6 +47,8 @@ const router = createBrowserRouter([
       { path: "contacto", element: <ContactPage /> },
       { path: "faq", element: <FaqPage /> },
       { path: "legal", element: <LegalPage /> },
+      { path: "legal/terminos", element: <TermsPage /> },
+      { path: "legal/privacidad", element: <PrivacyPage /> },
       { path: "entrar", element: <SignInPage /> },
       { path: "recuperar-contrasena", element: <ForgotPasswordPage /> },
       { path: "registro", element: <RegisterPage /> },

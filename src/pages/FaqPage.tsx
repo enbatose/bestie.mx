@@ -25,8 +25,8 @@ export function FaqPage() {
           <dt className="text-base font-semibold text-body">¿Cómo reporto un anuncio sospechoso?</dt>
           <dd className="mt-2 text-sm leading-relaxed text-muted">
             Escríbenos a{" "}
-            <a className="font-medium text-primary underline-offset-2 hover:underline" href="mailto:support@bestie.mx">
-              support@bestie.mx
+            <a className="font-medium text-primary underline-offset-2 hover:underline" href="mailto:contacto@bestie.mx">
+              contacto@bestie.mx
             </a>{" "}
             con el enlace del anuncio y una breve descripción.
           </dd>
@@ -34,11 +34,11 @@ export function FaqPage() {
         <div>
           <dt className="text-base font-semibold text-body">¿Mis datos están seguros?</dt>
           <dd className="mt-2 text-sm leading-relaxed text-muted">
-            Publicamos prácticas mínimas en{" "}
-            <Link to="/legal" className="font-medium text-primary underline-offset-2 hover:underline">
-              Aviso de privacidad
+            Consulta cómo tratamos y proteges tus datos en nuestro{" "}
+            <Link to="/legal/privacidad" className="font-medium text-primary underline-offset-2 hover:underline">
+              Aviso de Privacidad
             </Link>
-            . El detalle legal crecerá conforme el producto madure.
+            .
           </dd>
         </div>
       </dl>

@@ -17,8 +17,11 @@ export function SiteFooter() {
           <Link to="/contacto" className={linkClass}>
             Contacto
           </Link>
-          <Link to="/legal" className={linkClass}>
+          <Link to="/legal/terminos" className={linkClass}>
             Términos y Condiciones
+          </Link>
+          <Link to="/legal/privacidad" className={linkClass}>
+            Aviso de Privacidad
           </Link>
         </nav>
 
