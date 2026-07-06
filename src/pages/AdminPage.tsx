@@ -160,7 +160,7 @@ export function AdminPage() {
                   .filter(Boolean);
                 await adminPutFeaturedCities(cities);
               } catch (x) {
-                setErr(x instanceof Error ? x.message : "Error");
+                setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
               } finally {
                 setBusy(false);
               }
@@ -233,7 +233,7 @@ export function AdminPage() {
                     aria-valuemax={100}
                   >
                     <div
-                      className={`h-full rounded-full ${dynamicPct >= 100 ? "bg-amber-500" : "bg-secondary"}`}
+                      className={`h-full rounded-full ${dynamicPct >= 100 ? "bg-warning" : "bg-secondary"}`}
                       style={{ width: `${dynamicPct}%` }}
                     />
                   </div>
@@ -346,7 +346,7 @@ export function AdminPage() {
               try {
                 await adminPatchPropertyStatus(propId, propStatus);
               } catch (x) {
-                setErr(x instanceof Error ? x.message : "Error");
+                setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
               } finally {
                 setBusy(false);
               }

@@ -502,7 +502,7 @@ export function MyListingsPage() {
                       {head.neighborhood} · {head.city}
                     </p>
                     {propSt === "draft" && missingByProperty[propertyId] ? (
-                      <p className="mt-2 text-xs text-amber-900 dark:text-amber-200">
+                      <p className="mt-2 text-xs text-warning-fg">
                         Completa: <span className="font-medium">{missingByProperty[propertyId]}</span>
                       </p>
                     ) : null}

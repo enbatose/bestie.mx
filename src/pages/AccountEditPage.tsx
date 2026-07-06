@@ -202,7 +202,7 @@ export function AccountEditPage() {
       setCurrentPassword("");
       await load();
     } catch (x) {
-      setProfileErr(x instanceof Error ? x.message : "Error");
+      setProfileErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setSavingProfile(false);
     }
@@ -236,7 +236,7 @@ export function AccountEditPage() {
       setPwConfirm("");
       window.dispatchEvent(new Event("bestie:me-changed"));
     } catch (x) {
-      setPwErr(x instanceof Error ? x.message : "Error");
+      setPwErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setSavingPassword(false);
     }
@@ -416,7 +416,7 @@ export function AccountEditPage() {
           </form>
         </section>
       ) : (
-        <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
+        <section className="mt-8 rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm text-warning-fg">
           <h2 className="text-sm font-semibold uppercase tracking-wide">Contraseña</h2>
           <p className="mt-2 text-xs">
             Esta cuenta entra solo con WhatsApp OTP, por lo que aún no hay contraseña que cambiar.

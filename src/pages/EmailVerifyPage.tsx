@@ -121,8 +121,8 @@ export function EmailVerifyPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/40">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+      <div className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-warning-fg">
           Validación pendiente
         </p>
       </div>

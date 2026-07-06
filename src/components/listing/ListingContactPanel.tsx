@@ -96,7 +96,7 @@ export function ListingContactPanel({
           )}
         </div>
       ) : (
-        <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/80 p-4 text-sm text-amber-950">
+        <div className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning-fg">
           <p className="font-medium">WhatsApp no disponible en este anuncio</p>
           <p className="mt-1 leading-relaxed">
             {canMessage

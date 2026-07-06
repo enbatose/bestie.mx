@@ -48,7 +48,7 @@ export function RegisterPage() {
             });
             navigate(needsEmailVerification(me) ? "/verificar-correo" : "/mis-anuncios", { replace: true });
           } catch (x) {
-            setErr(x instanceof Error ? x.message : "Error");
+            setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
           } finally {
             setBusy(false);
           }

@@ -269,7 +269,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         </span>
       </NavLink>
       <NavLink to="/mis-anuncios" className={desktopNavClass} onClick={dismissNav}>
-        Mis Anuncios
+        Mis anuncios
       </NavLink>
       <NavLink to="/mis-busquedas" className={desktopNavClass} onClick={dismissNav}>
         <span className="inline-flex items-center gap-1.5">
@@ -366,7 +366,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       </NavLink>
       <NavLink to="/mis-anuncios" className={mobileNavClass} onClick={dismissNav}>
         <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
-        Mis Anuncios
+        Mis anuncios
       </NavLink>
       <NavLink to="/mis-busquedas" className={mobileNavClass} onClick={dismissNav}>
         <SavedSearchIcon className="h-4 w-4 shrink-0" />

@@ -23,8 +23,21 @@ export default {
         border: "#E2E8F0",
         muted: "#64748B",
         body: "#1E293B",
-        warning: "#F59E0B",
+        warning: {
+          DEFAULT: "#F59E0B",
+          fg: "#92400E",
+        },
         error: "#E11D48",
+        // Reserved maximum-visibility accent — Save/Follow search only. See brand rule §6.
+        gold: {
+          DEFAULT: "#FFD700",
+          hover: "#F0CC00",
+          active: "#E6C200",
+          edge: "#C9A600",
+          "edge-hover": "#B89600",
+          fg: "#3A2F08",
+          ring: "#065F46",
+        },
       },
       fontFamily: {
         sans: [

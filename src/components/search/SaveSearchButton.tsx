@@ -16,9 +16,9 @@ type SaveGroupProps = {
 };
 
 const GOLD_MAIN =
-  "border-[#c9a600] bg-[#FFD700] text-[#3a2f08] shadow-sm hover:border-[#b89600] hover:bg-[#f0cc00] active:bg-[#e6c200]";
+  "border-gold-edge bg-gold text-gold-fg shadow-sm hover:border-gold-edge-hover hover:bg-gold-hover active:bg-gold-active";
 const GOLD_FOLLOW =
-  "border-[#c9a600] bg-[#FFD700]/90 text-[#3a2f08] hover:bg-[#f0cc00] active:bg-[#e6c200]";
+  "border-gold-edge bg-gold/90 text-gold-fg hover:bg-gold-hover active:bg-gold-active";
 
 const GUEST_NUDGE_MS = 7_000;
 
@@ -101,7 +101,7 @@ function GuestNudge({
         onClick={onClick}
         className="relative w-full rounded-xl border border-primary/20 bg-surface px-3 py-2.5 pr-9 text-left text-xs font-medium leading-snug text-body shadow-lg ring-1 ring-primary/10 transition hover:bg-surface-elevated"
       >
-        ¡Sé el primero en ver nuevas publicaciones!
+        Sé el primero en ver nuevas publicaciones.
       </button>
       <button
         type="button"
@@ -139,7 +139,7 @@ function SaveSearchGroup({
     <div className={`relative min-w-0 ${mobile ? "w-full" : "shrink-0"} ${className}`}>
       {pulseActive ? <PulseRing mobile={mobile} /> : null}
       <div
-        className={`relative z-20 overflow-hidden border border-[#c9a600] shadow-sm ${heightClass} ${mobile ? "flex w-full" : "inline-flex"}`}
+        className={`relative z-20 overflow-hidden border border-gold-edge shadow-sm ${heightClass} ${mobile ? "flex w-full" : "inline-flex"}`}
         role="group"
         aria-label="Guardar búsqueda"
       >
@@ -147,15 +147,15 @@ function SaveSearchGroup({
           type="button"
           onClick={onSaveClick}
           aria-label={mobile ? "Guardar búsqueda" : undefined}
-          className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-[#c9a600]/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
+          className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-gold-edge/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
         >
           <SavedSearchIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} />
-          {mobile ? null : <span className="truncate whitespace-nowrap">Guardar Búsqueda</span>}
+          {mobile ? null : <span className="truncate whitespace-nowrap">Guardar búsqueda</span>}
         </button>
         <button
           type="button"
           onClick={onFollowClick}
-          className={`inline-flex items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW} ${mobile ? "w-[3.25rem] shrink-0 px-0" : "shrink-0 px-2.5"}`}
+          className={`inline-flex items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_FOLLOW} ${mobile ? "w-[3.25rem] shrink-0 px-0" : "shrink-0 px-2.5"}`}
           aria-label="Seguir con alertas por correo"
         >
           <Mail className={mobile ? "size-4" : "size-3.5"} aria-hidden strokeWidth={2.2} />
@@ -239,7 +239,7 @@ export function MobileCombinedFilterBar({
           <div className={`relative flex min-w-0 flex-[2] ${MOBILE_CONTROL_HEIGHT}`}>
             {pulseActive ? <PulseRing mobile compact /> : null}
             <div
-              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-r-[0.95rem] border-l border-[#c9a600]/70`}
+              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-r-[0.95rem] border-l border-gold-edge/70`}
               role="group"
               aria-label="Guardar búsqueda"
             >
@@ -247,7 +247,7 @@ export function MobileCombinedFilterBar({
                 type="button"
                 onClick={onSaveClick}
                 aria-label="Guardar búsqueda"
-                className={`inline-flex min-w-0 flex-1 items-center justify-center border-r border-[#c9a600]/60 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_MAIN}`}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center border-r border-gold-edge/60 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
               >
                 <SavedSearchIcon className="size-4 shrink-0" />
               </button>
@@ -255,7 +255,7 @@ export function MobileCombinedFilterBar({
                 type="button"
                 onClick={onFollowClick}
                 aria-label="Seguir con alertas por correo"
-                className={`inline-flex min-w-0 flex-1 items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#065f46]/50 ${GOLD_FOLLOW}`}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_FOLLOW}`}
               >
                 <Mail className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
               </button>

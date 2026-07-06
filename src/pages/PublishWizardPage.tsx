@@ -2008,7 +2008,7 @@ export function PublishWizardPage() {
                     />
                     <span
                       className={`mt-1 block text-xs ${
-                        room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-amber-700" : "text-muted"
+                        room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-warning-fg" : "text-muted"
                       }`}
                     >
                       {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
@@ -2344,7 +2344,7 @@ export function PublishWizardPage() {
         ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
         {handoffBanner ? (
-          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-fg">
             {handoffBanner}
           </p>
         ) : null}
@@ -2475,7 +2475,7 @@ export function PublishWizardPage() {
             <button
               type="button"
               onClick={() => autofillStep(safeStep)}
-              className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1 dark:border-amber-500/50 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+              className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-warning/50 bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning-fg shadow-sm transition hover:bg-warning/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning/50 focus-visible:ring-offset-1"
               title="Solo visible para administradores"
             >
               <Wand2 className="size-3.5" aria-hidden />

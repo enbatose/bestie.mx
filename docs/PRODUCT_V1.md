@@ -68,6 +68,10 @@
 | body | `#1E293B` | Text |
 | muted | `#64748B` | Secondary text |
 | error | `#E11D48` | Errors |
+| warning | `#F59E0B` | Warnings / pending |
+| warning-fg | `#92400E` | Text on warning surfaces |
+| gold | `#FFD700` | Reserved max-visibility (Save/Follow search) |
+| gold-fg | `#3A2F08` | Text on gold surfaces |
 
 ---
 

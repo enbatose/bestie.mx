@@ -436,7 +436,7 @@ export function EditableListingPreview({
             className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
               variant === "live-edit"
                 ? "bg-primary/10 text-primary"
-                : "bg-amber-100 text-amber-900"
+                : "bg-warning/15 text-warning-fg"
             }`}
           >
             {variant === "live-edit" ? "Editando anuncio" : "Vista previa · Borrador"}
@@ -548,7 +548,7 @@ export function EditableListingPreview({
             saveLabel="Listo"
           >
             {draft.postMode === "property" && draft.unassignedImageUrls.length > 0 ? (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">
                 <p className="font-medium">
                   {draft.unassignedImageUrls.length} foto(s) sin categorizar — asígnalas antes de publicar.
                 </p>

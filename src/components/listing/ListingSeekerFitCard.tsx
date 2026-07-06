@@ -62,7 +62,7 @@ function occupantsPlainLabel(
 ): string | null {
   const raw = previewRoomOccupantsBadgeLabel(menCount, womenCount);
   if (!raw) return null;
-  return raw.replace(/^👥\s*Viven aquí:\s*/, "");
+  return raw.replace(/^Viven aquí:\s*/, "");
 }
 
 export function ListingSeekerFitCard({

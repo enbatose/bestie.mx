@@ -68,6 +68,21 @@ Encode brand decisions as **actionable constraints**. Canonical token values liv
 - **No English** in user-visible UI strings unless it is an established product term (roomie, bestie).
 - Meta/OG descriptions: match tone in `index.html` — factual, México, roomies/renta compartida.
 
+### Copy examples (real surfaces)
+
+Concrete patterns pulled from live screens — mirror these before inventing new phrasing:
+
+| Surface | Do | Don't |
+| --- | --- | --- |
+| Publish success | “Listo. Tu recámara ya está publicada.” | “¡Todo listo! 🎉” |
+| Generic action error | “No se pudo completar la acción.” | “Error” / “Oops!” |
+| Load failure (listing) | “No pudimos cargar el anuncio.” | “Error 500” |
+| Autosave chip | “Auto-guardado 20:14” | “¡Guardado! ✅” |
+| Guest save nudge | “Guarda tu progreso. Inicia sesión…” | “¡Guarda tu progreso!” |
+| Verify-email banner | “Validación pendiente: confirma tu correo.” | “You must verify!” |
+| Empty saved searches | “Aún no tienes búsquedas guardadas.” | “Nothing here yet” |
+| Share confirmation | “Enlace del anuncio copiado.” | “Link copied!” |
+
 ## 5. Domain vocabulary (use consistently)
 
 Reuse labels from `src/lib/listingKeyLabels.ts`, `src/lib/searchFilters.ts`, and `ListingTagChips`:
@@ -108,7 +123,9 @@ Property/room statuses (internal slugs, Spanish labels in UI): `draft → publis
 | bg-dark | `bg-bg-dark` | Dark mode page base |
 | border | `border-border` | All structural borders |
 | error | `text-error`, border/text for errors | Validation, destructive hints |
-| warning | `text-warning` | Warnings |
+| warning | `bg-warning` (solid), `bg-warning/10`, `border-warning/40` | Warning/pending surfaces, progress-at-limit |
+| warning-fg | `text-warning-fg` | Readable text/icons on warning surfaces (amber `text-warning` alone fails contrast — never use it for body text) |
+| gold | `bg-gold`, `text-gold-fg`, `border-gold-edge` | **Reserved** max-visibility action (Save/Follow search) — see gold subsection below |
 
 ### Color rules
 
@@ -117,27 +134,40 @@ Property/room statuses (internal slugs, Spanish labels in UI): `draft → publis
 - **Secondary CTA:** `rounded-full border border-border bg-surface` with `hover:bg-surface-elevated`.
 - **Accent sparingly:** `secondary` signals energy — not full-page lime backgrounds.
 - **Success/info banners:** `border-secondary/40 bg-secondary/10` (see `SavedSearchesPage`).
+- **Warning banners/boxes:** `border border-warning/40 bg-warning/10 text-warning-fg` (see email-verify banner). Icons/emphasis `text-warning-fg`; solid `bg-warning` only for indicators like progress bars.
+- **Error banners:** `border border-error/30 bg-error/5 text-error`.
 - On `bg-primary` hero: text `text-primary-fg`; emphasized phrase `text-secondary`.
+
+### CTA decision tree (which treatment to use)
+
+Pick exactly one treatment per action, in this priority order:
+
+1. **Is it the single most important conversion action on the screen** (Save/Follow search)? → **gold** (`bg-gold text-gold-fg`). Max one per screen.
+2. **Is it the main action of the view** (Publicar, Buscar, Guardar cambios, Enviar)? → **primary** (`rounded-full bg-primary text-primary-fg hover:brightness-110`).
+3. **Is it on the forest hero / dark surface**? → **lime** (`bg-secondary text-primary`).
+4. **Is it a supporting / secondary action** (Cancelar, Volver, secondary link-buttons)? → **bordered surface** (`rounded-full border border-border bg-surface hover:bg-surface-elevated`).
+5. **Is it destructive** (Eliminar, Cerrar sesión)? → **error** intent (`text-error`, `hover:bg-error/5`); confirm in a dialog for irreversible actions.
+
+If two actions on one screen both want primary/gold, demote the lesser one — never show two golds or competing equal-weight primaries side by side.
 
 ### Gold — reserved maximum-visibility accent
 
-A single **gold** treatment is reserved for the **highest-priority conversion action only** — currently the **Save / Follow search** control (`src/components/search/SaveSearchButton.tsx`). It is a deliberate, documented exception to the "no arbitrary hex" rule and is **not** a general-purpose accent. Gold is defined inline in that component (not in `tailwind.config.ts`) via the `GOLD_MAIN` / `GOLD_FOLLOW` class strings.
+A single **gold** treatment is reserved for the **highest-priority conversion action only** — currently the **Save / Follow search** control (`src/components/search/SaveSearchButton.tsx`). It is a real token in `tailwind.config.ts` (`gold`), **not** a general-purpose accent.
 
-| Role | Value |
+| Role | Class |
 | --- | --- |
-| Fill | `#FFD700` (follow half uses `#FFD700`/90) |
-| Border | `#c9a600` (inner dividers `#c9a600`/60–70) |
-| Text / icon | `#3a2f08` (dark, for contrast — never white on gold) |
-| Hover | border `#b89600`, bg `#f0cc00` |
-| Active | bg `#e6c200` |
-| Focus ring / pulse | `#065f46` (forest — ties gold back to the brand, not lime) |
+| Fill | `bg-gold` (follow half: `bg-gold/90`) |
+| Hover / active fill | `hover:bg-gold-hover`, `active:bg-gold-active` |
+| Border / dividers | `border-gold-edge` (`/60`–`/70` for inner splits), hover `border-gold-edge-hover` |
+| Text / icon | `text-gold-fg` (dark, for contrast — never white on gold) |
+| Focus ring | `ring-gold-ring/50` (forest — ties gold back to the brand, not lime) |
 
 **Gold rules:**
 
 - **One gold action per screen, maximum.** It means "the single most important thing to do here" — overuse destroys its salience.
 - Reserved for Save/Follow search. Do **not** put gold on primary CTAs, nav, chips, banners, badges, or destructive actions — those stay on `primary` / `secondary` / `error`.
-- Keep text/icons dark (`#3a2f08`); pair with the **forest** focus ring and green pulse ring (`#065f46`), never a lime ring.
-- If gold is ever needed in a second place, **stop and promote it to a named token** (`gold` / `highlight`) in `tailwind.config.ts` first — do not scatter more raw hex.
+- Always `text-gold-fg` on gold; pair with the forest focus ring (`ring-gold-ring`) and green pulse ring, never a lime ring.
+- The green pulse ring stroke in `PulseRing` uses the forest hex as an SVG `stroke` attribute — SVG stroke/fill attributes are the one place raw hex is unavoidable (Tailwind classes do not apply). Keep it aligned with `gold-ring`.
 
 ## 7. Typography
 
@@ -213,14 +243,34 @@ Do **not** use `rounded-3xl` on forms/cards unless matching an existing pattern 
 - No bounce/spring animations on forms or wizards.
 - Hero may use soft blurred lime orb (`bg-secondary/20 blur-3xl`) as atmosphere — do not replicate on dense data UI.
 
-## 13. UI layering
+### Attention / pulse-ring pattern
+
+To draw one-time attention to a high-value control (the Save-search pulse), reuse the existing pattern in `SaveSearchButton.tsx` (`PulseRing` + the `autosave-ring-travel` keyframes in `src/index.css`) — do **not** invent new attention animations:
+
+- A single forest-green ring travels the control's outline once, then fades (`animation … forwards`, not looping) — attention without nagging.
+- Reserve it for the gold Save-search control and equivalent top-priority moments; never run it on multiple elements at once.
+- Pair with the gold treatment and the forest ring color; keep the SVG `stroke` aligned with `gold-ring`.
+- Nudges/tooltips that accompany it must escape parent overflow and sit at the correct layer (`.cursor/rules/ui-layering-precedence.mdc`) — avoid `overflow-hidden` on their containers.
+
+## 13. Accessibility floor
+
+Non-negotiable minimums (the codebase already meets these — do not regress them):
+
+- **Contrast:** body/label text must stay legible on its surface. On `bg-gold`, always use `text-gold-fg` (dark) — never white. Don't put `text-muted` on `bg-secondary`/colored fills where it drops below readable contrast.
+- **Focus visible:** every interactive element keeps a visible focus state — rely on the global `:focus-visible` outline (`src/index.css`) or an explicit `focus-visible:ring-2`. Never `outline-none` without a replacement ring.
+- **Icon-only buttons need `aria-label`** in Spanish (e.g. `aria-label="Cerrar"`, `aria-label="Guardar búsqueda"`). Decorative icons/art get `aria-hidden`.
+- **Touch targets:** primary actions at least `min-h-11`/`min-h-12`; don't shrink tap areas below ~40px on mobile.
+- **Semantics:** status messages use `role="status"`; errors use `role="alert"`; modals set `role="dialog"`/`aria-modal` and a labelled title (see `AccountEditPage` reset dialog).
+- **Motion:** attention animations play once and stop; no infinite motion behind text.
+
+## 14. UI layering
 
 Floating UI z-index stacks are defined in `.cursor/rules/ui-layering-precedence.mdc`. Do not invent new z-index tiers; portal modals to `document.body` when specified there.
 
-## 14. Anti-patterns (NEVER)
+## 15. Anti-patterns (NEVER)
 
 - Default Tailwind blues/indigos (`bg-blue-600`, `bg-indigo-600`, `border-indigo-200`) for product UI.
-- Arbitrary hex or rgb in class names when a semantic token exists (the reserved Save/Follow-search **gold** in `SaveSearchButton.tsx` is the only sanctioned exception — see §6).
+- Arbitrary hex or rgb in Tailwind class names — every brand color (including **gold**, see §6) is a token. The only place raw hex is allowed is inside SVG `stroke`/`fill` attributes, where Tailwind classes cannot reach.
 - English UI strings, Title Case headings, or multiple exclamation marks.
 - Generic SaaS copy (“streamline”, “leverage”, “supercharge”).
 - Luxury real-estate tone (“residencia exclusiva”, “inversión inmobiliaria”) for roommate listings.
@@ -229,7 +279,7 @@ Floating UI z-index stacks are defined in `.cursor/rules/ui-layering-precedence.
 - Childish voice (“¡Hola bestie! 🎉”) on transactional screens.
 - Replacing **roomie/bestie** positioning with cold “inquilino/arrendatario” in marketing.
 
-## 15. Reference map
+## 16. Reference map
 
 | Need | File |
 | --- | --- |
@@ -241,5 +291,6 @@ Floating UI z-index stacks are defined in `.cursor/rules/ui-layering-precedence.
 | Figma naming / tokens | `docs/figma/flows/00-figma-conventions.md` |
 | Home/hero copy reference | `src/pages/HomePage.tsx` |
 | Listing labels | `src/lib/listingKeyLabels.ts` |
+| Gold accent + pulse-ring pattern | `src/components/search/SaveSearchButton.tsx` |
 
 When unsure between two stylistic choices, match the nearest existing screen in `src/pages/` or `src/components/` before inventing a new pattern.

@@ -27,7 +27,7 @@ export function SavedSearchesPage() {
     try {
       setRows(await fetchSavedSearches());
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setRows([]);
     }
   }, []);
@@ -50,7 +50,7 @@ export function SavedSearchesPage() {
         await updateSavedSearch(row.id, { emailNotifyEnabled: false });
         await load();
       } catch (x) {
-        setErr(x instanceof Error ? x.message : "Error");
+        setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       } finally {
         setBusyId(null);
       }
@@ -83,7 +83,7 @@ export function SavedSearchesPage() {
       );
       await load();
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setBusyId(null);
     }
@@ -104,7 +104,7 @@ export function SavedSearchesPage() {
       await updateSavedSearch(row.id, { label: next.trim() });
       await load();
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setBusyId(null);
     }
@@ -117,7 +117,7 @@ export function SavedSearchesPage() {
       await deleteSavedSearch(row.id);
       await load();
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setBusyId(null);
     }

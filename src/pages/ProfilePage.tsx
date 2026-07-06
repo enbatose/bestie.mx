@@ -76,7 +76,7 @@ export function ProfilePage() {
       </ul>
 
       {!phoneOk ? (
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div className="mt-6 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning-fg">
           <p className="font-medium">Completa tu perfil</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
             <li>

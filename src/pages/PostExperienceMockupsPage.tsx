@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   Bath,
   Bed,
+  BedDouble,
   Calendar,
   Car,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
   Home,
   Info,
   KeyRound,
+  MapPin,
   MessageCircle,
   PawPrint,
   ShieldCheck,
@@ -19,8 +21,10 @@ import {
   Timer,
   UserCheck,
   Users,
+  VenusAndMars,
   Warehouse,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ListingPhotoCarousel } from "@/components/listing/ListingPhotoCarousel";
 import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingShareActions } from "@/components/listing/ListingShareActions";
@@ -446,12 +450,10 @@ const KEY_LABEL_ROOM_TAG_SLUGS = new Set(["baño-privado", "estacionamiento", "e
 const PROPERTY_AMENITY_TAG_SET = new Set<string>(PROPERTY_AMENITY_TAG_SLUGS);
 const ROOM_PHYSICAL_TAG_SET = new Set<string>(ROOM_TAG_GROUPS[0].tags);
 
-function HeaderInfoItem({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+function HeaderInfoItem({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="text-xl leading-none" aria-hidden>
-        {emoji}
-      </span>
+      <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
       <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
         <p className="text-sm font-medium text-body">{value}</p>
@@ -516,13 +518,13 @@ function SingleRoomHeader({
         <h2 className="text-xl font-bold text-body">{listing.title}</h2>
         {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
       </div>
-      <p className="text-2xl font-bold text-slate-900">{listingHeroPriceLabel(listing.rentMxn)}</p>
+      <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <HeaderInfoItem emoji="👥" label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
-        <HeaderInfoItem emoji="⚧️" label="Preferencia de género" value={genderPrefLabel(listing.roommateGenderPref)} />
-        <HeaderInfoItem emoji="📅" label="Disponible desde" value={formatRoomAvailableFrom(listing.availableFrom ?? "")} />
-        <HeaderInfoItem emoji="🏠" label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
-        <HeaderInfoItem emoji="📍" label="Colonia" value={listing.neighborhood} />
+        <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
+        <HeaderInfoItem icon={VenusAndMars} label="Preferencia de género" value={genderPrefLabel(listing.roommateGenderPref)} />
+        <HeaderInfoItem icon={Calendar} label="Disponible desde" value={formatRoomAvailableFrom(listing.availableFrom ?? "")} />
+        <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
+        <HeaderInfoItem icon={MapPin} label="Colonia" value={listing.neighborhood} />
       </div>
     </div>
   );
@@ -546,28 +548,28 @@ function PropertyHeader({
         <h2 className="text-xl font-bold text-body">{property.title}</h2>
         {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
       </div>
-      <p className="text-2xl font-bold text-slate-900">
+      <p className="text-2xl font-bold text-body">
         {money.format(minRent)} - {money.format(maxRent)} / mes
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <HeaderInfoItem emoji="🛏️" label="Cuartos disponibles" value={String(availableRooms.length)} />
+        <HeaderInfoItem icon={BedDouble} label="Cuartos disponibles" value={String(availableRooms.length)} />
         <HeaderInfoItem
-          emoji="👥"
+          icon={Users}
           label="Viven aquí"
           value={`${property.occupiedByMenCount ?? 0} Hombres, ${property.occupiedByWomenCount ?? 0} Mujeres`}
         />
         <HeaderInfoItem
-          emoji="⚧️"
+          icon={VenusAndMars}
           label="Preferencia de género"
           value={firstAvailable ? genderPrefLabel(firstAvailable.roommateGenderPref) : "Hombre o Mujer"}
         />
         <HeaderInfoItem
-          emoji="📅"
+          icon={Calendar}
           label="Disponible desde"
           value={firstAvailable ? formatRoomAvailableFrom(firstAvailable.availableFrom ?? "") : "—"}
         />
-        <HeaderInfoItem emoji="🏠" label="Tipo de vivienda" value={propertyKindLabel(property.propertyKind)} />
-        <HeaderInfoItem emoji="📍" label="Colonia" value={property.neighborhood} />
+        <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(property.propertyKind)} />
+        <HeaderInfoItem icon={MapPin} label="Colonia" value={property.neighborhood} />
       </div>
     </div>
   );
@@ -791,7 +793,7 @@ export function PostExperienceMockupsPage() {
           shareActions={
             <ListingShareActions
               shareMsg={shareMsg}
-              onShareListing={() => void copyShareUrl(MOCK_SINGLE_ROOM_SHARE_PATH, "Link del anuncio")}
+              onShareListing={() => void copyShareUrl(MOCK_SINGLE_ROOM_SHARE_PATH, "Enlace del anuncio")}
               onSharePath={() => {}}
             />
           }
@@ -832,7 +834,7 @@ export function PostExperienceMockupsPage() {
               <MessageCircle className="size-4" aria-hidden />
               Enviar mensaje
             </button>
-            {singleSent ? <p className="mt-2 text-xs text-emerald-700">Mensaje enviado (mock).</p> : null}
+            {singleSent ? <p className="mt-2 text-xs text-body">Mensaje enviado (mock).</p> : null}
           </div>
         </ListingSection>
       </section>
@@ -844,7 +846,7 @@ export function PostExperienceMockupsPage() {
           shareActions={
             <ListingShareActions
               shareMsg={shareMsg}
-              onShareListing={() => void copyShareUrl(MOCK_PROPERTY_SHARE_PATH, "Link del anuncio")}
+              onShareListing={() => void copyShareUrl(MOCK_PROPERTY_SHARE_PATH, "Enlace del anuncio")}
               onSharePath={() => {}}
             />
           }
@@ -961,7 +963,7 @@ export function PostExperienceMockupsPage() {
               <MessageCircle className="size-4" aria-hidden />
               Enviar mensaje
             </button>
-            {propertySent ? <p className="mt-2 text-xs text-emerald-700">Mensaje enviado (mock).</p> : null}
+            {propertySent ? <p className="mt-2 text-xs text-body">Mensaje enviado (mock).</p> : null}
           </div>
         </ListingSection>
         </div>

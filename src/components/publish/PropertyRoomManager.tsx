@@ -144,7 +144,7 @@ function RoomTitleInlineEditor({
   if (editing) {
     return (
       <label className="block text-sm font-medium text-body" onClick={stopBubble}>
-        Título de la habitación
+        Título de la recámara
         <span className="text-error"> *</span>
         <input
           autoFocus
@@ -563,7 +563,7 @@ function AvailableRoomFields({
         />
         <span
           className={`block text-xs ${
-            room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-amber-700" : "text-muted"
+            room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-warning-fg" : "text-muted"
           }`}
         >
           {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
@@ -713,7 +713,7 @@ export function PropertyRoomManager({
         const roomLabel = customTitle || slotLabel;
         const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
           issues.length
-            ? "border-amber-300/80 ring-amber-200/60"
+            ? "border-warning/50 ring-warning/30"
             : expanded
               ? "border-primary/30 ring-primary/10"
               : "border-border ring-primary/10"
@@ -731,7 +731,7 @@ export function PropertyRoomManager({
                       onUpdate={(patch) => onUpdateRoom(i, patch)}
                     />
                     {issues.length > 0 ? (
-                      <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
+                      <p className="mt-1 text-xs text-warning-fg">Faltan: {issues.join(", ")}</p>
                     ) : null}
                   </div>
                   <RoomCardHeaderActions
@@ -771,7 +771,7 @@ export function PropertyRoomManager({
                   stopClickPropagation
                 />
                 {!expanded && issues.length > 0 ? (
-                  <p className="mt-1 text-xs text-amber-800">Faltan: {issues.join(", ")}</p>
+                  <p className="mt-1 text-xs text-warning-fg">Faltan: {issues.join(", ")}</p>
                 ) : null}
                 {!expanded && issues.length === 0 ? (
                   <p className="mt-1 text-xs text-muted">Completa — toca para editar</p>

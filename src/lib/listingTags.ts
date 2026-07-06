@@ -285,18 +285,18 @@ export function previewRoomOccupantsBadgeLabel(
   const parts: string[] = [];
   if (men > 0) parts.push(`${men} ${men === 1 ? "Hombre" : "Hombres"}`);
   if (women > 0) parts.push(`${women} ${women === 1 ? "Mujer" : "Mujeres"}`);
-  return `👥 Viven aquí: ${parts.join(", ")}`;
+  return `Viven aquí: ${parts.join(", ")}`;
 }
 
 export function previewRoommateSoughtBadgeLabel(pref: RoommateGenderPref): string {
-  return `🤝 Buscan: ${roommateGenderPrefLabel(pref)}`;
+  return `Buscan: ${roommateGenderPrefLabel(pref)}`;
 }
 
 /** Badge de disponibilidad; null si no hay fecha. */
 export function previewAvailableFromBadgeLabel(iso: string): string | null {
   const trimmed = iso.trim();
   if (!trimmed) return null;
-  return `📅 Disponible: ${formatRoomAvailableFrom(trimmed)}`;
+  return `Disponible: ${formatRoomAvailableFrom(trimmed)}`;
 }
 
 export function previewPropertySpacesBadgeLabel(
@@ -307,10 +307,10 @@ export function previewPropertySpacesBadgeLabel(
   const beds = propertyKind === "loft" ? 1 : bedroomsTotal;
   const bedsLabel = beds === 1 ? "1 Recámara" : `${beds} Recámaras`;
   const bathsLabel = bathrooms === 1 ? "1 Baño" : `${bathrooms} Baños`;
-  return `🛏️ ${bedsLabel} • 🚿 ${bathsLabel}`;
+  return `${bedsLabel} • ${bathsLabel}`;
 }
 
-export const PREVIEW_PETS_FRIENDLY_BADGE = "🐾 Aceptan mascotas";
+export const PREVIEW_PETS_FRIENDLY_BADGE = "Aceptan mascotas";
 
 /** Chip style for explicit header badges (preview + public listing pages). */
 export const LISTING_HEADER_BADGE_CLASS =

@@ -70,7 +70,7 @@ export function SignInPage() {
       await refreshMe();
       navigate("/mis-anuncios", { replace: true });
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setPhoneBusy(false);
     }
@@ -93,7 +93,7 @@ export function SignInPage() {
       }
       navigate("/mis-anuncios", { replace: true });
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setEmailBusy(false);
     }

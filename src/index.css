@@ -24,6 +24,9 @@
 .dark .text-muted {
   @apply text-slate-400;
 }
+.dark .text-warning-fg {
+  @apply text-amber-300;
+}
 .dark .text-primary {
   @apply text-accent;
 }
