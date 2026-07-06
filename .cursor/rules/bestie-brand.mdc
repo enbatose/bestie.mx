@@ -119,6 +119,26 @@ Property/room statuses (internal slugs, Spanish labels in UI): `draft → publis
 - **Success/info banners:** `border-secondary/40 bg-secondary/10` (see `SavedSearchesPage`).
 - On `bg-primary` hero: text `text-primary-fg`; emphasized phrase `text-secondary`.
 
+### Gold — reserved maximum-visibility accent
+
+A single **gold** treatment is reserved for the **highest-priority conversion action only** — currently the **Save / Follow search** control (`src/components/search/SaveSearchButton.tsx`). It is a deliberate, documented exception to the "no arbitrary hex" rule and is **not** a general-purpose accent. Gold is defined inline in that component (not in `tailwind.config.ts`) via the `GOLD_MAIN` / `GOLD_FOLLOW` class strings.
+
+| Role | Value |
+| --- | --- |
+| Fill | `#FFD700` (follow half uses `#FFD700`/90) |
+| Border | `#c9a600` (inner dividers `#c9a600`/60–70) |
+| Text / icon | `#3a2f08` (dark, for contrast — never white on gold) |
+| Hover | border `#b89600`, bg `#f0cc00` |
+| Active | bg `#e6c200` |
+| Focus ring / pulse | `#065f46` (forest — ties gold back to the brand, not lime) |
+
+**Gold rules:**
+
+- **One gold action per screen, maximum.** It means "the single most important thing to do here" — overuse destroys its salience.
+- Reserved for Save/Follow search. Do **not** put gold on primary CTAs, nav, chips, banners, badges, or destructive actions — those stay on `primary` / `secondary` / `error`.
+- Keep text/icons dark (`#3a2f08`); pair with the **forest** focus ring and green pulse ring (`#065f46`), never a lime ring.
+- If gold is ever needed in a second place, **stop and promote it to a named token** (`gold` / `highlight`) in `tailwind.config.ts` first — do not scatter more raw hex.
+
 ## 7. Typography
 
 - **Font:** `font-sans` → Inter (loaded in app). Do not introduce other font families.
@@ -200,7 +220,7 @@ Floating UI z-index stacks are defined in `.cursor/rules/ui-layering-precedence.
 ## 14. Anti-patterns (NEVER)
 
 - Default Tailwind blues/indigos (`bg-blue-600`, `bg-indigo-600`, `border-indigo-200`) for product UI.
-- Arbitrary hex or rgb in class names when a semantic token exists.
+- Arbitrary hex or rgb in class names when a semantic token exists (the reserved Save/Follow-search **gold** in `SaveSearchButton.tsx` is the only sanctioned exception — see §6).
 - English UI strings, Title Case headings, or multiple exclamation marks.
 - Generic SaaS copy (“streamline”, “leverage”, “supercharge”).
 - Luxury real-estate tone (“residencia exclusiva”, “inversión inmobiliaria”) for roommate listings.
