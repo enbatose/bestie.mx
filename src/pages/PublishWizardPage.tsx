@@ -162,7 +162,7 @@ function WizardAutosaveIndicator({
             />
           </svg>
         ) : null}
-        <div className="relative z-10 m-[2px] inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/95 px-3 py-1 text-xs font-medium text-emerald-900 shadow-sm">
+        <div className="relative z-10 m-[2px] inline-flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-medium text-body shadow-sm">
           <CloudCheck className="size-3.5" aria-hidden />
           Auto-guardado {timeLabel}
         </div>
@@ -1360,7 +1360,7 @@ export function PublishWizardPage() {
               <div>
                 <p className="text-sm font-medium text-body">
                   Arrastra el marcador para colocar la ubicación.
-                  <span className="text-red-600"> *</span>
+                  <span className="text-error"> *</span>
                 </p>
                 <div className="mt-3">
                   <WizardLocationMap
@@ -1392,7 +1392,7 @@ export function PublishWizardPage() {
                 <label className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 cursor-pointer transition hover:bg-surface-elevated">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
                     checked={draft.isApproximateLocation}
                     onChange={(e) => {
                       const hideExact = e.target.checked;
@@ -1425,7 +1425,7 @@ export function PublishWizardPage() {
                   const { lat, lng } = resolveLatLngForDraft(draft);
                   return (
                     <div className="transition-opacity duration-200">
-                      <h3 className="mt-8 mb-3 text-lg font-semibold text-gray-900">
+                      <h3 className="mt-8 mb-3 text-lg font-semibold text-body">
                         Vista de la propiedad
                       </h3>
                       <StreetViewPovEditor
@@ -1436,7 +1436,7 @@ export function PublishWizardPage() {
                           setDraft((d) => ({ ...d, streetViewPov }))
                         }
                       />
-                      <p className="mt-2 text-sm text-gray-800">
+                      <p className="mt-2 text-sm text-body">
                         <span className="font-bold">TIP:</span> Gira la cámara para que apunte a la fachada de tu
                         propiedad. Esta toma exacta será la que se mostrará en tu anuncio público.
                       </p>
@@ -1471,7 +1471,7 @@ export function PublishWizardPage() {
               ) : null}
               <label className="block text-sm font-medium text-body">
                 Título del anuncio
-                <span className="text-red-600"> *</span>
+                <span className="text-error"> *</span>
                 <input
                   value={draft.propertyTitle}
                   onChange={(e) => setDraft((d) => ({ ...d, propertyTitle: e.target.value }))}
@@ -1485,7 +1485,7 @@ export function PublishWizardPage() {
               </label>
               <label className="block text-sm font-medium text-body">
                 Colonia o zona
-                <span className="text-red-600"> *</span>
+                <span className="text-error"> *</span>
                 <input
                   value={draft.neighborhood}
                   onChange={(e) => setDraft((d) => ({ ...d, neighborhood: e.target.value }))}
@@ -1498,7 +1498,7 @@ export function PublishWizardPage() {
                 <>
                   <label className="block text-sm font-medium text-body">
                     El ambiente y las áreas comunes
-                    <span className="text-red-600"> *</span>
+                    <span className="text-error"> *</span>
                     <textarea
                       value={draft.propertySummary}
                       onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
@@ -1514,7 +1514,7 @@ export function PublishWizardPage() {
                   </label>
 
                   <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                    <div className="mb-4 border-l-4 border-blue-500 bg-blue-50 p-4 text-sm leading-snug text-body">
+                    <div className="mb-4 border-l-4 border-primary/40 bg-primary/5 p-4 text-sm leading-snug text-body">
                       🚨 <strong>Solo áreas compartidas.</strong> Sube aquí fotos de la sala, cocina, baños
                       compartidos y exteriores. Te pediremos las fotos específicas de cada recámara en el siguiente paso.
                     </div>
@@ -1543,7 +1543,7 @@ export function PublishWizardPage() {
               </h3>
               <label className="block text-sm font-medium text-body">
                 Tipo de vivienda
-                <span className="text-red-600"> *</span>
+                <span className="text-error"> *</span>
                 <select
                   value={draft.propertyKind}
                   onChange={(e) => {
@@ -1575,7 +1575,7 @@ export function PublishWizardPage() {
                 <div className="block text-sm font-medium text-body">
                   <span className="block">
                     ¿Cuántas recámaras tiene la propiedad?
-                    <span className="text-red-600"> *</span>
+                    <span className="text-error"> *</span>
                   </span>
                   <WizardNumberStepper
                     value={
@@ -1601,7 +1601,7 @@ export function PublishWizardPage() {
                   <div>
                     <label className="block text-sm font-medium text-body">
                       {draft.propertyKind === "loft" ? "Baños" : "Baños (total)"}
-                      <span className="text-red-600"> *</span>
+                      <span className="text-error"> *</span>
                       <input
                         type="number"
                         min={0}
@@ -1724,7 +1724,7 @@ export function PublishWizardPage() {
                     <button
                       type="button"
                       onClick={() => removeRoom(i)}
-                      className="text-xs font-semibold text-red-600 hover:underline"
+                      className="text-xs font-semibold text-error hover:underline"
                     >
                       Quitar
                     </button>
@@ -1737,7 +1737,7 @@ export function PublishWizardPage() {
                   {draft.postMode === "property" ? (
                     <label className="block text-sm font-medium text-body">
                       Título del espacio
-                      <span className="text-red-600"> *</span>
+                      <span className="text-error"> *</span>
                       <input
                         value={room.title}
                         onChange={(e) => updateRoom(i, { title: e.target.value })}
@@ -1749,7 +1749,7 @@ export function PublishWizardPage() {
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <label className="block text-sm font-medium text-body">
                       {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
-                      <span className="text-red-600"> *</span>
+                      <span className="text-error"> *</span>
                       <select
                         value={
                           draft.postMode === "room" && room.lodgingType === "whole_home"
@@ -1777,7 +1777,7 @@ export function PublishWizardPage() {
                     </label>
                     <label className="block text-sm font-medium text-body">
                       Tamaño de la recámara
-                      <span className="text-red-600"> *</span>
+                      <span className="text-error"> *</span>
                       <select
                         value={room.roomDimension}
                         onChange={(e) =>
@@ -1806,7 +1806,7 @@ export function PublishWizardPage() {
                       <div>
                         <label className="block text-sm font-medium text-body">
                           Renta (MXN / mes)
-                          <span className="text-red-600"> *</span>
+                          <span className="text-error"> *</span>
                           <input
                             type="number"
                             min={0}
@@ -1821,7 +1821,7 @@ export function PublishWizardPage() {
                       </div>
                       <label className="block text-sm font-medium text-body">
                         Depósito (MXN)
-                        <span className="text-red-600"> *</span>
+                        <span className="text-error"> *</span>
                         <input
                           type="number"
                           min={0}
@@ -1880,7 +1880,7 @@ export function PublishWizardPage() {
                       <div className="block text-sm font-medium text-body">
                         <span className="block">
                           Plazas / espacios
-                          <span className="text-red-600"> *</span>
+                          <span className="text-error"> *</span>
                         </span>
                         <WizardNumberStepper
                           value={Math.min(ROOM_PLAZAS_MAX, Math.max(1, room.roomsAvailable))}
@@ -1894,7 +1894,7 @@ export function PublishWizardPage() {
                     ) : null}
                     <label className="block text-sm font-medium text-body">
                       Disponible desde
-                      <span className="text-red-600"> *</span>
+                      <span className="text-error"> *</span>
                       <input
                         type="date"
                         value={room.availableFrom}
@@ -1905,7 +1905,7 @@ export function PublishWizardPage() {
                     <div className="block text-sm font-medium text-body">
                       <span className="block">
                         Estancia mín. (meses)
-                        <span className="text-red-600"> *</span>
+                        <span className="text-error"> *</span>
                       </span>
                       <WizardNumberStepper
                         editableCenter
@@ -1931,7 +1931,7 @@ export function PublishWizardPage() {
                   <div className="grid gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
                       {ROOMMATE_GENDER_PREF_FIELD_LABEL}
-                      <span className="text-red-600"> *</span>
+                      <span className="text-error"> *</span>
                       <select
                         value={room.roommateGenderPref}
                         onChange={(e) =>
@@ -1949,7 +1949,7 @@ export function PublishWizardPage() {
                     <div className="block text-sm font-medium text-body">
                       <span className="block">
                         Edad mín.
-                        <span className="text-red-600"> *</span>
+                        <span className="text-error"> *</span>
                       </span>
                       <WizardNumberStepper
                         editableCenter
@@ -1970,7 +1970,7 @@ export function PublishWizardPage() {
                     <div className="block text-sm font-medium text-body">
                       <span className="block">
                         Edad máx.
-                        <span className="text-red-600"> *</span>
+                        <span className="text-error"> *</span>
                       </span>
                       <WizardNumberStepper
                         editableCenter
@@ -1997,7 +1997,7 @@ export function PublishWizardPage() {
                   </h3>
                   <label className="block text-sm font-medium text-body">
                     Descripción de la recámara
-                    <span className="text-red-600"> *</span>
+                    <span className="text-error"> *</span>
                     <textarea
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
@@ -2020,7 +2020,7 @@ export function PublishWizardPage() {
                         <p className="text-sm font-medium text-body">
                           {group.title}
                           {group.title === "Ideal para" ? (
-                            <span className="text-red-600"> *</span>
+                            <span className="text-error"> *</span>
                           ) : null}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -2375,34 +2375,32 @@ export function PublishWizardPage() {
   if (publishSuccessRoomId) {
     const successTitle =
       draft.postMode === "property"
-        ? "¡Todo listo! Tu propiedad ya está publicada"
-        : "¡Todo listo! Tu habitación ya está publicada";
+        ? "Listo. Tu propiedad ya está publicada"
+        : "Listo. Tu recámara ya está publicada";
 
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 sm:py-24">
         <div
-          className="mx-auto inline-flex rounded-full bg-emerald-50 p-4 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+          className="mx-auto inline-flex rounded-full bg-secondary/15 p-4 text-primary dark:bg-secondary/20"
           aria-hidden
         >
           <CheckCircle2 className="size-10" strokeWidth={2} />
         </div>
 
-        <h1 className="mt-8 text-2xl font-bold text-slate-900 dark:text-slate-50">{successTitle}</h1>
-        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-slate-600 dark:text-slate-400">
+        <h1 className="mt-8 text-2xl font-bold text-body">{successTitle}</h1>
+        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-muted">
           Tu anuncio ya está visible para la comunidad. Te notificaremos en cuanto alguien se interese en tu espacio.
         </p>
 
-        <div className="mx-auto mt-6 max-w-md rounded-xl bg-slate-50 p-4 text-left dark:bg-slate-800/60">
-          <ul className="space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+        <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-bg-light p-4 text-left">
+          <ul className="space-y-3 text-sm leading-relaxed text-muted">
             <li>
-              <span aria-hidden>💬 </span>
-              <strong className="font-semibold text-slate-800 dark:text-slate-100">Recibe mensajes:</strong> Atiende a
+              <strong className="font-semibold text-body">Recibe mensajes:</strong> Atiende a
               los interesados directamente desde tu bandeja de entrada.
             </li>
             <li>
-              <span aria-hidden>✏️ </span>
-              <strong className="font-semibold text-slate-800 dark:text-slate-100">Control total:</strong> Modifica
-              precios, fotos o pausa el anuncio desde la sección &quot;Mis Anuncios&quot;.
+              <strong className="font-semibold text-body">Control total:</strong> Modifica
+              precios, fotos o pausa el anuncio desde Mis anuncios.
             </li>
           </ul>
         </div>
@@ -2410,15 +2408,15 @@ export function PublishWizardPage() {
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
             to={listingPublicPath(publishSuccessRoomId)}
-            className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             Ver mi anuncio
           </Link>
           <Link
             to="/"
-            className="text-sm font-medium text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="text-sm font-medium text-muted transition hover:text-body"
           >
-            Ir al Inicio
+            Ir al inicio
           </Link>
         </div>
       </div>
@@ -2440,24 +2438,24 @@ export function PublishWizardPage() {
       {safeStep === WIZARD_STEP_POST_MODE && me === null ? (
         <div
           role="status"
-          className="mt-8 rounded-xl border border-indigo-200/90 bg-indigo-50 p-4 shadow-sm dark:border-indigo-500/35 dark:bg-indigo-950/45"
+          className="mt-8 rounded-xl border border-secondary/40 bg-secondary/10 p-4 shadow-sm"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="flex min-w-0 flex-1 gap-3">
               <ShieldCheck
-                className="mt-0.5 size-6 shrink-0 text-indigo-600 dark:text-indigo-400"
+                className="mt-0.5 size-6 shrink-0 text-primary"
                 strokeWidth={2}
                 aria-hidden
               />
-              <p className="text-sm font-medium leading-relaxed text-indigo-950 dark:text-indigo-100">
-                ¡Guarda tu progreso! Inicia sesión o crea una cuenta para que tu anuncio se guarde automáticamente si
+              <p className="text-sm font-medium leading-relaxed text-body">
+                Guarda tu progreso. Inicia sesión o crea una cuenta para que tu anuncio se guarde automáticamente si
                 tu sesión expira.
               </p>
             </div>
             <button
               type="button"
               onClick={() => openAuthModal("/publicar")}
-              className="inline-flex w-full shrink-0 items-center justify-center rounded-full border border-indigo-300 bg-surface px-4 py-2.5 text-sm font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-100/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:border-indigo-400/45 dark:bg-indigo-900/55 dark:text-indigo-50 dark:ring-offset-slate-900 dark:hover:bg-indigo-900/85 sm:w-auto"
+              className="inline-flex w-full shrink-0 items-center justify-center rounded-full border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-body shadow-sm transition hover:bg-surface-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 focus-visible:ring-offset-2 sm:w-auto"
             >
               Iniciar sesión
             </button>
@@ -2505,7 +2503,7 @@ export function PublishWizardPage() {
           )}
         </div>
         {publishErr && !isPublishStep ? (
-          <p className="mt-4 text-sm text-red-600" role="alert">
+          <p className="mt-4 text-sm text-error" role="alert">
             {publishErr}
           </p>
         ) : null}

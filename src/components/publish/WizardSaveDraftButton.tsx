@@ -24,7 +24,7 @@ export function WizardSaveDraftButton({
       onClick={onClick}
       className={`rounded-full border border-secondary/50 bg-secondary/10 font-semibold text-primary transition enabled:hover:bg-secondary/20 disabled:opacity-50 ${
         compact ? "px-3 py-1.5 text-xs" : "px-5 py-2 text-sm"
-      } ${saved && !inFlight ? "border-emerald-300/80 bg-emerald-50 text-emerald-900" : ""} ${className}`}
+      } ${saved && !inFlight ? "border-secondary/40 bg-secondary/10 text-body" : ""} ${className}`}
     >
       {label}
     </button>

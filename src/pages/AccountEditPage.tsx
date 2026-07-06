@@ -127,7 +127,7 @@ export function AccountEditPage() {
       <div className="mx-auto max-w-lg px-4 py-10">
         <h1 className="text-2xl font-bold text-primary">Editar cuenta</h1>
         {resetErr ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{resetErr}</p>
+          <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{resetErr}</p>
         ) : (
           <p className="mt-2 text-sm text-muted">Inicia sesión para editar tus datos.</p>
         )}
@@ -262,7 +262,7 @@ export function AccountEditPage() {
       </p>
 
       {resetErr ? (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{resetErr}</p>
+        <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{resetErr}</p>
       ) : null}
       {resetMode ? (
         <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
@@ -278,7 +278,7 @@ export function AccountEditPage() {
           <p className="mt-4 rounded-xl border border-border bg-bg-light p-3 text-sm text-body">{profileMsg}</p>
         ) : null}
         {profileErr ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{profileErr}</p>
+          <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{profileErr}</p>
         ) : null}
 
         <form className="mt-5 space-y-4" onSubmit={onSaveProfile}>
@@ -314,7 +314,7 @@ export function AccountEditPage() {
             />
           </label>
           {phoneInvalid ? (
-            <p className="text-xs text-red-700">Revisa el número (10 dígitos o +52 seguido del celular).</p>
+            <p className="text-xs text-error">Revisa el número (10 dígitos o +52 seguido del celular).</p>
           ) : null}
           {phoneClearAttempt ? (
             <p className="text-xs text-muted">
@@ -366,7 +366,7 @@ export function AccountEditPage() {
             <p className="mt-4 rounded-xl border border-border bg-bg-light p-3 text-sm text-body">{pwMsg}</p>
           ) : null}
           {pwErr ? (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{pwErr}</p>
+            <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{pwErr}</p>
           ) : null}
 
           <form className="mt-5 space-y-4" onSubmit={onChangePassword}>
@@ -432,9 +432,9 @@ export function AccountEditPage() {
         aria-modal="true"
         aria-labelledby="password-reset-success-title"
       >
-        <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-surface p-6 text-center shadow-xl dark:border-emerald-900/40">
+        <div className="w-full max-w-sm rounded-2xl border border-secondary/40 bg-surface p-6 text-center shadow-xl">
           <div
-            className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+            className="mx-auto flex size-12 items-center justify-center rounded-full bg-secondary/15 text-primary"
             aria-hidden="true"
           >
             ✓

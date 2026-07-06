@@ -16,7 +16,7 @@ export function GroupsPage() {
     try {
       setRows(await groupsMine());
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setRows([]);
     }
   }, []);
@@ -38,7 +38,7 @@ export function GroupsPage() {
       </p>
 
       {err ? (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
+        <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
       ) : null}
 
       <form
@@ -63,7 +63,7 @@ export function GroupsPage() {
             setMinIncomeMxn("");
             await load();
           } catch (x) {
-            setErr(x instanceof Error ? x.message : "Error");
+            setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
           } finally {
             setBusy(false);
           }
@@ -133,7 +133,7 @@ export function GroupsPage() {
             setInvite("");
             await load();
           } catch (x) {
-            setErr(x instanceof Error ? x.message : "Error");
+            setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
           } finally {
             setBusy(false);
           }

@@ -21,7 +21,7 @@ type HeaderBadgesProps = {
 
 export function ListingHeroPrice({ rentMxn }: { rentMxn: number }) {
   return (
-    <p className="mt-2 text-2xl font-bold text-slate-900">{listingHeroPriceLabel(rentMxn)}</p>
+    <p className="mt-2 text-2xl font-bold text-body">{listingHeroPriceLabel(rentMxn)}</p>
   );
 }
 

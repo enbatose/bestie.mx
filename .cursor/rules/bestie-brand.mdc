@@ -1,0 +1,225 @@
+---
+description: Bestie brand identity, voice, design tokens, and UI conventions for user-facing work (UI, copy, assets, marketing)
+globs: src/**/*.tsx, src/**/*.css, public/brand/**, index.html
+alwaysApply: false
+---
+
+# Bestie brand guide (for AI)
+
+Encode brand decisions as **actionable constraints**. Canonical token values live in `tailwind.config.ts` — do not duplicate hex tables here. Deeper product context: `docs/PRODUCT_V1.md`.
+
+## 1. Identity
+
+| Field | Value |
+| --- | --- |
+| Brand name | **Bestie** |
+| Domain | **bestie.mx** (canonical URL: `https://www.bestie.mx`) |
+| Support email | **contacto@bestie.mx** |
+| Operator | Enrique Batani Oseguera (`src/pages/legal/legalUi.tsx` → `LEGAL_OPERATOR`) |
+| Trademark | **Bestie™** while IMPI pending; **Bestie®** after registration |
+| Product | Roommate / shared-rent marketplace for **México** |
+| Locale | `es-MX` (`index.html` `lang="es-MX"`) |
+
+**Tagline pattern (hero):** “Tu roomie, tu bestie.” — warm, direct; lime accent on “tu bestie” is intentional (`text-secondary` on `bg-primary`).
+
+## 2. Audience → decisions
+
+**Who:** Estudiantes y jóvenes profesionales, typically **~22–35** (listing age filters and seed data center on this band). People searching for roommates in Mexican cities, **mobile-first**.
+
+**Therefore:**
+
+- Layouts must be scannable on phone: large tap targets (`min-h-11` / `min-h-12`), short labels, minimal friction.
+- Copy is **trust-forward roommate language**, not luxury real-estate or corporate PropTech.
+- Tone is approachable and confident — never infantilizing, never stiff legal Spanish outside `/legal/*`.
+- Currency and dates: **MXN**, `es-MX` formatting (`Intl.NumberFormat("es-MX", …)`).
+- Launch cities: Guadalajara (active search), Mérida, Puerto Vallarta, Sayulita, Bucerías (product roadmap in `docs/PRODUCT_V1.md`).
+
+## 3. Brand personality → operational rules
+
+| Trait | In UI | In copy | NOT this |
+| --- | --- | --- | --- |
+| **Modern** | Semantic Tailwind tokens; clean cards with `border-border` | Contemporary Mexican Spanish | Generic blue SaaS (`indigo-600`, `blue-500`) |
+| **Playful** | Lime `secondary` as **accent** (CTAs on hero, highlights, chips hover) | “Roomie”, “bestie”, friendly **tú** | Emoji spam, cartoon UI, exclamation marks |
+| **Professional** | Forest `primary` for structure/trust; restrained motion | Clear, honest, no hype | “Solución integral”, English marketing fluff |
+
+## 4. Voice and copy
+
+### Language
+
+- User-facing strings: **Spanish (México)**. Use **tú**, not usted (except formal legal pages).
+- OK loanwords already in product: **roomie**, **bestie**, **loft** (as property type).
+- Legal/support identity strings: reuse `LEGAL_OPERATOR` from `legalUi.tsx` when relevant.
+
+### Preferred vs avoid
+
+| Situation | Preferred | Avoid |
+| --- | --- | --- |
+| Primary CTA | “Buscar”, “Ver anuncio”, “Publicar anuncio” | “Click here”, “Get started!!!” |
+| Empty state | “Aún no tienes anuncios guardados.” | “Your inbox is empty!” |
+| Error | “No pudimos guardar. Intenta de nuevo.” | “Oops! Something went wrong” |
+| Value prop | “Encuentra roomies de forma rápida y segura.” | “Supercharge your housing journey” |
+| Listing noun | **anuncio**, **cuarto**, **propiedad**, **recámara** | “listing”, “unit”, “inquilino” (in marketing) |
+
+### Copy rules
+
+- Button labels: **≤ 4 words**, verb-first when possible.
+- Headings: `font-bold` / `font-semibold`, `tracking-tight`; sentence case in Spanish, not Title Case English.
+- **No exclamation marks** in core UI (hero/marketing may use one sparingly — prefer none).
+- **No English** in user-visible UI strings unless it is an established product term (roomie, bestie).
+- Meta/OG descriptions: match tone in `index.html` — factual, México, roomies/renta compartida.
+
+## 5. Domain vocabulary (use consistently)
+
+Reuse labels from `src/lib/listingKeyLabels.ts`, `src/lib/searchFilters.ts`, and `ListingTagChips`:
+
+| Concept | User-facing term |
+| --- | --- |
+| Room listing | **cuarto** / **recámara** |
+| Property with rooms | **propiedad** |
+| Published item | **anuncio** |
+| Roommate | **roomie** (also brand “bestie”) |
+| Private room | **Recámara privada** |
+| Shared room | **Recámara compartida** |
+| Apartment / house / loft | **Departamento** / **Casa** / **Loft** |
+| Search | **Buscar cuarto** |
+| Publish flow | **Publicar** / **Publicar anuncio** |
+| Saved searches | **Búsquedas guardadas** |
+| Groups feature | **Comunidades** / **grupos** (`/grupos`) |
+| Tag: estudiantes | **Estudiantes** |
+| Gender pref | **Mujer**, **Hombre**, **Hombre o Mujer** |
+
+Property/room statuses (internal slugs, Spanish labels in UI): `draft → published → paused → archived`.
+
+## 6. Color system
+
+**Source of truth:** `tailwind.config.ts`. NEVER use arbitrary hex (`bg-[#143D30]`) or default Tailwind palette (`blue-500`, `indigo-600`, `gray-200`) for product chrome.
+
+| Token | Tailwind class | Use for |
+| --- | --- | --- |
+| primary | `bg-primary`, `text-primary` | Brand forest — headers, primary buttons, trust surfaces |
+| primary-fg | `text-primary-fg` | Text/icons on `bg-primary` |
+| secondary | `bg-secondary`, `text-secondary` | Lime accent — hero CTAs, emphasis words, chip hover borders |
+| accent | `ring-accent`, `focus:border-accent`, `outline-accent` | Focus rings, mint highlights |
+| body | `text-body` | Primary text on light surfaces |
+| muted | `text-muted` | Secondary text, labels, meta |
+| surface | `bg-surface` | Cards, panels |
+| surface-elevated | `bg-surface-elevated` | Hover/elevated chips |
+| bg-light | `bg-bg-light` | Page sections, inputs, chip backgrounds |
+| bg-dark | `bg-bg-dark` | Dark mode page base |
+| border | `border-border` | All structural borders |
+| error | `text-error`, border/text for errors | Validation, destructive hints |
+| warning | `text-warning` | Warnings |
+
+### Color rules
+
+- **Primary CTA (in-app):** `rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg` with `hover:brightness-110` or `hover:brightness-95`.
+- **Hero / high-energy CTA on green:** `bg-secondary text-primary` (lime button on forest hero).
+- **Secondary CTA:** `rounded-full border border-border bg-surface` with `hover:bg-surface-elevated`.
+- **Accent sparingly:** `secondary` signals energy — not full-page lime backgrounds.
+- **Success/info banners:** `border-secondary/40 bg-secondary/10` (see `SavedSearchesPage`).
+- On `bg-primary` hero: text `text-primary-fg`; emphasized phrase `text-secondary`.
+
+## 7. Typography
+
+- **Font:** `font-sans` → Inter (loaded in app). Do not introduce other font families.
+- **Page titles:** `text-3xl font-bold tracking-tight` → `sm:text-4xl` / `md:text-5xl` on marketing hero.
+- **Section titles:** `text-lg font-semibold text-body` or `font-bold text-primary` (legal).
+- **Labels:** `text-sm font-medium text-body`.
+- **Meta / overlines:** `text-xs font-semibold uppercase tracking-wide text-muted`.
+- **Body:** `text-sm leading-relaxed text-body` or `text-base` on hero subcopy.
+- **Weights:** `font-semibold` on buttons; `font-bold` on major headings only. Avoid `font-black`.
+
+## 8. Shape, spacing, elevation
+
+### Border radius (match existing components)
+
+| Element | Class |
+| --- | --- |
+| Primary/secondary buttons | `rounded-full` |
+| Cards, modals, panels | `rounded-2xl` |
+| Inputs, sheet actions | `rounded-xl` |
+| Tags/chips | `rounded-full` |
+| Logo fallback mark | `rounded-lg` |
+| Small map controls | `rounded-lg` |
+
+Do **not** use `rounded-3xl` on forms/cards unless matching an existing pattern in the same feature.
+
+### Spacing
+
+- Prefer Tailwind scale on **4px grid**: `p-4`, `p-5`, `p-6`, `gap-2`, `gap-3`, `gap-4`.
+- Page gutters: `px-4 sm:px-6`; content max widths `max-w-3xl` (legal), `max-w-6xl` / `max-w-7xl` (marketing).
+- Touch targets: at least `min-h-11` or `min-h-12` on primary actions (mobile-first).
+
+### Elevation
+
+- **Default:** flat cards with `border border-border bg-surface` — light `shadow-sm` on cards/modals is OK.
+- **Hero CTA:** `shadow-lg` / `shadow-md` allowed on lime CTAs only.
+- Prefer **borders over heavy shadows** (`shadow-xl` rare — modals like `PropertyRoomDetailModal` only).
+- Focus: `focus-visible:ring-2 focus-visible:ring-secondary/40` or global `outline-accent` (`src/index.css`).
+
+## 9. Dark mode
+
+- Mechanism: `class="dark"` on `<html>` (`darkMode: "class"` in Tailwind).
+- Global overrides in `src/index.css` remap `.text-body`, `.bg-surface`, `.border-border`, etc.
+- Use **semantic tokens** (`bg-surface`, `text-body`, `border-border`) so dark mode inherits — avoid hardcoding `dark:bg-gray-800` on new components unless matching an existing footer pattern.
+- `dark:` variant on `text-primary` maps to mint (`accent`) — intentional for links in dark mode.
+
+## 10. Logo and brand assets
+
+**Component:** `src/components/BrandLogo.tsx` — always use this instead of raw `<img src="/brand/...">` for the wordmark.
+
+| Variant | When | Assets |
+| --- | --- | --- |
+| `onLight` (default) | White/light surfaces (header, footer) | `/brand/logo-lockup.svg` |
+| `onDark` | `bg-primary` hero, dark green backgrounds | `/brand/logo-lockup-on-dark.svg` |
+
+**Other assets (`public/brand/`):**
+
+- `logo-mark.svg`, `mark-white.svg` — icon/mark only when lockup does not fit.
+- `hero-art.svg` — decorative hero illustration via `HeroBrandArt` (low opacity, never competing with copy).
+- `meta-app-icon-1024.png` — Meta / app icon submissions only.
+
+**Logo rules:** Do not recolor, stretch, or rotate lockups. Alt text pattern: `Bestie — inicio`. Footer: `© {year} Bestie™`.
+
+## 11. Imagery
+
+- Listing photos: real rooms/homes; bright, honest, lived-in — not stock corporate office imagery.
+- Hero art: optional, soft (`opacity-[0.22]`–`0.28`), `pointer-events-none`, `aria-hidden`.
+- Empty/placeholder states: neutral `bg-bg-light` / `border-border`, not generic gray placeholders.
+
+## 12. Motion and interaction
+
+- Transitions: `transition hover:brightness-95`, `hover:brightness-110`, `active:scale-[0.99]` on primary buttons — subtle only.
+- No bounce/spring animations on forms or wizards.
+- Hero may use soft blurred lime orb (`bg-secondary/20 blur-3xl`) as atmosphere — do not replicate on dense data UI.
+
+## 13. UI layering
+
+Floating UI z-index stacks are defined in `.cursor/rules/ui-layering-precedence.mdc`. Do not invent new z-index tiers; portal modals to `document.body` when specified there.
+
+## 14. Anti-patterns (NEVER)
+
+- Default Tailwind blues/indigos (`bg-blue-600`, `bg-indigo-600`, `border-indigo-200`) for product UI.
+- Arbitrary hex or rgb in class names when a semantic token exists.
+- English UI strings, Title Case headings, or multiple exclamation marks.
+- Generic SaaS copy (“streamline”, “leverage”, “supercharge”).
+- Luxury real-estate tone (“residencia exclusiva”, “inversión inmobiliaria”) for roommate listings.
+- New logo SVGs or recolored wordmarks outside `public/brand/`.
+- Emoji in core app chrome (search, publish wizard, listing detail, profile).
+- Childish voice (“¡Hola bestie! 🎉”) on transactional screens.
+- Replacing **roomie/bestie** positioning with cold “inquilino/arrendatario” in marketing.
+
+## 15. Reference map
+
+| Need | File |
+| --- | --- |
+| Token hex values | `tailwind.config.ts` |
+| Product vision & palette table | `docs/PRODUCT_V1.md` |
+| Logo component | `src/components/BrandLogo.tsx` |
+| Hero illustration | `src/components/HeroBrandArt.tsx` |
+| Legal identity strings | `src/pages/legal/legalUi.tsx` |
+| Figma naming / tokens | `docs/figma/flows/00-figma-conventions.md` |
+| Home/hero copy reference | `src/pages/HomePage.tsx` |
+| Listing labels | `src/lib/listingKeyLabels.ts` |
+
+When unsure between two stylistic choices, match the nearest existing screen in `src/pages/` or `src/components/` before inventing a new pattern.

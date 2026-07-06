@@ -82,8 +82,8 @@ export function PropertyPublicRoomsSection({
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         available
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-slate-200 text-slate-700"
+                          ? "bg-secondary/15 text-primary"
+                          : "bg-bg-light text-muted ring-1 ring-border"
                       }`}
                     >
                       {occupancyStatusLabel(available ? "available" : "occupied")}

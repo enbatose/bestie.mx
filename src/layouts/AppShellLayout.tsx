@@ -88,7 +88,7 @@ export function AppShellLayout() {
 
         <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
           {showEmailVerificationBanner ? (
-            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+            <div className="border-b border-warning/40 bg-warning/10 px-4 py-2.5 text-center text-sm text-body dark:border-warning/30 dark:bg-warning/10">
               <span className="font-semibold">Validación pendiente:</span> confirma tu correo{" "}
               <span className="font-medium">{me.email}</span> (revisa spam).{" "}
               <Link to="/verificar-correo" className="font-semibold underline underline-offset-2">

@@ -38,7 +38,7 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
   {
     id: "reminder-room-americana",
-    text: "Tu anuncio 'Cuarto en la Americana' lleva 3 días creado sin publicarse. ¡Publícalo hoy!",
+    text: "Tu anuncio 'Cuarto en la Americana' lleva 3 días creado sin publicarse. Publícalo cuando puedas.",
     date: "28 may 2026",
     time: "08:00",
     relativeTime: "Ayer",

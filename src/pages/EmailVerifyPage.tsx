@@ -136,12 +136,12 @@ export function EmailVerifyPage() {
       </p>
 
       {msg ? (
-        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+        <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-sm text-body">
           {msg}
         </p>
       ) : null}
       {err ? (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+        <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">
           {err}
         </p>
       ) : null}
@@ -168,7 +168,7 @@ export function EmailVerifyPage() {
             notifyMeChanged();
             navigate("/mis-anuncios", { replace: true });
           } catch (x) {
-            const message = x instanceof Error ? x.message : "Error";
+            const message = x instanceof Error ? x.message : "No se pudo completar la acción.";
             if (message === "code_expired") {
               setErr("El código expiró. Solicita uno nuevo.");
             } else if (message === "invalid_code") {

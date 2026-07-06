@@ -30,7 +30,7 @@ export function MessagesPage() {
       setLoadingList(true);
       setRows(await fetchConversations());
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setRows([]);
     } finally {
       setLoadingList(false);
@@ -51,7 +51,7 @@ export function MessagesPage() {
       );
       window.dispatchEvent(new Event("bestie:messages-read-changed"));
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setMessages([]);
     } finally {
       setLoadingThread(false);
@@ -88,7 +88,7 @@ export function MessagesPage() {
       await loadThread();
       await loadList();
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     }
   };
 
@@ -123,7 +123,7 @@ export function MessagesPage() {
       </header>
 
       {err ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+        <p className="rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error" role="alert">
           {err}
         </p>
       ) : null}

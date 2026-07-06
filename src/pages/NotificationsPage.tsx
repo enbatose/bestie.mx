@@ -43,7 +43,7 @@ export function NotificationsPage() {
               onClick={() => onItemClick(n.id, n.link)}
               className={[
                 "flex w-full items-start gap-3 px-4 py-4 text-left transition hover:bg-surface-elevated",
-                !n.isRead ? "bg-blue-50/30 dark:bg-blue-950/20" : "",
+                !n.isRead ? "bg-secondary/10 dark:bg-secondary/5" : "",
               ].join(" ")}
             >
               {!n.isRead ? (

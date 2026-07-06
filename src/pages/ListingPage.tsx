@@ -413,7 +413,7 @@ export function ListingPage() {
   if (apiErr) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-        <h1 className="text-xl font-semibold text-body">Error</h1>
+        <h1 className="text-xl font-semibold text-body">No pudimos cargar el anuncio</h1>
         <p className="mt-2 text-sm text-muted">{apiErr}</p>
         <Link
           to="/buscar"
@@ -499,10 +499,10 @@ export function ListingPage() {
       <span
         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
           listingStatus === "paused"
-            ? "bg-amber-100 text-amber-900"
+            ? "bg-warning/15 text-body"
             : listingStatus === "draft"
-              ? "bg-slate-200 text-slate-800"
-              : "bg-slate-200 text-slate-600"
+              ? "bg-bg-light text-body ring-1 ring-border"
+              : "bg-bg-light text-muted ring-1 ring-border"
         }`}
       >
         {listingStatus === "paused" ? "Pausado" : listingStatus === "draft" ? "Borrador" : "Archivado"}
@@ -534,7 +534,7 @@ export function ListingPage() {
 
       {listingUpdated ? (
         <p
-          className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          className="mt-4 rounded-lg border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-body"
           role="status"
         >
           Cambios guardados. Tu anuncio ya muestra la información actualizada.
@@ -566,7 +566,7 @@ export function ListingPage() {
             searchRestorePath={searchRestorePath}
             share={{
               shareMsg,
-              onShareListing: () => void copyShareUrl(shareListingPath, "Link del anuncio"),
+              onShareListing: () => void copyShareUrl(shareListingPath, "Enlace del anuncio"),
               isPropertyPost,
               propertyId: listing.propertyId,
               roomShareLinks,

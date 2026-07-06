@@ -440,7 +440,7 @@ export function MyListingsPage() {
       ) : null}
 
       {err ? (
-        <p className="mt-4 text-sm text-red-600" role="alert">
+        <p className="mt-4 text-sm text-error" role="alert">
           {err}
         </p>
       ) : null}
@@ -524,8 +524,8 @@ export function MyListingsPage() {
                                 <span
                                   className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
                                     isRoomAvailableForRent({ occupancyStatus: occ })
-                                      ? "bg-emerald-100 text-emerald-900"
-                                      : "bg-slate-200 text-slate-700"
+                                      ? "bg-secondary/15 text-primary"
+                                      : "bg-bg-light text-muted ring-1 ring-border"
                                   }`}
                                 >
                                   {occupancyStatusLabel(occ)}

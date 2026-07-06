@@ -19,7 +19,7 @@ export function ForgotPasswordPage() {
       </p>
 
       {sent ? (
-        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+        <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 p-4 text-sm text-body">
           <p className="font-medium">Revisa tu correo</p>
           <p className="mt-2">
             Si hay una cuenta con <span className="font-medium">{email.trim().toLowerCase()}</span>, enviamos un enlace
@@ -37,7 +37,7 @@ export function ForgotPasswordPage() {
       ) : (
         <>
           {err ? (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
+            <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
           ) : null}
           <form
             className="mt-8 space-y-4"
@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
                 setSent(true);
                 if (r.devResetUrl) setDevResetUrl(r.devResetUrl);
               } catch (x) {
-                setErr(x instanceof Error ? x.message : "Error");
+                setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
               } finally {
                 setBusy(false);
               }

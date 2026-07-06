@@ -578,11 +578,11 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
         ) : null}
         {locationError && showLocationErrorToast ? (
           <div className="pointer-events-auto absolute left-0 right-0 top-full z-40 mt-2">
-            <div className="rounded-[1rem] border border-red-200 bg-white/98 px-3 py-2 shadow-xl backdrop-blur">
+            <div className="rounded-[1rem] border border-error/30 bg-surface/98 px-3 py-2 shadow-xl backdrop-blur">
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-snug text-red-700">{locationError}</p>
-                  <p className="mt-1 text-xs font-semibold text-red-500">
+                  <p className="text-sm font-medium leading-snug text-error">{locationError}</p>
+                  <p className="mt-1 text-xs font-semibold text-error/80">
                     Cerrando en {locationErrorCountdown}s
                   </p>
                 </div>
@@ -592,7 +592,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
                     setShowLocationErrorToast(false);
                     onLocationErrorDismiss();
                   }}
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-red-700 transition hover:bg-red-50"
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-error transition hover:bg-error/5"
                   aria-label="Cerrar mensaje"
                 >
                   <X className="size-4" aria-hidden="true" strokeWidth={2.5} />

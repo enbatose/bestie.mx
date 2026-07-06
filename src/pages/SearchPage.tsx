@@ -545,7 +545,7 @@ export function SearchPage() {
     apiOn && apiBusy ? (
       apiListings === undefined ? "Cargando…" : "Actualizando…"
     ) : apiOn && apiErr ? (
-      <span className="text-red-600">{apiErr}</span>
+      <span className="text-error">{apiErr}</span>
     ) : (
       <>
         {filtered.length}
@@ -564,7 +564,7 @@ export function SearchPage() {
     apiOn && apiBusy ? (
       apiListings === undefined ? "Cargando…" : "Actualizando…"
     ) : apiOn && apiErr ? (
-      <span className="text-red-600">{apiErr}</span>
+      <span className="text-error">{apiErr}</span>
     ) : (
       <>
         {mobileDrawerListings.length}

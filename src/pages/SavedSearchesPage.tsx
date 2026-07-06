@@ -181,7 +181,7 @@ export function SavedSearchesPage() {
         <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-body">{msg}</p>
       ) : null}
       {err ? (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
+        <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
       ) : null}
 
       <div className="mt-8 space-y-4">
@@ -246,7 +246,7 @@ export function SavedSearchesPage() {
                   type="button"
                   disabled={busyId === row.id}
                   onClick={() => void onDelete(row)}
-                  className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-error hover:bg-red-50 disabled:opacity-50"
+                  className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-error hover:bg-error/5 disabled:opacity-50"
                 >
                   Eliminar
                 </button>

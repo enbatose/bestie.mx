@@ -114,7 +114,7 @@ export function PublishWizardReviewStep({
           </p>
         ) : null}
         {actionErr ? (
-          <p className={`text-sm text-red-600 ${publishBlockedReason ? "mt-3" : ""}`} role="alert">
+          <p className={`text-sm text-error ${publishBlockedReason ? "mt-3" : ""}`} role="alert">
             {actionErr}
           </p>
         ) : null}

@@ -63,18 +63,18 @@ function RoomStatusBadges({
       {showStatus ? (
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-            available ? "bg-emerald-100 text-emerald-900" : "bg-slate-200 text-slate-700"
+            available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
           }`}
         >
           {available ? "Disponible" : "Ocupada"}
         </span>
       ) : null}
       {issues.length > 0 ? (
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-body">
           Incompleta
         </span>
       ) : (
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-900">
+        <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
           Lista
         </span>
       )}
@@ -145,7 +145,7 @@ function RoomTitleInlineEditor({
     return (
       <label className="block text-sm font-medium text-body" onClick={stopBubble}>
         Título de la habitación
-        <span className="text-red-600"> *</span>
+        <span className="text-error"> *</span>
         <input
           autoFocus
           value={draftTitle}
@@ -246,7 +246,7 @@ function OccupiedRoomFields({
         <div className="mt-2 grid grid-cols-2 gap-2">
           <label className="block min-w-0 text-[11px] font-medium text-body">
             Mujeres
-            <span className="text-red-600"> *</span>
+            <span className="text-error"> *</span>
             <WizardNumberStepper
               compact
               value={women}
@@ -259,7 +259,7 @@ function OccupiedRoomFields({
           </label>
           <label className="block min-w-0 text-[11px] font-medium text-body">
             Hombres
-            <span className="text-red-600"> *</span>
+            <span className="text-error"> *</span>
             <WizardNumberStepper
               compact
               value={men}
@@ -290,7 +290,7 @@ function RoomAvailabilityToggle({
         onClick={() => onChange(false)}
         className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
           !available
-            ? "bg-slate-200 text-slate-900 ring-1 ring-slate-300"
+            ? "bg-bg-light text-body ring-1 ring-border"
             : "text-muted hover:bg-surface-elevated"
         }`}
       >
@@ -301,7 +301,7 @@ function RoomAvailabilityToggle({
         onClick={() => onChange(true)}
         className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
           available
-            ? "bg-emerald-700 text-white ring-1 ring-emerald-800/40"
+            ? "bg-primary text-primary-fg ring-1 ring-primary/20"
             : "text-muted hover:bg-surface-elevated"
         }`}
       >
@@ -373,7 +373,7 @@ function AvailableRoomFields({
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-body">
           Tipo de recámara
-          <span className="text-red-600"> *</span>
+          <span className="text-error"> *</span>
           <select
             value={room.lodgingType === "whole_home" ? "private_room" : room.lodgingType}
             onChange={(e) => onChange({ lodgingType: e.target.value as LodgingType })}
@@ -385,7 +385,7 @@ function AvailableRoomFields({
         </label>
         <label className="block text-sm font-medium text-body">
           Tamaño de la recámara
-          <span className="text-red-600"> *</span>
+          <span className="text-error"> *</span>
           <select
             value={room.roomDimension}
             onChange={(e) => onChange({ roomDimension: e.target.value as RoomDimension })}
@@ -400,7 +400,7 @@ function AvailableRoomFields({
           <div>
             <label className="block text-sm font-medium text-body">
               Renta (MXN / mes)
-              <span className="text-red-600"> *</span>
+              <span className="text-error"> *</span>
               <input
                 type="number"
                 min={0}
@@ -427,7 +427,7 @@ function AvailableRoomFields({
           </div>
           <label className="block text-sm font-medium text-body">
             Depósito (MXN)
-            <span className="text-red-600"> *</span>
+            <span className="text-error"> *</span>
             <input
               type="number"
               min={0}
@@ -460,7 +460,7 @@ function AvailableRoomFields({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm font-medium text-body">
             Disponible desde
-            <span className="text-red-600"> *</span>
+            <span className="text-error"> *</span>
             <input
               type="date"
               value={room.availableFrom}
@@ -471,7 +471,7 @@ function AvailableRoomFields({
           <div className="block text-sm font-medium text-body">
             <span className="block">
               Estancia mín. (meses)
-              <span className="text-red-600"> *</span>
+              <span className="text-error"> *</span>
             </span>
             <WizardNumberStepper
               editableCenter
@@ -492,7 +492,7 @@ function AvailableRoomFields({
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block text-sm font-medium text-body">
             {ROOMMATE_GENDER_PREF_FIELD_LABEL}
-            <span className="text-red-600"> *</span>
+            <span className="text-error"> *</span>
             <select
               value={room.roommateGenderPref}
               onChange={(e) => onChange({ roommateGenderPref: e.target.value as RoommateGenderPref })}
@@ -506,7 +506,7 @@ function AvailableRoomFields({
           <div className="block text-sm font-medium text-body">
             <span className="block">
               Edad mín.
-              <span className="text-red-600"> *</span>
+              <span className="text-error"> *</span>
             </span>
             <WizardNumberStepper
               editableCenter
@@ -527,7 +527,7 @@ function AvailableRoomFields({
           <div className="block text-sm font-medium text-body">
             <span className="block">
               Edad máx.
-              <span className="text-red-600"> *</span>
+              <span className="text-error"> *</span>
             </span>
             <WizardNumberStepper
               editableCenter
@@ -551,7 +551,7 @@ function AvailableRoomFields({
       <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-primary">
           Detalles de esta recámara
-          <span className="text-red-600"> *</span>
+          <span className="text-error"> *</span>
         </h3>
         <textarea
           value={room.summary}
@@ -584,7 +584,7 @@ function AvailableRoomFields({
             <div key={group.title}>
               <p className="text-sm font-medium text-body">
                 {group.title}
-                {group.title === "Ideal para" ? <span className="text-red-600"> *</span> : null}
+                {group.title === "Ideal para" ? <span className="text-error"> *</span> : null}
               </p>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {group.tags.map((tag) => {
@@ -661,7 +661,7 @@ export function PropertyRoomManager({
             <span className="block text-xs text-muted">Total en la propiedad</span>
             <span className="mt-0.5 block">
               Total de recámaras
-              <span className="text-red-600"> *</span>
+              <span className="text-error"> *</span>
             </span>
             <WizardNumberStepper
               compact
@@ -679,7 +679,7 @@ export function PropertyRoomManager({
             <span className="block text-xs text-muted">Disponibles ahora</span>
             <span className="mt-0.5 block">
               Recámaras a rentar
-              <span className="text-red-600"> *</span>
+              <span className="text-error"> *</span>
             </span>
             <WizardNumberStepper
               compact

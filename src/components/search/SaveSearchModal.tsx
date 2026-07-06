@@ -213,7 +213,7 @@ export function SaveSearchModal({
         </div>
 
         {err ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>
+          <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
         ) : null}
 
         <form className="mt-5 space-y-4" onSubmit={(e) => void onSubmit(e)}>

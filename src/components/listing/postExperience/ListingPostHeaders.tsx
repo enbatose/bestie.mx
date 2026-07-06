@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+import { BedDouble, Calendar, Home, MapPin, Users, VenusAndMars } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatRoomAvailableFrom, listingHeroPriceLabel } from "@/lib/listingTags";
 import { genderPrefLabel, propertyKindLabel } from "@/lib/listingKeyLabels";
@@ -9,12 +11,18 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
-function HeaderInfoItem({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+function HeaderInfoItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="text-xl leading-none" aria-hidden>
-        {emoji}
-      </span>
+      <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
       <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
         <p className="text-sm font-medium text-body">{value}</p>
@@ -42,21 +50,21 @@ export function SingleRoomHeader({
         <h2 className="text-xl font-bold text-body">{title ?? listing.title}</h2>
         {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
       </div>
-      <p className="text-2xl font-bold text-slate-900">{listingHeroPriceLabel(listing.rentMxn)}</p>
+      <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <HeaderInfoItem emoji="👥" label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
+        <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
         <HeaderInfoItem
-          emoji="⚧️"
+          icon={VenusAndMars}
           label="Preferencia de género"
           value={genderPrefLabel(listing.roommateGenderPref)}
         />
         <HeaderInfoItem
-          emoji="📅"
+          icon={Calendar}
           label="Disponible desde"
           value={formatRoomAvailableFrom(listing.availableFrom ?? "")}
         />
-        <HeaderInfoItem emoji="🏠" label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
-        <HeaderInfoItem emoji="📍" label="Colonia" value={listing.neighborhood} />
+        <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
+        <HeaderInfoItem icon={MapPin} label="Colonia" value={listing.neighborhood} />
       </div>
     </div>
   );
@@ -82,30 +90,30 @@ export function PropertyHeader({
         <h2 className="text-xl font-bold text-body">{property.title}</h2>
         {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
       </div>
-      <p className="text-2xl font-bold text-slate-900">
+      <p className="text-2xl font-bold text-body">
         {rents.length > 1
           ? `${money.format(minRent)} - ${money.format(maxRent)} / mes`
           : `${listingHeroPriceLabel(minRent)}`}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <HeaderInfoItem emoji="🛏️" label="Cuartos disponibles" value={String(availableRooms.length)} />
+        <HeaderInfoItem icon={BedDouble} label="Cuartos disponibles" value={String(availableRooms.length)} />
         <HeaderInfoItem
-          emoji="👥"
+          icon={Users}
           label="Viven aquí"
           value={`${property.occupiedByMenCount ?? 0} Hombres, ${property.occupiedByWomenCount ?? 0} Mujeres`}
         />
         <HeaderInfoItem
-          emoji="⚧️"
+          icon={VenusAndMars}
           label="Preferencia de género"
           value={firstAvailable ? genderPrefLabel(firstAvailable.roommateGenderPref) : "Hombre o Mujer"}
         />
         <HeaderInfoItem
-          emoji="📅"
+          icon={Calendar}
           label="Disponible desde"
           value={firstAvailable ? formatRoomAvailableFrom(firstAvailable.availableFrom ?? "") : "—"}
         />
-        <HeaderInfoItem emoji="🏠" label="Tipo de vivienda" value={propertyKindLabel(property.propertyKind)} />
-        <HeaderInfoItem emoji="📍" label="Colonia" value={property.neighborhood} />
+        <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(property.propertyKind)} />
+        <HeaderInfoItem icon={MapPin} label="Colonia" value={property.neighborhood} />
       </div>
     </div>
   );

@@ -31,10 +31,10 @@ function desktopNavClass({ isActive }: { isActive: boolean }) {
 }
 
 const desktopLogoutBtn =
-  `${desktopMenuItem} hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30`;
+  `${desktopMenuItem} hover:bg-error/5 hover:text-error`;
 
 function DesktopMenuDivider() {
-  return <div className="my-1 border-t border-gray-100 dark:border-slate-700" role="separator" />;
+  return <div className="my-1 border-t border-border" role="separator" />;
 }
 
 const mobileMenuItem =
@@ -48,7 +48,7 @@ function mobileNavClass({ isActive }: { isActive: boolean }) {
 }
 
 function MobileMenuDivider() {
-  return <div className="my-1 border-t border-gray-100 dark:border-slate-700" role="separator" />;
+  return <div className="my-1 border-t border-border" role="separator" />;
 }
 
 function primaryNavClass({ isActive }: { isActive: boolean }) {
@@ -406,7 +406,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
       <button
         type="button"
-        className={`${mobileMenuItem} hover:bg-red-50 hover:text-error dark:hover:bg-red-950/30`}
+        className={`${mobileMenuItem} hover:bg-error/5 hover:text-error`}
         onClick={() => void onLogout()}
       >
         <LogOut className="h-4 w-4 shrink-0" aria-hidden />

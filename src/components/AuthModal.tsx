@@ -28,7 +28,7 @@ export function AuthModal() {
         me && needsEmailVerification(me) ? "/verificar-correo" : redirectTo,
       );
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setBusy(false);
     }
@@ -51,7 +51,7 @@ export function AuthModal() {
       close();
       window.location.assign(needsEmailVerification(me) ? "/verificar-correo" : redirectTo);
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "Error");
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
       setBusy(false);
     }
