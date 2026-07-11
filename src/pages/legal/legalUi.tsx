@@ -6,7 +6,7 @@ export const LEGAL_LAST_UPDATED = "4 de julio de 2026";
 
 /** Legal identity of the operator, reused verbatim across documents. */
 export const LEGAL_OPERATOR = {
-  responsible: "Enrique Batani Oseguera",
+  responsible: "ENRIQUE BATANI OSEGUERA",
   brand: "Bestie",
   domain: "bestie.mx",
   site: "https://www.bestie.mx",

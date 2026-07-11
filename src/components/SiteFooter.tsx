@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
+import { LEGAL_OPERATOR } from "@/pages/legal/legalUi";
 
 const linkClass = "text-sm font-medium text-body underline-offset-2 transition hover:text-primary hover:underline";
 
@@ -30,7 +31,7 @@ export function SiteFooter() {
           <p className="text-center text-sm text-muted sm:text-right">
             © {new Date().getFullYear()} Bestie™
             <br />
-            <span className="text-xs">Operado por Enrique Batani Oseguera</span>
+            <span className="text-xs">Operado por {LEGAL_OPERATOR.responsible}</span>
           </p>
         </div>
       </div>

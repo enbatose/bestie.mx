@@ -15,7 +15,7 @@ Encode brand decisions as **actionable constraints**. Canonical token values liv
 | Brand name | **Bestie** |
 | Domain | **bestie.mx** (canonical URL: `https://www.bestie.mx`) |
 | Support email | **contacto@bestie.mx** |
-| Operator | Enrique Batani Oseguera (`src/pages/legal/legalUi.tsx` → `LEGAL_OPERATOR`) |
+| Operator | ENRIQUE BATANI OSEGUERA (`src/pages/legal/legalUi.tsx` → `LEGAL_OPERATOR`) |
 | Trademark | **Bestie™** while IMPI pending; **Bestie®** after registration |
 | Product | Roommate / shared-rent marketplace for **México** |
 | Locale | `es-MX` (`index.html` `lang="es-MX"`) |
