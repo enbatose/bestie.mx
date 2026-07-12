@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTACT_INBOUND_ADDRESS,
   DEFAULT_CONTACT_FORWARD_TO,
+  getResendReceivingApiKey,
   matchesInboundAddress,
   normalizeEmailAddress,
   resolveContactForwardFrom,
@@ -27,5 +28,15 @@ describe("resendWebhook inbound routing", () => {
   it("defaults forward target and from address", () => {
     expect(resolveContactForwardTo()).toBe(DEFAULT_CONTACT_FORWARD_TO);
     expect(resolveContactForwardFrom()).toBe(`Bestie Contacto <${CONTACT_INBOUND_ADDRESS}>`);
+  });
+
+  it("prefers RESEND_RECEIVING_API_KEY over sending-only RESEND_API_KEY", () => {
+    vi.stubEnv("RESEND_RECEIVING_API_KEY", "re_receiving_key");
+    vi.stubEnv("RESEND_API_KEY", "re_sending_key");
+    expect(getResendReceivingApiKey()).toBe("re_receiving_key");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 });

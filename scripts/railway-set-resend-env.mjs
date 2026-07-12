@@ -32,9 +32,15 @@ if (!apiKey || !emailFrom) {
   process.exit(1);
 }
 
+const optional = [
+  ["RESEND_RECEIVING_API_KEY", getEnv("RESEND_RECEIVING_API_KEY")],
+  ["RESEND_CONTACT_FORWARD_TO", getEnv("RESEND_CONTACT_FORWARD_TO")],
+].filter(([, v]) => Boolean(v));
+
 for (const [k, v] of [
   ["RESEND_API_KEY", apiKey],
   ["EMAIL_FROM", emailFrom],
+  ...optional,
 ]) {
   const args =
     /[\s<>"]/.test(v) && k === "EMAIL_FROM"

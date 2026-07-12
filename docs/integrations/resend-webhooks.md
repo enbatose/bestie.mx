@@ -41,8 +41,9 @@ Resend receives any `@bestie.mx` address once domain **receiving** is enabled an
 - Resend domain `bestie.mx`: receiving **enabled**
 - Forward target env: `RESEND_CONTACT_FORWARD_TO` (default `batani.enrique@gmail.com`)
 - Forward from env: `RESEND_CONTACT_FORWARD_FROM` (default `Bestie Contacto <contacto@bestie.mx>`)
+- Receiving API key env: `RESEND_RECEIVING_API_KEY` (**full_access** — required on Railway; `RESEND_API_KEY` sending-only returns 401 on forward)
 
-Deploy note: production must run the updated `server/src/resendWebhook.ts` before inbound mail is forwarded.
+Production must use `getResendReceivingApiKey()` in `server/src/resendWebhook.ts` (prefers `RESEND_RECEIVING_API_KEY`).
 
 ---
 

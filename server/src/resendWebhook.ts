@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { Resend } from "resend";
-import { cleanEnv, getResendApiKey } from "./mailer.js";
+import { cleanEnv } from "./mailer.js";
 
 /** Inbound address on bestie.mx that forwards to RESEND_CONTACT_FORWARD_TO. */
 export const CONTACT_INBOUND_ADDRESS = "contacto@bestie.mx";
@@ -9,9 +9,19 @@ export const CONTACT_INBOUND_ADDRESS = "contacto@bestie.mx";
 export const DEFAULT_CONTACT_FORWARD_TO = "batani.enrique@gmail.com";
 
 function resendClient(): Resend | null {
-  const key = getResendApiKey();
+  const key = getResendReceivingApiKey();
   if (!key) return null;
   return new Resend(key);
+}
+
+/** Receiving/forward requires full_access; sending-only keys return 401 on receiving APIs. */
+export function getResendReceivingApiKey(): string | undefined {
+  return (
+    cleanEnv(process.env.RESEND_RECEIVING_API_KEY) ||
+    cleanEnv(process.env.RESEND_API_KEY) ||
+    cleanEnv(process.env.RESEND_KEY) ||
+    cleanEnv(process.env.RESEND_ADMIN_API_KEY)
+  );
 }
 
 export function resolveContactForwardTo(): string {
