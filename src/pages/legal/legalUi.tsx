@@ -12,7 +12,7 @@ export const LEGAL_OPERATOR = {
   site: "https://www.bestie.mx",
   contactEmail: "contacto@bestie.mx",
   fiscalRegime: "Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios",
-  address: "Calle Heródoto 55, Vallarta San Jorge, C.P. 44690, Guadalajara, Jalisco, México",
+  address: "Calle Herodoto 55, Vallarta San Jorge, C.P. 44690, Guadalajara, Jalisco, México",
 } as const;
 
 export type LegalTocItem = { id: string; label: string };
