@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 /** Effective / last-updated date shared across every legal document. */
-export const LEGAL_LAST_UPDATED = "4 de julio de 2026";
+export const LEGAL_LAST_UPDATED = "12 de julio de 2026";
 
 /** Legal identity of the operator, reused verbatim across documents. */
 export const LEGAL_OPERATOR = {
@@ -11,8 +11,8 @@ export const LEGAL_OPERATOR = {
   domain: "bestie.mx",
   site: "https://www.bestie.mx",
   contactEmail: "contacto@bestie.mx",
-  fiscalRegime: "Régimen Simplificado de Confianza (RESICO)",
-  address: "Calle La Ley 3048, Juan Manuel, C.P. 44680, Guadalajara, Jalisco, México",
+  fiscalRegime: "Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios",
+  address: "Calle Heródoto 55, Vallarta San Jorge, C.P. 44690, Guadalajara, Jalisco, México",
 } as const;
 
 export type LegalTocItem = { id: string; label: string };
