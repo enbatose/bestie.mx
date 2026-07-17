@@ -183,7 +183,7 @@ const MOBILE_ROW_SHELL_CLASS =
 const MOBILE_ROW_HEIGHT = "h-14";
 const MOBILE_CONTROL_HEIGHT = "h-10";
 
-/** Mobile: Más, Borrar, Guardar, and alertas in one evenly spaced bar with a Filtros label. */
+/** Mobile: Más/Borrar and Guardar/alertas as two bundles inside one Filtros bar. */
 export function MobileCombinedFilterBar({
   onOpenAdvanced,
   onClearFilters,
@@ -215,31 +215,37 @@ export function MobileCombinedFilterBar({
       <span className={MOBILE_ROW_LABEL_CLASS}>Filtros</span>
       <div className="relative min-w-0 flex-1">
         <div
-          className={`flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-visible rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm`}
+          className={`flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 items-stretch gap-1.5 overflow-visible`}
           role="group"
           aria-label="Acciones de filtros y búsqueda guardada"
         >
-          <button
-            type="button"
-            onClick={onOpenAdvanced}
-            aria-label="Más filtros"
-            className={`${filterBtnClass} rounded-l-[0.95rem] border-r border-primary/20`}
+          <div
+            className={`flex min-w-0 flex-1 overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm`}
+            role="group"
+            aria-label="Filtros"
           >
-            <Filter className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
-          </button>
-          <button
-            type="button"
-            onClick={onClearFilters}
-            disabled={clearDisabled}
-            aria-label="Borrar filtros"
-            className={`${filterBtnClass} border-r border-primary/20`}
-          >
-            <Trash2 className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
-          </button>
-          <div className={`relative flex min-w-0 flex-[2] ${MOBILE_CONTROL_HEIGHT}`}>
+            <button
+              type="button"
+              onClick={onOpenAdvanced}
+              aria-label="Más filtros"
+              className={`${filterBtnClass} rounded-l-[0.95rem] border-r border-primary/20`}
+            >
+              <Filter className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+            </button>
+            <button
+              type="button"
+              onClick={onClearFilters}
+              disabled={clearDisabled}
+              aria-label="Borrar filtros"
+              className={`${filterBtnClass} rounded-r-[0.95rem]`}
+            >
+              <Trash2 className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+            </button>
+          </div>
+          <div className={`relative flex min-w-0 flex-1 ${MOBILE_CONTROL_HEIGHT}`}>
             {pulseActive ? <PulseRing mobile compact /> : null}
             <div
-              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-r-[0.95rem] border-l border-gold-edge/70`}
+              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-[1rem] border border-gold-edge/70 shadow-sm`}
               role="group"
               aria-label="Guardar búsqueda"
             >
@@ -247,7 +253,7 @@ export function MobileCombinedFilterBar({
                 type="button"
                 onClick={onSaveClick}
                 aria-label="Guardar búsqueda"
-                className={`inline-flex min-w-0 flex-1 items-center justify-center border-r border-gold-edge/60 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center rounded-l-[0.95rem] border-r border-gold-edge/60 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
               >
                 <SavedSearchIcon className="size-4 shrink-0" />
               </button>
@@ -255,7 +261,7 @@ export function MobileCombinedFilterBar({
                 type="button"
                 onClick={onFollowClick}
                 aria-label="Seguir con alertas por correo"
-                className={`inline-flex min-w-0 flex-1 items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_FOLLOW}`}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center rounded-r-[0.95rem] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_FOLLOW}`}
               >
                 <Mail className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
               </button>
