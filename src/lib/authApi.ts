@@ -154,7 +154,9 @@ export async function authLogin(
       throw new Error("Esta cuenta usa Google para entrar. Usa «Continuar con Google».");
     }
     if (j.error === "facebook_only_account") {
-      throw new Error("Esta cuenta usa Facebook para entrar. Usa «Continuar con Facebook».");
+      throw new Error(
+        "Esta cuenta usa Facebook para entrar. El inicio con Facebook no está disponible por ahora; contacta a contacto@bestie.mx.",
+      );
     }
     throw new Error(j.error || `login_${res.status}`);
   }

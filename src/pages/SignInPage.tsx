@@ -214,8 +214,8 @@ export function SignInPage() {
         </p>
       ) : null}
       <p className="mt-2 text-sm text-muted">
-        Entra con Google, Facebook o con correo y contraseña. La sesión usa cookies seguras con la API. El inicio solo
-        con WhatsApp no está disponible por ahora.
+        Entra con Google o con correo y contraseña. La sesión usa cookies seguras con la API. El inicio solo con
+        WhatsApp no está disponible por ahora.
       </p>
 
       <div className="mt-6">

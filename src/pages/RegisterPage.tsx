@@ -17,8 +17,8 @@ export function RegisterPage() {
     <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Crear cuenta</h1>
       <p className="mt-2 text-sm text-muted">
-        Regístrate con Google, Facebook o con correo y contraseña (mínimo 8 caracteres). Con correo te enviaremos un
-        código para confirmarlo.
+        Regístrate con Google o con correo y contraseña (mínimo 8 caracteres). Con correo te enviaremos un código para
+        confirmarlo.
       </p>
 
       <div className="mt-6">
