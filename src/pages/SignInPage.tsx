@@ -12,6 +12,7 @@ import {
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
+import { POST_LOGIN_RESOLVE_PATH, resolvePostLoginPath } from "@/lib/postLoginRedirect";
 
 export function SignInPage() {
   const location = useLocation();
@@ -91,7 +92,7 @@ export function SignInPage() {
         navigate("/verificar-correo", { replace: true });
         return;
       }
-      navigate("/mis-anuncios", { replace: true });
+      navigate(await resolvePostLoginPath(), { replace: true });
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -219,7 +220,7 @@ export function SignInPage() {
       </p>
 
       <div className="mt-6">
-        <SocialSignInButtons returnTo="/mis-anuncios" />
+        <SocialSignInButtons returnTo={POST_LOGIN_RESOLVE_PATH} />
       </div>
       <AuthLegalConsent action="continuar" />
       <AuthMethodDivider />

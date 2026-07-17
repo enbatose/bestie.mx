@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authRegister, needsEmailVerification } from "@/lib/authApi";
+import { POST_LOGIN_RESOLVE_PATH, resolvePostLoginPath } from "@/lib/postLoginRedirect";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export function RegisterPage() {
       </p>
 
       <div className="mt-6">
-        <SocialSignInButtons returnTo="/mis-anuncios" />
+        <SocialSignInButtons returnTo={POST_LOGIN_RESOLVE_PATH} />
       </div>
       <AuthLegalConsent action="registrarte" />
       <AuthMethodDivider />
@@ -46,7 +47,10 @@ export function RegisterPage() {
               password,
               displayName: displayName.trim() || undefined,
             });
-            navigate(needsEmailVerification(me) ? "/verificar-correo" : "/mis-anuncios", { replace: true });
+            navigate(
+              needsEmailVerification(me) ? "/verificar-correo" : await resolvePostLoginPath(),
+              { replace: true },
+            );
           } catch (x) {
             setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
           } finally {

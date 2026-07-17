@@ -8,6 +8,7 @@ import {
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
+import { resolvePostLoginPath } from "@/lib/postLoginRedirect";
 
 function notifyMeChanged() {
   window.dispatchEvent(new Event("bestie:me-changed"));
@@ -85,9 +86,14 @@ export function EmailVerifyPage() {
   }, [me, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (me && !needsEmailVerification(me)) {
-      navigate("/mis-anuncios", { replace: true });
-    }
+    if (!me || needsEmailVerification(me)) return;
+    let cancelled = false;
+    void resolvePostLoginPath().then((dest) => {
+      if (!cancelled) navigate(dest, { replace: true });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [me, navigate]);
 
   useEffect(() => {
@@ -166,7 +172,7 @@ export function EmailVerifyPage() {
           try {
             await authVerifyEmail(trimmed);
             notifyMeChanged();
-            navigate("/mis-anuncios", { replace: true });
+            navigate(await resolvePostLoginPath(), { replace: true });
           } catch (x) {
             const message = x instanceof Error ? x.message : "No se pudo completar la acción.";
             if (message === "code_expired") {

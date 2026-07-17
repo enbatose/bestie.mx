@@ -4,6 +4,11 @@ import { PasswordField } from "@/components/PasswordField";
 import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import {
+  oauthReturnToFor,
+  resolvePostLoginPath,
+  shouldResolvePostLoginDestination,
+} from "@/lib/postLoginRedirect";
 
 export function AuthModal() {
   const { open, tab, redirectTo, close, openLogin, openRegister } = useAuthModal();
@@ -16,6 +21,14 @@ export function AuthModal() {
 
   if (!open) return null;
 
+  const socialReturnTo = oauthReturnToFor(redirectTo);
+
+  const destinationAfterAuth = async (needsVerify: boolean): Promise<string> => {
+    if (needsVerify) return "/verificar-correo";
+    if (shouldResolvePostLoginDestination(redirectTo)) return resolvePostLoginPath();
+    return redirectTo;
+  };
+
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -24,9 +37,7 @@ export function AuthModal() {
       await authLogin({ email: email.trim().toLowerCase(), password });
       close();
       const me = await authMe().catch(() => null);
-      window.location.assign(
-        me && needsEmailVerification(me) ? "/verificar-correo" : redirectTo,
-      );
+      window.location.assign(await destinationAfterAuth(Boolean(me && needsEmailVerification(me))));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -49,7 +60,7 @@ export function AuthModal() {
         displayName: displayName.trim() || undefined,
       });
       close();
-      window.location.assign(needsEmailVerification(me) ? "/verificar-correo" : redirectTo);
+      window.location.assign(await destinationAfterAuth(needsEmailVerification(me)));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -118,7 +129,7 @@ export function AuthModal() {
           {err ? <p className="mt-2 text-sm text-error">{err}</p> : null}
 
           <div className="mt-3">
-            <SocialSignInButtons returnTo={redirectTo} onClick={close} />
+            <SocialSignInButtons returnTo={socialReturnTo} onClick={close} />
           </div>
           <AuthMethodDivider />
 

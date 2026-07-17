@@ -23,6 +23,7 @@ import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { SavedSearchesPage } from "@/pages/SavedSearchesPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { PostLoginRedirectPage } from "@/pages/PostLoginRedirectPage";
 import { SignInPage } from "@/pages/SignInPage";
 
 const router = createBrowserRouter([
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: "mockups/post-proposals", element: <PostExperienceMockupsPage /> },
       { path: "mis-anuncios", element: <MyListingsPage /> },
       { path: "mis-busquedas", element: <SavedSearchesPage /> },
+      { path: "despues-de-entrar", element: <PostLoginRedirectPage /> },
       { path: "perfil", element: <ProfilePage /> },
       { path: "perfil/editar", element: <AccountEditPage /> },
       { path: "mensajes", element: <MessagesPage /> },

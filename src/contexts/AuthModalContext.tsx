@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { POST_LOGIN_RESOLVE_PATH } from "@/lib/postLoginRedirect";
 
 type AuthTab = "login" | "register";
 
@@ -18,17 +19,17 @@ const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 export function AuthModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<AuthTab>("login");
-  const [redirectTo, setRedirectTo] = useState("/mis-anuncios");
+  const [redirectTo, setRedirectTo] = useState(POST_LOGIN_RESOLVE_PATH);
 
   const openLogin = useCallback((to?: string) => {
     setTab("login");
-    setRedirectTo(to ?? "/mis-anuncios");
+    setRedirectTo(to ?? POST_LOGIN_RESOLVE_PATH);
     setOpen(true);
   }, []);
 
   const openRegister = useCallback((to?: string) => {
     setTab("register");
-    setRedirectTo(to ?? "/mis-anuncios");
+    setRedirectTo(to ?? POST_LOGIN_RESOLVE_PATH);
     setOpen(true);
   }, []);
 
