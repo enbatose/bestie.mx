@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPinned, Search, SlidersHorizontal, UsersRound, type LucideIcon } from "lucide-react";
+import { MapPinned, Search, SlidersHorizontal, UsersRound, X, type LucideIcon } from "lucide-react";
 import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
 import { DEFAULT_METRO_CITY, resolveMetroCity } from "@/lib/metroCities";
@@ -8,9 +8,12 @@ import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 import {
   computeNeighborhoodsViewport,
   metroDefaultLocation,
+  neighborhoodChipLabel,
+  neighborhoodNamesMatch,
   searchPathForCity,
   stripMetroLabelPrefix,
   writeSearchLocation,
+  type SearchNeighborhoodPin,
 } from "@/lib/searchLocation";
 
 const PROXIMAS_CITIES = [
@@ -50,28 +53,40 @@ function suggestionLabel(option: LocationSuggestion): string {
   return option.label;
 }
 
-function buildCitySearchParams() {
-  const location = metroDefaultLocation(DEFAULT_METRO_CITY);
-  return writeSearchLocation(filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: "" }), location);
-}
-
-function buildNeighborhoodSearchParams(option: LocationSuggestion): URLSearchParams | null {
+function pinFromSuggestion(option: LocationSuggestion): SearchNeighborhoodPin | null {
   const metro = resolveMetroCity(option.cityCode);
   const name =
     stripMetroLabelPrefix(metro.abbr, option.neighborhood ?? option.label) ??
     option.neighborhood ??
     option.label;
   if (!name) return null;
+  return { name, lat: option.lat, lng: option.lng };
+}
 
-  const neighborhoods = [{ name, lat: option.lat, lng: option.lng }];
+function buildSearchParams(neighborhoods: readonly SearchNeighborhoodPin[]) {
+  const metro = DEFAULT_METRO_CITY;
+  if (!neighborhoods.length) {
+    return writeSearchLocation(
+      filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: "" }),
+      metroDefaultLocation(metro),
+    );
+  }
   const viewport = computeNeighborhoodsViewport(neighborhoods, metro);
   return writeSearchLocation(filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: "" }), {
     cityCode: metro.code,
     cityAbbr: metro.abbr,
-    cityLabel: option.city || metro.label,
-    neighborhoods,
+    cityLabel: metro.label,
+    neighborhoods: [...neighborhoods],
     ...viewport,
   });
+}
+
+function mergeNeighborhood(
+  current: readonly SearchNeighborhoodPin[],
+  pin: SearchNeighborhoodPin,
+): SearchNeighborhoodPin[] {
+  if (current.some((row) => neighborhoodNamesMatch(row.name, pin.name))) return [...current];
+  return [...current, pin];
 }
 
 export function HomePage() {
@@ -81,39 +96,41 @@ export function HomePage() {
   const blurCloseTimerRef = useRef<number | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<SearchNeighborhoodPin[]>([]);
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const goToCitySearch = useCallback(() => {
+  const goToSearch = useCallback((neighborhoods: readonly SearchNeighborhoodPin[]) => {
     navigate({
       pathname: searchPathForCity(DEFAULT_METRO_CITY.code),
-      search: `?${buildCitySearchParams().toString()}`,
+      search: `?${buildSearchParams(neighborhoods).toString()}`,
     });
   }, [navigate]);
 
-  const goToNeighborhood = useCallback(
-    (option: LocationSuggestion) => {
-      const params = buildNeighborhoodSearchParams(option);
-      if (!params) return;
-      navigate({
-        pathname: searchPathForCity(option.cityCode || DEFAULT_METRO_CITY.code),
-        search: `?${params.toString()}`,
-      });
-    },
-    [navigate],
-  );
+  const addNeighborhood = useCallback((option: LocationSuggestion) => {
+    const pin = pinFromSuggestion(option);
+    if (!pin) return;
+    setSelectedNeighborhoods((current) => mergeNeighborhood(current, pin));
+    setSearchQuery("");
+    setSuggestions([]);
+    setMenuOpen(false);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, []);
 
-  const resolveBestMatchAndSearch = useCallback(async () => {
+  const removeNeighborhood = useCallback((name: string) => {
+    setSelectedNeighborhoods((current) =>
+      current.filter((pin) => !neighborhoodNamesMatch(pin.name, name)),
+    );
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, []);
+
+  const resolvePendingPin = useCallback(async (): Promise<SearchNeighborhoodPin | null> => {
     const query = searchQuery.trim();
-    if (query.length < 2) {
-      goToCitySearch();
-      return;
-    }
+    if (query.length < 2) return null;
 
-    if (suggestions.length > 0) {
-      goToNeighborhood(suggestions[0]!);
-      return;
+    if (suggestions[0]) {
+      return pinFromSuggestion(suggestions[0]);
     }
 
     try {
@@ -121,15 +138,29 @@ export function HomePage() {
         cityCode: DEFAULT_METRO_CITY.code,
         scope: "neighborhood",
       });
-      if (rows[0]) {
-        goToNeighborhood(rows[0]);
-        return;
-      }
+      return rows[0] ? pinFromSuggestion(rows[0]) : null;
     } catch {
-      /* fall through to city search */
+      return null;
     }
-    goToCitySearch();
-  }, [goToCitySearch, goToNeighborhood, searchQuery, suggestions]);
+  }, [searchQuery, suggestions]);
+
+  const tryAddBestMatch = useCallback(async () => {
+    const pin = await resolvePendingPin();
+    if (!pin) return;
+    setSelectedNeighborhoods((current) => mergeNeighborhood(current, pin));
+    setSearchQuery("");
+    setSuggestions([]);
+    setMenuOpen(false);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, [resolvePendingPin]);
+
+  const handleBuscar = useCallback(async () => {
+    const pending = await resolvePendingPin();
+    const neighborhoods = pending
+      ? mergeNeighborhood(selectedNeighborhoods, pending)
+      : selectedNeighborhoods;
+    goToSearch(neighborhoods);
+  }, [goToSearch, resolvePendingPin, selectedNeighborhoods]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -148,7 +179,12 @@ export function HomePage() {
         signal: ac.signal,
       })
         .then((rows) => {
-          setSuggestions(rows);
+          const visible = rows.filter((option) => {
+            const pin = pinFromSuggestion(option);
+            if (!pin) return true;
+            return !selectedNeighborhoods.some((row) => neighborhoodNamesMatch(row.name, pin.name));
+          });
+          setSuggestions(visible);
           setMenuOpen(true);
         })
         .catch(() => {
@@ -164,7 +200,7 @@ export function HomePage() {
       window.clearTimeout(timer);
       ac.abort();
     };
-  }, [searchQuery]);
+  }, [searchQuery, selectedNeighborhoods]);
 
   useEffect(() => {
     return () => {
@@ -190,13 +226,13 @@ export function HomePage() {
 
   function handleSuggestionSelect(option: LocationSuggestion) {
     if (blurCloseTimerRef.current != null) window.clearTimeout(blurCloseTimerRef.current);
-    setSearchQuery("");
-    setSuggestions([]);
-    setMenuOpen(false);
-    goToNeighborhood(option);
+    addNeighborhood(option);
   }
 
   const showMenu = menuOpen && searchQuery.trim().length >= 2;
+  const inputPlaceholder = selectedNeighborhoods.length
+    ? "Agregar otra colonia…"
+    : "Buscar colonia…";
 
   return (
     <>
@@ -239,13 +275,33 @@ export function HomePage() {
                 onFocus={openMenu}
                 onBlur={scheduleMenuClose}
               >
-                <div className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40">
+                <div className="flex min-h-12 w-full flex-wrap items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40">
                   <span
                     className="inline-flex shrink-0 items-center rounded-full border border-primary/35 bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-fg"
                     aria-label={`Ciudad ${DEFAULT_METRO_CITY.label}`}
                   >
                     {DEFAULT_METRO_CITY.abbr}
                   </span>
+                  {selectedNeighborhoods.map((pin) => {
+                    const label = neighborhoodChipLabel(pin.name, DEFAULT_METRO_CITY.abbr);
+                    return (
+                      <span
+                        key={pin.name}
+                        className="inline-flex max-w-[9rem] shrink-0 items-center gap-0.5 rounded-full border border-primary/20 bg-bg-light px-2 py-0.5 text-xs font-semibold text-body"
+                      >
+                        <span className="truncate">{label}</span>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => removeNeighborhood(pin.name)}
+                          className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-body transition hover:bg-surface"
+                          aria-label={`Quitar colonia ${label}`}
+                        >
+                          <X className="size-3.5" aria-hidden strokeWidth={2.5} />
+                        </button>
+                      </span>
+                    );
+                  })}
                   <Search className="size-4 shrink-0 text-muted" aria-hidden strokeWidth={2.25} />
                   <input
                     ref={searchInputRef}
@@ -259,20 +315,29 @@ export function HomePage() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        void resolveBestMatchAndSearch();
+                        void tryAddBestMatch();
                       }
                       if (e.key === "Escape") {
                         setMenuOpen(false);
                       }
+                      if (
+                        e.key === "Backspace" &&
+                        searchQuery === "" &&
+                        selectedNeighborhoods.length > 0
+                      ) {
+                        removeNeighborhood(
+                          selectedNeighborhoods[selectedNeighborhoods.length - 1]!.name,
+                        );
+                      }
                     }}
-                    placeholder="Buscar colonia…"
+                    placeholder={inputPlaceholder}
                     autoComplete="off"
                     spellCheck={false}
                     role="combobox"
                     aria-expanded={showMenu}
                     aria-controls={locationMenuId}
                     aria-autocomplete="list"
-                    className="min-h-11 min-w-0 flex-1 bg-transparent py-2 text-base font-medium text-body caret-primary placeholder:text-muted outline-none"
+                    className="min-h-9 min-w-[7rem] flex-1 bg-transparent py-1.5 text-base font-medium text-body caret-primary placeholder:text-muted outline-none"
                   />
                 </div>
 
@@ -308,7 +373,7 @@ export function HomePage() {
               </div>
               <button
                 type="button"
-                onClick={() => void resolveBestMatchAndSearch()}
+                onClick={() => void handleBuscar()}
                 className="min-h-12 shrink-0 rounded-full bg-secondary px-7 text-base font-semibold text-primary shadow-md transition hover:brightness-95 active:scale-[0.99]"
               >
                 Buscar
@@ -362,7 +427,7 @@ export function HomePage() {
                   <button
                     type="button"
                     aria-label="Abrir mapa de búsqueda en Guadalajara"
-                    onClick={goToCitySearch}
+                    onClick={() => goToSearch([])}
                     className="rounded-full border border-secondary/50 bg-secondary/15 px-5 py-2.5 text-sm font-semibold text-primary transition hover:bg-secondary/25 active:scale-[0.99]"
                   >
                     Guadalajara
