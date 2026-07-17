@@ -146,6 +146,7 @@ export type PublishBundlePayload = {
     showWhatsApp?: boolean;
     imageUrls?: string[];
     isApproximateLocation?: boolean;
+    approximateRadiusMeters?: number;
     streetViewPov?: StreetViewPov | null;
     occupiedByWomenCount?: number | null;
     occupiedByMenCount?: number | null;
@@ -232,6 +233,7 @@ export type CreateDraftPropertyPayload = {
   showWhatsApp?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  approximateRadiusMeters?: number;
   streetViewPov?: StreetViewPov | null;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
@@ -279,6 +281,7 @@ export type UpdatePropertyPayload = {
   showWhatsApp?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
+  approximateRadiusMeters?: number;
   streetViewPov?: StreetViewPov | null;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;

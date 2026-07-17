@@ -7,6 +7,7 @@ import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import { newRoomDraftId } from "@/lib/roomDisplay";
 import { hydrateDraftImagesFromUrls } from "@/lib/publishWizard/draftImages";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
+import { APPROXIMATE_LOCATION_RADIUS_DEFAULT_M } from "@/lib/approximateLocationRadius";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
 // ---------------------------------------------------------------------------
@@ -225,6 +226,7 @@ export function seedStep1(): Partial<Draft> {
     customLat: lat,
     customLng: lng,
     isApproximateLocation: Math.random() > 0.5,
+    approximateRadiusMeters: APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
   };
 }
 

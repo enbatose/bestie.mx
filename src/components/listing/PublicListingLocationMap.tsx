@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { streetViewPovCacheKey } from "@/lib/streetView";
-import { PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
+import { resolveApproximateRadiusMeters } from "@/lib/approximateLocationRadius";
 import type { PropertyListing } from "@/types/listing";
 
 /** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
@@ -18,10 +18,12 @@ function ReadOnlyLocationMap({
   listing,
   isApproximateLocation,
   heightClass,
+  radiusMeters,
 }: {
   listing: PropertyListing;
   isApproximateLocation: boolean;
   heightClass: string;
+  radiusMeters: number;
 }) {
   return (
     <PropertyMap
@@ -34,7 +36,7 @@ function ReadOnlyLocationMap({
       defaultZoom={PUBLIC_LOCATION_MAP_ZOOM}
       preferDefaultView
       approximateAsCircle={isApproximateLocation}
-      approximateCircleRadiusM={PREVIEW_APPROXIMATE_RADIUS_M}
+      approximateCircleRadiusM={radiusMeters}
     />
   );
 }
@@ -42,6 +44,7 @@ function ReadOnlyLocationMap({
 export function PublicListingLocationMap({ listing, isApproximateLocation = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
+  const radiusMeters = resolveApproximateRadiusMeters(listing.approximateRadiusMeters);
   const showStreetView = !hideExactAddress && Boolean(listing.streetViewPov);
   const gridClass = showStreetView ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "grid grid-cols-1 gap-4";
 
@@ -71,6 +74,7 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
             listing={listing}
             isApproximateLocation={hideExactAddress}
             heightClass="h-[260px] md:h-[320px]"
+            radiusMeters={radiusMeters}
           />
           <button
             type="button"
@@ -97,8 +101,7 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
 
       {hideExactAddress ? (
         <p className="mt-2 text-xs text-muted">
-          Ubicación aproximada por privacidad (radio ~{PREVIEW_APPROXIMATE_RADIUS_M} m); el pin exacto no se
-          muestra.
+          Ubicación aproximada por privacidad (radio ~{radiusMeters} m); el pin exacto no se muestra.
         </p>
       ) : null}
 
@@ -130,11 +133,12 @@ export function PublicListingLocationMap({ listing, isApproximateLocation = fals
                 listing={listing}
                 isApproximateLocation={hideExactAddress}
                 heightClass="h-[min(70vh,560px)] w-full"
+                radiusMeters={radiusMeters}
               />
             </div>
             {hideExactAddress ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
-                Ubicación aproximada por privacidad (radio ~{PREVIEW_APPROXIMATE_RADIUS_M} m).
+                Ubicación aproximada por privacidad (radio ~{radiusMeters} m).
               </p>
             ) : null}
           </div>

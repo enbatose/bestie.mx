@@ -243,6 +243,7 @@ export function EditableListingPreview({
       profilePhoneE164,
       streetViewPovCacheKey(draft.streetViewPov),
       draft.isApproximateLocation,
+      draft.approximateRadiusMeters,
       draft.useCustomMapPin,
       draft.customLat,
       draft.customLng,

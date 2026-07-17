@@ -83,6 +83,8 @@ export type Property = {
   imageUrls?: string[];
   commonAreaPhotos?: string[];
   isApproximateLocation?: boolean;
+  /** Privacy disk radius in meters when approximate location is enabled. */
+  approximateRadiusMeters?: number;
   streetViewPov?: StreetViewPov;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
@@ -183,5 +185,7 @@ export type PropertyListing = {
   roomOccupantGender?: RoommateGenderPref;
   roomOccupantAge?: number;
   isApproximateLocation?: boolean;
+  /** Privacy disk radius in meters when approximate location is enabled. */
+  approximateRadiusMeters?: number;
   streetViewPov?: StreetViewPov;
 };

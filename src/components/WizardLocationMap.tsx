@@ -1,6 +1,10 @@
 import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
+  clampApproximateRadiusMeters,
+} from "@/lib/approximateLocationRadius";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -19,6 +23,9 @@ type Props = {
   showApproximateRadius?: boolean;
   /** Circle radius in meters (default 200 for wizard privacy). */
   approximateRadiusMeters?: number;
+  /** Allow dragging a handle on the circle edge (and a slider) to change the radius. */
+  radiusEditable?: boolean;
+  onRadiusChange?: (meters: number) => void;
   /** Show draggable pin even when the radius circle is visible. */
   forceDraggablePin?: boolean;
   /** Hide tip and address footer (embedded preview). */
@@ -35,11 +42,56 @@ export const MAP_PRIVACY_CIRCLE_PATH = {
   weight: 2,
 } as const;
 
-/** Default privacy radius in wizard step 2 (matches copy: ~200 m). */
-export const WIZARD_APPROXIMATE_RADIUS_M = 200;
+/** @deprecated Prefer APPROXIMATE_LOCATION_RADIUS_DEFAULT_M from lib. */
+export const WIZARD_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M;
 
-/** Visual radius for approximate location in publish preview (read-only). */
-export const PREVIEW_APPROXIMATE_RADIUS_M = 400;
+/**
+ * Fallback visual radius for approximate location when a listing has no stored value.
+ * Kept for older call sites; new code should use resolveApproximateRadiusMeters.
+ */
+export const PREVIEW_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M;
+
+const RADIUS_HANDLE_ICON = L.divIcon({
+  className: "bestie-privacy-radius-handle",
+  html: `<span style="
+    display:block;
+    width:18px;
+    height:18px;
+    margin:-9px 0 0 -9px;
+    border-radius:9999px;
+    background:#84CC16;
+    border:2px solid #fff;
+    box-shadow:0 1px 4px rgba(20,61,48,0.35);
+    cursor:grab;
+  "></span>`,
+  iconSize: [18, 18],
+  iconAnchor: [0, 0],
+});
+
+function metersToLatLngOffset(
+  center: [number, number],
+  meters: number,
+  bearingRad: number,
+): [number, number] {
+  const northM = meters * Math.cos(bearingRad);
+  const eastM = meters * Math.sin(bearingRad);
+  const dLat = northM / 111_320;
+  const cosLat = Math.cos((center[0] * Math.PI) / 180);
+  const dLng = eastM / (111_320 * Math.max(cosLat, 1e-6));
+  return [center[0] + dLat, center[1] + dLng];
+}
+
+function pointOnCircleToward(
+  center: [number, number],
+  toward: L.LatLng,
+  meters: number,
+): [number, number] {
+  const from = L.latLng(center[0], center[1]);
+  const dist = from.distanceTo(toward);
+  if (dist < 1) return metersToLatLngOffset(center, meters, Math.PI / 2);
+  const bearing = Math.atan2(toward.lng - center[1], toward.lat - center[0]);
+  return metersToLatLngOffset(center, meters, bearing);
+}
 
 function MapViewSync({
   position,
@@ -79,6 +131,71 @@ function MapViewSync({
   return null;
 }
 
+function PrivacyRadiusHandle({
+  center,
+  radiusMeters,
+  onRadiusChange,
+}: {
+  center: [number, number];
+  radiusMeters: number;
+  onRadiusChange: (meters: number) => void;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+  const draggingRef = useRef(false);
+  const [handlePos, setHandlePos] = useState<[number, number]>(() =>
+    metersToLatLngOffset(center, radiusMeters, Math.PI / 2),
+  );
+
+  useEffect(() => {
+    if (draggingRef.current) return;
+    setHandlePos(metersToLatLngOffset(center, radiusMeters, Math.PI / 2));
+  }, [center, radiusMeters]);
+
+  const commitFromLatLng = useCallback(
+    (ll: L.LatLng) => {
+      const dist = L.latLng(center[0], center[1]).distanceTo(ll);
+      const next = clampApproximateRadiusMeters(dist);
+      const snapped = pointOnCircleToward(center, ll, next);
+      setHandlePos(snapped);
+      onRadiusChange(next);
+      return snapped;
+    },
+    [center, onRadiusChange],
+  );
+
+  const eventHandlers = useMemo(
+    () => ({
+      dragstart: () => {
+        draggingRef.current = true;
+      },
+      drag: (e: L.LeafletEvent) => {
+        const marker = e.target as L.Marker;
+        const snapped = commitFromLatLng(marker.getLatLng());
+        marker.setLatLng(snapped);
+      },
+      dragend: (e: L.LeafletEvent) => {
+        draggingRef.current = false;
+        const marker = e.target as L.Marker;
+        const snapped = commitFromLatLng(marker.getLatLng());
+        marker.setLatLng(snapped);
+      },
+    }),
+    [commitFromLatLng],
+  );
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={handlePos}
+      draggable
+      icon={RADIUS_HANDLE_ICON}
+      zIndexOffset={1100}
+      eventHandlers={eventHandlers}
+      title="Arrastra para ajustar el radio de privacidad"
+    />
+  );
+}
+
 export function WizardLocationMap({
   center,
   position,
@@ -86,22 +203,35 @@ export function WizardLocationMap({
   locationLabel,
   onPositionChange,
   showApproximateRadius = false,
-  approximateRadiusMeters = 200,
+  approximateRadiusMeters = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
+  radiusEditable = false,
+  onRadiusChange,
   forceDraggablePin = false,
   embed = false,
   mapHeight = 288,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
+  const [localRadius, setLocalRadius] = useState(() =>
+    clampApproximateRadiusMeters(approximateRadiusMeters),
+  );
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
   const skipFlyRef = useRef(false);
-  const showMarker = forceDraggablePin || !showApproximateRadius;
+  const showMarker = forceDraggablePin || !showApproximateRadius || radiusEditable;
+  const canEditRadius = Boolean(showApproximateRadius && radiusEditable && onRadiusChange);
+  const circleRadius = canEditRadius
+    ? localRadius
+    : clampApproximateRadiusMeters(approximateRadiusMeters);
 
   useEffect(() => {
     setLocalPosition(position);
     setLocalLocationSelected(hasDefinedLocation);
   }, [position, hasDefinedLocation]);
+
+  useEffect(() => {
+    setLocalRadius(clampApproximateRadiusMeters(approximateRadiusMeters));
+  }, [approximateRadiusMeters]);
 
   const commitMarkerPosition = useCallback(
     (marker?: L.Marker | null) => {
@@ -113,6 +243,15 @@ export function WizardLocationMap({
       onPositionChange(ll.lat, ll.lng);
     },
     [onPositionChange],
+  );
+
+  const commitRadius = useCallback(
+    (meters: number) => {
+      const next = clampApproximateRadiusMeters(meters);
+      setLocalRadius(next);
+      onRadiusChange?.(next);
+    },
+    [onRadiusChange],
   );
 
   const markerEventHandlers = useMemo(
@@ -157,9 +296,16 @@ export function WizardLocationMap({
         {showApproximateRadius ? (
           <Circle
             center={localPosition}
-            radius={approximateRadiusMeters}
+            radius={circleRadius}
             pathOptions={MAP_PRIVACY_CIRCLE_PATH}
             interactive={false}
+          />
+        ) : null}
+        {canEditRadius ? (
+          <PrivacyRadiusHandle
+            center={localPosition}
+            radiusMeters={localRadius}
+            onRadiusChange={commitRadius}
           />
         ) : null}
         {showMarker ? (
@@ -177,7 +323,10 @@ export function WizardLocationMap({
       {embed ? null : (
         <>
           <p className="text-xs text-muted">
-            <strong className="font-semibold text-body">Tip</strong>: Los clics en el mapa no mueven el pin.
+            <strong className="font-semibold text-body">Tip</strong>:{" "}
+            {canEditRadius
+              ? "Arrastra el pin para ubicar la propiedad y el punto verde del perímetro para ajustar el radio. Los clics en el mapa no mueven el pin."
+              : "Los clics en el mapa no mueven el pin."}
           </p>
           {localLocationSelected ? (
             <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm font-medium text-primary">

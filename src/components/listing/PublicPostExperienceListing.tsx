@@ -250,6 +250,9 @@ export function PublicPostExperienceListing({
       propertyImageUrls: property.commonAreaPhotos ?? property.imageUrls,
       showWhatsApp: property.showWhatsApp,
       isApproximateLocation: property.isApproximateLocation,
+      ...(property.approximateRadiusMeters != null
+        ? { approximateRadiusMeters: property.approximateRadiusMeters }
+        : {}),
       streetViewPov: property.streetViewPov,
     };
 

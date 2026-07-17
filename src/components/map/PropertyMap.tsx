@@ -19,6 +19,10 @@ import {
   standardMarkerIcon,
 } from "@/map/leafletIcons";
 import type { PropertyListing } from "@/types/listing";
+import {
+  APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
+  resolveApproximateRadiusMeters,
+} from "@/lib/approximateLocationRadius";
 
 type Props = {
   listings: PropertyListing[];
@@ -281,7 +285,7 @@ export function PropertyMap({
   locationFitNonce = 0,
   preferDefaultView = false,
   approximateAsCircle = false,
-  approximateCircleRadiusM = 400,
+  approximateCircleRadiusM = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
   disableSelectionSync = false,
   searchReturn,
   popupOverlayHostRef,
@@ -357,11 +361,14 @@ export function PropertyMap({
           const selected = l.id === selectedId;
 
           if (approximateAsCircle && l.isApproximateLocation) {
+            const radiusM = resolveApproximateRadiusMeters(
+              l.approximateRadiusMeters ?? approximateCircleRadiusM,
+            );
             return (
               <Circle
                 key={l.id}
                 center={[l.lat, l.lng]}
-                radius={approximateCircleRadiusM}
+                radius={radiusM}
                 pathOptions={MAP_PRIVACY_CIRCLE_PATH}
                 interactive={false}
               />

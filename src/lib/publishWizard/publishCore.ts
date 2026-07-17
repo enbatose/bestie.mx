@@ -442,6 +442,9 @@ export async function syncDraftToServer(
         showWhatsApp: contact.showWhatsApp,
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        approximateRadiusMeters: draft.isApproximateLocation
+          ? draft.approximateRadiusMeters
+          : undefined,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
@@ -488,6 +491,9 @@ export async function syncDraftToServer(
         showWhatsApp: contact.showWhatsApp,
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        approximateRadiusMeters: draft.isApproximateLocation
+          ? draft.approximateRadiusMeters
+          : undefined,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
@@ -574,6 +580,9 @@ export async function publishDraftFromWizard(opts: {
         showWhatsApp: contact.showWhatsApp,
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        approximateRadiusMeters: draft.isApproximateLocation
+          ? draft.approximateRadiusMeters
+          : undefined,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
@@ -602,6 +611,9 @@ export async function publishDraftFromWizard(opts: {
         showWhatsApp: contact.showWhatsApp,
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
+        approximateRadiusMeters: draft.isApproximateLocation
+          ? draft.approximateRadiusMeters
+          : undefined,
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,

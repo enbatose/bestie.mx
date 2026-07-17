@@ -473,6 +473,17 @@ export function ListingPage() {
     "house") as PropertyKind;
   const isApproximateLocation =
     listing.isApproximateLocation ?? propertyPack?.property.isApproximateLocation ?? false;
+  const listingWithPrivacy: typeof listing = {
+    ...listing,
+    isApproximateLocation,
+    ...(isApproximateLocation
+      ? {
+          approximateRadiusMeters:
+            listing.approximateRadiusMeters ??
+            propertyPack?.property.approximateRadiusMeters,
+        }
+      : {}),
+  };
   const propertySummary = propertyPack?.property.summary.trim() ?? "";
   const categoryTitle = publicListingHeaderTitle({
     postMode,
@@ -546,7 +557,7 @@ export function ListingPage() {
           <p className="text-sm text-muted">Cargando detalles de la propiedad…</p>
         ) : (
           <PublicPostExperienceListing
-            listing={listing}
+            listing={listingWithPrivacy}
             propertyPack={propertyPack ?? null}
             isPropertyPost={isPropertyPost}
             galleryUrls={galleryUrls}

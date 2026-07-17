@@ -51,6 +51,9 @@ export function draftToPropertyWithRooms(
     imageUrls: draftPropertyImageUrls(draft),
     commonAreaPhotos: draftPropertyImageUrls(draft),
     isApproximateLocation: draft.isApproximateLocation,
+    ...(draft.isApproximateLocation
+      ? { approximateRadiusMeters: draft.approximateRadiusMeters }
+      : {}),
     ...(draft.streetViewPov ? { streetViewPov: draft.streetViewPov } : {}),
     occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
     occupiedByMenCount: occupantTotals.occupiedByMenCount,
@@ -135,6 +138,9 @@ export function draftToListingPreview(
     roomDimension: room.roomDimension,
     avalRequired: room.avalRequired,
     isApproximateLocation: p.isApproximateLocation,
+    ...(p.isApproximateLocation && p.approximateRadiusMeters != null
+      ? { approximateRadiusMeters: p.approximateRadiusMeters }
+      : {}),
     ...(p.streetViewPov ? { streetViewPov: p.streetViewPov } : {}),
   };
 }

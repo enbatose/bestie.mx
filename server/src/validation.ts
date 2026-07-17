@@ -83,6 +83,28 @@ export function clampDepositMxn(n: number): number {
   return Math.min(Math.floor(n), DEPOSIT_MXN_MAX);
 }
 
+/** Default / min / max privacy perimeter (meters) when hiding exact address. */
+export const APPROXIMATE_RADIUS_DEFAULT_M = 200;
+export const APPROXIMATE_RADIUS_MIN_M = 100;
+export const APPROXIMATE_RADIUS_MAX_M = 1000;
+
+export function clampApproximateRadiusMeters(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return APPROXIMATE_RADIUS_DEFAULT_M;
+  return Math.round(
+    Math.min(APPROXIMATE_RADIUS_MAX_M, Math.max(APPROXIMATE_RADIUS_MIN_M, n)),
+  );
+}
+
+/** Persist radius only when approximate location is on; otherwise null. */
+export function approximateRadiusMetersForStorage(
+  isApproximate: boolean,
+  value: unknown,
+): number | null {
+  if (!isApproximate) return null;
+  return clampApproximateRadiusMeters(value);
+}
+
 export function minimalPropertySummaryOk(s: string): boolean {
   return typeof s === "string" && s.trim().length >= PROPERTY_SUMMARY_MIN_LEN;
 }

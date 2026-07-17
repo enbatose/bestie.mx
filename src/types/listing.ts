@@ -85,6 +85,8 @@ export type Property = {
   /** Shared-area / facade photos for property posts (same storage as `imageUrls`). */
   commonAreaPhotos?: string[];
   isApproximateLocation?: boolean;
+  /** Privacy disk radius in meters when `isApproximateLocation` is true. */
+  approximateRadiusMeters?: number;
   /** Optional locked Street View camera (heading / pitch / zoom). */
   streetViewPov?: StreetViewPov;
   /** Reported occupants in existing rooms (wizard). */
@@ -190,6 +192,8 @@ export type PropertyListing = {
   subletAllowed?: boolean;
   /** When true, public map pin is offset within a privacy radius. */
   isApproximateLocation?: boolean;
+  /** Privacy disk radius in meters when `isApproximateLocation` is true. */
+  approximateRadiusMeters?: number;
   /** Locked Street View camera from the publisher (property-level). */
   streetViewPov?: StreetViewPov;
   createdAt?: string;

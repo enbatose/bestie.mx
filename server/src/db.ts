@@ -177,6 +177,9 @@ function migratePropertyApproximateLocation(db: DatabaseSync): void {
   if (!tableHasColumn(db, "properties", "is_approximate_location")) {
     db.exec(`ALTER TABLE properties ADD COLUMN is_approximate_location INTEGER NOT NULL DEFAULT 0`);
   }
+  if (!tableHasColumn(db, "properties", "approximate_radius_m")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN approximate_radius_m INTEGER`);
+  }
 }
 
 function migratePropertyOccupantCounts(db: DatabaseSync): void {

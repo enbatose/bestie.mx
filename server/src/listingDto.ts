@@ -6,7 +6,7 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "./types.js";
-import { clampListingImageUrls } from "./validation.js";
+import { clampListingImageUrls, clampApproximateRadiusMeters } from "./validation.js";
 import { parseStreetViewPovJson } from "./streetViewPov.js";
 
 function imageUrlsFromCell(raw: unknown): string[] {
@@ -134,7 +134,12 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ...(subletAllowed !== undefined ? { subletAllowed } : {}),
     ...(propertyImageUrls.length ? { propertyImageUrls } : {}),
     ...(roomImageUrls.length ? { roomImageUrls } : {}),
-    ...(int01(row.is_approximate_location) ? { isApproximateLocation: true } : {}),
+    ...(int01(row.is_approximate_location)
+      ? {
+          isApproximateLocation: true as const,
+          approximateRadiusMeters: clampApproximateRadiusMeters(row.approximate_radius_m),
+        }
+      : {}),
     ...(parseStreetViewPovJson(row.street_view_pov_json)
       ? { streetViewPov: parseStreetViewPovJson(row.street_view_pov_json)! }
       : {}),
@@ -194,6 +199,7 @@ SELECT
   r.created_at AS created_at,
   r.updated_at AS updated_at,
   p.is_approximate_location AS is_approximate_location,
+  p.approximate_radius_m AS approximate_radius_m,
   p.street_view_pov_json AS street_view_pov_json,
   r.custom_name AS custom_name,
   r.occupancy_status AS occupancy_status,

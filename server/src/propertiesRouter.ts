@@ -36,6 +36,8 @@ import {
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
   validLatLng,
+  approximateRadiusMetersForStorage,
+  clampApproximateRadiusMeters,
 } from "./validation.js";
 import type {
   ListingStatus,
@@ -181,6 +183,9 @@ function rowToProperty(row: Record<string, unknown>): Property {
     ...(pk ? { propertyKind: pk } : {}),
     ...(imageUrls.length ? { imageUrls, commonAreaPhotos: imageUrls } : {}),
     ...(row.is_approximate_location ? { isApproximateLocation: true } : {}),
+    ...(row.is_approximate_location
+      ? { approximateRadiusMeters: clampApproximateRadiusMeters(row.approximate_radius_m) }
+      : {}),
     ...(parseStreetViewPovJson(row.street_view_pov_json)
       ? { streetViewPov: parseStreetViewPovJson(row.street_view_pov_json)! }
       : {}),
@@ -476,9 +481,9 @@ export function propertiesRouter(db: DatabaseSync) {
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location,
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
         occupied_by_women, occupied_by_men, street_view_pov_json
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
@@ -492,6 +497,13 @@ export function propertiesRouter(db: DatabaseSync) {
 
     try {
       db.exec("BEGIN IMMEDIATE;");
+      const isApproxPub = optBool((p as { isApproximateLocation?: unknown }).isApproximateLocation)
+        ? true
+        : false;
+      const approxRadiusPub = approximateRadiusMetersForStorage(
+        isApproxPub,
+        (p as { approximateRadiusMeters?: unknown }).approximateRadiusMeters,
+      );
       insertProp.run(
         propertyId,
         publisherId,
@@ -508,7 +520,8 @@ export function propertiesRouter(db: DatabaseSync) {
         bathTotal,
         showWhatsappInt,
         propImagesJson,
-        optBool((p as { isApproximateLocation?: unknown }).isApproximateLocation) ? 1 : 0,
+        isApproxPub ? 1 : 0,
+        approxRadiusPub,
         occWPub,
         occMPub,
         streetViewPovJsonPub,
@@ -699,9 +712,9 @@ export function propertiesRouter(db: DatabaseSync) {
     db.prepare(
       `INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location,
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
         occupied_by_women, occupied_by_men, street_view_pov_json
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
@@ -718,7 +731,14 @@ export function propertiesRouter(db: DatabaseSync) {
       bath,
       showInt,
       draftPropImagesJson,
-      optBool(body.isApproximateLocation) ? 1 : 0,
+      (() => {
+        const isApprox = Boolean(optBool(body.isApproximateLocation));
+        return isApprox ? 1 : 0;
+      })(),
+      approximateRadiusMetersForStorage(
+        Boolean(optBool(body.isApproximateLocation)),
+        (body as { approximateRadiusMeters?: unknown }).approximateRadiusMeters,
+      ),
       occWCreate,
       occMCreate,
       streetViewPovJsonCreate,
@@ -1088,6 +1108,7 @@ export function propertiesRouter(db: DatabaseSync) {
       showWhatsApp?: unknown;
       imageUrls?: unknown;
       isApproximateLocation?: unknown;
+      approximateRadiusMeters?: unknown;
       occupiedByWomenCount?: unknown;
       occupiedByMenCount?: unknown;
       streetViewPov?: unknown;
@@ -1231,6 +1252,16 @@ export function propertiesRouter(db: DatabaseSync) {
           : 0
         : Number(prop.is_approximate_location) ? 1 : 0;
 
+    const nextApproxRadius =
+      nextIsApprox === 0
+        ? null
+        : approximateRadiusMetersForStorage(
+            true,
+            patch.approximateRadiusMeters !== undefined
+              ? patch.approximateRadiusMeters
+              : prop.approximate_radius_m,
+          );
+
     const nextOccW =
       patch.occupiedByWomenCount !== undefined
         ? occupantCountOrNull(patch.occupiedByWomenCount)
@@ -1275,6 +1306,7 @@ export function propertiesRouter(db: DatabaseSync) {
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
         bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?,
+        approximate_radius_m = ?,
         occupied_by_women = ?, occupied_by_men = ?, street_view_pov_json = ?
       WHERE id = ?`,
     ).run(
@@ -1293,6 +1325,7 @@ export function propertiesRouter(db: DatabaseSync) {
       nextShowWhatsapp,
       nextImageUrlsJson,
       nextIsApprox,
+      nextApproxRadius,
       nextOccW,
       nextOccM,
       nextStreetViewPovJson,

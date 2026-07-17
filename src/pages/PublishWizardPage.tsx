@@ -3,7 +3,13 @@ import { CheckCircle2, CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { WizardLocationMap, WIZARD_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
+import { WizardLocationMap } from "@/components/WizardLocationMap";
+import {
+  APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
+  APPROXIMATE_LOCATION_RADIUS_MAX_M,
+  APPROXIMATE_LOCATION_RADIUS_MIN_M,
+  clampApproximateRadiusMeters,
+} from "@/lib/approximateLocationRadius";
 import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
@@ -207,6 +213,9 @@ function normalizePersistedDraft(d: Draft): Draft {
     commonAreaPhotos: normalizeDraftImages(migrated.commonAreaPhotos ?? migrated.propertyImageUrls ?? []),
     rooms: rooms.length ? rooms : [defaultRoom()],
     roomImageUrls: roomImageUrls.slice(0, rooms.length || 1),
+    approximateRadiusMeters: clampApproximateRadiusMeters(
+      (migrated as { approximateRadiusMeters?: unknown }).approximateRadiusMeters,
+    ),
   };
   return syncDraftPhotoFields(normalizePropertyRoomSlots(base));
 }
@@ -378,6 +387,8 @@ export type Draft = {
   rooms: RoomDraft[];
   legalAccepted: boolean;
   isApproximateLocation: boolean;
+  /** Privacy perimeter in meters when `isApproximateLocation` is true. */
+  approximateRadiusMeters: number;
   /** Optional locked Street View camera angle for public listings. */
   streetViewPov?: StreetViewPov;
 };
@@ -446,6 +457,7 @@ const defaultDraft = (): Draft => ({
   rooms: [{ ...defaultRoom(), title: SINGLE_ROOM_DEFAULT_TITLE }],
   legalAccepted: false,
   isApproximateLocation: false,
+  approximateRadiusMeters: APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
 });
 
 function isDraftOnlyRoomTitleSeed(value: string) {
@@ -701,6 +713,9 @@ function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; ser
     legalAccepted:
       p.status === "published" || p.status === "paused",
     isApproximateLocation: Boolean((p as { isApproximateLocation?: unknown }).isApproximateLocation),
+    approximateRadiusMeters: clampApproximateRadiusMeters(
+      (p as { approximateRadiusMeters?: unknown }).approximateRadiusMeters,
+    ),
     ...(p.streetViewPov ? { streetViewPov: p.streetViewPov } : {}),
   };
   return {
@@ -1419,7 +1434,14 @@ export function PublishWizardPage() {
                       }));
                     }}
                     showApproximateRadius={draft.isApproximateLocation}
-                    approximateRadiusMeters={WIZARD_APPROXIMATE_RADIUS_M}
+                    approximateRadiusMeters={draft.approximateRadiusMeters}
+                    radiusEditable={draft.isApproximateLocation}
+                    onRadiusChange={(meters) => {
+                      setDraft((d) => ({
+                        ...d,
+                        approximateRadiusMeters: clampApproximateRadiusMeters(meters),
+                      }));
+                    }}
                   />
                 </div>
 
@@ -1436,6 +1458,9 @@ export function PublishWizardPage() {
                       setDraft((d) => ({
                         ...d,
                         isApproximateLocation: hideExact,
+                        approximateRadiusMeters: hideExact
+                          ? clampApproximateRadiusMeters(d.approximateRadiusMeters)
+                          : d.approximateRadiusMeters,
                         ...(hideExact ? { streetViewPov: undefined } : {}),
                       }));
                     }}
@@ -1445,17 +1470,54 @@ export function PublishWizardPage() {
                       Ocultar dirección exacta en el anuncio
                     </span>
                     <span className="block text-xs text-muted">
-                      Para proteger tu dirección exacta, el marcador aparecerá en un punto aleatorio dentro de un radio
-                      aproximado de 200 metros de la ubicación real.
+                      Para proteger tu dirección exacta, el marcador público aparecerá en un punto aleatorio
+                      dentro del perímetro que elijas en el mapa (entre 100 y 1&nbsp;000 m).
                     </span>
                   </div>
                 </label>
 
                 {draft.isApproximateLocation ? (
-                  <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted transition-opacity duration-200">
-                    Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
-                    búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro mostrado en el mapa.
-                  </p>
+                  <div className="space-y-3 transition-opacity duration-200">
+                    <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <label htmlFor="privacy-radius-slider" className="text-xs font-semibold text-body">
+                          Radio de privacidad
+                        </label>
+                        <span className="text-xs font-medium tabular-nums text-primary">
+                          {draft.approximateRadiusMeters} m
+                        </span>
+                      </div>
+                      <input
+                        id="privacy-radius-slider"
+                        type="range"
+                        min={APPROXIMATE_LOCATION_RADIUS_MIN_M}
+                        max={APPROXIMATE_LOCATION_RADIUS_MAX_M}
+                        step={10}
+                        value={draft.approximateRadiusMeters}
+                        onChange={(e) => {
+                          setDraft((d) => ({
+                            ...d,
+                            approximateRadiusMeters: clampApproximateRadiusMeters(Number(e.target.value)),
+                          }));
+                        }}
+                        className="mt-2 h-2 w-full cursor-pointer accent-secondary"
+                        aria-valuemin={APPROXIMATE_LOCATION_RADIUS_MIN_M}
+                        aria-valuemax={APPROXIMATE_LOCATION_RADIUS_MAX_M}
+                        aria-valuenow={draft.approximateRadiusMeters}
+                        aria-label="Radio de privacidad en metros"
+                      />
+                      <div className="mt-1 flex justify-between text-[10px] text-muted">
+                        <span>{APPROXIMATE_LOCATION_RADIUS_MIN_M} m</span>
+                        <span>{APPROXIMATE_LOCATION_RADIUS_MAX_M} m</span>
+                      </div>
+                    </div>
+                    <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
+                      Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
+                      búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro de{" "}
+                      {draft.approximateRadiusMeters} m mostrado en el mapa. Arrastra el punto verde del borde o usa el
+                      control de radio para ajustar el área.
+                    </p>
+                  </div>
                 ) : null}
 
                 {!draft.isApproximateLocation && draft.useCustomMapPin ? (() => {

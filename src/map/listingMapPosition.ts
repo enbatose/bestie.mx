@@ -1,7 +1,11 @@
 import type { PropertyListing } from "@/types/listing";
+import {
+  APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
+  resolveApproximateRadiusMeters,
+} from "@/lib/approximateLocationRadius";
 
-/** Matches prior circle radius in `PropertyMap` — pin is jittered within this disk. */
-export const APPROXIMATE_LISTING_MAP_RADIUS_M = 200;
+/** Fallback when a listing has no stored privacy radius. */
+export const APPROXIMATE_LISTING_MAP_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M;
 
 function fnv1a32(s: string): number {
   let h = 2166136261 >>> 0;
@@ -39,5 +43,6 @@ export function jitterLatLngInDiskMeters(
 /** Lat/lng used on search/detail maps: exact coords, or jittered for approximate listings. */
 export function listingMapPosition(l: PropertyListing): [number, number] {
   if (!l.isApproximateLocation) return [l.lat, l.lng];
-  return jitterLatLngInDiskMeters(l.lat, l.lng, l.id, APPROXIMATE_LISTING_MAP_RADIUS_M);
+  const radiusM = resolveApproximateRadiusMeters(l.approximateRadiusMeters);
+  return jitterLatLngInDiskMeters(l.lat, l.lng, l.id, radiusM);
 }

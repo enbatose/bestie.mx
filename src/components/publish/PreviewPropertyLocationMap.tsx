@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Maximize2, Pencil, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { streetViewPovCacheKey } from "@/lib/streetView";
-import { WizardLocationMap, PREVIEW_APPROXIMATE_RADIUS_M } from "@/components/WizardLocationMap";
+import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
+import { resolveApproximateRadiusMeters } from "@/lib/approximateLocationRadius";
 import type { PropertyListing, StreetViewPov } from "@/types/listing";
 
 /** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
@@ -65,6 +66,7 @@ export function PreviewPropertyLocationMap({
   const [editingLocation, setEditingLocation] = useState(false);
   const [draftPosition, setDraftPosition] = useState<[number, number]>([listing.lat, listing.lng]);
   const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
+  const privacyRadiusM = resolveApproximateRadiusMeters(listing.approximateRadiusMeters);
   const streetViewPov = streetViewPovProp ?? listing.streetViewPov;
   const showStreetView =
     !hideExactAddress && (useCustomMapPin === true || Boolean(streetViewPov));
@@ -120,7 +122,7 @@ export function PreviewPropertyLocationMap({
     locationLabel: null,
     onPositionChange: (lat: number, lng: number) => setDraftPosition([lat, lng]),
     showApproximateRadius: hideExactAddress,
-    approximateRadiusMeters: hideExactAddress ? PREVIEW_APPROXIMATE_RADIUS_M : PREVIEW_EDIT_RADIUS_M,
+    approximateRadiusMeters: hideExactAddress ? privacyRadiusM : PREVIEW_EDIT_RADIUS_M,
     forceDraggablePin: true,
     embed: true,
   };
@@ -137,7 +139,7 @@ export function PreviewPropertyLocationMap({
       preferDefaultView
       disableSelectionSync
       approximateAsCircle={hideExactAddress}
-      approximateCircleRadiusM={PREVIEW_APPROXIMATE_RADIUS_M}
+      approximateCircleRadiusM={privacyRadiusM}
     />
   );
 
@@ -239,8 +241,8 @@ export function PreviewPropertyLocationMap({
             {hideExactAddress ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
                 {editingLocation
-                  ? `Arrastra el pin dentro del área (~${PREVIEW_APPROXIMATE_RADIUS_M} m). La ubicación pública puede variar por privacidad.`
-                  : `Ubicación aproximada por privacidad (radio ~${PREVIEW_APPROXIMATE_RADIUS_M} m); el pin público no se muestra.`}
+                  ? `Arrastra el pin. El área pública de privacidad es de ~${privacyRadiusM} m.`
+                  : `Ubicación aproximada por privacidad (radio ~${privacyRadiusM} m); el pin público no se muestra.`}
               </p>
             ) : editingLocation ? (
               <p className="border-t border-border px-4 py-2 text-xs text-muted">
