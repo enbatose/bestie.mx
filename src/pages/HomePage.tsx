@@ -1,10 +1,17 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MapPinned, Search, SlidersHorizontal, UsersRound, type LucideIcon } from "lucide-react";
 import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
+import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
+import { DEFAULT_METRO_CITY, resolveMetroCity } from "@/lib/metroCities";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
-import { withDefaultSearchCity } from "@/lib/searchDefaults";
-import { DEFAULT_METRO_CITY } from "@/lib/metroCities";
+import {
+  computeNeighborhoodsViewport,
+  metroDefaultLocation,
+  searchPathForCity,
+  stripMetroLabelPrefix,
+  writeSearchLocation,
+} from "@/lib/searchLocation";
 
 const PROXIMAS_CITIES = [
   "Puerto Vallarta",
@@ -36,42 +43,170 @@ const STEPS: ReadonlyArray<{
   },
 ];
 
-function buildSearchParams(query: string): URLSearchParams {
-  return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: withDefaultSearchCity(query) });
+function suggestionLabel(option: LocationSuggestion): string {
+  if (option.kind === "neighborhood" && option.neighborhood) {
+    return option.neighborhood;
+  }
+  return option.label;
+}
+
+function buildCitySearchParams() {
+  const location = metroDefaultLocation(DEFAULT_METRO_CITY);
+  return writeSearchLocation(filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: "" }), location);
+}
+
+function buildNeighborhoodSearchParams(option: LocationSuggestion): URLSearchParams | null {
+  const metro = resolveMetroCity(option.cityCode);
+  const name =
+    stripMetroLabelPrefix(metro.abbr, option.neighborhood ?? option.label) ??
+    option.neighborhood ??
+    option.label;
+  if (!name) return null;
+
+  const neighborhoods = [{ name, lat: option.lat, lng: option.lng }];
+  const viewport = computeNeighborhoodsViewport(neighborhoods, metro);
+  return writeSearchLocation(filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: "" }), {
+    cityCode: metro.code,
+    cityAbbr: metro.abbr,
+    cityLabel: option.city || metro.label,
+    neighborhoods,
+    ...viewport,
+  });
 }
 
 export function HomePage() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
+  const locationMenuId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const blurCloseTimerRef = useRef<number | null>(null);
 
-  const goSearch = useCallback(() => {
-    navigate({ pathname: "/buscar/gdl", search: `?${buildSearchParams(searchQuery).toString()}` });
-  }, [navigate, searchQuery]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const goSearchForCity = useCallback(
-    (city: string) => {
-      navigate({ pathname: "/buscar/gdl", search: `?${buildSearchParams(city).toString()}` });
+  const goToCitySearch = useCallback(() => {
+    navigate({
+      pathname: searchPathForCity(DEFAULT_METRO_CITY.code),
+      search: `?${buildCitySearchParams().toString()}`,
+    });
+  }, [navigate]);
+
+  const goToNeighborhood = useCallback(
+    (option: LocationSuggestion) => {
+      const params = buildNeighborhoodSearchParams(option);
+      if (!params) return;
+      navigate({
+        pathname: searchPathForCity(option.cityCode || DEFAULT_METRO_CITY.code),
+        search: `?${params.toString()}`,
+      });
     },
     [navigate],
   );
 
+  const resolveBestMatchAndSearch = useCallback(async () => {
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      goToCitySearch();
+      return;
+    }
+
+    if (suggestions.length > 0) {
+      goToNeighborhood(suggestions[0]!);
+      return;
+    }
+
+    try {
+      const rows = await fetchLocationSuggestions(query, {
+        cityCode: DEFAULT_METRO_CITY.code,
+        scope: "neighborhood",
+      });
+      if (rows[0]) {
+        goToNeighborhood(rows[0]);
+        return;
+      }
+    } catch {
+      /* fall through to city search */
+    }
+    goToCitySearch();
+  }, [goToCitySearch, goToNeighborhood, searchQuery, suggestions]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      setSuggestions([]);
+      setLoading(false);
+      return;
+    }
+
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      fetchLocationSuggestions(query, {
+        cityCode: DEFAULT_METRO_CITY.code,
+        scope: "neighborhood",
+        signal: ac.signal,
+      })
+        .then((rows) => {
+          setSuggestions(rows);
+          setMenuOpen(true);
+        })
+        .catch(() => {
+          if (ac.signal.aborted) return;
+          setSuggestions([]);
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setLoading(false);
+        });
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (blurCloseTimerRef.current != null) window.clearTimeout(blurCloseTimerRef.current);
+    };
+  }, []);
+
+  function openMenu() {
+    if (blurCloseTimerRef.current != null) {
+      window.clearTimeout(blurCloseTimerRef.current);
+      blurCloseTimerRef.current = null;
+    }
+    setMenuOpen(true);
+  }
+
+  function scheduleMenuClose() {
+    if (blurCloseTimerRef.current != null) window.clearTimeout(blurCloseTimerRef.current);
+    blurCloseTimerRef.current = window.setTimeout(() => {
+      setMenuOpen(false);
+      blurCloseTimerRef.current = null;
+    }, 120);
+  }
+
+  function handleSuggestionSelect(option: LocationSuggestion) {
+    if (blurCloseTimerRef.current != null) window.clearTimeout(blurCloseTimerRef.current);
+    setSearchQuery("");
+    setSuggestions([]);
+    setMenuOpen(false);
+    goToNeighborhood(option);
+  }
+
+  const showMenu = menuOpen && searchQuery.trim().length >= 2;
+
   return (
     <>
-      {/* Hero — one composition: brand, line, support, search */}
-      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-16 pt-12 text-primary-fg sm:px-6 sm:pb-20 sm:pt-16">
-        <div
-          className="home-hero-orb pointer-events-none absolute -left-20 -top-16 h-72 w-72 rounded-full bg-secondary/25 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="home-hero-orb home-hero-orb--delay pointer-events-none absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/20 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-secondary/10 blur-2xl"
-          aria-hidden
-        />
+      {/* Hero — overflow only on decor layer so the suggestion menu can escape */}
+      <section className="home-hero relative bg-primary px-4 pb-16 pt-12 text-primary-fg sm:px-6 sm:pb-20 sm:pt-16">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="home-hero-orb absolute -left-20 -top-16 h-72 w-72 rounded-full bg-secondary/25 blur-3xl" />
+          <div className="home-hero-orb home-hero-orb--delay absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
+          <div className="absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full bg-secondary/10 blur-2xl" />
+        </div>
 
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center text-center">
           <div className="home-hero-rise flex w-full max-w-[42rem] flex-col items-center">
@@ -99,32 +234,81 @@ export function HomePage() {
               Buscar colonia
             </label>
             <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
-              <div className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl border border-border bg-surface px-3 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40">
-                <span
-                  className="inline-flex shrink-0 items-center rounded-full border border-primary/35 bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-fg"
-                  aria-label={`Ciudad ${DEFAULT_METRO_CITY.label}`}
-                >
-                  {DEFAULT_METRO_CITY.abbr}
-                </span>
-                <Search className="size-4 shrink-0 text-muted" aria-hidden strokeWidth={2.25} />
-                <input
-                  ref={searchInputRef}
-                  id="search-q"
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") goSearch();
-                  }}
-                  placeholder="Buscar colonia…"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="min-h-11 min-w-0 flex-1 bg-transparent py-2 text-base font-medium text-body caret-primary placeholder:text-muted outline-none"
-                />
+              <div
+                className="relative min-w-0 flex-1"
+                onFocus={openMenu}
+                onBlur={scheduleMenuClose}
+              >
+                <div className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40">
+                  <span
+                    className="inline-flex shrink-0 items-center rounded-full border border-primary/35 bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-fg"
+                    aria-label={`Ciudad ${DEFAULT_METRO_CITY.label}`}
+                  >
+                    {DEFAULT_METRO_CITY.abbr}
+                  </span>
+                  <Search className="size-4 shrink-0 text-muted" aria-hidden strokeWidth={2.25} />
+                  <input
+                    ref={searchInputRef}
+                    id="search-q"
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setMenuOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void resolveBestMatchAndSearch();
+                      }
+                      if (e.key === "Escape") {
+                        setMenuOpen(false);
+                      }
+                    }}
+                    placeholder="Buscar colonia…"
+                    autoComplete="off"
+                    spellCheck={false}
+                    role="combobox"
+                    aria-expanded={showMenu}
+                    aria-controls={locationMenuId}
+                    aria-autocomplete="list"
+                    className="min-h-11 min-w-0 flex-1 bg-transparent py-2 text-base font-medium text-body caret-primary placeholder:text-muted outline-none"
+                  />
+                </div>
+
+                {showMenu ? (
+                  <div
+                    id={locationMenuId}
+                    role="listbox"
+                    aria-label="Colonias sugeridas"
+                    className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-border bg-surface text-left shadow-xl"
+                  >
+                    {loading && suggestions.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-muted">Buscando colonias…</div>
+                    ) : suggestions.length > 0 ? (
+                      suggestions.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          role="option"
+                          className="w-full px-4 py-3 text-left text-sm font-medium text-body transition hover:bg-bg-light"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSuggestionSelect(option)}
+                        >
+                          {suggestionLabel(option)}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-muted">
+                        Sin coincidencias. Sigue escribiendo o busca en el mapa.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
               <button
                 type="button"
-                onClick={goSearch}
+                onClick={() => void resolveBestMatchAndSearch()}
                 className="min-h-12 shrink-0 rounded-full bg-secondary px-7 text-base font-semibold text-primary shadow-md transition hover:brightness-95 active:scale-[0.99]"
               >
                 Buscar
@@ -178,7 +362,7 @@ export function HomePage() {
                   <button
                     type="button"
                     aria-label="Abrir mapa de búsqueda en Guadalajara"
-                    onClick={() => goSearchForCity("Guadalajara")}
+                    onClick={goToCitySearch}
                     className="rounded-full border border-secondary/50 bg-secondary/15 px-5 py-2.5 text-sm font-semibold text-primary transition hover:bg-secondary/25 active:scale-[0.99]"
                   >
                     Guadalajara
