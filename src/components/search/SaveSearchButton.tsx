@@ -185,7 +185,7 @@ export function MobileCombinedFilterBar({
   guestNudge?: SaveGroupProps["guestNudge"];
 }) {
   const filterBtnClass =
-    "inline-flex min-w-0 flex-1 items-center justify-center text-primary transition hover:bg-bg-light/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40";
+    `inline-flex ${MOBILE_CONTROL_HEIGHT} w-10 shrink-0 items-center justify-center text-primary transition hover:bg-bg-light/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40`;
 
   return (
     <div className={`${MOBILE_ROW_SHELL_CLASS} ${MOBILE_ROW_HEIGHT} w-full min-w-0`}>
@@ -196,7 +196,7 @@ export function MobileCombinedFilterBar({
         aria-label="Acciones de filtros y búsqueda guardada"
       >
         <div
-          className="flex min-w-0 flex-1 overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm"
+          className={`flex ${MOBILE_CONTROL_HEIGHT} w-20 shrink-0 overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm`}
           role="group"
           aria-label="Filtros"
         >
@@ -223,6 +223,7 @@ export function MobileCombinedFilterBar({
           pulseActive={pulseActive}
           guestNudge={guestNudge}
           mobile
+          className="ml-auto"
         />
       </div>
     </div>
