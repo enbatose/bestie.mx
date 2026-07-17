@@ -19,13 +19,15 @@ type Props = {
   hasDefinedLocation: boolean;
   locationLabel: string | null;
   onPositionChange: (lat: number, lng: number) => void;
-  /** When true, show a radius circle around the pin. */
+  /** When true, show a radius circle around the location (no pin unless forced). */
   showApproximateRadius?: boolean;
   /** Circle radius in meters (default 200 for wizard privacy). */
   approximateRadiusMeters?: number;
-  /** Allow dragging a handle on the circle edge (and a slider) to change the radius. */
+  /**
+   * When privacy circle is shown, allow dragging the disk to place the location
+   * (same role as the pin when exact address is visible).
+   */
   radiusEditable?: boolean;
-  onRadiusChange?: (meters: number) => void;
   /** Show draggable pin even when the radius circle is visible. */
   forceDraggablePin?: boolean;
   /** Hide tip and address footer (embedded preview). */
@@ -42,6 +44,11 @@ export const MAP_PRIVACY_CIRCLE_PATH = {
   weight: 2,
 } as const;
 
+const MAP_PRIVACY_CIRCLE_DRAGGABLE_PATH = {
+  ...MAP_PRIVACY_CIRCLE_PATH,
+  className: "bestie-privacy-circle-draggable",
+} as const;
+
 /** @deprecated Prefer APPROXIMATE_LOCATION_RADIUS_DEFAULT_M from lib. */
 export const WIZARD_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M;
 
@@ -51,46 +58,13 @@ export const WIZARD_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M
  */
 export const PREVIEW_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M;
 
-const RADIUS_HANDLE_ICON = L.divIcon({
-  className: "bestie-privacy-radius-handle",
-  html: `<span style="
-    display:block;
-    width:18px;
-    height:18px;
-    margin:-9px 0 0 -9px;
-    border-radius:9999px;
-    background:#84CC16;
-    border:2px solid #fff;
-    box-shadow:0 1px 4px rgba(20,61,48,0.35);
-    cursor:grab;
-  "></span>`,
-  iconSize: [18, 18],
-  iconAnchor: [0, 0],
-});
-
-function metersToLatLngOffset(
-  center: [number, number],
-  meters: number,
-  bearingRad: number,
-): [number, number] {
-  const northM = meters * Math.cos(bearingRad);
-  const eastM = meters * Math.sin(bearingRad);
-  const dLat = northM / 111_320;
-  const cosLat = Math.cos((center[0] * Math.PI) / 180);
-  const dLng = eastM / (111_320 * Math.max(cosLat, 1e-6));
-  return [center[0] + dLat, center[1] + dLng];
-}
-
-function pointOnCircleToward(
-  center: [number, number],
-  toward: L.LatLng,
-  meters: number,
-): [number, number] {
-  const from = L.latLng(center[0], center[1]);
-  const dist = from.distanceTo(toward);
-  if (dist < 1) return metersToLatLngOffset(center, meters, Math.PI / 2);
-  const bearing = Math.atan2(toward.lng - center[1], toward.lat - center[0]);
-  return metersToLatLngOffset(center, meters, bearing);
+function latLngFromClient(
+  map: L.Map,
+  clientX: number,
+  clientY: number,
+): L.LatLng {
+  const rect = map.getContainer().getBoundingClientRect();
+  return map.containerPointToLatLng(L.point(clientX - rect.left, clientY - rect.top));
 }
 
 function MapViewSync({
@@ -131,67 +105,122 @@ function MapViewSync({
   return null;
 }
 
-function PrivacyRadiusHandle({
+/** Privacy disk that can be dragged to reposition the true location (no pin). */
+function DraggablePrivacyCircle({
   center,
   radiusMeters,
-  onRadiusChange,
+  onDragMove,
+  onDragEnd,
 }: {
   center: [number, number];
   radiusMeters: number;
-  onRadiusChange: (meters: number) => void;
+  onDragMove: (lat: number, lng: number) => void;
+  onDragEnd: (lat: number, lng: number) => void;
 }) {
-  const markerRef = useRef<L.Marker | null>(null);
-  const draggingRef = useRef(false);
-  const [handlePos, setHandlePos] = useState<[number, number]>(() =>
-    metersToLatLngOffset(center, radiusMeters, Math.PI / 2),
-  );
+  const map = useMap();
+  const circleRef = useRef<L.Circle | null>(null);
+  const dragRef = useRef<{
+    originPointer: L.LatLng;
+    originCenter: L.LatLng;
+  } | null>(null);
 
   useEffect(() => {
-    if (draggingRef.current) return;
-    setHandlePos(metersToLatLngOffset(center, radiusMeters, Math.PI / 2));
-  }, [center, radiusMeters]);
+    const circle = circleRef.current;
+    if (!circle) return;
 
-  const commitFromLatLng = useCallback(
-    (ll: L.LatLng) => {
-      const dist = L.latLng(center[0], center[1]).distanceTo(ll);
-      const next = clampApproximateRadiusMeters(dist);
-      const snapped = pointOnCircleToward(center, ll, next);
-      setHandlePos(snapped);
-      onRadiusChange(next);
-      return snapped;
-    },
-    [center, onRadiusChange],
-  );
+    const applyDelta = (pointer: L.LatLng) => {
+      const drag = dragRef.current;
+      if (!drag) return null;
+      const next = L.latLng(
+        drag.originCenter.lat + (pointer.lat - drag.originPointer.lat),
+        drag.originCenter.lng + (pointer.lng - drag.originPointer.lng),
+      );
+      circle.setLatLng(next);
+      return next;
+    };
 
-  const eventHandlers = useMemo(
-    () => ({
-      dragstart: () => {
-        draggingRef.current = true;
-      },
-      drag: (e: L.LeafletEvent) => {
-        const marker = e.target as L.Marker;
-        const snapped = commitFromLatLng(marker.getLatLng());
-        marker.setLatLng(snapped);
-      },
-      dragend: (e: L.LeafletEvent) => {
-        draggingRef.current = false;
-        const marker = e.target as L.Marker;
-        const snapped = commitFromLatLng(marker.getLatLng());
-        marker.setLatLng(snapped);
-      },
-    }),
-    [commitFromLatLng],
-  );
+    const endDrag = () => {
+      if (!dragRef.current) return;
+      const ll = circle.getLatLng();
+      dragRef.current = null;
+      map.dragging.enable();
+      map.getContainer().style.cursor = "";
+      onDragEnd(ll.lat, ll.lng);
+    };
+
+    const startDrag = (pointer: L.LatLng, ev: Event) => {
+      L.DomEvent.stopPropagation(ev);
+      L.DomEvent.preventDefault(ev);
+      map.dragging.disable();
+      map.getContainer().style.cursor = "grabbing";
+      dragRef.current = {
+        originPointer: pointer,
+        originCenter: circle.getLatLng(),
+      };
+    };
+
+    const onMouseDown = (e: L.LeafletMouseEvent) => {
+      startDrag(e.latlng, e.originalEvent);
+    };
+
+    const onMouseMove = (e: L.LeafletMouseEvent) => {
+      if (!dragRef.current) return;
+      L.DomEvent.stopPropagation(e);
+      const next = applyDelta(e.latlng);
+      if (next) onDragMove(next.lat, next.lng);
+    };
+
+    circle.on("mousedown", onMouseDown);
+    map.on("mousemove", onMouseMove);
+    map.on("mouseup", endDrag);
+
+    const pathEl = circle.getElement();
+    const onTouchStart = (ev: TouchEvent) => {
+      if (ev.touches.length !== 1) return;
+      const t = ev.touches[0]!;
+      startDrag(latLngFromClient(map, t.clientX, t.clientY), ev);
+    };
+    const onTouchMove = (ev: TouchEvent) => {
+      if (!dragRef.current || ev.touches.length !== 1) return;
+      const t = ev.touches[0]!;
+      L.DomEvent.preventDefault(ev);
+      const next = applyDelta(latLngFromClient(map, t.clientX, t.clientY));
+      if (next) onDragMove(next.lat, next.lng);
+    };
+
+    if (pathEl) {
+      pathEl.style.cursor = "grab";
+      pathEl.addEventListener("touchstart", onTouchStart, { passive: false });
+      pathEl.addEventListener("touchmove", onTouchMove, { passive: false });
+      pathEl.addEventListener("touchend", endDrag);
+      pathEl.addEventListener("touchcancel", endDrag);
+    }
+
+    return () => {
+      circle.off("mousedown", onMouseDown);
+      map.off("mousemove", onMouseMove);
+      map.off("mouseup", endDrag);
+      if (pathEl) {
+        pathEl.removeEventListener("touchstart", onTouchStart);
+        pathEl.removeEventListener("touchmove", onTouchMove);
+        pathEl.removeEventListener("touchend", endDrag);
+        pathEl.removeEventListener("touchcancel", endDrag);
+      }
+      if (dragRef.current) {
+        dragRef.current = null;
+        map.dragging.enable();
+        map.getContainer().style.cursor = "";
+      }
+    };
+  }, [map, onDragEnd, onDragMove]);
 
   return (
-    <Marker
-      ref={markerRef}
-      position={handlePos}
-      draggable
-      icon={RADIUS_HANDLE_ICON}
-      zIndexOffset={1100}
-      eventHandlers={eventHandlers}
-      title="Arrastra para ajustar el radio de privacidad"
+    <Circle
+      ref={circleRef}
+      center={center}
+      radius={radiusMeters}
+      pathOptions={MAP_PRIVACY_CIRCLE_DRAGGABLE_PATH}
+      interactive
     />
   );
 }
@@ -205,53 +234,48 @@ export function WizardLocationMap({
   showApproximateRadius = false,
   approximateRadiusMeters = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
   radiusEditable = false,
-  onRadiusChange,
   forceDraggablePin = false,
   embed = false,
   mapHeight = 288,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
-  const [localRadius, setLocalRadius] = useState(() =>
-    clampApproximateRadiusMeters(approximateRadiusMeters),
-  );
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
   const skipFlyRef = useRef(false);
-  const showMarker = forceDraggablePin || !showApproximateRadius || radiusEditable;
-  const canEditRadius = Boolean(showApproximateRadius && radiusEditable && onRadiusChange);
-  const circleRadius = canEditRadius
-    ? localRadius
-    : clampApproximateRadiusMeters(approximateRadiusMeters);
+  /** Pin only when exact location mode, or when preview forces a pin over the circle. */
+  const showMarker = forceDraggablePin || !showApproximateRadius;
+  const circleDraggable = Boolean(showApproximateRadius && radiusEditable && !forceDraggablePin);
+  const circleRadius = clampApproximateRadiusMeters(approximateRadiusMeters);
 
   useEffect(() => {
     setLocalPosition(position);
     setLocalLocationSelected(hasDefinedLocation);
   }, [position, hasDefinedLocation]);
 
-  useEffect(() => {
-    setLocalRadius(clampApproximateRadiusMeters(approximateRadiusMeters));
-  }, [approximateRadiusMeters]);
+  const commitPosition = useCallback(
+    (lat: number, lng: number) => {
+      setLocalPosition([lat, lng]);
+      setLocalLocationSelected(true);
+      skipFlyRef.current = true;
+      onPositionChange(lat, lng);
+    },
+    [onPositionChange],
+  );
+
+  const onCircleDragMove = useCallback((lat: number, lng: number) => {
+    skipFlyRef.current = true;
+    setLocalPosition([lat, lng]);
+    setLocalLocationSelected(true);
+  }, []);
 
   const commitMarkerPosition = useCallback(
     (marker?: L.Marker | null) => {
       const ll = (marker ?? markerRef.current)?.getLatLng();
       if (!ll) return;
-      setLocalPosition([ll.lat, ll.lng]);
-      setLocalLocationSelected(true);
-      skipFlyRef.current = true;
-      onPositionChange(ll.lat, ll.lng);
+      commitPosition(ll.lat, ll.lng);
     },
-    [onPositionChange],
-  );
-
-  const commitRadius = useCallback(
-    (meters: number) => {
-      const next = clampApproximateRadiusMeters(meters);
-      setLocalRadius(next);
-      onRadiusChange?.(next);
-    },
-    [onRadiusChange],
+    [commitPosition],
   );
 
   const markerEventHandlers = useMemo(
@@ -293,19 +317,20 @@ export function WizardLocationMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapViewSync position={localPosition} zoom={13} skipFlyRef={skipFlyRef} />
-        {showApproximateRadius ? (
+        {showApproximateRadius && circleDraggable ? (
+          <DraggablePrivacyCircle
+            center={localPosition}
+            radiusMeters={circleRadius}
+            onDragMove={onCircleDragMove}
+            onDragEnd={commitPosition}
+          />
+        ) : null}
+        {showApproximateRadius && !circleDraggable ? (
           <Circle
             center={localPosition}
             radius={circleRadius}
             pathOptions={MAP_PRIVACY_CIRCLE_PATH}
             interactive={false}
-          />
-        ) : null}
-        {canEditRadius ? (
-          <PrivacyRadiusHandle
-            center={localPosition}
-            radiusMeters={localRadius}
-            onRadiusChange={commitRadius}
           />
         ) : null}
         {showMarker ? (
@@ -324,8 +349,8 @@ export function WizardLocationMap({
         <>
           <p className="text-xs text-muted">
             <strong className="font-semibold text-body">Tip</strong>:{" "}
-            {canEditRadius
-              ? "Arrastra el pin para ubicar la propiedad y el punto verde del perímetro para ajustar el radio. Los clics en el mapa no mueven el pin."
+            {circleDraggable
+              ? "Arrastra el área verde para colocar la ubicación. Usa el control de radio abajo para ajustar el perímetro. Los clics fuera del área no la mueven."
               : "Los clics en el mapa no mueven el pin."}
           </p>
           {localLocationSelected ? (

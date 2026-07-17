@@ -1411,7 +1411,9 @@ export function PublishWizardPage() {
               </h3>
               <div>
                 <p className="text-sm font-medium text-body">
-                  Arrastra el marcador para colocar la ubicación.
+                  {draft.isApproximateLocation
+                    ? "Arrastra el área verde para colocar la ubicación."
+                    : "Arrastra el marcador para colocar la ubicación."}
                   <span className="text-error"> *</span>
                 </p>
                 <div className="mt-3">
@@ -1436,12 +1438,6 @@ export function PublishWizardPage() {
                     showApproximateRadius={draft.isApproximateLocation}
                     approximateRadiusMeters={draft.approximateRadiusMeters}
                     radiusEditable={draft.isApproximateLocation}
-                    onRadiusChange={(meters) => {
-                      setDraft((d) => ({
-                        ...d,
-                        approximateRadiusMeters: clampApproximateRadiusMeters(meters),
-                      }));
-                    }}
                   />
                 </div>
 
@@ -1514,8 +1510,8 @@ export function PublishWizardPage() {
                     <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
                       Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
                       búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro de{" "}
-                      {draft.approximateRadiusMeters} m mostrado en el mapa. Arrastra el punto verde del borde o usa el
-                      control de radio para ajustar el área.
+                      {draft.approximateRadiusMeters} m. Arrastra el área verde para ubicarla y usa el control de radio
+                      para ajustar el tamaño del perímetro.
                     </p>
                   </div>
                 ) : null}
