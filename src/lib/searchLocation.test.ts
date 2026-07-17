@@ -100,7 +100,8 @@ describe("combinedNeighborhoodBounds", () => {
   it("expands each pin to a neighborhood-sized box", () => {
     const bounds = combinedNeighborhoodBounds([{ name: "Chapalita", lat: 20.66, lng: -103.39 }]);
     expect(bounds).not.toBeNull();
-    expect(bounds!.maxLat - bounds!.minLat).toBeGreaterThan(0.03);
+    expect(bounds!.maxLat - bounds!.minLat).toBeGreaterThan(0.015);
+    expect(bounds!.maxLat - bounds!.minLat).toBeLessThan(0.025);
   });
 });
 
@@ -113,8 +114,9 @@ describe("computeNeighborhoodsViewport", () => {
       { name: "Chapalita", lat: 20.66, lng: -103.39 },
       { name: "Americana", lat: 20.74, lng: -103.31 },
     ]);
+    expect(single.zoom).toBe(14);
     expect(multi.zoom).toBeLessThan(single.zoom);
-    expect(multi.zoom).toBeGreaterThanOrEqual(11);
+    expect(multi.zoom).toBeGreaterThanOrEqual(12);
   });
 
   it("keeps nearby neighborhoods at a street-level zoom", () => {
@@ -125,12 +127,12 @@ describe("computeNeighborhoodsViewport", () => {
     expect(viewport.zoom).toBeGreaterThanOrEqual(13);
   });
 
-  it("does not zoom out three levels for nearby west Guadalajara neighborhoods", () => {
+  it("does not zoom out two levels for nearby west Guadalajara neighborhoods", () => {
     const viewport = computeNeighborhoodsViewport([
       { name: "Arcos Vallarta", lat: 20.6724, lng: -103.3796 },
       { name: "Colonia Americana", lat: 20.67459, lng: -103.35943 },
     ]);
-    expect(viewport.zoom).toBeGreaterThan(11);
+    expect(viewport.zoom).toBeGreaterThan(12);
   });
 });
 

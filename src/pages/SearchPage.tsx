@@ -572,7 +572,7 @@ export function SearchPage() {
       </>
     );
   const farNeighborhoodAutoOpenKey =
-    searchLocation.neighborhoods.length > 1 && searchLocation.zoom <= metro.neighborhoodZoom - 3
+    searchLocation.neighborhoods.length > 1 && searchLocation.zoom <= metro.neighborhoodZoom - 2
       ? `${searchLocation.cityCode}:${neighborhoodSelectionKey}:${searchLocation.zoom}`
       : undefined;
 

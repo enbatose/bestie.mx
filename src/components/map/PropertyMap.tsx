@@ -46,10 +46,10 @@ type Props = {
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
-const NEIGHBORHOOD_FIT_PADDING: L.PointExpression = [56, 56];
+const NEIGHBORHOOD_FIT_PADDING: L.PointExpression = [36, 36];
 /** Allow fitBounds to zoom in tightly; do not reuse URL viewport zoom as a ceiling. */
 const NEIGHBORHOOD_FIT_MAX_ZOOM = 15;
-const NEIGHBORHOOD_LOOSE_VIEW_SLACK = 1.28;
+const NEIGHBORHOOD_LOOSE_VIEW_SLACK = 1.18;
 
 function latLngBoundsFromBox(box: LatLngBoundsBox): L.LatLngBounds {
   return L.latLngBounds([box.minLat, box.minLng], [box.maxLat, box.maxLng]);

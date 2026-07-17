@@ -12,9 +12,9 @@ export type SearchNeighborhoodPin = {
   lng: number;
 };
 
-/** Approx. half-span (degrees) around a neighborhood pin at neighborhood zoom. */
-export const NEIGHBORHOOD_FIT_HALF_SPAN_LAT = 0.016;
-export const NEIGHBORHOOD_FIT_HALF_SPAN_LNG = 0.018;
+/** Approx. half-span (degrees) around a neighborhood pin for map fit (~1.8 km across). */
+export const NEIGHBORHOOD_FIT_HALF_SPAN_LAT = 0.008;
+export const NEIGHBORHOOD_FIT_HALF_SPAN_LNG = 0.009;
 
 export type LatLngBoundsBox = {
   minLat: number;
@@ -169,8 +169,9 @@ export function computeNeighborhoodsViewport(
   const latSpan = Math.max(bounds.maxLat - bounds.minLat, NEIGHBORHOOD_FIT_HALF_SPAN_LAT * 2);
   const lngSpan = Math.max(bounds.maxLng - bounds.minLng, NEIGHBORHOOD_FIT_HALF_SPAN_LNG * 2);
   const span = Math.max(latSpan, lngSpan);
-  const minMultiZoom = metro.neighborhoodZoom - 3;
-  const estimatedMultiZoom = minMultiZoom + Math.round(Math.log2(0.34 / span));
+  // Tuned for tighter neighborhood boxes: nearby colonias stay close to neighborhoodZoom.
+  const minMultiZoom = metro.neighborhoodZoom - 2;
+  const estimatedMultiZoom = minMultiZoom + Math.round(Math.log2(0.22 / span));
   const zoom = Math.min(
     metro.neighborhoodZoom,
     Math.max(minMultiZoom, estimatedMultiZoom),
