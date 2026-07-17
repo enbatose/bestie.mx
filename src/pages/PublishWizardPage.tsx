@@ -1858,7 +1858,6 @@ export function PublishWizardPage() {
                       </div>
                       <label className="block text-sm font-medium text-body">
                         Depósito (MXN)
-                        <span className="text-error"> *</span>
                         <input
                           type="number"
                           min={0}

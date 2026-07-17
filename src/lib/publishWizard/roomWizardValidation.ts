@@ -54,7 +54,7 @@ export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number
     issues.push("Renta (MXN / mes)");
   }
 
-  if (!Number.isFinite(room.depositMxn) || room.depositMxn < 0) {
+  if (Number.isFinite(room.depositMxn) && room.depositMxn < 0) {
     issues.push("Depósito (MXN)");
   }
 
