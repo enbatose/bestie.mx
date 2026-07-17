@@ -37,6 +37,7 @@ export function AuthModal() {
       await authLogin({ email: email.trim().toLowerCase(), password });
       close();
       const me = await authMe().catch(() => null);
+      window.dispatchEvent(new Event("bestie:me-changed"));
       window.location.assign(await destinationAfterAuth(Boolean(me && needsEmailVerification(me))));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
@@ -60,6 +61,7 @@ export function AuthModal() {
         displayName: displayName.trim() || undefined,
       });
       close();
+      window.dispatchEvent(new Event("bestie:me-changed"));
       window.location.assign(await destinationAfterAuth(needsEmailVerification(me)));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");

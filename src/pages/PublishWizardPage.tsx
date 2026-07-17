@@ -14,7 +14,8 @@ import {
   fetchPropertyWithRooms,
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
-import { authLinkPublisher, authMe, consumeHandoffToken, type AuthMe } from "@/lib/authApi";
+import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
+import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
@@ -729,6 +730,7 @@ export function PublishWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { openAuthModal } = useAuthModal();
+  const { me } = useAppShellOutlet();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
@@ -758,7 +760,6 @@ export function PublishWizardPage() {
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const [autosaveFlashKey, setAutosaveFlashKey] = useState(0);
   const [showAutosaveRing, setShowAutosaveRing] = useState(false);
-  const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
   const [storageReady, setStorageReady] = useState(false);
   /** Single reverse-geocode result for the pin; privacy mode derives a shorter label from `address`, same coordinates. */
@@ -791,14 +792,6 @@ export function PublishWizardPage() {
       };
     });
   }, [draft.postMode, roomLodgingSig]);
-
-  useEffect(() => {
-    if (!apiOn) {
-      setMe(null);
-      return;
-    }
-    void authMe().then(setMe).catch(() => setMe(null));
-  }, [apiOn]);
 
   useEffect(() => {
     const st = location.state as WizardResumeState | null;

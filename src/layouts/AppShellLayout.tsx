@@ -9,6 +9,7 @@ import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { analyticsHeartbeat, authMe, needsEmailVerification, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 import { Link } from "react-router-dom";
+import type { AppShellOutletContext } from "@/layouts/appShellOutletContext";
 
 export function AppShellLayout() {
   const location = useLocation();
@@ -68,6 +69,8 @@ export function AppShellLayout() {
   const showEmailVerificationBanner =
     me != null && needsEmailVerification(me) && location.pathname !== "/verificar-correo";
 
+  const outletContext: AppShellOutletContext = { me, refreshMe };
+
   return (
     <AuthModalProvider>
       <NotificationsProvider>
@@ -96,7 +99,7 @@ export function AppShellLayout() {
               </Link>
             </div>
           ) : null}
-          <Outlet />
+          <Outlet context={outletContext} />
         </main>
 
         {!isSearchPage ? <SiteFooter /> : null}
