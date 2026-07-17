@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { groupsCreate, groupsJoin, groupsMine, type GroupRow } from "@/lib/authApi";
+import { track } from "@/lib/analytics";
 
 export function GroupsPage() {
   const [rows, setRows] = useState<GroupRow[] | null>(null);
@@ -57,6 +58,7 @@ export function GroupsPage() {
               ...(Number.isFinite(maxA) ? { maxAge: maxA } : {}),
               ...(Number.isFinite(inc) ? { minIncomeMxn: inc } : {}),
             });
+            track("group_created", {});
             setName("");
             setMinAge("");
             setMaxAge("");
@@ -130,6 +132,7 @@ export function GroupsPage() {
           setBusy(true);
           try {
             await groupsJoin(invite);
+            track("group_joined", {});
             setInvite("");
             await load();
           } catch (x) {

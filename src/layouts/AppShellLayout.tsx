@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
+import { PostHogIdentify, PostHogPageViews } from "@/components/analytics/PostHogApp";
 import { analyticsHeartbeat, authMe, needsEmailVerification, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 import { Link } from "react-router-dom";
@@ -16,7 +17,7 @@ export function AppShellLayout() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
 
-  const profileIncomplete = me != null && me.id && Boolean(me.email && !me.phoneE164);
+  const profileIncomplete = Boolean(me != null && me.id && me.email && !me.phoneE164);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -74,6 +75,8 @@ export function AppShellLayout() {
   return (
     <AuthModalProvider>
       <NotificationsProvider>
+      <PostHogPageViews />
+      <PostHogIdentify me={me} />
       <div className={`flex flex-col dark:bg-bg-dark ${isSearchPage ? "h-dvh min-h-0" : "min-h-screen"}`}>
         <header className="sticky top-0 z-[1800] border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
           <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">

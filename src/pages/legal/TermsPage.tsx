@@ -202,9 +202,10 @@ export function TermsPage() {
         <p>
           El Servicio se apoya en proveedores externos, por ejemplo: proveedores de inicio de sesión
           (Google, Facebook/Meta), mapas y teselas de terceros (por ejemplo, OpenStreetMap),
-          mensajería (WhatsApp), envío de correos electrónicos e infraestructura de alojamiento. El uso
-          de estas funciones puede estar sujeto a los términos y políticas de dichos terceros. Bestie no
-          es responsable por los servicios, la disponibilidad ni las prácticas de esos terceros.
+          mensajería (WhatsApp), envío de correos electrónicos, infraestructura de alojamiento y
+          analítica de producto (PostHog). El uso de estas funciones puede estar sujeto a los términos
+          y políticas de dichos terceros. Bestie no es responsable por los servicios, la disponibilidad
+          ni las prácticas de esos terceros.
         </p>
       </LegalSection>
 

@@ -21,6 +21,7 @@ import {
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
+import { track } from "@/lib/analytics";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
@@ -1311,7 +1312,8 @@ export function PublishWizardPage() {
               <div className={`grid gap-3 ${editPostModeLock === "room" ? "" : "sm:grid-cols-2"}`}>
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    track("publish_mode_selected", { mode: "room" });
                     setDraft((d) => ({
                       ...d,
                       postMode: "room",
@@ -1329,8 +1331,8 @@ export function PublishWizardPage() {
                               ),
                             ),
                           }),
-                    }))
-                  }
+                    }));
+                  }}
                   className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
                     draft.postMode === "room"
                       ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
@@ -1345,7 +1347,8 @@ export function PublishWizardPage() {
                 {editPostModeLock !== "room" ? (
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    track("publish_mode_selected", { mode: "property" });
                     setDraft((d) => {
                       if (d.postMode === "property") return d;
                       return applyPropertyRentRoomCount(
@@ -1356,8 +1359,8 @@ export function PublishWizardPage() {
                         1,
                         defaultRoom,
                       );
-                    })
-                  }
+                    });
+                  }}
                   className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
                     draft.postMode === "property"
                       ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
@@ -2265,6 +2268,10 @@ export function PublishWizardPage() {
     const blocked = getPublishBlockedReason(draftRef.current);
     if (blocked) {
       setPublishErr(blocked);
+      track("publish_failed", {
+        mode: draftRef.current.postMode,
+        reason: "blocked_validation",
+      });
       return;
     }
     if (me === undefined) {
@@ -2272,6 +2279,10 @@ export function PublishWizardPage() {
       return;
     }
     if (!me) {
+      track("publish_auth_required", {
+        intent: "publish",
+        mode: draftRef.current.postMode,
+      });
       setSubmitInFlight("draft");
       try {
         let resumeDraft = draftRef.current;
@@ -2299,6 +2310,10 @@ export function PublishWizardPage() {
         });
       } catch (e) {
         setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador.");
+        track("publish_failed", {
+          mode: draftRef.current.postMode,
+          reason: "guest_draft_save",
+        });
       } finally {
         setSubmitInFlight(null);
       }
@@ -2317,6 +2332,10 @@ export function PublishWizardPage() {
       });
       if (result.kind === "published") {
         setDraft(result.draft);
+        track("publish_succeeded", {
+          mode: draftRef.current.postMode,
+          editing_live: Boolean(editingLiveProperty),
+        });
         const roomIdx = Math.min(
           previewRoomIndex,
           Math.max(0, draftRef.current.rooms.length - 1),
@@ -2341,9 +2360,17 @@ export function PublishWizardPage() {
       if (result.kind === "error") {
         setDraft(result.draft);
         setPublishErr(result.message);
+        track("publish_failed", {
+          mode: draftRef.current.postMode,
+          reason: result.message.slice(0, 120),
+        });
       }
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
+      track("publish_failed", {
+        mode: draftRef.current.postMode,
+        reason: e instanceof Error ? e.message.slice(0, 120) : "unknown",
+      });
     } finally {
       setSubmitInFlight(null);
     }
@@ -2380,6 +2407,10 @@ export function PublishWizardPage() {
       resumeDraft = synced.draft;
 
       if (!me) {
+        track("publish_auth_required", {
+          intent: "draft",
+          mode: draftRef.current.postMode,
+        });
         navigate("/entrar", {
           replace: true,
           state: {
@@ -2392,6 +2423,11 @@ export function PublishWizardPage() {
         });
         return;
       }
+
+      track("publish_draft_saved", {
+        mode: draftRef.current.postMode,
+        finish: Boolean(opts?.finish),
+      });
 
       if (opts?.finish) {
         navigate("/mis-anuncios", { state: { draftSaved: true } });
@@ -2611,6 +2647,11 @@ export function PublishWizardPage() {
               onClick={() => {
                 setPublishErr(null);
                 void flushWizardAutosave();
+                track("publish_step_back", {
+                  step_index: safeStep,
+                  step_title: current.title,
+                  mode: draft.postMode,
+                });
                 setStep((s) => Math.max(0, s - 1));
               }}
               className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
@@ -2637,6 +2678,11 @@ export function PublishWizardPage() {
                   }
                   setPublishErr(null);
                   void flushWizardAutosave();
+                  track("publish_step_completed", {
+                    step_index: safeStep,
+                    step_title: current.title,
+                    mode: draft.postMode,
+                  });
                   setStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
                 disabled={submitInFlight !== null}

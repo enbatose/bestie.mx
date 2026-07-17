@@ -12,6 +12,7 @@ import {
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
+import { identifyUser, resetAnalyticsUser, track } from "@/lib/analytics";
 import { POST_LOGIN_RESOLVE_PATH, resolvePostLoginPath } from "@/lib/postLoginRedirect";
 
 export function SignInPage() {
@@ -87,6 +88,14 @@ export function SignInPage() {
       await authLinkPublisher();
       setMsg("Sesión iniciada.");
       const session = await authMe().catch(() => null);
+      if (session?.id) {
+        identifyUser(session.id, {
+          email: session.email,
+          name: session.displayName,
+          is_admin: session.isAdmin,
+        });
+        track("user_logged_in", { method: "email" });
+      }
       await refreshMe();
       if (session && needsEmailVerification(session)) {
         navigate("/verificar-correo", { replace: true });
@@ -104,6 +113,8 @@ export function SignInPage() {
     setErr(null);
     setMsg(null);
     await authLogout();
+    track("user_logged_out", {});
+    resetAnalyticsUser();
     await refreshMe();
   };
 

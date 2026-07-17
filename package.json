@@ -21,11 +21,15 @@
     "dns:cleanup:follow-up": "node --env-file=server/.env scripts/dns-cutover-cleanup.mjs --follow-up --interval 20m",
     "resend:validate": "node scripts/resend-validate.mjs",
     "google:validate": "node scripts/google-validate.mjs",
-    "meta:mcp-auth-check": "node scripts/meta-mcp-auth-preflight.mjs"
+    "facebook:validate": "node scripts/facebook-validate.mjs",
+    "meta:mcp-auth-check": "node scripts/meta-mcp-auth-preflight.mjs",
+    "oauth:golive": "node scripts/oauth-golive.mjs"
   },
   "dependencies": {
+    "@posthog/react": "^1.10.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
+    "posthog-js": "^1.404.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",

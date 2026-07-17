@@ -4,6 +4,7 @@ import { PasswordField } from "@/components/PasswordField";
 import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { identifyUser, track } from "@/lib/analytics";
 import {
   oauthReturnToFor,
   resolvePostLoginPath,
@@ -37,6 +38,10 @@ export function AuthModal() {
       await authLogin({ email: email.trim().toLowerCase(), password });
       close();
       const me = await authMe().catch(() => null);
+      if (me?.id) {
+        identifyUser(me.id, { email: me.email, name: me.displayName, is_admin: me.isAdmin });
+        track("user_logged_in", { method: "email" });
+      }
       window.dispatchEvent(new Event("bestie:me-changed"));
       window.location.assign(await destinationAfterAuth(Boolean(me && needsEmailVerification(me))));
     } catch (x) {
@@ -60,6 +65,10 @@ export function AuthModal() {
         password,
         displayName: displayName.trim() || undefined,
       });
+      if (me?.id) {
+        identifyUser(me.id, { email: me.email, name: me.displayName, is_admin: me.isAdmin });
+        track("user_signed_up", { method: "email" });
+      }
       close();
       window.dispatchEvent(new Event("bestie:me-changed"));
       window.location.assign(await destinationAfterAuth(needsEmailVerification(me)));

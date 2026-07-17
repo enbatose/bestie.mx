@@ -1,6 +1,28 @@
 import { Link } from "react-router-dom";
 import { facebookSignInUrl, googleSignInUrl } from "@/lib/authApi";
 
+const OAUTH_METHOD_KEY = "bestie_oauth_method";
+
+/** Remember which OAuth provider the user started so we can attribute login on return. */
+export function rememberOAuthMethod(method: "google" | "facebook"): void {
+  try {
+    sessionStorage.setItem(OAUTH_METHOD_KEY, method);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeOAuthMethod(): "google" | "facebook" | null {
+  try {
+    const v = sessionStorage.getItem(OAUTH_METHOD_KEY);
+    sessionStorage.removeItem(OAUTH_METHOD_KEY);
+    if (v === "google" || v === "facebook") return v;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 type Props = {
   returnTo?: string;
   className?: string;
@@ -37,7 +59,10 @@ export function GoogleSignInButton({ returnTo, className = "", onClick }: Props)
   return (
     <a
       href={href}
-      onClick={onClick}
+      onClick={() => {
+        rememberOAuthMethod("google");
+        onClick?.();
+      }}
       aria-label="Continuar con Google"
       className={`${socialButtonClass} ${className}`.trim()}
     >
@@ -54,7 +79,10 @@ export function FacebookSignInButton({ returnTo, className = "", onClick }: Prop
   return (
     <a
       href={href}
-      onClick={onClick}
+      onClick={() => {
+        rememberOAuthMethod("facebook");
+        onClick?.();
+      }}
       aria-label="Continuar con Facebook"
       className={`${socialButtonClass} ${className}`.trim()}
     >

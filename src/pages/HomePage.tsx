@@ -15,6 +15,7 @@ import {
   writeSearchLocation,
   type SearchNeighborhoodPin,
 } from "@/lib/searchLocation";
+import { track } from "@/lib/analytics";
 
 const PROXIMAS_CITIES = [
   "Puerto Vallarta",
@@ -159,6 +160,7 @@ export function HomePage() {
     const neighborhoods = pending
       ? mergeNeighborhood(selectedNeighborhoods, pending)
       : selectedNeighborhoods;
+    track("home_search_submitted", { neighborhood_count: neighborhoods.length });
     goToSearch(neighborhoods);
   }, [goToSearch, resolvePendingPin, selectedNeighborhoods]);
 
@@ -473,12 +475,14 @@ export function HomePage() {
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               to="/publicar"
+              onClick={() => track("home_cta_clicked", { cta: "publish" })}
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-secondary px-8 text-base font-semibold text-primary shadow-md transition hover:brightness-95 active:scale-[0.99]"
             >
               Publicar anuncio
             </Link>
             <Link
               to="/faq"
+              onClick={() => track("home_cta_clicked", { cta: "faq" })}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 bg-white/5 px-6 text-sm font-semibold text-primary-fg transition hover:bg-white/10"
             >
               Cómo funciona

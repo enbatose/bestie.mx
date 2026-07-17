@@ -15,6 +15,7 @@ import {
   roomReferenceCode,
 } from "@/lib/listingReference";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
+import { track } from "@/lib/analytics";
 import { isRoomAvailableForRent, occupancyStatusLabel, roomDisplayName } from "@/lib/roomDisplay";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
@@ -281,6 +282,7 @@ export function MyListingsPage() {
     setErr(null);
     try {
       await updateListingStatus(id, "paused");
+      track("my_listing_status_changed", { listing_id: id, status: "paused" });
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo pausar.");
@@ -294,6 +296,7 @@ export function MyListingsPage() {
     setErr(null);
     try {
       await updateListingStatus(id, "published");
+      track("my_listing_status_changed", { listing_id: id, status: "published" });
       await load();
       setFlash({
         text: "El anuncio ya está publicado.",
@@ -312,6 +315,7 @@ export function MyListingsPage() {
     setErr(null);
     try {
       await updateListingStatus(id, "archived");
+      track("my_listing_status_changed", { listing_id: id, status: "archived" });
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo archivar.");

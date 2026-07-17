@@ -2,7 +2,15 @@ import { createRoot } from "react-dom/client";
 import "leaflet/dist/leaflet.css";
 import "./index.css";
 import { App } from "./App";
+import { PostHogApp } from "@/components/analytics/PostHogApp";
+import { initPostHog } from "@/lib/posthog";
+
+initPostHog();
 
 /* Leaflet + react-leaflet can throw during marker teardown under React StrictMode
    (dev-only double mount). CSR map pages are stable without StrictMode here. */
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <PostHogApp>
+    <App />
+  </PostHogApp>,
+);

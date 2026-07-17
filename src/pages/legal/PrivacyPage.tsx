@@ -220,9 +220,12 @@ export function PrivacyPage() {
           Usamos cookies y tecnologías similares para mantener tu sesión iniciada, recordar preferencias
           y medir el uso del Servicio. Algunas cookies son estrictamente necesarias para el
           funcionamiento (por ejemplo, la cookie de sesión y la cookie de estado de inicio de sesión con
-          Google/Facebook). Puedes gestionar o eliminar las cookies desde la configuración de tu
-          navegador; deshabilitarlas puede afectar el funcionamiento del Servicio. Los mapas pueden
-          cargar teselas desde proveedores externos conforme a sus propias políticas.
+          Google/Facebook). También usamos cookies y almacenamiento local de herramientas de analítica
+          de producto (PostHog) para entender cómo se usa Bestie (páginas visitadas, embudos de búsqueda
+          y publicación, y eventos de interacción), con el fin de mejorar el Servicio. Puedes gestionar o
+          eliminar las cookies desde la configuración de tu navegador; deshabilitarlas puede afectar el
+          funcionamiento del Servicio. Los mapas pueden cargar teselas desde proveedores externos
+          conforme a sus propias políticas.
         </p>
       </LegalSection>
 
@@ -237,6 +240,7 @@ export function PrivacyPage() {
             "Proveedor de infraestructura y alojamiento de la aplicación.",
             "Proveedor de envío de correos electrónicos transaccionales.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
+            "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
             "Canales de mensajería (WhatsApp) cuando eliges usarlos para contacto o verificación.",
           ]}
         />

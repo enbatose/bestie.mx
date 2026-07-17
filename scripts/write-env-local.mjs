@@ -91,6 +91,20 @@ function setKey(k, v) {
 
 setKey("VITE_API_URL", `http://localhost:${port}`);
 
+// PostHog defaults for local analytics (project token is public client-side).
+if (!map.has("VITE_POSTHOG_PROJECT_TOKEN")) {
+  setKey(
+    "VITE_POSTHOG_PROJECT_TOKEN",
+    process.env.VITE_POSTHOG_PROJECT_TOKEN ?? "phc_ogdsRzYPo7kFh9coJboaRrbaWgeYpCFe984sh6c4fN67",
+  );
+}
+if (!map.has("VITE_POSTHOG_HOST")) {
+  setKey("VITE_POSTHOG_HOST", process.env.VITE_POSTHOG_HOST ?? "https://us.i.posthog.com");
+}
+
 writeFileSync(outFile, serializeEnv(map, order), "utf8");
 console.log(`Wrote ${outFile}`);
 console.log(`VITE_API_URL=http://localhost:${port}`);
+if (map.get("VITE_POSTHOG_PROJECT_TOKEN")) {
+  console.log(`VITE_POSTHOG_HOST=${map.get("VITE_POSTHOG_HOST")}`);
+}

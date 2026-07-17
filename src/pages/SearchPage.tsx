@@ -33,6 +33,7 @@ import {
 } from "@/lib/searchLocation";
 import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
 import { authMe, type AuthMe } from "@/lib/authApi";
+import { track } from "@/lib/analytics";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import {
   buildSavedSearchUrl,
@@ -144,21 +145,39 @@ export function SearchPage() {
   useEffect(() => {
     if (!apiOn) return;
     const ac = new AbortController();
+    const cityCode = searchLocation.cityCode;
+    const neighborhoodCount = searchLocation.neighborhoods.length;
+    const hasFilters = hasActiveSearchFilters(normalizedFilters);
     setApiBusy(true);
     setApiErr(null);
     fetchListingsFromApi(new URLSearchParams(filterQueryKey), ac.signal)
       .then((rows) => {
         setApiListings(rows);
+        track("search_results_loaded", {
+          result_count: rows.length,
+          city_code: cityCode,
+          neighborhood_count: neighborhoodCount,
+          has_active_filters: hasFilters,
+        });
       })
       .catch((e: unknown) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setApiErr("No se pudieron cargar los anuncios.");
         setApiListings([]);
+        track("search_results_loaded", {
+          result_count: 0,
+          city_code: cityCode,
+          neighborhood_count: neighborhoodCount,
+          has_active_filters: hasFilters,
+          error: true,
+        });
       })
       .finally(() => {
         setApiBusy(false);
       });
     return () => ac.abort();
+    // Intentionally keyed on filterQueryKey (serializes filters); location is snapshotted above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid re-fetch loops on object identity
   }, [apiOn, filterQueryKey]);
 
   const filtered = useMemo(() => {
@@ -256,6 +275,7 @@ export function SearchPage() {
   const openAuthForSearchAction = useCallback(
     (action: "save" | "follow") => {
       setSaveSearchPendingAction(action);
+      track("search_auth_prompted", { action });
       openLogin(returnTo);
     },
     [openLogin, returnTo],
@@ -269,6 +289,10 @@ export function SearchPage() {
     setFollowEmailSent(result.emailSent ?? true);
     setFollowSuccessOpen(true);
     setSaveNotice("Alertas por correo activadas para esta búsqueda.");
+    track("search_follow_enabled", {
+      city_code: saveSearchPayload.cityCode,
+      had_email: true,
+    });
     window.setTimeout(() => setSaveNotice(null), 5000);
   }, [saveSearchPayload]);
 
@@ -313,8 +337,11 @@ export function SearchPage() {
 
   const onSaveSearchClick = useCallback(() => {
     searchTopBarRef.current?.commitPendingHorizontalFilters();
+    const authenticated = Boolean(me?.id);
+    track("search_save_clicked", { authenticated });
     if (!me?.id) {
       setSaveSearchPendingAction("save");
+      track("search_auth_prompted", { action: "save" });
       openLogin(returnTo);
       return;
     }
@@ -323,6 +350,8 @@ export function SearchPage() {
 
   const onFollowSearchClick = useCallback(() => {
     searchTopBarRef.current?.commitPendingHorizontalFilters();
+    const authenticated = Boolean(me?.id);
+    track("search_follow_clicked", { authenticated });
     if (!me?.id) {
       openAuthForSearchAction("follow");
       return;
@@ -365,6 +394,22 @@ export function SearchPage() {
     filterRailRef.current?.collapseLegend();
   }, []);
 
+  const selectListing = useCallback(
+    (listingId: string | null, source: "map" | "list" | "mobile") => {
+      if (!listingId) {
+        setSelectedId(null);
+        return;
+      }
+      track("search_listing_selected", {
+        listing_id: listingId,
+        source,
+        city_code: searchLocation.cityCode,
+      });
+      setSelectedId(listingId);
+    },
+    [searchLocation.cityCode],
+  );
+
   useEffect(() => {
     const sel = searchParams.get(SEARCH_SELECTED_PARAM);
     if (sel) setSelectedId(sel);
@@ -406,6 +451,10 @@ export function SearchPage() {
 
   function applyFilters(next: SearchFilters) {
     setLocationError(null);
+    track("search_filters_changed", {
+      city_code: searchLocation.cityCode,
+      has_active_filters: hasActiveSearchFilters(next),
+    });
     setSearchParams(
       (prev) => {
         const nextParams = filtersToParams({ ...next, q: "" });
@@ -417,6 +466,7 @@ export function SearchPage() {
 
   const clearFilters = useCallback(() => {
     setLocationError(null);
+    track("search_filters_cleared", { city_code: searchLocation.cityCode });
     const viewport = computeNeighborhoodsViewport([], metro);
     const nextLocation = {
       ...searchLocation,
@@ -468,6 +518,7 @@ export function SearchPage() {
   const handleCitySelect = useCallback(
     (location: LocationSuggestion) => {
       const metro = resolveMetroCity(location.cityCode);
+      track("search_city_selected", { city_code: location.cityCode });
       applyLocation({
         cityCode: location.cityCode,
         cityAbbr: metro.abbr,
@@ -494,6 +545,11 @@ export function SearchPage() {
         neighborhoodNamesMatch(pin.name, name),
       );
       if (alreadySelected) return;
+
+      track("search_neighborhood_selected", {
+        city_code: location.cityCode,
+        neighborhood: name,
+      });
 
       const neighborhoods = [
         ...searchLocation.neighborhoods,
@@ -629,7 +685,7 @@ export function SearchPage() {
                 className="h-full"
                 listings={filtered}
                 selectedId={selectedId}
-                onSelect={(id) => setSelectedId(id)}
+                onSelect={(id) => selectListing(id, "map")}
                 searchReturn={searchReturn}
                 popupOverlayHostRef={mapSectionRef}
                 defaultCenter={[searchLocation.lat, searchLocation.lng]}
@@ -650,7 +706,7 @@ export function SearchPage() {
             <SearchMobileResultsPanel
               listings={mobileDrawerListings}
               selectedId={selectedId}
-              onSelect={(id) => setSelectedId(id)}
+              onSelect={(id) => selectListing(id, "mobile")}
               searchReturn={searchReturn}
               filterRailLabelsExpanded={filterRailLabelsExpanded}
               countLabel={mobileResultsCountLabel}
@@ -673,7 +729,7 @@ export function SearchPage() {
               dense
               listings={filtered}
               selectedId={selectedId}
-              onSelect={(id) => setSelectedId(id)}
+              onSelect={(id) => selectListing(id, "list")}
               searchReturn={searchReturn}
             />
           </div>
@@ -710,6 +766,7 @@ export function SearchPage() {
             onSaved={() => {
               setSearchDraft(null);
               setSaveNotice("Búsqueda guardada. Puedes verla en Mis Búsquedas.");
+              track("search_saved", { city_code: searchLocation.cityCode });
               window.setTimeout(() => setSaveNotice(null), 5000);
             }}
           />
@@ -728,6 +785,10 @@ export function SearchPage() {
               setFollowModalOpen(false);
               setFollowSuccessOpen(true);
               setSaveNotice("Alertas por correo activadas para esta búsqueda.");
+              track("search_follow_enabled", {
+                city_code: searchLocation.cityCode,
+                had_email: false,
+              });
               window.setTimeout(() => setSaveNotice(null), 5000);
             }}
           />

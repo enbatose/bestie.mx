@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authRegister, needsEmailVerification } from "@/lib/authApi";
+import { identifyUser, track } from "@/lib/analytics";
 import { POST_LOGIN_RESOLVE_PATH, resolvePostLoginPath } from "@/lib/postLoginRedirect";
 
 export function RegisterPage() {
@@ -47,6 +48,14 @@ export function RegisterPage() {
               password,
               displayName: displayName.trim() || undefined,
             });
+            if (me?.id) {
+              identifyUser(me.id, {
+                email: me.email,
+                name: me.displayName,
+                is_admin: me.isAdmin,
+              });
+              track("user_signed_up", { method: "email" });
+            }
             navigate(
               needsEmailVerification(me) ? "/verificar-correo" : await resolvePostLoginPath(),
               { replace: true },

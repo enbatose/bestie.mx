@@ -9,6 +9,7 @@ import { publicListingHeaderTitle } from "@/components/listing/PublicListingHead
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
+import { track } from "@/lib/analytics";
 import {
   fetchListingByIdFromApi,
   fetchPropertyWithRooms,
@@ -249,6 +250,18 @@ export function ListingPage() {
   );
 
   useEffect(() => {
+    if (!listing?.id) return;
+    track("listing_viewed", {
+      listing_id: listing.id,
+      post_mode: listing.propertyPostMode ?? null,
+      city: listing.city ?? null,
+      from_search: Boolean(searchReturn),
+    });
+    // Fire once per listing id (not on searchReturn object identity churn).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional once-per-listing
+  }, [listing?.id]);
+
+  useEffect(() => {
     if (!listing?.id || !id) return;
     const canonical = roomReferenceCode(listing.id);
     if (id === canonical) return;
@@ -337,10 +350,11 @@ export function ListingPage() {
     try {
       await copyToClipboard(absoluteAppUrl(path));
       setShareMsg(`${label} copiado al portapapeles.`);
+      if (id) track("listing_share_copied", { listing_id: id });
     } catch {
       setShareMsg("No se pudo copiar automáticamente. Copia la URL desde la barra del navegador.");
     }
-  }, []);
+  }, [id]);
 
   const openConversation = useCallback(
     async (listingRoomId: string, messageBody: string) => {
@@ -348,6 +362,7 @@ export function ListingPage() {
       setMsgErr(null);
       if (viewer === undefined) return;
       if (!viewer) {
+        track("listing_auth_required", { listing_id: listingRoomId, reason: "message" });
         openLogin();
         return;
       }
@@ -358,6 +373,10 @@ export function ListingPage() {
         if (trimmed) {
           await postConversationMessage(conversationId, trimmed);
         }
+        track("listing_message_sent", {
+          listing_id: listingRoomId,
+          has_body: Boolean(trimmed),
+        });
         navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
       } catch (e) {
         setMsgErr(e instanceof Error ? e.message : "No se pudo abrir el mensaje.");
@@ -399,8 +418,9 @@ export function ListingPage() {
   }, []);
 
   const handleStickyContact = useCallback(() => {
+    if (id) track("listing_contact_clicked", { listing_id: id });
     scrollToContact();
-  }, [scrollToContact]);
+  }, [id, scrollToContact]);
 
   if (apiOn && apiListing === undefined && !apiErr) {
     return (

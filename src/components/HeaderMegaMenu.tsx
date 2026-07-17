@@ -15,6 +15,7 @@ import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
+import { resetAnalyticsUser, track } from "@/lib/analytics";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import type { NotificationItem } from "@/lib/notificationsMock";
@@ -337,6 +338,8 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   const onLogout = async () => {
     dismissNav();
     await authLogout();
+    track("user_logged_out", {});
+    resetAnalyticsUser();
     onAuthChange?.();
     navigate("/");
   };
