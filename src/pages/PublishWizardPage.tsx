@@ -122,8 +122,16 @@ function formatAutosaveTime(ts: number | null): string | null {
   });
 }
 
-const WIZARD_AUTOSAVE_DEBOUNCE_MS = 2800;
+/** Idle pause before server autosave — long enough that typing/toggles don't flash the chip. */
+const WIZARD_AUTOSAVE_DEBOUNCE_MS = 7000;
 const WIZARD_AUTOSAVE_RING_MS = 1000;
+/** Ring animation at most this often; time label still updates on each dirty save. */
+const WIZARD_AUTOSAVE_INDICATOR_MIN_MS = 30_000;
+
+/** Stable content fingerprint so no-op / post-sync draft writes do not re-hit the API. */
+function wizardAutosaveSignature(d: Draft): string {
+  return JSON.stringify(d);
+}
 
 function WizardAutosaveIndicator({
   lastSavedAt,
@@ -796,7 +804,9 @@ export function PublishWizardPage() {
   useEffect(() => {
     const st = location.state as WizardResumeState | null;
     if (!st?.resumeDraft) return;
-    setDraft(normalizePersistedDraft(st.resumeDraft));
+    const resumed = normalizePersistedDraft(st.resumeDraft);
+    setDraft(resumed);
+    markAutosaveBaseline(resumed);
     if (st.resumeServerSync) setServerSync(st.resumeServerSync);
     if (typeof st.resumeStep === "number" && Number.isFinite(st.resumeStep)) {
       setStep(Math.max(0, st.resumeStep));
@@ -819,6 +829,24 @@ export function PublishWizardPage() {
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
   const autosaveGenerationRef = useRef(0);
   const autosaveRingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedSignatureRef = useRef<string | null>(null);
+  const lastIndicatorFlashAtRef = useRef(0);
+
+  function resetAutosaveUiState() {
+    setAutosaveNote("idle");
+    setLastAutosavedAt(null);
+    setAutosaveFlashKey(0);
+    setShowAutosaveRing(false);
+    lastSavedSignatureRef.current = null;
+    lastIndicatorFlashAtRef.current = 0;
+  }
+
+  function markAutosaveBaseline(d: Draft, opts?: { touchUi?: boolean }) {
+    lastSavedSignatureRef.current = wizardAutosaveSignature(d);
+    if (opts?.touchUi) {
+      setLastAutosavedAt(Date.now());
+    }
+  }
 
   useEffect(() => {
     if (me === undefined) return;
@@ -831,10 +859,7 @@ export function PublishWizardPage() {
       setDraft(defaultDraft());
       setServerSync({ propertyId: null, roomIds: [] });
       setStep(0);
-      setAutosaveNote("idle");
-      setLastAutosavedAt(null);
-      setAutosaveFlashKey(0);
-      setShowAutosaveRing(false);
+      resetAutosaveUiState();
       return;
     }
     const uid = me.id;
@@ -853,10 +878,7 @@ export function PublishWizardPage() {
     setDraft(defaultDraft());
     setServerSync({ propertyId: null, roomIds: [] });
     setStep(0);
-    setAutosaveNote("idle");
-    setLastAutosavedAt(null);
-    setAutosaveFlashKey(0);
-    setShowAutosaveRing(false);
+    resetAutosaveUiState();
     setStorageReady(true);
   }, [me, editPropertyId, handoffToken]);
 
@@ -879,6 +901,7 @@ export function PublishWizardPage() {
             setDraft(mapped.draft);
             setServerSync(mapped.serverSync);
             setEditPostModeLock(mapped.draft.postMode);
+            markAutosaveBaseline(mapped.draft);
             setHandoffBanner("Tu borrador desde Messenger está cargado.");
           }
         } else if (!cancelled) {
@@ -936,6 +959,7 @@ export function PublishWizardPage() {
           setDraft(nextDraft);
           setServerSync(mapped.serverSync);
           setEditPostModeLock(mapped.draft.postMode);
+          markAutosaveBaseline(nextDraft);
 
           const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
           let previewIdx = 0;
@@ -1114,24 +1138,44 @@ export function PublishWizardPage() {
       return null;
     }
 
+    const beforeSig = wizardAutosaveSignature(d);
+    if (beforeSig === lastSavedSignatureRef.current) {
+      setAutosaveNote("idle");
+      return serverSyncRef.current.propertyId ? serverSyncRef.current : null;
+    }
+
     try {
       setAutosaveNote("saving");
       const synced = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164);
       if (generation !== autosaveGenerationRef.current) {
         return synced.serverSync;
       }
+      const syncedSig = wizardAutosaveSignature(synced.draft);
+      lastSavedSignatureRef.current = syncedSig;
       serverSyncRef.current = synced.serverSync;
       setServerSync(synced.serverSync);
-      setDraft(synced.draft);
+
+      // Avoid clobbering concurrent edits; only apply server-normalized draft when still in sync.
+      if (wizardAutosaveSignature(draftRef.current) === beforeSig && syncedSig !== beforeSig) {
+        setDraft(synced.draft);
+      }
+
       setAutosaveNote("saved");
       setLastAutosavedAt(Date.now());
-      setAutosaveFlashKey((k) => k + 1);
-      setShowAutosaveRing(true);
-      if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
-      autosaveRingTimerRef.current = window.setTimeout(() => {
-        setShowAutosaveRing(false);
-        autosaveRingTimerRef.current = null;
-      }, WIZARD_AUTOSAVE_RING_MS);
+      const now = Date.now();
+      const shouldFlash =
+        lastIndicatorFlashAtRef.current === 0 ||
+        now - lastIndicatorFlashAtRef.current >= WIZARD_AUTOSAVE_INDICATOR_MIN_MS;
+      if (shouldFlash) {
+        lastIndicatorFlashAtRef.current = now;
+        setAutosaveFlashKey((k) => k + 1);
+        setShowAutosaveRing(true);
+        if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
+        autosaveRingTimerRef.current = window.setTimeout(() => {
+          setShowAutosaveRing(false);
+          autosaveRingTimerRef.current = null;
+        }, WIZARD_AUTOSAVE_RING_MS);
+      }
       window.setTimeout(() => {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
@@ -2183,7 +2227,7 @@ export function PublishWizardPage() {
           serverSyncRef.current = synced.serverSync;
           setServerSync(synced.serverSync);
           setDraft(synced.draft);
-          setLastAutosavedAt(Date.now());
+          markAutosaveBaseline(synced.draft, { touchUi: true });
           resumeDraft = synced.draft;
         }
         navigate("/entrar", {
@@ -2275,7 +2319,7 @@ export function PublishWizardPage() {
       serverSyncRef.current = synced.serverSync;
       setServerSync(synced.serverSync);
       setDraft(synced.draft);
-      setLastAutosavedAt(Date.now());
+      markAutosaveBaseline(synced.draft, { touchUi: true });
       resumeDraft = synced.draft;
 
       if (!me) {
