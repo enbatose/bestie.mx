@@ -159,8 +159,8 @@ const MOBILE_ROW_HEIGHT = "h-14";
 const MOBILE_CONTROL_HEIGHT = "h-10";
 
 /**
- * Mobile: two equal labeled bundles — Filtros [Más|Borrar] and Guardar [save] —
- * restoring the original h-10 / rounded-[1rem] control proportions.
+ * Mobile: Filtros + Más|Borrar and Guardar + save, with all three icon buttons
+ * sharing the same width (pair takes 2 shares, gold takes 1).
  */
 export function MobileCombinedFilterBar({
   onOpenAdvanced,
@@ -189,53 +189,49 @@ export function MobileCombinedFilterBar({
   return (
     <div className={`${MOBILE_ROW_SHELL_CLASS} ${MOBILE_ROW_HEIGHT} w-full min-w-0`}>
       <div
-        className={`flex min-w-0 flex-1 ${MOBILE_CONTROL_HEIGHT} items-stretch gap-1.5 overflow-visible`}
+        className={`flex min-w-0 flex-1 ${MOBILE_CONTROL_HEIGHT} items-center gap-1.5 overflow-visible`}
         role="group"
         aria-label="Acciones de filtros y búsqueda guardada"
       >
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className={MOBILE_ROW_LABEL_CLASS}>Filtros</span>
-          <div
-            className={`flex min-w-0 flex-1 overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm ${MOBILE_CONTROL_HEIGHT}`}
-            role="group"
-            aria-label="Filtros"
+        <span className={MOBILE_ROW_LABEL_CLASS}>Filtros</span>
+        <div
+          className={`flex min-w-0 flex-[2] overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55 shadow-sm ${MOBILE_CONTROL_HEIGHT}`}
+          role="group"
+          aria-label="Filtros"
+        >
+          <button
+            type="button"
+            onClick={onOpenAdvanced}
+            aria-label="Más filtros"
+            className={`${filterBtnClass} rounded-l-[0.95rem] border-r border-primary/20`}
           >
-            <button
-              type="button"
-              onClick={onOpenAdvanced}
-              aria-label="Más filtros"
-              className={`${filterBtnClass} rounded-l-[0.95rem] border-r border-primary/20`}
-            >
-              <Filter className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
-            </button>
-            <button
-              type="button"
-              onClick={onClearFilters}
-              disabled={clearDisabled}
-              aria-label="Borrar filtros"
-              className={`${filterBtnClass} rounded-r-[0.95rem]`}
-            >
-              <Trash2 className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
-            </button>
-          </div>
+            <Filter className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+          </button>
+          <button
+            type="button"
+            onClick={onClearFilters}
+            disabled={clearDisabled}
+            aria-label="Borrar filtros"
+            className={`${filterBtnClass} rounded-r-[0.95rem]`}
+          >
+            <Trash2 className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
+          </button>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className={MOBILE_ROW_LABEL_CLASS}>Guardar</span>
-          <div className={`relative min-w-0 flex-1 ${MOBILE_CONTROL_HEIGHT}`}>
-            {pulseActive ? <PulseRing mobile /> : null}
-            <button
-              type="button"
-              onClick={onSaveClick}
-              aria-label="Guardar búsqueda"
-              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 items-center justify-center rounded-[1rem] border border-gold-edge/70 font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
-            >
-              <SavedSearchIcon className="size-4 shrink-0" />
-            </button>
-            {guestNudge?.visible ? (
-              <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
-            ) : null}
-          </div>
+        <span className={MOBILE_ROW_LABEL_CLASS}>Guardar</span>
+        <div className={`relative min-w-0 flex-1 ${MOBILE_CONTROL_HEIGHT}`}>
+          {pulseActive ? <PulseRing mobile /> : null}
+          <button
+            type="button"
+            onClick={onSaveClick}
+            aria-label="Guardar búsqueda"
+            className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 items-center justify-center rounded-[1rem] border border-gold-edge/70 font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
+          >
+            <SavedSearchIcon className="size-4 shrink-0" />
+          </button>
+          {guestNudge?.visible ? (
+            <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
+          ) : null}
         </div>
       </div>
     </div>
