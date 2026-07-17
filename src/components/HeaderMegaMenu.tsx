@@ -12,13 +12,55 @@ import {
   User,
 } from "lucide-react";
 import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import type { NotificationItem } from "@/lib/notificationsMock";
 import { UserAvatar } from "@/components/UserAvatar";
+
+const HOME_PUBLISH_NUDGE_DELAY_MS = 3_000;
+const HOME_PUBLISH_MOBILE_LABEL_MS = 7_000;
+const HOME_PUBLISH_DESKTOP_RING_MS = 1_600;
+/** Brand forest — matches `theme(colors.primary.DEFAULT)`. SVG stroke cannot use Tailwind classes. */
+const PRIMARY_STROKE = "#143D30";
+
+/**
+ * One-shot outline travel around Publicar (desktop). Same pattern as SaveSearch PulseRing.
+ */
+function PublishNudgePulseRing() {
+  const height = 44;
+  const cornerRadius = 10;
+  const strokeWidth = 3;
+  const inset = strokeWidth / 2 + 1;
+  const dashArray = "0.18 0.82";
+
+  return (
+    <svg
+      className="pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)] overflow-visible"
+      viewBox={`0 0 100 ${height}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <rect
+        x={inset}
+        y={inset}
+        width={100 - inset * 2}
+        height={height - inset * 2}
+        rx={cornerRadius}
+        ry={cornerRadius}
+        fill="none"
+        stroke={PRIMARY_STROKE}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        pathLength="1"
+        strokeDasharray={dashArray}
+        className="animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(20,61,48,0.45)]"
+      />
+    </svg>
+  );
+}
 
 const desktopMenuItem =
   "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
@@ -209,18 +251,55 @@ type Props = {
 
 export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChange }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { openLogin } = useAuthModal();
   const { notifications, hasUnreadNotifications, markNotificationRead } = useNotifications();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [homePublishDesktopPulse, setHomePublishDesktopPulse] = useState(false);
+  const [homePublishMobileLabel, setHomePublishMobileLabel] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const hasUnreadMessages = unreadCount > 0;
+  const isHome = location.pathname === "/";
 
   const dismissNav = useCallback(() => {
     setAvatarOpen(false);
     setNotificationsOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (!isHome) {
+      setHomePublishDesktopPulse(false);
+      setHomePublishMobileLabel(false);
+      return;
+    }
+
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduceMotion) return;
+
+    const startId = window.setTimeout(() => {
+      setHomePublishDesktopPulse(true);
+      setHomePublishMobileLabel(true);
+    }, HOME_PUBLISH_NUDGE_DELAY_MS);
+
+    const desktopEndId = window.setTimeout(() => {
+      setHomePublishDesktopPulse(false);
+    }, HOME_PUBLISH_NUDGE_DELAY_MS + HOME_PUBLISH_DESKTOP_RING_MS);
+
+    const mobileEndId = window.setTimeout(() => {
+      setHomePublishMobileLabel(false);
+    }, HOME_PUBLISH_NUDGE_DELAY_MS + HOME_PUBLISH_MOBILE_LABEL_MS);
+
+    return () => {
+      window.clearTimeout(startId);
+      window.clearTimeout(desktopEndId);
+      window.clearTimeout(mobileEndId);
+    };
+  }, [isHome]);
 
   useEffect(() => {
     if (!avatarOpen && !notificationsOpen) return;
@@ -457,13 +536,13 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           <Search className="h-4 w-4 shrink-0" aria-hidden />
           Buscar
         </NavLink>
-        <NavLink
-          to="/publicar"
-          className={(props) => `${primaryNavClass(props)} hidden md:inline-flex`}
-        >
-          <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
-          Publicar
-        </NavLink>
+        <span className="relative hidden overflow-visible md:inline-flex">
+          <NavLink to="/publicar" className={(props) => `${primaryNavClass(props)} inline-flex`}>
+            <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
+            Publicar
+          </NavLink>
+          {homePublishDesktopPulse ? <PublishNudgePulseRing /> : null}
+        </span>
 
         <NavLink
           to="/buscar"
@@ -477,11 +556,30 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         <NavLink
           to="/publicar"
           className={(props) =>
-            [iconBtnClass, "md:hidden", props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : ""].join(" ")
+            [
+              iconBtnClass,
+              "md:hidden",
+              homePublishMobileLabel
+                ? "gap-1.5 border border-primary/20 bg-primary/10 px-2.5 text-primary ring-1 ring-primary/15"
+                : "",
+              props.isActive && !homePublishMobileLabel
+                ? "bg-surface-elevated text-primary ring-1 ring-border"
+                : "",
+              props.isActive && homePublishMobileLabel ? "ring-primary/25" : "",
+            ].join(" ")
           }
           aria-label="Publicar"
         >
           <CirclePlus className="h-5 w-5 shrink-0" aria-hidden />
+          <span
+            className={[
+              "overflow-hidden whitespace-nowrap text-xs font-semibold transition-[max-width,opacity] duration-300 ease-out",
+              homePublishMobileLabel ? "max-w-[4.5rem] opacity-100" : "max-w-0 opacity-0",
+            ].join(" ")}
+            aria-hidden
+          >
+            Publicar
+          </span>
         </NavLink>
 
         {me?.id ? (

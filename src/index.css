@@ -100,3 +100,152 @@
     opacity: 0;
   }
 }
+
+/* Home hero — soft presence (respect reduced motion) */
+@keyframes home-orb-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -18px) scale(1.06);
+  }
+}
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-hero-orb {
+  animation: home-orb-drift 14s ease-in-out infinite;
+}
+
+.home-hero-orb--delay {
+  animation-delay: -7s;
+  animation-duration: 18s;
+}
+
+.home-hero-rise {
+  animation: home-rise 0.7s ease-out both;
+}
+
+.home-hero-rise--delay {
+  animation-delay: 0.12s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-orb,
+  .home-hero-orb--delay,
+  .home-hero-rise,
+  .home-hero-rise--delay {
+    animation: none;
+  }
+}
+
+/* Hero brand lockup — arms down → raise high-five → clap grows in place (once) */
+@keyframes home-logo-person-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--home-logo-from-x, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes home-logo-arm-raise-left {
+  0% {
+    transform: rotate(92deg);
+  }
+  70% {
+    transform: rotate(-4deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes home-logo-arm-raise-right {
+  0% {
+    transform: rotate(-92deg);
+  }
+  70% {
+    transform: rotate(4deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes home-logo-clap-grow {
+  0% {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes home-logo-wordmark-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.home-logo-person--left {
+  --home-logo-from-x: -6px;
+  animation: home-logo-person-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.home-logo-person--right {
+  --home-logo-from-x: 6px;
+  animation: home-logo-person-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.home-logo-arm--left,
+.home-logo-arm--right {
+  transform-origin: 0px 0px;
+}
+
+.home-logo-arm--left {
+  animation: home-logo-arm-raise-left 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) 0.55s both;
+}
+
+.home-logo-arm--right {
+  animation: home-logo-arm-raise-right 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) 0.55s both;
+}
+
+.home-logo-clap {
+  transform-origin: 0px 0px;
+  animation: home-logo-clap-grow 0.35s cubic-bezier(0.22, 1.35, 0.36, 1) 1.2s both;
+}
+
+.home-logo-wordmark {
+  animation: home-logo-wordmark-in 0.55s ease-out 0.25s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-logo-person--left,
+  .home-logo-person--right,
+  .home-logo-arm--left,
+  .home-logo-arm--right,
+  .home-logo-clap,
+  .home-logo-wordmark {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

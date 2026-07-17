@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BrandLogo } from "@/components/BrandLogo";
-import { HeroBrandArt } from "@/components/HeroBrandArt";
+import { MapPinned, Search, SlidersHorizontal, UsersRound, type LucideIcon } from "lucide-react";
+import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
 import { DEFAULT_SEARCH_FILTERS, filtersToParams } from "@/lib/searchFilters";
 import { withDefaultSearchCity } from "@/lib/searchDefaults";
+import { DEFAULT_METRO_CITY } from "@/lib/metroCities";
 
 const PROXIMAS_CITIES = [
   "Puerto Vallarta",
@@ -13,23 +14,27 @@ const PROXIMAS_CITIES = [
   "León",
 ] as const;
 
-const STEPS = [
+const STEPS: ReadonlyArray<{
+  icon: LucideIcon;
+  title: string;
+  body: string;
+}> = [
   {
-    n: "01",
+    icon: MapPinned,
     title: "Elige tu zona",
     body: "Empieza por ciudad o colonia. El mapa y la lista se mueven juntos.",
   },
   {
-    n: "02",
+    icon: SlidersHorizontal,
     title: "Filtra lo que importa",
     body: "Género, edad, baño privado, estacionamiento y más — sin ruido.",
   },
   {
-    n: "03",
+    icon: UsersRound,
     title: "Conoce a tu roomie",
     body: "Abre el anuncio, revisa el espacio y da el siguiente paso con confianza.",
   },
-] as const;
+];
 
 function buildSearchParams(query: string): URLSearchParams {
   return filtersToParams({ ...DEFAULT_SEARCH_FILTERS, q: withDefaultSearchCity(query) });
@@ -68,15 +73,9 @@ export function HomePage() {
           aria-hidden
         />
 
-        <HeroBrandArt />
-
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center text-center">
           <div className="home-hero-rise flex w-full max-w-[42rem] flex-col items-center">
-            <BrandLogo
-              variant="onDark"
-              className="justify-center"
-              imgClassName="h-12 w-auto max-w-[240px] object-contain sm:h-14 sm:max-w-[280px]"
-            />
+            <HeroAnimatedLockup />
 
             <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-primary-fg/70">
               Roomies en México
@@ -97,21 +96,32 @@ export function HomePage() {
             className="home-hero-rise home-hero-rise--delay mt-8 w-full max-w-[32rem] scroll-mt-24 sm:max-w-[36rem]"
           >
             <label className="sr-only" htmlFor="search-q">
-              Buscar ciudad o colonia
+              Buscar colonia
             </label>
-            <div className="flex w-full flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 shadow-lg backdrop-blur-md sm:flex-row sm:items-stretch sm:gap-2">
-              <input
-                ref={searchInputRef}
-                id="search-q"
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") goSearch();
-                }}
-                placeholder="Ciudad o colonia"
-                className="min-h-12 w-full flex-1 rounded-xl border-0 bg-transparent px-4 text-base text-primary-fg placeholder:text-primary-fg/55 focus:outline-none focus:ring-2 focus:ring-accent/60"
-              />
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
+              <div className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl border border-border bg-surface px-3 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/40">
+                <span
+                  className="inline-flex shrink-0 items-center rounded-full border border-primary/35 bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-fg"
+                  aria-label={`Ciudad ${DEFAULT_METRO_CITY.label}`}
+                >
+                  {DEFAULT_METRO_CITY.abbr}
+                </span>
+                <Search className="size-4 shrink-0 text-muted" aria-hidden strokeWidth={2.25} />
+                <input
+                  ref={searchInputRef}
+                  id="search-q"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") goSearch();
+                  }}
+                  placeholder="Buscar colonia…"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="min-h-11 min-w-0 flex-1 bg-transparent py-2 text-base font-medium text-body caret-primary placeholder:text-muted outline-none"
+                />
+              </div>
               <button
                 type="button"
                 onClick={goSearch}
@@ -120,16 +130,6 @@ export function HomePage() {
                 Buscar
               </button>
             </div>
-            <p className="mt-3 text-sm text-primary-fg/65">
-              Empieza en{" "}
-              <button
-                type="button"
-                onClick={() => goSearchForCity("Guadalajara")}
-                className="font-semibold text-secondary underline-offset-2 transition hover:underline"
-              >
-                Guadalajara
-              </button>
-            </p>
           </div>
         </div>
       </section>
@@ -146,19 +146,22 @@ export function HomePage() {
             </p>
           </div>
 
-          <ol className="mt-10 grid gap-8 sm:grid-cols-3 sm:gap-6">
-            {STEPS.map((step) => (
-              <li key={step.n} className="flex flex-col items-center text-center sm:items-start sm:text-left">
-                <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-bold text-primary"
-                  aria-hidden
-                >
-                  {step.n}
-                </span>
-                <h3 className="mt-4 font-semibold text-body">{step.title}</h3>
-                <p className="mt-2 text-balance text-sm leading-relaxed text-muted">{step.body}</p>
-              </li>
-            ))}
+          <ol className="mt-10 grid gap-8 sm:grid-cols-3 sm:gap-8 lg:gap-10">
+            {STEPS.map((step) => {
+              const Icon = step.icon;
+              return (
+                <li key={step.title} className="mx-auto flex w-full max-w-xs flex-col items-center text-center">
+                  <span
+                    className="inline-flex size-12 items-center justify-center rounded-full bg-secondary text-primary"
+                    aria-hidden
+                  >
+                    <Icon className="size-6" strokeWidth={2.25} />
+                  </span>
+                  <h3 className="mt-4 font-semibold text-body">{step.title}</h3>
+                  <p className="mt-2 text-balance text-sm leading-relaxed text-muted">{step.body}</p>
+                </li>
+              );
+            })}
           </ol>
         </div>
       </section>
