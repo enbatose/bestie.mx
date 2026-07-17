@@ -47,7 +47,7 @@ const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIG
 const MOBILE_FILTER_VALUE_CLASS =
   "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
 const MOBILE_GENDER_SEGMENT_CLASS = (active: boolean) =>
-  `flex-1 rounded-[0.65rem] px-0.5 py-1.5 text-center text-[0.78rem] font-semibold leading-none transition ${
+  `inline-flex items-center justify-center rounded-[0.65rem] px-2.5 py-1.5 text-center text-[0.78rem] font-semibold leading-none transition ${
     active ? "bg-primary text-primary-fg shadow-sm" : "text-body active:bg-surface-elevated/80"
   }`;
 const DESKTOP_FILTER_LABEL_CLASS =
@@ -56,7 +56,7 @@ const DESKTOP_LOCATION_LABEL_CLASS =
   "block h-4 text-xs font-semibold uppercase leading-4 tracking-wide text-surface";
 const DESKTOP_FILTER_CONTROL_CLASS = "mt-1 h-[42px]";
 const DESKTOP_GENDER_SEGMENT_CLASS = (active: boolean) =>
-  `flex-1 rounded-md px-1 py-1.5 text-center text-xs font-semibold leading-none transition sm:text-sm ${
+  `inline-flex min-w-0 flex-1 items-center justify-center rounded-md px-2.5 py-1.5 text-center text-xs font-semibold leading-none transition sm:text-sm ${
     active ? "bg-primary text-primary-fg shadow-sm" : "text-body hover:bg-bg-light"
   }`;
 const MOBILE_STEPPER_BTN_CLASS =
@@ -793,7 +793,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
 
               <div className={`${MOBILE_FILTER_SHELL_CLASS} ${MOBILE_FILTER_HEIGHT} min-w-0`}>
                 <div
-                  className={`${MOBILE_FILTER_CONTROL_COLLAPSED_CLASS} w-full justify-center gap-0.5 px-1`}
+                  className={`${MOBILE_FILTER_CONTROL_COLLAPSED_CLASS} w-full justify-evenly gap-0.5 px-1.5`}
                   role="group"
                   aria-label="Filtrar por género"
                 >
@@ -875,7 +875,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
           <fieldset className="shrink-0">
             <legend className={DESKTOP_FILTER_LABEL_CLASS}>Género</legend>
             <div
-              className={`${DESKTOP_FILTER_CONTROL_CLASS} flex w-[9.25rem] items-center gap-0.5 rounded-lg border border-primary/20 bg-surface px-1 shadow-sm lg:w-[9.75rem]`}
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} flex w-[10rem] items-center gap-0.5 rounded-lg border border-primary/20 bg-surface px-1.5 shadow-sm lg:w-[10.5rem]`}
               role="group"
               aria-label="Filtrar por género"
             >
