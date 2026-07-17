@@ -933,7 +933,6 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
           <SaveSearchButton
             onSaveClick={onSaveClick}
             pulseActive={pulseActive}
-            compact
             guestNudge={guestSaveNudge}
             className="ml-auto"
           />
