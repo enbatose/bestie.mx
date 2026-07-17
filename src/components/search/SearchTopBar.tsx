@@ -25,7 +25,6 @@ type Props = {
   onLocationNotFound: (query: string) => void;
   onLocationErrorDismiss: () => void;
   onSaveClick?: () => void;
-  onFollowClick?: () => void;
   saveSearchPulse?: boolean;
   guestSaveNudge?: {
     visible: boolean;
@@ -200,7 +199,6 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
     onLocationNotFound,
     onLocationErrorDismiss,
     onSaveClick,
-    onFollowClick,
     saveSearchPulse = false,
     guestSaveNudge,
   },
@@ -823,13 +821,12 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
             </div>
 
             <div className={`min-w-0 ${MOBILE_FILTER_HEIGHT}`}>
-              {onSaveClick && onFollowClick ? (
+              {onSaveClick ? (
                 <MobileCombinedFilterBar
                   onOpenAdvanced={onOpenAdvanced}
                   onClearFilters={onClearFilters}
                   clearDisabled={!hasActiveFilters}
                   onSaveClick={onSaveClick}
-                  onFollowClick={onFollowClick}
                   pulseActive={pulseActive}
                   guestNudge={guestSaveNudge}
                 />
@@ -932,10 +929,9 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
           clearDisabled={!hasActiveFilters}
         />
 
-        {onSaveClick && onFollowClick ? (
+        {onSaveClick ? (
           <SaveSearchButton
             onSaveClick={onSaveClick}
-            onFollowClick={onFollowClick}
             pulseActive={pulseActive}
             compact
             guestNudge={guestSaveNudge}

@@ -272,15 +272,6 @@ export function SearchPage() {
 
   const returnTo = `${location.pathname}${location.search}`;
 
-  const openAuthForSearchAction = useCallback(
-    (action: "save" | "follow") => {
-      setSaveSearchPendingAction(action);
-      track("search_auth_prompted", { action });
-      openLogin(returnTo);
-    },
-    [openLogin, returnTo],
-  );
-
   const finishFollowEnable = useCallback(async () => {
     await upsertSearchDraft(saveSearchPayload);
     const promoted = await promoteSearchDraft();
@@ -347,24 +338,6 @@ export function SearchPage() {
     }
     openSaveSearchModal();
   }, [me?.id, openLogin, openSaveSearchModal, returnTo]);
-
-  const onFollowSearchClick = useCallback(() => {
-    searchTopBarRef.current?.commitPendingHorizontalFilters();
-    const authenticated = Boolean(me?.id);
-    track("search_follow_clicked", { authenticated });
-    if (!me?.id) {
-      openAuthForSearchAction("follow");
-      return;
-    }
-    if (!me.email?.trim()) {
-      setFollowModalOpen(true);
-      return;
-    }
-    void runFollowEnable().catch((x) => {
-      setSaveNotice(x instanceof Error ? x.message : "No se pudieron activar las alertas.");
-      window.setTimeout(() => setSaveNotice(null), 5000);
-    });
-  }, [me, openAuthForSearchAction, runFollowEnable]);
 
   const onGuestNudgeClick = useCallback(() => {
     dismissSaveSearchGuestNudge();
@@ -667,7 +640,6 @@ export function SearchPage() {
         }}
         onLocationErrorDismiss={() => setLocationError(null)}
         onSaveClick={onSaveSearchClick}
-        onFollowClick={onFollowSearchClick}
         saveSearchPulse={saveSearchPulse}
         guestSaveNudge={
           !me?.id && guestNudgeVisible

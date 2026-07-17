@@ -1,10 +1,9 @@
-import { Filter, Mail, Trash2, X } from "lucide-react";
+import { Filter, Trash2, X } from "lucide-react";
 import { useEffect } from "react";
 import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
 
 type SaveGroupProps = {
   onSaveClick: () => void;
-  onFollowClick: () => void;
   pulseActive?: boolean;
   compact?: boolean;
   guestNudge?: {
@@ -17,8 +16,6 @@ type SaveGroupProps = {
 
 const GOLD_MAIN =
   "border-gold-edge bg-gold text-gold-fg shadow-sm hover:border-gold-edge-hover hover:bg-gold-hover active:bg-gold-active";
-const GOLD_FOLLOW =
-  "border-gold-edge bg-gold/90 text-gold-fg hover:bg-gold-hover active:bg-gold-active";
 
 const GUEST_NUDGE_MS = 7_000;
 
@@ -89,11 +86,11 @@ function GuestNudge({
 }) {
   return (
     <div
-      className="absolute left-1/2 top-[calc(100%+0.65rem)] z-[1250] w-[min(18rem,calc(100vw-2rem))] -translate-x-[58%]"
+      className="absolute left-1/2 top-[calc(100%+0.65rem)] z-[1250] w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2"
       role="status"
     >
       <span
-        className="absolute left-[67%] top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l-2 border-t-2 border-primary bg-surface shadow-[-2px_-2px_4px_rgba(20,61,48,0.18)]"
+        className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l-2 border-t-2 border-primary bg-surface shadow-[-2px_-2px_4px_rgba(20,61,48,0.18)]"
         aria-hidden
       />
       <button
@@ -120,7 +117,6 @@ function GuestNudge({
 
 function SaveSearchGroup({
   onSaveClick,
-  onFollowClick,
   pulseActive = false,
   guestNudge,
   className = "",
@@ -138,29 +134,15 @@ function SaveSearchGroup({
   return (
     <div className={`relative min-w-0 ${mobile ? "w-full" : "shrink-0"} ${className}`}>
       {pulseActive ? <PulseRing mobile={mobile} /> : null}
-      <div
-        className={`relative z-20 overflow-hidden border border-gold-edge shadow-sm ${heightClass} ${mobile ? "flex w-full" : "inline-flex"}`}
-        role="group"
+      <button
+        type="button"
+        onClick={onSaveClick}
         aria-label="Guardar búsqueda"
+        className={`relative z-20 inline-flex items-center justify-center gap-1.5 border px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN} ${heightClass} ${textClass} ${mobile ? "w-full" : "min-w-[12.5rem]"}`}
       >
-        <button
-          type="button"
-          onClick={onSaveClick}
-          aria-label={mobile ? "Guardar búsqueda" : undefined}
-          className={`inline-flex min-w-0 items-center justify-center gap-1.5 border-r border-gold-edge/60 px-3 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN} ${textClass} ${mobile ? "flex-1" : ""}`}
-        >
-          <SavedSearchIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} />
-          {mobile ? null : <span className="truncate whitespace-nowrap">Guardar búsqueda</span>}
-        </button>
-        <button
-          type="button"
-          onClick={onFollowClick}
-          className={`inline-flex items-center justify-center font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_FOLLOW} ${mobile ? "w-[3.25rem] shrink-0 px-0" : "shrink-0 px-2.5"}`}
-          aria-label="Seguir con alertas por correo"
-        >
-          <Mail className={mobile ? "size-4" : "size-3.5"} aria-hidden strokeWidth={2.2} />
-        </button>
-      </div>
+        <SavedSearchIcon className={mobile ? "size-4 shrink-0" : "size-3.5 shrink-0"} />
+        {mobile ? null : <span className="truncate whitespace-nowrap">Guardar búsqueda</span>}
+      </button>
       {guestNudge?.visible ? (
         <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
       ) : null}
@@ -183,13 +165,12 @@ const MOBILE_ROW_SHELL_CLASS =
 const MOBILE_ROW_HEIGHT = "h-14";
 const MOBILE_CONTROL_HEIGHT = "h-10";
 
-/** Mobile: Más/Borrar and Guardar/alertas as two bundles inside one Filtros bar. */
+/** Mobile: Más/Borrar and Guardar as two bundles inside one Filtros bar. */
 export function MobileCombinedFilterBar({
   onOpenAdvanced,
   onClearFilters,
   clearDisabled,
   onSaveClick,
-  onFollowClick,
   pulseActive = false,
   guestNudge,
 }: {
@@ -197,7 +178,6 @@ export function MobileCombinedFilterBar({
   onClearFilters: () => void;
   clearDisabled: boolean;
   onSaveClick: () => void;
-  onFollowClick: () => void;
   pulseActive?: boolean;
   guestNudge?: SaveGroupProps["guestNudge"];
 }) {
@@ -244,33 +224,19 @@ export function MobileCombinedFilterBar({
           </div>
           <div className={`relative flex min-w-0 flex-1 ${MOBILE_CONTROL_HEIGHT}`}>
             {pulseActive ? <PulseRing mobile compact /> : null}
-            <div
-              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 overflow-hidden rounded-[1rem] border border-gold-edge/70 shadow-sm`}
-              role="group"
+            <button
+              type="button"
+              onClick={onSaveClick}
               aria-label="Guardar búsqueda"
+              className={`relative z-20 flex ${MOBILE_CONTROL_HEIGHT} w-full min-w-0 items-center justify-center rounded-[1rem] border border-gold-edge/70 font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
             >
-              <button
-                type="button"
-                onClick={onSaveClick}
-                aria-label="Guardar búsqueda"
-                className={`inline-flex min-w-0 flex-1 items-center justify-center rounded-l-[0.95rem] border-r border-gold-edge/60 font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
-              >
-                <SavedSearchIcon className="size-4 shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={onFollowClick}
-                aria-label="Seguir con alertas por correo"
-                className={`inline-flex min-w-0 flex-1 items-center justify-center rounded-r-[0.95rem] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_FOLLOW}`}
-              >
-                <Mail className="size-4 shrink-0" aria-hidden strokeWidth={2.2} />
-              </button>
-            </div>
+              <SavedSearchIcon className="size-4 shrink-0" />
+            </button>
+            {guestNudge?.visible ? (
+              <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
+            ) : null}
           </div>
         </div>
-        {guestNudge?.visible ? (
-          <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
-        ) : null}
       </div>
     </div>
   );
