@@ -107,6 +107,10 @@ function primaryNavClass({ isActive }: { isActive: boolean }) {
 const iconBtnClass =
   "relative inline-flex items-center justify-center rounded-lg p-2 text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
+/** Mobile header actions share one hit height so search / Publicar / avatar stay aligned. */
+const mobileHeaderActionClass =
+  "relative inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
 function UnreadDot({ className = "" }: { className?: string }) {
   return (
     <span
@@ -233,7 +237,7 @@ function AvatarTrigger({
   showChevron?: boolean;
 }) {
   return (
-    <span className="inline-flex items-center gap-0.5">
+    <span className="inline-flex h-full items-center gap-0.5">
       <UserAvatar displayName={me?.displayName} profilePictureUrl={me?.profilePictureUrl} size={size} />
       {showChevron ? (
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
@@ -528,7 +532,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
   return (
     <>
-      <div className="flex items-center justify-end gap-1 lg:gap-2">
+      <div className="flex items-center justify-end gap-1.5 lg:gap-2">
         <NavLink
           to="/buscar"
           className={(props) => `${primaryNavClass(props)} hidden md:inline-flex`}
@@ -547,7 +551,11 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         <NavLink
           to="/buscar"
           className={(props) =>
-            [iconBtnClass, "md:hidden", props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : ""].join(" ")
+            [
+              mobileHeaderActionClass,
+              "w-9 md:hidden",
+              props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : "",
+            ].join(" ")
           }
           aria-label="Buscar"
         >
@@ -557,15 +565,15 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           to="/publicar"
           className={(props) =>
             [
-              iconBtnClass,
+              mobileHeaderActionClass,
               "md:hidden",
               homePublishMobileLabel
-                ? "gap-1.5 border border-primary/20 bg-primary/10 px-2.5 text-primary ring-1 ring-primary/15"
-                : "",
+                ? "gap-1.5 bg-primary/10 px-2.5 text-primary ring-1 ring-primary/20"
+                : "w-9",
               props.isActive && !homePublishMobileLabel
                 ? "bg-surface-elevated text-primary ring-1 ring-border"
                 : "",
-              props.isActive && homePublishMobileLabel ? "ring-primary/25" : "",
+              props.isActive && homePublishMobileLabel ? "ring-primary/30" : "",
             ].join(" ")
           }
           aria-label="Publicar"
@@ -573,8 +581,8 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           <CirclePlus className="h-5 w-5 shrink-0" aria-hidden />
           <span
             className={[
-              "overflow-hidden whitespace-nowrap text-xs font-semibold transition-[max-width,opacity] duration-300 ease-out",
-              homePublishMobileLabel ? "max-w-[4.5rem] opacity-100" : "max-w-0 opacity-0",
+              "overflow-hidden whitespace-nowrap text-xs font-semibold leading-none transition-[max-width,opacity,margin] duration-300 ease-out",
+              homePublishMobileLabel ? "ml-0 max-w-[4.5rem] opacity-100" : "ml-0 max-w-0 opacity-0",
             ].join(" ")}
             aria-hidden
           >
@@ -600,22 +608,22 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           </div>
         ) : null}
 
-        <div className="relative" ref={avatarRef}>
+        <div className="relative flex h-9 items-center" ref={avatarRef}>
           <button
             type="button"
             onClick={() => {
               setNotificationsOpen(false);
               setAvatarOpen((v) => !v);
             }}
-            className="inline-flex items-center rounded-full p-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="inline-flex h-9 items-center rounded-full px-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-expanded={avatarOpen}
             aria-haspopup="menu"
             aria-label={me?.id ? "Menú de cuenta" : "Abrir menú"}
           >
-            <span className="md:hidden">
+            <span className="inline-flex h-9 items-center md:hidden">
               <AvatarTrigger me={me} size="sm" showChevron />
             </span>
-            <span className="hidden md:inline-flex">
+            <span className="hidden h-9 items-center md:inline-flex">
               <AvatarTrigger me={me} size="md" showChevron />
             </span>
           </button>
