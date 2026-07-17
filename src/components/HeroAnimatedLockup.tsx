@@ -22,7 +22,7 @@ export function HeroAnimatedLockup({
         viewBox="0 0 265 74"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="home-logo-anim h-12 w-auto max-w-[min(100%,16.5rem)] overflow-visible sm:h-14 sm:max-w-[17.5rem]"
+        className="home-logo-anim h-[3.3rem] w-auto max-w-[min(100%,18.15rem)] overflow-visible sm:h-[3.85rem] sm:max-w-[19.25rem]"
         aria-hidden
       >
         <g clipPath={`url(#${uid}-clip)`}>
