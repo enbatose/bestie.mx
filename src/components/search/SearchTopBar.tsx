@@ -56,7 +56,7 @@ const MOBILE_FILTER_LABEL_CLASS =
 const MOBILE_FILTER_SHELL_CLASS =
   "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
 const MOBILE_FILTER_FIELD_WRAPPER_CLASS = "flex min-w-0 flex-1 items-center";
-const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[2rem_minmax(2.5rem,1fr)_2rem_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
+const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[2rem_minmax(2.5rem,1fr)_2rem_1px_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
 const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2`;
 const MOBILE_FILTER_VALUE_CLASS =
   "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
@@ -773,11 +773,12 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
                       >
                         +
                       </button>
+                      <span aria-hidden="true" className="h-5 w-px justify-self-center bg-primary/15" />
                       <button
                         type="button"
                         aria-label="Aplicar renta máxima"
                         onClick={finishMobileEdit}
-                        className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
+                        className={MOBILE_STEPPER_BTN_CLASS}
                       >
                         <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
                       </button>
