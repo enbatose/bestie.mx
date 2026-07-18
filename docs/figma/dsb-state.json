@@ -1,0 +1,55 @@
+{
+  "runId": "bestie-ds-2026-07-05",
+  "fileKey": "JVO8AoBQ5FJqfvtJXCe6Mv",
+  "fileUrl": "https://www.figma.com/design/JVO8AoBQ5FJqfvtJXCe6Mv/Bestie.mx-%E2%80%94-Design-System",
+  "relatedFiles": {
+    "userFlows": {
+      "fileKey": "tW5pbD3Cd7rycSLMtIzdAm",
+      "fileUrl": "https://www.figma.com/design/tW5pbD3Cd7rycSLMtIzdAm/Bestie.mx-%E2%80%94-User-flows--screens-"
+    }
+  },
+  "phase": "phase4",
+  "collections": {
+    "primitives": "VariableCollectionId:1:12",
+    "color": "VariableCollectionId:1:33",
+    "spacing": "VariableCollectionId:1:63",
+    "radius": "VariableCollectionId:1:74"
+  },
+  "components": {
+    "button": "1:143",
+    "input": "1:144",
+    "chip": "1:146",
+    "card": "1:148",
+    "chipFilterIcon": "30:13",
+    "tabsSegment": "31:28"
+  },
+  "pages": {
+    "filterIcons": "1:11",
+    "inputAndChip": "1:9",
+    "tabs": "31:2"
+  },
+  "filterIconsAdded2026-07": {
+    "recamara": "29:8",
+    "tag-aire-acondicionado": "29:15",
+    "tag-parejas": "29:23",
+    "tag-fumar-permitido-recamara": "29:32"
+  },
+  "repoSources": {
+    "tokens": "tailwind.config.ts",
+    "brandRule": ".cursor/rules/bestie-brand.mdc",
+    "brandAssets": "public/brand/",
+    "filterIcons": "src/assets/icons/",
+    "logoComponent": "src/components/BrandLogo.tsx"
+  },
+  "completedSteps": [
+    "phase0-discovery",
+    "phase1-foundations",
+    "phase2-structure",
+    "phase3-core-components"
+  ],
+  "pendingValidations": [
+    "publish-team-library",
+    "code-connect-mappings",
+    "shared-button-component-in-code"
+  ]
+}

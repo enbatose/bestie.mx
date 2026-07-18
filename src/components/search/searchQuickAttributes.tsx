@@ -2,13 +2,17 @@ import type { LucideIcon } from "lucide-react";
 import {
   Armchair,
   Bath,
+  BedSingle,
   Building2,
   CarFront,
+  Cigarette,
   DoorClosed,
   House,
   PawPrint,
   SlidersHorizontal,
+  Users,
   Warehouse,
+  Wind,
 } from "lucide-react";
 import { LgbtTextIcon } from "@/components/icons/LgbtTextIcon";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
@@ -33,7 +37,7 @@ type SearchQuickFilterDefinition = SearchQuickAttribute & {
   toggle: (filters: SearchFilters) => SearchFilters;
 };
 
-const PROPERTY_TYPE_META: Record<PropertyKind, SearchQuickAttribute> = {
+export const PROPERTY_TYPE_META: Record<PropertyKind, SearchQuickAttribute> = {
   house: {
     id: "property-house",
     label: "Casa",
@@ -54,7 +58,7 @@ const PROPERTY_TYPE_META: Record<PropertyKind, SearchQuickAttribute> = {
   },
 };
 
-const ROOM_TYPE_META = {
+export const ROOM_TYPE_META = {
   private_room: {
     id: "room-private",
     label: "Privado",
@@ -131,6 +135,39 @@ const LGBT_META: SearchQuickAttribute = {
   mobileLabel: "Comunidad LGBT+",
   tooltip: "LGBT+ Friendly",
   icon: LgbtTextIcon,
+};
+
+const AC_META: SearchQuickAttribute = {
+  id: "tag-aire-acondicionado",
+  label: "Aire ac.",
+  mobileLabel: "Aire Acondicionado",
+  tooltip: "Aire acondicionado",
+  icon: Wind,
+};
+
+const COUPLES_META: SearchQuickAttribute = {
+  id: "tag-parejas",
+  label: "Parejas",
+  mobileLabel: "Acepta Parejas",
+  tooltip: "Acepta parejas",
+  icon: Users,
+};
+
+const SMOKING_META: SearchQuickAttribute = {
+  id: "tag-fumar-permitido-recamara",
+  label: "Fumar",
+  mobileLabel: "Fumar en la Recámara",
+  tooltip: "Permitido fumar en la recámara",
+  icon: Cigarette,
+};
+
+/** "Recámara" hospedaje option: rent just a room, not a whole property. Not a `PropertyKind`. */
+export const RECAMARA_META: SearchQuickAttribute = {
+  id: "hospedaje-recamara",
+  label: "Recámara",
+  mobileLabel: "Busco Recámara",
+  tooltip: "Busco una recámara, no una propiedad completa",
+  icon: BedSingle,
 };
 
 function withTagToggle(filters: SearchFilters, tag: ListingTag): SearchFilters {
@@ -236,6 +273,18 @@ export const ADVANCED_TAG_FILTERS: readonly ListingTag[] = [
   "parejas",
   "fumar-permitido-recamara",
 ] as const;
+
+/** Icon + tooltip metadata for every tag shown in the "Detalles del anuncio" advanced filter group. */
+export const ADVANCED_TAG_META: Partial<Record<ListingTag, SearchQuickAttribute>> = {
+  "baño-privado": PRIVATE_BATHROOM_META,
+  estacionamiento: PRIVATE_PARKING_META,
+  muebles: FURNISHED_META,
+  "aire-acondicionado": AC_META,
+  mascotas: PETS_META,
+  "lgbt-friendly": LGBT_META,
+  parejas: COUPLES_META,
+  "fumar-permitido-recamara": SMOKING_META,
+};
 
 export function listingCardQuickAttributes(listing: PropertyListing): SearchQuickAttribute[] {
   const items: SearchQuickAttribute[] = [];
