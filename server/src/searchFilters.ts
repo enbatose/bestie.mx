@@ -29,9 +29,8 @@ export type SearchFilters = {
   /** House / apartment toggles (OR when both). */
   wantHouse: boolean;
   wantApartment: boolean;
-  /** Loft / recámara toggles (OR when both). */
+  /** Loft toggle. */
   wantLoft: boolean;
-  wantRecamara: boolean;
   /** Advanced: available from (YYYY-MM-DD). */
   availableFrom: string | null;
   /** Minimum stay (months) — search returns rooms with at least N months. */
@@ -113,7 +112,6 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
     wantHouse: flag(params.get("house")),
     wantApartment: flag(params.get("apartment")),
     wantLoft: flag(params.get("loft")),
-    wantRecamara: flag(params.get("recamara")),
     availableFrom: isoDateOk(params.get("from")),
     minimalStayMonths: num(params.get("minStay")),
     roomDimension: parseDim(params.get("dim")),
@@ -140,22 +138,14 @@ function matchesAge(listing: PropertyListing, age: number | null, ageMin: number
 function matchesHospedaje(
   listing: PropertyListing,
   wantLoft: boolean,
-  wantRecamara: boolean,
   lodgingType: LodgingType | null,
 ): boolean {
   if (lodgingType != null) {
     if (listing.lodgingType == null) return true;
     if (listing.lodgingType !== lodgingType) return false;
   }
-  if (!wantLoft && !wantRecamara) return true;
-  const isLoft = listing.propertyKind === "loft";
-  const isRecamara =
-    listing.lodgingType === "private_room" ||
-    listing.lodgingType === "shared_room" ||
-    (listing.lodgingType == null && listing.propertyPostMode !== "room");
-  if (wantLoft && wantRecamara) return isLoft || isRecamara;
-  if (wantLoft) return isLoft;
-  return isRecamara;
+  if (!wantLoft) return true;
+  return listing.propertyKind === "loft";
 }
 
 function isAvailableForSearch(listing: PropertyListing): boolean {
@@ -247,7 +237,7 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (!matchesPref(l, f.pref)) return false;
     if (!matchesAge(l, f.age, f.ageMin, f.ageMax)) return false;
     if (f.bbox != null && !inBbox(l, f.bbox)) return false;
-    if (!matchesHospedaje(l, f.wantLoft, f.wantRecamara, f.lodgingType)) return false;
+    if (!matchesHospedaje(l, f.wantLoft, f.lodgingType)) return false;
     if (!matchesPropertyKind(l, f.wantHouse, f.wantApartment)) return false;
     if (!matchesAvailableFrom(l, f.availableFrom)) return false;
     if (!matchesMinimalStay(l, f.minimalStayMonths)) return false;

@@ -84,9 +84,6 @@ export function activeSearchFilterChips(
   if (filters.wantLoft && !chips.some((c) => c.id === "property-loft")) {
     pushChip(chips, { id: "property-loft", label: "Loft", icon: Warehouse });
   }
-  if (filters.wantRecamara) {
-    pushChip(chips, { id: "room-recamara", label: "Recámara", icon: DoorClosed });
-  }
 
   if (
     filters.lodgingType &&

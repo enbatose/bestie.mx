@@ -31,7 +31,6 @@ export type SearchFilters = {
   wantHouse: boolean;
   wantApartment: boolean;
   wantLoft: boolean;
-  wantRecamara: boolean;
   availableFrom: string | null;
   minimalStayMonths: number | null;
   roomDimension: RoomDimension | null;
@@ -111,7 +110,6 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
     wantHouse: flag(params.get("house")),
     wantApartment: flag(params.get("apartment")),
     wantLoft: flag(params.get("loft")),
-    wantRecamara: flag(params.get("recamara")),
     availableFrom: isoDateOk(params.get("from")),
     minimalStayMonths: num(params.get("minStay")),
     roomDimension: parseDim(params.get("dim")),
@@ -136,7 +134,6 @@ export function filtersToParams(f: SearchFilters): URLSearchParams {
   if (f.wantHouse) p.set("house", "1");
   if (f.wantApartment) p.set("apartment", "1");
   if (f.wantLoft) p.set("loft", "1");
-  if (f.wantRecamara) p.set("recamara", "1");
   if (f.availableFrom) p.set("from", f.availableFrom);
   if (f.minimalStayMonths != null) p.set("minStay", String(f.minimalStayMonths));
   if (f.roomDimension != null) p.set("dim", f.roomDimension);
@@ -166,20 +163,15 @@ function matchesAge(listing: PropertyListing, age: number | null, ageMin: number
 function matchesHospedaje(
   listing: PropertyListing,
   wantLoft: boolean,
-  wantRecamara: boolean,
   lodgingType: LodgingType | null,
 ): boolean {
   const isLoft = listing.propertyKind === "loft";
-  const isRecamara =
-    listing.lodgingType === "private_room" ||
-    listing.lodgingType === "shared_room" ||
-    (listing.lodgingType == null && listing.propertyPostMode !== "room");
   const matchesSelectedLodging =
     lodgingType == null ? false : listing.lodgingType == null ? true : listing.lodgingType === lodgingType;
 
-  if (!wantLoft && !wantRecamara && lodgingType == null) return true;
+  if (!wantLoft && lodgingType == null) return true;
 
-  return [wantLoft && isLoft, wantRecamara && isRecamara, matchesSelectedLodging].some(Boolean);
+  return [wantLoft && isLoft, matchesSelectedLodging].some(Boolean);
 }
 
 function isAvailableForSearch(listing: PropertyListing): boolean {
@@ -274,7 +266,7 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (!matchesPref(l, f.pref)) return false;
     if (!matchesAge(l, f.age, f.ageMin, f.ageMax)) return false;
     if (f.bbox != null && !inBbox(l, f.bbox)) return false;
-    if (!matchesHospedaje(l, f.wantLoft, f.wantRecamara, f.lodgingType)) return false;
+    if (!matchesHospedaje(l, f.wantLoft, f.lodgingType)) return false;
     if (!matchesPropertyKind(l, f.wantHouse, f.wantApartment)) return false;
     if (!matchesAvailableFrom(l, f.availableFrom)) return false;
     if (!matchesMinimalStay(l, f.minimalStayMonths)) return false;
@@ -336,7 +328,6 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
   wantHouse: false,
   wantApartment: false,
   wantLoft: false,
-  wantRecamara: false,
   availableFrom: null,
   minimalStayMonths: null,
   roomDimension: null,
@@ -358,7 +349,6 @@ export function hasActiveSearchFilters(f: SearchFilters): boolean {
     f.wantHouse ||
     f.wantApartment ||
     f.wantLoft ||
-    f.wantRecamara ||
     f.availableFrom != null ||
     f.minimalStayMonths != null ||
     f.roomDimension != null ||

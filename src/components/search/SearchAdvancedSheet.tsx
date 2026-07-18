@@ -2,11 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
 import { Banknote, Building2, CalendarClock, DoorClosed, Home, House, Users, Warehouse } from "lucide-react";
-import {
-  ADVANCED_TAG_FILTERS,
-  ADVANCED_TAG_META,
-  RECAMARA_META,
-} from "@/components/search/searchQuickAttributes";
+import { ADVANCED_TAG_FILTERS, ADVANCED_TAG_META } from "@/components/search/searchQuickAttributes";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
 import { HighHeelIcon, MustacheIcon } from "@/components/icons/GenderFilterIcons";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -54,7 +50,7 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
     case "presupuesto":
       return f.budgetMax != null || f.age != null;
     case "propiedad":
-      return f.wantHouse || f.wantApartment || f.wantLoft || f.wantRecamara || f.lodgingType != null;
+      return f.wantHouse || f.wantApartment || f.wantLoft || f.lodgingType != null;
     case "convivencia":
       return f.pref != null || f.tags.length > 0;
     case "condiciones":
@@ -379,13 +375,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                   label="Loft"
                   active={filters.wantLoft}
                   onClick={() => onChange({ ...filters, wantLoft: !filters.wantLoft })}
-                />
-                <IconOption
-                  icon={RECAMARA_META.icon}
-                  label={RECAMARA_META.label}
-                  tooltip={RECAMARA_META.tooltip}
-                  active={filters.wantRecamara}
-                  onClick={() => onChange({ ...filters, wantRecamara: !filters.wantRecamara })}
                 />
               </FilterGroup>
 

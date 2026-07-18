@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Armchair,
   Bath,
-  BedSingle,
   Building2,
   CarFront,
   Cigarette,
@@ -159,15 +158,6 @@ const SMOKING_META: SearchQuickAttribute = {
   mobileLabel: "Fumar en la Recámara",
   tooltip: "Permitido fumar en la recámara",
   icon: Cigarette,
-};
-
-/** "Recámara" hospedaje option: rent just a room, not a whole property. Not a `PropertyKind`. */
-export const RECAMARA_META: SearchQuickAttribute = {
-  id: "hospedaje-recamara",
-  label: "Recámara",
-  mobileLabel: "Busco Recámara",
-  tooltip: "Busco una recámara, no una propiedad completa",
-  icon: BedSingle,
 };
 
 function withTagToggle(filters: SearchFilters, tag: ListingTag): SearchFilters {

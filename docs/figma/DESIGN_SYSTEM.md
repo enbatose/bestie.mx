@@ -56,7 +56,7 @@ Hero, H1–H3, Body, Label, Caption, Overline, Button — aligned with `.cursor/
 | **Tabs / Segment** | Components / Tabs | Icon + label tab with optional active-filter dot, `Default`/`Active` variants — the tab bar in `SearchAdvancedSheet.tsx` |
 | **Card / Surface** | Components / Card | Home feature cards, panels |
 | **Logo mark & lockup** | Components / Brand | `BrandLogo.tsx`, `public/brand/*` |
-| **Filter icons** | Components / Filter Icons | `GenderFilterIcons.tsx`, `src/assets/icons/*`, plus lucide icons documented per `searchQuickAttributes.tsx` (`recamara`, `tag-aire-acondicionado`, `tag-parejas`, `tag-fumar-permitido-recamara` added for the Filtros avanzados redesign) |
+| **Filter icons** | Components / Filter Icons | `GenderFilterIcons.tsx`, `src/assets/icons/*`, plus lucide icons documented per `searchQuickAttributes.tsx` (`tag-aire-acondicionado`, `tag-parejas`, `tag-fumar-permitido-recamara` added for the Filtros avanzados redesign). Note: the `recamara` "Tipo de propiedad" chip/icon was removed from the product (redundant with "Tipo de habitación" Privada/Compartida) — the Figma frame for it may still exist as an orphaned asset. |
 
 ### Foundations docs
 

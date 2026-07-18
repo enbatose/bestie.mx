@@ -110,7 +110,6 @@ export function describeActiveSearchFilters(
   if (filters.wantHouse) lines.push("Tipo: Casa");
   if (filters.wantApartment) lines.push("Tipo: Departamento");
   if (filters.wantLoft) lines.push("Tipo: Loft");
-  if (filters.wantRecamara) lines.push("Tipo: Recámara");
   if (filters.lodgingType) {
     lines.push(`Hospedaje: ${LODGING_LABELS[filters.lodgingType] ?? filters.lodgingType}`);
   }
