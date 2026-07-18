@@ -228,11 +228,11 @@ export function SaveSearchModal({
             />
           </label>
 
-          <div className="rounded-xl border border-border p-3">
+          <div className="rounded-xl bg-primary p-3 text-primary-fg shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-body">Alertas por correo</p>
-                <p className="mt-0.5 text-xs text-muted">
+                <p className="text-sm font-semibold text-primary-fg">Alertas por correo</p>
+                <p className="mt-0.5 text-xs text-primary-fg/75">
                   {emailNotifyOn
                     ? "Te avisaremos cuando haya nuevos anuncios (máx. un correo cada 3 h)."
                     : "Desactivadas para esta búsqueda."}
@@ -246,8 +246,8 @@ export function SaveSearchModal({
                 onClick={() => setEmailNotifyOn((on) => !on)}
                 className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border transition ${
                   emailNotifyOn
-                    ? "border-primary bg-primary"
-                    : "border-border bg-bg-light"
+                    ? "border-secondary bg-secondary"
+                    : "border-white/30 bg-white/15"
                 }`}
               >
                 <span
@@ -259,7 +259,7 @@ export function SaveSearchModal({
             </div>
 
             {needsEmail ? (
-              <label className="mt-3 block text-sm font-medium text-body">
+              <label className="mt-3 block text-sm font-medium text-primary-fg">
                 Correo electrónico
                 <input
                   type="email"
@@ -268,7 +268,7 @@ export function SaveSearchModal({
                   onChange={(ev) => setEmail(ev.target.value)}
                   className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
-                <span className="mt-1 block text-xs font-normal text-muted">
+                <span className="mt-1 block text-xs font-normal text-primary-fg/75">
                   Lo guardaremos en tu perfil para enviarte las alertas.
                 </span>
               </label>
