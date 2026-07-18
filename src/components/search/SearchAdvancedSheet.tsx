@@ -14,6 +14,7 @@ import {
   Info,
   Users,
   Warehouse,
+  X,
 } from "lucide-react";
 import { ADVANCED_TAG_FILTERS, ADVANCED_TAG_META } from "@/components/search/searchQuickAttributes";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
@@ -199,49 +200,77 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-/** Click-to-toggle explanation popover for a filter header (e.g. what each room size means). */
-function InfoTooltip({ items }: { items: readonly { label: string; description: string }[] }) {
+/**
+ * Click-to-open explanation popover for a filter header (e.g. what each room size means).
+ * Renders as a viewport-centered overlay (rather than an anchored absolute popover) so it can
+ * never get clipped or pushed off-screen by the sheet's width, and is always closable via the
+ * backdrop, the close button, or Escape.
+ */
+function InfoTooltip({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly { label: string; description: string }[];
+}) {
   const [open, setOpen] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    function onPointerDown(event: MouseEvent) {
-      if (tooltipRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
     }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (
-    <span className="relative inline-flex">
+    <>
       <button
         type="button"
-        aria-label="Ver qué significa cada opción"
+        aria-label={`Ver qué significa cada opción de ${title}`}
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(true)}
         className="inline-flex size-4 items-center justify-center rounded-full text-muted transition hover:text-primary"
       >
         <Info className="size-3.5" aria-hidden="true" />
       </button>
       {open ? (
         <div
-          ref={tooltipRef}
-          role="tooltip"
-          className="absolute left-0 top-full z-10 mt-1 w-64 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-2.5 text-xs leading-relaxed text-body shadow-lg"
+          className="fixed inset-0 z-[2200] flex items-center justify-center bg-black/40 p-4"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
         >
-          <dl className="space-y-1.5">
-            {items.map((item) => (
-              <div key={item.label}>
-                <dt className="font-semibold text-body">{item.label}</dt>
-                <dd className="text-muted">{item.description}</dd>
-              </div>
-            ))}
-          </dl>
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-xs rounded-xl border border-border bg-surface p-4 text-left shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-body">{title}</p>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={() => setOpen(false)}
+                className="-mr-1 -mt-1 rounded-full p-1.5 text-muted transition hover:bg-bg-light hover:text-primary"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+            <dl className="mt-3 space-y-2.5">
+              {items.map((item) => (
+                <div key={item.label}>
+                  <dt className="text-xs font-semibold text-body">{item.label}</dt>
+                  <dd className="text-xs leading-relaxed text-muted">{item.description}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
       ) : null}
-    </span>
+    </>
   );
 }
 
@@ -606,6 +635,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                 <div className="flex items-center gap-1.5">
                   <p className="text-sm font-medium text-body">Tamaño del cuarto</p>
                   <InfoTooltip
+                    title="Tamaño del cuarto"
                     items={ROOM_DIMENSION_OPTIONS.map(({ label, description }) => ({ label, description }))}
                   />
                 </div>
