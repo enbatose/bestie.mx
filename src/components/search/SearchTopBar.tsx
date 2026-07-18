@@ -777,7 +777,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
                         type="button"
                         aria-label="Aplicar renta máxima"
                         onClick={finishMobileEdit}
-                        className={MOBILE_STEPPER_BTN_CLASS}
+                        className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
                       >
                         <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
                       </button>
