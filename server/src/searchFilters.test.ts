@@ -70,9 +70,22 @@ describe("parseFilters extended", () => {
     expect(f.wantApartment).toBe(true);
     expect(f.availableFrom).toBe("2025-06-01");
     expect(f.minimalStayMonths).toBe(6);
-    expect(f.roomDimension).toBe("medium");
+    expect(f.roomDimensions).toEqual(["medium"]);
     expect(f.avalRequired).toBe(false);
     expect(f.subletAllowed).toBe(true);
+  });
+
+  it("parses multiple room dimensions and matches any of them", () => {
+    const f = parseFilters(new URLSearchParams({ dim: "small,large" }));
+    expect(f.roomDimensions).toEqual(["small", "large"]);
+
+    const rows = [
+      baseListing({ id: "small", roomDimension: "small" }),
+      baseListing({ id: "medium", roomDimension: "medium" }),
+      baseListing({ id: "large", roomDimension: "large" }),
+      baseListing({ id: "unset" }),
+    ];
+    expect(filterListings(rows, f).map((r) => r.id).sort()).toEqual(["large", "small", "unset"]);
   });
 
   it("filters by minimal stay commitment", () => {

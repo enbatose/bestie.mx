@@ -11,6 +11,7 @@ import {
   DoorClosed,
   Home,
   House,
+  Info,
   Users,
   Warehouse,
 } from "lucide-react";
@@ -53,11 +54,16 @@ function stepStayMonths(current: number | null, delta: number): number {
   return Math.max(0, current + delta);
 }
 
-/** Matches the descriptive room-size guidance shown while creating a room listing. */
-const ROOM_DIMENSION_OPTIONS: readonly { value: RoomDimension; label: string; icon: FilterIcon }[] = [
-  { value: "small", label: "Individual (Cabe cama individual + buró)", icon: BedSingle },
-  { value: "medium", label: "Matrimonial (Cabe cama matrimonial + escritorio)", icon: BedDouble },
-  { value: "large", label: "Grande (Cabe cama Queen/King + área de estar)", icon: Bed },
+/** Short chip labels, paired with the same descriptive guidance shown while creating a room listing. */
+const ROOM_DIMENSION_OPTIONS: readonly {
+  value: RoomDimension;
+  label: string;
+  description: string;
+  icon: FilterIcon;
+}[] = [
+  { value: "small", label: "Individual", description: "Cabe cama individual + buró", icon: BedSingle },
+  { value: "medium", label: "Matrimonial", description: "Cabe cama matrimonial + escritorio", icon: BedDouble },
+  { value: "large", label: "Grande", description: "Cabe cama Queen/King + área de estar", icon: Bed },
 ];
 
 /** Accepts both lucide's forwardRef icons and the app's plain-function tinted-PNG icon components. */
@@ -82,7 +88,7 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
       return (
         f.availableFrom != null ||
         f.minimalStayMonths != null ||
-        f.roomDimension != null ||
+        f.roomDimensions.length > 0 ||
         f.avalRequired != null ||
         f.subletAllowed != null
       );
@@ -190,6 +196,52 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
       <p className="text-sm font-medium text-body">{title}</p>
       <div className="mt-2 flex flex-wrap gap-2">{children}</div>
     </div>
+  );
+}
+
+/** Click-to-toggle explanation popover for a filter header (e.g. what each room size means). */
+function InfoTooltip({ items }: { items: readonly { label: string; description: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (tooltipRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        aria-label="Ver qué significa cada opción"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex size-4 items-center justify-center rounded-full text-muted transition hover:text-primary"
+      >
+        <Info className="size-3.5" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div
+          ref={tooltipRef}
+          role="tooltip"
+          className="absolute left-0 top-full z-10 mt-1 w-64 max-w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-2.5 text-xs leading-relaxed text-body shadow-lg"
+        >
+          <dl className="space-y-1.5">
+            {items.map((item) => (
+              <div key={item.label}>
+                <dt className="font-semibold text-body">{item.label}</dt>
+                <dd className="text-muted">{item.description}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+    </span>
   );
 }
 
@@ -550,22 +602,35 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                 </div>
               </div>
 
-              <FilterGroup title="Tamaño del cuarto">
-                {ROOM_DIMENSION_OPTIONS.map((opt) => (
-                  <IconOption
-                    key={opt.value}
-                    icon={opt.icon}
-                    label={opt.label}
-                    active={filters.roomDimension === opt.value}
-                    onClick={() =>
-                      onChange({
-                        ...filters,
-                        roomDimension: filters.roomDimension === opt.value ? null : opt.value,
-                      })
-                    }
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-body">Tamaño del cuarto</p>
+                  <InfoTooltip
+                    items={ROOM_DIMENSION_OPTIONS.map(({ label, description }) => ({ label, description }))}
                   />
-                ))}
-              </FilterGroup>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {ROOM_DIMENSION_OPTIONS.map((opt) => {
+                    const active = filters.roomDimensions.includes(opt.value);
+                    return (
+                      <IconOption
+                        key={opt.value}
+                        icon={opt.icon}
+                        label={opt.label}
+                        active={active}
+                        onClick={() =>
+                          onChange({
+                            ...filters,
+                            roomDimensions: active
+                              ? filters.roomDimensions.filter((d) => d !== opt.value)
+                              : [...filters.roomDimensions, opt.value],
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
 
               <div>
                 <p className="text-sm font-medium text-body">Se requiere aval</p>

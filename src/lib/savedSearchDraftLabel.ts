@@ -114,8 +114,9 @@ export function describeActiveSearchFilters(
     lines.push(`Hospedaje: ${LODGING_LABELS[filters.lodgingType] ?? filters.lodgingType}`);
   }
 
-  if (filters.roomDimension) {
-    lines.push(`Tamaño: ${DIM_LABELS[filters.roomDimension] ?? filters.roomDimension}`);
+  if (filters.roomDimensions.length) {
+    const labels = filters.roomDimensions.map((d) => DIM_LABELS[d] ?? d).join(", ");
+    lines.push(`Tamaño: ${labels}`);
   }
 
   if (filters.availableFrom) {

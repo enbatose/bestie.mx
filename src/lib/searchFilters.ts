@@ -33,7 +33,8 @@ export type SearchFilters = {
   wantLoft: boolean;
   availableFrom: string | null;
   minimalStayMonths: number | null;
-  roomDimension: RoomDimension | null;
+  /** Zero or more room sizes; empty means no restriction (matches any). */
+  roomDimensions: RoomDimension[];
   avalRequired: boolean | null;
   subletAllowed: boolean | null;
 };
@@ -61,12 +62,16 @@ function parseLodging(raw: string | null): LodgingType | null {
   return null;
 }
 
-function parseDim(raw: string | null): RoomDimension | null {
-  if (raw === "small" || raw === "medium" || raw === "large") return raw;
-  if (raw === "S") return "small";
-  if (raw === "M") return "medium";
-  if (raw === "L") return "large";
-  return null;
+function parseDims(raw: string | null): RoomDimension[] {
+  if (raw == null || raw.trim() === "") return [];
+  const out = new Set<RoomDimension>();
+  for (const part of raw.split(",").map((s) => s.trim())) {
+    if (part === "small" || part === "medium" || part === "large") out.add(part);
+    else if (part === "S") out.add("small");
+    else if (part === "M") out.add("medium");
+    else if (part === "L") out.add("large");
+  }
+  return Array.from(out);
 }
 
 function flag(v: string | null): boolean {
@@ -112,7 +117,7 @@ export function parseFilters(params: URLSearchParams): SearchFilters {
     wantLoft: flag(params.get("loft")),
     availableFrom: isoDateOk(params.get("from")),
     minimalStayMonths: num(params.get("minStay")),
-    roomDimension: parseDim(params.get("dim")),
+    roomDimensions: parseDims(params.get("dim")),
     avalRequired: parseBoolTri(params.get("aval")),
     subletAllowed: parseBoolTri(params.get("sublet")),
   };
@@ -136,7 +141,7 @@ export function filtersToParams(f: SearchFilters): URLSearchParams {
   if (f.wantLoft) p.set("loft", "1");
   if (f.availableFrom) p.set("from", f.availableFrom);
   if (f.minimalStayMonths != null) p.set("minStay", String(f.minimalStayMonths));
-  if (f.roomDimension != null) p.set("dim", f.roomDimension);
+  if (f.roomDimensions.length) p.set("dim", f.roomDimensions.join(","));
   if (f.avalRequired === true) p.set("aval", "1");
   if (f.avalRequired === false) p.set("aval", "0");
   if (f.subletAllowed === true) p.set("sublet", "1");
@@ -210,10 +215,10 @@ function matchesMinimalStay(l: PropertyListing, userMonths: number | null): bool
   return userMonths >= req;
 }
 
-function matchesDimension(l: PropertyListing, d: RoomDimension | null): boolean {
-  if (d == null) return true;
+function matchesDimension(l: PropertyListing, dims: RoomDimension[]): boolean {
+  if (dims.length === 0) return true;
   if (l.roomDimension == null) return true;
-  return l.roomDimension === d;
+  return dims.includes(l.roomDimension);
 }
 
 function matchesAval(l: PropertyListing, f: boolean | null): boolean {
@@ -270,7 +275,7 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (!matchesPropertyKind(l, f.wantHouse, f.wantApartment)) return false;
     if (!matchesAvailableFrom(l, f.availableFrom)) return false;
     if (!matchesMinimalStay(l, f.minimalStayMonths)) return false;
-    if (!matchesDimension(l, f.roomDimension)) return false;
+    if (!matchesDimension(l, f.roomDimensions)) return false;
     if (!matchesAval(l, f.avalRequired)) return false;
     if (!matchesSublet(l, f.subletAllowed)) return false;
     return true;
@@ -330,7 +335,7 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
   wantLoft: false,
   availableFrom: null,
   minimalStayMonths: null,
-  roomDimension: null,
+  roomDimensions: [],
   avalRequired: null,
   subletAllowed: null,
 };
@@ -351,7 +356,7 @@ export function hasActiveSearchFilters(f: SearchFilters): boolean {
     f.wantLoft ||
     f.availableFrom != null ||
     f.minimalStayMonths != null ||
-    f.roomDimension != null ||
+    f.roomDimensions.length > 0 ||
     f.avalRequired != null ||
     f.subletAllowed != null
   );

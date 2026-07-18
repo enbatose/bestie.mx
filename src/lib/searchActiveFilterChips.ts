@@ -108,10 +108,10 @@ export function activeSearchFilterChips(
     });
   }
 
-  if (filters.roomDimension) {
+  for (const dim of filters.roomDimensions) {
     pushChip(chips, {
-      id: "room-dim",
-      label: DIM_LABELS[filters.roomDimension],
+      id: `room-dim-${dim}`,
+      label: DIM_LABELS[dim],
       icon: DoorClosed,
     });
   }
