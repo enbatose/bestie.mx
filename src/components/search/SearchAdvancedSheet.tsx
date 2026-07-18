@@ -184,9 +184,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
           <div>
             <p className="text-sm font-medium text-body">Tipo de propiedad</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Mueve aquí los filtros rápidos adicionales de casa, depa o loft.
-            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(
                 [
@@ -234,9 +231,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
           <div>
             <p className="text-sm font-medium text-body">Tipo de habitación</p>
-            <p className="mt-0.5 text-xs text-muted">
-              El acceso rápido del mapa deja fija la opción privada; aquí puedes elegir compartida.
-            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(
                 [
@@ -263,9 +257,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
           <div>
             <p className="text-sm font-medium text-body">Convivencia (anuncio)</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Filtra por la preferencia de convivencia del anuncio (por ejemplo sólo chicas o sólo chicos).
-            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(
                 [
@@ -292,9 +283,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
           <div>
             <p className="text-sm font-medium text-body">Detalles del anuncio</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Los demás quick filters del mapa viven aquí para no saturar la interfaz principal.
-            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {ADVANCED_TAG_FILTERS.map((tag) => {
                 const active = filters.tags.includes(tag);
@@ -330,9 +318,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
               }
               className="mt-1 w-full max-w-xs rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
             />
-            <span className="mt-1 block text-xs text-muted">
-              Muestra anuncios disponibles en o antes de esta fecha (si el anuncio lo indica).
-            </span>
           </label>
 
           <label className="block text-sm font-medium text-body">
@@ -352,9 +337,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
               placeholder="Ej. 3"
               className="mt-1 w-full max-w-xs rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
             />
-            <span className="mt-1 block text-xs text-muted">
-              Solo anuncios cuyo requisito de estancia mínima no supere lo que puedes comprometer.
-            </span>
           </label>
 
           <label className="block text-sm font-medium text-body">
