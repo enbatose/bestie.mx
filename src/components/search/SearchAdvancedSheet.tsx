@@ -23,6 +23,8 @@ type Props = {
 
 type TabId = "presupuesto" | "propiedad" | "convivencia" | "condiciones";
 
+const BUDGET_STEP = 100;
+
 /** Accepts both lucide's forwardRef icons and the app's plain-function tinted-PNG icon components. */
 type FilterIcon = ComponentType<LucideProps>;
 
@@ -145,6 +147,7 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
 
 export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props) {
   const titleId = useId();
+  const budgetMaxInputId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const todayIso = isoDateTodayMexicoCity();
   const [activeTab, setActiveTab] = useState<TabId>("presupuesto");
@@ -241,25 +244,57 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {activeTab === "presupuesto" ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-body">
-                Presupuesto máx (MXN / mes)
-                <input
-                  inputMode="numeric"
-                  type="number"
-                  min={0}
-                  step={100}
-                  value={filters.budgetMax ?? ""}
-                  onChange={(e) =>
-                    onChange({
-                      ...filters,
-                      budgetMin: null,
-                      budgetMax: e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                  placeholder="Ej. 8000"
-                  className="mt-1 w-full rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-                />
-              </label>
+              <div>
+                <label htmlFor={budgetMaxInputId} className="block text-sm font-medium text-body">
+                  Presupuesto máx (MXN / mes)
+                </label>
+                <div className="mt-1 flex items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2">
+                  <button
+                    type="button"
+                    aria-label="Disminuir presupuesto máximo"
+                    onClick={() =>
+                      onChange({
+                        ...filters,
+                        budgetMin: null,
+                        budgetMax: Math.max(0, (filters.budgetMax ?? 0) - BUDGET_STEP),
+                      })
+                    }
+                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                  >
+                    −
+                  </button>
+                  <input
+                    id={budgetMaxInputId}
+                    inputMode="numeric"
+                    type="text"
+                    value={filters.budgetMax != null ? filters.budgetMax.toLocaleString("es-MX") : ""}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      onChange({
+                        ...filters,
+                        budgetMin: null,
+                        budgetMax: digits === "" ? null : Number(digits),
+                      });
+                    }}
+                    placeholder="Ej. 8,000"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Aumentar presupuesto máximo"
+                    onClick={() =>
+                      onChange({
+                        ...filters,
+                        budgetMin: null,
+                        budgetMax: (filters.budgetMax ?? 0) + BUDGET_STEP,
+                      })
+                    }
+                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
               <label className="block text-sm font-medium text-body">
                 Tu edad

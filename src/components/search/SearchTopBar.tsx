@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Pencil, Search, X } from "lucide-react";
-import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { SaveSearchButton, MobileCombinedFilterBar, FilterActionsGroup } from "@/components/search/SaveSearchButton";
 import type { SearchFilters } from "@/lib/searchFilters";
 import { fetchLocationSuggestions, type LocationSuggestion } from "@/lib/listingsApi";
@@ -61,10 +61,6 @@ const DESKTOP_GENDER_SEGMENT_CLASS = (active: boolean) =>
   }`;
 const MOBILE_STEPPER_BTN_CLASS =
   "inline-flex h-full w-full items-center justify-center text-[1.2rem] font-semibold leading-none text-primary transition active:bg-surface-elevated";
-
-function highestVisibleRent(listings: PropertyListing[]) {
-  return listings.reduce((max, listing) => Math.max(max, listing.rentMxn), 0);
-}
 
 function formatRentCompact(value: number) {
   if (value < 1000) return String(value);
@@ -182,7 +178,6 @@ export type SearchTopBarHandle = {
 export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function SearchTopBar(
   {
     filters,
-    listings,
     onChange,
     onOpenAdvanced,
     onClearFilters,
@@ -207,8 +202,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
   const locationInputId = useId();
   const mobileLocationMenuId = useId();
   const desktopLocationMenuId = useId();
-  const maxVisibleRent = useMemo(() => highestVisibleRent(listings), [listings]);
-  const displayedRent = filters.budgetMax ?? (maxVisibleRent > 0 ? maxVisibleRent : null);
+  const displayedRent = filters.budgetMax;
   const [locationInput, setLocationInput] = useState("");
   const [cityChipVisible, setCityChipVisible] = useState(true);
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
