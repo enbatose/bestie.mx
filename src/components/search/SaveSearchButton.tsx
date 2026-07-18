@@ -18,29 +18,21 @@ const GOLD_MAIN =
 
 const GUEST_NUDGE_MS = 7_000;
 
-/** Pulse outline sized to the gold control; wide rect on mobile, desktop CTA proportions. */
+/** Pulse outline: wide rect on mobile save control; square on desktop icon button. */
 function PulseRing({ mobile }: { mobile?: boolean }) {
-  const height = mobile ? 40 : 44;
-  const cornerRadius = mobile ? 16 : 10;
-  const strokeWidth = mobile ? 2.53125 : 3;
-  const inset = strokeWidth / 2 + 1;
-  const dashArray = mobile ? "0.38 0.62" : "0.18 0.82";
-  const svgClass = mobile
-    ? "pointer-events-none absolute -inset-[5px] z-40 h-[calc(100%+10px)] w-[calc(100%+10px)] overflow-visible"
-    : "pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)] overflow-visible";
-  const ringClass = mobile
-    ? "animate-[autosave-ring-travel_1.2s_linear_forwards] drop-shadow-[0_0_12px_rgba(255,255,255,0.95)]"
-    : "animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]";
-  const strokeColor = mobile ? "#102a43" : "#065f46";
-
-  return (
-    <svg
-      className={svgClass}
-      viewBox={`0 0 100 ${height}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      {mobile ? (
+  if (mobile) {
+    const height = 40;
+    const cornerRadius = 16;
+    const strokeWidth = 2.53125;
+    const inset = strokeWidth / 2 + 1;
+    const dashArray = "0.38 0.62";
+    return (
+      <svg
+        className="pointer-events-none absolute -inset-[5px] z-40 h-[calc(100%+10px)] w-[calc(100%+10px)] overflow-visible"
+        viewBox={`0 0 100 ${height}`}
+        preserveAspectRatio="none"
+        aria-hidden
+      >
         <rect
           x={inset}
           y={inset}
@@ -55,23 +47,54 @@ function PulseRing({ mobile }: { mobile?: boolean }) {
           pathLength="1"
           strokeDasharray={dashArray}
           opacity={0.95}
-          className={ringClass}
+          className="animate-[autosave-ring-travel_1.2s_linear_forwards] drop-shadow-[0_0_12px_rgba(255,255,255,0.95)]"
         />
-      ) : null}
+        <rect
+          x={inset}
+          y={inset}
+          width={100 - inset * 2}
+          height={height - inset * 2}
+          rx={cornerRadius}
+          ry={cornerRadius}
+          fill="none"
+          stroke="#102a43"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          pathLength="1"
+          strokeDasharray={dashArray}
+          className="animate-[autosave-ring-travel_1.2s_linear_forwards] drop-shadow-[0_0_12px_rgba(255,255,255,0.95)]"
+        />
+      </svg>
+    );
+  }
+
+  const size = 42;
+  const cornerRadius = 10;
+  const strokeWidth = 3;
+  const inset = strokeWidth / 2 + 1;
+  const dashArray = "0.22 0.78";
+
+  return (
+    <svg
+      className="pointer-events-none absolute -inset-[3px] z-10 h-[calc(100%+6px)] w-[calc(100%+6px)] overflow-visible"
+      viewBox={`0 0 ${size} ${size}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
       <rect
         x={inset}
         y={inset}
-        width={100 - inset * 2}
-        height={height - inset * 2}
+        width={size - inset * 2}
+        height={size - inset * 2}
         rx={cornerRadius}
         ry={cornerRadius}
         fill="none"
-        stroke={strokeColor}
+        stroke="#065f46"
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         pathLength="1"
         strokeDasharray={dashArray}
-        className={ringClass}
+        className="animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]"
       />
     </svg>
   );
@@ -115,7 +138,7 @@ function GuestNudge({
   );
 }
 
-/** Desktop: gold CTA matching filter-bar control height, labeled like Filtros. */
+/** Desktop: square gold icon with Guardar label beside it (prior desktop layout). */
 export function SaveSearchButton({
   onSaveClick,
   pulseActive = false,
@@ -129,17 +152,17 @@ export function SaveSearchButton({
   }, [guestNudge]);
 
   return (
-    <fieldset className={`shrink-0 ${className}`}>
-      <legend className="block h-4 text-xs font-semibold uppercase leading-4 tracking-wide text-primary/80">
+    <div className={`flex shrink-0 items-center gap-2 ${className}`}>
+      <span className="flex shrink-0 items-center text-xs font-semibold leading-none text-primary sm:text-sm" aria-hidden>
         Guardar
-      </legend>
-      <div className="relative mt-1">
+      </span>
+      <div className="relative shrink-0">
         {pulseActive ? <PulseRing /> : null}
         <button
           type="button"
           onClick={onSaveClick}
           aria-label="Guardar búsqueda"
-          className={`relative z-20 inline-flex h-[42px] min-w-[5.5rem] items-center justify-center rounded-lg border px-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
+          className={`relative z-20 inline-flex size-[42px] shrink-0 items-center justify-center rounded-lg border font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-ring/50 ${GOLD_MAIN}`}
         >
           <SavedSearchIcon className="size-3.5 shrink-0" />
         </button>
@@ -147,7 +170,7 @@ export function SaveSearchButton({
           <GuestNudge onDismiss={guestNudge.onDismiss} onClick={guestNudge.onClick} />
         ) : null}
       </div>
-    </fieldset>
+    </div>
   );
 }
 
