@@ -12,6 +12,21 @@ type Props = {
   onChange: (next: SearchFilters) => void;
 };
 
+/** Today's date in `America/Mexico_City` as `YYYY-MM-DD` for `<input type="date">`. */
+function isoDateTodayMexicoCity(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  if (y && m && day) return `${y}-${m}-${day}`;
+  return date.toISOString().slice(0, 10);
+}
+
 function TriBool({
   value,
   onChange,
@@ -55,6 +70,7 @@ function TriBool({
 export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const todayIso = isoDateTodayMexicoCity();
 
   function toggleTag(tag: ListingTag) {
     const tags = filters.tags.includes(tag)
@@ -75,6 +91,13 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
   useEffect(() => {
     if (open) panelRef.current?.querySelector<HTMLElement>("button, [href], input, select")?.focus();
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (filters.availableFrom && filters.availableFrom < todayIso) {
+      onChange({ ...filters, availableFrom: null });
+    }
+  }, [open, filters, onChange, todayIso]);
 
   if (!open) return null;
 
@@ -315,13 +338,21 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
             Disponible desde
             <input
               type="date"
-              value={filters.availableFrom ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  availableFrom: e.target.value === "" ? null : e.target.value,
-                })
+              min={todayIso}
+              value={
+                filters.availableFrom && filters.availableFrom >= todayIso
+                  ? filters.availableFrom
+                  : ""
               }
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === "") {
+                  onChange({ ...filters, availableFrom: null });
+                  return;
+                }
+                if (next < todayIso) return;
+                onChange({ ...filters, availableFrom: next });
+              }}
               className="mt-1 w-full max-w-xs rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
             />
           </label>
