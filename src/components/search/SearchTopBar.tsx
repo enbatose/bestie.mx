@@ -34,6 +34,7 @@ type Props = {
 };
 
 const RENT_STEP = 100;
+const RENT_DEFAULT_START = 6000;
 const AGE_MIN = 16;
 const AGE_MAX = 99;
 const AGE_DEFAULT_START = 27;
@@ -41,6 +42,11 @@ const AGE_DEFAULT_START = 27;
 function stepAge(current: number | null, delta: number): number {
   if (current == null) return AGE_DEFAULT_START;
   return Math.min(AGE_MAX, Math.max(AGE_MIN, current + delta));
+}
+
+function stepRent(current: number | null, delta: number): number {
+  if (current == null) return RENT_DEFAULT_START;
+  return Math.max(0, current + delta);
 }
 const LOCATION_ERROR_TOAST_MS = 3_000;
 const MOBILE_FILTER_HEIGHT = "h-14";
@@ -50,7 +56,7 @@ const MOBILE_FILTER_LABEL_CLASS =
 const MOBILE_FILTER_SHELL_CLASS =
   "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
 const MOBILE_FILTER_FIELD_WRAPPER_CLASS = "flex min-w-0 flex-1 items-center";
-const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} min-w-0 flex-1 grid-cols-[2rem_minmax(3rem,1fr)_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
+const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[2rem_minmax(2.5rem,1fr)_2rem_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
 const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2`;
 const MOBILE_FILTER_VALUE_CLASS =
   "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
@@ -614,8 +620,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
   }
 
   function stepBudget(delta: number) {
-    const base = displayedRent ?? 0;
-    const next = Math.max(0, base + delta);
+    const next = stepRent(displayedRent, delta);
     setBudgetMax(next);
     setRentInput(rentFocused ? String(next) : formatRentCompact(next));
   }
@@ -716,69 +721,67 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
                 <div
                   className={
                     mobileEditingField === "rent"
-                      ? "flex min-w-0 flex-1 items-center gap-1"
+                      ? "flex min-w-0 flex-1 items-center"
                       : MOBILE_FILTER_FIELD_WRAPPER_CLASS
                   }
                 >
                   {mobileEditingField === "rent" ? (
-                    <>
-                      <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
+                    <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
+                      <button
+                        type="button"
+                        aria-label="Disminuir renta"
+                        onClick={() => stepBudget(-RENT_STEP)}
+                        className={MOBILE_STEPPER_BTN_CLASS}
+                      >
+                        −
+                      </button>
+                      {rentFocused ? (
+                        <input
+                          inputMode="numeric"
+                          type="text"
+                          autoFocus
+                          value={rentInput}
+                          onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          onBlur={() => {
+                            commitBudget();
+                            setRentFocused(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums text-body outline-none"
+                        />
+                      ) : (
                         <button
                           type="button"
-                          aria-label="Disminuir renta"
-                          onClick={() => stepBudget(-RENT_STEP)}
-                          className={MOBILE_STEPPER_BTN_CLASS}
+                          onClick={() => {
+                            setRentFocused(true);
+                            setRentInput(displayedRent == null ? "" : String(displayedRent));
+                          }}
+                          className={`${MOBILE_FILTER_VALUE_CLASS} h-full w-full px-0.5`}
                         >
-                          −
+                          {rentStepperDisplay}
                         </button>
-                        {rentFocused ? (
-                          <input
-                            inputMode="numeric"
-                            type="text"
-                            autoFocus
-                            value={rentInput}
-                            onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                            onBlur={() => {
-                              commitBudget();
-                              setRentFocused(false);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                (e.target as HTMLInputElement).blur();
-                              }
-                            }}
-                            className="w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums text-body outline-none"
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRentFocused(true);
-                              setRentInput(displayedRent == null ? "" : String(displayedRent));
-                            }}
-                            className={`${MOBILE_FILTER_VALUE_CLASS} h-full w-full px-0.5`}
-                          >
-                            {rentStepperDisplay}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          aria-label="Aumentar renta"
-                          onClick={() => stepBudget(RENT_STEP)}
-                          className={MOBILE_STEPPER_BTN_CLASS}
-                        >
-                          +
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        aria-label="Aumentar renta"
+                        onClick={() => stepBudget(RENT_STEP)}
+                        className={MOBILE_STEPPER_BTN_CLASS}
+                      >
+                        +
+                      </button>
                       <button
                         type="button"
                         aria-label="Aplicar renta máxima"
                         onClick={finishMobileEdit}
-                        className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
+                        className={MOBILE_STEPPER_BTN_CLASS}
                       >
-                        <Check className="size-3.5" aria-hidden="true" strokeWidth={2.5} />
+                        <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
                       </button>
-                    </>
+                    </div>
                   ) : (
                     <div className={MOBILE_FILTER_CONTROL_COLLAPSED_CLASS}>
                       <span className={MOBILE_FILTER_VALUE_CLASS}>{rentCollapsedDisplay}</span>
@@ -856,23 +859,47 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
         </div>
 
         <div className="flex shrink-0 flex-wrap items-end gap-2 lg:gap-3">
-          <label className="block w-[6.5rem] shrink-0 sm:w-[7.5rem] lg:max-w-[9rem] lg:flex-1">
+          <label className="block w-[7.5rem] shrink-0 sm:w-[8rem] lg:max-w-[9.5rem] lg:flex-1">
             <span className={DESKTOP_FILTER_LABEL_CLASS}>Renta</span>
-            <input
-              inputMode="numeric"
-              type="text"
-              value={filters.budgetMax != null ? filters.budgetMax.toLocaleString("es-MX") : ""}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "");
-                onChange({
-                  ...filters,
-                  budgetMin: null,
-                  budgetMax: digits === "" ? null : Number(digits),
-                });
-              }}
-              placeholder="Ej. 8,000"
-              className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2.5 text-sm font-medium tabular-nums text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
-            />
+            <div
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} flex items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2`}
+            >
+              <button
+                type="button"
+                aria-label="Disminuir renta"
+                onClick={() =>
+                  onChange({ ...filters, budgetMin: null, budgetMax: stepRent(filters.budgetMax, -RENT_STEP) })
+                }
+                className="inline-flex w-7 shrink-0 items-center justify-center text-base font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+              >
+                −
+              </button>
+              <input
+                inputMode="numeric"
+                type="text"
+                value={filters.budgetMax != null ? filters.budgetMax.toLocaleString("es-MX") : ""}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  onChange({
+                    ...filters,
+                    budgetMin: null,
+                    budgetMax: digits === "" ? null : Number(digits),
+                  });
+                }}
+                placeholder="Ej. 6,000"
+                className="min-w-0 flex-1 bg-transparent px-1 text-center text-sm font-medium tabular-nums text-body outline-none"
+              />
+              <button
+                type="button"
+                aria-label="Aumentar renta"
+                onClick={() =>
+                  onChange({ ...filters, budgetMin: null, budgetMax: stepRent(filters.budgetMax, RENT_STEP) })
+                }
+                className="inline-flex w-7 shrink-0 items-center justify-center text-base font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+              >
+                +
+              </button>
+            </div>
           </label>
 
           <fieldset className="shrink-0">
@@ -932,7 +959,7 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
                     ageMax: null,
                   });
                 }}
-                placeholder="Ej. 25"
+                placeholder="Ej. 27"
                 className="min-w-0 flex-1 bg-transparent px-1 text-center text-sm font-medium tabular-nums text-body outline-none"
               />
               <button

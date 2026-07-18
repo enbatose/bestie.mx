@@ -24,6 +24,7 @@ type Props = {
 type TabId = "presupuesto" | "propiedad" | "convivencia" | "condiciones";
 
 const BUDGET_STEP = 100;
+const BUDGET_DEFAULT_START = 6000;
 const AGE_MIN = 16;
 const AGE_MAX = 99;
 const AGE_DEFAULT_START = 27;
@@ -31,6 +32,11 @@ const AGE_DEFAULT_START = 27;
 function stepAge(current: number | null, delta: number): number {
   if (current == null) return AGE_DEFAULT_START;
   return Math.min(AGE_MAX, Math.max(AGE_MIN, current + delta));
+}
+
+function stepBudget(current: number | null, delta: number): number {
+  if (current == null) return BUDGET_DEFAULT_START;
+  return Math.max(0, current + delta);
 }
 
 /** Accepts both lucide's forwardRef icons and the app's plain-function tinted-PNG icon components. */
@@ -265,7 +271,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                       onChange({
                         ...filters,
                         budgetMin: null,
-                        budgetMax: Math.max(0, (filters.budgetMax ?? 0) - BUDGET_STEP),
+                        budgetMax: stepBudget(filters.budgetMax, -BUDGET_STEP),
                       })
                     }
                     className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
@@ -285,7 +291,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                         budgetMax: digits === "" ? null : Number(digits),
                       });
                     }}
-                    placeholder="Ej. 8,000"
+                    placeholder="Ej. 6,000"
                     className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
                   />
                   <button
@@ -295,7 +301,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                       onChange({
                         ...filters,
                         budgetMin: null,
-                        budgetMax: (filters.budgetMax ?? 0) + BUDGET_STEP,
+                        budgetMax: stepBudget(filters.budgetMax, BUDGET_STEP),
                       })
                     }
                     className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
@@ -334,7 +340,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                         ageMax: null,
                       });
                     }}
-                    placeholder="Ej. 25"
+                    placeholder="Ej. 27"
                     className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
                   />
                   <button
