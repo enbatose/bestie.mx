@@ -34,6 +34,14 @@ type Props = {
 };
 
 const RENT_STEP = 100;
+const AGE_MIN = 16;
+const AGE_MAX = 99;
+const AGE_DEFAULT_START = 27;
+
+function stepAge(current: number | null, delta: number): number {
+  if (current == null) return AGE_DEFAULT_START;
+  return Math.min(AGE_MAX, Math.max(AGE_MIN, current + delta));
+}
 const LOCATION_ERROR_TOAST_MS = 3_000;
 const MOBILE_FILTER_HEIGHT = "h-14";
 const MOBILE_FILTER_CONTROL_HEIGHT = "h-10";
@@ -850,19 +858,18 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
             <span className={DESKTOP_FILTER_LABEL_CLASS}>Renta</span>
             <input
               inputMode="numeric"
-              type="number"
-              min={0}
-              step={100}
-              value={filters.budgetMax ?? ""}
-              onChange={(e) =>
+              type="text"
+              value={filters.budgetMax != null ? filters.budgetMax.toLocaleString("es-MX") : ""}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "");
                 onChange({
                   ...filters,
                   budgetMin: null,
-                  budgetMax: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="Ej. 8000"
-              className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2.5 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
+                  budgetMax: digits === "" ? null : Number(digits),
+                });
+              }}
+              placeholder="Ej. 8,000"
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2.5 text-sm font-medium tabular-nums text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
             />
           </label>
 
@@ -895,25 +902,48 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
             </div>
           </fieldset>
 
-          <label className="block w-[4.25rem] shrink-0 sm:w-20">
+          <label className="block w-[6rem] shrink-0 sm:w-[6.5rem]">
             <span className={DESKTOP_FILTER_LABEL_CLASS}>Edad</span>
-            <input
-              inputMode="numeric"
-              type="number"
-              min={16}
-              max={99}
-              value={filters.age != null ? filters.age : ""}
-              onChange={(e) =>
-                onChange({
-                  ...filters,
-                  age: e.target.value === "" ? null : Number(e.target.value),
-                  ageMin: null,
-                  ageMax: null,
-                })
-              }
-              placeholder="Ej. 25"
-              className={`${DESKTOP_FILTER_CONTROL_CLASS} w-full rounded-lg border border-primary/20 bg-surface px-2 text-sm font-medium text-body shadow-sm outline-none ring-primary/30 focus:ring-2`}
-            />
+            <div
+              className={`${DESKTOP_FILTER_CONTROL_CLASS} flex items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2`}
+            >
+              <button
+                type="button"
+                aria-label="Disminuir edad"
+                onClick={() =>
+                  onChange({ ...filters, age: stepAge(filters.age, -1), ageMin: null, ageMax: null })
+                }
+                className="inline-flex w-7 shrink-0 items-center justify-center text-base font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+              >
+                −
+              </button>
+              <input
+                inputMode="numeric"
+                type="text"
+                value={filters.age != null ? String(filters.age) : ""}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                  onChange({
+                    ...filters,
+                    age: digits === "" ? null : Number(digits),
+                    ageMin: null,
+                    ageMax: null,
+                  });
+                }}
+                placeholder="Ej. 25"
+                className="min-w-0 flex-1 bg-transparent px-1 text-center text-sm font-medium tabular-nums text-body outline-none"
+              />
+              <button
+                type="button"
+                aria-label="Aumentar edad"
+                onClick={() =>
+                  onChange({ ...filters, age: stepAge(filters.age, 1), ageMin: null, ageMax: null })
+                }
+                className="inline-flex w-7 shrink-0 items-center justify-center text-base font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+              >
+                +
+              </button>
+            </div>
           </label>
         </div>
 
