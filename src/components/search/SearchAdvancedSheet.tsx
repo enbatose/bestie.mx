@@ -27,24 +27,27 @@ function TriBool({
     <div className="flex flex-wrap gap-2">
       {(
         [
-          { v: null as const, label: "Cualquiera" },
           { v: true as const, label: yesLabel },
           { v: false as const, label: noLabel },
         ] as const
-      ).map(({ v, label }) => (
-        <button
-          key={String(v)}
-          type="button"
-          onClick={() => onChange(v)}
-          className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
-            value === v
-              ? "border-secondary bg-surface ring-2 ring-secondary/35"
-              : "border-border bg-surface/90 text-body hover:border-secondary/50"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+      ).map(({ v, label }) => {
+        const active = value === v;
+        return (
+          <button
+            key={String(v)}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(active ? null : v)}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+              active
+                ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                : "border-border bg-surface/90 text-body hover:border-secondary/50"
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -188,12 +191,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
               {(
                 [
                   {
-                    key: "clear" as const,
-                    label: "Cualquiera",
-                    active: !filters.wantHouse && !filters.wantApartment && !filters.wantLoft,
-                    next: { ...filters, wantHouse: false, wantApartment: false, wantLoft: false },
-                  },
-                  {
                     key: "house" as const,
                     label: "Casa",
                     active: filters.wantHouse,
@@ -216,6 +213,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                 <button
                   key={key}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => onChange(next)}
                   className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
                     active
@@ -234,24 +232,29 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
             <div className="mt-2 flex flex-wrap gap-2">
               {(
                 [
-                  { v: null as const, label: "Cualquiera" },
                   { v: "private_room" as const, label: "Privada" },
                   { v: "shared_room" as const, label: "Compartida" },
                 ] as const
-              ).map(({ v, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => onChange({ ...filters, lodgingType: v })}
-                  className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
-                    filters.lodgingType === v
-                      ? "border-secondary bg-surface ring-2 ring-secondary/35"
-                      : "border-border bg-surface/90 text-body hover:border-secondary/50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              ).map(({ v, label }) => {
+                const active = filters.lodgingType === v;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      onChange({ ...filters, lodgingType: active ? null : v })
+                    }
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                      active
+                        ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                        : "border-border bg-surface/90 text-body hover:border-secondary/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -260,24 +263,27 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
             <div className="mt-2 flex flex-wrap gap-2">
               {(
                 [
-                  { v: null as const, label: "Cualquiera" },
                   { v: "female" as const, label: "Sólo chicas" },
                   { v: "male" as const, label: "Sólo chicos" },
                 ] as const
-              ).map(({ v, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => onChange({ ...filters, pref: v })}
-                  className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
-                    filters.pref === v
-                      ? "border-secondary bg-surface ring-2 ring-secondary/35"
-                      : "border-border bg-surface/90 text-body hover:border-secondary/50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              ).map(({ v, label }) => {
+                const active = filters.pref === v;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => onChange({ ...filters, pref: active ? null : v })}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                      active
+                        ? "border-secondary bg-surface ring-2 ring-secondary/35"
+                        : "border-border bg-surface/90 text-body hover:border-secondary/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -351,7 +357,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
               }}
               className="mt-1 w-full max-w-xs rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
             >
-              <option value="">Cualquiera</option>
+              <option value="">Sin filtro</option>
               <option value="small">Pequeño</option>
               <option value="medium">Mediano</option>
               <option value="large">Grande</option>
