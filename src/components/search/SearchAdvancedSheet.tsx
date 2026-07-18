@@ -1,7 +1,19 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
-import { Banknote, Building2, CalendarClock, DoorClosed, Home, House, Users, Warehouse } from "lucide-react";
+import {
+  Banknote,
+  Bed,
+  BedDouble,
+  BedSingle,
+  Building2,
+  CalendarClock,
+  DoorClosed,
+  Home,
+  House,
+  Users,
+  Warehouse,
+} from "lucide-react";
 import { ADVANCED_TAG_FILTERS, ADVANCED_TAG_META } from "@/components/search/searchQuickAttributes";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
 import { HighHeelIcon, MustacheIcon } from "@/components/icons/GenderFilterIcons";
@@ -24,6 +36,7 @@ const BUDGET_DEFAULT_START = 6000;
 const AGE_MIN = 16;
 const AGE_MAX = 99;
 const AGE_DEFAULT_START = 27;
+const STAY_MONTHS_DEFAULT_START = 6;
 
 function stepAge(current: number | null, delta: number): number {
   if (current == null) return AGE_DEFAULT_START;
@@ -34,6 +47,18 @@ function stepBudget(current: number | null, delta: number): number {
   if (current == null) return BUDGET_DEFAULT_START;
   return Math.max(0, current + delta);
 }
+
+function stepStayMonths(current: number | null, delta: number): number {
+  if (current == null) return STAY_MONTHS_DEFAULT_START;
+  return Math.max(0, current + delta);
+}
+
+/** Matches the descriptive room-size guidance shown while creating a room listing. */
+const ROOM_DIMENSION_OPTIONS: readonly { value: RoomDimension; label: string; icon: FilterIcon }[] = [
+  { value: "small", label: "Individual (Cabe cama individual + buró)", icon: BedSingle },
+  { value: "medium", label: "Matrimonial (Cabe cama matrimonial + escritorio)", icon: BedDouble },
+  { value: "large", label: "Grande (Cabe cama Queen/King + área de estar)", icon: Bed },
+];
 
 /** Accepts both lucide's forwardRef icons and the app's plain-function tinted-PNG icon components. */
 type FilterIcon = ComponentType<LucideProps>;
@@ -113,36 +138,49 @@ function IconOption({
   );
 }
 
-function TriBool({
+/**
+ * Connected 3-way segmented control for yes/no/either questions (e.g. aval, subarrendar).
+ * Unlike two floating toggle chips, the always-visible "Cualquiera" segment makes the
+ * unanswered state explicit instead of reading as "nothing selected yet".
+ */
+function TriSegment({
   value,
   onChange,
-  yesLabel,
-  noLabel,
+  yesLabel = "Sí",
+  noLabel = "No",
 }: {
   value: boolean | null;
   onChange: (v: boolean | null) => void;
-  yesLabel: string;
-  noLabel: string;
+  yesLabel?: string;
+  noLabel?: string;
 }) {
+  const options: { v: boolean | null; label: string }[] = [
+    { v: null, label: "Cualquiera" },
+    { v: true, label: yesLabel },
+    { v: false, label: noLabel },
+  ];
   return (
-    <>
-      {(
-        [
-          { v: true as const, label: yesLabel },
-          { v: false as const, label: noLabel },
-        ] as const
-      ).map(({ v, label }) => {
-        const active = value === v;
+    <div
+      role="group"
+      className="flex w-full max-w-xs overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm"
+    >
+      {options.map((opt) => {
+        const active = value === opt.v;
         return (
-          <IconOption
-            key={String(v)}
-            label={label}
-            active={active}
-            onClick={() => onChange(active ? null : v)}
-          />
+          <button
+            key={String(opt.v)}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(opt.v)}
+            className={`flex-1 border-r border-primary/10 px-2 py-2 text-xs font-semibold transition last:border-r-0 sm:text-sm ${
+              active ? "bg-primary text-primary-fg" : "text-body hover:bg-bg-light"
+            }`}
+          >
+            {opt.label}
+          </button>
         );
       })}
-    </>
+    </div>
   );
 }
 
@@ -159,6 +197,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
   const titleId = useId();
   const budgetMaxInputId = useId();
   const ageInputId = useId();
+  const stayMonthsInputId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const todayIso = isoDateTodayMexicoCity();
   const [activeTab, setActiveTab] = useState<TabId>("presupuesto");
@@ -407,7 +446,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
           {activeTab === "convivencia" ? (
             <>
-              <FilterGroup title="Convivencia (anuncio)">
+              <FilterGroup title="Convivencia">
                 <IconOption
                   icon={HighHeelIcon}
                   label="Sólo chicas"
@@ -462,61 +501,91 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                 />
               </label>
 
-              <label className="block text-sm font-medium text-body">
-                Mi estancia mínima (meses)
-                <input
-                  inputMode="numeric"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={filters.minimalStayMonths ?? ""}
-                  onChange={(e) =>
-                    onChange({
-                      ...filters,
-                      minimalStayMonths: e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                  placeholder="Ej. 3"
-                  className="mt-1 w-full max-w-xs rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-                />
-              </label>
+              <div>
+                <label htmlFor={stayMonthsInputId} className="block text-sm font-medium text-body">
+                  Estancia mínima (Meses)
+                </label>
+                <div className="mt-1 flex max-w-xs items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2">
+                  <button
+                    type="button"
+                    aria-label="Disminuir estancia mínima"
+                    onClick={() =>
+                      onChange({
+                        ...filters,
+                        minimalStayMonths: stepStayMonths(filters.minimalStayMonths, -1),
+                      })
+                    }
+                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                  >
+                    −
+                  </button>
+                  <input
+                    id={stayMonthsInputId}
+                    inputMode="numeric"
+                    type="text"
+                    value={filters.minimalStayMonths != null ? String(filters.minimalStayMonths) : ""}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      onChange({
+                        ...filters,
+                        minimalStayMonths: digits === "" ? null : Number(digits),
+                      });
+                    }}
+                    placeholder="Ej. 6"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Aumentar estancia mínima"
+                    onClick={() =>
+                      onChange({
+                        ...filters,
+                        minimalStayMonths: stepStayMonths(filters.minimalStayMonths, 1),
+                      })
+                    }
+                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
-              <label className="block text-sm font-medium text-body">
-                Tamaño del cuarto
-                <select
-                  value={filters.roomDimension ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    const roomDimension: RoomDimension | null =
-                      v === "small" || v === "medium" || v === "large" ? v : null;
-                    onChange({ ...filters, roomDimension });
-                  }}
-                  className="mt-1 w-full max-w-xs rounded-lg border border-primary/20 bg-surface px-3 py-2 text-sm text-body shadow-sm outline-none ring-primary/30 focus:ring-2"
-                >
-                  <option value="">Sin filtro</option>
-                  <option value="small">Pequeño</option>
-                  <option value="medium">Mediano</option>
-                  <option value="large">Grande</option>
-                </select>
-              </label>
-
-              <FilterGroup title="Se requiere aval">
-                <TriBool
-                  value={filters.avalRequired}
-                  onChange={(avalRequired) => onChange({ ...filters, avalRequired })}
-                  yesLabel="Sí"
-                  noLabel="No"
-                />
+              <FilterGroup title="Tamaño del cuarto">
+                {ROOM_DIMENSION_OPTIONS.map((opt) => (
+                  <IconOption
+                    key={opt.value}
+                    icon={opt.icon}
+                    label={opt.label}
+                    active={filters.roomDimension === opt.value}
+                    onClick={() =>
+                      onChange({
+                        ...filters,
+                        roomDimension: filters.roomDimension === opt.value ? null : opt.value,
+                      })
+                    }
+                  />
+                ))}
               </FilterGroup>
 
-              <FilterGroup title="Se permite subarrendar">
-                <TriBool
-                  value={filters.subletAllowed}
-                  onChange={(subletAllowed) => onChange({ ...filters, subletAllowed })}
-                  yesLabel="Sí"
-                  noLabel="No"
-                />
-              </FilterGroup>
+              <div>
+                <p className="text-sm font-medium text-body">Se requiere aval</p>
+                <div className="mt-2">
+                  <TriSegment
+                    value={filters.avalRequired}
+                    onChange={(avalRequired) => onChange({ ...filters, avalRequired })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-body">Se permite subarrendar</p>
+                <div className="mt-2">
+                  <TriSegment
+                    value={filters.subletAllowed}
+                    onChange={(subletAllowed) => onChange({ ...filters, subletAllowed })}
+                  />
+                </div>
+              </div>
             </>
           ) : null}
         </div>
