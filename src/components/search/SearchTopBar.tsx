@@ -50,7 +50,7 @@ const MOBILE_FILTER_LABEL_CLASS =
 const MOBILE_FILTER_SHELL_CLASS =
   "flex min-w-0 items-center gap-2 rounded-[1.2rem] bg-surface px-2 shadow-sm ring-1 ring-primary/10";
 const MOBILE_FILTER_FIELD_WRAPPER_CLASS = "flex min-w-0 flex-1 items-center";
-const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 grid-cols-[2rem_minmax(3rem,1fr)_2rem_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
+const MOBILE_FILTER_CONTROL_EXPANDED_CLASS = `grid ${MOBILE_FILTER_CONTROL_HEIGHT} min-w-0 flex-1 grid-cols-[2rem_minmax(3rem,1fr)_2rem] items-center overflow-hidden rounded-[1rem] border border-primary/15 bg-bg-light/55`;
 const MOBILE_FILTER_CONTROL_COLLAPSED_CLASS = `flex ${MOBILE_FILTER_CONTROL_HEIGHT} w-full min-w-0 items-center justify-between gap-1 rounded-[1rem] border border-primary/15 bg-bg-light/55 px-2`;
 const MOBILE_FILTER_VALUE_CLASS =
   "min-w-[2.75rem] flex-1 whitespace-nowrap text-center text-[0.95rem] font-semibold leading-none tabular-nums text-body";
@@ -716,67 +716,69 @@ export const SearchTopBar = forwardRef<SearchTopBarHandle, Props>(function Searc
                 <div
                   className={
                     mobileEditingField === "rent"
-                      ? "flex min-w-0 flex-1 items-center"
+                      ? "flex min-w-0 flex-1 items-center gap-1"
                       : MOBILE_FILTER_FIELD_WRAPPER_CLASS
                   }
                 >
                   {mobileEditingField === "rent" ? (
-                    <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
-                      <button
-                        type="button"
-                        aria-label="Disminuir renta"
-                        onClick={() => stepBudget(-RENT_STEP)}
-                        className={MOBILE_STEPPER_BTN_CLASS}
-                      >
-                        −
-                      </button>
-                      {rentFocused ? (
-                        <input
-                          inputMode="numeric"
-                          type="text"
-                          autoFocus
-                          value={rentInput}
-                          onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                          onBlur={() => {
-                            commitBudget();
-                            setRentFocused(false);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              (e.target as HTMLInputElement).blur();
-                            }
-                          }}
-                          className="w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums text-body outline-none"
-                        />
-                      ) : (
+                    <>
+                      <div className={MOBILE_FILTER_CONTROL_EXPANDED_CLASS}>
                         <button
                           type="button"
-                          onClick={() => {
-                            setRentFocused(true);
-                            setRentInput(displayedRent == null ? "" : String(displayedRent));
-                          }}
-                          className={`${MOBILE_FILTER_VALUE_CLASS} h-full w-full px-0.5`}
+                          aria-label="Disminuir renta"
+                          onClick={() => stepBudget(-RENT_STEP)}
+                          className={MOBILE_STEPPER_BTN_CLASS}
                         >
-                          {rentStepperDisplay}
+                          −
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        aria-label="Aumentar renta"
-                        onClick={() => stepBudget(RENT_STEP)}
-                        className={MOBILE_STEPPER_BTN_CLASS}
-                      >
-                        +
-                      </button>
+                        {rentFocused ? (
+                          <input
+                            inputMode="numeric"
+                            type="text"
+                            autoFocus
+                            value={rentInput}
+                            onChange={(e) => setRentInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            onBlur={() => {
+                              commitBudget();
+                              setRentFocused(false);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                (e.target as HTMLInputElement).blur();
+                              }
+                            }}
+                            className="w-full min-w-0 bg-transparent px-0.5 text-center text-[0.92rem] font-semibold tabular-nums text-body outline-none"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRentFocused(true);
+                              setRentInput(displayedRent == null ? "" : String(displayedRent));
+                            }}
+                            className={`${MOBILE_FILTER_VALUE_CLASS} h-full w-full px-0.5`}
+                          >
+                            {rentStepperDisplay}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label="Aumentar renta"
+                          onClick={() => stepBudget(RENT_STEP)}
+                          className={MOBILE_STEPPER_BTN_CLASS}
+                        >
+                          +
+                        </button>
+                      </div>
                       <button
                         type="button"
                         aria-label="Aplicar renta máxima"
                         onClick={finishMobileEdit}
-                        className={`${MOBILE_STEPPER_BTN_CLASS} border-l border-primary/15`}
+                        className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-primary transition active:bg-surface-elevated"
                       >
-                        <Check className="size-4" aria-hidden="true" strokeWidth={2.5} />
+                        <Check className="size-3.5" aria-hidden="true" strokeWidth={2.5} />
                       </button>
-                    </div>
+                    </>
                   ) : (
                     <div className={MOBILE_FILTER_CONTROL_COLLAPSED_CLASS}>
                       <span className={MOBILE_FILTER_VALUE_CLASS}>{rentCollapsedDisplay}</span>
