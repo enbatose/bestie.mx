@@ -25,7 +25,8 @@ export function ContactPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [sending, setSending] = useState(false);
-  const [resumedNotice, setResumedNotice] = useState(false);
+  /** Hide the draft form while finishing auth→send→chat redirect. */
+  const [postLoginSend, setPostLoginSend] = useState(false);
   const autoSendRef = useRef(false);
 
   const subjectRef = useRef(subject);
@@ -67,12 +68,19 @@ export function ContactPage() {
     const pending = consumeContactPendingDraft();
     const resume = searchParams.get("resume") === "1";
     if (pending) {
+      subjectRef.current = pending.subject;
+      messageRef.current = pending.message;
+      uploadedRef.current = pending.attachments;
+      filesRef.current = [];
       setSubject(pending.subject);
       setMessage(pending.message);
       setUploadedAttachments(pending.attachments);
       setFiles([]);
-      setResumedNotice(true);
-      if (resume) autoSendRef.current = true;
+      if (resume) {
+        autoSendRef.current = true;
+        setPostLoginSend(true);
+        setSending(true);
+      }
     }
     if (resume) {
       const next = new URLSearchParams(searchParams);
@@ -87,16 +95,20 @@ export function ContactPage() {
     if (!autoSendRef.current || me === undefined) return;
     if (!me) {
       autoSendRef.current = false;
+      setPostLoginSend(false);
+      setSending(false);
       setShowAuth(true);
       return;
     }
-    if (!subject.trim() || !message.trim()) {
+    if (!subjectRef.current.trim() || !messageRef.current.trim()) {
       autoSendRef.current = false;
+      setPostLoginSend(false);
+      setSending(false);
       return;
     }
     autoSendRef.current = false;
     void submitContact();
-  }, [me, subject, message, submitContact]);
+  }, [me, submitContact]);
 
   const handleSendClick = () => {
     setFormError(null);
@@ -117,6 +129,32 @@ export function ContactPage() {
     void submitContact();
   };
 
+  if (postLoginSend) {
+    return (
+      <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center sm:px-6">
+        <p className="text-lg font-semibold text-primary">Enviando tu mensaje…</p>
+        <p className="mt-2 text-sm text-muted">Te llevamos al chat en un momento.</p>
+        {sendError ? (
+          <div className="mt-6 w-full">
+            <p className="rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error" role="alert">
+              {sendError}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setPostLoginSend(false);
+                setSendError(null);
+              }}
+              className="mt-4 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-body hover:bg-surface-elevated"
+            >
+              Volver al formulario
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold text-primary">Contacto</h1>
@@ -131,16 +169,6 @@ export function ContactPage() {
           respuesta personalizada: seguimos la conversación dentro de tu chat de Mensajes en Bestie. Las
           respuestas pueden tardar hasta 48 horas.
         </p>
-
-        {resumedNotice ? (
-          <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-xs text-body">
-            Recuperamos tu asunto, mensaje
-            {uploadedAttachments.length > 0
-              ? ` y ${uploadedAttachments.length} imagen${uploadedAttachments.length > 1 ? "es" : ""}`
-              : ""}
-            .
-          </p>
-        ) : null}
 
         <div className="mt-4 space-y-3">
           <label className="block text-sm font-medium text-body">
@@ -230,6 +258,7 @@ export function ContactPage() {
           onAuthenticated={(nextMe) => {
             setMe(nextMe);
             setShowAuth(false);
+            setPostLoginSend(true);
             void submitContact();
           }}
         />
