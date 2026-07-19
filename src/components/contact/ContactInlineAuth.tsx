@@ -21,6 +21,7 @@ export function ContactInlineAuth({
   message,
   files,
   uploadedAttachments,
+  oauthReturnTo = CONTACT_OAUTH_RETURN_TO,
   onClose,
   onAuthenticated,
 }: {
@@ -28,6 +29,8 @@ export function ContactInlineAuth({
   message: string;
   files: File[];
   uploadedAttachments: MessageAttachment[];
+  /** Where Google OAuth should land to resume the draft (defaults to Contacto). */
+  oauthReturnTo?: string;
   onClose: () => void;
   onAuthenticated: (me: AuthMe) => void;
 }) {
@@ -200,7 +203,7 @@ export function ContactInlineAuth({
 
           <div className={`mt-3 ${oauthBusy ? "pointer-events-none opacity-60" : ""}`}>
             <SocialSignInButtons
-              returnTo={CONTACT_OAUTH_RETURN_TO}
+              returnTo={oauthReturnTo}
               onBeforeNavigate={prepareOauthDraft}
             />
           </div>

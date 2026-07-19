@@ -1,159 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ContactInlineAuth } from "@/components/contact/ContactInlineAuth";
-import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
-import { authMe, type AuthMe } from "@/lib/authApi";
-import { consumeContactPendingDraft } from "@/lib/contactSupportSession";
-import {
-  startSupportConversation,
-  uploadMessageAttachment,
-  type MessageAttachment,
-} from "@/lib/messagesApi";
-
-const SUBJECT_MAX_LEN = 200;
+import { ContactSupportForm } from "@/components/contact/ContactSupportForm";
 
 export function ContactPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [uploadedAttachments, setUploadedAttachments] = useState<MessageAttachment[]>([]);
-  const [attachError, setAttachError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [showAuth, setShowAuth] = useState(false);
-  const [sending, setSending] = useState(false);
-  /** Hide the draft form while finishing auth→send→chat redirect. */
-  const [postLoginSend, setPostLoginSend] = useState(false);
-  const autoSendRef = useRef(false);
-
-  const subjectRef = useRef(subject);
-  const messageRef = useRef(message);
-  const filesRef = useRef(files);
-  const uploadedRef = useRef(uploadedAttachments);
-  subjectRef.current = subject;
-  messageRef.current = message;
-  filesRef.current = files;
-  uploadedRef.current = uploadedAttachments;
-
-  const submitContact = useCallback(async () => {
-    setSending(true);
-    setSendError(null);
-    try {
-      const uploaded: MessageAttachment[] = [...uploadedRef.current];
-      for (const file of filesRef.current) {
-        uploaded.push(await uploadMessageAttachment(file));
-      }
-      const { conversationId } = await startSupportConversation({
-        subject: subjectRef.current.trim(),
-        body: messageRef.current.trim(),
-        attachments: uploaded,
-      });
-      navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
-    } catch (x) {
-      setSendError(x instanceof Error ? x.message : "No se pudo enviar tu mensaje. Intenta de nuevo.");
-      setSending(false);
-    }
-  }, [navigate]);
+  const [shouldResume] = useState(() => searchParams.get("resume") === "1");
 
   useEffect(() => {
-    void authMe()
-      .then(setMe)
-      .catch(() => setMe(null));
-  }, []);
-
-  useEffect(() => {
-    const pending = consumeContactPendingDraft();
-    const resume = searchParams.get("resume") === "1";
-    if (pending) {
-      subjectRef.current = pending.subject;
-      messageRef.current = pending.message;
-      uploadedRef.current = pending.attachments;
-      filesRef.current = [];
-      setSubject(pending.subject);
-      setMessage(pending.message);
-      setUploadedAttachments(pending.attachments);
-      setFiles([]);
-      if (resume) {
-        autoSendRef.current = true;
-        setPostLoginSend(true);
-        setSending(true);
-      }
-    }
-    if (resume) {
-      const next = new URLSearchParams(searchParams);
-      next.delete("resume");
-      setSearchParams(next, { replace: true });
-    }
-    // Restore OAuth draft once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only
-  }, []);
-
-  useEffect(() => {
-    if (!autoSendRef.current || me === undefined) return;
-    if (!me) {
-      autoSendRef.current = false;
-      setPostLoginSend(false);
-      setSending(false);
-      setShowAuth(true);
-      return;
-    }
-    if (!subjectRef.current.trim() || !messageRef.current.trim()) {
-      autoSendRef.current = false;
-      setPostLoginSend(false);
-      setSending(false);
-      return;
-    }
-    autoSendRef.current = false;
-    void submitContact();
-  }, [me, submitContact]);
-
-  const handleSendClick = () => {
-    setFormError(null);
-    setSendError(null);
-    if (!subject.trim()) {
-      setFormError("Escribe un asunto para tu mensaje.");
-      return;
-    }
-    if (!message.trim()) {
-      setFormError("Escribe tu mensaje.");
-      return;
-    }
-    if (me === undefined) return;
-    if (!me) {
-      setShowAuth(true);
-      return;
-    }
-    void submitContact();
-  };
-
-  if (postLoginSend) {
-    return (
-      <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center sm:px-6">
-        <p className="text-lg font-semibold text-primary">Enviando tu mensaje…</p>
-        <p className="mt-2 text-sm text-muted">Te llevamos al chat en un momento.</p>
-        {sendError ? (
-          <div className="mt-6 w-full">
-            <p className="rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error" role="alert">
-              {sendError}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setPostLoginSend(false);
-                setSendError(null);
-              }}
-              className="mt-4 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-body hover:bg-surface-elevated"
-            >
-              Volver al formulario
-            </button>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
+    if (!shouldResume) return;
+    if (searchParams.get("resume") !== "1") return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("resume");
+    setSearchParams(next, { replace: true });
+  }, [shouldResume, searchParams, setSearchParams]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -170,61 +30,14 @@ export function ContactPage() {
           respuestas pueden tardar hasta 48 horas.
         </p>
 
-        <div className="mt-4 space-y-3">
-          <label className="block text-sm font-medium text-body">
-            Asunto
-            <input
-              type="text"
-              value={subject}
-              maxLength={SUBJECT_MAX_LEN}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Por ejemplo: Sugerencia para el buscador"
-              disabled={sending}
-              className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:opacity-60"
-            />
-          </label>
-          <label className="block text-sm font-medium text-body">
-            Mensaje
-            <textarea
-              rows={4}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Cuéntanos con detalle qué necesitas…"
-              disabled={sending}
-              className="mt-1 w-full resize-y rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 disabled:opacity-60"
-            />
-          </label>
-
-          <AttachmentPicker
-            files={files}
-            onFilesChange={setFiles}
-            uploadedAttachments={uploadedAttachments}
-            onUploadedAttachmentsChange={setUploadedAttachments}
-            disabled={sending}
-            onError={setAttachError}
-          />
-          {attachError ? <p className="text-xs text-error">{attachError}</p> : null}
-
-          {formError ? (
-            <p className="text-sm text-error" role="alert">
-              {formError}
-            </p>
-          ) : null}
-          {sendError ? (
-            <p className="text-sm text-error" role="alert">
-              {sendError}
-            </p>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={handleSendClick}
-            disabled={sending}
-            className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50 sm:w-auto sm:px-6"
-          >
-            {sending ? "Enviando…" : "Enviar mensaje"}
-          </button>
-        </div>
+        <ContactSupportForm
+          className="mt-4"
+          oauthReturnTo="/contacto?resume=1"
+          autoResume={shouldResume}
+          onSuccess={(conversationId) => {
+            navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+          }}
+        />
       </div>
 
       <div className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -247,22 +60,6 @@ export function ContactPage() {
           Volver a buscar
         </Link>
       </p>
-
-      {showAuth && !me ? (
-        <ContactInlineAuth
-          subject={subject}
-          message={message}
-          files={files}
-          uploadedAttachments={uploadedAttachments}
-          onClose={() => setShowAuth(false)}
-          onAuthenticated={(nextMe) => {
-            setMe(nextMe);
-            setShowAuth(false);
-            setPostLoginSend(true);
-            void submitContact();
-          }}
-        />
-      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { List, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { MapSupportFab } from "@/components/search/MapSupportFab";
 import { MOBILE_LIST_DRAWER_LEFT_CLASS } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import type { SearchReturnContext } from "@/lib/searchReturn";
@@ -14,6 +15,7 @@ type Props = {
   countLabel: ReactNode;
   autoExpandKey?: string;
   onDrawerOpen?: () => void;
+  onOpenSupport?: () => void;
 };
 
 const LIST_TAB_WIDTH = "2.5rem";
@@ -27,6 +29,7 @@ export function SearchMobileResultsPanel({
   countLabel,
   autoExpandKey,
   onDrawerOpen,
+  onOpenSupport,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const restoreAfterLegendCollapseRef = useRef(false);
@@ -102,15 +105,18 @@ export function SearchMobileResultsPanel({
           width: expanded ? undefined : LIST_TAB_WIDTH,
         }}
       >
-        <button
-          type="button"
-          onClick={toggleDrawer}
-          aria-label={expanded ? "Ocultar listado" : "Mostrar listado"}
-          aria-expanded={expanded}
-          className="pointer-events-auto relative z-10 inline-flex h-11 w-10 shrink-0 items-center justify-center self-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-        >
-          <List className="size-4" aria-hidden="true" />
-        </button>
+        <div className="pointer-events-none relative z-10 flex shrink-0 flex-col items-center gap-2 self-center">
+          <button
+            type="button"
+            onClick={toggleDrawer}
+            aria-label={expanded ? "Ocultar listado" : "Mostrar listado"}
+            aria-expanded={expanded}
+            className="pointer-events-auto inline-flex h-11 w-10 items-center justify-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          >
+            <List className="size-4" aria-hidden="true" />
+          </button>
+          {!expanded && onOpenSupport ? <MapSupportFab onClick={onOpenSupport} /> : null}
+        </div>
 
         {expanded ? (
           <div className="pointer-events-auto flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-surface/97 shadow-[-12px_0_32px_rgba(0,0,0,0.12)] backdrop-blur-md">

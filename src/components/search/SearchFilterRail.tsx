@@ -1,5 +1,6 @@
 import { Filter } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { MapSupportFab } from "@/components/search/MapSupportFab";
 import {
   ADVANCED_FILTERS_META,
   MOBILE_MAP_QUICK_FILTERS,
@@ -11,6 +12,7 @@ type Props = {
   onChange: (next: SearchFilters) => void;
   onOpenAdvanced: () => void;
   onLabelsExpandedChange?: (expanded: boolean) => void;
+  onOpenSupport?: () => void;
 };
 
 export type SearchFilterRailHandle = {
@@ -65,7 +67,7 @@ function legendLabelClass(expanded: boolean, active?: boolean) {
 }
 
 export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(function SearchFilterRail(
-  { filters, onChange, onOpenAdvanced, onLabelsExpandedChange },
+  { filters, onChange, onOpenAdvanced, onLabelsExpandedChange, onOpenSupport },
   ref,
 ) {
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
@@ -130,89 +132,97 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
       className="pointer-events-none absolute left-2 top-1/2 z-[1100] -translate-y-1/2 sm:left-3"
       aria-label="Filtros rápidos"
     >
-      <div className="pointer-events-none flex items-start gap-0.5">
-        <div className="pointer-events-auto flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
-          {MOBILE_MAP_QUICK_FILTERS.map((filterMeta) => {
-            const active = filterMeta.isActive(filters);
-            const Icon = filterMeta.icon;
-            const mobileLabel = filterMeta.mobileLabel ?? filterMeta.label;
-            return (
-              <div key={filterMeta.id} className="flex items-center">
+      <div className="pointer-events-none flex flex-col items-start gap-2">
+        <div className="pointer-events-none flex items-start gap-0.5">
+          <div className="pointer-events-auto flex flex-col gap-2 rounded-[2rem] bg-surface/76 p-2 shadow-lg ring-1 ring-border/80 backdrop-blur-md">
+            {MOBILE_MAP_QUICK_FILTERS.map((filterMeta) => {
+              const active = filterMeta.isActive(filters);
+              const Icon = filterMeta.icon;
+              const mobileLabel = filterMeta.mobileLabel ?? filterMeta.label;
+              return (
+                <div key={filterMeta.id} className="flex items-center">
+                  <button
+                    type="button"
+                    title={filterMeta.tooltip}
+                    aria-label={filterMeta.tooltip}
+                    aria-pressed={active}
+                    onClick={() => onChange(filterMeta.toggle(filters))}
+                    className={railBtnClass(active)}
+                  >
+                    <Icon className={quickFilterIconClass(filterMeta.id)} aria-hidden="true" />
+                  </button>
+                  <span className={legendLabelClass(labelsExpanded, active)}>{mobileLabel}</span>
+                </div>
+              );
+            })}
+
+            <div>
+              <div className="flex items-center">
                 <button
                   type="button"
-                  title={filterMeta.tooltip}
-                  aria-label={filterMeta.tooltip}
-                  aria-pressed={active}
-                  onClick={() => onChange(filterMeta.toggle(filters))}
-                  className={railBtnClass(active)}
+                  title={ADVANCED_FILTERS_META.tooltip}
+                  aria-label={ADVANCED_FILTERS_META.tooltip}
+                  onClick={onOpenAdvanced}
+                  className="pointer-events-auto inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-primary bg-surface/95 text-body shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 hover:bg-surface sm:size-10"
                 >
-                  <Icon className={quickFilterIconClass(filterMeta.id)} aria-hidden="true" />
+                  <Filter className="size-[0.95rem]" aria-hidden="true" />
                 </button>
-                <span className={legendLabelClass(labelsExpanded, active)}>{mobileLabel}</span>
+                <span className={legendLabelClass(labelsExpanded)}>Más Filtros</span>
               </div>
-            );
-          })}
-
-          <div>
-            <div className="flex items-center">
-              <button
-                type="button"
-                title={ADVANCED_FILTERS_META.tooltip}
-                aria-label={ADVANCED_FILTERS_META.tooltip}
-                onClick={onOpenAdvanced}
-                className="pointer-events-auto inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-primary bg-surface/95 text-body shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 hover:bg-surface sm:size-10"
-              >
-                <Filter className="size-[0.95rem]" aria-hidden="true" />
-              </button>
-              <span className={legendLabelClass(labelsExpanded)}>Más Filtros</span>
             </div>
           </div>
-        </div>
-        <div className="pointer-events-none relative mt-3">
-          {showCollapseHint ? (
-            <svg className="pointer-events-none absolute -inset-1 z-10" viewBox="0 0 44 52" aria-hidden>
-              <rect
-                x="1.5"
-                y="1.5"
-                width="41"
-                height="49"
-                rx="14"
-                ry="14"
-                fill="none"
-                stroke="#065f46"
-                strokeWidth="3.25"
-                pathLength="1"
-                strokeDasharray="0.22 0.78"
-                className="animate-[autosave-ring-travel_1.8s_linear_forwards] drop-shadow-[0_0_8px_rgba(6,95,70,0.55)]"
-              />
-            </svg>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              railInteractedRef.current = true;
-              if (railHintTimerRef.current != null) window.clearTimeout(railHintTimerRef.current);
-              if (railCollapseTimerRef.current != null) window.clearTimeout(railCollapseTimerRef.current);
-              setShowCollapseHint(false);
-              setLabelsExpanded((current) => !current);
-            }}
-            aria-label={labelsExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
-            aria-expanded={labelsExpanded}
-            className="pointer-events-auto relative z-20 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              className={`transition-transform duration-200 ${labelsExpanded ? "" : "rotate-180"}`}
-              aria-hidden
+          <div className="pointer-events-none relative mt-3">
+            {showCollapseHint ? (
+              <svg className="pointer-events-none absolute -inset-1 z-10" viewBox="0 0 44 52" aria-hidden>
+                <rect
+                  x="1.5"
+                  y="1.5"
+                  width="41"
+                  height="49"
+                  rx="14"
+                  ry="14"
+                  fill="none"
+                  stroke="#065f46"
+                  strokeWidth="3.25"
+                  pathLength="1"
+                  strokeDasharray="0.22 0.78"
+                  className="animate-[autosave-ring-travel_1.8s_linear_forwards] drop-shadow-[0_0_8px_rgba(6,95,70,0.55)]"
+                />
+              </svg>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                railInteractedRef.current = true;
+                if (railHintTimerRef.current != null) window.clearTimeout(railHintTimerRef.current);
+                if (railCollapseTimerRef.current != null) window.clearTimeout(railCollapseTimerRef.current);
+                setShowCollapseHint(false);
+                setLabelsExpanded((current) => !current);
+              }}
+              aria-label={labelsExpanded ? "Colapsar etiquetas de filtros" : "Expandir etiquetas de filtros"}
+              aria-expanded={labelsExpanded}
+              className="pointer-events-auto relative z-20 inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-r-2xl rounded-l-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
             >
-              <path strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" d="m14 6-6 6 6 6" />
-            </svg>
-          </button>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className={`transition-transform duration-200 ${labelsExpanded ? "" : "rotate-180"}`}
+                aria-hidden
+              >
+                <path strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" d="m14 6-6 6 6 6" />
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {onOpenSupport ? (
+          <div className="pointer-events-none hidden w-[calc(2.25rem+1rem)] justify-center sm:w-[calc(2.5rem+1rem)] lg:flex">
+            <MapSupportFab onClick={onOpenSupport} />
+          </div>
+        ) : null}
       </div>
     </aside>
   );

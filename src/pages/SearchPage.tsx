@@ -7,6 +7,7 @@ import { SaveSearchModal } from "@/components/search/SaveSearchModal";
 import { SearchAdvancedSheet } from "@/components/search/SearchAdvancedSheet";
 import { SearchFilterRail, getFilterRailDefaultExpanded, type SearchFilterRailHandle } from "@/components/search/SearchFilterRail";
 import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
+import { MapSupportModal } from "@/components/search/MapSupportModal";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar, type SearchTopBarHandle } from "@/components/search/SearchTopBar";
 import { SEED_LISTINGS } from "@/data/seedListings";
@@ -52,6 +53,7 @@ import {
 import type { PropertyListing } from "@/types/listing";
 
 const AUTO_SAVE_DEBOUNCE_MS = 5000;
+const SUPPORT_RESUME_PARAM = "supportResume";
 
 function hasLocationCoords(params: URLSearchParams) {
   return params.has("lat") && params.has("lng") && params.has("z");
@@ -188,6 +190,8 @@ export function SearchPage() {
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [filterRailLabelsExpanded, setFilterRailLabelsExpanded] = useState(getFilterRailDefaultExpanded);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportAutoResume] = useState(() => searchParams.get(SUPPORT_RESUME_PARAM) === "1");
   const { openLogin } = useAuthModal();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -209,6 +213,22 @@ export function SearchPage() {
     window.addEventListener("bestie:me-changed", load);
     return () => window.removeEventListener("bestie:me-changed", load);
   }, []);
+
+  useEffect(() => {
+    if (!supportAutoResume) return;
+    setSupportOpen(true);
+    if (searchParams.get(SUPPORT_RESUME_PARAM) !== "1") return;
+    const next = new URLSearchParams(searchParams);
+    next.delete(SUPPORT_RESUME_PARAM);
+    setSearchParams(next, { replace: true });
+  }, [supportAutoResume, searchParams, setSearchParams]);
+
+  const supportOauthReturnTo = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    params.set(SUPPORT_RESUME_PARAM, "1");
+    const qs = params.toString();
+    return `${location.pathname}${qs ? `?${qs}` : ""}`;
+  }, [location.pathname, location.search]);
 
   const saveSearchPayload = useMemo(
     () => ({
@@ -684,6 +704,7 @@ export function SearchPage() {
               onChange={applyFilters}
               onOpenAdvanced={() => setAdvancedOpen(true)}
               onLabelsExpandedChange={setFilterRailLabelsExpanded}
+              onOpenSupport={() => setSupportOpen(true)}
             />
             <SearchMobileResultsPanel
               listings={mobileDrawerListings}
@@ -694,6 +715,7 @@ export function SearchPage() {
               countLabel={mobileResultsCountLabel}
               autoExpandKey={farNeighborhoodAutoOpenKey}
               onDrawerOpen={handleMobileDrawerOpen}
+              onOpenSupport={() => setSupportOpen(true)}
             />
           </div>
         </section>
@@ -814,6 +836,13 @@ export function SearchPage() {
           </div>
         </div>
       ) : null}
+
+      <MapSupportModal
+        open={supportOpen}
+        onClose={() => setSupportOpen(false)}
+        oauthReturnTo={supportOauthReturnTo}
+        autoResume={supportAutoResume}
+      />
     </div>
   );
 }
