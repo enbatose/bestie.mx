@@ -109,6 +109,14 @@ function primaryNavClass({ isActive }: { isActive: boolean }) {
 const mobileHeaderActionClass =
   "relative inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
+/** Gap between header icon actions scales with viewport; desktop keeps stepped spacing. */
+const headerIconActionsGapClass =
+  "gap-[clamp(0px,1.8vw,0.5rem)] md:gap-1.5 lg:gap-2";
+
+/** Same fluid gap on mobile; stay compact between messages/bell on desktop. */
+const loggedInIconActionsGapClass =
+  "gap-[clamp(0px,1.8vw,0.5rem)] md:gap-0.5";
+
 function UnreadDot({ className = "" }: { className?: string }) {
   return (
     <span
@@ -140,7 +148,7 @@ function LoggedInIconActions({
   onDismiss: () => void;
 }) {
   return (
-    <div className="flex items-center gap-0 md:gap-0.5">
+    <div className={`flex items-center ${loggedInIconActionsGapClass}`}>
       <NavLink
         to="/mensajes"
         className={`${mobileHeaderActionClass} w-9 md:w-auto md:p-2`}
@@ -532,7 +540,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
   return (
     <>
-      <div className="flex items-center justify-end gap-0 md:gap-1.5 lg:gap-2">
+      <div className={`flex items-center justify-end ${headerIconActionsGapClass}`}>
         <NavLink
           to="/buscar"
           className={(props) => `${primaryNavClass(props)} hidden md:inline-flex`}
