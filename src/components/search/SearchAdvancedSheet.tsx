@@ -19,6 +19,7 @@ import {
 import { ADVANCED_TAG_FILTERS, ADVANCED_TAG_META } from "@/components/search/searchQuickAttributes";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
 import { HighHeelIcon, MustacheIcon } from "@/components/icons/GenderFilterIcons";
+import { isoDateTodayMexicoCity } from "@/lib/dateUtils";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { RoomDimension } from "@/types/listing";
 import type { ListingTag } from "@/types/listing";
@@ -96,21 +97,6 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
     default:
       return false;
   }
-}
-
-/** Today's date in `America/Mexico_City` as `YYYY-MM-DD` for `<input type="date">`. */
-function isoDateTodayMexicoCity(date: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Mexico_City",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const y = parts.find((p) => p.type === "year")?.value;
-  const m = parts.find((p) => p.type === "month")?.value;
-  const day = parts.find((p) => p.type === "day")?.value;
-  if (y && m && day) return `${y}-${m}-${day}`;
-  return date.toISOString().slice(0, 10);
 }
 
 /** Toggle chip with an icon so the option is self-explanatory without extra helper copy. */

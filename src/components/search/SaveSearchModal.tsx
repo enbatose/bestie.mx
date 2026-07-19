@@ -1,10 +1,10 @@
-import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Pencil, SlidersHorizontal, X } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
-import { ActiveSearchFilterChips } from "@/components/search/ActiveSearchFilterChips";
-import { HorizontalBarFilterSummary } from "@/components/search/HorizontalBarFilterSummary";
+import { SavedSearchFiltersPicker } from "@/components/search/SavedSearchFiltersPicker";
 import { authUpdateMe, type AuthMe } from "@/lib/authApi";
 import { formatSavedSearchTimestamp } from "@/lib/savedSearchDraftLabel";
+import { editableActiveFilterChips } from "@/lib/savedSearchFilterEditor";
 import {
   enableSavedSearchNotify,
   fetchSavedSearches,
@@ -24,6 +24,7 @@ type Props = {
   me: AuthMe;
   payload: Omit<SaveSavedSearchPayload, "label" | "enableEmailNotify">;
   filters: SearchFilters;
+  onFiltersChange: (next: SearchFilters) => void;
   searchLocation: SearchLocationState;
   draft: SavedSearchDto | null;
   onDraftChange?: (draft: SavedSearchDto | null) => void;
@@ -37,13 +38,17 @@ export function SaveSearchModal({
   me,
   payload,
   filters,
+  onFiltersChange,
   searchLocation,
   draft: draftProp,
   onDraftChange,
   onMeUpdated,
   onSaved,
 }: Props) {
+  const nameInputId = useId();
   const [label, setLabel] = useState("");
+  const [nameEditing, setNameEditing] = useState(false);
+  const [filtersPickerOpen, setFiltersPickerOpen] = useState(false);
   const [emailNotifyOn, setEmailNotifyOn] = useState(false);
   const [email, setEmail] = useState(me.email ?? "");
   const [busy, setBusy] = useState(false);
@@ -61,6 +66,8 @@ export function SaveSearchModal({
     setEmailNotifyOn(false);
     setEmail(me.email ?? "");
     setReplaceNotifyLabel(null);
+    setNameEditing(false);
+    setFiltersPickerOpen(false);
 
     const loadDraft = async () => {
       if (draftProp) {
@@ -80,6 +87,11 @@ export function SaveSearchModal({
 
     void loadDraft();
   }, [open, draftProp, me.email, onDraftChange]);
+
+  const activeFilterChips = useMemo(
+    () => editableActiveFilterChips(filters, searchLocation),
+    [filters, searchLocation],
+  );
 
   if (!open) return null;
 
@@ -162,6 +174,13 @@ export function SaveSearchModal({
         onConfirm={onConfirmReplaceNotify}
         onCancel={() => setReplaceNotifyLabel(null)}
       />
+      <SavedSearchFiltersPicker
+        open={filtersPickerOpen}
+        onClose={() => setFiltersPickerOpen(false)}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        searchLocation={searchLocation}
+      />
       <div
       className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/45 p-4 sm:items-center"
       role="dialog"
@@ -189,45 +208,73 @@ export function SaveSearchModal({
             <X className="size-4" aria-hidden strokeWidth={2.5} />
           </button>
         </div>
-        <p className="mt-1 text-sm text-muted">
-          Confirma el nombre de tu búsqueda auto-guardada. Puedes editarlo antes de guardarla en Mis
-          Búsquedas.
-        </p>
+
+        <label htmlFor={nameInputId} className="mt-3 block text-sm font-medium text-body">
+          Nombre de la Búsqueda Guardada
+        </label>
+        <div
+          className={`mt-1 flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm transition ${
+            nameEditing
+              ? "border-primary/30 bg-surface ring-2 ring-accent"
+              : "border-border bg-bg-light/60"
+          }`}
+        >
+          <input
+            id={nameInputId}
+            type="text"
+            value={label}
+            onChange={(ev) => setLabel(ev.target.value)}
+            readOnly={!nameEditing}
+            maxLength={200}
+            onKeyDown={(ev) => {
+              if (ev.key === "Enter" && nameEditing) {
+                ev.preventDefault();
+                setNameEditing(false);
+              }
+            }}
+            className={`min-w-0 flex-1 bg-transparent text-sm text-body outline-none ${
+              nameEditing ? "" : "cursor-default"
+            }`}
+          />
+          <button
+            type="button"
+            aria-label={nameEditing ? "Confirmar nombre" : "Editar nombre"}
+            onClick={() => setNameEditing((editing) => !editing)}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface-elevated hover:text-primary"
+          >
+            {nameEditing ? (
+              <Check className="size-4" aria-hidden strokeWidth={2.5} />
+            ) : (
+              <Pencil className="size-4" aria-hidden strokeWidth={2.2} />
+            )}
+          </button>
+        </div>
 
         {lastSaved ? (
-          <p className="mt-3 text-xs text-muted">
+          <p className="mt-2 text-xs text-muted">
             Última auto-guardada: <span className="font-medium text-body">{lastSaved}</span>
           </p>
         ) : null}
 
-        <div className="mt-3 rounded-xl border border-border bg-bg-light/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Barra de filtros</p>
-          <HorizontalBarFilterSummary filters={filters} />
-        </div>
-
-        <div className="mt-3 rounded-xl border border-border bg-bg-light/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary/80">Más filtros</p>
-          <div className="mt-2">
-            <ActiveSearchFilterChips filters={filters} searchLocation={searchLocation} />
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setFiltersPickerOpen(true)}
+          className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-bg-light/60 px-3 py-2.5 text-sm font-semibold text-primary shadow-sm transition hover:border-secondary/50 hover:bg-bg-light"
+        >
+          <SlidersHorizontal className="size-4" aria-hidden />
+          Mostrar filtros
+          {activeFilterChips.length > 0 ? (
+            <span className="inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-fg">
+              {activeFilterChips.length}
+            </span>
+          ) : null}
+        </button>
 
         {err ? (
           <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
         ) : null}
 
         <form className="mt-5 space-y-4" onSubmit={(e) => void onSubmit(e)}>
-          <label className="block text-sm font-medium text-body">
-            Nombre de la Búsqueda Guardada
-            <input
-              type="text"
-              value={label}
-              onChange={(ev) => setLabel(ev.target.value)}
-              maxLength={200}
-              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-            />
-          </label>
-
           <div className="rounded-xl bg-primary p-3 text-primary-fg shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>

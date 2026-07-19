@@ -728,6 +728,7 @@ export function SearchPage() {
             me={me}
             payload={saveModalPayload}
             filters={saveModalEffectiveFilters}
+            onFiltersChange={setSaveModalFilters}
             searchLocation={searchLocation}
             draft={searchDraft}
             onDraftChange={setSearchDraft}
