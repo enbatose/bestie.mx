@@ -27,6 +27,8 @@ type Props = {
   returnTo?: string;
   className?: string;
   onClick?: () => void;
+  /** Runs before navigating. Return `false` to cancel. Use for async prep (e.g. upload draft attachments). */
+  onBeforeNavigate?: () => boolean | void | Promise<boolean | void>;
 };
 
 const socialButtonClass =
@@ -40,28 +42,45 @@ const socialButtonClass =
 export function SocialSignInButtons({
   returnTo,
   onClick,
+  onBeforeNavigate,
   className = "",
 }: {
   returnTo?: string;
   onClick?: () => void;
+  onBeforeNavigate?: () => boolean | void | Promise<boolean | void>;
   className?: string;
 }) {
   return (
     <div className={`flex gap-2 ${className}`.trim()}>
-      <GoogleSignInButton returnTo={returnTo} onClick={onClick} />
+      <GoogleSignInButton returnTo={returnTo} onClick={onClick} onBeforeNavigate={onBeforeNavigate} />
     </div>
   );
 }
 
-export function GoogleSignInButton({ returnTo, className = "", onClick }: Props) {
+export function GoogleSignInButton({ returnTo, className = "", onClick, onBeforeNavigate }: Props) {
   const href = googleSignInUrl(returnTo);
 
   return (
     <a
       href={href}
-      onClick={() => {
-        rememberOAuthMethod("google");
-        onClick?.();
+      onClick={(e) => {
+        if (!onBeforeNavigate) {
+          rememberOAuthMethod("google");
+          onClick?.();
+          return;
+        }
+        e.preventDefault();
+        void (async () => {
+          rememberOAuthMethod("google");
+          onClick?.();
+          try {
+            const ok = await onBeforeNavigate();
+            if (ok === false) return;
+            window.location.assign(href);
+          } catch {
+            /* caller handles errors before rejecting / returning false */
+          }
+        })();
       }}
       aria-label="Continuar con Google"
       className={`${socialButtonClass} ${className}`.trim()}
@@ -73,15 +92,30 @@ export function GoogleSignInButton({ returnTo, className = "", onClick }: Props)
 }
 
 /** Kept for easy re-enable after Meta Login approval. */
-export function FacebookSignInButton({ returnTo, className = "", onClick }: Props) {
+export function FacebookSignInButton({ returnTo, className = "", onClick, onBeforeNavigate }: Props) {
   const href = facebookSignInUrl(returnTo);
 
   return (
     <a
       href={href}
-      onClick={() => {
-        rememberOAuthMethod("facebook");
-        onClick?.();
+      onClick={(e) => {
+        if (!onBeforeNavigate) {
+          rememberOAuthMethod("facebook");
+          onClick?.();
+          return;
+        }
+        e.preventDefault();
+        void (async () => {
+          rememberOAuthMethod("facebook");
+          onClick?.();
+          try {
+            const ok = await onBeforeNavigate();
+            if (ok === false) return;
+            window.location.assign(href);
+          } catch {
+            /* caller handles errors */
+          }
+        })();
       }}
       aria-label="Continuar con Facebook"
       className={`${socialButtonClass} ${className}`.trim()}

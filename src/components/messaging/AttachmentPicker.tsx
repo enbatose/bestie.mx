@@ -1,4 +1,6 @@
 import { useRef } from "react";
+import { apiBase } from "@/lib/apiBase";
+import type { MessageAttachment } from "@/lib/messagesApi";
 
 export const ATTACHMENT_MAX_FILES = 5;
 export const ATTACHMENT_MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -18,11 +20,11 @@ function AttachIcon() {
 
 /** Validates a batch of newly-picked files against the shared attachment limits. */
 export function validatePickedFiles(
-  existing: File[],
+  existingCount: number,
   picked: File[],
   maxFiles: number = ATTACHMENT_MAX_FILES,
 ): { accepted: File[]; error: string | null } {
-  const room = Math.max(0, maxFiles - existing.length);
+  const room = Math.max(0, maxFiles - existingCount);
   if (room <= 0) {
     return { accepted: [], error: `Puedes adjuntar hasta ${maxFiles} imágenes.` };
   }
@@ -43,9 +45,16 @@ export function validatePickedFiles(
   return { accepted, error };
 }
 
+function uploadedThumbUrl(url: string): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${apiBase()}${url}`;
+}
+
 export function AttachmentPicker({
   files,
   onFilesChange,
+  uploadedAttachments = [],
+  onUploadedAttachmentsChange,
   disabled = false,
   maxFiles = ATTACHMENT_MAX_FILES,
   onError,
@@ -53,16 +62,19 @@ export function AttachmentPicker({
 }: {
   files: File[];
   onFilesChange: (files: File[]) => void;
+  uploadedAttachments?: MessageAttachment[];
+  onUploadedAttachmentsChange?: (attachments: MessageAttachment[]) => void;
   disabled?: boolean;
   maxFiles?: number;
   onError?: (message: string) => void;
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const totalCount = files.length + uploadedAttachments.length;
 
   const handlePicked = (picked: FileList | null) => {
     if (!picked || picked.length === 0) return;
-    const { accepted, error } = validatePickedFiles(files, Array.from(picked), maxFiles);
+    const { accepted, error } = validatePickedFiles(totalCount, Array.from(picked), maxFiles);
     if (accepted.length > 0) onFilesChange([...files, ...accepted]);
     if (error) onError?.(error);
   };
@@ -83,7 +95,7 @@ export function AttachmentPicker({
       />
       <button
         type="button"
-        disabled={disabled || files.length >= maxFiles}
+        disabled={disabled || totalCount >= maxFiles}
         onClick={() => inputRef.current?.click()}
         className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900"
       >
@@ -91,10 +103,32 @@ export function AttachmentPicker({
         Adjuntar imagen
       </button>
 
-      {files.length > 0 ? (
+      {totalCount > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-2">
+          {uploadedAttachments.map((att, i) => (
+            <li key={`up-${att.url}-${i}`} className="relative">
+              <img
+                src={uploadedThumbUrl(att.url)}
+                alt={att.filename}
+                className="size-16 rounded-lg border border-border object-cover"
+              />
+              {onUploadedAttachmentsChange ? (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  aria-label={`Quitar ${att.filename}`}
+                  onClick={() =>
+                    onUploadedAttachmentsChange(uploadedAttachments.filter((_, idx) => idx !== i))
+                  }
+                  className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-error text-[11px] font-bold text-white shadow-sm"
+                >
+                  ✕
+                </button>
+              ) : null}
+            </li>
+          ))}
           {files.map((file, i) => (
-            <li key={`${file.name}-${i}`} className="relative">
+            <li key={`file-${file.name}-${i}`} className="relative">
               <img
                 src={URL.createObjectURL(file)}
                 alt={file.name}

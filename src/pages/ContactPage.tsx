@@ -1,26 +1,61 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ContactInlineAuth } from "@/components/contact/ContactInlineAuth";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { authMe, type AuthMe } from "@/lib/authApi";
 import { consumeContactPendingDraft } from "@/lib/contactSupportSession";
-import { startSupportConversation, uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
+import {
+  startSupportConversation,
+  uploadMessageAttachment,
+  type MessageAttachment,
+} from "@/lib/messagesApi";
 
 const SUBJECT_MAX_LEN = 200;
 
 export function ContactPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [uploadedAttachments, setUploadedAttachments] = useState<MessageAttachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [showAuth, setShowAuth] = useState(false);
   const [sending, setSending] = useState(false);
   const [resumedNotice, setResumedNotice] = useState(false);
-  const authSectionRef = useRef<HTMLDivElement>(null);
+  const autoSendRef = useRef(false);
+
+  const subjectRef = useRef(subject);
+  const messageRef = useRef(message);
+  const filesRef = useRef(files);
+  const uploadedRef = useRef(uploadedAttachments);
+  subjectRef.current = subject;
+  messageRef.current = message;
+  filesRef.current = files;
+  uploadedRef.current = uploadedAttachments;
+
+  const submitContact = useCallback(async () => {
+    setSending(true);
+    setSendError(null);
+    try {
+      const uploaded: MessageAttachment[] = [...uploadedRef.current];
+      for (const file of filesRef.current) {
+        uploaded.push(await uploadMessageAttachment(file));
+      }
+      const { conversationId } = await startSupportConversation({
+        subject: subjectRef.current.trim(),
+        body: messageRef.current.trim(),
+        attachments: uploaded,
+      });
+      navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+    } catch (x) {
+      setSendError(x instanceof Error ? x.message : "No se pudo enviar tu mensaje. Intenta de nuevo.");
+      setSending(false);
+    }
+  }, [navigate]);
 
   useEffect(() => {
     void authMe()
@@ -30,32 +65,38 @@ export function ContactPage() {
 
   useEffect(() => {
     const pending = consumeContactPendingDraft();
+    const resume = searchParams.get("resume") === "1";
     if (pending) {
       setSubject(pending.subject);
       setMessage(pending.message);
+      setUploadedAttachments(pending.attachments);
+      setFiles([]);
       setResumedNotice(true);
+      if (resume) autoSendRef.current = true;
     }
+    if (resume) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("resume");
+      setSearchParams(next, { replace: true });
+    }
+    // Restore OAuth draft once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only
   }, []);
 
-  const submitContact = async () => {
-    setSending(true);
-    setSendError(null);
-    try {
-      const uploaded: MessageAttachment[] = [];
-      for (const file of files) {
-        uploaded.push(await uploadMessageAttachment(file));
-      }
-      const { conversationId } = await startSupportConversation({
-        subject: subject.trim(),
-        body: message.trim(),
-        attachments: uploaded,
-      });
-      navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
-    } catch (x) {
-      setSendError(x instanceof Error ? x.message : "No se pudo enviar tu mensaje. Intenta de nuevo.");
-      setSending(false);
+  useEffect(() => {
+    if (!autoSendRef.current || me === undefined) return;
+    if (!me) {
+      autoSendRef.current = false;
+      setShowAuth(true);
+      return;
     }
-  };
+    if (!subject.trim() || !message.trim()) {
+      autoSendRef.current = false;
+      return;
+    }
+    autoSendRef.current = false;
+    void submitContact();
+  }, [me, subject, message, submitContact]);
 
   const handleSendClick = () => {
     setFormError(null);
@@ -71,9 +112,6 @@ export function ContactPage() {
     if (me === undefined) return;
     if (!me) {
       setShowAuth(true);
-      window.requestAnimationFrame(() => {
-        authSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
       return;
     }
     void submitContact();
@@ -96,8 +134,11 @@ export function ContactPage() {
 
         {resumedNotice ? (
           <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-xs text-body">
-            Recuperamos tu asunto y mensaje. Si habías adjuntado imágenes, agrégalas de nuevo antes de
-            enviar.
+            Recuperamos tu asunto, mensaje
+            {uploadedAttachments.length > 0
+              ? ` y ${uploadedAttachments.length} imagen${uploadedAttachments.length > 1 ? "es" : ""}`
+              : ""}
+            .
           </p>
         ) : null}
 
@@ -129,6 +170,8 @@ export function ContactPage() {
           <AttachmentPicker
             files={files}
             onFilesChange={setFiles}
+            uploadedAttachments={uploadedAttachments}
+            onUploadedAttachmentsChange={setUploadedAttachments}
             disabled={sending}
             onError={setAttachError}
           />
@@ -154,19 +197,6 @@ export function ContactPage() {
             {sending ? "Enviando…" : "Enviar mensaje"}
           </button>
         </div>
-
-        {showAuth && !me ? (
-          <div ref={authSectionRef}>
-            <ContactInlineAuth
-              pendingDraft={{ subject, message }}
-              onAuthenticated={(nextMe) => {
-                setMe(nextMe);
-                setShowAuth(false);
-                void submitContact();
-              }}
-            />
-          </div>
-        ) : null}
       </div>
 
       <div className="mt-6 rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -189,6 +219,21 @@ export function ContactPage() {
           Volver a buscar
         </Link>
       </p>
+
+      {showAuth && !me ? (
+        <ContactInlineAuth
+          subject={subject}
+          message={message}
+          files={files}
+          uploadedAttachments={uploadedAttachments}
+          onClose={() => setShowAuth(false)}
+          onAuthenticated={(nextMe) => {
+            setMe(nextMe);
+            setShowAuth(false);
+            void submitContact();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
