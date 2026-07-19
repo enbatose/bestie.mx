@@ -47,6 +47,7 @@ export function SaveSearchModal({
 }: Props) {
   const nameInputId = useId();
   const [label, setLabel] = useState("");
+  const [labelTouched, setLabelTouched] = useState(false);
   const [nameEditing, setNameEditing] = useState(false);
   const [filtersPickerOpen, setFiltersPickerOpen] = useState(false);
   const [emailNotifyOn, setEmailNotifyOn] = useState(false);
@@ -56,9 +57,12 @@ export function SaveSearchModal({
   const [draft, setDraft] = useState<SavedSearchDto | null>(draftProp);
   const [replaceNotifyLabel, setReplaceNotifyLabel] = useState<string | null>(null);
 
+  // Keep the "Última auto-guardada" timestamp and the default name fresh as auto-save ticks come
+  // in, but never once the user has started customizing the name themselves.
   useEffect(() => {
     setDraft(draftProp);
-  }, [draftProp]);
+    if (draftProp && !labelTouched) setLabel(draftProp.label);
+  }, [draftProp, labelTouched]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,6 +72,7 @@ export function SaveSearchModal({
     setReplaceNotifyLabel(null);
     setNameEditing(false);
     setFiltersPickerOpen(false);
+    setLabelTouched(false);
 
     const loadDraft = async () => {
       if (draftProp) {
@@ -86,7 +91,11 @@ export function SaveSearchModal({
     };
 
     void loadDraft();
-  }, [open, draftProp, me.email, onDraftChange]);
+    // Intentionally only re-run when the modal opens: an auto-save tick while it's open updates
+    // `draft`/`draftProp` on every filter change and must not reset in-progress edits (custom
+    // name, alerts toggle, open filters picker) or close anything.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const activeFilterChips = useMemo(
     () => editableActiveFilterChips(filters, searchLocation),
@@ -223,7 +232,10 @@ export function SaveSearchModal({
             id={nameInputId}
             type="text"
             value={label}
-            onChange={(ev) => setLabel(ev.target.value)}
+            onChange={(ev) => {
+              setLabel(ev.target.value);
+              setLabelTouched(true);
+            }}
             readOnly={!nameEditing}
             maxLength={200}
             onKeyDown={(ev) => {
@@ -239,7 +251,13 @@ export function SaveSearchModal({
           <button
             type="button"
             aria-label={nameEditing ? "Confirmar nombre" : "Editar nombre"}
-            onClick={() => setNameEditing((editing) => !editing)}
+            onClick={() =>
+              setNameEditing((editing) => {
+                const next = !editing;
+                if (next) setLabelTouched(true);
+                return next;
+              })
+            }
             className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface-elevated hover:text-primary"
           >
             {nameEditing ? (

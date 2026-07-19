@@ -192,6 +192,7 @@ export function SearchPage() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveModalFilters, setSaveModalFilters] = useState<SearchFilters | null>(null);
+  const [saveModalFiltersTouched, setSaveModalFiltersTouched] = useState(false);
   const [followModalOpen, setFollowModalOpen] = useState(false);
   const [followSuccessOpen, setFollowSuccessOpen] = useState(false);
   const [followEmailSent, setFollowEmailSent] = useState<boolean | null>(null);
@@ -228,6 +229,14 @@ export function SearchPage() {
 
   const saveModalEffectiveFilters = saveModalFilters ?? normalizedFilters;
 
+  // While the modal is open and the user hasn't manually edited filters from its picker, keep
+  // mirroring the live map/search filters so an auto-save (or any live filter change) is reflected
+  // in the modal instead of going stale — without ever closing the modal or its filters picker.
+  useEffect(() => {
+    if (!saveModalOpen || saveModalFiltersTouched) return;
+    setSaveModalFilters(normalizedFilters);
+  }, [normalizedFilters, saveModalOpen, saveModalFiltersTouched]);
+
   const saveModalPayload = useMemo(
     () => ({
       cityCode: searchLocation.cityCode,
@@ -248,6 +257,7 @@ export function SearchPage() {
   const openSaveSearchModal = useCallback(() => {
     const flushed = searchTopBarRef.current?.commitPendingHorizontalFilters() ?? normalizedFilters;
     setSaveModalFilters(flushed);
+    setSaveModalFiltersTouched(false);
     setSaveModalOpen(true);
   }, [normalizedFilters]);
 
@@ -724,11 +734,15 @@ export function SearchPage() {
             onClose={() => {
               setSaveModalOpen(false);
               setSaveModalFilters(null);
+              setSaveModalFiltersTouched(false);
             }}
             me={me}
             payload={saveModalPayload}
             filters={saveModalEffectiveFilters}
-            onFiltersChange={setSaveModalFilters}
+            onFiltersChange={(next) => {
+              setSaveModalFiltersTouched(true);
+              setSaveModalFilters(next);
+            }}
             searchLocation={searchLocation}
             draft={searchDraft}
             onDraftChange={setSearchDraft}
