@@ -107,7 +107,7 @@ function primaryNavClass({ isActive }: { isActive: boolean }) {
 
 /** Mobile header actions share one hit height so search / Publicar / avatar stay aligned. */
 const mobileHeaderActionClass =
-  "relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+  "relative inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 function UnreadDot({ className = "" }: { className?: string }) {
   return (
@@ -143,11 +143,11 @@ function LoggedInIconActions({
     <div className="flex items-center gap-0 md:gap-0.5">
       <NavLink
         to="/mensajes"
-        className={`${mobileHeaderActionClass} md:h-auto md:w-auto md:p-2`}
+        className={`${mobileHeaderActionClass} w-9 md:w-auto md:p-2`}
         aria-label={hasUnreadMessages ? "Mensajes (sin leer)" : "Mensajes"}
       >
         <span className="relative inline-flex">
-          <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+          <MessageSquare className="h-5 w-5 shrink-0 md:h-4 md:w-4" aria-hidden />
           {hasUnreadMessages ? (
             <UnreadDot className="absolute -right-0.5 -top-0.5" />
           ) : null}
@@ -158,7 +158,7 @@ function LoggedInIconActions({
         <button
           type="button"
           onClick={onToggleNotifications}
-          className={`${mobileHeaderActionClass} gap-0 md:h-auto md:w-auto md:gap-0.5 md:px-1.5 md:py-2`}
+          className={`${mobileHeaderActionClass} w-9 gap-0.5 md:w-auto md:gap-0.5 md:px-1.5 md:py-2`}
           aria-expanded={notificationsOpen}
           aria-haspopup="menu"
           aria-label={
@@ -166,7 +166,7 @@ function LoggedInIconActions({
           }
         >
           <span className="relative inline-flex">
-            <Bell className="h-4 w-4 shrink-0 md:h-5 md:w-5" aria-hidden />
+            <Bell className="h-5 w-5 shrink-0" aria-hidden />
             {hasUnreadNotifications ? (
               <UnreadDot className="absolute -right-0.5 -top-0.5" />
             ) : null}
@@ -532,7 +532,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
   return (
     <>
-      <div className="flex items-center justify-end gap-0 sm:gap-1 md:gap-1.5 lg:gap-2">
+      <div className="flex items-center justify-end gap-0 md:gap-1.5 lg:gap-2">
         <NavLink
           to="/buscar"
           className={(props) => `${primaryNavClass(props)} hidden md:inline-flex`}
@@ -553,13 +553,13 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           className={(props) =>
             [
               mobileHeaderActionClass,
-              "md:hidden",
+              "w-9 md:hidden",
               props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : "",
             ].join(" ")
           }
           aria-label="Buscar"
         >
-          <Search className="h-4 w-4 shrink-0" aria-hidden />
+          <Search className="h-5 w-5 shrink-0" aria-hidden />
         </NavLink>
         <NavLink
           to="/publicar"
@@ -568,8 +568,8 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
               mobileHeaderActionClass,
               "md:hidden",
               homePublishMobileLabel
-                ? "w-auto gap-1 bg-primary/10 px-2 text-primary ring-1 ring-primary/20"
-                : "",
+                ? "gap-1.5 bg-primary/10 px-2.5 text-primary ring-1 ring-primary/20"
+                : "w-9",
               props.isActive && !homePublishMobileLabel
                 ? "bg-surface-elevated text-primary ring-1 ring-border"
                 : "",
@@ -578,11 +578,11 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           }
           aria-label="Publicar"
         >
-          <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
+          <CirclePlus className="h-5 w-5 shrink-0" aria-hidden />
           <span
             className={[
-              "overflow-hidden whitespace-nowrap text-[11px] font-semibold leading-none transition-[max-width,opacity,margin] duration-300 ease-out",
-              homePublishMobileLabel ? "ml-0 max-w-[3.75rem] opacity-100" : "ml-0 max-w-0 opacity-0",
+              "overflow-hidden whitespace-nowrap text-xs font-semibold leading-none transition-[max-width,opacity,margin] duration-300 ease-out",
+              homePublishMobileLabel ? "ml-0 max-w-[4.5rem] opacity-100" : "ml-0 max-w-0 opacity-0",
             ].join(" ")}
             aria-hidden
           >
@@ -606,20 +606,20 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           />
         ) : null}
 
-        <div className="relative flex h-8 items-center md:h-9" ref={avatarRef}>
+        <div className="relative flex h-9 items-center" ref={avatarRef}>
           <button
             type="button"
             onClick={() => {
               setNotificationsOpen(false);
               setAvatarOpen((v) => !v);
             }}
-            className="inline-flex h-8 items-center rounded-full px-0 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:h-9 md:px-0.5"
+            className="inline-flex h-9 items-center rounded-full px-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-expanded={avatarOpen}
             aria-haspopup="menu"
             aria-label={me?.id ? "Menú de cuenta" : "Abrir menú"}
           >
-            <span className="inline-flex h-8 items-center md:hidden">
-              <AvatarTrigger me={me} size="sm" showChevron={false} />
+            <span className="inline-flex h-9 items-center md:hidden">
+              <AvatarTrigger me={me} size="sm" showChevron />
             </span>
             <span className="hidden h-9 items-center md:inline-flex">
               <AvatarTrigger me={me} size="md" showChevron />
