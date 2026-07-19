@@ -2,14 +2,19 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { readAuthUserId } from "./jwtSession.js";
+import { isAdminUser } from "./adminAuth.js";
+import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
-import { isSafeRoomOrListingId } from "./validation.js";
+import { clampMessageAttachments, clampStr, isSafeRoomOrListingId, type MessageAttachment } from "./validation.js";
 
 const postMsgLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 });
 
+const SUPPORT_SUBJECT_MAX_LEN = 200;
+const SUPPORT_BODY_MAX_LEN = 4000;
+
 function jsonMw() {
-  return express.json({ limit: "128kb" });
+  return express.json({ limit: "256kb" });
 }
 
 function isoNow(): string {
@@ -52,6 +57,14 @@ function assertMember(db: DatabaseSync, conversationId: string, userId: string):
   return Boolean(r);
 }
 
+function conversationKind(db: DatabaseSync, conversationId: string): "listing" | "support" | null {
+  const row = db.prepare(`SELECT kind FROM conversations WHERE id = ?`).get(conversationId) as
+    | { kind: string }
+    | undefined;
+  if (!row) return null;
+  return row.kind === "support" ? "support" : "listing";
+}
+
 function findExistingConversation(
   db: DatabaseSync,
   a: string,
@@ -77,15 +90,43 @@ function createConversation(
   userB: string,
   listingRoomId: string | null,
   contextTitle: string,
+  kind: "listing" | "support" = "listing",
 ): string {
   const id = randomUUID();
   const now = isoNow();
   db.prepare(
-    `INSERT INTO conversations (id, listing_room_id, context_title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-  ).run(id, listingRoomId, contextTitle.slice(0, 500), now, now);
+    `INSERT INTO conversations (id, listing_room_id, context_title, kind, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, listingRoomId, contextTitle.slice(0, 500), kind, now, now);
   db.prepare(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)`).run(id, userA);
   db.prepare(`INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?)`).run(id, userB);
   return id;
+}
+
+function insertMessage(
+  db: DatabaseSync,
+  conversationId: string,
+  senderUserId: string,
+  body: string,
+  attachments: MessageAttachment[],
+): { id: string; createdAt: string } {
+  const mid = randomUUID();
+  const now = isoNow();
+  db.prepare(
+    `INSERT INTO messages (id, conversation_id, sender_user_id, body, created_at, read_at, attachments_json)
+     VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+  ).run(mid, conversationId, senderUserId, body, now, attachments.length > 0 ? JSON.stringify(attachments) : null);
+  db.prepare(`UPDATE conversations SET updated_at = ? WHERE id = ?`).run(now, conversationId);
+  return { id: mid, createdAt: now };
+}
+
+function parseAttachmentsJson(raw: unknown): MessageAttachment[] {
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as MessageAttachment[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function markThreadRead(db: DatabaseSync, conversationId: string, readerUserId: string): void {
@@ -123,7 +164,7 @@ export function messagesRouter(db: DatabaseSync) {
     }
     const rows = db
       .prepare(
-        `SELECT c.id, c.context_title, c.listing_room_id, c.updated_at,
+        `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
                 other.id AS other_user_id,
                 other.display_name AS other_display_name,
                 (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
@@ -140,6 +181,7 @@ export function messagesRouter(db: DatabaseSync) {
         id: row.id,
         contextTitle: row.context_title,
         listingRoomId: row.listing_room_id,
+        kind: row.kind === "support" ? "support" : "listing",
         updatedAt: row.updated_at,
         otherUserId: row.other_user_id,
         otherDisplayName: row.other_display_name,
@@ -183,8 +225,41 @@ export function messagesRouter(db: DatabaseSync) {
       res.json({ conversationId: existing, created: false });
       return;
     }
-    const id = createConversation(db, me, owner, listingRoomId, title);
+    const id = createConversation(db, me, owner, listingRoomId, title, "listing");
     res.status(201).json({ conversationId: id, created: true });
+  });
+
+  /** Creates a brand-new support "ticket" conversation with the Soporte de Bestie account. */
+  r.post("/conversations/from-support", jsonMw(), (req: Request, res: Response) => {
+    const me = readAuthUserId(req);
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (me === SUPPORT_BOT_USER_ID) {
+      res.status(400).json({ error: "invalid_sender" });
+      return;
+    }
+    const lim = startConvLimiter(req.ip ?? "ip");
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const body = req.body as { subject?: unknown; body?: unknown; attachments?: unknown };
+    const subject = clampStr(typeof body.subject === "string" ? body.subject : "", SUPPORT_SUBJECT_MAX_LEN);
+    const messageBody = clampStr(typeof body.body === "string" ? body.body : "", SUPPORT_BODY_MAX_LEN);
+    const attachments = clampMessageAttachments(body.attachments);
+    if (!subject) {
+      res.status(400).json({ error: "subject_required" });
+      return;
+    }
+    if (!messageBody && attachments.length === 0) {
+      res.status(400).json({ error: "empty_body" });
+      return;
+    }
+    const conversationId = createConversation(db, me, SUPPORT_BOT_USER_ID, null, subject, "support");
+    const message = insertMessage(db, conversationId, me, messageBody, attachments);
+    res.status(201).json({ conversationId, messageId: message.id, createdAt: message.createdAt });
   });
 
   r.get("/conversations/:id/messages", (req: Request, res: Response) => {
@@ -203,20 +278,28 @@ export function messagesRouter(db: DatabaseSync) {
       return;
     }
     markThreadRead(db, id, me);
+    const kind = conversationKind(db, id);
     const rows = db
       .prepare(
-        `SELECT m.id, m.sender_user_id, m.body, m.created_at, m.read_at
+        `SELECT m.id, m.sender_user_id, m.body, m.created_at, m.read_at, m.attachments_json
          FROM messages m WHERE m.conversation_id = ? ORDER BY m.created_at ASC`,
       )
       .all(id) as Record<string, unknown>[];
     res.json({
-      messages: rows.map((m) => ({
-        id: m.id,
-        senderUserId: m.sender_user_id,
-        body: m.body,
-        createdAt: m.created_at,
-        readAt: m.read_at,
-      })),
+      messages: rows.map((m) => {
+        const rawSenderId = String(m.sender_user_id);
+        // Never reveal which real admin replied to a support chat — customers only see "Soporte de Bestie".
+        const senderUserId =
+          kind === "support" && rawSenderId !== me && isAdminUser(db, rawSenderId) ? SUPPORT_BOT_USER_ID : rawSenderId;
+        return {
+          id: m.id,
+          senderUserId,
+          body: m.body,
+          createdAt: m.created_at,
+          readAt: m.read_at,
+          attachments: parseAttachmentsJson(m.attachments_json),
+        };
+      }),
     });
   });
 
@@ -242,17 +325,13 @@ export function messagesRouter(db: DatabaseSync) {
     }
     const bodyRaw = (req.body as { body?: unknown }).body;
     const body = typeof bodyRaw === "string" ? bodyRaw.trim().slice(0, 4000) : "";
-    if (!body) {
+    const attachments = clampMessageAttachments((req.body as { attachments?: unknown }).attachments);
+    if (!body && attachments.length === 0) {
       res.status(400).json({ error: "empty_body" });
       return;
     }
-    const mid = randomUUID();
-    const now = isoNow();
-    db.prepare(
-      `INSERT INTO messages (id, conversation_id, sender_user_id, body, created_at, read_at) VALUES (?, ?, ?, ?, ?, NULL)`,
-    ).run(mid, id, me, body, now);
-    db.prepare(`UPDATE conversations SET updated_at = ? WHERE id = ?`).run(now, id);
-    res.status(201).json({ id: mid, createdAt: now });
+    const message = insertMessage(db, id, me, body, attachments);
+    res.status(201).json({ id: message.id, createdAt: message.createdAt });
   });
 
   return r;

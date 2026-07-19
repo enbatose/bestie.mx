@@ -141,19 +141,19 @@ export function contactWhatsAppOkForPublish(showPublic: boolean, storedDigits: s
 const LISTING_IMAGE_URL_LEN_MAX = 240;
 const LISTING_IMAGE_COUNT_MAX = 12;
 
-function normalizeListingUploadPath(raw: string): string | null {
+function normalizeUploadPath(raw: string, maxLen: number): string | null {
   const t = raw.trim();
   if (!t) return null;
 
   if (t.startsWith("/api/uploads/") && !t.includes("..") && !t.includes("\\")) {
-    return t.length <= LISTING_IMAGE_URL_LEN_MAX ? t : null;
+    return t.length <= maxLen ? t : null;
   }
 
   if (t.startsWith("http://") || t.startsWith("https://")) {
     try {
       const path = new URL(t).pathname;
       if (path.startsWith("/api/uploads/") && !path.includes("..") && !path.includes("\\")) {
-        return path.length <= LISTING_IMAGE_URL_LEN_MAX ? path : null;
+        return path.length <= maxLen ? path : null;
       }
     } catch {
       return null;
@@ -169,9 +169,53 @@ export function clampListingImageUrls(input: unknown, max = LISTING_IMAGE_COUNT_
   const out: string[] = [];
   for (const x of input) {
     if (typeof x !== "string") continue;
-    const path = normalizeListingUploadPath(x);
+    const path = normalizeUploadPath(x, LISTING_IMAGE_URL_LEN_MAX);
     if (!path) continue;
     out.push(path);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+export type MessageAttachment = {
+  url: string;
+  mimeType: string;
+  size: number;
+  filename: string;
+};
+
+const MESSAGE_ATTACHMENT_URL_LEN_MAX = 240;
+export const MESSAGE_ATTACHMENT_COUNT_MAX = 5;
+const MESSAGE_ATTACHMENT_FILENAME_MAX = 200;
+const MESSAGE_ATTACHMENT_SIZE_MAX = 5 * 1024 * 1024;
+const MESSAGE_ATTACHMENT_MIME_ALLOWED = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/bmp",
+]);
+
+/** Validates chat message attachments: same-origin `/api/uploads/...` image URLs only. */
+export function clampMessageAttachments(
+  input: unknown,
+  max = MESSAGE_ATTACHMENT_COUNT_MAX,
+): MessageAttachment[] {
+  if (!Array.isArray(input)) return [];
+  const out: MessageAttachment[] = [];
+  for (const raw of input) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as Record<string, unknown>;
+    if (typeof item.url !== "string") continue;
+    const url = normalizeUploadPath(item.url, MESSAGE_ATTACHMENT_URL_LEN_MAX);
+    if (!url) continue;
+    const mimeType = typeof item.mimeType === "string" ? item.mimeType : "";
+    if (!MESSAGE_ATTACHMENT_MIME_ALLOWED.has(mimeType)) continue;
+    const size = typeof item.size === "number" && Number.isFinite(item.size) ? item.size : 0;
+    if (size < 0 || size > MESSAGE_ATTACHMENT_SIZE_MAX) continue;
+    const filename = clampStr(typeof item.filename === "string" ? item.filename : "archivo", MESSAGE_ATTACHMENT_FILENAME_MAX);
+    out.push({ url, mimeType, size, filename });
     if (out.length >= max) break;
   }
   return out;

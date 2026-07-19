@@ -3,10 +3,20 @@ import { apiBase } from "@/lib/apiBase";
 
 const cred: RequestCredentials = "include";
 
+export type MessageAttachment = {
+  url: string;
+  mimeType: string;
+  size: number;
+  filename: string;
+};
+
+export type ConversationKind = "listing" | "support";
+
 export type ConversationSummary = {
   id: string;
   contextTitle: string;
   listingRoomId: string | null;
+  kind: ConversationKind;
   updatedAt: string;
   otherUserId: string;
   otherDisplayName: string;
@@ -20,6 +30,7 @@ export type ChatMessage = {
   body: string;
   createdAt: string;
   readAt: string | null;
+  attachments: MessageAttachment[];
 };
 
 export async function fetchUnreadMessageCount(signal?: AbortSignal): Promise<number> {
@@ -38,6 +49,26 @@ export async function fetchConversations(signal?: AbortSignal): Promise<Conversa
   if (!res.ok) throw new Error(`conversations_${res.status}`);
   const j = (await res.json()) as { conversations: ConversationSummary[] };
   return j.conversations ?? [];
+}
+
+export async function startSupportConversation(
+  input: { subject: string; body: string; attachments?: MessageAttachment[] },
+  signal?: AbortSignal,
+): Promise<{ conversationId: string }> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/messages/conversations/from-support`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ subject: input.subject, body: input.body, attachments: input.attachments ?? [] }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { conversationId?: string; error?: string; message?: string };
+  if (!res.ok) {
+    throw new Error(j.message || j.error || `support_start_${res.status}`);
+  }
+  if (!j.conversationId) throw new Error("missing_conversation");
+  return { conversationId: j.conversationId };
 }
 
 export async function startConversationFromListing(
@@ -82,6 +113,7 @@ export async function fetchConversationMessages(
 export async function postConversationMessage(
   conversationId: string,
   body: string,
+  attachments: MessageAttachment[] = [],
   signal?: AbortSignal,
 ): Promise<void> {
   const base = apiBase();
@@ -89,11 +121,40 @@ export async function postConversationMessage(
     method: "POST",
     headers: { "Content-Type": "application/json", ...deviceHeaders() },
     credentials: cred,
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, attachments }),
     signal,
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(j.error || `post_${res.status}`);
   }
+}
+
+/** Uploads a message attachment (image) and returns its metadata for `postConversationMessage`/`startSupportConversation`. */
+export async function uploadMessageAttachment(file: File, signal?: AbortSignal): Promise<MessageAttachment> {
+  const base = apiBase();
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${base}/api/uploads`, {
+    method: "POST",
+    headers: { ...deviceHeaders() },
+    credentials: cred,
+    body: form,
+    signal,
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = (await res.json()) as { error?: string; message?: string };
+      detail = j.message ? `: ${j.message}` : j.error ? `: ${j.error}` : "";
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`upload_http_${res.status}${detail}`);
+  }
+  const j = (await res.json()) as { url?: string };
+  if (typeof j.url !== "string" || !j.url.startsWith("/api/uploads/")) {
+    throw new Error("upload_bad_response");
+  }
+  return { url: j.url, mimeType: file.type, size: file.size, filename: file.name };
 }

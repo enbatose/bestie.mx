@@ -2,15 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   adminAnalyticsSummary,
+  adminFetchSupportThread,
   adminGetFeaturedCities,
+  adminListSupportConversations,
   adminListUsers,
   adminPatchPropertyStatus,
   adminPutFeaturedCities,
+  adminReplySupportThread,
   adminStreetViewAnalytics,
   type AdminStreetViewAnalytics,
+  type AdminSupportConversationRow,
+  type AdminSupportThread,
   type AdminUserRow,
 } from "@/lib/authApi";
 import { apiBase } from "@/lib/apiBase";
+import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
+import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
+import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
 
 function monthOptions(count = 12): string[] {
   const out: string[] = [];
@@ -34,11 +42,20 @@ function formatUsd(n: number): string {
 }
 
 export function AdminPage() {
-  const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property">("users");
+  const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte">("users");
   const [err, setErr] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [citiesText, setCitiesText] = useState("");
+  const [supportRows, setSupportRows] = useState<AdminSupportConversationRow[]>([]);
+  const [supportActiveId, setSupportActiveId] = useState<string | null>(null);
+  const [supportThread, setSupportThread] = useState<AdminSupportThread | null>(null);
+  const [supportDraft, setSupportDraft] = useState("");
+  const [supportFiles, setSupportFiles] = useState<File[]>([]);
+  const [supportAttachErr, setSupportAttachErr] = useState<string | null>(null);
+  const [supportLoadingList, setSupportLoadingList] = useState(false);
+  const [supportLoadingThread, setSupportLoadingThread] = useState(false);
+  const [supportSending, setSupportSending] = useState(false);
   const [summary, setSummary] = useState<{ publishedPropertyCount: number; dauPublishersApprox: number; day: string } | null>(
     null,
   );
@@ -68,6 +85,51 @@ export function AdminPage() {
     setStreetView(await adminStreetViewAnalytics(month));
   }, []);
 
+  const loadSupportConversations = useCallback(async () => {
+    setSupportLoadingList(true);
+    try {
+      setSupportRows(await adminListSupportConversations());
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : "No se pudo cargar Soporte al Cliente.");
+    } finally {
+      setSupportLoadingList(false);
+    }
+  }, []);
+
+  const loadSupportThread = useCallback(async (conversationId: string) => {
+    setSupportLoadingThread(true);
+    try {
+      setSupportThread(await adminFetchSupportThread(conversationId));
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : "No se pudo cargar la conversación.");
+      setSupportThread(null);
+    } finally {
+      setSupportLoadingThread(false);
+    }
+  }, []);
+
+  const sendSupportReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportActiveId || (!supportDraft.trim() && supportFiles.length === 0)) return;
+    setSupportSending(true);
+    setErr(null);
+    try {
+      const attachments: MessageAttachment[] = [];
+      for (const file of supportFiles) {
+        attachments.push(await uploadMessageAttachment(file));
+      }
+      await adminReplySupportThread(supportActiveId, supportDraft.trim(), attachments);
+      setSupportDraft("");
+      setSupportFiles([]);
+      await loadSupportThread(supportActiveId);
+      await loadSupportConversations();
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : "No se pudo enviar la respuesta.");
+    } finally {
+      setSupportSending(false);
+    }
+  };
+
   useEffect(() => {
     void (async () => {
       try {
@@ -81,6 +143,17 @@ export function AdminPage() {
       }
     })();
   }, [loadUsers, loadCities, loadSummary, loadStreetView, streetViewMonth]);
+
+  useEffect(() => {
+    if (tab === "soporte") void loadSupportConversations();
+  }, [tab, loadSupportConversations]);
+
+  useEffect(() => {
+    if (supportActiveId) void loadSupportThread(supportActiveId);
+    setSupportDraft("");
+    setSupportFiles([]);
+    setSupportAttachErr(null);
+  }, [supportActiveId, loadSupportThread]);
 
   const dynamicPct = streetView
     ? Math.min(100, (streetView.dynamicStreetView.total / streetView.dynamicStreetView.freeTierLimit) * 100)
@@ -108,7 +181,7 @@ export function AdminPage() {
       ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2 text-sm font-medium">
-        {(["users", "cities", "analytics", "property"] as const).map((t) => (
+        {(["users", "cities", "analytics", "property", "soporte"] as const).map((t) => (
           <button
             key={t}
             type="button"
@@ -117,7 +190,15 @@ export function AdminPage() {
               tab === t ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
             }`}
           >
-            {t === "users" ? "Usuarios" : t === "cities" ? "Ciudades" : t === "analytics" ? "Métricas" : "Propiedad"}
+            {t === "users"
+              ? "Usuarios"
+              : t === "cities"
+                ? "Ciudades"
+                : t === "analytics"
+                  ? "Métricas"
+                  : t === "property"
+                    ? "Propiedad"
+                    : "Soporte"}
           </button>
         ))}
       </div>
@@ -355,6 +436,136 @@ export function AdminPage() {
           >
             Aplicar
           </button>
+        </div>
+      ) : null}
+
+      {tab === "soporte" ? (
+        <div className="mt-6 grid min-h-[420px] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <aside className="rounded-2xl border border-border bg-surface p-3 shadow-sm">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Soporte al Cliente
+              </h2>
+              <button
+                type="button"
+                onClick={() => void loadSupportConversations()}
+                className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+              >
+                Actualizar
+              </button>
+            </div>
+            {supportLoadingList ? (
+              <p className="p-3 text-sm text-muted">Cargando…</p>
+            ) : supportRows.length === 0 ? (
+              <p className="p-3 text-sm text-muted">Sin conversaciones de soporte todavía.</p>
+            ) : (
+              <ul className="mt-2 max-h-[60vh] space-y-1 overflow-y-auto md:max-h-[70vh]">
+                {supportRows.map((row) => (
+                  <li key={row.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSupportActiveId(row.id)}
+                      className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                        row.id === supportActiveId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
+                      }`}
+                    >
+                      <span className="font-semibold text-body">{row.customerDisplayName}</span>
+                      <span className="line-clamp-1 text-xs text-muted">{row.subject}</span>
+                      {row.lastPreview ? (
+                        <span className="line-clamp-1 text-xs text-muted">{row.lastPreview}</span>
+                      ) : null}
+                      {row.unreadCount > 0 ? (
+                        <span className="mt-1 inline-flex w-fit rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">
+                          {row.unreadCount} nuevo{row.unreadCount > 1 ? "s" : ""}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+
+          <section className="flex min-h-[420px] flex-col rounded-2xl border border-border bg-surface shadow-sm">
+            {!supportActiveId ? (
+              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted">
+                Elige una conversación a la izquierda.
+              </div>
+            ) : (
+              <>
+                <div className="border-b border-border bg-primary px-4 py-3 text-primary-fg">
+                  <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
+                    {supportThread?.customer?.displayName ?? "…"} ·{" "}
+                    {supportThread?.customer?.email ?? "sin correo"}
+                  </p>
+                  <p className="text-sm font-semibold">{supportThread?.subject ?? "…"}</p>
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto p-4">
+                    {supportLoadingThread ? (
+                      <p className="text-sm text-muted">Cargando mensajes…</p>
+                    ) : (
+                      supportThread?.messages.map((m) => (
+                        <div
+                          key={m.id}
+                          className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                            m.senderIsCustomer
+                              ? "mr-auto border border-border bg-bg-light text-body"
+                              : "ml-auto bg-primary text-primary-fg"
+                          }`}
+                        >
+                          <p className={`text-[10px] font-semibold ${m.senderIsCustomer ? "text-muted" : "text-primary-fg/80"}`}>
+                            {m.senderIsCustomer ? m.senderDisplayName : `Admin: ${m.senderDisplayName}`}
+                          </p>
+                          {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
+                          <MessageAttachmentList attachments={m.attachments} />
+                          <p className={`mt-1 text-[10px] ${m.senderIsCustomer ? "text-muted" : "text-primary-fg/70"}`}>
+                            {new Date(m.createdAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <form onSubmit={sendSupportReply} className="border-t border-border bg-bg-light p-3">
+                    <label className="sr-only" htmlFor="support-reply-body">
+                      Responder
+                    </label>
+                    <div className="flex gap-2">
+                      <textarea
+                        id="support-reply-body"
+                        rows={2}
+                        value={supportDraft}
+                        onChange={(e) => setSupportDraft(e.target.value)}
+                        placeholder="Responder como Soporte de Bestie…"
+                        disabled={supportSending}
+                        className="min-h-[44px] flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2 disabled:opacity-60"
+                      />
+                      <button
+                        type="submit"
+                        disabled={supportSending || (!supportDraft.trim() && supportFiles.length === 0)}
+                        className="shrink-0 self-end rounded-full bg-secondary px-4 py-2 text-sm font-bold text-primary disabled:opacity-40"
+                      >
+                        {supportSending ? "Enviando…" : "Enviar"}
+                      </button>
+                    </div>
+                    <AttachmentPicker
+                      files={supportFiles}
+                      onFilesChange={setSupportFiles}
+                      disabled={supportSending}
+                      onError={setSupportAttachErr}
+                      className="mt-2"
+                    />
+                    {supportAttachErr ? <p className="mt-1 text-xs text-error">{supportAttachErr}</p> : null}
+                    <p className="mt-2 text-[11px] text-muted">
+                      El usuario verá tu respuesta como “Soporte de Bestie”, sin tu identidad de admin.
+                    </p>
+                  </form>
+                </div>
+              </>
+            )}
+          </section>
         </div>
       ) : null}
 

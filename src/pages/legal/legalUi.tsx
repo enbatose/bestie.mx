@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 /** Effective / last-updated date shared across every legal document. */
-export const LEGAL_LAST_UPDATED = "17 de julio de 2026";
+export const LEGAL_LAST_UPDATED = "19 de julio de 2026";
 
 /** Legal identity of the operator, reused verbatim across documents. */
 export const LEGAL_OPERATOR = {

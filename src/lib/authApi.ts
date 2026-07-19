@@ -566,6 +566,79 @@ export type GroupRow = {
   member_count: number;
 };
 
+export type AdminSupportConversationRow = {
+  id: string;
+  subject: string;
+  updatedAt: string;
+  customerUserId: string;
+  customerDisplayName: string;
+  customerEmail: string | null;
+  lastPreview: string;
+  unreadCount: number;
+};
+
+export async function adminListSupportConversations(
+  signal?: AbortSignal,
+): Promise<AdminSupportConversationRow[]> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/support/conversations`, { credentials: cred, signal });
+  if (!res.ok) throw new Error(`admin_support_list_${res.status}`);
+  const j = (await res.json()) as { conversations?: AdminSupportConversationRow[] };
+  return j.conversations ?? [];
+}
+
+export type AdminSupportMessage = {
+  id: string;
+  senderUserId: string;
+  senderDisplayName: string;
+  senderIsCustomer: boolean;
+  body: string;
+  createdAt: string;
+  attachments: { url: string; mimeType: string; size: number; filename: string }[];
+};
+
+export type AdminSupportThread = {
+  subject: string;
+  customer: { id: string; displayName: string; email: string | null } | null;
+  messages: AdminSupportMessage[];
+};
+
+export async function adminFetchSupportThread(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<AdminSupportThread> {
+  const base = apiBase();
+  const res = await networkFetch(
+    `${base}/api/admin/support/conversations/${encodeURIComponent(conversationId)}/messages`,
+    { credentials: cred, signal },
+  );
+  if (!res.ok) throw new Error(`admin_support_thread_${res.status}`);
+  return (await res.json()) as AdminSupportThread;
+}
+
+export async function adminReplySupportThread(
+  conversationId: string,
+  body: string,
+  attachments: { url: string; mimeType: string; size: number; filename: string }[] = [],
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(
+    `${base}/api/admin/support/conversations/${encodeURIComponent(conversationId)}/messages`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...deviceHeaders() },
+      credentials: cred,
+      body: JSON.stringify({ body, attachments }),
+      signal,
+    },
+  );
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(j.error || `admin_support_reply_${res.status}`);
+  }
+}
+
 export async function groupsMine(signal?: AbortSignal): Promise<GroupRow[]> {
   const base = apiBase();
   const res = await networkFetch(`${base}/api/groups/mine`, { credentials: cred, signal });

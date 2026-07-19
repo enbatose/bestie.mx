@@ -82,8 +82,9 @@ export function PrivacyPage() {
             </>,
             <>
               <strong>Datos de tus anuncios y actividad:</strong> información de las propiedades o
-              habitaciones que publicas, mensajes, comunidades o grupos de búsqueda y tus interacciones
-              en la Plataforma.
+              habitaciones que publicas, mensajes (incluidos los que envías a Soporte de Bestie desde el
+              chat directo en Contacto y los archivos que adjuntes, por ejemplo capturas de pantalla),
+              comunidades o grupos de búsqueda y tus interacciones en la Plataforma.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
@@ -97,7 +98,7 @@ export function PrivacyPage() {
         <p>
           Bestie <strong>no recaba datos personales sensibles</strong> (como origen racial, estado de
           salud, creencias religiosas, preferencias sexuales o afiliación política). Te pedimos no
-          incluir este tipo de información en tus anuncios, perfil o mensajes.
+          incluir este tipo de información en tus anuncios, perfil, mensajes o archivos que adjuntes.
         </p>
       </LegalSection>
 
@@ -195,6 +196,7 @@ export function PrivacyPage() {
           items={[
             "Crear, autenticar y administrar tu cuenta.",
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
+            "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie, incluidos los archivos que adjuntes.",
             "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña, notificaciones del servicio).",
             "Prevenir fraudes, abusos y garantizar la seguridad de la Plataforma.",
             "Cumplir obligaciones legales y fiscales aplicables.",

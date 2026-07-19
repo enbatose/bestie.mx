@@ -93,6 +93,7 @@ export function TermsPage() {
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
             "Contactar a otros usuarios (por ejemplo, mediante WhatsApp u otros canales habilitados).",
             "Crear un perfil, comunidades o grupos de búsqueda de roomies.",
+            "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas.",
           ]}
         />
         <p>
@@ -153,8 +154,9 @@ export function TermsPage() {
       <LegalSection id="contenido" index={7} title="Contenido de los usuarios">
         <p>
           Eres el único responsable del contenido que publicas (textos, fotografías, precios, datos de
-          contacto y demás información de tus anuncios). Declaras que cuentas con los derechos y
-          autorizaciones necesarios sobre dicho contenido.
+          contacto y demás información de tus anuncios), así como del contenido y archivos adjuntos que
+          envíes por mensajes o por el chat directo con Soporte de Bestie. Declaras que cuentas con los
+          derechos y autorizaciones necesarios sobre dicho contenido.
         </p>
         <p>
           Al publicar contenido en Bestie, otorgas al Titular una licencia no exclusiva, mundial, libre

@@ -1,14 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
+import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
+import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import {
   fetchConversationMessages,
   fetchConversations,
   postConversationMessage,
+  uploadMessageAttachment,
   type ChatMessage,
   type ConversationSummary,
+  type MessageAttachment,
 } from "@/lib/messagesApi";
 import { authMe, type AuthMe } from "@/lib/authApi";
+
+function SupportBadge() {
+  return (
+    <span className="inline-flex w-fit items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+      Soporte
+    </span>
+  );
+}
 
 export function MessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +29,9 @@ export function MessagesPage() {
   const [rows, setRows] = useState<ConversationSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [attachFiles, setAttachFiles] = useState<File[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -68,6 +83,9 @@ export function MessagesPage() {
 
   useEffect(() => {
     void loadThread();
+    setDraft("");
+    setAttachFiles([]);
+    setAttachError(null);
   }, [loadThread]);
 
   useEffect(() => {
@@ -77,18 +95,27 @@ export function MessagesPage() {
   }, [activeId, me?.id, loadThread]);
 
   const active = useMemo(() => rows.find((r) => r.id === activeId), [rows, activeId]);
+  const isSupportThread = active?.kind === "support";
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeId || !draft.trim()) return;
+    if (!activeId || (!draft.trim() && attachFiles.length === 0)) return;
     setErr(null);
+    setSendingMessage(true);
     try {
-      await postConversationMessage(activeId, draft.trim());
+      const attachments: MessageAttachment[] = [];
+      for (const file of attachFiles) {
+        attachments.push(await uploadMessageAttachment(file));
+      }
+      await postConversationMessage(activeId, draft.trim(), attachments);
       setDraft("");
+      setAttachFiles([]);
       await loadThread();
       await loadList();
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -117,8 +144,8 @@ export function MessagesPage() {
       <header>
         <h1 className="text-2xl font-bold text-primary">Mensajes</h1>
         <p className="mt-1 text-sm text-muted">
-          Conversaciones agrupadas por anuncio. Los mensajes se guardan en Bestie; el anunciante debe tener
-          cuenta vinculada a la publicación.
+          Conversaciones agrupadas por anuncio, más tu chat con Soporte de Bestie si nos escribiste desde
+          Contacto.
         </p>
       </header>
 
@@ -148,7 +175,10 @@ export function MessagesPage() {
                       r.id === activeId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
                     }`}
                   >
-                    <span className="font-semibold text-body">{r.otherDisplayName}</span>
+                    <span className="flex items-center gap-1.5 font-semibold text-body">
+                      {r.otherDisplayName}
+                      {r.kind === "support" ? <SupportBadge /> : null}
+                    </span>
                     <span className="line-clamp-1 text-xs text-muted">{r.contextTitle}</span>
                     {r.lastPreview ? (
                       <span className="line-clamp-1 text-xs text-muted">{r.lastPreview}</span>
@@ -173,7 +203,9 @@ export function MessagesPage() {
           ) : (
             <>
               <div className="border-b border-border bg-primary px-4 py-3 text-primary-fg dark:border-slate-600">
-                <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">Publicación</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
+                  {isSupportThread ? "Asunto" : "Publicación"}
+                </p>
                 <p className="text-sm font-semibold">{active?.contextTitle ?? "…"}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {active?.listingRoomId ? (
@@ -186,6 +218,12 @@ export function MessagesPage() {
                   ) : null}
                 </div>
               </div>
+
+              {isSupportThread ? (
+                <p className="border-b border-secondary/40 bg-secondary/10 px-4 py-2 text-xs text-body">
+                  Soporte de Bestie · las respuestas pueden tardar hasta 48 horas.
+                </p>
+              ) : null}
 
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto p-4">
@@ -203,7 +241,8 @@ export function MessagesPage() {
                               : "mr-auto border border-border bg-bg-light text-body dark:border-slate-600 dark:bg-slate-800"
                           }`}
                         >
-                          <p className="whitespace-pre-wrap">{m.body}</p>
+                          {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
+                          <MessageAttachmentList attachments={m.attachments} />
                           <p className={`mt-1 text-[10px] ${mine ? "text-primary-fg/70" : "text-muted"}`}>
                             {new Date(m.createdAt).toLocaleString("es-MX", {
                               dateStyle: "short",
@@ -227,16 +266,29 @@ export function MessagesPage() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       placeholder="Escribe un mensaje…"
-                      className="min-h-[44px] flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2 dark:border-slate-600 dark:bg-slate-900"
+                      disabled={sendingMessage}
+                      className="min-h-[44px] flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900"
                     />
                     <button
                       type="submit"
-                      disabled={!draft.trim()}
+                      disabled={sendingMessage || (!draft.trim() && attachFiles.length === 0)}
                       className="shrink-0 self-end rounded-full bg-secondary px-4 py-2 text-sm font-bold text-primary disabled:opacity-40"
                     >
-                      Enviar
+                      {sendingMessage ? "Enviando…" : "Enviar"}
                     </button>
                   </div>
+                  {isSupportThread ? (
+                    <>
+                      <AttachmentPicker
+                        files={attachFiles}
+                        onFilesChange={setAttachFiles}
+                        disabled={sendingMessage}
+                        onError={setAttachError}
+                        className="mt-2"
+                      />
+                      {attachError ? <p className="mt-1 text-xs text-error">{attachError}</p> : null}
+                    </>
+                  ) : null}
                 </form>
               </div>
             </>
