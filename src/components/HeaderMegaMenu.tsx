@@ -105,9 +105,6 @@ function primaryNavClass({ isActive }: { isActive: boolean }) {
   ].join(" ");
 }
 
-const iconBtnClass =
-  "relative inline-flex items-center justify-center rounded-lg p-2 text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
-
 /** Mobile header actions share one hit height so search / Publicar / avatar stay aligned. */
 const mobileHeaderActionClass =
   "relative inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
@@ -146,11 +143,11 @@ function LoggedInIconActions({
     <div className="flex items-center gap-0.5">
       <NavLink
         to="/mensajes"
-        className={iconBtnClass}
+        className={`${mobileHeaderActionClass} w-9 md:w-auto md:p-2`}
         aria-label={hasUnreadMessages ? "Mensajes (sin leer)" : "Mensajes"}
       >
         <span className="relative inline-flex">
-          <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+          <MessageSquare className="h-5 w-5 shrink-0 md:h-4 md:w-4" aria-hidden />
           {hasUnreadMessages ? (
             <UnreadDot className="absolute -right-0.5 -top-0.5" />
           ) : null}
@@ -161,7 +158,7 @@ function LoggedInIconActions({
         <button
           type="button"
           onClick={onToggleNotifications}
-          className={`${iconBtnClass} gap-0.5 px-1.5`}
+          className={`${mobileHeaderActionClass} w-9 gap-0.5 md:w-auto md:gap-0.5 md:px-1.5 md:py-2`}
           aria-expanded={notificationsOpen}
           aria-haspopup="menu"
           aria-label={
@@ -174,7 +171,7 @@ function LoggedInIconActions({
               <UnreadDot className="absolute -right-0.5 -top-0.5" />
             ) : null}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+          <ChevronDown className="hidden h-3.5 w-3.5 shrink-0 text-muted md:inline" aria-hidden />
         </button>
         {notificationsOpen ? (
           <div className="absolute right-0 top-full z-[1850] mt-2 w-[min(92vw,22rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900">
@@ -594,21 +591,19 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         </NavLink>
 
         {me?.id ? (
-          <div className="hidden md:block">
-            <LoggedInIconActions
-              hasUnreadMessages={hasUnreadMessages}
-              notifications={notifications}
-              hasUnreadNotifications={hasUnreadNotifications}
-              notificationsOpen={notificationsOpen}
-              onToggleNotifications={() => {
-                setAvatarOpen(false);
-                setNotificationsOpen((v) => !v);
-              }}
-              onNotificationClick={markNotificationRead}
-              notificationsRef={notificationsRef}
-              onDismiss={dismissNav}
-            />
-          </div>
+          <LoggedInIconActions
+            hasUnreadMessages={hasUnreadMessages}
+            notifications={notifications}
+            hasUnreadNotifications={hasUnreadNotifications}
+            notificationsOpen={notificationsOpen}
+            onToggleNotifications={() => {
+              setAvatarOpen(false);
+              setNotificationsOpen((v) => !v);
+            }}
+            onNotificationClick={markNotificationRead}
+            notificationsRef={notificationsRef}
+            onDismiss={dismissNav}
+          />
         ) : null}
 
         <div className="relative flex h-9 items-center" ref={avatarRef}>
