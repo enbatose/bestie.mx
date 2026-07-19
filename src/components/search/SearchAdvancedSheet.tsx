@@ -81,12 +81,7 @@ const TABS: readonly { id: TabId; label: string; icon: FilterIcon }[] = [
 function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
   switch (tabId) {
     case "presupuesto":
-      return (
-        f.budgetMax != null ||
-        f.age != null ||
-        f.avalRequired != null ||
-        f.subletAllowed != null
-      );
+      return f.budgetMax != null || f.avalRequired != null || f.subletAllowed != null;
     case "propiedad":
       return (
         f.wantHouse ||
@@ -96,7 +91,7 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
         f.roomDimensions.length > 0
       );
     case "convivencia":
-      return f.pref != null || f.tags.length > 0;
+      return f.pref != null || f.tags.length > 0 || f.age != null;
     case "condiciones":
       return f.availableFrom != null || f.minimalStayMonths != null;
     default:
@@ -366,102 +361,55 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {activeTab === "presupuesto" ? (
             <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor={budgetMaxInputId} className="block text-sm font-medium text-body">
-                  Presupuesto máx (MXN / mes)
-                </label>
-                <div className="mt-1 flex items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2">
-                  <button
-                    type="button"
-                    aria-label="Disminuir presupuesto máximo"
-                    onClick={() =>
-                      onChange({
-                        ...filters,
-                        budgetMin: null,
-                        budgetMax: stepBudget(filters.budgetMax, -BUDGET_STEP),
-                      })
-                    }
-                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
-                  >
-                    −
-                  </button>
-                  <input
-                    id={budgetMaxInputId}
-                    inputMode="numeric"
-                    type="text"
-                    value={filters.budgetMax != null ? filters.budgetMax.toLocaleString("es-MX") : ""}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "");
-                      onChange({
-                        ...filters,
-                        budgetMin: null,
-                        budgetMax: digits === "" ? null : Number(digits),
-                      });
-                    }}
-                    placeholder="Ej. 6,000"
-                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Aumentar presupuesto máximo"
-                    onClick={() =>
-                      onChange({
-                        ...filters,
-                        budgetMin: null,
-                        budgetMax: stepBudget(filters.budgetMax, BUDGET_STEP),
-                      })
-                    }
-                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor={ageInputId} className="block text-sm font-medium text-body">
-                  Tu edad
-                </label>
-                <div className="mt-1 flex items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2">
-                  <button
-                    type="button"
-                    aria-label="Disminuir edad"
-                    onClick={() =>
-                      onChange({ ...filters, age: stepAge(filters.age, -1), ageMin: null, ageMax: null })
-                    }
-                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
-                  >
-                    −
-                  </button>
-                  <input
-                    id={ageInputId}
-                    inputMode="numeric"
-                    type="text"
-                    value={filters.age != null ? String(filters.age) : ""}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
-                      onChange({
-                        ...filters,
-                        age: digits === "" ? null : Number(digits),
-                        ageMin: null,
-                        ageMax: null,
-                      });
-                    }}
-                    placeholder="Ej. 27"
-                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Aumentar edad"
-                    onClick={() =>
-                      onChange({ ...filters, age: stepAge(filters.age, 1), ageMin: null, ageMax: null })
-                    }
-                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
-                  >
-                    +
-                  </button>
-                </div>
+            <div>
+              <label htmlFor={budgetMaxInputId} className="block text-sm font-medium text-body">
+                Presupuesto máx (MXN / mes)
+              </label>
+              <div className="mt-1 flex max-w-xs items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2">
+                <button
+                  type="button"
+                  aria-label="Disminuir presupuesto máximo"
+                  onClick={() =>
+                    onChange({
+                      ...filters,
+                      budgetMin: null,
+                      budgetMax: stepBudget(filters.budgetMax, -BUDGET_STEP),
+                    })
+                  }
+                  className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                >
+                  −
+                </button>
+                <input
+                  id={budgetMaxInputId}
+                  inputMode="numeric"
+                  type="text"
+                  value={filters.budgetMax != null ? filters.budgetMax.toLocaleString("es-MX") : ""}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    onChange({
+                      ...filters,
+                      budgetMin: null,
+                      budgetMax: digits === "" ? null : Number(digits),
+                    });
+                  }}
+                  placeholder="Ej. 6,000"
+                  className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
+                />
+                <button
+                  type="button"
+                  aria-label="Aumentar presupuesto máximo"
+                  onClick={() =>
+                    onChange({
+                      ...filters,
+                      budgetMin: null,
+                      budgetMax: stepBudget(filters.budgetMax, BUDGET_STEP),
+                    })
+                  }
+                  className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                >
+                  +
+                </button>
               </div>
             </div>
 
@@ -585,6 +533,51 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                   onClick={() => onChange({ ...filters, pref: filters.pref === "male" ? null : "male" })}
                 />
               </FilterGroup>
+
+              <div>
+                <label htmlFor={ageInputId} className="block text-sm font-medium text-body">
+                  Tu edad
+                </label>
+                <div className="mt-1 flex max-w-xs items-stretch overflow-hidden rounded-lg border border-primary/20 bg-surface shadow-sm ring-primary/30 focus-within:ring-2">
+                  <button
+                    type="button"
+                    aria-label="Disminuir edad"
+                    onClick={() =>
+                      onChange({ ...filters, age: stepAge(filters.age, -1), ageMin: null, ageMax: null })
+                    }
+                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                  >
+                    −
+                  </button>
+                  <input
+                    id={ageInputId}
+                    inputMode="numeric"
+                    type="text"
+                    value={filters.age != null ? String(filters.age) : ""}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      onChange({
+                        ...filters,
+                        age: digits === "" ? null : Number(digits),
+                        ageMin: null,
+                        ageMax: null,
+                      });
+                    }}
+                    placeholder="Ej. 27"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-center text-sm tabular-nums text-body outline-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Aumentar edad"
+                    onClick={() =>
+                      onChange({ ...filters, age: stepAge(filters.age, 1), ageMin: null, ageMax: null })
+                    }
+                    className="inline-flex w-10 shrink-0 items-center justify-center text-lg font-semibold text-primary transition hover:bg-bg-light active:bg-surface-elevated"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
               <FilterGroup title="Detalles del anuncio">
                 {ADVANCED_TAG_FILTERS.map((tag) => {

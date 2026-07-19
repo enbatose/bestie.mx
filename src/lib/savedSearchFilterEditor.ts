@@ -191,15 +191,6 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     activate: (f) => ({ ...f, budgetMin: null, budgetMax: f.budgetMax ?? 6000 }),
   },
   {
-    id: "age",
-    group: "Presupuesto",
-    label: "Edad",
-    icon: UserRound,
-    synonyms: ["años", "edad minima", "edad maxima"],
-    isActive: (f) => f.age != null || f.ageMin != null || f.ageMax != null,
-    activate: (f) => ({ ...f, age: f.age ?? 27, ageMin: null, ageMax: null }),
-  },
-  {
     id: "aval-yes",
     group: "Presupuesto",
     label: "Requiere aval",
@@ -252,6 +243,15 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     synonyms: ["solo hombres", "hombres", "hombre", "chicos", "genero masculino"],
     isActive: (f) => f.pref === "male",
     activate: (f) => ({ ...f, pref: "male" }),
+  },
+  {
+    id: "age",
+    group: "Convivencia",
+    label: "Edad",
+    icon: UserRound,
+    synonyms: ["años", "edad minima", "edad maxima"],
+    isActive: (f) => f.age != null || f.ageMin != null || f.ageMax != null,
+    activate: (f) => ({ ...f, age: f.age ?? 27, ageMin: null, ageMax: null }),
   },
   ...ADVANCED_TAG_FILTERS.map(
     (tag): AddableFilterOption => ({
