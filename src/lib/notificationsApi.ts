@@ -40,7 +40,7 @@ function mapRow(raw: {
   return {
     id: raw.id,
     text: raw.text,
-    link: raw.link || "/notificaciones",
+    link: raw.link || "/notifications",
     createdAt: raw.createdAt,
     readAt: raw.readAt,
     isRead: Boolean(raw.isRead),

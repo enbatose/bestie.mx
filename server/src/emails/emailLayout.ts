@@ -16,8 +16,9 @@ export const EMAIL_BRAND = {
   bgLight: "#F8FAFC",
   surfaceElevated: "#F1F5F9",
   support: "contacto@bestie.mx",
-  productName: "Bestie",
-  /** Absolute logo for clients that load remote images (optional). */
+  productName: "bestie.mx",
+  siteUrl: "https://www.bestie.mx",
+  /** Absolute lockup (icon + bestie.mx) for dark/forest email headers. */
   logoUrl: "https://www.bestie.mx/brand/logo-lockup-on-dark.svg",
 } as const;
 
@@ -98,9 +99,11 @@ export function renderEmailShell(opts: {
     <tr><td align="center">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:${width}px;background:${B.surface};border-radius:16px;border:1px solid ${B.border};overflow:hidden;">
         <tr>
-          <td style="padding:22px 24px 14px;background:${B.primary};">
-            <p style="margin:0;font-size:20px;font-weight:800;letter-spacing:-0.02em;color:${B.primaryFg};">${B.productName}</p>
-            <p style="margin:8px 0 0;font-size:14px;font-weight:500;line-height:1.35;color:${B.accent};">${escapeHtml(opts.headerEyebrow)}</p>
+          <td style="padding:20px 24px 14px;background:${B.primary};">
+            <a href="${B.siteUrl}" style="text-decoration:none;border:0;outline:none;">
+              <img src="${B.logoUrl}" width="168" height="50" alt="${escapeHtml(B.productName)}" style="display:block;border:0;outline:none;text-decoration:none;height:auto;max-width:168px;width:168px;"/>
+            </a>
+            <p style="margin:12px 0 0;font-size:14px;font-weight:500;line-height:1.35;color:${B.accent};">${escapeHtml(opts.headerEyebrow)}</p>
           </td>
         </tr>
         <tr>

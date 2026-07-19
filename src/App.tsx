@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AppShellLayout } from "@/layouts/AppShellLayout";
 import { AccountEditPage } from "@/pages/AccountEditPage";
 import { AdminPage } from "@/pages/AdminPage";
@@ -46,6 +46,7 @@ const router = createBrowserRouter([
       { path: "perfil/editar", element: <AccountEditPage /> },
       { path: "mensajes", element: <MessagesPage /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "notificaciones", element: <Navigate to="/notifications" replace /> },
       { path: "contacto", element: <ContactPage /> },
       { path: "faq", element: <FaqPage /> },
       { path: "legal", element: <LegalPage /> },

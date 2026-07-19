@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_TRANSACTIONAL_FROM,
   getRawSmtpUrl,
   getResendApiKey,
   getSmtpMode,
+  normalizeTransactionalFrom,
   resolveFromAddress,
   resolveSmtpPass,
   resolveSmtpUser,
@@ -62,15 +64,27 @@ describe("mailer SMTP env detection", () => {
     expect(smtpConfigured()).toBe(true);
     expect(getSmtpMode()).toBe("resend_api");
     expect(getResendApiKey()).toBe("re_test_key");
-    expect(resolveFromAddress()).toBe("Bestie <notifications@bestie.mx>");
+    expect(resolveFromAddress()).toBe("Bestie <no-reply@bestie.mx>");
   });
 
-  it("not configured when RESEND_API_KEY is set without EMAIL_FROM", () => {
+  it("defaults From to Bestie MX no-reply when RESEND_API_KEY is set without EMAIL_FROM", () => {
     vi.stubEnv("RESEND_API_KEY", "re_test_key");
     vi.stubEnv("EMAIL_FROM", "");
     vi.stubEnv("SMTP_FROM", "");
-    expect(smtpConfigured()).toBe(false);
-    expect(getSmtpMode()).toBe("off");
+    vi.stubEnv("RESEND_FROM", "");
+    expect(smtpConfigured()).toBe(true);
+    expect(getSmtpMode()).toBe("resend_api");
+    expect(resolveFromAddress()).toBe(DEFAULT_TRANSACTIONAL_FROM);
+  });
+
+  it("normalizes Bestie-domain senders to no-reply@bestie.mx", () => {
+    expect(normalizeTransactionalFrom("Bestie MX <notifications@bestie.mx>")).toBe(
+      "Bestie MX <no-reply@bestie.mx>",
+    );
+    expect(normalizeTransactionalFrom("contacto@bestie.mx")).toBe(
+      "Bestie MX <no-reply@bestie.mx>",
+    );
+    expect(normalizeTransactionalFrom("Me <me@gmail.com>")).toBe("Me <me@gmail.com>");
   });
 
   it("detects Resend SMTP host", () => {

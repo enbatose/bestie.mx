@@ -79,15 +79,36 @@ function isResendSmtpHost(hostOrUrl: string): boolean {
   return hostOrUrl.toLowerCase().includes("resend.com");
 }
 
-/** Sender shown to recipients (`Bestie <notifications@bestie.mx>`). Required for Resend. */
+/** Default Resend sender: friendly display name + non-reply mailbox. */
+export const DEFAULT_TRANSACTIONAL_FROM = "Bestie MX <no-reply@bestie.mx>";
+
+/**
+ * Prefer `no-reply@bestie.mx` for Bestie-domain senders while keeping a friendly display name.
+ * Leaves non-bestie.mx addresses unchanged (e.g. Gmail SMTP).
+ */
+export function normalizeTransactionalFrom(from: string): string {
+  const trimmed = from.trim();
+  const angled = trimmed.match(/^(.*?)\s*<([^>]+)>\s*$/);
+  const displayRaw = angled?.[1]?.trim() ?? "";
+  const emailRaw = (angled?.[2] ?? trimmed).trim().toLowerCase();
+  if (!emailRaw.endsWith("@bestie.mx")) return trimmed;
+  const display =
+    displayRaw && !/^no-?reply$/i.test(displayRaw) ? displayRaw.replace(/^["']|["']$/g, "") : "Bestie MX";
+  return `${display} <no-reply@bestie.mx>`;
+}
+
+/** Sender shown to recipients (`Bestie MX <no-reply@bestie.mx>`). Required for Resend. */
 export function resolveFromAddress(): string | undefined {
   const explicit =
     cleanEnv(process.env.EMAIL_FROM) ||
     cleanEnv(process.env.SMTP_FROM) ||
     cleanEnv(process.env.RESEND_FROM);
-  if (explicit) return explicit;
+  if (explicit) return normalizeTransactionalFrom(explicit);
+  if (getResendApiKey()) return DEFAULT_TRANSACTIONAL_FROM;
   const user = resolveSmtpUser();
-  if (user && user.toLowerCase() !== "resend" && user.includes("@")) return user;
+  if (user && user.toLowerCase() !== "resend" && user.includes("@")) {
+    return normalizeTransactionalFrom(user);
+  }
   return undefined;
 }
 
@@ -149,7 +170,8 @@ export function getSmtpMode():
 
 /**
  * True when mail can be attempted:
- * - `RESEND_API_KEY` + `EMAIL_FROM` / `SMTP_FROM`, or
+ * - `RESEND_API_KEY` (defaults From to `Bestie MX <no-reply@bestie.mx>`), or
+ * - `EMAIL_FROM` / `SMTP_FROM` with SMTP, or
  * - `SMTP_URL` / `EMAIL_URL` / etc., or
  * - any `SMTP_HOST`, or
  * - Gmail-style credentials without host (`GMAIL_USER` + `GMAIL_APP_PASSWORD`, or `SMTP_SERVICE=gmail`, etc.).
