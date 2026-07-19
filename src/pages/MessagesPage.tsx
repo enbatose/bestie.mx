@@ -379,6 +379,15 @@ export function MessagesPage() {
                     </>
                   ) : null}
                 </form>
+                <div className="border-t border-border p-3 md:hidden dark:border-slate-600">
+                  <button
+                    type="button"
+                    onClick={clearActive}
+                    className="w-full min-h-11 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+                  >
+                    Volver
+                  </button>
+                </div>
               </div>
             </>
           )}
