@@ -98,13 +98,13 @@ export function AppShellLayout() {
             <div
               ref={actionsRef}
               className="flex shrink-0 items-center justify-end"
-              style={{ ["--header-icon-gap" as string]: `${iconGapPx}px` }}
             >
               <HeaderMegaMenu
                 me={me}
                 profileIncomplete={profileIncomplete}
                 unreadCount={unread}
                 onAuthChange={refreshMe}
+                iconGapPx={iconGapPx}
               />
             </div>
           </div>

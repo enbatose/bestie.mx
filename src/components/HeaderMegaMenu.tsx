@@ -109,13 +109,9 @@ function primaryNavClass({ isActive }: { isActive: boolean }) {
 const mobileHeaderActionClass =
   "relative inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
-/** Desktop stepped gaps; mobile uses --header-icon-gap from header fit measure. */
-const headerIconActionsGapClass =
-  "gap-[var(--header-icon-gap,0px)] md:gap-1.5 lg:gap-2";
-
-/** Same measured gap on mobile; stay compact between messages/bell on desktop. */
-const loggedInIconActionsGapClass =
-  "gap-[var(--header-icon-gap,0px)] md:gap-0.5";
+/** Desktop: stepped gaps via Tailwind. Mobile: gap applied via inline style from hook. */
+const headerIconActionsGapClass = "gap-0 md:gap-1.5 lg:gap-2";
+const loggedInIconActionsGapClass = "gap-0 md:gap-0.5";
 
 function UnreadDot({ className = "" }: { className?: string }) {
   return (
@@ -137,6 +133,7 @@ function LoggedInIconActions({
   onNotificationClick,
   notificationsRef,
   onDismiss,
+  iconGapPx,
 }: {
   hasUnreadMessages: boolean;
   notifications: NotificationItemProps[];
@@ -146,11 +143,12 @@ function LoggedInIconActions({
   onNotificationClick: (id: string) => void;
   notificationsRef: React.RefObject<HTMLDivElement | null>;
   onDismiss: () => void;
+  iconGapPx: number;
 }) {
   return (
     <div
       className={`flex items-center ${loggedInIconActionsGapClass}`}
-      data-header-icon-cluster="true"
+      style={iconGapPx > 0 ? { gap: `${iconGapPx}px` } : undefined}
     >
       <NavLink
         to="/mensajes"
@@ -261,9 +259,11 @@ type Props = {
   profileIncomplete: boolean;
   unreadCount: number;
   onAuthChange?: () => void;
+  /** Gap in px between mobile icon buttons, computed by useHeaderChromeFit. 0 on desktop. */
+  iconGapPx?: number;
 };
 
-export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChange }: Props) {
+export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChange, iconGapPx = 0 }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { openLogin } = useAuthModal();
@@ -546,7 +546,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
     <>
       <div
         className={`flex items-center justify-end ${headerIconActionsGapClass}`}
-        data-header-actions="true"
+        style={iconGapPx > 0 ? { gap: `${iconGapPx}px` } : undefined}
       >
         <NavLink
           to="/buscar"
@@ -620,6 +620,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
             onNotificationClick={markNotificationRead}
             notificationsRef={notificationsRef}
             onDismiss={dismissNav}
+            iconGapPx={iconGapPx}
           />
         ) : null}
 
