@@ -11,6 +11,14 @@ const SAFETY_PX = 8;
 const MAX_ICON_GAP_PX = 8;
 const MD_MIN_WIDTH_PX = 768;
 
+/** Worst-case logged-in mobile actions (search + publicar + msg + bell + avatar). */
+const LOGGED_IN_ACTIONS_ZERO_GAP_PX = 36 + 36 + 36 + 36 + 44;
+
+function isNarrowViewport(): boolean {
+  if (typeof window === "undefined") return true;
+  return !window.matchMedia(`(min-width: ${MD_MIN_WIDTH_PX}px)`).matches;
+}
+
 export type HeaderChromeFit = {
   rowRef: React.RefObject<HTMLDivElement | null>;
   actionsRef: React.RefObject<HTMLDivElement | null>;
@@ -19,19 +27,22 @@ export type HeaderChromeFit = {
 };
 
 /**
- * Measures the sticky header's content width (excluding padding) and computes:
- * - whether to show the full wordmark lockup or mark-only logo
- * - how many px of gap to distribute between the icon buttons
+ * Measures the sticky header and decides mark-only vs full lockup + icon gaps.
  *
- * Gap is applied via React state → prop → inline style so it is never
- * dependent on a Tailwind arbitrary-value class with a CSS variable.
+ * Starts mark-only on narrow viewports and only expands to the wordmark after
+ * auth has settled AND measurement proves the lockup fits — avoids the
+ * full→compact flash on refresh while `me` is still loading.
  */
-export function useHeaderChromeFit(authReadyKey: string | undefined): HeaderChromeFit {
+export function useHeaderChromeFit(
+  authReadyKey: string | undefined,
+  /** False while `me === undefined` (authMe in flight). */
+  authSettled: boolean,
+): HeaderChromeFit {
   const rowRef = useRef<HTMLDivElement | null>(null);
   const actionsRef = useRef<HTMLDivElement | null>(null);
-  const markOnlyRef = useRef(false);
+  const markOnlyRef = useRef(isNarrowViewport());
   const iconGapRef = useRef(0);
-  const [markOnly, setMarkOnly] = useState(false);
+  const [markOnly, setMarkOnly] = useState(isNarrowViewport);
   const [iconGapPx, setIconGapPx] = useState(0);
 
   useLayoutEffect(() => {
@@ -51,72 +62,80 @@ export function useHeaderChromeFit(authReadyKey: string | undefined): HeaderChro
       return n;
     };
 
-    const recompute = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        if (window.matchMedia(`(min-width: ${MD_MIN_WIDTH_PX}px)`).matches) {
-          if (markOnlyRef.current) {
-            markOnlyRef.current = false;
-            setMarkOnly(false);
-          }
-          if (iconGapRef.current !== 0) {
-            iconGapRef.current = 0;
-            setIconGapPx(0);
-          }
-          return;
-        }
-
-        const rowStyles = getComputedStyle(row);
-        // Use the flex CONTENT width (clientWidth minus horizontal padding).
-        const paddingLeft = parseFloat(rowStyles.paddingLeft) || 0;
-        const paddingRight = parseFloat(rowStyles.paddingRight) || 0;
-        const rowGap = parseFloat(rowStyles.columnGap || rowStyles.gap) || 0;
-        const rowW = row.clientWidth - paddingLeft - paddingRight;
-
-        // Measure the actions div's current rendered width, then back out
-        // the gaps already applied so we get the zero-gap baseline.
-        const currentRenderedActionsW = actions.getBoundingClientRect().width;
-        const actionCount = countVisibleMobileActions();
-        const slots = Math.max(0, actionCount - 1);
-        const zeroGapActionsW = Math.max(0, currentRenderedActionsW - iconGapRef.current * slots);
-
-        // Available horizontal space left of the actions block.
-        const spaceForLogo = rowW - zeroGapActionsW - rowGap - SAFETY_PX;
-
-        let nextMarkOnly = markOnlyRef.current;
-        if (markOnlyRef.current) {
-          // Already in mark-only: stay unless there's clearly enough room for the lockup.
-          nextMarkOnly = spaceForLogo < LOCKUP_WIDTH_PX + LOCKUP_RESTORE_HYSTERESIS_PX;
-        } else {
-          nextMarkOnly = spaceForLogo < LOCKUP_WIDTH_PX;
-        }
-
-        const logoW = nextMarkOnly ? MARK_WIDTH_PX : LOCKUP_WIDTH_PX;
-        const leftover = Math.max(0, rowW - zeroGapActionsW - rowGap - logoW - SAFETY_PX);
-        const nextGap = slots > 0 ? Math.min(MAX_ICON_GAP_PX, Math.floor(leftover / slots)) : 0;
-
-        if (nextMarkOnly !== markOnlyRef.current) {
-          markOnlyRef.current = nextMarkOnly;
-          setMarkOnly(nextMarkOnly);
-        }
-        if (nextGap !== iconGapRef.current) {
-          iconGapRef.current = nextGap;
-          setIconGapPx(nextGap);
-        }
-      });
+    const apply = (nextMarkOnly: boolean, nextGap: number) => {
+      if (nextMarkOnly !== markOnlyRef.current) {
+        markOnlyRef.current = nextMarkOnly;
+        setMarkOnly(nextMarkOnly);
+      }
+      if (nextGap !== iconGapRef.current) {
+        iconGapRef.current = nextGap;
+        setIconGapPx(nextGap);
+      }
     };
 
-    const ro = new ResizeObserver(recompute);
-    ro.observe(row);
-    window.addEventListener("resize", recompute);
+    const recompute = () => {
+      if (window.matchMedia(`(min-width: ${MD_MIN_WIDTH_PX}px)`).matches) {
+        apply(false, 0);
+        return;
+      }
+
+      // Until auth settles, keep the compact mark — guest chrome is narrower than
+      // logged-in chrome, so expanding now would flash the full wordmark then collapse.
+      if (!authSettled) {
+        apply(true, 0);
+        return;
+      }
+
+      const rowStyles = getComputedStyle(row);
+      const paddingLeft = parseFloat(rowStyles.paddingLeft) || 0;
+      const paddingRight = parseFloat(rowStyles.paddingRight) || 0;
+      const rowGap = parseFloat(rowStyles.columnGap || rowStyles.gap) || 0;
+      const rowW = row.clientWidth - paddingLeft - paddingRight;
+
+      const currentRenderedActionsW = actions.getBoundingClientRect().width;
+      const actionCount = countVisibleMobileActions();
+      const slots = Math.max(0, actionCount - 1);
+      const measuredZeroGap = Math.max(0, currentRenderedActionsW - iconGapRef.current * slots);
+      // Prefer the larger of measured vs typical logged-in width when logged in,
+      // so we don't trust a half-painted actions row.
+      const zeroGapActionsW = authReadyKey
+        ? Math.max(measuredZeroGap, LOGGED_IN_ACTIONS_ZERO_GAP_PX)
+        : measuredZeroGap;
+
+      const spaceForLogo = rowW - zeroGapActionsW - rowGap - SAFETY_PX;
+
+      let nextMarkOnly = markOnlyRef.current;
+      if (markOnlyRef.current) {
+        nextMarkOnly = spaceForLogo < LOCKUP_WIDTH_PX + LOCKUP_RESTORE_HYSTERESIS_PX;
+      } else {
+        nextMarkOnly = spaceForLogo < LOCKUP_WIDTH_PX;
+      }
+
+      const logoW = nextMarkOnly ? MARK_WIDTH_PX : LOCKUP_WIDTH_PX;
+      const leftover = Math.max(0, rowW - zeroGapActionsW - rowGap - logoW - SAFETY_PX);
+      const nextGap = slots > 0 ? Math.min(MAX_ICON_GAP_PX, Math.floor(leftover / slots)) : 0;
+
+      apply(nextMarkOnly, nextGap);
+    };
+
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(recompute);
+    };
+
+    // Sync first pass before paint of this commit (useLayoutEffect).
     recompute();
+
+    const ro = new ResizeObserver(schedule);
+    ro.observe(row);
+    window.addEventListener("resize", schedule);
 
     return () => {
       cancelAnimationFrame(frame);
       ro.disconnect();
-      window.removeEventListener("resize", recompute);
+      window.removeEventListener("resize", schedule);
     };
-  }, [authReadyKey]);
+  }, [authReadyKey, authSettled]);
 
   return { rowRef, actionsRef, markOnly, iconGapPx };
 }

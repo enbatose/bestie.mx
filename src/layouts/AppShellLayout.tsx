@@ -17,7 +17,10 @@ export function AppShellLayout() {
   const location = useLocation();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
-  const { rowRef, actionsRef, markOnly, iconGapPx } = useHeaderChromeFit(me?.id);
+  const { rowRef, actionsRef, markOnly, iconGapPx } = useHeaderChromeFit(
+    me?.id,
+    me !== undefined,
+  );
 
   const profileIncomplete = Boolean(me != null && me.id && me.email && !me.phoneE164);
 
