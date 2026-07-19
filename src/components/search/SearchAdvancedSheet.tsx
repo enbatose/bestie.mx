@@ -81,7 +81,7 @@ const TABS: readonly { id: TabId; label: string; icon: FilterIcon }[] = [
 function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
   switch (tabId) {
     case "presupuesto":
-      return f.budgetMax != null || f.age != null;
+      return f.budgetMax != null || f.age != null || f.avalRequired != null;
     case "propiedad":
       return f.wantHouse || f.wantApartment || f.wantLoft || f.lodgingType != null;
     case "convivencia":
@@ -91,7 +91,6 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
         f.availableFrom != null ||
         f.minimalStayMonths != null ||
         f.roomDimensions.length > 0 ||
-        f.avalRequired != null ||
         f.subletAllowed != null
       );
     default:
@@ -360,6 +359,7 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {activeTab === "presupuesto" ? (
+            <>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor={budgetMaxInputId} className="block text-sm font-medium text-body">
@@ -458,6 +458,17 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                 </div>
               </div>
             </div>
+
+            <div className="mt-4">
+              <p className="text-sm font-medium text-body">Se requiere aval</p>
+              <div className="mt-2">
+                <TriSegment
+                  value={filters.avalRequired}
+                  onChange={(avalRequired) => onChange({ ...filters, avalRequired })}
+                />
+              </div>
+            </div>
+            </>
           ) : null}
 
           {activeTab === "propiedad" ? (
@@ -645,16 +656,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                       />
                     );
                   })}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-body">Se requiere aval</p>
-                <div className="mt-2">
-                  <TriSegment
-                    value={filters.avalRequired}
-                    onChange={(avalRequired) => onChange({ ...filters, avalRequired })}
-                  />
                 </div>
               </div>
 
