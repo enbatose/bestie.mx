@@ -11,11 +11,13 @@ import { analyticsHeartbeat, authMe, needsEmailVerification, type AuthMe } from 
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 import { Link } from "react-router-dom";
 import type { AppShellOutletContext } from "@/layouts/appShellOutletContext";
+import { useHeaderChromeFit } from "@/hooks/useHeaderChromeFit";
 
 export function AppShellLayout() {
   const location = useLocation();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
+  const { rowRef, actionsRef, markOnly, iconGapPx } = useHeaderChromeFit(me?.id);
 
   const profileIncomplete = Boolean(me != null && me.id && me.email && !me.phoneE164);
 
@@ -86,9 +88,18 @@ export function AppShellLayout() {
       <PostHogIdentify me={me} />
       <div className={`flex flex-col dark:bg-bg-dark ${isSearchPage ? "h-dvh min-h-0" : "min-h-screen"}`}>
         <header className="sticky top-0 z-[1800] border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
-          <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <BrandLogo />
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div
+            ref={rowRef}
+            className="flex w-full min-w-0 items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-8"
+          >
+            <div className="min-w-0 shrink">
+              <BrandLogo markOnly={markOnly} />
+            </div>
+            <div
+              ref={actionsRef}
+              className="flex shrink-0 items-center justify-end"
+              style={{ ["--header-icon-gap" as string]: `${iconGapPx}px` }}
+            >
               <HeaderMegaMenu
                 me={me}
                 profileIncomplete={profileIncomplete}

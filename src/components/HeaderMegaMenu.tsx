@@ -109,13 +109,13 @@ function primaryNavClass({ isActive }: { isActive: boolean }) {
 const mobileHeaderActionClass =
   "relative inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-body transition hover:bg-surface-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
-/** Gap between header icon actions scales with viewport; desktop keeps stepped spacing. */
+/** Desktop stepped gaps; mobile uses --header-icon-gap from header fit measure. */
 const headerIconActionsGapClass =
-  "gap-[clamp(0px,1.8vw,0.5rem)] md:gap-1.5 lg:gap-2";
+  "gap-[var(--header-icon-gap,0px)] md:gap-1.5 lg:gap-2";
 
-/** Same fluid gap on mobile; stay compact between messages/bell on desktop. */
+/** Same measured gap on mobile; stay compact between messages/bell on desktop. */
 const loggedInIconActionsGapClass =
-  "gap-[clamp(0px,1.8vw,0.5rem)] md:gap-0.5";
+  "gap-[var(--header-icon-gap,0px)] md:gap-0.5";
 
 function UnreadDot({ className = "" }: { className?: string }) {
   return (
@@ -148,9 +148,13 @@ function LoggedInIconActions({
   onDismiss: () => void;
 }) {
   return (
-    <div className={`flex items-center ${loggedInIconActionsGapClass}`}>
+    <div
+      className={`flex items-center ${loggedInIconActionsGapClass}`}
+      data-header-icon-cluster="true"
+    >
       <NavLink
         to="/mensajes"
+        data-header-action="true"
         className={`${mobileHeaderActionClass} w-9 md:w-auto md:p-2`}
         aria-label={hasUnreadMessages ? "Mensajes (sin leer)" : "Mensajes"}
       >
@@ -162,7 +166,7 @@ function LoggedInIconActions({
         </span>
       </NavLink>
 
-      <div className="relative" ref={notificationsRef}>
+      <div className="relative" ref={notificationsRef} data-header-action="true">
         <button
           type="button"
           onClick={onToggleNotifications}
@@ -540,7 +544,10 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
   return (
     <>
-      <div className={`flex items-center justify-end ${headerIconActionsGapClass}`}>
+      <div
+        className={`flex items-center justify-end ${headerIconActionsGapClass}`}
+        data-header-actions="true"
+      >
         <NavLink
           to="/buscar"
           className={(props) => `${primaryNavClass(props)} hidden md:inline-flex`}
@@ -558,6 +565,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
         <NavLink
           to="/buscar"
+          data-header-action="true"
           className={(props) =>
             [
               mobileHeaderActionClass,
@@ -571,6 +579,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
         </NavLink>
         <NavLink
           to="/publicar"
+          data-header-action="true"
           className={(props) =>
             [
               mobileHeaderActionClass,
@@ -614,7 +623,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
           />
         ) : null}
 
-        <div className="relative flex h-9 items-center" ref={avatarRef}>
+        <div className="relative flex h-9 items-center" ref={avatarRef} data-header-action="true">
           <button
             type="button"
             onClick={() => {
