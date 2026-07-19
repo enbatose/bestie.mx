@@ -4,6 +4,12 @@ import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import {
+  formatRelativeUpdatedAt,
+  sortUserConversations,
+  USER_CONVERSATION_SORT_OPTIONS,
+  type UserConversationSortKey,
+} from "@/lib/conversationInbox";
+import {
   fetchConversationMessages,
   fetchConversations,
   postConversationMessage,
@@ -35,15 +41,19 @@ export function MessagesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortKey, setSortKey] = useState<UserConversationSortKey>("updated");
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const loadMe = useCallback(async () => {
     setMe(await authMe().catch(() => null));
   }, []);
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (q?: string) => {
     try {
       setLoadingList(true);
-      setRows(await fetchConversations());
+      setRows(await fetchConversations({ q }));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setRows([]);
@@ -78,8 +88,13 @@ export function MessagesPage() {
   }, [loadMe]);
 
   useEffect(() => {
-    if (me?.id) void loadList();
-  }, [me, loadList]);
+    const t = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (me?.id) void loadList(debouncedSearch || undefined);
+  }, [me, loadList, debouncedSearch]);
 
   useEffect(() => {
     void loadThread();
@@ -94,8 +109,13 @@ export function MessagesPage() {
     return () => window.clearInterval(t);
   }, [activeId, me?.id, loadThread]);
 
+  const sortedRows = useMemo(() => sortUserConversations(rows, sortKey), [rows, sortKey]);
   const active = useMemo(() => rows.find((r) => r.id === activeId), [rows, activeId]);
   const isSupportThread = active?.kind === "support";
+
+  const clearActive = () => {
+    setSearchParams({}, { replace: false });
+  };
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +131,7 @@ export function MessagesPage() {
       setDraft("");
       setAttachFiles([]);
       await loadThread();
-      await loadList();
+      await loadList(debouncedSearch || undefined);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -141,7 +161,7 @@ export function MessagesPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 sm:px-6">
-      <header>
+      <header className={activeId ? "hidden md:block" : undefined}>
         <h1 className="text-2xl font-bold text-primary">Mensajes</h1>
         <p className="mt-1 text-sm text-muted">
           Conversaciones agrupadas por anuncio, más tu chat con Soporte de Bestie si nos escribiste desde
@@ -155,16 +175,66 @@ export function MessagesPage() {
         </p>
       ) : null}
 
-      <div className="grid min-h-[420px] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <aside className="rounded-2xl border border-border bg-surface p-3 shadow-sm dark:border-slate-600 dark:bg-slate-900">
-          <h2 className="px-2 text-xs font-semibold uppercase tracking-wide text-muted">Conversaciones</h2>
+      <div className="grid min-h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <aside
+          className={`flex min-h-0 flex-col rounded-2xl border border-border bg-surface p-3 shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
+            activeId ? "hidden md:flex" : "flex"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2 px-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Conversaciones</h2>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+              aria-expanded={filtersOpen}
+            >
+              {filtersOpen ? "Ocultar filtros" : "Buscar y ordenar"}
+            </button>
+          </div>
+
+          {filtersOpen ? (
+            <div className="mt-3 space-y-2 border-b border-border px-1 pb-3 dark:border-slate-600">
+              <label className="block">
+                <span className="sr-only">Buscar conversaciones</span>
+                <input
+                  type="search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Buscar título o mensajes…"
+                  className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2 dark:border-slate-600 dark:bg-slate-800"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  Ordenar
+                </span>
+                <select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value as UserConversationSortKey)}
+                  className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2 dark:border-slate-600 dark:bg-slate-800"
+                >
+                  {USER_CONVERSATION_SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+
           {loadingList ? (
             <p className="p-3 text-sm text-muted">Cargando…</p>
-          ) : rows.length === 0 ? (
-            <p className="p-3 text-sm text-muted">Aún no tienes mensajes. Abre un anuncio y usa “Mensaje al anunciante”.</p>
+          ) : sortedRows.length === 0 ? (
+            <p className="p-3 text-sm text-muted">
+              {debouncedSearch
+                ? "No hay conversaciones que coincidan con tu búsqueda."
+                : "Aún no tienes mensajes. Abre un anuncio y usa “Mensaje al anunciante”."}
+            </p>
           ) : (
-            <ul className="mt-2 max-h-[60vh] space-y-1 overflow-y-auto md:max-h-[70vh]">
-              {rows.map((r) => (
+            <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto md:max-h-[70vh]">
+              {sortedRows.map((r) => (
                 <li key={r.id}>
                   <button
                     type="button"
@@ -175,9 +245,12 @@ export function MessagesPage() {
                       r.id === activeId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
                     }`}
                   >
-                    <span className="flex items-center gap-1.5 font-semibold text-body">
-                      {r.otherDisplayName}
-                      {r.kind === "support" ? <SupportBadge /> : null}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-1.5 font-semibold text-body">
+                        <span className="truncate">{r.otherDisplayName}</span>
+                        {r.kind === "support" ? <SupportBadge /> : null}
+                      </span>
+                      <span className="shrink-0 text-[10px] text-muted">{formatRelativeUpdatedAt(r.updatedAt)}</span>
                     </span>
                     <span className="line-clamp-1 text-xs text-muted">{r.contextTitle}</span>
                     {r.lastPreview ? (
@@ -195,7 +268,11 @@ export function MessagesPage() {
           )}
         </aside>
 
-        <section className="flex min-h-[420px] flex-col rounded-2xl border border-border bg-surface shadow-sm dark:border-slate-600 dark:bg-slate-900">
+        <section
+          className={`min-h-[min(70vh,640px)] flex-col rounded-2xl border border-border bg-surface shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
+            activeId ? "flex" : "hidden md:flex"
+          }`}
+        >
           {!activeId ? (
             <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted">
               Elige una conversación a la izquierda.
@@ -203,19 +280,31 @@ export function MessagesPage() {
           ) : (
             <>
               <div className="border-b border-border bg-primary px-4 py-3 text-primary-fg dark:border-slate-600">
-                <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
-                  {isSupportThread ? "Asunto" : "Publicación"}
-                </p>
-                <p className="text-sm font-semibold">{active?.contextTitle ?? "…"}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {active?.listingRoomId ? (
-                    <Link
-                      to={listingPublicPath(active.listingRoomId)}
-                      className="text-xs font-semibold underline"
-                    >
-                      Ver anuncio
-                    </Link>
-                  ) : null}
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={clearActive}
+                    className="mt-0.5 shrink-0 rounded-full border border-primary-fg/30 px-3 py-1 text-xs font-semibold text-primary-fg md:hidden"
+                  >
+                    Volver
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
+                      {isSupportThread ? "Asunto" : "Publicación"}
+                    </p>
+                    <p className="text-sm font-semibold">{active?.contextTitle ?? "…"}</p>
+                    <p className="mt-0.5 truncate text-xs text-primary-fg/80">{active?.otherDisplayName}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {active?.listingRoomId ? (
+                        <Link
+                          to={listingPublicPath(active.listingRoomId)}
+                          className="text-xs font-semibold underline"
+                        >
+                          Ver anuncio
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -296,8 +385,12 @@ export function MessagesPage() {
         </section>
       </div>
 
-      <p className="text-center text-xs text-muted">
-        <button type="button" className="font-semibold text-primary underline" onClick={() => void loadList()}>
+      <p className={`text-center text-xs text-muted ${activeId ? "hidden md:block" : ""}`}>
+        <button
+          type="button"
+          className="font-semibold text-primary underline"
+          onClick={() => void loadList(debouncedSearch || undefined)}
+        >
           Actualizar lista
         </button>
         {" · "}

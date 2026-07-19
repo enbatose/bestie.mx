@@ -42,9 +42,16 @@ export async function fetchUnreadMessageCount(signal?: AbortSignal): Promise<num
   return typeof j.count === "number" ? j.count : 0;
 }
 
-export async function fetchConversations(signal?: AbortSignal): Promise<ConversationSummary[]> {
+export async function fetchConversations(
+  opts?: { q?: string; signal?: AbortSignal },
+): Promise<ConversationSummary[]> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/messages/conversations`, { credentials: cred, signal });
+  const q = opts?.q?.trim();
+  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  const res = await fetch(`${base}/api/messages/conversations${qs}`, {
+    credentials: cred,
+    signal: opts?.signal,
+  });
   if (res.status === 401) return [];
   if (!res.ok) throw new Error(`conversations_${res.status}`);
   const j = (await res.json()) as { conversations: ConversationSummary[] };

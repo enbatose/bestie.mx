@@ -162,20 +162,48 @@ export function messagesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
-    const rows = db
-      .prepare(
-        `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
-                other.id AS other_user_id,
-                other.display_name AS other_display_name,
-                (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
-         FROM conversations c
-         JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
-         JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
-         JOIN users other ON other.id = om.user_id
-         ORDER BY c.updated_at DESC`,
-      )
-      .all(me, me, me) as Record<string, unknown>[];
+    const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 80) : "";
+    const like =
+      rawQ.length > 0
+        ? `%${rawQ.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
+        : null;
+    const rows = (
+      like
+        ? db
+            .prepare(
+              `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
+                      other.id AS other_user_id,
+                      other.display_name AS other_display_name,
+                      (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
+                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+               FROM conversations c
+               JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
+               JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
+               JOIN users other ON other.id = om.user_id
+               WHERE c.context_title LIKE ? ESCAPE '\\'
+                  OR other.display_name LIKE ? ESCAPE '\\'
+                  OR EXISTS (
+                       SELECT 1 FROM messages m
+                       WHERE m.conversation_id = c.id AND m.body LIKE ? ESCAPE '\\'
+                     )
+               ORDER BY c.updated_at DESC`,
+            )
+            .all(me, me, me, like, like, like)
+        : db
+            .prepare(
+              `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
+                      other.id AS other_user_id,
+                      other.display_name AS other_display_name,
+                      (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
+                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+               FROM conversations c
+               JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
+               JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
+               JOIN users other ON other.id = om.user_id
+               ORDER BY c.updated_at DESC`,
+            )
+            .all(me, me, me)
+    ) as Record<string, unknown>[];
     res.json({
       conversations: rows.map((row) => ({
         id: row.id,

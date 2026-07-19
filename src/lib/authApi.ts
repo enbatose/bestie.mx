@@ -578,10 +578,15 @@ export type AdminSupportConversationRow = {
 };
 
 export async function adminListSupportConversations(
-  signal?: AbortSignal,
+  opts?: { q?: string; signal?: AbortSignal },
 ): Promise<AdminSupportConversationRow[]> {
   const base = apiBase();
-  const res = await networkFetch(`${base}/api/admin/support/conversations`, { credentials: cred, signal });
+  const q = opts?.q?.trim();
+  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  const res = await networkFetch(`${base}/api/admin/support/conversations${qs}`, {
+    credentials: cred,
+    signal: opts?.signal,
+  });
   if (!res.ok) throw new Error(`admin_support_list_${res.status}`);
   const j = (await res.json()) as { conversations?: AdminSupportConversationRow[] };
   return j.conversations ?? [];

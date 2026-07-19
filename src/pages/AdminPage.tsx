@@ -16,6 +16,12 @@ import {
   type AdminUserRow,
 } from "@/lib/authApi";
 import { apiBase } from "@/lib/apiBase";
+import {
+  ADMIN_SUPPORT_SORT_OPTIONS,
+  formatRelativeUpdatedAt,
+  sortAdminSupportConversations,
+  type AdminSupportSortKey,
+} from "@/lib/conversationInbox";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
@@ -56,6 +62,10 @@ export function AdminPage() {
   const [supportLoadingList, setSupportLoadingList] = useState(false);
   const [supportLoadingThread, setSupportLoadingThread] = useState(false);
   const [supportSending, setSupportSending] = useState(false);
+  const [supportSearchInput, setSupportSearchInput] = useState("");
+  const [supportDebouncedSearch, setSupportDebouncedSearch] = useState("");
+  const [supportSortKey, setSupportSortKey] = useState<AdminSupportSortKey>("updated");
+  const [supportFiltersOpen, setSupportFiltersOpen] = useState(true);
   const [summary, setSummary] = useState<{ publishedPropertyCount: number; dauPublishersApprox: number; day: string } | null>(
     null,
   );
@@ -85,10 +95,10 @@ export function AdminPage() {
     setStreetView(await adminStreetViewAnalytics(month));
   }, []);
 
-  const loadSupportConversations = useCallback(async () => {
+  const loadSupportConversations = useCallback(async (q?: string) => {
     setSupportLoadingList(true);
     try {
-      setSupportRows(await adminListSupportConversations());
+      setSupportRows(await adminListSupportConversations({ q }));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo cargar Soporte al Cliente.");
     } finally {
@@ -122,7 +132,7 @@ export function AdminPage() {
       setSupportDraft("");
       setSupportFiles([]);
       await loadSupportThread(supportActiveId);
-      await loadSupportConversations();
+      await loadSupportConversations(supportDebouncedSearch || undefined);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo enviar la respuesta.");
     } finally {
@@ -145,8 +155,13 @@ export function AdminPage() {
   }, [loadUsers, loadCities, loadSummary, loadStreetView, streetViewMonth]);
 
   useEffect(() => {
-    if (tab === "soporte") void loadSupportConversations();
-  }, [tab, loadSupportConversations]);
+    const t = window.setTimeout(() => setSupportDebouncedSearch(supportSearchInput.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [supportSearchInput]);
+
+  useEffect(() => {
+    if (tab === "soporte") void loadSupportConversations(supportDebouncedSearch || undefined);
+  }, [tab, loadSupportConversations, supportDebouncedSearch]);
 
   useEffect(() => {
     if (supportActiveId) void loadSupportThread(supportActiveId);
@@ -155,12 +170,17 @@ export function AdminPage() {
     setSupportAttachErr(null);
   }, [supportActiveId, loadSupportThread]);
 
+  const sortedSupportRows = useMemo(
+    () => sortAdminSupportConversations(supportRows, supportSortKey),
+    [supportRows, supportSortKey],
+  );
+
   const dynamicPct = streetView
     ? Math.min(100, (streetView.dynamicStreetView.total / streetView.dynamicStreetView.freeTierLimit) * 100)
     : 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className={`mx-auto px-4 py-10 sm:px-6 sm:py-14 ${tab === "soporte" ? "max-w-5xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
       <p className="mt-2 text-sm text-muted">
         Solo cuentas cuyo correo está en la lista de administradores del servidor (integrada +{" "}
@@ -440,37 +460,95 @@ export function AdminPage() {
       ) : null}
 
       {tab === "soporte" ? (
-        <div className="mt-6 grid min-h-[420px] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <aside className="rounded-2xl border border-border bg-surface p-3 shadow-sm">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Soporte al Cliente
-              </h2>
-              <button
-                type="button"
-                onClick={() => void loadSupportConversations()}
-                className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
-              >
-                Actualizar
-              </button>
+        <div className="mt-6 grid min-h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <aside
+            className={`flex min-h-0 flex-col rounded-2xl border border-border bg-surface p-3 shadow-sm ${
+              supportActiveId ? "hidden md:flex" : "flex"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2 px-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Soporte al Cliente</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSupportFiltersOpen((v) => !v)}
+                  className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                  aria-expanded={supportFiltersOpen}
+                >
+                  {supportFiltersOpen ? "Ocultar filtros" : "Buscar y ordenar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void loadSupportConversations(supportDebouncedSearch || undefined)}
+                  className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Actualizar
+                </button>
+              </div>
             </div>
+
+            {supportFiltersOpen ? (
+              <div className="mt-3 space-y-2 border-b border-border px-1 pb-3">
+                <label className="block">
+                  <span className="sr-only">Buscar conversaciones</span>
+                  <input
+                    type="search"
+                    value={supportSearchInput}
+                    onChange={(e) => setSupportSearchInput(e.target.value)}
+                    placeholder="Buscar usuario, asunto o mensajes…"
+                    className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Ordenar
+                  </span>
+                  <select
+                    value={supportSortKey}
+                    onChange={(e) => setSupportSortKey(e.target.value as AdminSupportSortKey)}
+                    className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                  >
+                    {ADMIN_SUPPORT_SORT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+
             {supportLoadingList ? (
               <p className="p-3 text-sm text-muted">Cargando…</p>
-            ) : supportRows.length === 0 ? (
-              <p className="p-3 text-sm text-muted">Sin conversaciones de soporte todavía.</p>
+            ) : sortedSupportRows.length === 0 ? (
+              <p className="p-3 text-sm text-muted">
+                {supportDebouncedSearch
+                  ? "No hay conversaciones que coincidan con tu búsqueda."
+                  : "Sin conversaciones de soporte todavía."}
+              </p>
             ) : (
-              <ul className="mt-2 max-h-[60vh] space-y-1 overflow-y-auto md:max-h-[70vh]">
-                {supportRows.map((row) => (
+              <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto md:max-h-[70vh]">
+                {sortedSupportRows.map((row) => (
                   <li key={row.id}>
                     <button
                       type="button"
                       onClick={() => setSupportActiveId(row.id)}
                       className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                        row.id === supportActiveId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
+                        row.id === supportActiveId
+                          ? "bg-secondary/15 ring-1 ring-secondary/40"
+                          : "hover:bg-surface-elevated"
                       }`}
                     >
-                      <span className="font-semibold text-body">{row.customerDisplayName}</span>
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold text-body">{row.customerDisplayName}</span>
+                        <span className="shrink-0 text-[10px] text-muted">
+                          {formatRelativeUpdatedAt(row.updatedAt)}
+                        </span>
+                      </span>
                       <span className="line-clamp-1 text-xs text-muted">{row.subject}</span>
+                      {row.customerEmail ? (
+                        <span className="line-clamp-1 text-[11px] text-muted">{row.customerEmail}</span>
+                      ) : null}
                       {row.lastPreview ? (
                         <span className="line-clamp-1 text-xs text-muted">{row.lastPreview}</span>
                       ) : null}
@@ -486,7 +564,11 @@ export function AdminPage() {
             )}
           </aside>
 
-          <section className="flex min-h-[420px] flex-col rounded-2xl border border-border bg-surface shadow-sm">
+          <section
+            className={`min-h-[min(70vh,640px)] flex-col rounded-2xl border border-border bg-surface shadow-sm ${
+              supportActiveId ? "flex" : "hidden md:flex"
+            }`}
+          >
             {!supportActiveId ? (
               <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted">
                 Elige una conversación a la izquierda.
@@ -494,11 +576,22 @@ export function AdminPage() {
             ) : (
               <>
                 <div className="border-b border-border bg-primary px-4 py-3 text-primary-fg">
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
-                    {supportThread?.customer?.displayName ?? "…"} ·{" "}
-                    {supportThread?.customer?.email ?? "sin correo"}
-                  </p>
-                  <p className="text-sm font-semibold">{supportThread?.subject ?? "…"}</p>
+                  <div className="flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSupportActiveId(null)}
+                      className="mt-0.5 shrink-0 rounded-full border border-primary-fg/30 px-3 py-1 text-xs font-semibold text-primary-fg md:hidden"
+                    >
+                      Volver
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
+                        {supportThread?.customer?.displayName ?? "…"} ·{" "}
+                        {supportThread?.customer?.email ?? "sin correo"}
+                      </p>
+                      <p className="text-sm font-semibold">{supportThread?.subject ?? "…"}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -515,13 +608,24 @@ export function AdminPage() {
                               : "ml-auto bg-primary text-primary-fg"
                           }`}
                         >
-                          <p className={`text-[10px] font-semibold ${m.senderIsCustomer ? "text-muted" : "text-primary-fg/80"}`}>
+                          <p
+                            className={`text-[10px] font-semibold ${
+                              m.senderIsCustomer ? "text-muted" : "text-primary-fg/80"
+                            }`}
+                          >
                             {m.senderIsCustomer ? m.senderDisplayName : `Admin: ${m.senderDisplayName}`}
                           </p>
                           {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
                           <MessageAttachmentList attachments={m.attachments} />
-                          <p className={`mt-1 text-[10px] ${m.senderIsCustomer ? "text-muted" : "text-primary-fg/70"}`}>
-                            {new Date(m.createdAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}
+                          <p
+                            className={`mt-1 text-[10px] ${
+                              m.senderIsCustomer ? "text-muted" : "text-primary-fg/70"
+                            }`}
+                          >
+                            {new Date(m.createdAt).toLocaleString("es-MX", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
                           </p>
                         </div>
                       ))

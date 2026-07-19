@@ -148,22 +148,54 @@ export function adminRouter(db: DatabaseSync) {
 
   // --- Soporte al Cliente: shared admin inbox for all support conversations. ---
 
-  r.get("/support/conversations", (_req: Request, res: Response) => {
-    const rows = db
-      .prepare(
-        `SELECT c.id, c.context_title, c.updated_at,
-                customer.id AS customer_user_id,
-                customer.display_name AS customer_display_name,
-                customer.email AS customer_email,
-                (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
-         FROM conversations c
-         JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id != ?
-         JOIN users customer ON customer.id = cp.user_id
-         WHERE c.kind = 'support'
-         ORDER BY c.updated_at DESC`,
-      )
-      .all(SUPPORT_BOT_USER_ID, SUPPORT_BOT_USER_ID) as Record<string, unknown>[];
+  r.get("/support/conversations", (req: Request, res: Response) => {
+    const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 80) : "";
+    const like =
+      rawQ.length > 0
+        ? `%${rawQ.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
+        : null;
+    const rows = (
+      like
+        ? db
+            .prepare(
+              `SELECT c.id, c.context_title, c.updated_at,
+                      customer.id AS customer_user_id,
+                      customer.display_name AS customer_display_name,
+                      customer.email AS customer_email,
+                      (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
+                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+               FROM conversations c
+               JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id != ?
+               JOIN users customer ON customer.id = cp.user_id
+               WHERE c.kind = 'support'
+                 AND (
+                   c.context_title LIKE ? ESCAPE '\\'
+                   OR customer.display_name LIKE ? ESCAPE '\\'
+                   OR IFNULL(customer.email, '') LIKE ? ESCAPE '\\'
+                   OR EXISTS (
+                        SELECT 1 FROM messages m
+                        WHERE m.conversation_id = c.id AND m.body LIKE ? ESCAPE '\\'
+                      )
+                 )
+               ORDER BY c.updated_at DESC`,
+            )
+            .all(SUPPORT_BOT_USER_ID, SUPPORT_BOT_USER_ID, like, like, like, like)
+        : db
+            .prepare(
+              `SELECT c.id, c.context_title, c.updated_at,
+                      customer.id AS customer_user_id,
+                      customer.display_name AS customer_display_name,
+                      customer.email AS customer_email,
+                      (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
+                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+               FROM conversations c
+               JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id != ?
+               JOIN users customer ON customer.id = cp.user_id
+               WHERE c.kind = 'support'
+               ORDER BY c.updated_at DESC`,
+            )
+            .all(SUPPORT_BOT_USER_ID, SUPPORT_BOT_USER_ID)
+    ) as Record<string, unknown>[];
     res.json({
       conversations: rows.map((row) => ({
         id: row.id,
