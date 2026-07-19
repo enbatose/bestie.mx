@@ -94,11 +94,63 @@ export function removeActiveFilterChip(id: string, filters: SearchFilters): Sear
   return filters;
 }
 
+/** A filter chip whose active value is a plain number that can be edited in place (Renta, Edad, Estancia mínima). */
+export type NumericEditableFilter = {
+  id: string;
+  getValue: (f: SearchFilters) => number | null;
+  setValue: (f: SearchFilters, value: number) => SearchFilters;
+  step: number;
+  min: number;
+  max?: number;
+  /** Shown before the number, e.g. "$" for money. */
+  prefix?: string;
+  /** Shown after the number, e.g. " años" for age. */
+  suffix?: string;
+};
+
+export const NUMERIC_EDITABLE_FILTERS: Record<string, NumericEditableFilter> = {
+  "horizontal-rent": {
+    id: "horizontal-rent",
+    getValue: (f) => f.budgetMax ?? f.budgetMin,
+    setValue: (f, v) => (f.budgetMax != null ? { ...f, budgetMax: v } : { ...f, budgetMin: v }),
+    step: 100,
+    min: 0,
+    prefix: "$",
+  },
+  "horizontal-age": {
+    id: "horizontal-age",
+    getValue: (f) => f.age,
+    setValue: (f, v) => ({ ...f, age: v }),
+    step: 1,
+    min: 18,
+    max: 99,
+    suffix: " años",
+  },
+  "min-stay": {
+    id: "min-stay",
+    getValue: (f) => f.minimalStayMonths,
+    setValue: (f, v) => ({ ...f, minimalStayMonths: v }),
+    step: 1,
+    min: 1,
+    max: 36,
+    suffix: " meses",
+  },
+};
+
+export function clampNumericFilterValue(def: NumericEditableFilter, raw: number): number {
+  let value = Number.isFinite(raw) ? raw : def.min;
+  value = Math.max(def.min, value);
+  if (def.max != null) value = Math.min(def.max, value);
+  return value;
+}
+
 export type AddableFilterOption = {
   id: string;
   group: string;
   label: string;
   icon?: FilterIcon;
+  /** Extra search terms (synonyms) so "Cochera" also finds "Estacionamiento", etc. */
+  synonyms?: string[];
   isActive: (f: SearchFilters) => boolean;
   activate: (f: SearchFilters) => SearchFilters;
 };
@@ -111,6 +163,18 @@ function addTag(current: readonly ListingTag[], tag: ListingTag): ListingTag[] {
   return current.includes(tag) ? [...current] : [...current, tag];
 }
 
+/** Extra search terms per tag so e.g. "Cochera" also finds "Estacionamiento". */
+const TAG_SYNONYMS: Partial<Record<ListingTag, string[]>> = {
+  "baño-privado": ["baño", "bathroom", "wc"],
+  estacionamiento: ["cochera", "parking", "auto", "carro", "coche"],
+  muebles: ["furniture", "amueblado"],
+  "aire-acondicionado": ["ac", "clima", "aire"],
+  mascotas: ["pets", "perro", "gato", "animales"],
+  "lgbt-friendly": ["lgbt", "gay", "friendly", "comunidad"],
+  parejas: ["pareja", "couples", "novios"],
+  "fumar-permitido-recamara": ["fumar", "smoking", "cigarro"],
+};
+
 /**
  * Every filter value that can be searched for and added from "Encuentra tu filtro". Location
  * (city/neighborhoods/map area) is intentionally excluded — those describe *where* you're
@@ -122,6 +186,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Presupuesto",
     label: "Renta",
     icon: Banknote,
+    synonyms: ["presupuesto", "precio", "renta maxima", "renta máxima", "cuanto pagar"],
     isActive: (f) => f.budgetMax != null || f.budgetMin != null,
     activate: (f) => ({ ...f, budgetMin: null, budgetMax: f.budgetMax ?? 6000 }),
   },
@@ -130,6 +195,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Presupuesto",
     label: "Edad",
     icon: UserRound,
+    synonyms: ["años", "edad minima", "edad maxima"],
     isActive: (f) => f.age != null || f.ageMin != null || f.ageMax != null,
     activate: (f) => ({ ...f, age: f.age ?? 27, ageMin: null, ageMax: null }),
   },
@@ -138,6 +204,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Convivencia",
     label: "Sólo chicas",
     icon: HighHeelIcon,
+    synonyms: ["solo mujeres", "mujeres", "mujer", "chicas", "genero femenino"],
     isActive: (f) => f.pref === "female",
     activate: (f) => ({ ...f, pref: "female" }),
   },
@@ -146,6 +213,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Convivencia",
     label: "Sólo chicos",
     icon: MustacheIcon,
+    synonyms: ["solo hombres", "hombres", "hombre", "chicos", "genero masculino"],
     isActive: (f) => f.pref === "male",
     activate: (f) => ({ ...f, pref: "male" }),
   },
@@ -155,6 +223,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
       group: "Convivencia",
       label: TAG_LABELS[tag],
       icon: tag === "lgbt-friendly" ? undefined : ADVANCED_TAG_META[tag]?.icon,
+      synonyms: TAG_SYNONYMS[tag],
       isActive: (f) => f.tags.includes(tag),
       activate: (f) => ({ ...f, tags: addTag(f.tags, tag) }),
     }),
@@ -164,6 +233,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Propiedad",
     label: "Casa",
     icon: House,
+    synonyms: ["house", "casa completa"],
     isActive: (f) => f.wantHouse,
     activate: (f) => ({ ...f, wantHouse: true }),
   },
@@ -172,6 +242,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Propiedad",
     label: "Depa",
     icon: Building2,
+    synonyms: ["departamento", "apartamento", "apartment"],
     isActive: (f) => f.wantApartment,
     activate: (f) => ({ ...f, wantApartment: true }),
   },
@@ -188,6 +259,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Propiedad",
     label: "Cuarto privado",
     icon: DoorClosed,
+    synonyms: ["recamara privada", "privado", "habitacion privada"],
     isActive: (f) => f.lodgingType === "private_room",
     activate: (f) => ({ ...f, lodgingType: "private_room" }),
   },
@@ -196,6 +268,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Propiedad",
     label: "Cuarto compartido",
     icon: PlusOneIcon,
+    synonyms: ["recamara compartida", "compartido", "roomie", "habitacion compartida"],
     isActive: (f) => f.lodgingType === "shared_room",
     activate: (f) => ({ ...f, lodgingType: "shared_room" }),
   },
@@ -204,6 +277,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Tamaño: Individual",
     icon: BedSingle,
+    synonyms: ["cama individual", "chica", "cama chica"],
     isActive: (f) => f.roomDimensions.includes("small"),
     activate: (f) => ({ ...f, roomDimensions: addRoomDimension(f.roomDimensions, "small") }),
   },
@@ -212,6 +286,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Tamaño: Matrimonial",
     icon: BedDouble,
+    synonyms: ["cama matrimonial", "cama queen", "mediana", "doble"],
     isActive: (f) => f.roomDimensions.includes("medium"),
     activate: (f) => ({ ...f, roomDimensions: addRoomDimension(f.roomDimensions, "medium") }),
   },
@@ -220,6 +295,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Tamaño: Grande",
     icon: Bed,
+    synonyms: ["cama king", "cama grande", "amplia"],
     isActive: (f) => f.roomDimensions.includes("large"),
     activate: (f) => ({ ...f, roomDimensions: addRoomDimension(f.roomDimensions, "large") }),
   },
@@ -228,6 +304,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Disponible desde",
     icon: Calendar,
+    synonyms: ["fecha de mudanza", "fecha disponible", "mudanza", "cuando puedo mudarme"],
     isActive: (f) => f.availableFrom != null,
     activate: (f) => ({ ...f, availableFrom: f.availableFrom ?? isoDateTodayMexicoCity() }),
   },
@@ -236,6 +313,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Estancia mínima",
     icon: CalendarClock,
+    synonyms: ["meses minimos", "tiempo minimo", "renta minima en meses"],
     isActive: (f) => f.minimalStayMonths != null,
     activate: (f) => ({ ...f, minimalStayMonths: f.minimalStayMonths ?? 6 }),
   },
@@ -244,6 +322,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Requiere aval",
     icon: Tag,
+    synonyms: ["fiador", "garantia", "con aval"],
     isActive: (f) => f.avalRequired === true,
     activate: (f) => ({ ...f, avalRequired: true }),
   },
@@ -252,6 +331,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Sin aval",
     icon: Tag,
+    synonyms: ["sin fiador", "sin garantia"],
     isActive: (f) => f.avalRequired === false,
     activate: (f) => ({ ...f, avalRequired: false }),
   },
@@ -260,6 +340,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Subarriendo permitido",
     icon: Tag,
+    synonyms: ["subarrendar", "subletting", "rentar a otra persona"],
     isActive: (f) => f.subletAllowed === true,
     activate: (f) => ({ ...f, subletAllowed: true }),
   },
@@ -268,6 +349,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
     group: "Condiciones",
     label: "Sin subarriendo",
     icon: Tag,
+    synonyms: ["sin subarrendar", "no subletting"],
     isActive: (f) => f.subletAllowed === false,
     activate: (f) => ({ ...f, subletAllowed: false }),
   },
@@ -287,6 +369,7 @@ export function searchAddableFilters(filters: SearchFilters, query: string): Add
   return ADDABLE_FILTER_CATALOG.filter((entry) => {
     if (entry.isActive(filters)) return false;
     if (!q) return true;
-    return normalizeSearchText(entry.label).includes(q) || normalizeSearchText(entry.group).includes(q);
+    if (normalizeSearchText(entry.label).includes(q) || normalizeSearchText(entry.group).includes(q)) return true;
+    return (entry.synonyms ?? []).some((synonym) => normalizeSearchText(synonym).includes(q));
   });
 }

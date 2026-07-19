@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { Check, Minus, Pencil, Plus, Search, X } from "lucide-react";
 import {
+  clampNumericFilterValue,
   editableActiveFilterChips,
+  NUMERIC_EDITABLE_FILTERS,
   removeActiveFilterChip,
   searchAddableFilters,
+  type NumericEditableFilter,
 } from "@/lib/savedSearchFilterEditor";
 import type { SearchFilters } from "@/lib/searchFilters";
 import type { SearchLocationState } from "@/lib/searchLocation";
@@ -16,6 +19,87 @@ type Props = {
   searchLocation: Pick<SearchLocationState, "cityLabel" | "neighborhoods">;
 };
 
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+/**
+ * Inline +/- number editor that replaces a chip's label while editing, e.g. Renta or Edad.
+ * +/- apply immediately (same convention as the header/advanced steppers) and keep editing open;
+ * Enter or the checkmark commits the typed value and closes the editor.
+ */
+function NumericChipEditor({
+  def,
+  value,
+  onApply,
+  onDone,
+}: {
+  def: NumericEditableFilter;
+  value: number;
+  onApply: (next: number) => void;
+  onDone: () => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+
+  const commitAndClose = () => {
+    onApply(clampNumericFilterValue(def, Number(digitsOnly(draft)) || 0));
+    onDone();
+  };
+
+  const step = (delta: number) => {
+    const current = Number(digitsOnly(draft)) || 0;
+    const next = clampNumericFilterValue(def, current + delta);
+    setDraft(String(next));
+    onApply(next);
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-surface px-1.5 py-1 shadow-sm">
+      <button
+        type="button"
+        aria-label="Disminuir"
+        onClick={() => step(-def.step)}
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-primary transition hover:bg-bg-light"
+      >
+        <Minus className="size-3.5" aria-hidden strokeWidth={2.5} />
+      </button>
+      <span className="flex items-center text-xs font-medium text-body">
+        {def.prefix ? <span className="text-muted">{def.prefix}</span> : null}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={draft}
+          onChange={(e) => setDraft(digitsOnly(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitAndClose();
+            }
+          }}
+          className="w-12 bg-transparent text-center outline-none"
+        />
+        {def.suffix ? <span className="text-muted">{def.suffix}</span> : null}
+      </span>
+      <button
+        type="button"
+        aria-label="Aumentar"
+        onClick={() => step(def.step)}
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-primary transition hover:bg-bg-light"
+      >
+        <Plus className="size-3.5" aria-hidden strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        aria-label="Confirmar"
+        onClick={commitAndClose}
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg transition hover:brightness-110"
+      >
+        <Check className="size-3.5" aria-hidden strokeWidth={2.5} />
+      </button>
+    </span>
+  );
+}
+
 export function SavedSearchFiltersPicker({
   open,
   onClose,
@@ -24,19 +108,26 @@ export function SavedSearchFiltersPicker({
   searchLocation,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [editingChipId, setEditingChipId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setQuery("");
+    if (open) {
+      setQuery("");
+      setEditingChipId(null);
+    }
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (editingChipId) setEditingChipId(null);
+        else onClose();
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, editingChipId]);
 
   const activeChips = useMemo(
     () => editableActiveFilterChips(filters, searchLocation),
@@ -94,6 +185,22 @@ export function SavedSearchFiltersPicker({
                 <p className="text-xs text-muted">Sin filtros adicionales.</p>
               ) : (
                 activeChips.map((chip) => {
+                  const numericDef = NUMERIC_EDITABLE_FILTERS[chip.id];
+                  const numericValue = numericDef?.getValue(filters) ?? null;
+                  const isNumericEditable = numericDef != null && numericValue != null;
+
+                  if (editingChipId === chip.id && numericDef && numericValue != null) {
+                    return (
+                      <NumericChipEditor
+                        key={chip.id}
+                        def={numericDef}
+                        value={numericValue}
+                        onApply={(next) => onFiltersChange(numericDef.setValue(filters, next))}
+                        onDone={() => setEditingChipId(null)}
+                      />
+                    );
+                  }
+
                   const Icon = chip.icon;
                   return (
                     <span
@@ -102,6 +209,16 @@ export function SavedSearchFiltersPicker({
                     >
                       {Icon ? <Icon className="size-3.5 shrink-0 text-primary" aria-hidden strokeWidth={2.1} /> : null}
                       <span className="truncate">{chip.label}</span>
+                      {isNumericEditable ? (
+                        <button
+                          type="button"
+                          aria-label={`Editar ${chip.label}`}
+                          onClick={() => setEditingChipId(chip.id)}
+                          className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-bg-light hover:text-primary"
+                        >
+                          <Pencil className="size-3" aria-hidden strokeWidth={2.5} />
+                        </button>
+                      ) : null}
                       {chip.removable ? (
                         <button
                           type="button"
