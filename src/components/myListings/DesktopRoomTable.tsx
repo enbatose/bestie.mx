@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { MoreHorizontal } from "lucide-react";
 import { ListingReferenceChip } from "@/components/myListings/ListingReferenceChip";
@@ -26,9 +27,15 @@ type Props = {
   onRestore: (id: string) => void;
 };
 
+type MenuCoords = {
+  top: number;
+  right: number;
+  openUp: boolean;
+};
+
 /**
  * Compact desktop row actions: one primary CTA + overflow menu.
- * Keeps the Acciones column narrow so it fits inside the card.
+ * Menu is portaled to document.body so it is never clipped by table overflow/thead.
  */
 function DesktopRowActions({
   l,
@@ -65,19 +72,43 @@ function DesktopRowActions({
   const canRestore = st === "archived" || propSt === "archived";
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [coords, setCoords] = useState<MenuCoords | null>(null);
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
+    setCoords(null);
     triggerRef.current?.focus();
   }, []);
+
+  const updateCoords = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const estimatedMenuHeight = 168;
+    const gap = 4;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < estimatedMenuHeight && rect.top > spaceBelow;
+    setCoords({
+      top: openUp ? rect.top - gap : rect.bottom + gap,
+      right: Math.max(8, window.innerWidth - rect.right),
+      openUp,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    updateCoords();
+  }, [menuOpen, updateCoords]);
 
   useEffect(() => {
     if (!menuOpen) return;
     function onDoc(ev: MouseEvent) {
-      if (!menuRef.current?.contains(ev.target as Node)) closeMenu();
+      const t = ev.target as Node;
+      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      closeMenu();
     }
     function onKey(ev: KeyboardEvent) {
       if (ev.key === "Escape") {
@@ -103,14 +134,25 @@ function DesktopRowActions({
         next?.focus();
       }
     }
+    function onReposition() {
+      updateCoords();
+    }
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
-    menuRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus();
+    window.addEventListener("resize", onReposition);
+    // Capture scroll from nested overflow-x-auto table wrappers.
+    window.addEventListener("scroll", onReposition, true);
+    const t = window.setTimeout(() => {
+      menuRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus();
+    }, 0);
     return () => {
+      window.clearTimeout(t);
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
-  }, [menuOpen, closeMenu]);
+  }, [menuOpen, closeMenu, updateCoords]);
 
   const primary =
     canEdit ? (
@@ -156,11 +198,97 @@ function DesktopRowActions({
   const menuHasArchive = canArchive;
   const showOverflow = menuHasPreview || menuHasPause || menuHasRestore || menuHasArchive || st === "paused";
 
+  const menu =
+    menuOpen && coords
+      ? createPortal(
+          <div
+            ref={menuRef}
+            id={menuId}
+            role="menu"
+            style={{
+              position: "fixed",
+              top: coords.openUp ? undefined : coords.top,
+              bottom: coords.openUp ? window.innerHeight - coords.top : undefined,
+              right: coords.right,
+            }}
+            className="z-[1850] min-w-[11rem] overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
+          >
+            {menuHasPreview ? (
+              <Link
+                role="menuitem"
+                to={previewPath}
+                onClick={closeMenu}
+                className="flex min-h-10 items-center px-4 text-sm font-medium text-body hover:bg-surface-elevated"
+              >
+                {previewLabel}
+              </Link>
+            ) : null}
+            {menuHasPause ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={acting}
+                onClick={() => {
+                  closeMenu();
+                  onPause();
+                }}
+                className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
+              >
+                {acting ? "Pausando…" : "Pausar"}
+              </button>
+            ) : null}
+            {st === "paused" && canEdit ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={acting}
+                onClick={() => {
+                  closeMenu();
+                  onRepublish();
+                }}
+                className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
+              >
+                {acting ? "Republicando…" : "Republicar"}
+              </button>
+            ) : null}
+            {menuHasRestore ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={acting}
+                onClick={() => {
+                  closeMenu();
+                  onRestore();
+                }}
+                className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
+              >
+                Restaurar
+              </button>
+            ) : null}
+            {menuHasArchive ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={acting}
+                onClick={() => {
+                  closeMenu();
+                  onArchive();
+                }}
+                className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-error hover:bg-error/5 disabled:opacity-50"
+              >
+                Archivar
+              </button>
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <div className="inline-flex flex-nowrap items-center justify-end gap-1.5">
       {primary}
       {showOverflow ? (
-        <div className="relative" ref={menuRef}>
+        <>
           <button
             ref={triggerRef}
             type="button"
@@ -173,81 +301,8 @@ function DesktopRowActions({
           >
             <MoreHorizontal className="size-4" aria-hidden />
           </button>
-          {menuOpen ? (
-            <div
-              id={menuId}
-              role="menu"
-              className="absolute right-0 bottom-full z-[1850] mb-1 min-w-[11rem] overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
-            >
-              {menuHasPreview ? (
-                <Link
-                  role="menuitem"
-                  to={previewPath}
-                  onClick={closeMenu}
-                  className="flex min-h-10 items-center px-4 text-sm font-medium text-body hover:bg-surface-elevated"
-                >
-                  {previewLabel}
-                </Link>
-              ) : null}
-              {menuHasPause ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={acting}
-                  onClick={() => {
-                    closeMenu();
-                    onPause();
-                  }}
-                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
-                >
-                  {acting ? "Pausando…" : "Pausar"}
-                </button>
-              ) : null}
-              {st === "paused" && canEdit ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={acting}
-                  onClick={() => {
-                    closeMenu();
-                    onRepublish();
-                  }}
-                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
-                >
-                  {acting ? "Republicando…" : "Republicar"}
-                </button>
-              ) : null}
-              {menuHasRestore ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={acting}
-                  onClick={() => {
-                    closeMenu();
-                    onRestore();
-                  }}
-                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
-                >
-                  Restaurar
-                </button>
-              ) : null}
-              {menuHasArchive ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={acting}
-                  onClick={() => {
-                    closeMenu();
-                    onArchive();
-                  }}
-                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-error hover:bg-error/5 disabled:opacity-50"
-                >
-                  Archivar
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+          {menu}
+        </>
       ) : null}
     </div>
   );
