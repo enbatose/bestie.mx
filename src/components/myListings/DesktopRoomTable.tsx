@@ -26,6 +26,10 @@ type Props = {
   onRestore: (id: string) => void;
 };
 
+/**
+ * Compact desktop row actions: one primary CTA + overflow menu.
+ * Keeps the Acciones column narrow so it fits inside the card.
+ */
 function DesktopRowActions({
   l,
   head,
@@ -59,7 +63,6 @@ function DesktopRowActions({
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
   const canArchive = st === "published" || st === "paused";
   const canRestore = st === "archived" || propSt === "archived";
-  const showOverflow = canArchive || st === "published" || canRestore;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
@@ -109,44 +112,53 @@ function DesktopRowActions({
     };
   }, [menuOpen, closeMenu]);
 
-  return (
-    <div className="flex flex-nowrap items-center justify-end gap-2">
-      {canEdit ? (
-        <Link
-          to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
-          className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15`}
-        >
-          Editar
-        </Link>
-      ) : null}
-      {st === "paused" ? (
-        <button
-          type="button"
-          disabled={acting}
-          aria-busy={acting}
-          onClick={onRepublish}
-          className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
-        >
-          {acting ? "Republicando…" : "Republicar"}
-        </button>
-      ) : null}
-      {canRestore && !canEdit ? (
-        <button
-          type="button"
-          disabled={acting}
-          aria-busy={acting}
-          onClick={onRestore}
-          className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
-        >
-          {acting ? "Restaurando…" : "Restaurar"}
-        </button>
-      ) : null}
+  const primary =
+    canEdit ? (
+      <Link
+        to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
+        className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15`}
+      >
+        Editar
+      </Link>
+    ) : st === "paused" ? (
+      <button
+        type="button"
+        disabled={acting}
+        aria-busy={acting}
+        onClick={onRepublish}
+        className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
+      >
+        {acting ? "Republicando…" : "Republicar"}
+      </button>
+    ) : canRestore ? (
+      <button
+        type="button"
+        disabled={acting}
+        aria-busy={acting}
+        onClick={onRestore}
+        className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
+      >
+        {acting ? "Restaurando…" : "Restaurar"}
+      </button>
+    ) : (
       <Link
         to={previewPath}
         className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
       >
         {previewLabel}
       </Link>
+    );
+
+  // Preview lives in the overflow when the primary CTA is already Edit / Republish / Restaurar.
+  const menuHasPreview = canEdit || st === "paused" || canRestore;
+  const menuHasPause = st === "published";
+  const menuHasRestore = canRestore && canEdit;
+  const menuHasArchive = canArchive;
+  const showOverflow = menuHasPreview || menuHasPause || menuHasRestore || menuHasArchive || st === "paused";
+
+  return (
+    <div className="inline-flex flex-nowrap items-center justify-end gap-1.5">
+      {primary}
       {showOverflow ? (
         <div className="relative" ref={menuRef}>
           <button
@@ -167,7 +179,17 @@ function DesktopRowActions({
               role="menu"
               className="absolute right-0 bottom-full z-[1850] mb-1 min-w-[11rem] overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
             >
-              {st === "published" ? (
+              {menuHasPreview ? (
+                <Link
+                  role="menuitem"
+                  to={previewPath}
+                  onClick={closeMenu}
+                  className="flex min-h-10 items-center px-4 text-sm font-medium text-body hover:bg-surface-elevated"
+                >
+                  {previewLabel}
+                </Link>
+              ) : null}
+              {menuHasPause ? (
                 <button
                   type="button"
                   role="menuitem"
@@ -181,7 +203,21 @@ function DesktopRowActions({
                   {acting ? "Pausando…" : "Pausar"}
                 </button>
               ) : null}
-              {canRestore && canEdit ? (
+              {st === "paused" && canEdit ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={acting}
+                  onClick={() => {
+                    closeMenu();
+                    onRepublish();
+                  }}
+                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
+                >
+                  {acting ? "Republicando…" : "Republicar"}
+                </button>
+              ) : null}
+              {menuHasRestore ? (
                 <button
                   type="button"
                   role="menuitem"
@@ -195,7 +231,7 @@ function DesktopRowActions({
                   Restaurar
                 </button>
               ) : null}
-              {canArchive ? (
+              {menuHasArchive ? (
                 <button
                   type="button"
                   role="menuitem"
@@ -217,6 +253,11 @@ function DesktopRowActions({
   );
 }
 
+const stickyActionHead =
+  "sticky right-0 z-20 bg-surface px-3 py-3 text-right shadow-[-8px_0_12px_-8px_rgba(15,23,42,0.12)]";
+const stickyActionCell =
+  "sticky right-0 z-10 bg-surface px-3 py-3 text-right align-middle shadow-[-8px_0_12px_-8px_rgba(15,23,42,0.12)] group-hover:bg-surface-elevated group-focus-within:bg-surface-elevated";
+
 /** Desktop room table for a property group on Mis Anuncios. */
 export function DesktopRoomTable({
   propertyId,
@@ -233,125 +274,127 @@ export function DesktopRoomTable({
 
   return (
     <div className="hidden md:block">
-      <table className="w-full text-left text-sm">
-        <caption className="sr-only">Recámaras de {caption}</caption>
-        <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-          <tr>
-            <th scope="col" className="w-14 px-3 py-3">
-              <span className="sr-only">Foto</span>
-            </th>
-            <th scope="col" className="whitespace-nowrap px-3 py-3">
-              Referencia
-            </th>
-            <th scope="col" className="px-3 py-3">
-              {head.propertyPostMode === "property" ? "Recámara" : "Cuarto / título"}
-            </th>
-            <th scope="col" className="whitespace-nowrap px-3 py-3">
-              Renta
-            </th>
-            {head.propertyPostMode === "property" ? (
-              <th scope="col" className="hidden whitespace-nowrap px-3 py-3 lg:table-cell">
-                Disponibilidad
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[44rem] text-left text-sm">
+          <caption className="sr-only">Recámaras de {caption}</caption>
+          <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+            <tr>
+              <th scope="col" className="w-14 px-3 py-3">
+                <span className="sr-only">Foto</span>
               </th>
-            ) : (
-              <th scope="col" className="hidden whitespace-nowrap px-3 py-3 lg:table-cell">
-                Ciudad
+              <th scope="col" className="whitespace-nowrap px-3 py-3">
+                Referencia
               </th>
-            )}
-            <th scope="col" className="whitespace-nowrap px-3 py-3">
-              Estado
-            </th>
-            <th scope="col" className="hidden whitespace-nowrap px-3 py-3 lg:table-cell">
-              Métricas
-            </th>
-            <th scope="col" className="w-[1%] whitespace-nowrap px-3 py-3 text-right">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border text-body">
-          {list.map((l, roomIdx) => {
-            const st = l.status ?? "published";
-            const acting = rowBusy(l);
-            const roomRef = roomReferenceCode(l.id);
-            const title =
-              head.propertyPostMode === "property"
-                ? roomDisplayName(
-                    { customName: l.roomCustomName, title: l.title },
-                    roomIdx,
-                  )
-                : l.title;
-            const rentLabel = formatRentMxn(l.rentMxn);
-            const occupied = l.roomOccupancyStatus === "occupied";
-            const availableLabel = formatAvailableFrom(l.availableFrom);
-            const metricsLabel = formatPublisherMetrics(l.viewsCount, l.inquiryCount);
-            const metricsDisplay =
-              metricsLabel ??
-              (st === "published" ? "Sin actividad aún" : "—");
-
-            return (
-              <tr
-                key={l.id}
-                className="transition-colors hover:bg-surface-elevated/80 focus-within:bg-surface-elevated/80"
-              >
-                <td className="px-3 py-3">
-                  <ListingThumb src={listingThumbSrc(l)} className="size-10 rounded-lg" />
-                </td>
-                <td className="whitespace-nowrap px-3 py-3">
-                  <ListingReferenceChip
-                    code={roomRef}
-                    label="Anuncio"
-                    title={`Referencia del anuncio: ${roomRef}`}
-                    size="compact"
-                  />
-                </td>
-                <th scope="row" className="max-w-[12rem] px-3 py-3 text-left font-medium xl:max-w-[16rem]">
-                  <p className="truncate" title={title}>
-                    {title}
-                  </p>
-                  {availableLabel ? (
-                    <p className="mt-0.5 truncate text-xs font-normal text-muted">{availableLabel}</p>
-                  ) : null}
+              <th scope="col" className="min-w-[8rem] px-3 py-3">
+                {head.propertyPostMode === "property" ? "Recámara" : "Cuarto / título"}
+              </th>
+              <th scope="col" className="whitespace-nowrap px-3 py-3">
+                Renta
+              </th>
+              {head.propertyPostMode === "property" ? (
+                <th scope="col" className="hidden whitespace-nowrap px-3 py-3 xl:table-cell">
+                  Disponibilidad
                 </th>
-                <td className="whitespace-nowrap px-3 py-3 tabular-nums">
-                  {occupied ? (
-                    <span className="text-muted">Ocupada</span>
-                  ) : rentLabel ? (
-                    <span className="font-semibold text-body">{rentLabel}</span>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </td>
-                <td className="hidden whitespace-nowrap px-3 py-3 text-muted lg:table-cell">
-                  {head.propertyPostMode === "property"
-                    ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
-                    : l.city}
-                </td>
-                <td className="whitespace-nowrap px-3 py-3">
-                  <ListingStatusBadge status={st} />
-                </td>
-                <td className="hidden whitespace-nowrap px-3 py-3 text-xs text-muted lg:table-cell">
-                  {metricsDisplay}
-                </td>
-                <td className="w-[1%] whitespace-nowrap px-3 py-3 text-right align-middle">
-                  <DesktopRowActions
-                    l={l}
-                    head={head}
-                    propSt={propSt}
-                    propertyId={propertyId}
-                    acting={acting}
-                    st={st}
-                    onPause={() => onPause(l.id)}
-                    onRepublish={() => onRepublish(l.id)}
-                    onArchive={() => onArchive(l.id)}
-                    onRestore={() => onRestore(l.id)}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              ) : (
+                <th scope="col" className="hidden whitespace-nowrap px-3 py-3 xl:table-cell">
+                  Ciudad
+                </th>
+              )}
+              <th scope="col" className="whitespace-nowrap px-3 py-3">
+                Estado
+              </th>
+              <th scope="col" className="hidden whitespace-nowrap px-3 py-3 xl:table-cell">
+                Métricas
+              </th>
+              <th scope="col" className={`${stickyActionHead} whitespace-nowrap`}>
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border text-body">
+            {list.map((l, roomIdx) => {
+              const st = l.status ?? "published";
+              const acting = rowBusy(l);
+              const roomRef = roomReferenceCode(l.id);
+              const title =
+                head.propertyPostMode === "property"
+                  ? roomDisplayName(
+                      { customName: l.roomCustomName, title: l.title },
+                      roomIdx,
+                    )
+                  : l.title;
+              const rentLabel = formatRentMxn(l.rentMxn);
+              const occupied = l.roomOccupancyStatus === "occupied";
+              const availableLabel = formatAvailableFrom(l.availableFrom);
+              const metricsLabel = formatPublisherMetrics(l.viewsCount, l.inquiryCount);
+              const metricsDisplay =
+                metricsLabel ??
+                (st === "published" ? "Sin actividad aún" : "—");
+
+              return (
+                <tr
+                  key={l.id}
+                  className="group transition-colors hover:bg-surface-elevated/80 focus-within:bg-surface-elevated/80"
+                >
+                  <td className="px-3 py-3">
+                    <ListingThumb src={listingThumbSrc(l)} className="size-10 rounded-lg" />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3">
+                    <ListingReferenceChip
+                      code={roomRef}
+                      label="Anuncio"
+                      title={`Referencia del anuncio: ${roomRef}`}
+                      size="compact"
+                    />
+                  </td>
+                  <th scope="row" className="max-w-[10rem] px-3 py-3 text-left font-medium xl:max-w-[14rem]">
+                    <p className="truncate" title={title}>
+                      {title}
+                    </p>
+                    {availableLabel ? (
+                      <p className="mt-0.5 truncate text-xs font-normal text-muted">{availableLabel}</p>
+                    ) : null}
+                  </th>
+                  <td className="whitespace-nowrap px-3 py-3 tabular-nums">
+                    {occupied ? (
+                      <span className="text-muted">Ocupada</span>
+                    ) : rentLabel ? (
+                      <span className="font-semibold text-body">{rentLabel}</span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="hidden whitespace-nowrap px-3 py-3 text-muted xl:table-cell">
+                    {head.propertyPostMode === "property"
+                      ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
+                      : l.city}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3">
+                    <ListingStatusBadge status={st} />
+                  </td>
+                  <td className="hidden whitespace-nowrap px-3 py-3 text-xs text-muted xl:table-cell">
+                    {metricsDisplay}
+                  </td>
+                  <td className={`w-[1%] whitespace-nowrap ${stickyActionCell}`}>
+                    <DesktopRowActions
+                      l={l}
+                      head={head}
+                      propSt={propSt}
+                      propertyId={propertyId}
+                      acting={acting}
+                      st={st}
+                      onPause={() => onPause(l.id)}
+                      onRepublish={() => onRepublish(l.id)}
+                      onArchive={() => onArchive(l.id)}
+                      onRestore={() => onRestore(l.id)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
