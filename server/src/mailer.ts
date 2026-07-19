@@ -346,18 +346,32 @@ export type SendTransactionalEmailOpts = {
   subject: string;
   html: string;
   text?: string;
+  /** Inbox snippet (also embedded as HTML preheader by templates). */
+  previewText?: string;
+  replyTo?: string | string[];
+  tags?: { name: string; value: string }[];
+  /** Extra SMTP/Resend headers (e.g. List-Unsubscribe). */
+  headers?: Record<string, string>;
 };
 
 async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts): Promise<boolean> {
   const key = getResendApiKey();
   if (!key) return false;
   const resend = new Resend(key);
+  const replyTo = opts.replyTo
+    ? Array.isArray(opts.replyTo)
+      ? opts.replyTo
+      : [opts.replyTo]
+    : undefined;
   const { data, error } = await resend.emails.send({
     from,
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
     ...(opts.text ? { text: opts.text } : {}),
+    ...(replyTo?.length ? { replyTo } : {}),
+    ...(opts.tags?.length ? { tags: opts.tags } : {}),
+    ...(opts.headers ? { headers: opts.headers } : {}),
   });
   if (error) {
     logResendSendError(error);
@@ -385,12 +399,19 @@ export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): 
       return await sendViaResendApi(from, opts);
     }
     const t = createTransporter();
+    const replyTo = opts.replyTo
+      ? Array.isArray(opts.replyTo)
+        ? opts.replyTo.join(", ")
+        : opts.replyTo
+      : undefined;
     await t.sendMail({
       from,
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
       ...(opts.text ? { text: opts.text } : {}),
+      ...(replyTo ? { replyTo } : {}),
+      ...(opts.headers ? { headers: opts.headers } : {}),
     });
     return true;
   } catch (e) {

@@ -92,6 +92,9 @@ export async function requestPasswordResetForEmail(
     subject: mail.subject,
     html: mail.html,
     text: mail.text,
+    previewText: mail.previewText,
+    replyTo: mail.replyTo,
+    tags: mail.tags,
   });
 
   const devReturn =

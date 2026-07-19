@@ -111,6 +111,9 @@ export async function sendMessageDigestForUser(db: DatabaseSync, userId: string)
     subject: built.subject,
     html: built.html,
     text: built.text,
+    previewText: built.previewText,
+    replyTo: built.replyTo,
+    tags: built.tags,
   });
   if (!sent) return false;
 

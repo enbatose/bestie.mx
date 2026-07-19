@@ -1,6 +1,15 @@
 import { roomReferenceCode } from "../listingReference.js";
 import { publicBaseUrl } from "../publicBaseUrl.js";
 import type { PropertyListing } from "../types.js";
+import {
+  EMAIL_BRAND,
+  type BuiltTransactionalEmail,
+  escapeHtml,
+  primaryButtonHtml,
+  renderEmailShell,
+  textLinkHtml,
+  defaultSupportFooter,
+} from "./emailLayout.js";
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -8,7 +17,7 @@ const money = new Intl.NumberFormat("es-MX", {
   maximumFractionDigits: 0,
 });
 
-/** Icon legend for email (text labels — clients do not render Lucide). */
+/** Short attribute chips for email (text only — clients do not render Lucide). */
 export const EMAIL_ATTRIBUTE_LEGEND: { label: string; tooltip: string }[] = [
   { label: "Casa", tooltip: "Propiedad tipo casa" },
   { label: "Depa", tooltip: "Propiedad tipo departamento" },
@@ -25,14 +34,6 @@ export const EMAIL_ATTRIBUTE_LEGEND: { label: string; tooltip: string }[] = [
   { label: "LGBT+", tooltip: "LGBT+ Friendly" },
   { label: "Wi‑Fi", tooltip: "Wi‑Fi incluido" },
 ];
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function listingTitle(listing: PropertyListing): string {
   const t = listing.title?.trim();
@@ -81,7 +82,7 @@ function listingAttributeLabels(listing: PropertyListing): string[] {
   if (listing.tags.includes("mascotas")) labels.push("Mascotas");
   if (listing.tags.includes("lgbt-friendly")) labels.push("LGBT+");
   if (listing.tags.includes("wifi")) labels.push("Wi‑Fi");
-  return labels.slice(0, 6);
+  return labels.slice(0, 5);
 }
 
 function formatPublishedDate(iso: string | undefined): string {
@@ -96,54 +97,47 @@ function listingCardHtml(
   listing: PropertyListing,
   opts?: { isNew?: boolean },
 ): string {
+  const B = EMAIL_BRAND;
   const title = escapeHtml(listingTitle(listing));
   const subtitle = escapeHtml(listingSubtitle(listing));
   const rent = escapeHtml(money.format(listing.rentMxn));
-  const summary = escapeHtml((listing.summary ?? "").slice(0, 160));
+  const summary = escapeHtml((listing.summary ?? "").slice(0, 140));
   const href = `${base}/anuncio/${encodeURIComponent(roomReferenceCode(listing.id))}`;
   const cover = listingCoverPath(listing);
   const thumb = cover
-    ? `<img src="${escapeHtml(base + cover)}" alt="" width="72" height="72" style="border-radius:8px;object-fit:cover;display:block;" />`
-    : `<div style="width:72px;height:72px;border-radius:8px;background:#f3f4f6;border:1px solid #e5e7eb;"></div>`;
+    ? `<img src="${escapeHtml(base + cover)}" alt="" width="72" height="72" border="0" style="border-radius:8px;object-fit:cover;display:block;width:72px;height:72px;" />`
+    : `<div style="width:72px;height:72px;border-radius:8px;background:${B.surfaceElevated};border:1px solid ${B.border};"></div>`;
   const badges = listingAttributeLabels(listing)
     .map(
       (l) =>
-        `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;font-size:11px;font-weight:600;border-radius:999px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;">${escapeHtml(l)}</span>`,
+        `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;font-size:11px;font-weight:600;border-radius:999px;background:${B.bgLight};border:1px solid ${B.border};color:${B.body};">${escapeHtml(l)}</span>`,
     )
     .join("");
   const newBadge = opts?.isNew
-    ? `<p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#059669;">Nuevo · publicado ${escapeHtml(formatPublishedDate(listing.createdAt ?? listing.updatedAt))}</p>`
+    ? `<p style="margin:0 0 6px;font-size:12px;font-weight:700;color:${B.primary};">Nuevo · publicado ${escapeHtml(formatPublishedDate(listing.createdAt ?? listing.updatedAt))}</p>`
     : "";
 
   return `
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:12px;border:1px solid #e5e7eb;border-radius:12px;background:#ffffff;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;border:1px solid ${B.border};border-radius:12px;background:${B.surface};">
   <tr>
     <td style="padding:12px;">
       ${newBadge}
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr>
           <td width="72" valign="top">${thumb}</td>
           <td style="padding-left:12px;" valign="top">
-            <p style="margin:0;font-size:15px;font-weight:700;color:#1e3a5f;">${title}</p>
-            <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${subtitle}</p>
-            <p style="margin:8px 0 0;font-size:14px;font-weight:700;color:#111827;">${rent}<span style="font-size:11px;font-weight:400;color:#6b7280;"> / mes</span></p>
-            <p style="margin:8px 0 0;font-size:12px;line-height:1.45;color:#6b7280;">${summary}</p>
+            <p style="margin:0;font-size:15px;font-weight:700;color:${B.primary};">${title}</p>
+            <p style="margin:4px 0 0;font-size:13px;color:${B.muted};">${subtitle}</p>
+            <p style="margin:8px 0 0;font-size:14px;font-weight:700;color:${B.body};">${rent}<span style="font-size:11px;font-weight:400;color:${B.muted};"> / mes</span></p>
+            ${summary ? `<p style="margin:8px 0 0;font-size:12px;line-height:1.45;color:${B.muted};">${summary}</p>` : ""}
             ${badges ? `<div style="margin-top:8px;">${badges}</div>` : ""}
-            <p style="margin:10px 0 0;"><a href="${href}" style="font-size:13px;font-weight:600;color:#2563eb;text-decoration:none;">Ver anuncio →</a></p>
+            <p style="margin:10px 0 0;">${textLinkHtml(href, "Ver anuncio")}</p>
           </td>
         </tr>
       </table>
     </td>
   </tr>
 </table>`;
-}
-
-function legendHtml(): string {
-  const cells = EMAIL_ATTRIBUTE_LEGEND.map(
-    (item) =>
-      `<td style="padding:4px 8px;font-size:11px;color:#374151;vertical-align:top;"><strong>${escapeHtml(item.label)}</strong><br/><span style="color:#6b7280;">${escapeHtml(item.tooltip)}</span></td>`,
-  );
-  return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:16px 0;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;"><tr>${cells.join("")}</tr></table>`;
 }
 
 export type SavedSearchEmailPayload = {
@@ -155,21 +149,38 @@ export type SavedSearchEmailPayload = {
   otherListings: PropertyListing[];
 };
 
-export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): {
-  subject: string;
-  html: string;
-  text: string;
-} {
+export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTransactionalEmail {
   const base = publicBaseUrl();
+  const B = EMAIL_BRAND;
   const searchLink = payload.searchUrl.startsWith("http")
     ? payload.searchUrl
     : `${base}${payload.searchUrl.startsWith("/") ? "" : "/"}${payload.searchUrl}`;
   const unsubLink = `${base}/api/saved-searches/unsubscribe/${encodeURIComponent(payload.unsubscribeToken)}`;
-
-  const title =
+  const label = payload.label.trim() || "tu búsqueda";
+  const newCount = payload.newListings.length;
+  const totalShown =
     payload.mode === "initial"
-      ? `Resultados para tu búsqueda «${payload.label}»`
-      : `Nuevos anuncios para «${payload.label}»`;
+      ? payload.newListings.length + payload.otherListings.length
+      : newCount + payload.otherListings.length;
+
+  const subject =
+    payload.mode === "initial"
+      ? `Bestie · resultados para «${label}»`
+      : newCount === 1
+        ? `Bestie · 1 anuncio nuevo para «${label}»`
+        : `Bestie · ${newCount} anuncios nuevos para «${label}»`;
+
+  const previewText =
+    payload.mode === "initial"
+      ? `${totalShown || "Varios"} anuncios que coinciden con tus filtros.`
+      : newCount === 1
+        ? "Hay un anuncio nuevo que coincide con tu búsqueda guardada."
+        : `Hay ${newCount} anuncios nuevos que coinciden con tu búsqueda.`;
+
+  const headline =
+    payload.mode === "initial"
+      ? `Resultados para «${escapeHtml(label)}»`
+      : `Nuevos anuncios para «${escapeHtml(label)}»`;
 
   let bodyListings = "";
   if (payload.mode === "initial") {
@@ -177,90 +188,96 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): {
     bodyListings = all.map((l) => listingCardHtml(base, l)).join("");
   } else {
     if (payload.newListings.length) {
-      bodyListings += `<h2 style="font-size:14px;font-weight:700;color:#111827;margin:20px 0 8px;">Nuevos</h2>`;
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Nuevos</p>`;
       bodyListings += payload.newListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
     }
     if (payload.otherListings.length) {
-      bodyListings += `<h2 style="font-size:14px;font-weight:700;color:#111827;margin:20px 0 8px;">También coinciden con tu búsqueda</h2>`;
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">También coinciden</p>`;
       bodyListings += payload.otherListings.map((l) => listingCardHtml(base, l)).join("");
     }
   }
 
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f3f4f6;padding:24px 12px;">
-    <tr><td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;overflow:hidden;">
-        <tr><td style="padding:24px 24px 12px;background:#1e3a5f;">
-          <p style="margin:0;font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">Bestie.mx</p>
-          <p style="margin:8px 0 0;font-size:14px;color:#dbeafe;">Alertas de búsqueda guardada</p>
-        </td></tr>
-        <tr><td style="padding:24px;">
-          <h1 style="margin:0 0 8px;font-size:18px;font-weight:700;color:#111827;">${escapeHtml(title)}</h1>
-          <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#4b5563;">Estos anuncios coinciden con los filtros que guardaste. Las etiquetas e iconos en la app indican tipo de propiedad, cuarto y preferencias del anunciante.</p>
-          ${legendHtml()}
-          ${bodyListings || `<p style="font-size:14px;color:#6b7280;">No hay anuncios que coincidan en este momento.</p>`}
-          <p style="margin:24px 0 0;text-align:center;"><a href="${escapeHtml(searchLink)}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:999px;">Ver más publicaciones</a></p>
-        </td></tr>
-        <tr><td style="padding:16px 24px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;">
-          <p style="margin:0 0 8px;font-size:12px;color:#6b7280;text-align:center;"><a href="${escapeHtml(unsubLink)}" style="color:#6b7280;">Dejar de recibir alertas de esta búsqueda</a></p>
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">¿Necesitas ayuda? <a href="mailto:contacto@bestie.mx" style="color:#6b7280;">contacto@bestie.mx</a></p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const bodyHtml = `
+    <h1 style="margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:${B.body};">${headline}</h1>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:${B.muted};">Estos cuartos coinciden con los filtros que guardaste. Abre un anuncio para ver fotos y detalles.</p>
+    ${
+      bodyListings ||
+      `<p style="margin:0 0 16px;font-size:14px;color:${B.muted};">Aún no hay anuncios que coincidan en este momento.</p>`
+    }
+    <p style="margin:20px 0 0;text-align:center;">${primaryButtonHtml(searchLink, "Ver en el mapa")}</p>
+  `;
+
+  const html = renderEmailShell({
+    previewText,
+    headerEyebrow: "Alerta de búsqueda guardada",
+    maxWidthPx: 560,
+    bodyHtml,
+    footerHtml: defaultSupportFooter(
+      `<a href="${escapeHtml(unsubLink)}" style="color:${B.muted};">Dejar de recibir alertas de esta búsqueda</a>`,
+    ),
+  });
 
   const textLines = [
-    title,
+    subject.replace(/^Bestie · /, ""),
     "",
-    payload.mode === "follow_up" && payload.newListings.length
-      ? "NUEVOS:"
-      : "RESULTADOS:",
+    payload.mode === "follow_up" && payload.newListings.length ? "NUEVOS:" : "RESULTADOS:",
     ...payload.newListings.map(
-      (l) => `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
+      (l) =>
+        `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
     ...(payload.otherListings.length ? ["", "TAMBIÉN COINCIDEN:"] : []),
     ...payload.otherListings.map(
-      (l) => `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
+      (l) =>
+        `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
     "",
-    `Ver más: ${searchLink}`,
+    `Ver en el mapa: ${searchLink}`,
     "",
     `Dejar de recibir alertas: ${unsubLink}`,
+    `Ayuda: ${B.support}`,
   ];
 
-  return { subject: title, html, text: textLines.join("\n") };
+  return {
+    subject,
+    previewText,
+    html,
+    text: textLines.join("\n"),
+    replyTo: B.support,
+    tags: [
+      { name: "category", value: "saved_search" },
+      { name: "mode", value: payload.mode },
+      { name: "product", value: "bestie" },
+    ],
+  };
 }
 
 export function renderUnsubscribeConfirmationHtml(label: string): string {
   const base = publicBaseUrl();
+  const B = EMAIL_BRAND;
   const safe = escapeHtml(label);
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es-MX">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>Alertas desactivadas</title></head>
-<body style="margin:0;font-family:system-ui,sans-serif;background:#f3f4f6;padding:40px 16px;">
-  <div style="max-width:420px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e5e7eb;padding:32px;text-align:center;">
-    <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#1e3a5f;">Bestie.mx</p>
-    <h1 style="margin:16px 0 8px;font-size:18px;color:#111827;">Alertas desactivadas</h1>
-    <p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:#4b5563;">Ya no recibirás alertas por correo para «${safe}».</p>
-    <p style="margin:0;"><a href="${base}/mis-busquedas" style="margin-right:12px;color:#2563eb;font-weight:600;">Mis Búsquedas</a>
-    <a href="${base}/buscar" style="color:#2563eb;font-weight:600;">Buscar</a></p>
+<body style="margin:0;font-family:Inter,system-ui,sans-serif;background:${B.bgLight};padding:40px 16px;">
+  <div style="max-width:420px;margin:0 auto;background:${B.surface};border-radius:16px;border:1px solid ${B.border};padding:32px;text-align:center;">
+    <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:${B.primary};">Bestie</p>
+    <h1 style="margin:16px 0 8px;font-size:18px;color:${B.body};">Alertas desactivadas</h1>
+    <p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:${B.muted};">Ya no recibirás alertas por correo para «${safe}».</p>
+    <p style="margin:0;"><a href="${base}/mis-busquedas" style="margin-right:12px;color:${B.primary};font-weight:600;">Mis búsquedas</a>
+    <a href="${base}/buscar" style="color:${B.primary};font-weight:600;">Buscar</a></p>
   </div>
 </body></html>`;
 }
 
 export function renderUnsubscribeNotFoundHtml(): string {
   const base = publicBaseUrl();
+  const B = EMAIL_BRAND;
   return `<!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"/><title>Enlace no válido</title></head>
-<body style="margin:0;font-family:system-ui,sans-serif;background:#f3f4f6;padding:40px 16px;text-align:center;">
-  <div style="max-width:420px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;border:1px solid #e5e7eb;">
-    <p style="font-size:14px;color:#4b5563;">Enlace no válido o expirado.</p>
-    <p style="margin-top:16px;"><a href="${base}/buscar" style="color:#2563eb;font-weight:600;">Ir a buscar</a></p>
+<html lang="es-MX"><head><meta charset="utf-8"/><title>Enlace no válido</title></head>
+<body style="margin:0;font-family:Inter,system-ui,sans-serif;background:${B.bgLight};padding:40px 16px;text-align:center;">
+  <div style="max-width:420px;margin:0 auto;background:${B.surface};border-radius:16px;padding:32px;border:1px solid ${B.border};">
+    <p style="font-size:14px;color:${B.muted};">Enlace no válido o expirado.</p>
+    <p style="margin-top:16px;"><a href="${base}/buscar" style="color:${B.primary};font-weight:600;">Ir a buscar</a></p>
   </div>
 </body></html>`;
 }

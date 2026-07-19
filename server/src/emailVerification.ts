@@ -57,6 +57,9 @@ export async function issueEmailVerificationChallenge(
     subject: mail.subject,
     html: mail.html,
     text: mail.text,
+    previewText: mail.previewText,
+    replyTo: mail.replyTo,
+    tags: mail.tags,
   });
 
   return { code, emailSent };

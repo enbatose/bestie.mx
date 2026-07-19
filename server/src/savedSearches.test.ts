@@ -196,7 +196,7 @@ describe("saved searches API", () => {
   });
 
   it("email template includes unsubscribe link", () => {
-    const { html, text } = buildSavedSearchEmail({
+    const mail = buildSavedSearchEmail({
       label: "Test",
       searchUrl: "/buscar/gdl",
       unsubscribeToken: "abc123",
@@ -204,8 +204,12 @@ describe("saved searches API", () => {
       newListings: [],
       otherListings: [],
     });
-    expect(html).toContain("Dejar de recibir alertas de esta búsqueda");
-    expect(html).toContain("/api/saved-searches/unsubscribe/abc123");
-    expect(text).toContain("/api/saved-searches/unsubscribe/abc123");
+    expect(mail.html).toContain("Dejar de recibir alertas de esta búsqueda");
+    expect(mail.html).toContain("/api/saved-searches/unsubscribe/abc123");
+    expect(mail.text).toContain("/api/saved-searches/unsubscribe/abc123");
+    expect(mail.subject.startsWith("Bestie ·")).toBe(true);
+    expect(mail.html).toContain("#143D30");
+    expect(mail.previewText.length).toBeGreaterThan(10);
+    expect(mail.replyTo).toBe("contacto@bestie.mx");
   });
 });

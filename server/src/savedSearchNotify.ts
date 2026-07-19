@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { buildSavedSearchEmail } from "./emails/savedSearchEmail.js";
 import { isUserEmailVerified } from "./emailVerification.js";
 import { sendTransactionalEmail } from "./mailer.js";
+import { publicBaseUrl } from "./publicBaseUrl.js";
 import {
   fetchMatchingListingsForSavedSearch,
   parseSavedSearchFilters,
@@ -173,7 +174,7 @@ export async function sendSavedSearchEmail(
     otherListings = allMatches.filter((l) => notified.has(l.id)).slice(0, FOLLOW_UP_OTHER_CAP);
   }
 
-  const { subject, html, text } = buildSavedSearchEmail({
+  const mail = buildSavedSearchEmail({
     label: row.label,
     searchUrl: row.search_url,
     unsubscribeToken: row.unsubscribe_token,
@@ -182,7 +183,20 @@ export async function sendSavedSearchEmail(
     otherListings,
   });
 
-  const sent = await sendTransactionalEmail({ to: email, subject, html, text });
+  const unsubUrl = `${publicBaseUrl()}/api/saved-searches/unsubscribe/${encodeURIComponent(row.unsubscribe_token)}`;
+  const sent = await sendTransactionalEmail({
+    to: email,
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
+    previewText: mail.previewText,
+    replyTo: mail.replyTo,
+    tags: mail.tags,
+    headers: {
+      "List-Unsubscribe": `<${unsubUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
   if (!sent) return false;
 
   const roomIdsToMark =
