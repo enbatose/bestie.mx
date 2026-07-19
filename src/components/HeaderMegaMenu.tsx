@@ -283,11 +283,17 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   }, []);
 
   useEffect(() => {
-    if (!isHome) {
-      setHomePublishDesktopPulse(false);
+    // Mobile "Publicar" label nudge is guests-only (logged-in header is already crowded).
+    const showMobilePublishLabel = isHome && !me?.id;
+    const showDesktopPublishPulse = isHome;
+
+    if (!showMobilePublishLabel) {
       setHomePublishMobileLabel(false);
-      return;
     }
+    if (!showDesktopPublishPulse) {
+      setHomePublishDesktopPulse(false);
+    }
+    if (!isHome) return;
 
     const reduceMotion =
       typeof window !== "undefined" &&
@@ -296,8 +302,8 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
     if (reduceMotion) return;
 
     const startId = window.setTimeout(() => {
-      setHomePublishDesktopPulse(true);
-      setHomePublishMobileLabel(true);
+      if (showDesktopPublishPulse) setHomePublishDesktopPulse(true);
+      if (showMobilePublishLabel) setHomePublishMobileLabel(true);
     }, HOME_PUBLISH_NUDGE_DELAY_MS);
 
     const desktopEndId = window.setTimeout(() => {
@@ -313,7 +319,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
       window.clearTimeout(desktopEndId);
       window.clearTimeout(mobileEndId);
     };
-  }, [isHome]);
+  }, [isHome, me?.id]);
 
   useEffect(() => {
     if (!avatarOpen && !notificationsOpen) return;
