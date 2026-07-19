@@ -93,7 +93,7 @@ export function TermsPage() {
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
             "Contactar a otros usuarios (por ejemplo, mediante WhatsApp u otros canales habilitados).",
             "Crear un perfil, comunidades o grupos de búsqueda de roomies.",
-            "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas.",
+            "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) o desde el botón de ayuda en el mapa de búsqueda, para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas. Cuando tengas mensajes nuevos (incluido Soporte), podemos enviarte un correo de aviso (como máximo uno cada 3 horas), sin incluir el contenido de los mensajes.",
           ]}
         />
         <p>

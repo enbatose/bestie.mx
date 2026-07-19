@@ -427,6 +427,14 @@ export function listingsRouter(db: DatabaseSync) {
     const updated = db.prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`).get(listing.id) as Record<string, unknown>;
     if (next === "published" && listing.status !== "published") {
       void import("./savedSearchNotify.js").then(({ onRoomPublished }) => onRoomPublished(db, listing.id));
+      if (propertyPublisherId) {
+        void import("./notificationsSchema.js").then(({ notifyPublisher }) => {
+          notifyPublisher(db, propertyPublisherId, {
+            text: `Has publicado exitosamente tu anuncio de Cuarto '${String(listing.title ?? "tu cuarto").slice(0, 80)}'.`,
+            link: "/mis-anuncios",
+          });
+        });
+      }
     }
     res.json(listingForPublic(joinRowToPropertyListing(updated)));
   });

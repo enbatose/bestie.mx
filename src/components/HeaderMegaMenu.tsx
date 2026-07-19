@@ -18,7 +18,7 @@ import { authLogout } from "@/lib/authApi";
 import { resetAnalyticsUser, track } from "@/lib/analytics";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
-import type { NotificationItem } from "@/lib/notificationsMock";
+import type { NotificationItem } from "@/lib/notificationsApi";
 import { UserAvatar } from "@/components/UserAvatar";
 
 const HOME_PUBLISH_NUDGE_DELAY_MS = 3_000;

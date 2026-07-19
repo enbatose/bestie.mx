@@ -223,9 +223,6 @@ export function adminRouter(db: DatabaseSync) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    db.prepare(
-      `UPDATE messages SET read_at = ? WHERE conversation_id = ? AND sender_user_id != ? AND read_at IS NULL`,
-    ).run(isoNow(), id, SUPPORT_BOT_USER_ID);
     const conv = db.prepare(`SELECT context_title FROM conversations WHERE id = ?`).get(id) as {
       context_title: string;
     };
@@ -237,6 +234,12 @@ export function adminRouter(db: DatabaseSync) {
          WHERE cp.conversation_id = ? AND cp.user_id != ?`,
       )
       .get(id, SUPPORT_BOT_USER_ID) as { id: string; display_name: string; email: string | null } | undefined;
+    // Mark only the customer's inbound messages as read for the admin inbox.
+    if (customer?.id) {
+      db.prepare(
+        `UPDATE messages SET read_at = ? WHERE conversation_id = ? AND sender_user_id = ? AND read_at IS NULL`,
+      ).run(isoNow(), id, customer.id);
+    }
     const rows = db
       .prepare(
         `SELECT m.id, m.sender_user_id, u.display_name AS sender_display_name,

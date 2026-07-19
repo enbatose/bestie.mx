@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
@@ -45,20 +45,36 @@ export function MessagesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortKey, setSortKey] = useState<UserConversationSortKey>("updated");
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const listSeqRef = useRef(0);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   const loadMe = useCallback(async () => {
     setMe(await authMe().catch(() => null));
   }, []);
 
   const loadList = useCallback(async (q?: string) => {
+    const seq = ++listSeqRef.current;
     try {
       setLoadingList(true);
-      setRows(await fetchConversations({ q }));
+      const next = await fetchConversations({ q });
+      if (seq !== listSeqRef.current) return;
+      setRows((prev) => {
+        // Preserve a cleared unread chip if the active thread was opened while this list was in flight.
+        if (!activeIdRef.current) return next;
+        return next.map((row) => {
+          if (row.id !== activeIdRef.current) return row;
+          const prevRow = prev.find((p) => p.id === row.id);
+          if (prevRow && prevRow.unreadCount === 0) return { ...row, unreadCount: 0 };
+          return row;
+        });
+      });
     } catch (x) {
+      if (seq !== listSeqRef.current) return;
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setRows([]);
     } finally {
-      setLoadingList(false);
+      if (seq === listSeqRef.current) setLoadingList(false);
     }
   }, []);
 
@@ -69,12 +85,14 @@ export function MessagesPage() {
     }
     try {
       setLoadingThread(true);
-      const nextMessages = await fetchConversationMessages(activeId);
+      const { messages: nextMessages, unreadCount } = await fetchConversationMessages(activeId);
       setMessages(nextMessages);
       setRows((prev) =>
-        prev.map((row) => (row.id === activeId && row.unreadCount > 0 ? { ...row, unreadCount: 0 } : row)),
+        prev.map((row) => (row.id === activeId ? { ...row, unreadCount: 0 } : row)),
       );
-      window.dispatchEvent(new Event("bestie:messages-read-changed"));
+      window.dispatchEvent(
+        new CustomEvent("bestie:messages-read-changed", { detail: { unreadCount } }),
+      );
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setMessages([]);

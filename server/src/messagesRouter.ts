@@ -135,6 +135,18 @@ function markThreadRead(db: DatabaseSync, conversationId: string, readerUserId: 
   ).run(isoNow(), conversationId, readerUserId);
 }
 
+function countUnreadForUser(db: DatabaseSync, userId: string): number {
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) as n FROM messages m
+         JOIN conversation_participants p ON p.conversation_id = m.conversation_id AND p.user_id = ?
+         WHERE m.sender_user_id != ? AND m.read_at IS NULL`,
+      )
+      .get(userId, userId) as { n: number }
+  ).n;
+}
+
 export function messagesRouter(db: DatabaseSync) {
   const r = express.Router();
 
@@ -306,6 +318,7 @@ export function messagesRouter(db: DatabaseSync) {
       return;
     }
     markThreadRead(db, id, me);
+    const unreadCount = countUnreadForUser(db, me);
     const kind = conversationKind(db, id);
     const rows = db
       .prepare(
@@ -314,6 +327,7 @@ export function messagesRouter(db: DatabaseSync) {
       )
       .all(id) as Record<string, unknown>[];
     res.json({
+      unreadCount,
       messages: rows.map((m) => {
         const rawSenderId = String(m.sender_user_id);
         // Never reveal which real admin replied to a support chat — customers only see "Soporte de Bestie".

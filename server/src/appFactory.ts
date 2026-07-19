@@ -11,6 +11,7 @@ import { groupsRouter } from "./groupsRouter.js";
 import { listingsRouter } from "./listingsRouter.js";
 import { locationSearchHandler } from "./locationSearch.js";
 import { messagesRouter } from "./messagesRouter.js";
+import { notificationsRouter } from "./notificationsRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
 import { resendWebhookPost } from "./resendWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
@@ -163,6 +164,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
   app.use("/api/auth", authRouter(db));
   app.use("/api/messages", messagesRouter(db));
+  app.use("/api/notifications", notificationsRouter(db));
   app.use("/api/saved-searches", savedSearchesRouter(db));
   app.use("/api/admin", adminRouter(db));
   app.use("/api/groups", groupsRouter(db));

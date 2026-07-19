@@ -1,64 +1,72 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { INITIAL_NOTIFICATIONS, type NotificationItem } from "@/lib/notificationsMock";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  fetchNotifications,
+  markAllNotificationsReadApi,
+  markNotificationReadApi,
+  type NotificationItem,
+} from "@/lib/notificationsApi";
+import { authMe } from "@/lib/authApi";
 
 type NotificationsContextValue = {
   notifications: NotificationItem[];
   hasUnreadNotifications: boolean;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  refreshNotifications: () => void;
 };
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-const STORAGE_KEY = "bestie:notifications:read-state:v1";
-
-function readStoredReadIds(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as { readIds?: unknown };
-    if (!Array.isArray(parsed.readIds)) return new Set();
-    return new Set(parsed.readIds.filter((value): value is string => typeof value === "string"));
-  } catch {
-    return new Set();
-  }
-}
-
-function buildInitialNotifications(): NotificationItem[] {
-  const readIds = readStoredReadIds();
-  return INITIAL_NOTIFICATIONS.map((notification) =>
-    readIds.has(notification.id) ? { ...notification, isRead: true } : notification,
-  );
-}
-
-function persistNotifications(notifications: NotificationItem[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    const readIds = notifications.filter((notification) => notification.isRead).map((notification) => notification.id);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ readIds }));
-  } catch {
-    // Ignore storage failures; in-memory state still works.
-  }
-}
-
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => buildInitialNotifications());
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [authed, setAuthed] = useState(false);
+
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const me = await authMe().catch(() => null);
+      if (!me?.id) {
+        setAuthed(false);
+        setNotifications([]);
+        return;
+      }
+      setAuthed(true);
+      setNotifications(await fetchNotifications());
+    } catch {
+      setNotifications([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshNotifications();
+    const onMe = () => void refreshNotifications();
+    window.addEventListener("bestie:me-changed", onMe);
+    const t = window.setInterval(() => {
+      if (authed) void refreshNotifications();
+    }, 45_000);
+    return () => {
+      window.removeEventListener("bestie:me-changed", onMe);
+      window.clearInterval(t);
+    };
+  }, [refreshNotifications, authed]);
 
   const markNotificationRead = useCallback((id: string) => {
-    setNotifications((prev) => {
-      const next = prev.map((n) => (n.id === id ? { ...n, isRead: true } : n));
-      persistNotifications(next);
-      return next;
-    });
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: n.readAt ?? new Date().toISOString() } : n)));
+    void markNotificationReadApi(id);
   }, []);
 
   const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => {
-      const next = prev.map((n) => ({ ...n, isRead: true }));
-      persistNotifications(next);
-      return next;
-    });
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, isRead: true, readAt: n.readAt ?? new Date().toISOString() })),
+    );
+    void markAllNotificationsReadApi();
   }, []);
 
   const hasUnreadNotifications = notifications.some((n) => !n.isRead);
@@ -69,8 +77,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       hasUnreadNotifications,
       markNotificationRead,
       markAllNotificationsRead,
+      refreshNotifications: () => void refreshNotifications(),
     }),
-    [notifications, hasUnreadNotifications, markNotificationRead, markAllNotificationsRead],
+    [
+      notifications,
+      hasUnreadNotifications,
+      markNotificationRead,
+      markAllNotificationsRead,
+      refreshNotifications,
+    ],
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;

@@ -61,7 +61,14 @@ export function AppShellLayout() {
   }, [me?.id, refreshUnread]);
 
   useEffect(() => {
-    const onReadChange = () => void refreshUnread();
+    const onReadChange = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ unreadCount?: number }>).detail;
+      if (detail && typeof detail.unreadCount === "number") {
+        setUnread(detail.unreadCount);
+        return;
+      }
+      void refreshUnread();
+    };
     window.addEventListener("bestie:messages-read-changed", onReadChange);
     return () => window.removeEventListener("bestie:messages-read-changed", onReadChange);
   }, [refreshUnread]);

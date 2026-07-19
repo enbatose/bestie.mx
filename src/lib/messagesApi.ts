@@ -106,15 +106,18 @@ export async function startConversationFromListing(
 export async function fetchConversationMessages(
   conversationId: string,
   signal?: AbortSignal,
-): Promise<ChatMessage[]> {
+): Promise<{ messages: ChatMessage[]; unreadCount: number }> {
   const base = apiBase();
   const res = await fetch(`${base}/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`, {
     credentials: cred,
     signal,
   });
   if (!res.ok) throw new Error(`messages_${res.status}`);
-  const j = (await res.json()) as { messages: ChatMessage[] };
-  return j.messages ?? [];
+  const j = (await res.json()) as { messages: ChatMessage[]; unreadCount?: number };
+  return {
+    messages: j.messages ?? [],
+    unreadCount: typeof j.unreadCount === "number" ? j.unreadCount : 0,
+  };
 }
 
 export async function postConversationMessage(

@@ -7,6 +7,7 @@ import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 import { logOutboundMailHintIfDisabled, verifySmtpConnection } from "./mailer.js";
 import { startSavedSearchPollWorker } from "./savedSearchNotify.js";
+import { startMessageDigestPollWorker } from "./messageDigestNotify.js";
 
 /** When `index.html` exists, API + SPA share one origin (see `createApp` `webDistDir`). */
 function resolveWebDistDir(): string | undefined {
@@ -110,4 +111,5 @@ function onListen() {
   logOutboundMailHintIfDisabled();
   void verifySmtpConnection();
   startSavedSearchPollWorker(db);
+  startMessageDigestPollWorker(db);
 }

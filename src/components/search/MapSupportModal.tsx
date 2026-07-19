@@ -88,7 +88,7 @@ export function MapSupportModal({ open, onClose, oauthReturnTo, autoResume = fal
               className="py-8 text-center text-base font-semibold leading-snug text-primary"
               role="status"
             >
-              Mensaje enviado - Te avisaremos en Mensajes cuando tengas una respuesta
+              Mensaje enviado - Te mandaremos un correo cuando tengas una respuesta
             </p>
           ) : (
             <>

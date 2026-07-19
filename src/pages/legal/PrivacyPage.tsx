@@ -198,6 +198,7 @@ export function PrivacyPage() {
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie, incluidos los archivos que adjuntes.",
             "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña, notificaciones del servicio).",
+            "Enviarte correos de aviso cuando tengas mensajes nuevos en Bestie (como máximo uno cada 3 horas; el correo no incluye el contenido de los mensajes). Si en ese periodo también se crearon notificaciones en la app, podemos resumirlas en el mismo correo.",
             "Prevenir fraudes, abusos y garantizar la seguridad de la Plataforma.",
             "Cumplir obligaciones legales y fiscales aplicables.",
           ]}

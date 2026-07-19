@@ -825,10 +825,10 @@ export function propertiesRouter(db: DatabaseSync) {
     const draftRoomImagesJson = JSON.stringify(
       clampListingImageUrls((body as { imageUrls?: unknown }).imageUrls),
     );
+    const occFields = roomOccupancyFieldsFromBody(body);
 
     try {
       const createdAt = new Date().toISOString();
-      const occFields = roomOccupancyFieldsFromBody(body);
       db.prepare(
         `INSERT INTO rooms (
           id, property_id, status, title, rent_mxn, rooms_available, tags_json, roommate_gender_pref,
@@ -871,6 +871,15 @@ export function propertiesRouter(db: DatabaseSync) {
     }
 
     const row = db.prepare("SELECT * FROM rooms WHERE id = ?").get(roomId) as Record<string, unknown>;
+    const publisherId = String(prop.publisher_id ?? "");
+    if (publisherId) {
+      void import("./notificationsSchema.js").then(({ notifyPublisher }) => {
+        notifyPublisher(db, publisherId, {
+          text: `Tu nuevo anuncio de Cuarto '${String(occFields.customName || rTitle).slice(0, 80)}' se ha creado. No olvides publicarlo.`,
+          link: "/publicar",
+        });
+      });
+    }
     res.status(201).json(rowToRoom(row));
   });
 
@@ -1370,6 +1379,16 @@ export function propertiesRouter(db: DatabaseSync) {
           void onRoomPublished(db, id);
         }
       });
+      const pub = String(updated.publisher_id ?? "");
+      const title = String(updated.title ?? "tu propiedad");
+      if (pub) {
+        void import("./notificationsSchema.js").then(({ notifyPublisher }) => {
+          notifyPublisher(db, pub, {
+            text: `Has publicado exitosamente tu anuncio de Propiedad '${title.slice(0, 80)}'.`,
+            link: "/mis-anuncios",
+          });
+        });
+      }
     }
 
     res.json(rowToProperty(updated));
