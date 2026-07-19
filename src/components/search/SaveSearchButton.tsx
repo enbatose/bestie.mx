@@ -20,7 +20,6 @@ const GUEST_NUDGE_MS = 7_000;
 
 /** Pulse outline: wide rect on mobile save control; wide CTA on desktop. */
 function PulseRing({ mobile }: { mobile?: boolean }) {
-  const height = mobile ? 40 : 44;
   const cornerRadius = mobile ? 16 : 10;
   const strokeWidth = mobile ? 2.53125 : 3;
   const inset = strokeWidth / 2 + 1;
@@ -32,20 +31,24 @@ function PulseRing({ mobile }: { mobile?: boolean }) {
     ? "animate-[autosave-ring-travel_1.2s_linear_forwards] drop-shadow-[0_0_12px_rgba(255,255,255,0.95)]"
     : "animate-[autosave-ring-travel_1.5s_linear_forwards] drop-shadow-[0_0_6px_rgba(6,95,70,0.45)]";
   const strokeColor = mobile ? "#102a43" : "#065f46";
+  // No viewBox: the rect's x/y/width/height are set via CSS (real px + calc(%)),
+  // so the ring hugs the button's actual edges regardless of the button's real
+  // rendered width. A fixed 0-100 viewBox + preserveAspectRatio="none" (the
+  // previous approach) scales x/width by a different factor than y/height
+  // whenever the button isn't ~2.5x taller-to-wide, pushing the stroke outside
+  // the real border on narrow mobile buttons.
+  const rectGeometry = {
+    x: `${inset}px`,
+    y: `${inset}px`,
+    width: `calc(100% - ${inset * 2}px)`,
+    height: `calc(100% - ${inset * 2}px)`,
+  };
 
   return (
-    <svg
-      className={svgClass}
-      viewBox={`0 0 100 ${height}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
+    <svg className={svgClass} aria-hidden>
       {mobile ? (
         <rect
-          x={inset}
-          y={inset}
-          width={100 - inset * 2}
-          height={height - inset * 2}
+          style={rectGeometry}
           rx={cornerRadius}
           ry={cornerRadius}
           fill="none"
@@ -59,10 +62,7 @@ function PulseRing({ mobile }: { mobile?: boolean }) {
         />
       ) : null}
       <rect
-        x={inset}
-        y={inset}
-        width={100 - inset * 2}
-        height={height - inset * 2}
+        style={rectGeometry}
         rx={cornerRadius}
         ry={cornerRadius}
         fill="none"
