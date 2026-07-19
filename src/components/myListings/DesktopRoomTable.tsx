@@ -233,38 +233,38 @@ export function DesktopRoomTable({
 
   return (
     <div className="hidden md:block">
-      <table className="w-full min-w-0 table-fixed text-left text-sm">
+      <table className="w-full text-left text-sm">
         <caption className="sr-only">Recámaras de {caption}</caption>
         <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
           <tr>
-            <th scope="col" className="px-4 py-3">
+            <th scope="col" className="w-14 px-3 py-3">
               <span className="sr-only">Foto</span>
             </th>
-            <th scope="col" className="px-4 py-3">
+            <th scope="col" className="whitespace-nowrap px-3 py-3">
               Referencia
             </th>
-            <th scope="col" className="px-4 py-3">
+            <th scope="col" className="px-3 py-3">
               {head.propertyPostMode === "property" ? "Recámara" : "Cuarto / título"}
             </th>
-            <th scope="col" className="px-4 py-3">
+            <th scope="col" className="whitespace-nowrap px-3 py-3">
               Renta
             </th>
             {head.propertyPostMode === "property" ? (
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+              <th scope="col" className="hidden whitespace-nowrap px-3 py-3 lg:table-cell">
                 Disponibilidad
               </th>
             ) : (
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+              <th scope="col" className="hidden whitespace-nowrap px-3 py-3 lg:table-cell">
                 Ciudad
               </th>
             )}
-            <th scope="col" className="px-4 py-3">
+            <th scope="col" className="whitespace-nowrap px-3 py-3">
               Estado
             </th>
-            <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+            <th scope="col" className="hidden whitespace-nowrap px-3 py-3 lg:table-cell">
               Métricas
             </th>
-            <th scope="col" className="px-4 py-3 text-right">
+            <th scope="col" className="w-[1%] whitespace-nowrap px-3 py-3 text-right">
               Acciones
             </th>
           </tr>
@@ -294,10 +294,10 @@ export function DesktopRoomTable({
                 key={l.id}
                 className="transition-colors hover:bg-surface-elevated/80 focus-within:bg-surface-elevated/80"
               >
-                <td className="px-4 py-3">
+                <td className="px-3 py-3">
                   <ListingThumb src={listingThumbSrc(l)} className="size-10 rounded-lg" />
                 </td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-3 py-3">
                   <ListingReferenceChip
                     code={roomRef}
                     label="Anuncio"
@@ -305,15 +305,15 @@ export function DesktopRoomTable({
                     size="compact"
                   />
                 </td>
-                <th scope="row" className="px-4 py-3 text-left font-medium">
-                  <p className="max-w-[14rem] truncate" title={title}>
+                <th scope="row" className="max-w-[12rem] px-3 py-3 text-left font-medium xl:max-w-[16rem]">
+                  <p className="truncate" title={title}>
                     {title}
                   </p>
                   {availableLabel ? (
-                    <p className="mt-0.5 text-xs font-normal text-muted">{availableLabel}</p>
+                    <p className="mt-0.5 truncate text-xs font-normal text-muted">{availableLabel}</p>
                   ) : null}
                 </th>
-                <td className="px-4 py-3 tabular-nums">
+                <td className="whitespace-nowrap px-3 py-3 tabular-nums">
                   {occupied ? (
                     <span className="text-muted">Ocupada</span>
                   ) : rentLabel ? (
@@ -322,16 +322,18 @@ export function DesktopRoomTable({
                     <span className="text-muted">—</span>
                   )}
                 </td>
-                <td className="hidden px-4 py-3 text-muted lg:table-cell">
+                <td className="hidden whitespace-nowrap px-3 py-3 text-muted lg:table-cell">
                   {head.propertyPostMode === "property"
                     ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
                     : l.city}
                 </td>
-                <td className="px-4 py-3">
+                <td className="whitespace-nowrap px-3 py-3">
                   <ListingStatusBadge status={st} />
                 </td>
-                <td className="hidden px-4 py-3 text-xs text-muted lg:table-cell">{metricsDisplay}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="hidden whitespace-nowrap px-3 py-3 text-xs text-muted lg:table-cell">
+                  {metricsDisplay}
+                </td>
+                <td className="w-[1%] whitespace-nowrap px-3 py-3 text-right align-middle">
                   <DesktopRowActions
                     l={l}
                     head={head}
