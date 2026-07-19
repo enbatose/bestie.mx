@@ -220,7 +220,7 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
 
         {onOpenSupport ? (
           <div className="pointer-events-none hidden w-[calc(2.25rem+1rem)] justify-center sm:w-[calc(2.5rem+1rem)] lg:flex">
-            <MapSupportFab onClick={onOpenSupport} />
+            <MapSupportFab onClick={onOpenSupport} className="size-9" />
           </div>
         ) : null}
       </div>

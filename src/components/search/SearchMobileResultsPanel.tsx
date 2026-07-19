@@ -18,7 +18,7 @@ type Props = {
   onOpenSupport?: () => void;
 };
 
-const LIST_TAB_WIDTH = "2.5rem";
+const LIST_TAB_WIDTH = "2.75rem";
 
 export function SearchMobileResultsPanel({
   listings,
@@ -105,17 +105,17 @@ export function SearchMobileResultsPanel({
           width: expanded ? undefined : LIST_TAB_WIDTH,
         }}
       >
-        <div className="pointer-events-none relative z-10 flex shrink-0 flex-col items-center gap-2 self-center">
+        <div className="pointer-events-none relative z-10 flex w-11 shrink-0 flex-col items-center gap-2 self-center">
           <button
             type="button"
             onClick={toggleDrawer}
             aria-label={expanded ? "Ocultar listado" : "Mostrar listado"}
             aria-expanded={expanded}
-            className="pointer-events-auto inline-flex h-11 w-10 items-center justify-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+            className="pointer-events-auto inline-flex h-12 w-11 items-center justify-center rounded-l-2xl rounded-r-md border-2 border-white/90 bg-primary text-primary-fg shadow-[0_10px_24px_rgba(0,0,0,0.22)] ring-1 ring-primary/35 transition hover:scale-[1.03] hover:bg-primary/92 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
           >
-            <List className="size-4" aria-hidden="true" />
+            <List className="size-5" aria-hidden="true" />
           </button>
-          {!expanded && onOpenSupport ? <MapSupportFab onClick={onOpenSupport} /> : null}
+          {onOpenSupport ? <MapSupportFab onClick={onOpenSupport} /> : null}
         </div>
 
         {expanded ? (
