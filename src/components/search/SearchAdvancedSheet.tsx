@@ -83,16 +83,17 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
     case "presupuesto":
       return f.budgetMax != null || f.age != null || f.avalRequired != null;
     case "propiedad":
-      return f.wantHouse || f.wantApartment || f.wantLoft || f.lodgingType != null;
+      return (
+        f.wantHouse ||
+        f.wantApartment ||
+        f.wantLoft ||
+        f.lodgingType != null ||
+        f.roomDimensions.length > 0
+      );
     case "convivencia":
       return f.pref != null || f.tags.length > 0;
     case "condiciones":
-      return (
-        f.availableFrom != null ||
-        f.minimalStayMonths != null ||
-        f.roomDimensions.length > 0 ||
-        f.subletAllowed != null
-      );
+      return f.availableFrom != null || f.minimalStayMonths != null || f.subletAllowed != null;
     default:
       return false;
   }
@@ -519,6 +520,37 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                   }
                 />
               </FilterGroup>
+
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-body">Tamaño del cuarto</p>
+                  <InfoTooltip
+                    title="Tamaño del cuarto"
+                    items={ROOM_DIMENSION_OPTIONS.map(({ label, description }) => ({ label, description }))}
+                  />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {ROOM_DIMENSION_OPTIONS.map((opt) => {
+                    const active = filters.roomDimensions.includes(opt.value);
+                    return (
+                      <IconOption
+                        key={opt.value}
+                        icon={opt.icon}
+                        label={opt.label}
+                        active={active}
+                        onClick={() =>
+                          onChange({
+                            ...filters,
+                            roomDimensions: active
+                              ? filters.roomDimensions.filter((d) => d !== opt.value)
+                              : [...filters.roomDimensions, opt.value],
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             </>
           ) : null}
 
@@ -625,37 +657,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                   >
                     +
                   </button>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-medium text-body">Tamaño del cuarto</p>
-                  <InfoTooltip
-                    title="Tamaño del cuarto"
-                    items={ROOM_DIMENSION_OPTIONS.map(({ label, description }) => ({ label, description }))}
-                  />
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {ROOM_DIMENSION_OPTIONS.map((opt) => {
-                    const active = filters.roomDimensions.includes(opt.value);
-                    return (
-                      <IconOption
-                        key={opt.value}
-                        icon={opt.icon}
-                        label={opt.label}
-                        active={active}
-                        onClick={() =>
-                          onChange({
-                            ...filters,
-                            roomDimensions: active
-                              ? filters.roomDimensions.filter((d) => d !== opt.value)
-                              : [...filters.roomDimensions, opt.value],
-                          })
-                        }
-                      />
-                    );
-                  })}
                 </div>
               </div>
 

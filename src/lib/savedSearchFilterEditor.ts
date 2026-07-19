@@ -292,7 +292,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
   },
   {
     id: "room-dim-small",
-    group: "Condiciones",
+    group: "Propiedad",
     label: "Tamaño: Individual",
     icon: BedSingle,
     synonyms: ["cama individual", "chica", "cama chica"],
@@ -301,7 +301,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
   },
   {
     id: "room-dim-medium",
-    group: "Condiciones",
+    group: "Propiedad",
     label: "Tamaño: Matrimonial",
     icon: BedDouble,
     synonyms: ["cama matrimonial", "cama queen", "mediana", "doble"],
@@ -310,7 +310,7 @@ export const ADDABLE_FILTER_CATALOG: readonly AddableFilterOption[] = [
   },
   {
     id: "room-dim-large",
-    group: "Condiciones",
+    group: "Propiedad",
     label: "Tamaño: Grande",
     icon: Bed,
     synonyms: ["cama king", "cama grande", "amplia"],
