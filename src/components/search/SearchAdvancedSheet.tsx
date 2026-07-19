@@ -81,7 +81,12 @@ const TABS: readonly { id: TabId; label: string; icon: FilterIcon }[] = [
 function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
   switch (tabId) {
     case "presupuesto":
-      return f.budgetMax != null || f.age != null || f.avalRequired != null;
+      return (
+        f.budgetMax != null ||
+        f.age != null ||
+        f.avalRequired != null ||
+        f.subletAllowed != null
+      );
     case "propiedad":
       return (
         f.wantHouse ||
@@ -93,7 +98,7 @@ function tabHasActiveFilters(tabId: TabId, f: SearchFilters): boolean {
     case "convivencia":
       return f.pref != null || f.tags.length > 0;
     case "condiciones":
-      return f.availableFrom != null || f.minimalStayMonths != null || f.subletAllowed != null;
+      return f.availableFrom != null || f.minimalStayMonths != null;
     default:
       return false;
   }
@@ -469,6 +474,16 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                 />
               </div>
             </div>
+
+            <div className="mt-4">
+              <p className="text-sm font-medium text-body">Se permite subarrendar</p>
+              <div className="mt-2">
+                <TriSegment
+                  value={filters.subletAllowed}
+                  onChange={(subletAllowed) => onChange({ ...filters, subletAllowed })}
+                />
+              </div>
+            </div>
             </>
           ) : null}
 
@@ -657,16 +672,6 @@ export function SearchAdvancedSheet({ open, onClose, filters, onChange }: Props)
                   >
                     +
                   </button>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-body">Se permite subarrendar</p>
-                <div className="mt-2">
-                  <TriSegment
-                    value={filters.subletAllowed}
-                    onChange={(subletAllowed) => onChange({ ...filters, subletAllowed })}
-                  />
                 </div>
               </div>
             </>
