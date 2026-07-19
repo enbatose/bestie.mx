@@ -66,7 +66,7 @@ function DesktopRowActions({
     head.propertyPostMode === "property"
       ? `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`
       : listingPublicPath(l.id);
-  const previewLabel = st === "published" && propSt === "published" ? "Ver público" : "Vista previa";
+  const previewLabel = st === "published" && propSt === "published" ? "Ver publicación" : "Vista previa";
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
   const canArchive = st === "published" || st === "paused";
   const canRestore = st === "archived" || propSt === "archived";
