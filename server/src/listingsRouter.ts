@@ -87,7 +87,7 @@ type PublicListingUnavailableReason =
   | "property_archived";
 
 function listingForPublic(l: PropertyListing): PropertyListing {
-  const { publisherId: _p, ...rest } = l;
+  const { publisherId: _p, viewsCount: _v, inquiryCount: _i, ...rest } = l;
   return rest;
 }
 
@@ -173,11 +173,19 @@ export function listingsRouter(db: DatabaseSync) {
         : undefined);
     if (row) {
       const listing = listingForPublic(joinRowToPropertyListing(row));
-      const publisherId = String(row.publisher_id ?? "");
-      const payload =
-        publisherId && viewerOwnsProperty(db, req, publisherId)
-          ? { ...listing, viewerIsOwner: true as const }
-          : listing;
+      const ownerPublisherId = String(row.publisher_id ?? "");
+      const isOwner = Boolean(ownerPublisherId && viewerOwnsProperty(db, req, ownerPublisherId));
+      // Count public opens only (skip owner previews) for Mis Anuncios metrics.
+      if (publishedRow && !isOwner) {
+        try {
+          db.prepare(
+            "UPDATE rooms SET views_count = COALESCE(views_count, 0) + 1 WHERE id = ?",
+          ).run(roomId);
+        } catch {
+          // Column may be missing on very old DBs mid-migrate; never block listing GET.
+        }
+      }
+      const payload = isOwner ? { ...listing, viewerIsOwner: true as const } : listing;
       res.json(payload);
       return;
     }

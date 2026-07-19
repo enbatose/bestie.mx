@@ -24,6 +24,8 @@ From `?node-id=13-34` use **`13:34`** (replace `-` with `:`).
 
 ## Repo-specific paths
 
+- **Design System file:** `JVO8AoBQ5FJqfvtJXCe6Mv` — see `docs/figma/DESIGN_SYSTEM.md`
+- **User flows file:** `tW5pbD3Cd7rycSLMtIzdAm`
 - Flow specs: `docs/figma/flows/`
 - Board SVG: `docs/figma/bestie-user-flows.svg`
 - Capture env + Vite hook: `vite.config.ts`, `docs/figma/README.md`

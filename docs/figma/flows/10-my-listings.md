@@ -34,9 +34,17 @@
 ## Components
 
 - `Publisher/PropertyCard` (status pill: draft / published / paused / archived)
-- `Publisher/RoomRow`
-- `Publisher/ActionButton` (destructive + normal)
-- `Callout/MissingFields` (list of missing labels from `computeMissing` logic — mirror UX, not every string)
+- `Publisher/DesktopRoomTable` — thumb, rent, metrics, overflow actions
+- `Publisher/MobileListingCard` — thumb + rent + metrics + overflow (share/archive/restore)
+- `Publisher/ListingThumb`, `Publisher/StatusBadge`, `Publisher/ReferenceChip`
+- `Callout/MissingFields` → `MissingFieldsCallout.tsx`
+- `Dialog/Confirm` with `intent="danger"` before archive (focus trap + `aria-describedby`)
+
+## Owner metrics
+
+- `rooms.views_count` incremented on public listing GET (non-owner)
+- Inquiry count from `conversations.listing_room_id`
+- Shown as `N vistas · M mensajes` on mobile cards and desktop Métricas column
 
 ## Flows out
 

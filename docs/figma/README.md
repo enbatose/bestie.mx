@@ -1,4 +1,14 @@
-# Bestie.mx Figma user-flow file
+# Bestie.mx Figma files
+
+## Design System (tokens + components)
+
+**[Bestie.mx — Design System](https://www.figma.com/design/JVO8AoBQ5FJqfvtJXCe6Mv/Bestie.mx-%E2%80%94-Design-System)** (`fileKey` `JVO8AoBQ5FJqfvtJXCe6Mv`)
+
+Canonical library for color/spacing/radius variables, Inter text styles, Button/Input/Chip/Card components, brand logos, and filter icons. Sync workflow and scope: [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md).
+
+## User-flow file
+
+**[Bestie.mx — User flows](https://www.figma.com/design/tW5pbD3Cd7rycSLMtIzdAm/Bestie.mx-%E2%80%94-User-flows--screens-)** (`fileKey` `tW5pbD3Cd7rycSLMtIzdAm`)
 
 This folder contains:
 

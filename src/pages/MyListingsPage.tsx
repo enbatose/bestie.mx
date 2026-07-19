@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronDown, Home, RefreshCw, X } from "lucide-react";
+import { AppConfirmDialog } from "@/components/AppConfirmDialog";
+import { DesktopRoomTable } from "@/components/myListings/DesktopRoomTable";
 import { ListingReferenceChip } from "@/components/myListings/ListingReferenceChip";
+import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
+import { MissingFieldsCallout } from "@/components/myListings/MissingFieldsCallout";
+import { MobileListingCard } from "@/components/myListings/MobileListingCard";
 import {
   fetchMyListings,
   updateListingStatus,
@@ -12,11 +18,10 @@ import {
   MY_LISTINGS_SECTIONS,
   propertyReferenceCode,
   propertyStatusSortKey,
-  roomReferenceCode,
 } from "@/lib/listingReference";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
-import { isRoomAvailableForRent, occupancyStatusLabel, roomDisplayName } from "@/lib/roomDisplay";
+import { roomDisplayName } from "@/lib/roomDisplay";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 type PropertyGroup = { propertyId: string; list: PropertyListing[] };
@@ -26,6 +31,11 @@ type FlashMessage = {
   to?: string;
   linkText?: string;
 };
+
+type PendingArchive =
+  | { kind: "room"; id: string }
+  | { kind: "property"; id: string }
+  | null;
 
 function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
   if (head.propertyPostMode === "property") {
@@ -37,112 +47,27 @@ function listingRowTitle(head: PropertyListing, l: PropertyListing, list: Proper
   return l.title;
 }
 
-function ListingRowActions({
-  l,
-  head,
-  propSt,
-  propertyId,
-  acting,
-  st,
-  mobile = false,
-  onPause,
-  onRepublish,
-  onArchive,
-}: {
-  l: PropertyListing;
-  head: PropertyListing;
-  propSt: ListingStatus;
-  propertyId: string;
-  acting: boolean;
-  st: ListingStatus;
-  mobile?: boolean;
-  onPause: () => void;
-  onRepublish: () => void;
-  onArchive: () => void;
-}) {
-  const actionClass = mobile
-    ? "inline-flex min-h-9 w-full items-center justify-center rounded-full px-3 py-2 text-xs font-semibold"
-    : "rounded-full px-3 py-1 text-xs font-semibold";
-  const wrapClass = mobile ? "grid grid-cols-2 gap-2" : "flex flex-wrap justify-end gap-2";
+const propActionClass =
+  "inline-flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm font-semibold transition disabled:opacity-50";
 
+function ListingsSkeleton() {
   return (
-    <div className={wrapClass}>
-      {propSt === "draft" || propSt === "published" || propSt === "paused" ? (
-        <Link
-          to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
-          className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15`}
-        >
-          Editar
-        </Link>
-      ) : null}
-      <Link
-        to={
-          head.propertyPostMode === "property"
-            ? `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`
-            : listingPublicPath(l.id)
-        }
-        className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
-      >
-        {st === "published" && propSt === "published" ? "Ver público" : "Vista previa"}
-      </Link>
-      {st === "published" ? (
-        <button
-          type="button"
-          disabled={acting}
-          onClick={onPause}
-          className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15 disabled:opacity-50`}
-        >
-          {acting ? "…" : "Pausar"}
-        </button>
-      ) : null}
-      {st === "paused" ? (
-        <button
-          type="button"
-          disabled={acting}
-          onClick={onRepublish}
-          className={`${actionClass} border border-border text-body hover:bg-surface-elevated disabled:opacity-50`}
-        >
-          {acting ? "…" : "Republicar"}
-        </button>
-      ) : null}
-      {st === "published" || st === "paused" ? (
-        <button
-          type="button"
-          disabled={acting}
-          onClick={onArchive}
-          className={`${actionClass} border border-border text-muted hover:bg-surface-elevated disabled:opacity-50`}
-        >
-          {acting ? "…" : "Archivar"}
-        </button>
-      ) : null}
+    <div className="space-y-4" aria-busy="true" aria-label="Cargando anuncios">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-border bg-bg-light">
+          <div className="min-h-[12.5rem] animate-pulse md:hidden" />
+          <div className="hidden md:block">
+            <div className="h-[4.5rem] animate-pulse border-b border-border bg-surface-elevated/60" />
+            <div className="space-y-2 p-4">
+              {[0, 1, 2].map((r) => (
+                <div key={r} className="h-11 animate-pulse rounded-lg bg-surface-elevated/80" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
-}
-
-function statusLabel(s: ListingStatus | undefined): string {
-  switch (s) {
-    case "paused":
-      return "Pausado";
-    case "archived":
-      return "Archivado";
-    case "draft":
-      return "Borrador";
-    default:
-      return "Publicado";
-  }
-}
-
-function propertyStatusLabel(s: ListingStatus | undefined): string {
-  switch (s) {
-    case "draft":
-      return "Borrador";
-    case "paused":
-      return "Pausada";
-    case "archived":
-      return "Archivada";
-    default:
-      return "Publicada";
-  }
 }
 
 export function MyListingsPage() {
@@ -156,7 +81,9 @@ export function MyListingsPage() {
   const [flash, setFlash] = useState<FlashMessage | null>(null);
   const [legalPublishByProperty, setLegalPublishByProperty] = useState<Record<string, boolean>>({});
   const [missingByProperty, setMissingByProperty] = useState<Record<string, string>>({});
+  const [localErrByProperty, setLocalErrByProperty] = useState<Record<string, string>>({});
   const [me, setMe] = useState<AuthMe | null>(null);
+  const [pendingArchive, setPendingArchive] = useState<PendingArchive>(null);
 
   const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
     if (!bundle) return ["No se pudo leer la propiedad"];
@@ -231,10 +158,16 @@ export function MyListingsPage() {
   useEffect(() => {
     const st = location.state as { draftSaved?: boolean } | null;
     if (st?.draftSaved) {
-      setFlash({ text: "Borrador guardado en el servidor. Puedes publicarlo cuando esté listo." });
+      setFlash({ text: "Borrador guardado. Puedes publicarlo cuando esté listo." });
       navigate(".", { replace: true, state: {} });
     }
   }, [location.state, navigate]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const t = window.setTimeout(() => setFlash(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [flash]);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -278,20 +211,25 @@ export function MyListingsPage() {
   }, []);
 
   async function pause(id: string) {
+    const propertyId = rows?.find((r) => r.id === id)?.propertyId;
     setActionId(id);
     setErr(null);
     try {
       await updateListingStatus(id, "paused");
       track("my_listing_status_changed", { listing_id: id, status: "paused" });
       await load();
+      setFlash({ text: "Anuncio pausado. Puedes republicarlo cuando quieras." });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo pausar.");
+      const msg = e instanceof Error ? e.message : "No se pudo pausar.";
+      if (propertyId) setLocalErrByProperty((m) => ({ ...m, [propertyId]: msg }));
+      else setErr(msg);
     } finally {
       setActionId(null);
     }
   }
 
   async function republish(id: string) {
+    const propertyId = rows?.find((r) => r.id === id)?.propertyId;
     setActionId(id);
     setErr(null);
     try {
@@ -304,23 +242,30 @@ export function MyListingsPage() {
         linkText: "Ver anuncio publicado",
       });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo republicar.");
+      const msg = e instanceof Error ? e.message : "No se pudo republicar.";
+      if (propertyId) setLocalErrByProperty((m) => ({ ...m, [propertyId]: msg }));
+      else setErr(msg);
     } finally {
       setActionId(null);
     }
   }
 
   async function archive(id: string) {
+    const propertyId = rows?.find((r) => r.id === id)?.propertyId;
     setActionId(id);
     setErr(null);
     try {
       await updateListingStatus(id, "archived");
       track("my_listing_status_changed", { listing_id: id, status: "archived" });
       await load();
+      setFlash({ text: "Anuncio archivado. Lo encuentras en Archivados." });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo archivar.");
+      const msg = e instanceof Error ? e.message : "No se pudo archivar.";
+      if (propertyId) setLocalErrByProperty((m) => ({ ...m, [propertyId]: msg }));
+      else setErr(msg);
     } finally {
       setActionId(null);
+      setPendingArchive(null);
     }
   }
 
@@ -330,8 +275,12 @@ export function MyListingsPage() {
     try {
       await updateProperty(propertyId, { status: "paused" });
       await load();
+      setFlash({ text: "Propiedad pausada. Puedes republicarla cuando quieras." });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo pausar la propiedad.");
+      setLocalErrByProperty((m) => ({
+        ...m,
+        [propertyId]: e instanceof Error ? e.message : "No se pudo pausar la propiedad.",
+      }));
     } finally {
       setActionPropertyId(null);
     }
@@ -350,7 +299,10 @@ export function MyListingsPage() {
         linkText: "Ver publicación",
       });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo republicar la propiedad.");
+      setLocalErrByProperty((m) => ({
+        ...m,
+        [propertyId]: e instanceof Error ? e.message : "No se pudo republicar la propiedad.",
+      }));
     } finally {
       setActionPropertyId(null);
     }
@@ -362,24 +314,40 @@ export function MyListingsPage() {
     try {
       await updateProperty(propertyId, { status: "archived" });
       await load();
+      setFlash({ text: "Propiedad archivada. La encuentras en Archivados." });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo archivar la propiedad.");
+      setLocalErrByProperty((m) => ({
+        ...m,
+        [propertyId]: e instanceof Error ? e.message : "No se pudo archivar la propiedad.",
+      }));
     } finally {
       setActionPropertyId(null);
+      setPendingArchive(null);
     }
   }
 
   async function publishDraftProperty(propertyId: string) {
     if (!legalPublishByProperty[propertyId]) {
-      setErr("Marca la confirmación legal antes de publicar la propiedad.");
+      setLocalErrByProperty((m) => ({
+        ...m,
+        [propertyId]: "Marca la confirmación legal antes de publicar.",
+      }));
       return;
     }
     if (missingByProperty[propertyId]) {
-      setErr(`Completa lo siguiente antes de publicar: ${missingByProperty[propertyId]}`);
+      setLocalErrByProperty((m) => ({
+        ...m,
+        [propertyId]: `Completa: ${missingByProperty[propertyId]}`,
+      }));
       return;
     }
     setActionPropertyId(propertyId);
     setErr(null);
+    setLocalErrByProperty((m) => {
+      const next = { ...m };
+      delete next[propertyId];
+      return next;
+    });
     const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
     try {
       await updateProperty(propertyId, { status: "published" });
@@ -401,344 +369,409 @@ export function MyListingsPage() {
     return actionId === l.id || actionPropertyId === l.propertyId;
   }
 
+  function confirmPendingArchive() {
+    if (!pendingArchive) return;
+    if (pendingArchive.kind === "room") void archive(pendingArchive.id);
+    else void archiveProperty(pendingArchive.id);
+  }
+
   return (
-    <div className="mx-auto max-w-4xl overflow-x-hidden px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+    <div className="mx-auto max-w-4xl overflow-x-hidden px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-5xl">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">
           {me ? (
             <p className="mb-1 text-sm text-muted">
               Hola, <span className="font-semibold text-body">{me.displayName}</span>
             </p>
           ) : null}
-          <h1 className="text-2xl font-bold text-primary">Mis anuncios</h1>
-          <p className="mt-2 text-sm text-muted">
-            Aquí puedes ver tus borradores y tus anuncios activos. Un borrador puede crearse sin cuenta, pero
-            para activarlo y publicarlo necesitas iniciar sesión.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
           {summaryParts.length ? (
             <p className="mt-2 text-sm font-medium text-body">{summaryParts.join(" · ")}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted">
+              {me
+                ? "Administra borradores y anuncios activos."
+                : "Los borradores se pueden crear sin cuenta. Para publicar necesitas iniciar sesión."}
+            </p>
+          )}
+          {summaryParts.length && !me ? (
+            <p className="mt-1 text-xs text-muted sm:hidden">
+              Para publicar necesitas iniciar sesión.
+            </p>
           ) : null}
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void load()}
-          className="w-full shrink-0 rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition enabled:hover:bg-surface-elevated disabled:opacity-50 sm:w-auto"
-        >
-          Actualizar
-        </button>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Link
+            to="/publicar"
+            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 sm:flex-none"
+          >
+            Publicar anuncio
+          </Link>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void load()}
+            aria-label="Actualizar anuncios"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-border text-body transition enabled:hover:bg-surface-elevated disabled:opacity-50"
+          >
+            <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} aria-hidden />
+          </button>
+        </div>
       </div>
 
       {flash ? (
-        <p className="mt-4 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-body">
-          {flash.text}
-          {flash.to ? (
-            <>
-              {" "}
-              <Link to={flash.to} className="font-semibold text-primary underline-offset-2 hover:underline">
-                {flash.linkText ?? "Ver publicación"}
-              </Link>
-            </>
-          ) : null}
-        </p>
+        <div
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[1800] mx-auto flex max-w-4xl items-start gap-3 rounded-xl border border-secondary/40 bg-surface px-4 py-3 text-sm text-body shadow-lg sm:left-6 sm:right-6 lg:bottom-auto lg:left-auto lg:right-6 lg:top-[4.5rem] lg:mx-0 lg:w-full lg:max-w-sm"
+          role="status"
+        >
+          <p className="min-w-0 flex-1">
+            {flash.text}
+            {flash.to ? (
+              <>
+                {" "}
+                <Link to={flash.to} className="font-semibold text-primary underline-offset-2 hover:underline">
+                  {flash.linkText ?? "Ver publicación"}
+                </Link>
+              </>
+            ) : null}
+          </p>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={() => setFlash(null)}
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface-elevated hover:text-body"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
       ) : null}
 
       {err ? (
-        <p className="mt-4 text-sm text-error" role="alert">
+        <p className="mt-4 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error" role="alert">
           {err}
         </p>
       ) : null}
 
-      <div className="mt-8 space-y-10">
-        {busy && rows === null ? (
-          <p className="text-sm text-muted">Cargando…</p>
-        ) : rows?.length === 0 ? (
-          <p className="rounded-2xl border border-border bg-surface px-4 py-8 text-center text-sm text-muted shadow-sm">
-            Aún no hay anuncios asociados a esta sesión.{" "}
-            <Link to="/publicar" className="font-semibold text-primary underline-offset-2 hover:underline">
-              Publicar
-            </Link>
+      <div className="mt-8 space-y-10" aria-busy={busy && rows !== null ? true : undefined}>
+        {busy && rows !== null ? (
+          <p className="sr-only" aria-live="polite">
+            Actualizando anuncios…
           </p>
+        ) : null}
+        {busy && rows === null ? (
+          <ListingsSkeleton />
+        ) : rows?.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-surface px-4 py-10 text-center shadow-sm">
+            <Home className="mx-auto size-8 text-muted" strokeWidth={1.5} aria-hidden />
+            <p className="mt-3 text-sm font-medium text-body">Aún no tienes anuncios.</p>
+            <p className="mt-1 text-sm text-muted">Publica un cuarto y adminístralo aquí.</p>
+            <Link
+              to="/publicar"
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99]"
+            >
+              Publicar anuncio
+            </Link>
+          </div>
         ) : (
-          sectionsWithGroups.map((section) => (
-            <div key={section.key}>
-              <div className="mb-4 border-b border-border pb-3">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h2 className="text-lg font-semibold text-body">{section.title}</h2>
-                  <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
-                    {section.groups.length}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted">{section.description}</p>
-              </div>
+          sectionsWithGroups.map((section) => {
+            const sectionBody = (
               <div className="space-y-6">
                 {section.groups.map(({ propertyId, list }) => {
-            const head = list[0]!;
-            const propSt = head.propertyStatus ?? "published";
-            const propActing = actionPropertyId === propertyId;
-            const propRef = propertyReferenceCode(propertyId);
-            const sectionAccent =
-              section.key === "published"
-                ? "border-l-primary/50"
-                : section.key === "draft"
-                  ? "border-l-amber-400"
-                  : section.key === "paused"
-                    ? "border-l-slate-300"
-                    : "border-l-border";
+                  const head = list[0]!;
+                  const propSt = head.propertyStatus ?? "published";
+                  const propActing = actionPropertyId === propertyId;
+                  const propRef = propertyReferenceCode(propertyId);
+                  const sectionAccent =
+                    section.key === "published"
+                      ? "border-l-primary/50"
+                      : section.key === "draft"
+                        ? "border-l-warning"
+                        : section.key === "paused"
+                          ? "border-l-primary/30"
+                          : "border-l-muted/40";
 
-            return (
-              <section
-                key={propertyId}
-                className={`overflow-hidden rounded-2xl border border-border border-l-4 ${sectionAccent} bg-surface shadow-sm`}
-              >
-                <div className="flex flex-col gap-4 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                        {propertyStatusLabel(head.propertyStatus)}
-                      </p>
-                      <ListingReferenceChip code={propRef} label="Propiedad" title={`Referencia de propiedad: ${propRef}`} />
-                    </div>
-                    <h3 className="mt-1 break-words text-lg font-semibold text-body">
-                      {head.propertyTitle ?? head.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-muted">
-                      {head.neighborhood} · {head.city}
-                    </p>
-                    {propSt === "draft" && missingByProperty[propertyId] ? (
-                      <p className="mt-2 text-xs text-warning-fg">
-                        Completa: <span className="font-medium">{missingByProperty[propertyId]}</span>
-                      </p>
-                    ) : null}
-                    {head.propertyPostMode === "property" ? (
-                      <ul className="mt-4 space-y-2 rounded-xl border border-border bg-surface px-3 py-3">
-                        {list.map((l, roomIdx) => {
-                          const occ = l.roomOccupancyStatus ?? "available";
-                          const name = roomDisplayName(
-                            { customName: l.roomCustomName, title: l.title },
-                            roomIdx,
-                          );
-                          return (
-                            <li
-                              key={l.id}
-                              className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                            >
-                              <div className="min-w-0">
-                                <span className="font-medium text-body">{name}</span>
-                                <span
-                                  className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                    isRoomAvailableForRent({ occupancyStatus: occ })
-                                      ? "bg-secondary/15 text-primary"
-                                      : "bg-bg-light text-muted ring-1 ring-border"
-                                  }`}
-                                >
-                                  {occupancyStatusLabel(occ)}
-                                </span>
-                              </div>
-                              <Link
-                                to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
-                                className="shrink-0 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-                              >
-                                Editar recámara
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : null}
-                  </div>
-                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px] sm:items-stretch">
-                    {propSt === "draft" ? (
-                      <>
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                            className="inline-flex flex-1 justify-center rounded-full border border-border bg-surface px-4 py-2 text-center text-sm font-semibold text-body transition hover:bg-surface-elevated sm:flex-none"
+                  return (
+                    <section
+                      key={propertyId}
+                      aria-labelledby={`prop-heading-${propertyId}`}
+                      className={`rounded-2xl border border-border border-l-4 ${sectionAccent} bg-surface shadow-sm`}
+                    >
+                      <div className="flex flex-col gap-4 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ListingStatusBadge status={head.propertyStatus} noun="property" />
+                            <ListingReferenceChip
+                              code={propRef}
+                              label="Propiedad"
+                              title={`Referencia de propiedad: ${propRef}`}
+                            />
+                          </div>
+                          <h3
+                            id={`prop-heading-${propertyId}`}
+                            className="mt-2 break-words text-lg font-semibold text-body"
                           >
-                            Editar borrador
-                          </Link>
+                            {head.propertyTitle ?? head.title}
+                          </h3>
+                          <p className="mt-1 text-xs text-muted">
+                            {head.neighborhood} · {head.city}
+                          </p>
+                          {head.propertyPostMode === "property" ? (
+                            <p className="mt-1 text-xs text-muted">
+                              {list.length} recámara{list.length === 1 ? "" : "s"}
+                            </p>
+                          ) : null}
+                          {propSt === "draft" && missingByProperty[propertyId] ? (
+                            <MissingFieldsCallout
+                              fields={missingByProperty[propertyId]}
+                              className="mt-3"
+                            />
+                          ) : null}
+                          {propSt !== "draft" && localErrByProperty[propertyId] ? (
+                            <p className="mt-3 text-xs text-error" role="alert">
+                              {localErrByProperty[propertyId]}
+                            </p>
+                          ) : null}
                         </div>
-                        <label className="flex cursor-pointer items-start gap-2 text-xs leading-snug text-body">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(legalPublishByProperty[propertyId])}
-                            onChange={(e) =>
-                              setLegalPublishByProperty((m) => ({
-                                ...m,
-                                [propertyId]: e.target.checked,
-                              }))
+                        <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px] sm:items-stretch">
+                          {propSt === "draft" ? (
+                            <>
+                              <Link
+                                to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                                className={`${propActionClass} border border-border bg-surface text-body hover:bg-surface-elevated`}
+                              >
+                                Editar borrador
+                              </Link>
+                              <label
+                                htmlFor={`legal-publish-${propertyId}`}
+                                className="flex cursor-pointer items-start gap-2 text-xs leading-snug text-body"
+                              >
+                                <input
+                                  id={`legal-publish-${propertyId}`}
+                                  type="checkbox"
+                                  checked={Boolean(legalPublishByProperty[propertyId])}
+                                  onChange={(e) => {
+                                    setLegalPublishByProperty((m) => ({
+                                      ...m,
+                                      [propertyId]: e.target.checked,
+                                    }));
+                                    setLocalErrByProperty((m) => {
+                                      const next = { ...m };
+                                      delete next[propertyId];
+                                      return next;
+                                    });
+                                  }}
+                                  className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                                />
+                                <span>
+                                  Confirmo que la información es verídica y acepto los{" "}
+                                  <Link
+                                    to="/legal/terminos"
+                                    className="font-semibold text-primary underline-offset-2 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Términos de uso
+                                  </Link>{" "}
+                                  para publicar.
+                                </span>
+                              </label>
+                              {localErrByProperty[propertyId] ? (
+                                <p className="text-xs text-error" role="alert">
+                                  {localErrByProperty[propertyId]}
+                                </p>
+                              ) : null}
+                              <button
+                                type="button"
+                                disabled={propActing}
+                                aria-busy={propActing}
+                                onClick={() => void publishDraftProperty(propertyId)}
+                                className={`${propActionClass} bg-primary text-primary-fg enabled:hover:brightness-110 active:scale-[0.99]`}
+                              >
+                                {propActing ? "Publicando…" : "Publicar"}
+                              </button>
+                            </>
+                          ) : null}
+                          {propSt === "published" ? (
+                            <>
+                              <Link
+                                to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                                className={`${propActionClass} bg-primary/10 text-primary hover:bg-primary/15`}
+                              >
+                                Editar anuncio
+                              </Link>
+                              <Link
+                                to={
+                                  head.propertyPostMode === "property"
+                                    ? `${listingPublicPath(list[0]!.id)}?roomId=${encodeURIComponent(list[0]!.id)}`
+                                    : listingPublicPath(list[0]!.id)
+                                }
+                                className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
+                              >
+                                Ver publicación
+                              </Link>
+                              <button
+                                type="button"
+                                disabled={propActing}
+                                aria-busy={propActing}
+                                onClick={() => void pauseProperty(propertyId)}
+                                className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
+                              >
+                                {propActing ? "Pausando…" : "Pausar propiedad"}
+                              </button>
+                            </>
+                          ) : null}
+                          {propSt === "paused" ? (
+                            <>
+                              <Link
+                                to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
+                                className={`${propActionClass} bg-primary/10 text-primary hover:bg-primary/15`}
+                              >
+                                Editar
+                              </Link>
+                              <button
+                                type="button"
+                                disabled={propActing}
+                                aria-busy={propActing}
+                                onClick={() => void republishProperty(propertyId)}
+                                className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
+                              >
+                                {propActing ? "Republicando…" : "Republicar propiedad"}
+                              </button>
+                            </>
+                          ) : null}
+                          {propSt === "archived" ? (
+                            <button
+                              type="button"
+                              disabled={propActing}
+                              aria-busy={propActing}
+                              onClick={() => void republishProperty(propertyId)}
+                              className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
+                            >
+                              {propActing ? "Restaurando…" : "Restaurar propiedad"}
+                            </button>
+                          ) : null}
+                          {propSt === "published" || propSt === "paused" ? (
+                            <button
+                              type="button"
+                              disabled={propActing}
+                              aria-busy={propActing}
+                              onClick={() => setPendingArchive({ kind: "property", id: propertyId })}
+                              className={`${propActionClass} border border-border text-muted hover:bg-surface-elevated`}
+                            >
+                              Archivar propiedad
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <ul className="divide-y divide-border md:hidden">
+                        {list.map((l) => (
+                          <MobileListingCard
+                            key={l.id}
+                            listing={l}
+                            head={head}
+                            title={listingRowTitle(head, l, list)}
+                            propertyId={propertyId}
+                            propSt={propSt}
+                            acting={rowBusy(l)}
+                            onPause={() => void pause(l.id)}
+                            onRepublish={() => void republish(l.id)}
+                            onArchive={() => setPendingArchive({ kind: "room", id: l.id })}
+                            onRestore={() => void republish(l.id)}
+                            onShared={(mode) =>
+                              setFlash({
+                                text:
+                                  mode === "shared"
+                                    ? "Enlace listo para compartir."
+                                    : "Enlace del anuncio copiado.",
+                              })
                             }
-                            className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                            onShareFailed={() =>
+                              setFlash({ text: "No se pudo copiar el enlace. Intenta de nuevo." })
+                            }
                           />
-                          <span>Confirmo que la información es verídica y acepto publicar.</span>
-                        </label>
-                        <button
-                          type="button"
-                          disabled={propActing}
-                          onClick={() => void publishDraftProperty(propertyId)}
-                          className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50 sm:py-2"
-                        >
-                          {propActing ? "Publicando…" : "Publicar"}
-                        </button>
-                      </>
-                    ) : null}
-                    {propSt === "published" ? (
-                      <>
-                        <Link
-                          to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                          className="inline-flex justify-center rounded-full bg-primary/10 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-primary/15"
-                        >
-                          Editar anuncio
-                        </Link>
-                        <button
-                          type="button"
-                          disabled={propActing}
-                          onClick={() => void pauseProperty(propertyId)}
-                          className="rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15 disabled:opacity-50"
-                        >
-                          {propActing ? "…" : "Pausar propiedad"}
-                        </button>
-                      </>
-                    ) : null}
-                    {propSt === "paused" ? (
-                      <>
-                        <Link
-                          to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                          className="inline-flex justify-center rounded-full bg-primary/10 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-primary/15"
-                        >
-                          Editar y republicar
-                        </Link>
-                        <button
-                          type="button"
-                          disabled={propActing}
-                          onClick={() => void republishProperty(propertyId)}
-                          className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-body transition hover:bg-surface disabled:opacity-50"
-                        >
-                          {propActing ? "…" : "Republicar propiedad"}
-                        </button>
-                      </>
-                    ) : null}
-                    {propSt === "published" || propSt === "paused" ? (
-                      <button
-                        type="button"
-                        disabled={propActing}
-                        onClick={() => void archiveProperty(propertyId)}
-                        className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted transition hover:bg-surface disabled:opacity-50"
-                      >
-                        {propActing ? "…" : "Archivar propiedad"}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <ul className="divide-y divide-border md:hidden">
-                  {list.map((l) => {
-                    const st = l.status ?? "published";
-                    const acting = rowBusy(l);
-                    const roomRef = roomReferenceCode(l.id);
-                    const title = listingRowTitle(head, l, list);
-                    const meta =
-                      head.propertyPostMode === "property"
-                        ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
-                        : l.city;
-                    return (
-                      <li key={l.id} className="space-y-3 px-4 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <ListingReferenceChip
-                            code={roomRef}
-                            label="Anuncio"
-                            title={`Referencia del anuncio: ${roomRef}`}
-                          />
-                          <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-body ring-1 ring-border">
-                            {statusLabel(st)}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="break-words font-medium text-body">{title}</p>
-                          <p className="mt-1 text-xs text-muted">{meta}</p>
-                        </div>
-                        <ListingRowActions
-                          l={l}
-                          head={head}
-                          propSt={propSt}
-                          propertyId={propertyId}
-                          acting={acting}
-                          st={st}
-                          mobile
-                          onPause={() => void pause(l.id)}
-                          onRepublish={() => void republish(l.id)}
-                          onArchive={() => void archive(l.id)}
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-                      <tr>
-                        <th className="px-4 py-3">Referencia</th>
-                        <th className="px-4 py-3">
-                          {head.propertyPostMode === "property" ? "Recámara" : "Cuarto / título"}
-                        </th>
-                        {head.propertyPostMode === "property" ? (
-                          <th className="hidden px-4 py-3 sm:table-cell">Disponibilidad</th>
-                        ) : (
-                          <th className="hidden px-4 py-3 sm:table-cell">Ciudad</th>
-                        )}
-                        <th className="px-4 py-3">Estado</th>
-                        <th className="px-4 py-3 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border text-body">
-                      {list.map((l) => {
-                        const st = l.status ?? "published";
-                        const acting = rowBusy(l);
-                        const roomRef = roomReferenceCode(l.id);
-                        return (
-                          <tr key={l.id}>
-                            <td className="px-4 py-3">
-                              <ListingReferenceChip
-                                code={roomRef}
-                                label="Anuncio"
-                                title={`Referencia del anuncio: ${roomRef}`}
-                              />
-                            </td>
-                            <td className="px-4 py-3 font-medium">
-                              {listingRowTitle(head, l, list)}
-                            </td>
-                            <td className="hidden px-4 py-3 text-muted sm:table-cell">
-                              {head.propertyPostMode === "property"
-                                ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
-                                : l.city}
-                            </td>
-                            <td className="px-4 py-3">{statusLabel(st)}</td>
-                            <td className="px-4 py-3 text-right">
-                              <ListingRowActions
-                                l={l}
-                                head={head}
-                                propSt={propSt}
-                                propertyId={propertyId}
-                                acting={acting}
-                                st={st}
-                                onPause={() => void pause(l.id)}
-                                onRepublish={() => void republish(l.id)}
-                                onArchive={() => void archive(l.id)}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            );
+                        ))}
+                      </ul>
+                      <DesktopRoomTable
+                        propertyId={propertyId}
+                        head={head}
+                        list={list}
+                        propSt={propSt}
+                        rowBusy={rowBusy}
+                        onPause={(id) => void pause(id)}
+                        onRepublish={(id) => void republish(id)}
+                        onArchive={(id) => setPendingArchive({ kind: "room", id })}
+                        onRestore={(id) => void republish(id)}
+                      />
+                    </section>
+                  );
                 })}
               </div>
-            </div>
-          ))
+            );
+
+            if (section.key === "archived") {
+              return (
+                <details key={section.key} className="group">
+                  <summary className="mb-4 flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-border pb-3 marker:content-none [&::-webkit-details-marker]:hidden">
+                    <ChevronDown
+                      className="size-4 shrink-0 text-muted transition group-open:rotate-180"
+                      aria-hidden
+                    />
+                    <h2 className="text-lg font-semibold text-body">{section.title}</h2>
+                    <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
+                      {section.groups.length}
+                    </span>
+                    <span className="text-sm text-muted group-open:hidden">Mostrar</span>
+                    <span className="hidden text-sm text-muted group-open:inline">Ocultar</span>
+                    <p className="w-full text-sm text-muted">{section.description}</p>
+                  </summary>
+                  {sectionBody}
+                </details>
+              );
+            }
+
+            return (
+              <div key={section.key}>
+                <div className="mb-4 border-b border-border pb-3">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h2 className="text-lg font-semibold text-body">{section.title}</h2>
+                    <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
+                      {section.groups.length}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted">{section.description}</p>
+                </div>
+                {sectionBody}
+              </div>
+            );
+          })
         )}
       </div>
+
+      <AppConfirmDialog
+        open={pendingArchive != null}
+        intent="danger"
+        title={pendingArchive?.kind === "property" ? "Archivar propiedad" : "Archivar anuncio"}
+        message={
+          pendingArchive?.kind === "property"
+            ? "La propiedad y sus recámaras dejarán de verse en la búsqueda. Puedes volver a publicarlas cuando quieras."
+            : "El anuncio ya no será visible en la búsqueda. Puedes volver a publicarlo en cualquier momento."
+        }
+        confirmLabel={
+          pendingArchive &&
+          ((pendingArchive.kind === "room" && actionId === pendingArchive.id) ||
+            (pendingArchive.kind === "property" && actionPropertyId === pendingArchive.id))
+            ? "Archivando…"
+            : "Archivar"
+        }
+        busy={
+          pendingArchive?.kind === "room"
+            ? actionId === pendingArchive.id
+            : pendingArchive?.kind === "property"
+              ? actionPropertyId === pendingArchive.id
+              : false
+        }
+        onConfirm={confirmPendingArchive}
+        onCancel={() => setPendingArchive(null)}
+      />
     </div>
   );
 }

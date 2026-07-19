@@ -1,0 +1,14 @@
+{
+  "codeConnect": {
+    "include": ["src/figma/**/*.figma.ts"],
+    "parser": "react",
+    "paths": {
+      "components": "src/components",
+      "brand": "src/components/BrandLogo.tsx"
+    },
+    "importPaths": {
+      "components/*": "components",
+      "brand": "components"
+    }
+  }
+}

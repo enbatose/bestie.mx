@@ -158,6 +158,12 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ...(row.occupant_age != null && Number.isFinite(Number(row.occupant_age))
       ? { roomOccupantAge: Number(row.occupant_age) }
       : {}),
+    ...(row.views_count != null && Number.isFinite(Number(row.views_count))
+      ? { viewsCount: Math.max(0, Math.floor(Number(row.views_count))) }
+      : {}),
+    ...(row.inquiry_count != null && Number.isFinite(Number(row.inquiry_count))
+      ? { inquiryCount: Math.max(0, Math.floor(Number(row.inquiry_count))) }
+      : {}),
   };
 }
 

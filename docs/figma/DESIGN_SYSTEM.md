@@ -57,6 +57,12 @@ Hero, H1–H3, Body, Label, Caption, Overline, Button — aligned with `.cursor/
 | **Card / Surface** | Components / Card | Home feature cards, panels |
 | **Logo mark & lockup** | Components / Brand | `BrandLogo.tsx`, `public/brand/*` |
 | **Filter icons** | Components / Filter Icons | `GenderFilterIcons.tsx`, `src/assets/icons/*`, plus lucide icons documented per `searchQuickAttributes.tsx` (`tag-aire-acondicionado`, `tag-parejas`, `tag-fumar-permitido-recamara` added for the Filtros avanzados redesign). Note: the `recamara` "Tipo de propiedad" chip/icon was removed from the product (redundant with "Tipo de habitación" Privada/Compartida) — the Figma frame for it may still exist as an orphaned asset. |
+| **Publisher / StatusBadge** | Components / Publisher (add) | `ListingStatusBadge.tsx` — semantic pills for draft / published / paused / archived |
+| **Publisher / ListingThumb** | Components / Publisher (add) | `ListingThumb.tsx` — 64×64 square thumb + Home fallback |
+| **Publisher / MissingFieldsCallout** | Components / Publisher (add) | `MissingFieldsCallout.tsx` — warning callout before draft publish |
+| **Publisher / DesktopRoomTable** | Components / Publisher (add) | `DesktopRoomTable.tsx` — thumb + rent + metrics + compact actions overflow |
+| **Publisher / ReferenceChip** | Components / Publisher (add) | `ListingReferenceChip.tsx` — copyable `P…` / `A…` refs |
+| **Dialog / Confirm** | Components / Dialog | `AppConfirmDialog.tsx` — `intent="default" \| "danger"`, focus trap + restore |
 
 ### Foundations docs
 

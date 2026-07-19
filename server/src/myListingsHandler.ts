@@ -23,11 +23,19 @@ export function myListingsHandler(db: DatabaseSync) {
     }
 
     const placeholders = publisherIds.map(() => "?").join(", ");
-    const rows = db
-      .prepare(
-        `${ROOM_PROPERTY_JOIN_SQL} WHERE p.publisher_id IN (${placeholders}) ${MY_LISTINGS_ORDER}`,
-      )
-      .all(...publisherIds) as Record<string, unknown>[];
+    // Inject owner-only metrics before FROM (views_count + inquiry threads).
+    const sql = `${ROOM_PROPERTY_JOIN_SQL.replace(
+      "FROM rooms r",
+      `,
+  COALESCE(r.views_count, 0) AS views_count,
+  (
+    SELECT COUNT(*) FROM conversations c
+    WHERE c.listing_room_id = r.id
+      AND COALESCE(c.kind, 'listing') = 'listing'
+  ) AS inquiry_count
+FROM rooms r`,
+    )} WHERE p.publisher_id IN (${placeholders}) ${MY_LISTINGS_ORDER}`;
+    const rows = db.prepare(sql).all(...publisherIds) as Record<string, unknown>[];
 
     res.json(rows.map(joinRowToPropertyListing));
   };

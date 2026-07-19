@@ -204,4 +204,8 @@ export type PropertyListing = {
   roomOccupancyStatus?: RoomOccupancyStatus;
   roomOccupantGender?: RoommateGenderPref;
   roomOccupantAge?: number;
+  /** Owner-only metrics from `/api/my-listings`. */
+  viewsCount?: number;
+  /** Owner-only: listing conversation/thread count. */
+  inquiryCount?: number;
 };

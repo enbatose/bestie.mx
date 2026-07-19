@@ -1,0 +1,355 @@
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { MoreHorizontal } from "lucide-react";
+import { ListingReferenceChip } from "@/components/myListings/ListingReferenceChip";
+import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
+import { ListingThumb } from "@/components/myListings/ListingThumb";
+import {
+  formatAvailableFrom,
+  formatPublisherMetrics,
+  formatRentMxn,
+  listingThumbSrc,
+} from "@/components/myListings/listingFormat";
+import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
+import { occupancyStatusLabel, roomDisplayName } from "@/lib/roomDisplay";
+import type { ListingStatus, PropertyListing } from "@/types/listing";
+
+type Props = {
+  propertyId: string;
+  head: PropertyListing;
+  list: PropertyListing[];
+  propSt: ListingStatus;
+  rowBusy: (l: PropertyListing) => boolean;
+  onPause: (id: string) => void;
+  onRepublish: (id: string) => void;
+  onArchive: (id: string) => void;
+  onRestore: (id: string) => void;
+};
+
+function DesktopRowActions({
+  l,
+  head,
+  propSt,
+  propertyId,
+  acting,
+  st,
+  onPause,
+  onRepublish,
+  onArchive,
+  onRestore,
+}: {
+  l: PropertyListing;
+  head: PropertyListing;
+  propSt: ListingStatus;
+  propertyId: string;
+  acting: boolean;
+  st: ListingStatus;
+  onPause: () => void;
+  onRepublish: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+}) {
+  const actionClass =
+    "inline-flex min-h-9 items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50";
+  const previewPath =
+    head.propertyPostMode === "property"
+      ? `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`
+      : listingPublicPath(l.id);
+  const previewLabel = st === "published" && propSt === "published" ? "Ver público" : "Vista previa";
+  const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
+  const canArchive = st === "published" || st === "paused";
+  const canRestore = st === "archived" || propSt === "archived";
+  const showOverflow = canArchive || st === "published" || canRestore;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDoc(ev: MouseEvent) {
+      if (!menuRef.current?.contains(ev.target as Node)) closeMenu();
+    }
+    function onKey(ev: KeyboardEvent) {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeMenu();
+        return;
+      }
+      if (ev.key === "Tab") {
+        closeMenu();
+        return;
+      }
+      if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+        ev.preventDefault();
+        const items = [
+          ...(menuRef.current?.querySelectorAll<HTMLElement>("[role='menuitem']") ?? []),
+        ];
+        if (!items.length) return;
+        const idx = items.indexOf(document.activeElement as HTMLElement);
+        const next =
+          ev.key === "ArrowDown"
+            ? items[(idx + 1) % items.length]
+            : items[(idx - 1 + items.length) % items.length];
+        next?.focus();
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    menuRef.current?.querySelector<HTMLElement>("[role='menuitem']")?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen, closeMenu]);
+
+  return (
+    <div className="flex flex-nowrap items-center justify-end gap-2">
+      {canEdit ? (
+        <Link
+          to={`/publicar?edit=${encodeURIComponent(propertyId)}&room=${encodeURIComponent(l.id)}`}
+          className={`${actionClass} bg-primary/10 text-primary hover:bg-primary/15`}
+        >
+          Editar
+        </Link>
+      ) : null}
+      {st === "paused" ? (
+        <button
+          type="button"
+          disabled={acting}
+          aria-busy={acting}
+          onClick={onRepublish}
+          className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
+        >
+          {acting ? "Republicando…" : "Republicar"}
+        </button>
+      ) : null}
+      {canRestore && !canEdit ? (
+        <button
+          type="button"
+          disabled={acting}
+          aria-busy={acting}
+          onClick={onRestore}
+          className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
+        >
+          {acting ? "Restaurando…" : "Restaurar"}
+        </button>
+      ) : null}
+      <Link
+        to={previewPath}
+        className={`${actionClass} border border-border text-body hover:bg-surface-elevated`}
+      >
+        {previewLabel}
+      </Link>
+      {showOverflow ? (
+        <div className="relative" ref={menuRef}>
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-label="Más acciones"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            onClick={() => setMenuOpen((o) => !o)}
+            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border text-body transition hover:bg-surface-elevated"
+          >
+            <MoreHorizontal className="size-4" aria-hidden />
+          </button>
+          {menuOpen ? (
+            <div
+              id={menuId}
+              role="menu"
+              className="absolute right-0 bottom-full z-[1850] mb-1 min-w-[11rem] overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
+            >
+              {st === "published" ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={acting}
+                  onClick={() => {
+                    closeMenu();
+                    onPause();
+                  }}
+                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
+                >
+                  {acting ? "Pausando…" : "Pausar"}
+                </button>
+              ) : null}
+              {canRestore && canEdit ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={acting}
+                  onClick={() => {
+                    closeMenu();
+                    onRestore();
+                  }}
+                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-body hover:bg-surface-elevated disabled:opacity-50"
+                >
+                  Restaurar
+                </button>
+              ) : null}
+              {canArchive ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={acting}
+                  onClick={() => {
+                    closeMenu();
+                    onArchive();
+                  }}
+                  className="flex min-h-10 w-full items-center px-4 text-left text-sm font-medium text-error hover:bg-error/5 disabled:opacity-50"
+                >
+                  Archivar
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Desktop room table for a property group on Mis Anuncios. */
+export function DesktopRoomTable({
+  propertyId,
+  head,
+  list,
+  propSt,
+  rowBusy,
+  onPause,
+  onRepublish,
+  onArchive,
+  onRestore,
+}: Props) {
+  const caption = head.propertyTitle ?? head.title;
+
+  return (
+    <div className="hidden md:block">
+      <table className="w-full min-w-0 table-fixed text-left text-sm">
+        <caption className="sr-only">Recámaras de {caption}</caption>
+        <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+          <tr>
+            <th scope="col" className="px-4 py-3">
+              <span className="sr-only">Foto</span>
+            </th>
+            <th scope="col" className="px-4 py-3">
+              Referencia
+            </th>
+            <th scope="col" className="px-4 py-3">
+              {head.propertyPostMode === "property" ? "Recámara" : "Cuarto / título"}
+            </th>
+            <th scope="col" className="px-4 py-3">
+              Renta
+            </th>
+            {head.propertyPostMode === "property" ? (
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+                Disponibilidad
+              </th>
+            ) : (
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+                Ciudad
+              </th>
+            )}
+            <th scope="col" className="px-4 py-3">
+              Estado
+            </th>
+            <th scope="col" className="hidden px-4 py-3 lg:table-cell">
+              Métricas
+            </th>
+            <th scope="col" className="px-4 py-3 text-right">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border text-body">
+          {list.map((l, roomIdx) => {
+            const st = l.status ?? "published";
+            const acting = rowBusy(l);
+            const roomRef = roomReferenceCode(l.id);
+            const title =
+              head.propertyPostMode === "property"
+                ? roomDisplayName(
+                    { customName: l.roomCustomName, title: l.title },
+                    roomIdx,
+                  )
+                : l.title;
+            const rentLabel = formatRentMxn(l.rentMxn);
+            const occupied = l.roomOccupancyStatus === "occupied";
+            const availableLabel = formatAvailableFrom(l.availableFrom);
+            const metricsLabel = formatPublisherMetrics(l.viewsCount, l.inquiryCount);
+            const metricsDisplay =
+              metricsLabel ??
+              (st === "published" ? "Sin actividad aún" : "—");
+
+            return (
+              <tr
+                key={l.id}
+                className="transition-colors hover:bg-surface-elevated/80 focus-within:bg-surface-elevated/80"
+              >
+                <td className="px-4 py-3">
+                  <ListingThumb src={listingThumbSrc(l)} className="size-10 rounded-lg" />
+                </td>
+                <td className="px-4 py-3">
+                  <ListingReferenceChip
+                    code={roomRef}
+                    label="Anuncio"
+                    title={`Referencia del anuncio: ${roomRef}`}
+                    size="compact"
+                  />
+                </td>
+                <th scope="row" className="px-4 py-3 text-left font-medium">
+                  <p className="max-w-[14rem] truncate" title={title}>
+                    {title}
+                  </p>
+                  {availableLabel ? (
+                    <p className="mt-0.5 text-xs font-normal text-muted">{availableLabel}</p>
+                  ) : null}
+                </th>
+                <td className="px-4 py-3 tabular-nums">
+                  {occupied ? (
+                    <span className="text-muted">Ocupada</span>
+                  ) : rentLabel ? (
+                    <span className="font-semibold text-body">{rentLabel}</span>
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
+                </td>
+                <td className="hidden px-4 py-3 text-muted lg:table-cell">
+                  {head.propertyPostMode === "property"
+                    ? occupancyStatusLabel(l.roomOccupancyStatus ?? "available")
+                    : l.city}
+                </td>
+                <td className="px-4 py-3">
+                  <ListingStatusBadge status={st} />
+                </td>
+                <td className="hidden px-4 py-3 text-xs text-muted lg:table-cell">{metricsDisplay}</td>
+                <td className="px-4 py-3 text-right">
+                  <DesktopRowActions
+                    l={l}
+                    head={head}
+                    propSt={propSt}
+                    propertyId={propertyId}
+                    acting={acting}
+                    st={st}
+                    onPause={() => onPause(l.id)}
+                    onRepublish={() => onRepublish(l.id)}
+                    onArchive={() => onArchive(l.id)}
+                    onRestore={() => onRestore(l.id)}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}

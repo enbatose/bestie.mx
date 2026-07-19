@@ -240,6 +240,12 @@ function migrateRoomTimestamps(db: DatabaseSync): void {
   ).run();
 }
 
+function migrateRoomViewsCount(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "rooms", "views_count")) {
+    db.exec("ALTER TABLE rooms ADD COLUMN views_count INTEGER NOT NULL DEFAULT 0");
+  }
+}
+
 function ensureUploadBlobSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS upload_blobs (
@@ -312,6 +318,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migratePropertyStreetViewPov(db);
   migrateRoomTimestamps(db);
   migrateRoomOccupancyFields(db);
+  migrateRoomViewsCount(db);
   ensureUploadBlobSchema(db);
 }
 

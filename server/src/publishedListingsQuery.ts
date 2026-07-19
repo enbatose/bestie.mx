@@ -5,7 +5,7 @@ import type { PropertyListing } from "./types.js";
 const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' `;
 
 function listingForPublic(l: PropertyListing): PropertyListing {
-  const { publisherId: _p, ...rest } = l;
+  const { publisherId: _p, viewsCount: _v, inquiryCount: _i, ...rest } = l;
   return rest;
 }
 

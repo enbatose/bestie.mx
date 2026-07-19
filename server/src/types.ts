@@ -184,6 +184,10 @@ export type PropertyListing = {
   roomOccupancyStatus?: RoomOccupancyStatus;
   roomOccupantGender?: RoommateGenderPref;
   roomOccupantAge?: number;
+  /** Owner-only: public listing view counter (not in public DTOs). */
+  viewsCount?: number;
+  /** Owner-only: listing conversation/thread count. */
+  inquiryCount?: number;
   isApproximateLocation?: boolean;
   /** Privacy disk radius in meters when approximate location is enabled. */
   approximateRadiusMeters?: number;
