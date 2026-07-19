@@ -86,9 +86,11 @@ export function AppShellLayout() {
       <PostHogIdentify me={me} />
       <div className={`flex flex-col dark:bg-bg-dark ${isSearchPage ? "h-dvh min-h-0" : "min-h-screen"}`}>
         <header className="sticky top-0 z-[1800] border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
-          <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <BrandLogo />
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex w-full items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
+            <div className="min-w-0 shrink">
+              <BrandLogo imgClassName="h-7 w-auto max-w-[136px] object-left sm:h-10 sm:max-w-[260px]" />
+            </div>
+            <div className="flex shrink-0 items-center justify-end">
               <HeaderMegaMenu
                 me={me}
                 profileIncomplete={profileIncomplete}
