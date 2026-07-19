@@ -9,11 +9,6 @@ type Props = {
   msgBusy: boolean;
   msgErr: string | null;
   onInAppMessage: () => void;
-  showWhatsApp: boolean;
-  revealed: boolean;
-  onRevealWhatsApp: () => void;
-  contactWhatsApp: string;
-  waUrl: string;
 };
 
 export function ListingContactPanel({
@@ -24,11 +19,6 @@ export function ListingContactPanel({
   msgBusy,
   msgErr,
   onInAppMessage,
-  showWhatsApp,
-  revealed,
-  onRevealWhatsApp,
-  contactWhatsApp,
-  waUrl,
 }: Props) {
   const canMessage = messagingOn && listingStatus === "published" && Boolean(listingId);
 
@@ -64,45 +54,11 @@ export function ListingContactPanel({
             Mensaje directo dentro de Bestie. Si aún no tienes cuenta, te pediremos iniciar sesión.
           </p>
         </div>
-      ) : null}
-
-      {showWhatsApp ? (
-        <div className={`${canMessage ? "mt-4" : "mt-4"} rounded-xl border border-border bg-surface p-4`}>
-          {!revealed ? (
-            <>
-              <p className="text-sm text-muted">También puedes contactar por WhatsApp cuando estés listo.</p>
-              <button
-                type="button"
-                onClick={onRevealWhatsApp}
-                className="mt-3 inline-flex w-full justify-center rounded-full bg-secondary px-5 py-3 text-sm font-semibold text-primary shadow-sm transition hover:brightness-95 sm:w-auto"
-              >
-                Ver WhatsApp
-              </button>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-body">
-                <span className="font-medium">WhatsApp:</span> +{contactWhatsApp}
-              </p>
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex w-full justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-fg transition hover:brightness-110 sm:w-auto"
-              >
-                Abrir WhatsApp
-              </a>
-            </div>
-          )}
-        </div>
       ) : (
         <div className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning-fg">
-          <p className="font-medium">WhatsApp no disponible en este anuncio</p>
+          <p className="font-medium">Contacto no disponible</p>
           <p className="mt-1 leading-relaxed">
-            {canMessage
-              ? "El anunciante eligió no mostrar su número. Usa el mensaje en Bestie arriba."
-              : "El anunciante eligió no mostrar su número públicamente."}{" "}
-            Si necesitas ayuda para conectar, escribe a{" "}
+            Este anuncio no acepta mensajes en este momento. Si necesitas ayuda, escribe a{" "}
             <a href="mailto:contacto@bestie.mx" className="font-medium text-primary underline-offset-2 hover:underline">
               contacto@bestie.mx
             </a>

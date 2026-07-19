@@ -37,8 +37,6 @@ export function ProfilePage() {
     );
   }
 
-  const phoneOk = Boolean(me.phoneE164);
-
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
       <h1 className="text-2xl font-bold text-primary">Perfil</h1>
@@ -58,37 +56,9 @@ export function ProfilePage() {
       <ul className="mt-6 space-y-3 rounded-2xl border border-border bg-surface p-4 text-sm">
         <li className="flex items-center justify-between gap-2">
           <span className="text-body">Correo</span>
-          <span className="text-muted">{me.email ?? "— (cuenta solo WhatsApp)"}</span>
-        </li>
-        <li className="flex items-center justify-between gap-2">
-          <span className="text-body">WhatsApp en cuenta</span>
-          {phoneOk ? (
-            <span className="truncate text-muted">{me.phoneE164}</span>
-          ) : (
-            <Link
-              to="/entrar?tab=wa"
-              className="inline-flex rounded-full bg-error/15 px-2 py-0.5 text-xs font-semibold text-error underline-offset-2 transition hover:bg-error/25 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              Agregar
-            </Link>
-          )}
+          <span className="text-muted">{me.email ?? "—"}</span>
         </li>
       </ul>
-
-      {!phoneOk ? (
-        <div className="mt-6 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-warning-fg">
-          <p className="font-medium">Completa tu perfil</p>
-          <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
-            <li>
-              Añade tu número (WhatsApp) desde{" "}
-              <Link to="/entrar?tab=wa" className="font-semibold underline">
-                Entrar → pestaña WhatsApp
-              </Link>
-              .
-            </li>
-          </ul>
-        </div>
-      ) : null}
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link

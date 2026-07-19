@@ -289,15 +289,13 @@ export function contactStepInvalidReason(_d: Draft): string | null {
 }
 
 export function resolveListingContactForApi(
-  profilePhoneE164: string | null | undefined,
-  draft: Draft,
+  _profilePhoneE164: string | null | undefined,
+  _draft: Draft,
 ): { contactWhatsApp: string; showWhatsApp: boolean } {
-  const raw = profilePhoneE164?.trim() || draft.contactWhatsApp?.trim() || "";
-  const digits = normalizeWhatsApp(raw.replace(/^\+/, ""));
-  const valid = digits.length >= 10 && digits.length <= 15 && !/^0+$/.test(digits);
+  // Phone / WhatsApp contact is not part of the current product version.
   return {
-    contactWhatsApp: valid ? digits : DRAFT_WA_PLACEHOLDER,
-    showWhatsApp: valid,
+    contactWhatsApp: DRAFT_WA_PLACEHOLDER,
+    showWhatsApp: false,
   };
 }
 

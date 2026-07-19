@@ -22,8 +22,6 @@ export function AppShellLayout() {
     me !== undefined,
   );
 
-  const profileIncomplete = Boolean(me != null && me.id && me.email && !me.phoneE164);
-
   const refreshMe = useCallback(async () => {
     try {
       setMe(await authMe());
@@ -104,7 +102,6 @@ export function AppShellLayout() {
             >
               <HeaderMegaMenu
                 me={me}
-                profileIncomplete={profileIncomplete}
                 unreadCount={unread}
                 onAuthChange={refreshMe}
                 iconGapPx={iconGapPx}

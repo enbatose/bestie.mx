@@ -11,7 +11,7 @@ export function FaqPage() {
           <dt className="text-base font-semibold text-body">¿Qué es Bestie?</dt>
           <dd className="mt-2 text-sm leading-relaxed text-muted">
             Un marketplace para encontrar roomies y rentas compartidas en ciudades de México, con
-            foco en confianza y flujos sencillos (mapa, filtros y contacto por WhatsApp).
+            foco en confianza y flujos sencillos (mapa, filtros y mensajes en la app).
           </dd>
         </div>
         <div>

@@ -89,9 +89,8 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
   const bedroomsTotal =
     row.bedrooms_total != null && Number.isFinite(Number(row.bedrooms_total)) ? Number(row.bedrooms_total) : 1;
   const bathrooms = row.bathrooms != null && Number.isFinite(Number(row.bathrooms)) ? Number(row.bathrooms) : 1;
-  const showWaRaw = row.show_whatsapp;
-  const showWhatsApp =
-    showWaRaw === 0 || showWaRaw === false || showWaRaw === "0" ? false : true;
+  // Phone / WhatsApp contact is disabled in the current product version.
+  const showWhatsApp = false;
 
   const propertyImageUrls = imageUrlsFromCell(row.property_image_urls_json);
   const roomImageUrls = imageUrlsFromCell(row.room_image_urls_json);
@@ -118,7 +117,7 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ageMin: Number(row.age_min),
     ageMax: Number(row.age_max),
     summary: String(row.summary),
-    contactWhatsApp: String(row.contact_whatsapp),
+    contactWhatsApp: "",
     status: listingStatusFromRow(row.status),
     ...(row.created_at ? { createdAt: String(row.created_at) } : {}),
     ...(row.updated_at || row.created_at

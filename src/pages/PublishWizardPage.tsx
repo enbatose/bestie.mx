@@ -446,7 +446,7 @@ const defaultDraft = (): Draft => ({
   propertyBathrooms: 0,
   occupiedByWomenCount: 0,
   occupiedByMenCount: 0,
-  showWhatsApp: true,
+  showWhatsApp: false,
   useCustomMapPin: false,
   customLat: "",
   customLng: "",

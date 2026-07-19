@@ -91,7 +91,7 @@ export function TermsPage() {
           items={[
             "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
-            "Contactar a otros usuarios (por ejemplo, mediante WhatsApp u otros canales habilitados).",
+            "Contactar a otros usuarios mediante el chat directo en Bestie u otros canales habilitados.",
             "Crear un perfil, comunidades o grupos de búsqueda de roomies.",
             "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) o desde el botón de ayuda en el mapa de búsqueda, para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas. Cuando tengas mensajes nuevos (incluido Soporte), podemos enviarte un correo de aviso (como máximo uno cada 3 horas), sin incluir el contenido de los mensajes.",
           ]}
@@ -204,7 +204,7 @@ export function TermsPage() {
         <p>
           El Servicio se apoya en proveedores externos, por ejemplo: proveedores de inicio de sesión
           (Google, Facebook/Meta), mapas y teselas de terceros (por ejemplo, OpenStreetMap),
-          mensajería (WhatsApp), envío de correos electrónicos, infraestructura de alojamiento y
+          envío de correos electrónicos, infraestructura de alojamiento y
           analítica de producto (PostHog). El uso de estas funciones puede estar sujeto a los términos
           y políticas de dichos terceros. Bestie no es responsable por los servicios, la disponibilidad
           ni las prácticas de esos terceros.

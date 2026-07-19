@@ -66,9 +66,8 @@ export function PrivacyPage() {
         <LegalList
           items={[
             <>
-              <strong>Datos de identificación y contacto:</strong> nombre o nombre para mostrar,
-              dirección de correo electrónico y, si decides verificarlo, número de teléfono
-              (WhatsApp).
+              <strong>Datos de identificación y contacto:</strong> nombre o nombre para mostrar y
+              dirección de correo electrónico.
             </>,
             <>
               <strong>Datos de cuenta y autenticación:</strong> contraseña cifrada (solo cuentas con
@@ -244,7 +243,6 @@ export function PrivacyPage() {
             "Proveedor de envío de correos electrónicos transaccionales.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
-            "Canales de mensajería (WhatsApp) cuando eliges usarlos para contacto o verificación.",
           ]}
         />
         <p>

@@ -5,13 +5,10 @@ import {
   authChangePassword,
   authCompletePasswordReset,
   authConsumePasswordReset,
-  authLinkPublisher,
   authMe,
   authUpdateMe,
-  needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
-import { parsePhoneInputToE164 } from "@/lib/mxPhone";
 
 export function AccountEditPage() {
   const navigate = useNavigate();
@@ -26,7 +23,6 @@ export function AccountEditPage() {
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
 
   const [pwCurrent, setPwCurrent] = useState("");
@@ -48,7 +44,6 @@ export function AccountEditPage() {
     if (next) {
       setDisplayName(next.displayName ?? "");
       setEmail(next.email ?? "");
-      setPhone(next.phoneE164 ?? "");
     }
   }, []);
 
@@ -148,32 +143,18 @@ export function AccountEditPage() {
     );
   }
 
-  const isWaOnly = !me.email && Boolean(me.phoneE164);
+  /** Legacy accounts created without email (e.g. former OTP) cannot change password here. */
+  const isPhoneOnlyAccount = !me.email && Boolean(me.phoneE164);
   const emailChanged = email.trim().toLowerCase() !== (me.email ?? "").toLowerCase();
   const displayNameChanged = displayName.trim() !== (me.displayName ?? "").trim();
-  const requiresPasswordForEmail = emailChanged && !isWaOnly;
-
-  const trimmedPhone = phone.trim();
-  const parsedPhoneE164 = trimmedPhone === "" ? null : parsePhoneInputToE164(phone);
-  const phoneInvalid = trimmedPhone !== "" && parsedPhoneE164 === null;
-  const phoneClearAttempt = trimmedPhone === "" && me.phoneE164 != null;
-  const phoneChanged =
-    parsedPhoneE164 != null && parsedPhoneE164 !== (me.phoneE164 ?? "");
+  const requiresPasswordForEmail = emailChanged && !isPhoneOnlyAccount;
 
   const onSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileMsg(null);
     setProfileErr(null);
-    if (!displayNameChanged && !emailChanged && !phoneChanged) {
+    if (!displayNameChanged && !emailChanged) {
       setProfileMsg("No hay cambios para guardar.");
-      return;
-    }
-    if (phoneInvalid) {
-      setProfileErr("Número inválido: usa 10 dígitos o formato +52…");
-      return;
-    }
-    if (phoneClearAttempt) {
-      setProfileErr("Para quitar el número guardado hay que usar soporte; puedes cambiarlo por otro válido.");
       return;
     }
     if (requiresPasswordForEmail && !currentPassword) {
@@ -182,17 +163,13 @@ export function AccountEditPage() {
     }
     setSavingProfile(true);
     try {
-      const body: { displayName?: string; email?: string; currentPassword?: string; phone?: string } = {};
+      const body: { displayName?: string; email?: string; currentPassword?: string } = {};
       if (displayNameChanged) body.displayName = displayName.trim();
       if (emailChanged) {
         body.email = email.trim().toLowerCase();
-        if (!isWaOnly) body.currentPassword = currentPassword;
+        if (!isPhoneOnlyAccount) body.currentPassword = currentPassword;
       }
-      if (phoneChanged) body.phone = trimmedPhone;
       const r = await authUpdateMe(body);
-      if (phoneChanged) {
-        await authLinkPublisher().catch(() => undefined);
-      }
       if (r.emailChanged) {
         window.dispatchEvent(new Event("bestie:me-changed"));
         navigate("/verificar-correo", { replace: true });
@@ -258,7 +235,7 @@ export function AccountEditPage() {
       <p className="mt-2 text-sm text-muted">
         {resetMode
           ? "Elige una contraseña nueva para tu cuenta."
-          : "Actualiza el nombre para mostrar, el correo, el número (WhatsApp) y tu contraseña."}
+          : "Actualiza el nombre para mostrar, el correo y tu contraseña."}
       </p>
 
       {resetErr ? (
@@ -302,30 +279,10 @@ export function AccountEditPage() {
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
             />
           </label>
-          <label className="block text-sm font-medium text-body">
-            WhatsApp en cuenta (celular)
-            <input
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(ev) => setPhone(ev.target.value)}
-              placeholder="+52 33 … o 10 dígitos"
-              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-            />
-          </label>
-          {phoneInvalid ? (
-            <p className="text-xs text-error">Revisa el número (10 dígitos o +52 seguido del celular).</p>
-          ) : null}
-          {phoneClearAttempt ? (
+          {isPhoneOnlyAccount ? (
             <p className="text-xs text-muted">
-              No puedes dejar el campo vacío si ya hay un número; cámbialo por otro válido o pide ayuda a soporte para
-              borrarlo.
-            </p>
-          ) : null}
-          {isWaOnly ? (
-            <p className="text-xs text-muted">
-              Esta cuenta fue creada con WhatsApp OTP. Agregar un correo aquí te permitirá iniciar sesión también con
-              correo una vez que definas una contraseña abajo.
+              Esta cuenta aún no tiene correo. Agregar uno aquí te permitirá iniciar sesión con correo una vez que
+              definas una contraseña abajo.
             </p>
           ) : null}
           {requiresPasswordForEmail ? (
@@ -341,12 +298,7 @@ export function AccountEditPage() {
           ) : null}
           <button
             type="submit"
-            disabled={
-              savingProfile ||
-              (!displayNameChanged && !emailChanged && !phoneChanged) ||
-              phoneInvalid ||
-              phoneClearAttempt
-            }
+            disabled={savingProfile || (!displayNameChanged && !emailChanged)}
             className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
           >
             {savingProfile ? "Guardando…" : "Guardar cambios"}
@@ -355,7 +307,7 @@ export function AccountEditPage() {
       </section>
       ) : null}
 
-      {!isWaOnly ? (
+      {!isPhoneOnlyAccount ? (
         <section
           ref={passwordSectionRef}
           className={`rounded-2xl border border-border bg-surface p-5 ${resetMode ? "mt-0" : "mt-8"}`}
@@ -419,7 +371,7 @@ export function AccountEditPage() {
         <section className="mt-8 rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm text-warning-fg">
           <h2 className="text-sm font-semibold uppercase tracking-wide">Contraseña</h2>
           <p className="mt-2 text-xs">
-            Esta cuenta entra solo con WhatsApp OTP, por lo que aún no hay contraseña que cambiar.
+            Esta cuenta aún no tiene correo ni contraseña. Agrega un correo arriba para poder definir una.
           </p>
         </section>
       )}

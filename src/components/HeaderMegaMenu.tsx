@@ -292,14 +292,13 @@ function AvatarTrigger({
 
 type Props = {
   me: AuthMe | null | undefined;
-  profileIncomplete: boolean;
   unreadCount: number;
   onAuthChange?: () => void;
   /** Gap in px between mobile icon buttons, computed by useHeaderChromeFit. 0 on desktop. */
   iconGapPx?: number;
 };
 
-export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChange, iconGapPx = 0 }: Props) {
+export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { openLogin } = useAuthModal();
@@ -398,12 +397,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
   const avatarDropdown = me?.id ? (
     <div className="flex w-56 flex-col gap-0.5 p-1.5">
       <NavLink to="/perfil" className={desktopNavClass} onClick={dismissNav}>
-        <span className="inline-flex items-center gap-1.5">
-          Mi Perfil
-          {profileIncomplete ? (
-            <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
-          ) : null}
-        </span>
+        Mi Perfil
       </NavLink>
       <NavLink to="/mis-anuncios" className={desktopNavClass} onClick={dismissNav}>
         Mis anuncios
@@ -518,12 +512,7 @@ export function HeaderMegaMenu({ me, profileIncomplete, unreadCount, onAuthChang
 
       <NavLink to="/perfil" className={mobileNavClass} onClick={dismissNav}>
         <User className="h-4 w-4 shrink-0" aria-hidden />
-        <span className="inline-flex items-center gap-2">
-          Mi Perfil
-          {profileIncomplete ? (
-            <span className="rounded-full bg-error px-1.5 py-0.5 text-[9px] font-bold text-white">!</span>
-          ) : null}
-        </span>
+        Mi Perfil
       </NavLink>
       {me.isAdmin ? (
         <NavLink to="/admin" className={mobileNavClass} onClick={dismissNav}>
