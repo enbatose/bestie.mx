@@ -1,7 +1,8 @@
 import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
 import { ContactSupportForm } from "@/components/contact/ContactSupportForm";
+
+const SENT_AUTO_CLOSE_MS = 5_000;
 
 type Props = {
   open: boolean;
@@ -35,6 +36,12 @@ export function MapSupportModal({ open, onClose, oauthReturnTo, autoResume = fal
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open || !sent) return;
+    const timer = window.setTimeout(() => onClose(), SENT_AUTO_CLOSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [open, sent, onClose]);
 
   if (!open) return null;
 
@@ -77,26 +84,12 @@ export function MapSupportModal({ open, onClose, oauthReturnTo, autoResume = fal
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {sent ? (
-            <div className="flex flex-col items-center py-6 text-center">
-              <p className="text-lg font-semibold text-primary">Mensaje enviado</p>
-              <p className="mt-2 text-sm text-muted">
-                Puedes seguir la conversación en{" "}
-                <Link
-                  to="/mensajes"
-                  className="font-semibold text-primary underline-offset-2 hover:underline"
-                >
-                  Mensajes
-                </Link>
-                .
-              </p>
-              <button
-                type="button"
-                onClick={onClose}
-                className="mt-6 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-              >
-                Seguir buscando
-              </button>
-            </div>
+            <p
+              className="py-8 text-center text-base font-semibold leading-snug text-primary"
+              role="status"
+            >
+              Mensaje enviado - Te avisaremos en Mensajes cuando tengas una respuesta
+            </p>
           ) : (
             <>
               <p className="mb-3 text-sm leading-relaxed text-muted">
