@@ -133,16 +133,18 @@ function ProposalBadge({ children, tone }: { children: string; tone: CardTone })
   );
 }
 
-function IconAction({
+function LabeledAction({
+  tone,
   label,
   onClick,
-  tone,
-  children,
+  icon,
+  trailingIcon,
 }: {
+  tone: CardTone;
   label: string;
   onClick?: () => void;
-  tone: CardTone;
-  children: ReactNode;
+  icon?: ReactNode;
+  trailingIcon?: ReactNode;
 }) {
   const ring =
     tone === "property"
@@ -154,10 +156,56 @@ function IconAction({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border transition ${ring}`}
+      className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${ring}`}
     >
-      {children}
+      {icon}
+      <span>{label}</span>
+      {trailingIcon}
     </button>
+  );
+}
+
+function ListingActionRow({
+  tone,
+  onToggleRooms,
+  roomsOpen,
+}: {
+  tone: CardTone;
+  onToggleRooms?: () => void;
+  roomsOpen?: boolean;
+  roomCount?: number;
+}) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <LabeledAction
+        tone={tone}
+        label="Edit"
+        icon={<Pencil className="size-4 shrink-0" aria-hidden />}
+      />
+      <LabeledAction
+        tone={tone}
+        label="Ver"
+        icon={<Eye className="size-4 shrink-0" aria-hidden />}
+      />
+      <LabeledAction
+        tone={tone}
+        label="Compartir"
+        icon={<Share2 className="size-4 shrink-0" aria-hidden />}
+      />
+      {onToggleRooms ? (
+        <LabeledAction
+          tone={tone}
+          label="Cuartos"
+          onClick={onToggleRooms}
+          trailingIcon={
+            <ChevronDown
+              className={`size-4 shrink-0 transition ${roomsOpen ? "rotate-180" : ""}`}
+              aria-hidden
+            />
+          }
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -209,25 +257,6 @@ function CardSharedTop({
         <div className="mt-[0.6875rem] shrink-0">{photo}</div>
       </div>
     </div>
-  );
-}
-
-/** Compact share — bottom-right; tone only changes accent color. */
-function ShareUnderPhoto({ tone }: { tone: CardTone }) {
-  const ring =
-    tone === "property"
-      ? "border-primary/30 text-primary hover:bg-primary/10"
-      : "border-secondary/50 text-primary hover:bg-secondary/20";
-  return (
-    <button
-      type="button"
-      aria-label="Compartir"
-      title="Compartir"
-      className={`flex w-full min-h-9 flex-col items-center justify-center gap-0.5 rounded-lg border bg-surface px-1 py-1.5 text-[10px] font-semibold leading-none transition ${ring}`}
-    >
-      <Share2 className="size-3.5 shrink-0" aria-hidden />
-      <span>Share</span>
-    </button>
   );
 }
 
@@ -294,41 +323,6 @@ function OnOffToggle({
         />
       </span>
     </button>
-  );
-}
-
-function ListingActionRow({
-  tone,
-  onToggleRooms,
-  roomsOpen,
-  roomCount,
-}: {
-  tone: CardTone;
-  onToggleRooms?: () => void;
-  roomsOpen?: boolean;
-  roomCount?: number;
-}) {
-  return (
-    <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
-      <IconAction label="Editar" tone={tone}>
-        <Pencil className="size-4" aria-hidden />
-      </IconAction>
-      <IconAction label="Ver publicación" tone={tone}>
-        <Eye className="size-4" aria-hidden />
-      </IconAction>
-      {onToggleRooms ? (
-        <IconAction
-          label={roomsOpen ? "Ocultar recámaras" : `Ver ${roomCount ?? ""} recámaras`}
-          tone={tone}
-          onClick={onToggleRooms}
-        >
-          <ChevronDown
-            className={`size-4 transition ${roomsOpen ? "rotate-180" : ""}`}
-            aria-hidden
-          />
-        </IconAction>
-      ) : null}
-    </div>
   );
 }
 
@@ -460,11 +454,8 @@ function ProposedSingleRoomCard({
           }
         />
 
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
-          <div className="w-[4.25rem] shrink-0">
-            <ShareUnderPhoto tone={tone} />
-          </div>
         </div>
       </div>
     </article>
@@ -533,16 +524,12 @@ function ProposedPropertyCard({
           }
         />
 
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
+        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
           <ListingActionRow
             tone={tone}
-            roomCount={rooms.length}
             roomsOpen={open}
             onToggleRooms={() => setOpen((v) => !v)}
           />
-          <div className="w-[4.25rem] shrink-0">
-            <ShareUnderPhoto tone={tone} />
-          </div>
         </div>
       </div>
 
@@ -643,7 +630,7 @@ function HubComposition() {
         )}
       </div>
       <p className="mt-3 text-xs text-muted">
-        Foto alineada al título · Share abajo a la derecha · On/Off en el header con el ID.
+        Acciones: Edit · Ver · Compartir · (Propiedad: Cuartos ▾). On/Off en el header.
       </p>
     </div>
   );
@@ -766,7 +753,7 @@ export function MyListingsProposalMockupsPage() {
           Menos ruido, más control por tipo de post
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Foto alineada al título · On/Off en el header · Share abajo a la derecha.
+          Foto alineada al título · acciones con etiqueta · On/Off en el header.
         </p>
       </header>
 
@@ -816,7 +803,7 @@ export function MyListingsProposalMockupsPage() {
           <ProposalBadge tone="room">Cuarto</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          ID primero · foto alineada al título · On/Off en el header · Share abajo a la derecha.
+          ID primero · foto alineada al título · acciones Edit/Ver/Compartir · On/Off en el header.
         </p>
 
         {!isMobile ? (
