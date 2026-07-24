@@ -383,7 +383,7 @@ function CurrentSingleRoomPain() {
       <div className="border-b border-border bg-surface-elevated px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <ListingStatusBadge status="published" noun="property" />
-          <ListingReferenceChip code="P90F93372" label="ID" size="compact" />
+          <ListingReferenceChip code="P90F93372" label="#" size="compact" />
         </div>
         <h3 className="mt-2 text-lg font-semibold text-body">Recámara iluminada cerca de Chapultepec</h3>
         <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
@@ -442,7 +442,7 @@ function ProposedSingleRoomCard({
           onActiveChange={setActive}
           labels={
             <>
-              <ListingReferenceChip code={room.id} label="ID" size="compact" />
+              <ListingReferenceChip code={room.id} label="#" size="compact" />
               <ListingStatusBadge status={status} className="min-h-8 items-center" />
               <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
             </>
@@ -502,7 +502,7 @@ function ProposedPropertyCard({
           onActiveChange={setActive}
           labels={
             <>
-              <ListingReferenceChip code="P90F93372" label="ID" size="compact" />
+              <ListingReferenceChip code="P90F93372" label="#" size="compact" />
               <ListingStatusBadge status={status} noun="property" className="min-h-8 items-center" />
               <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
             </>
@@ -551,7 +551,7 @@ function ProposedPropertyCard({
             <li key={room.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <ListingReferenceChip code={room.id} label="ID" size="compact" />
+                  <ListingReferenceChip code={room.id} label="#" size="compact" />
                   <ListingStatusBadge status={room.status} />
                   <p className="font-medium text-body">{room.name}</p>
                 </div>
