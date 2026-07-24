@@ -198,21 +198,13 @@ export function ListingPropertyCard({
 
   const propertyMenuItems: { key: string; label: string; onClick: () => void; danger?: boolean }[] =
     [];
-  if (propSt === "published") {
+  // Pausar / Republicar live on the card On/Off toggle — keep only archive lifecycle here.
+  if (propSt === "archived") {
     propertyMenuItems.push({
-      key: "pause",
-      label: isProperty ? "Pausar propiedad" : "Pausar anuncio",
-      onClick: () => (isProperty ? onPropertyActive(false) : onPropertyStatus("paused")),
-    });
-  }
-  if (propSt === "paused" || propSt === "archived") {
-    propertyMenuItems.push({
-      key: "republish",
-      label: propSt === "archived" ? "Restaurar" : "Republicar",
+      key: "restore",
+      label: "Restaurar",
       onClick: () =>
-        isProperty
-          ? onPropertyActive(true)
-          : onPropertyStatus("published"),
+        isProperty ? onPropertyActive(true) : onPropertyStatus("published"),
     });
   }
   if (propSt === "published" || propSt === "paused") {
