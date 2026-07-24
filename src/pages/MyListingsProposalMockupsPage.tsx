@@ -181,50 +181,54 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 }
 
 /**
- * On/Off for publish visibility. Placed bottom-right, visually separated from
- * photo/share (upper-right) and from edit/view icons (bottom-left).
+ * On/Off publish visibility — Figma DS `Tabs / Segment` (Default | Active)
+ * composed like `RoomAvailabilityToggle` (segmented control, not a slider switch).
+ * Active = primary fill + lime status dot. Placed bottom-right, away from Share.
  */
 function OnOffToggle({
   active,
   onChange,
-  tone,
 }: {
   active: boolean;
   onChange: (next: boolean) => void;
-  tone: CardTone;
+  tone?: CardTone;
 }) {
-  const trackOn =
-    tone === "property" ? "bg-primary" : "bg-secondary";
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={active}
-      aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
-      title={active ? "On — visible" : "Off — pausada"}
-      onClick={() => onChange(!active)}
-      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-1.5 shadow-sm transition hover:bg-surface-elevated"
+    <div
+      role="group"
+      aria-label="Estado de publicación"
+      className="inline-flex shrink-0 rounded-xl border border-border bg-surface p-1 shadow-sm"
     >
-      <span
-        className={`text-[11px] font-bold uppercase tracking-wide ${
-          active ? "text-body" : "text-muted"
+      <button
+        type="button"
+        aria-pressed={!active}
+        title="Off — pausada"
+        onClick={() => onChange(false)}
+        className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition ${
+          !active
+            ? "bg-bg-light text-body ring-1 ring-border"
+            : "text-muted hover:bg-surface-elevated hover:text-body"
         }`}
       >
-        {active ? "On" : "Off"}
-      </span>
-      <span
-        className={`relative h-6 w-11 rounded-full transition-colors ${
-          active ? trackOn : "bg-border"
+        Off
+      </button>
+      <button
+        type="button"
+        aria-pressed={active}
+        title="On — visible"
+        onClick={() => onChange(true)}
+        className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition ${
+          active
+            ? "bg-primary text-primary-fg ring-1 ring-primary/20"
+            : "text-muted hover:bg-surface-elevated hover:text-body"
         }`}
-        aria-hidden
       >
-        <span
-          className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform ${
-            active ? "translate-x-5" : "translate-x-0.5"
-          }`}
-        />
-      </span>
-    </button>
+        On
+        {active ? (
+          <span className="size-1.5 shrink-0 rounded-full bg-secondary" aria-hidden />
+        ) : null}
+      </button>
+    </div>
   );
 }
 
@@ -399,7 +403,7 @@ function ProposedSingleRoomCard({
         <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
           <div className="shrink-0 border-l border-border pl-3">
-            <OnOffToggle active={active} onChange={setActive} tone={tone} />
+            <OnOffToggle active={active} onChange={setActive} />
           </div>
         </div>
       </div>
@@ -472,7 +476,7 @@ function ProposedPropertyCard({
             onToggleRooms={() => setOpen((v) => !v)}
           />
           <div className="shrink-0 border-l border-border pl-3">
-            <OnOffToggle active={active} onChange={setActive} tone={tone} />
+            <OnOffToggle active={active} onChange={setActive} />
           </div>
         </div>
       </div>
