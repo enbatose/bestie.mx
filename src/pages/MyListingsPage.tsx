@@ -38,6 +38,26 @@ type PendingConfirm =
   | { kind: "deactivate-property"; propertyId: string; rooms: PropertyListing[] }
   | null;
 
+/** Primary hub tabs — published vs drafts. Pausados/Archivados stay secondary. */
+type ListingsTab = "published" | "draft";
+
+const PRIMARY_TABS: readonly {
+  key: ListingsTab;
+  title: string;
+  description: string;
+}[] = [
+  {
+    key: "published",
+    title: "Publicados",
+    description: "Anuncios visibles para quienes buscan roomie.",
+  },
+  {
+    key: "draft",
+    title: "Borradores",
+    description: "Completa y publica cuando estés listo.",
+  },
+];
+
 function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
   if (head.propertyPostMode === "property") {
     return roomDisplayName(
@@ -80,6 +100,7 @@ export function MyListingsPage() {
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   /** Room whose rental data must be completed before it can be offered for rent. */
   const [activatingRoom, setActivatingRoom] = useState<PropertyListing | null>(null);
+  const [activeTab, setActiveTab] = useState<ListingsTab | null>(null);
 
   const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
     if (!bundle) return ["No se pudo leer la propiedad"];
@@ -126,38 +147,70 @@ export function MyListingsPage() {
       });
   }, [rows]);
 
-  const sectionsWithGroups = useMemo(
-    () =>
-      MY_LISTINGS_SECTIONS.map((section) => ({
-        ...section,
-        groups: propertyGroups.filter(
-          (g) => (g.list[0]?.propertyStatus ?? "published") === section.status,
-        ),
-      })).filter((section) => section.groups.length > 0),
-    [propertyGroups],
+  const groupsByStatus = useMemo(() => {
+    const map: Record<ListingStatus, PropertyGroup[]> = {
+      published: [],
+      draft: [],
+      paused: [],
+      archived: [],
+    };
+    for (const g of propertyGroups) {
+      const st = g.list[0]?.propertyStatus ?? "published";
+      map[st].push(g);
+    }
+    return map;
+  }, [propertyGroups]);
+
+  const tabCounts = useMemo(
+    () => ({
+      published: groupsByStatus.published.length,
+      draft: groupsByStatus.draft.length,
+    }),
+    [groupsByStatus],
+  );
+
+  const resolvedTab: ListingsTab = activeTab ?? "published";
+
+  const pausedSection = useMemo(
+    () => MY_LISTINGS_SECTIONS.find((s) => s.key === "paused")!,
+    [],
+  );
+  const archivedSection = useMemo(
+    () => MY_LISTINGS_SECTIONS.find((s) => s.key === "archived")!,
+    [],
   );
 
   const summaryParts = useMemo(() => {
-    const counts = { published: 0, draft: 0, paused: 0, archived: 0 };
-    for (const g of propertyGroups) {
-      const st = g.list[0]?.propertyStatus ?? "published";
-      counts[st]++;
-    }
+    const counts = {
+      published: groupsByStatus.published.length,
+      draft: groupsByStatus.draft.length,
+      paused: groupsByStatus.paused.length,
+      archived: groupsByStatus.archived.length,
+    };
     const parts: string[] = [];
     if (counts.published) parts.push(`${counts.published} publicado${counts.published === 1 ? "" : "s"}`);
     if (counts.draft) parts.push(`${counts.draft} borrador${counts.draft === 1 ? "" : "es"}`);
     if (counts.paused) parts.push(`${counts.paused} pausado${counts.paused === 1 ? "" : "s"}`);
     if (counts.archived) parts.push(`${counts.archived} archivado${counts.archived === 1 ? "" : "s"}`);
     return parts;
-  }, [propertyGroups]);
+  }, [groupsByStatus]);
 
   useEffect(() => {
     const st = location.state as { draftSaved?: boolean } | null;
     if (st?.draftSaved) {
+      setActiveTab("draft");
       setFlash({ text: "Borrador guardado. Puedes publicarlo cuando esté listo." });
       navigate(".", { replace: true, state: {} });
     }
   }, [location.state, navigate]);
+
+  /** Pick a sensible default tab once listings load (prefer publicados, else borradores). */
+  useEffect(() => {
+    if (activeTab !== null || rows === null) return;
+    if (tabCounts.published > 0) setActiveTab("published");
+    else if (tabCounts.draft > 0) setActiveTab("draft");
+    else setActiveTab("published");
+  }, [activeTab, rows, tabCounts]);
 
   useEffect(() => {
     if (!flash) return;
@@ -404,6 +457,7 @@ export function MyListingsPage() {
       await updateProperty(propertyId, { status: "published" });
       await load();
       setLegalPublishByProperty((m) => ({ ...m, [propertyId]: false }));
+      setActiveTab("published");
       setFlash({
         text: "Ya está publicado.",
         to: publicListingId ? listingPublicPath(publicListingId) : undefined,
@@ -476,6 +530,64 @@ export function MyListingsPage() {
       intent: "danger" as const,
     };
   })();
+
+  function renderPropertyGroups(groups: PropertyGroup[]) {
+    return (
+      <div className="space-y-6">
+        {groups.map(({ propertyId, list }) => {
+          const head = list[0]!;
+          const propSt = head.propertyStatus ?? "published";
+          return (
+            <ListingPropertyCard
+              key={propertyId}
+              propertyId={propertyId}
+              head={head}
+              list={list}
+              propSt={propSt}
+              roomTitle={(l) => listingRowTitle(head, l, list)}
+              propertyBusy={actionPropertyId === propertyId}
+              rowBusy={rowBusy}
+              missingFields={missingByProperty[propertyId]}
+              localError={localErrByProperty[propertyId]}
+              legalChecked={Boolean(legalPublishByProperty[propertyId])}
+              onLegalChange={(next) => {
+                setLegalPublishByProperty((m) => ({ ...m, [propertyId]: next }));
+                clearPropertyError(propertyId);
+              }}
+              onPublishDraft={() => void publishDraftProperty(propertyId)}
+              onSingleRoomActive={(next) =>
+                void setPropertyStatus(propertyId, next ? "published" : "paused")
+              }
+              onPropertyActive={(next) => handlePropertyActive(propertyId, list, next)}
+              onPropertyStatus={(status) => void setPropertyStatus(propertyId, status)}
+              onArchiveProperty={() =>
+                setPendingConfirm({ kind: "archive-property", id: propertyId })
+              }
+              onRoomOccupancy={handleRoomOccupancy}
+              onRoomStatus={(l, status) => void setRoomStatus(l, status)}
+              onArchiveRoom={(l) => setPendingConfirm({ kind: "archive-room", id: l.id })}
+              onShared={(mode) =>
+                setFlash({
+                  text:
+                    mode === "shared"
+                      ? "Enlace listo para compartir."
+                      : "Enlace del anuncio copiado.",
+                })
+              }
+              onShareFailed={() =>
+                setFlash({ text: "No se pudo copiar el enlace. Intenta de nuevo." })
+              }
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  const activeTabMeta = PRIMARY_TABS.find((t) => t.key === resolvedTab)!;
+  const activeGroups = groupsByStatus[resolvedTab];
+  const pausedGroups = groupsByStatus.paused;
+  const archivedGroups = groupsByStatus.archived;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-6xl">
@@ -575,94 +687,122 @@ export function MyListingsPage() {
             </Link>
           </div>
         ) : (
-          sectionsWithGroups.map((section) => {
-            const sectionBody = (
-              <div className="space-y-6">
-                {section.groups.map(({ propertyId, list }) => {
-                  const head = list[0]!;
-                  const propSt = head.propertyStatus ?? "published";
+          <>
+            <div>
+              <div
+                role="tablist"
+                aria-label="Tipo de anuncio"
+                className="-mb-px flex gap-1 border-b border-border"
+              >
+                {PRIMARY_TABS.map((tab) => {
+                  const active = resolvedTab === tab.key;
+                  const count = tabCounts[tab.key];
                   return (
-                    <ListingPropertyCard
-                      key={propertyId}
-                      propertyId={propertyId}
-                      head={head}
-                      list={list}
-                      propSt={propSt}
-                      roomTitle={(l) => listingRowTitle(head, l, list)}
-                      propertyBusy={actionPropertyId === propertyId}
-                      rowBusy={rowBusy}
-                      missingFields={missingByProperty[propertyId]}
-                      localError={localErrByProperty[propertyId]}
-                      legalChecked={Boolean(legalPublishByProperty[propertyId])}
-                      onLegalChange={(next) => {
-                        setLegalPublishByProperty((m) => ({ ...m, [propertyId]: next }));
-                        clearPropertyError(propertyId);
-                      }}
-                      onPublishDraft={() => void publishDraftProperty(propertyId)}
-                      onSingleRoomActive={(next) =>
-                        void setPropertyStatus(propertyId, next ? "published" : "paused")
-                      }
-                      onPropertyActive={(next) => handlePropertyActive(propertyId, list, next)}
-                      onPropertyStatus={(status) => void setPropertyStatus(propertyId, status)}
-                      onArchiveProperty={() =>
-                        setPendingConfirm({ kind: "archive-property", id: propertyId })
-                      }
-                      onRoomOccupancy={handleRoomOccupancy}
-                      onRoomStatus={(l, status) => void setRoomStatus(l, status)}
-                      onArchiveRoom={(l) => setPendingConfirm({ kind: "archive-room", id: l.id })}
-                      onShared={(mode) =>
-                        setFlash({
-                          text:
-                            mode === "shared"
-                              ? "Enlace listo para compartir."
-                              : "Enlace del anuncio copiado.",
-                        })
-                      }
-                      onShareFailed={() =>
-                        setFlash({ text: "No se pudo copiar el enlace. Intenta de nuevo." })
-                      }
-                    />
+                    <button
+                      key={tab.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      id={`mis-anuncios-tab-${tab.key}`}
+                      aria-controls={`mis-anuncios-panel-${tab.key}`}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`relative inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-semibold transition sm:px-4 ${
+                        active
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted hover:border-border hover:text-body"
+                      }`}
+                    >
+                      {tab.title}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${
+                          active
+                            ? "bg-primary/10 text-primary ring-primary/20"
+                            : "bg-bg-light text-muted ring-border"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-            );
 
-            if (section.key === "archived") {
-              return (
-                <details key={section.key} className="group">
-                  <summary className="mb-4 flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-border pb-3 marker:content-none [&::-webkit-details-marker]:hidden">
-                    <ChevronDown
-                      className="size-4 shrink-0 text-muted transition group-open:rotate-180"
-                      aria-hidden
-                    />
-                    <h2 className="text-lg font-semibold text-body">{section.title}</h2>
-                    <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
-                      {section.groups.length}
-                    </span>
-                    <span className="text-sm text-muted group-open:hidden">Mostrar</span>
-                    <span className="hidden text-sm text-muted group-open:inline">Ocultar</span>
-                    <p className="w-full text-sm text-muted">{section.description}</p>
-                  </summary>
-                  {sectionBody}
-                </details>
-              );
-            }
+              <div
+                role="tabpanel"
+                id={`mis-anuncios-panel-${resolvedTab}`}
+                aria-labelledby={`mis-anuncios-tab-${resolvedTab}`}
+                className="pt-4"
+              >
+                <p className="mb-4 text-sm text-muted">{activeTabMeta.description}</p>
+                {activeGroups.length ? (
+                  renderPropertyGroups(activeGroups)
+                ) : (
+                  <div className="rounded-2xl border border-border bg-surface px-4 py-8 text-center shadow-sm">
+                    <p className="text-sm font-medium text-body">
+                      {resolvedTab === "published"
+                        ? "No tienes anuncios publicados."
+                        : "No tienes borradores."}
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      {resolvedTab === "published"
+                        ? "Publica un borrador o crea un anuncio nuevo."
+                        : "Guarda un anuncio desde Publicar para retomarlo aquí."}
+                    </p>
+                    {resolvedTab === "draft" && tabCounts.published > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("published")}
+                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+                      >
+                        Ver publicados
+                      </button>
+                    ) : (
+                      <Link
+                        to="/publicar"
+                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99]"
+                      >
+                        Publicar anuncio
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
-            return (
-              <div key={section.key}>
+            {resolvedTab === "published" && pausedGroups.length > 0 ? (
+              <div>
                 <div className="mb-4 border-b border-border pb-3">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h2 className="text-lg font-semibold text-body">{section.title}</h2>
+                    <h2 className="text-lg font-semibold text-body">{pausedSection.title}</h2>
                     <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
-                      {section.groups.length}
+                      {pausedGroups.length}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-muted">{section.description}</p>
+                  <p className="mt-1 text-sm text-muted">{pausedSection.description}</p>
                 </div>
-                {sectionBody}
+                {renderPropertyGroups(pausedGroups)}
               </div>
-            );
-          })
+            ) : null}
+
+            {archivedGroups.length > 0 ? (
+              <details className="group">
+                <summary className="mb-4 flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-border pb-3 marker:content-none [&::-webkit-details-marker]:hidden">
+                  <ChevronDown
+                    className="size-4 shrink-0 text-muted transition group-open:rotate-180"
+                    aria-hidden
+                  />
+                  <h2 className="text-lg font-semibold text-body">{archivedSection.title}</h2>
+                  <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
+                    {archivedGroups.length}
+                  </span>
+                  <span className="text-sm text-muted group-open:hidden">Mostrar</span>
+                  <span className="hidden text-sm text-muted group-open:inline">Ocultar</span>
+                  <p className="w-full text-sm text-muted">{archivedSection.description}</p>
+                </summary>
+                {renderPropertyGroups(archivedGroups)}
+              </details>
+            ) : null}
+          </>
         )}
       </div>
 
