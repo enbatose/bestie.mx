@@ -396,8 +396,8 @@ function ProposedSingleRoomCard({
               <OnOffToggle active={active} onChange={setActive} tone={tone} />
             </div>
           </div>
-          {/* Level 2: title/meta + photo aligned to this row */}
-          <div className="mt-2 flex items-start gap-3">
+          {/* Level 2: title/meta + photo centered on this middle header band */}
+          <div className="mt-2 flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
                 {room.name}
@@ -460,7 +460,7 @@ function ProposedPropertyCard({
               <OnOffToggle active={active} onChange={setActive} tone={tone} />
             </div>
           </div>
-          <div className="mt-2 flex items-start gap-3">
+          <div className="mt-2 flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
                 Casa amplia en Mezquitán Country
