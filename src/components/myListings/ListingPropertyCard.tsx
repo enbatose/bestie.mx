@@ -263,6 +263,7 @@ export function ListingPropertyCard({
             tone={tone}
             label={propSt === "published" ? "Ver" : "Vista previa"}
             to={publicPath}
+            iconOnlyOnMobile
             icon={<Eye className="size-4 shrink-0" aria-hidden />}
           />
           {canEdit ? (
@@ -270,6 +271,7 @@ export function ListingPropertyCard({
               tone={tone}
               label="Editar"
               to={editPath}
+              iconOnlyOnMobile
               icon={<Pencil className="size-4 shrink-0" aria-hidden />}
             />
           ) : null}
@@ -278,6 +280,7 @@ export function ListingPropertyCard({
               tone={tone}
               label="Compartir"
               onClick={() => void share(publicPath, head.propertyTitle ?? head.title)}
+              iconOnlyOnMobile
               icon={<Share2 className="size-4 shrink-0" aria-hidden />}
             />
           ) : null}
@@ -287,6 +290,7 @@ export function ListingPropertyCard({
               label="Archivar"
               disabled={propertyBusy}
               onClick={onArchiveProperty}
+              iconOnlyOnMobile
               icon={<Trash2 className="size-4 shrink-0" aria-hidden />}
             />
           ) : null}
@@ -364,6 +368,7 @@ export function ListingPropertyCard({
                         size="compact"
                         label="Ver"
                         to={roomPath}
+                        iconOnlyOnMobile
                         icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
                       />
                       {canEdit ? (
@@ -372,6 +377,7 @@ export function ListingPropertyCard({
                           size="compact"
                           label="Editar"
                           to={`${editPath}&room=${encodeURIComponent(l.id)}`}
+                          iconOnlyOnMobile
                           icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
                         />
                       ) : null}
@@ -381,6 +387,7 @@ export function ListingPropertyCard({
                           size="compact"
                           label="Compartir"
                           onClick={() => void share(roomPath, label)}
+                          iconOnlyOnMobile
                           icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
                         />
                       ) : null}
@@ -399,6 +406,7 @@ export function ListingPropertyCard({
                           label="Archivar"
                           disabled={busy || propSt === "archived"}
                           onClick={() => onArchiveRoom(l)}
+                          iconOnlyOnMobile
                           icon={<Trash2 className="size-3.5 shrink-0" aria-hidden />}
                         />
                       )}

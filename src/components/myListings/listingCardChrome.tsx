@@ -181,6 +181,11 @@ type CardActionProps = {
   emphasizeBorder?: boolean;
   size?: "default" | "compact";
   disabled?: boolean;
+  /**
+   * Hide the visible label below `sm` (icon/title/aria-label remain).
+   * Use for Ver / Editar / Compartir / Archivar; keep off for Recámaras.
+   */
+  iconOnlyOnMobile?: boolean;
 } & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
 
 /** Pill action used in card footers; renders a Link when `to` is given. */
@@ -192,6 +197,7 @@ export function CardAction({
   emphasizeBorder = false,
   size = "default",
   disabled = false,
+  iconOnlyOnMobile = false,
   to,
   onClick,
 }: CardActionProps) {
@@ -202,15 +208,20 @@ export function CardAction({
       : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
   const sizeClass =
     size === "compact"
-      ? "min-h-7 gap-1 rounded-lg px-2 py-0.5 text-[11px] leading-none"
-      : "min-h-11 gap-1.5 rounded-full px-3 text-xs";
+      ? iconOnlyOnMobile
+        ? "min-h-7 min-w-7 gap-1 rounded-lg px-1.5 py-0.5 text-[11px] leading-none sm:min-w-0 sm:px-2"
+        : "min-h-7 gap-1 rounded-lg px-2 py-0.5 text-[11px] leading-none"
+      : iconOnlyOnMobile
+        ? "min-h-11 min-w-11 gap-1.5 rounded-full px-2.5 text-xs sm:min-w-0 sm:px-3"
+        : "min-h-11 gap-1.5 rounded-full px-3 text-xs";
   const className = `inline-flex shrink-0 items-center justify-center border font-semibold transition disabled:opacity-50 ${sizeClass} ${ring}`;
+  const labelClass = iconOnlyOnMobile ? "hidden sm:inline" : undefined;
 
   if (to && !disabled) {
     return (
       <Link to={to} aria-label={label} title={label} className={className}>
         {icon}
-        <span>{label}</span>
+        <span className={labelClass}>{label}</span>
         {trailingIcon}
       </Link>
     );
@@ -225,7 +236,7 @@ export function CardAction({
       className={className}
     >
       {icon}
-      <span>{label}</span>
+      <span className={labelClass}>{label}</span>
       {trailingIcon}
     </button>
   );
