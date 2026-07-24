@@ -139,15 +139,19 @@ function LabeledAction({
   onClick,
   icon,
   trailingIcon,
+  emphasizeBorder = false,
 }: {
   tone: CardTone;
   label: string;
   onClick?: () => void;
   icon?: ReactNode;
   trailingIcon?: ReactNode;
+  /** Stronger forest border (e.g. Recámaras on Propiedad). */
+  emphasizeBorder?: boolean;
 }) {
-  const ring =
-    tone === "property"
+  const ring = emphasizeBorder
+    ? "border-primary bg-primary/10 text-primary hover:bg-primary/15"
+    : tone === "property"
       ? "border-primary/25 bg-primary/10 text-primary hover:bg-primary/15"
       : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
   return (
@@ -197,6 +201,7 @@ function ListingActionRow({
           <LabeledAction
             tone={tone}
             label="Recámaras"
+            emphasizeBorder
             onClick={onToggleRooms}
             trailingIcon={
               <ChevronDown
