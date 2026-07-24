@@ -91,7 +91,7 @@ export function AppShellLayout() {
         <header className="sticky top-0 z-[1800] border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
           <div
             ref={rowRef}
-            className="flex w-full min-w-0 items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-8"
+            className="flex w-full min-w-0 items-center justify-between gap-1.5 px-3 py-3 sm:gap-3 sm:px-6 lg:px-8"
           >
             <div className="min-w-0 shrink">
               <BrandLogo markOnly={markOnly} />

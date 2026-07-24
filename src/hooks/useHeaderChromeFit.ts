@@ -4,15 +4,19 @@ import { useLayoutEffect, useRef, useState } from "react";
 const LOCKUP_WIDTH_PX = 124;
 /** Mark-only silhouettes at h-9. */
 const MARK_WIDTH_PX = 36;
-/** Hysteresis before switching back to full lockup (avoids flicker). */
-const LOCKUP_RESTORE_HYSTERESIS_PX = 16;
+/** Small hysteresis before restoring lockup (avoids flicker without blocking the wordmark). */
+const LOCKUP_RESTORE_HYSTERESIS_PX = 6;
 /** Safety gap so logo and actions never touch. */
-const SAFETY_PX = 8;
-const MAX_ICON_GAP_PX = 8;
+const SAFETY_PX = 6;
+/**
+ * Max gap between icon hit boxes once the wordmark fits.
+ * Keep low: each control is already ~36px, so 0–4px is enough for fingers.
+ */
+const MAX_ICON_GAP_PX = 4;
 const MD_MIN_WIDTH_PX = 768;
 
-/** Worst-case logged-in mobile actions (search + publicar + msg + bell + avatar). */
-const LOGGED_IN_ACTIONS_ZERO_GAP_PX = 36 + 36 + 36 + 36 + 44;
+/** Worst-case logged-in mobile actions (search + publicar + msg + bell + avatar, no chevrons). */
+const LOGGED_IN_ACTIONS_ZERO_GAP_PX = 36 + 36 + 36 + 36 + 36;
 
 function isNarrowViewport(): boolean {
   if (typeof window === "undefined") return true;
@@ -113,7 +117,12 @@ export function useHeaderChromeFit(
 
       const logoW = nextMarkOnly ? MARK_WIDTH_PX : LOCKUP_WIDTH_PX;
       const leftover = Math.max(0, rowW - zeroGapActionsW - rowGap - logoW - SAFETY_PX);
-      const nextGap = slots > 0 ? Math.min(MAX_ICON_GAP_PX, Math.floor(leftover / slots)) : 0;
+      // When the wordmark still does not fit, stay gapless so the action cluster
+      // stays compact instead of stretching into the empty middle.
+      const nextGap =
+        nextMarkOnly || slots <= 0
+          ? 0
+          : Math.min(MAX_ICON_GAP_PX, Math.floor(leftover / slots));
 
       apply(nextMarkOnly, nextGap);
     };
