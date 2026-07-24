@@ -26,7 +26,7 @@ const MOCK_DESKTOP_PATH = `${MOCK_PATH}?v=desktop`;
 
 /** Fixed collapsed height so Cuarto and Propiedad shells match. */
 const CARD_SHELL =
-  "flex h-[15.25rem] flex-col justify-between gap-3 p-4 sm:h-[14.5rem]";
+  "flex h-[15.25rem] flex-col justify-between gap-3 p-4 sm:h-[14.75rem]";
 
 const PLACEHOLDER =
   "data:image/svg+xml," +
@@ -181,7 +181,8 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 }
 
 /**
- * Sliding On/Off: compact recessed rail for the knob; tiny On/Off end labels.
+ * Sliding On/Off on the card header row.
+ * Height matches compact chips (`min-h-8` / 32px). Text bumped for readability.
  * Property On → forest; single room On → lime.
  */
 function OnOffToggle({
@@ -195,8 +196,8 @@ function OnOffToggle({
 }) {
   const onShell =
     tone === "property"
-      ? "border-primary bg-primary shadow-[0_0_0_3px_rgba(20,61,48,0.18)]"
-      : "border-secondary/80 bg-secondary shadow-[0_0_0_3px_rgba(132,204,22,0.22)]";
+      ? "border-primary bg-primary shadow-[0_0_0_2px_rgba(20,61,48,0.16)]"
+      : "border-secondary/80 bg-secondary shadow-[0_0_0_2px_rgba(132,204,22,0.2)]";
   const labelOn = tone === "property" ? "text-primary-fg" : "text-primary";
   const focusRing =
     tone === "property" ? "focus-visible:ring-primary/40" : "focus-visible:ring-secondary/50";
@@ -209,11 +210,10 @@ function OnOffToggle({
       aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
       title={active ? "On — visible" : "Off — pausada"}
       onClick={() => onChange(!active)}
-      className={`relative inline-flex h-9 w-[4.75rem] shrink-0 items-center rounded-full border p-[3px] transition duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRing} ${
+      className={`relative inline-flex h-8 w-[5.25rem] shrink-0 items-center rounded-full border p-[3px] transition duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRing} ${
         active ? onShell : "border-primary/20 bg-primary/[0.06]"
       }`}
     >
-      {/* Recessed rail — the path the knob travels L → R */}
       <span
         className={`relative flex h-full w-full items-center rounded-full px-1 ${
           active ? "bg-black/10" : "bg-primary/[0.08]"
@@ -221,23 +221,23 @@ function OnOffToggle({
         aria-hidden
       >
         <span
-          className={`absolute left-1.5 z-0 text-[8px] font-bold uppercase tracking-wide transition-opacity ${
+          className={`absolute left-1.5 z-0 text-[11px] font-bold uppercase tracking-wide transition-opacity ${
             active ? `${labelOn} opacity-100` : "text-primary/35 opacity-70"
           }`}
         >
           On
         </span>
         <span
-          className={`absolute right-1.5 z-0 text-[8px] font-bold uppercase tracking-wide transition-opacity ${
+          className={`absolute right-1.5 z-0 text-[11px] font-bold uppercase tracking-wide transition-opacity ${
             active ? `${labelOn} opacity-40` : "text-primary/55 opacity-100"
           }`}
         >
           Off
         </span>
         <span
-          className={`relative z-10 size-6 shrink-0 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+          className={`relative z-10 size-5 shrink-0 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
             active
-              ? "translate-x-[2.4rem] ring-2 ring-white/30"
+              ? "translate-x-[3.1rem] ring-2 ring-white/30"
               : "translate-x-0 ring-1 ring-primary/10"
           }`}
         />
@@ -296,7 +296,7 @@ function PhotoColumn({
         <ListingThumb src={src ?? PLACEHOLDER} className="size-[4.25rem] rounded-xl" />
         {badge}
       </div>
-      {/* Share lives with the photo — away from the On/Off toggle in the footer. */}
+      {/* Share under photo; On/Off lives in the header chip row. */}
       <ShareUnderPhoto tone={tone} />
     </div>
   );
@@ -371,7 +371,7 @@ function CurrentSingleRoomPain() {
   );
 }
 
-/** Proposed flat single-room card — photo right, share under photo, On/Off bottom-right. */
+/** Proposed flat single-room card — photo top-right; On/Off in header with chips. */
 function ProposedSingleRoomCard({
   room,
   active: controlledActive,
@@ -392,12 +392,15 @@ function ProposedSingleRoomCard({
       }`}
     >
       <div className={CARD_SHELL}>
-        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 items-start gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-h-8 flex-wrap items-center gap-2">
               <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
               <ListingStatusBadge status={status} />
               <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
+              <div className="ml-auto shrink-0">
+                <OnOffToggle active={active} onChange={setActive} tone={tone} />
+              </div>
             </div>
             <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body">
               {room.name}
@@ -413,12 +416,8 @@ function ProposedSingleRoomCard({
           <PhotoColumn tone={tone} src={room.thumb} />
         </div>
 
-        {/* Footer: icons left · On/Off far right (separated from share above). */}
-        <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-3">
+        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
-          <div className="shrink-0 border-l border-border pl-3">
-            <OnOffToggle active={active} onChange={setActive} tone={tone} />
-          </div>
         </div>
       </div>
     </article>
@@ -451,12 +450,15 @@ function ProposedPropertyCard({
       }`}
     >
       <div className={CARD_SHELL}>
-        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 items-start gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-h-8 flex-wrap items-center gap-2">
               <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
               <ListingStatusBadge status={status} noun="property" />
               <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
+              <div className="ml-auto shrink-0">
+                <OnOffToggle active={active} onChange={setActive} tone={tone} />
+              </div>
             </div>
             <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body">
               Casa amplia en Mezquitán Country
@@ -482,16 +484,13 @@ function ProposedPropertyCard({
           />
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-3">
+        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
           <ListingActionRow
             tone={tone}
             roomCount={rooms.length}
             roomsOpen={open}
             onToggleRooms={() => setOpen((v) => !v)}
           />
-          <div className="shrink-0 border-l border-border pl-3">
-            <OnOffToggle active={active} onChange={setActive} tone={tone} />
-          </div>
         </div>
       </div>
 
@@ -592,8 +591,8 @@ function HubComposition() {
         )}
       </div>
       <p className="mt-3 text-xs text-muted">
-        Foto a la derecha · Share bajo la foto · On/Off esquina inferior derecha (separado). ID
-        primero en el header.
+        Foto a la derecha (tope alineado) · Share bajo la foto · On/Off en el header con el ID.
+        ID primero.
       </p>
     </div>
   );
@@ -716,8 +715,7 @@ export function MyListingsProposalMockupsPage() {
           Menos ruido, más control por tipo de post
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Foto a la derecha · Share bajo la foto · On/Off abajo a la derecha (separado) · ID
-          primero. En el hub, Off va al final.
+          Foto a la derecha (tope alineado) · On/Off en el header junto al ID · Share bajo la foto.
         </p>
       </header>
 
@@ -767,7 +765,7 @@ export function MyListingsProposalMockupsPage() {
           <ProposalBadge tone="room">Cuarto</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          ID primero · foto derecha · Share bajo la foto · On/Off abajo a la derecha.
+          ID primero · foto alineada al tope · On/Off en el header · Share bajo la foto.
         </p>
 
         {!isMobile ? (
