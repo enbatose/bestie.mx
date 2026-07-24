@@ -49,7 +49,8 @@ export type ListingPropertyCardProps = {
   onPropertyStatus: (status: Extract<ListingStatus, "published" | "paused">) => void;
   onArchiveProperty: () => void;
   onRoomOccupancy: (l: PropertyListing, available: boolean) => void;
-  onRoomStatus: (l: PropertyListing, status: Extract<ListingStatus, "published" | "paused">) => void;
+  /** Restore an archived room to published (property-room rows only). */
+  onRestoreRoom: (l: PropertyListing) => void;
   onArchiveRoom: (l: PropertyListing) => void;
   onShared: (mode: "shared" | "copied") => void;
   onShareFailed: () => void;
@@ -158,7 +159,7 @@ export function ListingPropertyCard({
   onPropertyStatus,
   onArchiveProperty,
   onRoomOccupancy,
-  onRoomStatus,
+  onRestoreRoom,
   onArchiveRoom,
   onShared,
   onShareFailed,
@@ -416,27 +417,20 @@ export function ListingPropertyCard({
             const label = roomTitle(l);
             const busy = rowBusy(l);
             const roomPath = `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`;
+            // Property rooms use occupancy (On/Off) for search visibility — no per-room Pausar.
             const roomMenuItems: {
               key: string;
               label: string;
               onClick: () => void;
               danger?: boolean;
             }[] = [];
-            if (roomSt === "published") {
+            if (roomSt === "archived") {
               roomMenuItems.push({
-                key: "pause",
-                label: "Pausar recámara",
-                onClick: () => onRoomStatus(l, "paused"),
+                key: "restore",
+                label: "Restaurar recámara",
+                onClick: () => onRestoreRoom(l),
               });
-            }
-            if (roomSt === "paused" || roomSt === "archived") {
-              roomMenuItems.push({
-                key: "republish",
-                label: roomSt === "archived" ? "Restaurar recámara" : "Republicar recámara",
-                onClick: () => onRoomStatus(l, "published"),
-              });
-            }
-            if (roomSt === "published" || roomSt === "paused") {
+            } else {
               roomMenuItems.push({
                 key: "archive",
                 label: "Archivar recámara",
@@ -456,7 +450,7 @@ export function ListingPropertyCard({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <RoomOccupancyBadge available={available} />
-                      {roomSt !== propSt ? (
+                      {roomSt === "archived" ? (
                         <ListingStatusBadge status={roomSt} className="min-h-7 items-center" />
                       ) : null}
                       <p className="min-w-0 break-words font-medium leading-snug text-body">
@@ -491,7 +485,7 @@ export function ListingPropertyCard({
                           icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
                         />
                       ) : null}
-                      {roomSt === "published" && propSt === "published" ? (
+                      {available && propSt === "published" ? (
                         <CardAction
                           tone={tone}
                           size="compact"
@@ -507,7 +501,7 @@ export function ListingPropertyCard({
                     <RoomOnOffToggle
                       available={available}
                       busy={busy}
-                      disabled={propSt === "draft" || propSt === "archived"}
+                      disabled={propSt === "draft" || propSt === "archived" || roomSt === "archived"}
                       onChange={(next) => onRoomOccupancy(l, next)}
                     />
                     <PhotoWithReference

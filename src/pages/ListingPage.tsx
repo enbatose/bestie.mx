@@ -103,6 +103,16 @@ function unavailableCopy(reason: ListingUnavailableReason | null): {
         ],
         help: "Si el anuncio es tuyo, puedes volver a activarlo desde Mis anuncios.",
       };
+    case "listing_occupied":
+      return {
+        title: "Esta recámara ya no se ofrece",
+        lead: "La habitación está marcada como ocupada, así que no aparece en la búsqueda.",
+        bullets: [
+          "Quien administra la propiedad la marcó como ocupada desde Mis anuncios.",
+          "Otras recámaras de la misma propiedad pueden seguir disponibles.",
+        ],
+        help: "Si es tu publicación, vuelve a marcarla como disponible desde Mis anuncios.",
+      };
     case "listing_archived":
       return {
         title: "Este anuncio fue archivado",

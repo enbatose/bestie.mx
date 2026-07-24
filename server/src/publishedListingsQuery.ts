@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import type { PropertyListing } from "./types.js";
 
-const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' `;
+const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
 
 function listingForPublic(l: PropertyListing): PropertyListing {
   const { publisherId: _p, viewsCount: _v, inquiryCount: _i, ...rest } = l;

@@ -367,6 +367,16 @@ export function MyListingsPage() {
       if (closesLastAvailablePropertyRoom) {
         await updateProperty(l.propertyId, { status: "paused" });
       }
+      // Property-room search visibility is occupancy-only; heal any legacy per-room pause
+      // so an available room under a published property stays publicly listed.
+      if (
+        available &&
+        l.propertyPostMode === "property" &&
+        (l.propertyStatus ?? "published") === "published" &&
+        (l.status ?? "published") === "paused"
+      ) {
+        await updateListingStatus(l.id, "published");
+      }
       await patchDraftRoom(l.propertyId, l.id, {
         occupancyStatus: available ? "available" : "occupied",
       });
@@ -623,7 +633,7 @@ export function MyListingsPage() {
                 setPendingConfirm({ kind: "archive-property", id: propertyId })
               }
               onRoomOccupancy={handleRoomOccupancy}
-              onRoomStatus={(l, status) => void setRoomStatus(l, status)}
+              onRestoreRoom={(l) => void setRoomStatus(l, "published")}
               onArchiveRoom={(l) => setPendingConfirm({ kind: "archive-room", id: l.id })}
               onShared={(mode) =>
                 setFlash({

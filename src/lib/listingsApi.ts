@@ -43,6 +43,7 @@ export type ListingUnavailableReason =
   | "listing_draft"
   | "listing_paused"
   | "listing_archived"
+  | "listing_occupied"
   | "property_draft"
   | "property_paused"
   | "property_archived";

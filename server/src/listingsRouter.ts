@@ -82,6 +82,7 @@ type PublicListingUnavailableReason =
   | "listing_draft"
   | "listing_paused"
   | "listing_archived"
+  | "listing_occupied"
   | "property_draft"
   | "property_paused"
   | "property_archived";
@@ -129,10 +130,12 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
   if (propertyStatus === "paused") return "property_paused";
   if (propertyStatus === "archived") return "property_archived";
 
+  if (String(row.occupancy_status ?? "available") === "occupied") return "listing_occupied";
+
   return "listing_not_found";
 }
 
-const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' `;
+const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
 
 export function listingsRouter(db: DatabaseSync) {
   const r = express.Router();
