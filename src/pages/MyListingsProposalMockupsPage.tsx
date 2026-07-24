@@ -176,7 +176,7 @@ function ListingActionRow({
   roomCount?: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5">
       <LabeledAction
         tone={tone}
         label="Edit"
@@ -193,7 +193,7 @@ function ListingActionRow({
         icon={<Share2 className="size-4 shrink-0" aria-hidden />}
       />
       {onToggleRooms ? (
-        <div className="ml-auto shrink-0">
+        <div className="ml-auto shrink-0 pl-2">
           <LabeledAction
             tone={tone}
             label="Cuartos"
@@ -456,7 +456,7 @@ function ProposedSingleRoomCard({
           }
         />
 
-        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
+        <div className="flex w-full shrink-0 items-center border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
         </div>
       </div>
@@ -526,7 +526,7 @@ function ProposedPropertyCard({
           }
         />
 
-        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
+        <div className="flex w-full shrink-0 items-center border-t border-border/60 pt-3">
           <ListingActionRow
             tone={tone}
             roomsOpen={open}
