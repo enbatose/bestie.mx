@@ -193,17 +193,19 @@ function ListingActionRow({
         icon={<Share2 className="size-4 shrink-0" aria-hidden />}
       />
       {onToggleRooms ? (
-        <LabeledAction
-          tone={tone}
-          label="Cuartos"
-          onClick={onToggleRooms}
-          trailingIcon={
-            <ChevronDown
-              className={`size-4 shrink-0 transition ${roomsOpen ? "rotate-180" : ""}`}
-              aria-hidden
-            />
-          }
-        />
+        <div className="ml-auto shrink-0">
+          <LabeledAction
+            tone={tone}
+            label="Cuartos"
+            onClick={onToggleRooms}
+            trailingIcon={
+              <ChevronDown
+                className={`size-4 shrink-0 transition ${roomsOpen ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            }
+          />
+        </div>
       ) : null}
     </div>
   );
