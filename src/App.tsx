@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { AccountTabsLayout } from "@/layouts/AccountTabsLayout";
 import { AppShellLayout } from "@/layouts/AppShellLayout";
 import { AccountEditPage } from "@/pages/AccountEditPage";
 import { AdminPage } from "@/pages/AdminPage";
@@ -41,15 +42,20 @@ const router = createBrowserRouter([
       { path: "publicar/vista-previa", element: <PublishPreviewPage /> },
       { path: "mockups/post-proposals", element: <PostExperienceMockupsPage /> },
       { path: "mockups/mis-anuncios-proposal", element: <MyListingsProposalMockupsPage /> },
-      { path: "mis-anuncios", element: <MyListingsPage /> },
-      { path: "mis-busquedas", element: <SavedSearchesPage /> },
+      {
+        element: <AccountTabsLayout />,
+        children: [
+          { path: "mis-anuncios", element: <MyListingsPage /> },
+          { path: "mis-busquedas", element: <SavedSearchesPage /> },
+          { path: "mensajes", element: <MessagesPage /> },
+          { path: "contacto", element: <ContactPage /> },
+          { path: "perfil", element: <ProfilePage /> },
+          { path: "perfil/editar", element: <AccountEditPage /> },
+        ],
+      },
       { path: "despues-de-entrar", element: <PostLoginRedirectPage /> },
-      { path: "perfil", element: <ProfilePage /> },
-      { path: "perfil/editar", element: <AccountEditPage /> },
-      { path: "mensajes", element: <MessagesPage /> },
       { path: "notifications", element: <NotificationsPage /> },
       { path: "notificaciones", element: <Navigate to="/notifications" replace /> },
-      { path: "contacto", element: <ContactPage /> },
       { path: "faq", element: <FaqPage /> },
       { path: "legal", element: <LegalPage /> },
       { path: "legal/terminos", element: <TermsPage /> },

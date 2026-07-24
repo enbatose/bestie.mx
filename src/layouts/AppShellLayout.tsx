@@ -80,7 +80,7 @@ export function AppShellLayout() {
   const showEmailVerificationBanner =
     me != null && needsEmailVerification(me) && location.pathname !== "/verificar-correo";
 
-  const outletContext: AppShellOutletContext = { me, refreshMe };
+  const outletContext: AppShellOutletContext = { me, refreshMe, unreadMessageCount: unread };
 
   return (
     <AuthModalProvider>
