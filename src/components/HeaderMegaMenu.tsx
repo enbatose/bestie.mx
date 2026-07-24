@@ -161,7 +161,7 @@ function LoggedInIconActions({
       }
       const button = notificationsButtonRef.current;
       if (!button) return;
-      // Sit just below the bell+chevron trigger, with the same 8px gap as desktop `mt-2`.
+      // Sit just below the notification trigger, with the same 8px gap as desktop `mt-2`.
       setMobilePanelTopPx(button.getBoundingClientRect().bottom + 8);
     };
 
@@ -198,7 +198,7 @@ function LoggedInIconActions({
           ref={notificationsButtonRef}
           type="button"
           onClick={onToggleNotifications}
-          className={`${mobileHeaderActionClass} gap-0.5 px-1.5 md:w-auto md:py-2`}
+          className={`${mobileHeaderActionClass} w-9 gap-0.5 px-1.5 md:w-auto md:py-2`}
           aria-expanded={notificationsOpen}
           aria-haspopup="menu"
           aria-label={
@@ -211,7 +211,10 @@ function LoggedInIconActions({
               <UnreadDot className="absolute -right-0.5 -top-0.5" />
             ) : null}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+          <ChevronDown
+            className="hidden h-3.5 w-3.5 shrink-0 text-muted md:block"
+            aria-hidden
+          />
         </button>
         {notificationsOpen ? (
           <div
