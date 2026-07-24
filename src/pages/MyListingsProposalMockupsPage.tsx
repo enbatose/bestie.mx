@@ -181,9 +181,9 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 }
 
 /**
- * On/Off publish visibility — Figma DS `Tabs / Segment` (Default | Active)
- * composed like `RoomAvailabilityToggle` (segmented control, not a slider switch).
- * Active = primary fill + lime status dot. Placed bottom-right, away from Share.
+ * Sliding On/Off switch — same control as Save Search email alerts
+ * (`SaveSearchModal`: secondary track when on, white thumb).
+ * Labels clarify state; the hit target is the whole control (min-h-11).
  */
 function OnOffToggle({
   active,
@@ -194,41 +194,35 @@ function OnOffToggle({
   tone?: CardTone;
 }) {
   return (
-    <div
-      role="group"
-      aria-label="Estado de publicación"
-      className="inline-flex shrink-0 rounded-xl border border-border bg-surface p-1 shadow-sm"
+    <button
+      type="button"
+      role="switch"
+      aria-checked={active}
+      aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
+      title={active ? "On — visible" : "Off — pausada"}
+      onClick={() => onChange(!active)}
+      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-1 transition hover:bg-surface-elevated/80"
     >
-      <button
-        type="button"
-        aria-pressed={!active}
-        title="Off — pausada"
-        onClick={() => onChange(false)}
-        className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition ${
-          !active
-            ? "bg-bg-light text-body ring-1 ring-border"
-            : "text-muted hover:bg-surface-elevated hover:text-body"
+      <span
+        className={`min-w-[1.75rem] text-right text-xs font-semibold tabular-nums ${
+          active ? "text-body" : "text-muted"
         }`}
       >
-        Off
-      </button>
-      <button
-        type="button"
-        aria-pressed={active}
-        title="On — visible"
-        onClick={() => onChange(true)}
-        className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition ${
-          active
-            ? "bg-primary text-primary-fg ring-1 ring-primary/20"
-            : "text-muted hover:bg-surface-elevated hover:text-body"
+        {active ? "On" : "Off"}
+      </span>
+      <span
+        className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border transition ${
+          active ? "border-secondary bg-secondary" : "border-border bg-border"
         }`}
+        aria-hidden
       >
-        On
-        {active ? (
-          <span className="size-1.5 shrink-0 rounded-full bg-secondary" aria-hidden />
-        ) : null}
-      </button>
-    </div>
+        <span
+          className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left] ${
+            active ? "left-[1.35rem]" : "left-0.5"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 
