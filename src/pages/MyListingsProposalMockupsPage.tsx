@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronDown,
@@ -34,6 +35,23 @@ const PLACEHOLDER =
     `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect fill="#E2E8F0" width="160" height="160"/><text x="50%" y="54%" text-anchor="middle" fill="#64748B" font-family="system-ui" font-size="14">foto</text></svg>`,
   );
 
+/**
+ * Fields the publish wizard requires before a room slot can be offered for rent
+ * (see `collectRoomFieldIssues` in `roomWizardValidation.ts`). Labels mirror the
+ * live validation copy so the mockup asks for the same things.
+ */
+const ROOM_ACTIVATION_FIELDS = {
+  rent: { label: "Renta (MXN / mes)", kind: "number", placeholder: "5200" },
+  deposit: { label: "Depósito (MXN)", kind: "number", placeholder: "5200" },
+  availableFrom: { label: "Disponible desde", kind: "date", placeholder: "" },
+  minStay: { label: "Estancia mínima (meses)", kind: "number", placeholder: "6" },
+  roomType: { label: "Tipo de recámara", kind: "roomType", placeholder: "" },
+  roomSize: { label: "Tamaño de la recámara", kind: "roomSize", placeholder: "" },
+  summary: { label: "Detalles de esta recámara", kind: "textarea", placeholder: "Describe la recámara (mínimo 40 caracteres)" },
+} as const;
+
+type RoomActivationField = keyof typeof ROOM_ACTIVATION_FIELDS;
+
 type MockRoom = {
   id: string;
   name: string;
@@ -42,6 +60,8 @@ type MockRoom = {
   status: "published" | "paused" | "draft" | "archived";
   metrics: string;
   thumb?: string;
+  /** Mandatory data still missing before this room can be turned On (offered for rent). */
+  missingToActivate?: RoomActivationField[];
 };
 
 type Viewport = "desktop" | "mobile";
@@ -73,6 +93,7 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
     status: "published",
     metrics: "0 vistas · 0 mensajes",
     thumb: PLACEHOLDER,
+    missingToActivate: ["rent", "availableFrom", "minStay", "summary"],
   },
   {
     id: "A22222222",
@@ -82,6 +103,7 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
     status: "published",
     metrics: "0 vistas · 0 mensajes",
     thumb: PLACEHOLDER,
+    missingToActivate: ["rent", "roomType", "roomSize"],
   },
   {
     id: "A22222223",
@@ -129,6 +151,24 @@ function ProposalBadge({ children, tone }: { children: string; tone: CardTone })
       }`}
     >
       {children}
+    </span>
+  );
+}
+
+/**
+ * Room slot occupancy — replaces the publication badge on rooms inside a property.
+ * Publication is a property-level state; a room is either offered for rent or lived in.
+ */
+function RoomOccupancyBadge({ available }: { available: boolean }) {
+  return (
+    <span
+      className={`inline-flex min-h-7 shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold ${
+        available
+          ? "border-primary/30 bg-primary/10 text-primary"
+          : "border-border bg-bg-light text-muted"
+      }`}
+    >
+      {available ? "Disponible" : "Ocupada"}
     </span>
   );
 }
@@ -339,6 +379,209 @@ function OnOffToggle({
   );
 }
 
+const ROOM_TYPE_OPTIONS = [
+  { value: "private_room", label: "Recámara privada" },
+  { value: "shared_room", label: "Recámara compartida" },
+];
+
+const ROOM_SIZE_OPTIONS = [
+  { value: "small", label: "Recámara chica" },
+  { value: "medium", label: "Recámara mediana" },
+  { value: "large", label: "Recámara grande" },
+];
+
+const MODAL_INPUT =
+  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25";
+
+/**
+ * Turning a room On requires the same mandatory data the publish wizard asks for.
+ * Rather than bouncing the owner to the wizard, collect the missing fields here.
+ * Portaled to `document.body` at the app-modal layer so it clears the sticky header.
+ */
+function RoomActivationModal({
+  room,
+  onCancel,
+  onActivate,
+}: {
+  room: MockRoom;
+  onCancel: () => void;
+  onActivate: (values: Record<string, string>) => void;
+}) {
+  const fields = room.missingToActivate ?? [];
+  const [values, setValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  const complete = fields.every((key) => {
+    const raw = values[key]?.trim() ?? "";
+    if (!raw) return false;
+    if (key === "summary") return raw.length >= 40;
+    return true;
+  });
+
+  return createPortal(
+    <div className="fixed inset-0 z-[2100] flex items-end justify-center sm:items-center">
+      <button
+        type="button"
+        aria-label="Cerrar"
+        onClick={onCancel}
+        className="absolute inset-0 bg-black/50"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Completar ${room.name} para ofrecerla en renta`}
+        className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-surface shadow-xl sm:rounded-2xl"
+      >
+        <div className="border-b border-border px-5 py-4">
+          <div className="flex items-center gap-2">
+            <RoomOccupancyBadge available={false} />
+            <p className="min-w-0 truncate text-sm font-semibold text-body">{room.name}</p>
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-body">
+            Completa estos datos para ofrecerla en renta
+          </h2>
+          <p className="mt-1 text-xs text-muted">
+            Al marcarla como disponible se publica dentro de la propiedad, así que necesitamos la
+            información que ven las personas interesadas.
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          {fields.map((key) => {
+            const field = ROOM_ACTIVATION_FIELDS[key];
+            const value = values[key] ?? "";
+            const setValue = (next: string) =>
+              setValues((prev) => ({ ...prev, [key]: next }));
+            return (
+              <label key={key} className="block">
+                <span className="mb-1 block text-xs font-semibold text-body">{field.label}</span>
+                {field.kind === "textarea" ? (
+                  <>
+                    <textarea
+                      rows={3}
+                      value={value}
+                      placeholder={field.placeholder}
+                      onChange={(e) => setValue(e.target.value)}
+                      className={MODAL_INPUT}
+                    />
+                    <span className="mt-1 block text-[11px] text-muted">
+                      {value.trim().length}/40 caracteres mínimos
+                    </span>
+                  </>
+                ) : field.kind === "roomType" || field.kind === "roomSize" ? (
+                  <select
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    className={MODAL_INPUT}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {(field.kind === "roomType" ? ROOM_TYPE_OPTIONS : ROOM_SIZE_OPTIONS).map(
+                      (opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                ) : (
+                  <input
+                    type={field.kind === "date" ? "date" : "number"}
+                    min={field.kind === "number" ? 1 : undefined}
+                    value={value}
+                    placeholder={field.placeholder}
+                    onChange={(e) => setValue(e.target.value)}
+                    className={MODAL_INPUT}
+                  />
+                )}
+              </label>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold text-body transition hover:bg-bg-light"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!complete}
+            onClick={() => onActivate(values)}
+            className="inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Guardar y activar
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * Room-level On/Off — same sliding pattern as the card toggle, outlined instead of filled.
+ * On = disponible (offered for rent), Off = ocupada. Forest only on the border and labels;
+ * the track stays the card background. `h-7` / `w-[4.25rem]` match the badge row height and
+ * the photo column width so it centers on the header line and above the thumb.
+ */
+function RoomOnOffToggle({
+  available,
+  onChange,
+}: {
+  available: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={available}
+      aria-label={
+        available
+          ? "Recámara disponible — tocar para marcar como ocupada"
+          : "Recámara ocupada — tocar para ofrecerla en renta"
+      }
+      title={available ? "On — disponible" : "Off — ocupada"}
+      onClick={() => onChange(!available)}
+      className={`relative inline-flex h-7 w-[4.25rem] shrink-0 items-center rounded-full border bg-transparent p-[3px] transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        available ? "border-primary" : "border-primary/50"
+      }`}
+    >
+      <span className="relative flex h-full w-full items-center rounded-full px-1" aria-hidden>
+        <span
+          className={`absolute left-1.5 z-0 text-[10px] font-bold uppercase tracking-wide text-primary ${
+            available ? "opacity-100" : "invisible"
+          }`}
+        >
+          On
+        </span>
+        <span
+          className={`absolute right-1.5 z-0 text-[10px] font-bold uppercase tracking-wide text-primary/70 ${
+            available ? "invisible" : "opacity-100"
+          }`}
+        >
+          Off
+        </span>
+        <span
+          className={`relative z-10 size-4 shrink-0 rounded-full transition-transform duration-200 ease-out ${
+            available ? "translate-x-[2.375rem] bg-primary" : "translate-x-0 bg-primary/50"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 function PhotoThumb({
   src,
   badge,
@@ -496,9 +739,29 @@ function ProposedPropertyCard({
   const tone: CardTone = "property";
   const [open, setOpen] = useState(defaultOpen);
   const [active, setActive] = useActiveState(controlledActive, onActiveChange);
-  const available = rooms.filter((r) => !r.occupied).length;
+  /** Room occupancy lives here so the property summary counts react to the room toggles. */
+  const [occupancy, setOccupancy] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(rooms.map((r) => [r.id, !r.occupied])),
+  );
+  const [activating, setActivating] = useState<MockRoom | null>(null);
+  /** Rooms whose missing data was filled in this session — don't ask twice. */
+  const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  const isAvailable = (room: MockRoom) => occupancy[room.id] ?? !room.occupied;
+  const setAvailable = (room: MockRoom, next: boolean) =>
+    setOccupancy((prev) => ({ ...prev, [room.id]: next }));
+  const available = rooms.filter((r) => isAvailable(r)).length;
   const occupied = rooms.length - available;
   const status = active ? "published" : "paused";
+
+  const handleRoomToggle = (room: MockRoom, next: boolean) => {
+    // Turning a room On offers it for rent, so mandatory data must be complete first.
+    const needsData = (room.missingToActivate?.length ?? 0) > 0 && !completed[room.id];
+    if (next && needsData) {
+      setActivating(room);
+      return;
+    }
+    setAvailable(room, next);
+  };
 
   return (
     <section
@@ -556,16 +819,21 @@ function ProposedPropertyCard({
         <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
             <li key={room.id} className="px-4 py-3">
-              {/* Title starts at the top; photo nudged so its mid sits near the header line without leaving a gap. */}
+              {/*
+                Right column leads with the toggle: both it and the badge row are h-7 and start
+                at the same y, so the toggle centers on the header line. Photo + ID sit under it.
+              */}
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <ListingStatusBadge status={room.status} className="min-h-7 shrink-0 items-center" />
+                    <RoomOccupancyBadge available={isAvailable(room)} />
                     <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
                   </div>
-                  <p className="mt-1 text-xs text-muted">
-                    {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
-                  </p>
+                  {isAvailable(room) ? (
+                    <p className="mt-1 text-xs text-muted">
+                      {[room.rentLabel, room.metrics].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <LabeledAction
                       tone={tone}
@@ -587,15 +855,33 @@ function ProposedPropertyCard({
                     />
                   </div>
                 </div>
-                <PhotoThumb
-                  src={room.thumb}
-                  idCode={room.id}
-                  thumbClassName="size-14 rounded-lg"
-                />
+                <div className="flex shrink-0 flex-col items-center gap-2">
+                  <RoomOnOffToggle
+                    available={isAvailable(room)}
+                    onChange={(next) => handleRoomToggle(room, next)}
+                  />
+                  <PhotoThumb
+                    src={room.thumb}
+                    idCode={room.id}
+                    thumbClassName="size-14 rounded-lg"
+                  />
+                </div>
               </div>
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {activating ? (
+        <RoomActivationModal
+          room={activating}
+          onCancel={() => setActivating(null)}
+          onActivate={() => {
+            setCompleted((prev) => ({ ...prev, [activating.id]: true }));
+            setAvailable(activating, true);
+            setActivating(null);
+          }}
+        />
       ) : null}
     </section>
   );
