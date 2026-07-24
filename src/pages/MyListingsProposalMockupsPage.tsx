@@ -556,41 +556,43 @@ function ProposedPropertyCard({
         <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
             <li key={room.id} className="px-4 py-3">
-              {/* Labels + title top; photo + quiet ID centered on that band */}
-              <div className="flex items-center gap-3">
+              {/* Header band height matches photo (size-14) so title mid = photo mid; ID hangs under photo. */}
+              <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <ListingStatusBadge status={room.status} className="min-h-7 shrink-0 items-center" />
-                    <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
+                  <div className="flex min-h-14 items-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ListingStatusBadge status={room.status} className="min-h-7 shrink-0 items-center" />
+                      <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <LabeledAction
+                      tone={tone}
+                      size="compact"
+                      label="Ver"
+                      icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
+                    />
+                    <LabeledAction
+                      tone={tone}
+                      size="compact"
+                      label="Edit"
+                      icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
+                    />
+                    <LabeledAction
+                      tone={tone}
+                      size="compact"
+                      label="Compartir"
+                      icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
+                    />
                   </div>
                 </div>
                 <PhotoThumb
                   src={room.thumb}
                   idCode={room.id}
                   thumbClassName="size-14 rounded-lg"
-                />
-              </div>
-              <p className="mt-1 text-xs text-muted">
-                {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <LabeledAction
-                  tone={tone}
-                  size="compact"
-                  label="Ver"
-                  icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
-                />
-                <LabeledAction
-                  tone={tone}
-                  size="compact"
-                  label="Edit"
-                  icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
-                />
-                <LabeledAction
-                  tone={tone}
-                  size="compact"
-                  label="Compartir"
-                  icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
                 />
               </div>
             </li>
