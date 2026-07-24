@@ -49,18 +49,9 @@ type ListingsTab = "published" | "draft";
 const PRIMARY_TABS: readonly {
   key: ListingsTab;
   title: string;
-  description: string;
 }[] = [
-  {
-    key: "published",
-    title: "Publicados",
-    description: "Anuncios visibles para quienes buscan roomie.",
-  },
-  {
-    key: "draft",
-    title: "Borradores",
-    description: "Completa y publica cuando estés listo.",
-  },
+  { key: "published", title: "Publicados" },
+  { key: "draft", title: "Borradores" },
 ];
 
 function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
@@ -802,7 +793,6 @@ export function MyListingsPage() {
                 aria-labelledby={`mis-anuncios-tab-${resolvedTab}`}
                 className="pt-4"
               >
-                <p className="mb-4 text-sm text-muted">{activeTabMeta.description}</p>
                 {activeGroups.length ? (
                   renderPropertyGroups(activeGroups)
                 ) : searching ? (
