@@ -305,7 +305,7 @@ export function ListingPropertyCard({
             />
           ) : null}
           {isProperty ? (
-            <div className="ml-auto flex shrink-0 items-center pl-2">
+            <div className="flex shrink-0 items-center sm:ml-auto sm:pl-2">
               <CardAction
                 tone={tone}
                 label="Recámaras"

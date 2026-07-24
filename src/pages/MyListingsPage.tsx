@@ -806,7 +806,7 @@ export function MyListingsPage() {
               <div
                 role="tablist"
                 aria-label="Tipo de anuncio"
-                className="-mb-px mt-6 flex gap-1 border-b border-border"
+                className="-mb-px mt-6 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {PRIMARY_TABS.map((tab) => {
                   const active = resolvedTab === tab.key;
@@ -820,7 +820,7 @@ export function MyListingsPage() {
                       id={`mis-anuncios-tab-${tab.key}`}
                       aria-controls={`mis-anuncios-panel-${tab.key}`}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`relative inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-semibold transition sm:px-4 ${
+                      className={`relative inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 text-xs font-semibold transition sm:gap-2 sm:px-4 sm:text-sm ${
                         active
                           ? "border-primary text-primary"
                           : "border-transparent text-muted hover:border-border hover:text-body"
@@ -828,7 +828,7 @@ export function MyListingsPage() {
                     >
                       {tab.title}
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${
+                        className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ring-1 sm:px-2 sm:text-xs ${
                           active
                             ? "bg-primary/10 text-primary ring-primary/20"
                             : "bg-bg-light text-muted ring-border"
