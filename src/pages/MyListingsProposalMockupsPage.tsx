@@ -164,7 +164,7 @@ function IconAction({
 /**
  * Shared header stack for Cuarto + Propiedad:
  * 1) labels + On/Off
- * 2) title + neighborhood with photo centered on that pair
+ * 2) title + neighborhood; photo top aligns to the vertical middle of the title text
  * 3) optional details (price / rooms) — may differ per card
  */
 function CardSharedTop({
@@ -195,16 +195,18 @@ function CardSharedTop({
         </div>
       </div>
 
-      {/* Title + place share one band; photo centered on that band only (not details). */}
-      <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
-        <h3 className="col-start-1 row-start-1 min-h-[2.75rem] line-clamp-2 text-base font-semibold leading-snug text-body">
-          {title}
-        </h3>
-        <p className="col-start-1 row-start-2 text-xs text-muted">{place}</p>
-        <div className="col-start-2 row-span-2 row-start-1 self-center">{photo}</div>
+      {/*
+        Photo top edge = midpoint of the title line (text-base + leading-snug → 1.375rem line box).
+        Half line = 0.6875rem — matches the blue-line reference through the header text.
+      */}
+      <div className="mt-2 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">{title}</h3>
+          <p className="mt-1 text-xs text-muted">{place}</p>
+          {details ? <div className="mt-2">{details}</div> : null}
+        </div>
+        <div className="mt-[0.6875rem] shrink-0">{photo}</div>
       </div>
-
-      {details ? <div className="mt-2">{details}</div> : null}
     </div>
   );
 }
