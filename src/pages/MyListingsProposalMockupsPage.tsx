@@ -161,8 +161,53 @@ function IconAction({
   );
 }
 
-/** Shared middle band — photo vertically centered (Propiedad-style) on both cards. */
-const CARD_MIDDLE_ROW = "mt-2 flex min-h-[6.75rem] items-center gap-3";
+/**
+ * Shared header stack for Cuarto + Propiedad:
+ * 1) labels + On/Off
+ * 2) title + neighborhood with photo centered on that pair
+ * 3) optional details (price / rooms) — may differ per card
+ */
+function CardSharedTop({
+  tone,
+  active,
+  onActiveChange,
+  labels,
+  title,
+  place = "Providencia · Guadalajara",
+  photo,
+  details,
+}: {
+  tone: CardTone;
+  active: boolean;
+  onActiveChange: (next: boolean) => void;
+  labels: ReactNode;
+  title: string;
+  place?: string;
+  photo: ReactNode;
+  details?: ReactNode;
+}) {
+  return (
+    <div className="min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-8 flex-wrap items-center gap-2">
+        {labels}
+        <div className="ml-auto shrink-0 self-center">
+          <OnOffToggle active={active} onChange={onActiveChange} tone={tone} />
+        </div>
+      </div>
+
+      {/* Title + place share one band; photo centered on that band only (not details). */}
+      <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+        <h3 className="col-start-1 row-start-1 min-h-[2.75rem] line-clamp-2 text-base font-semibold leading-snug text-body">
+          {title}
+        </h3>
+        <p className="col-start-1 row-start-2 text-xs text-muted">{place}</p>
+        <div className="col-start-2 row-span-2 row-start-1 self-center">{photo}</div>
+      </div>
+
+      {details ? <div className="mt-2">{details}</div> : null}
+    </div>
+  );
+}
 
 /** Compact share — bottom-right; tone only changes accent color. */
 function ShareUnderPhoto({ tone }: { tone: CardTone }) {
@@ -368,7 +413,7 @@ function CurrentSingleRoomPain() {
   );
 }
 
-/** Proposed flat single-room card — photo beside title; Share bottom-right. */
+/** Proposed flat single-room card — shared top alignment with Propiedad. */
 function ProposedSingleRoomCard({
   room,
   active: controlledActive,
@@ -389,33 +434,28 @@ function ProposedSingleRoomCard({
       }`}
     >
       <div className={CARD_SHELL}>
-        <div className="min-h-0 min-w-0 flex-1">
-          {/* Level 1: chips + On/Off */}
-          <div className="flex min-h-8 flex-wrap items-center gap-2">
-            <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
+        <CardSharedTop
+          tone={tone}
+          active={active}
+          onActiveChange={setActive}
+          labels={
+            <>
+              <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
               <ListingStatusBadge status={status} className="min-h-8 items-center" />
               <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
-              <div className="ml-auto shrink-0 self-center">
-                <OnOffToggle active={active} onChange={setActive} tone={tone} />
-              </div>
+            </>
+          }
+          title={room.name}
+          photo={<PhotoThumb src={room.thumb} />}
+          details={
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {room.rentLabel ? (
+                <span className="text-sm font-semibold text-body">{room.rentLabel}</span>
+              ) : null}
+              <span className="text-xs text-muted">{room.metrics}</span>
             </div>
-          {/* Level 2: same band height; photo centered like Propiedad */}
-          <div className={CARD_MIDDLE_ROW}>
-            <div className="min-w-0 flex-1">
-              <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
-                {room.name}
-              </h3>
-              <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
-              <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                {room.rentLabel ? (
-                  <span className="text-sm font-semibold text-body">{room.rentLabel}</span>
-                ) : null}
-                <span className="text-xs text-muted">{room.metrics}</span>
-              </div>
-            </div>
-            <PhotoThumb src={room.thumb} />
-          </div>
-        </div>
+          }
+        />
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
@@ -428,7 +468,7 @@ function ProposedSingleRoomCard({
   );
 }
 
-/** Proposed compact property — same shell; rooms accordion. */
+/** Proposed compact property — same shared top as Cuarto; rooms accordion. */
 function ProposedPropertyCard({
   rooms,
   defaultOpen = false,
@@ -454,22 +494,30 @@ function ProposedPropertyCard({
       }`}
     >
       <div className={CARD_SHELL}>
-        <div className="min-h-0 min-w-0 flex-1">
-          <div className="flex min-h-8 flex-wrap items-center gap-2">
-            <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
+        <CardSharedTop
+          tone={tone}
+          active={active}
+          onActiveChange={setActive}
+          labels={
+            <>
+              <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
               <ListingStatusBadge status={status} noun="property" className="min-h-8 items-center" />
               <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
-              <div className="ml-auto shrink-0 self-center">
-                <OnOffToggle active={active} onChange={setActive} tone={tone} />
-              </div>
-            </div>
-          <div className={CARD_MIDDLE_ROW}>
-            <div className="min-w-0 flex-1">
-              <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
-                Casa amplia en Mezquitán Country
-              </h3>
-              <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
-              <p className="mt-2 text-sm text-body">
+            </>
+          }
+          title="Casa amplia en Mezquitán Country"
+          photo={
+            <PhotoThumb
+              badge={
+                <span className="absolute -bottom-1 -left-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
+                  {rooms.length}
+                </span>
+              }
+            />
+          }
+          details={
+            <>
+              <p className="text-sm text-body">
                 <span className="font-semibold">{rooms.length} recámaras</span>
                 <span className="text-muted">
                   {" "}
@@ -478,16 +526,9 @@ function ProposedPropertyCard({
                 </span>
               </p>
               <p className="mt-1 text-xs text-muted">23 vistas · 3 mensajes (suma)</p>
-            </div>
-            <PhotoThumb
-              badge={
-                <span className="absolute -bottom-1 -left-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
-                  {rooms.length}
-                </span>
-              }
-            />
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
           <ListingActionRow
