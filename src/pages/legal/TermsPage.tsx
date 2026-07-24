@@ -90,6 +90,7 @@ export function TermsPage() {
         <LegalList
           items={[
             "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida.",
+            "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
             "Contactar a otros usuarios mediante el chat directo en Bestie u otros canales habilitados.",
             "Crear un perfil, comunidades o grupos de búsqueda de roomies.",

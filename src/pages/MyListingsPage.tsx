@@ -119,6 +119,8 @@ export function MyListingsPage() {
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   /** Room whose rental data must be completed before it can be offered for rent. */
   const [activatingRoom, setActivatingRoom] = useState<PropertyListing | null>(null);
+  /** Parent to publish after the activation modal makes its first room available. */
+  const [activatingPropertyId, setActivatingPropertyId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ListingsTab | null>(null);
   const [query, setQuery] = useState("");
 
@@ -348,12 +350,23 @@ export function MyListingsPage() {
     }
   }
 
-  /** Flips one room between offered-for-rent and lived-in. */
+  /**
+   * Flips one room between offered-for-rent and lived-in. Closing the final
+   * available room in a property post also pauses its parent property.
+   */
   async function setRoomAvailability(l: PropertyListing, available: boolean) {
     setActionId(l.id);
     setErr(null);
     clearPropertyError(l.propertyId);
     try {
+      const propertyRooms = rows?.filter((row) => row.propertyId === l.propertyId) ?? [];
+      const closesLastAvailablePropertyRoom =
+        !available &&
+        l.propertyPostMode === "property" &&
+        propertyRooms.filter(isRoomAvailable).length <= 1;
+      if (closesLastAvailablePropertyRoom) {
+        await updateProperty(l.propertyId, { status: "paused" });
+      }
       await patchDraftRoom(l.propertyId, l.id, {
         occupancyStatus: available ? "available" : "occupied",
       });
@@ -363,9 +376,11 @@ export function MyListingsPage() {
       });
       await load();
       setFlash({
-        text: available
-          ? "Recámara marcada como disponible."
-          : "Recámara marcada como ocupada. Ya no se ofrece en renta.",
+        text: closesLastAvailablePropertyRoom
+          ? "Recámara marcada como ocupada y propiedad pausada."
+          : available
+            ? "Recámara marcada como disponible."
+            : "Recámara marcada como ocupada. Ya no se ofrece en renta.",
       });
     } catch (e) {
       setPropertyError(l.propertyId, e, "No se pudo actualizar la recámara.");
@@ -380,39 +395,47 @@ export function MyListingsPage() {
    */
   function handleRoomOccupancy(l: PropertyListing, available: boolean) {
     if (available && !roomReadyToOffer(l)) {
+      setActivatingPropertyId(null);
       setActivatingRoom(l);
       return;
     }
     void setRoomAvailability(l, available);
   }
 
-  /** Marks every currently available room in a property as occupied. */
+  /** Pauses a property and marks every currently available room as occupied. */
   async function deactivatePropertyRooms(propertyId: string, roomsToClose: PropertyListing[]) {
     setActionPropertyId(propertyId);
     setErr(null);
     clearPropertyError(propertyId);
     try {
+      // Pause first so a partial room-update failure can never leave a published
+      // property with zero availability.
+      await updateProperty(propertyId, { status: "paused" });
       for (const room of roomsToClose) {
         await patchDraftRoom(propertyId, room.id, { occupancyStatus: "occupied" });
         track("my_room_occupancy_changed", { listing_id: room.id, occupancy: "occupied" });
       }
       await load();
       setFlash({
-        text: `${roomsToClose.length} recámara${
+        text: `Propiedad pausada. ${roomsToClose.length} recámara${
           roomsToClose.length === 1 ? "" : "s"
         } marcada${roomsToClose.length === 1 ? "" : "s"} como ocupada${
           roomsToClose.length === 1 ? "" : "s"
         }.`,
       });
     } catch (e) {
-      setPropertyError(propertyId, e, "No se pudieron marcar las recámaras como ocupadas.");
+      setPropertyError(
+        propertyId,
+        e,
+        "La propiedad quedó pausada, pero no se pudieron marcar todas las recámaras como ocupadas.",
+      );
     } finally {
       setActionPropertyId(null);
       setPendingConfirm(null);
     }
   }
 
-  /** Re-offers every occupied room that already has complete rental data. */
+  /** Re-offers complete rooms, then publishes the property. */
   async function activatePropertyRooms(propertyId: string, ready: PropertyListing[]) {
     setActionPropertyId(propertyId);
     setErr(null);
@@ -422,28 +445,38 @@ export function MyListingsPage() {
         await patchDraftRoom(propertyId, room.id, { occupancyStatus: "available" });
         track("my_room_occupancy_changed", { listing_id: room.id, occupancy: "available" });
       }
+      await updateProperty(propertyId, { status: "published" });
       await load();
       setFlash({
-        text: `${ready.length} recámara${ready.length === 1 ? "" : "s"} disponible${
+        text: `Propiedad publicada. ${ready.length} recámara${ready.length === 1 ? "" : "s"} disponible${
           ready.length === 1 ? "" : "s"
         } para renta.`,
       });
     } catch (e) {
-      setPropertyError(propertyId, e, "No se pudieron activar las recámaras.");
+      setPropertyError(propertyId, e, "No se pudo completar la publicación de la propiedad.");
     } finally {
       setActionPropertyId(null);
     }
   }
 
   /**
-   * The property switch reflects room occupancy: On means at least one room is offered
-   * for rent. Turning it Off closes every available room, so it always confirms first.
+   * The property switch reflects publication status. Turning it Off pauses the
+   * property and marks all available rooms occupied after confirmation. Turning
+   * it On republishes only when at least one room can be offered.
    */
   function handlePropertyActive(propertyId: string, list: PropertyListing[], next: boolean) {
     if (!next) {
       const openRooms = list.filter(isRoomAvailable);
-      if (!openRooms.length) return;
+      if (!openRooms.length) {
+        void setPropertyStatus(propertyId, "paused");
+        return;
+      }
       setPendingConfirm({ kind: "deactivate-property", propertyId, rooms: openRooms });
+      return;
+    }
+    const alreadyAvailable = list.filter(isRoomAvailable);
+    if (alreadyAvailable.length) {
+      void setPropertyStatus(propertyId, "published");
       return;
     }
     const occupied = list.filter((l) => !isRoomAvailable(l));
@@ -454,7 +487,10 @@ export function MyListingsPage() {
     }
     // Nothing can be re-offered as-is; collect the missing data for the first room.
     const first = occupied[0];
-    if (first) setActivatingRoom(first);
+    if (first) {
+      setActivatingPropertyId(propertyId);
+      setActivatingRoom(first);
+    }
   }
 
   async function publishDraftProperty(propertyId: string) {
@@ -530,9 +566,9 @@ export function MyListingsPage() {
         })
         .join(", ");
       return {
-        title: "Marcar todas como ocupadas",
-        message: `Estas recámaras dejarán de ofrecerse en renta y quedarán como ocupadas: ${names}. Podrás volver a activarlas una por una cuando quieras.`,
-        confirmLabel: confirmBusy ? "Aplicando…" : "Marcar como ocupadas",
+        title: "Pausar propiedad",
+        message: `La propiedad se pausará y dejará de aparecer en la búsqueda. Estas recámaras quedarán marcadas como ocupadas: ${names}. Podrás volver a publicar la propiedad cuando quieras.`,
+        confirmLabel: confirmBusy ? "Pausando…" : "Pausar y continuar",
         intent: "default" as const,
       };
     }
@@ -903,11 +939,33 @@ export function MyListingsPage() {
             const head = list[0] ?? activatingRoom;
             return listingRowTitle(head, activatingRoom, list);
           })()}
-          onCancel={() => setActivatingRoom(null)}
-          onActivated={(message) => {
+          onCancel={() => {
             setActivatingRoom(null);
-            setFlash({ text: message });
-            void load();
+            setActivatingPropertyId(null);
+          }}
+          onActivated={(message) => {
+            const propertyIdToPublish = activatingPropertyId;
+            setActivatingRoom(null);
+            setActivatingPropertyId(null);
+            if (!propertyIdToPublish) {
+              setFlash({ text: message });
+              void load();
+              return;
+            }
+            setActionPropertyId(propertyIdToPublish);
+            void updateProperty(propertyIdToPublish, { status: "published" })
+              .then(async () => {
+                setFlash({ text: `Propiedad publicada. ${message}` });
+                await load();
+              })
+              .catch((e) => {
+                setPropertyError(
+                  propertyIdToPublish,
+                  e,
+                  "La recámara quedó disponible, pero no se pudo publicar la propiedad.",
+                );
+              })
+              .finally(() => setActionPropertyId(null));
           }}
         />
       ) : null}

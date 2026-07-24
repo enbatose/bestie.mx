@@ -180,8 +180,9 @@ export function ListingPropertyCard({
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
   const canShare = propSt === "published";
 
-  // Property On/Off tracks room occupancy; single-room On/Off tracks publication.
-  const active = isProperty ? availableCount > 0 : propSt === "published";
+  // The header switch always tracks publication. For property posts, pausing also
+  // marks every available room as occupied after the user confirms the room list.
+  const active = propSt === "published";
   const toggleDisabled = propSt === "draft" || propSt === "archived" || propertyBusy;
 
   const summedViews = list.reduce((n, l) => n + (l.viewsCount ?? 0), 0);
@@ -200,14 +201,17 @@ export function ListingPropertyCard({
     propertyMenuItems.push({
       key: "pause",
       label: isProperty ? "Pausar propiedad" : "Pausar anuncio",
-      onClick: () => onPropertyStatus("paused"),
+      onClick: () => (isProperty ? onPropertyActive(false) : onPropertyStatus("paused")),
     });
   }
   if (propSt === "paused" || propSt === "archived") {
     propertyMenuItems.push({
       key: "republish",
       label: propSt === "archived" ? "Restaurar" : "Republicar",
-      onClick: () => onPropertyStatus("published"),
+      onClick: () =>
+        isProperty
+          ? onPropertyActive(true)
+          : onPropertyStatus("published"),
     });
   }
   if (propSt === "published" || propSt === "paused") {
@@ -245,12 +249,12 @@ export function ListingPropertyCard({
               onChange={isProperty ? onPropertyActive : onSingleRoomActive}
               onLabel={
                 isProperty
-                  ? "Hay recámaras disponibles — tocar para marcarlas todas como ocupadas"
+                  ? "Propiedad publicada — tocar para pausar y marcar sus recámaras como ocupadas"
                   : "Anuncio publicado — tocar para pausar"
               }
               offLabel={
                 isProperty
-                  ? "Todas las recámaras están ocupadas — tocar para ofrecerlas en renta"
+                  ? "Propiedad pausada — tocar para publicar y ofrecer recámaras en renta"
                   : "Anuncio pausado — tocar para publicar"
               }
             />
