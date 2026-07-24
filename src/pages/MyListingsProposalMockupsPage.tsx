@@ -140,6 +140,7 @@ function LabeledAction({
   icon,
   trailingIcon,
   emphasizeBorder = false,
+  size = "default",
 }: {
   tone: CardTone;
   label: string;
@@ -148,19 +149,24 @@ function LabeledAction({
   trailingIcon?: ReactNode;
   /** Stronger forest border (e.g. Recámaras on Propiedad). */
   emphasizeBorder?: boolean;
+  size?: "default" | "compact";
 }) {
   const ring = emphasizeBorder
     ? "border-primary bg-primary/10 text-primary hover:bg-primary/15"
     : tone === "property"
       ? "border-primary/25 bg-primary/10 text-primary hover:bg-primary/15"
       : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
+  const sizeClass =
+    size === "compact"
+      ? "min-h-9 gap-1 rounded-full px-2.5 text-[11px]"
+      : "min-h-11 gap-1.5 rounded-full px-3 text-xs";
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${ring}`}
+      className={`inline-flex shrink-0 items-center justify-center border font-semibold transition ${sizeClass} ${ring}`}
     >
       {icon}
       <span>{label}</span>
@@ -543,27 +549,40 @@ function ProposedPropertyCard({
       {open ? (
         <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
-            <li key={room.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <ListingReferenceChip code={room.id} label="#" size="compact" />
-                  <ListingStatusBadge status={room.status} />
-                  <p className="font-medium text-body">{room.name}</p>
+            <li key={room.id} className="px-4 py-3">
+              {/* Labels + title top; photo centered on that band */}
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ListingReferenceChip code={room.id} label="#" size="compact" />
+                    <ListingStatusBadge status={room.status} className="min-h-7 items-center" />
+                  </div>
+                  <p className="mt-1 font-medium leading-snug text-body">{room.name}</p>
                 </div>
-                <p className="mt-0.5 text-xs text-muted">
-                  {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
-                </p>
+                <ListingThumb src={room.thumb} className="size-14 shrink-0 rounded-lg" />
               </div>
-              <div className="flex w-[3.5rem] shrink-0 flex-col gap-1.5">
-                <ListingThumb src={room.thumb} className="size-14 rounded-lg" />
-                <button
-                  type="button"
-                  aria-label="Compartir"
-                  title="Compartir"
-                  className="inline-flex min-h-8 w-full items-center justify-center rounded-md border border-primary/20 bg-surface text-primary hover:bg-primary/10"
-                >
-                  <Share2 className="size-3.5" aria-hidden />
-                </button>
+              <p className="mt-1 text-xs text-muted">
+                {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <LabeledAction
+                  tone={tone}
+                  size="compact"
+                  label="Ver"
+                  icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
+                />
+                <LabeledAction
+                  tone={tone}
+                  size="compact"
+                  label="Edit"
+                  icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
+                />
+                <LabeledAction
+                  tone={tone}
+                  size="compact"
+                  label="Compartir"
+                  icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
+                />
               </div>
             </li>
           ))}
