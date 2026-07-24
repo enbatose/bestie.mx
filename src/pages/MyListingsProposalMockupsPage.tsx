@@ -559,10 +559,10 @@ function ProposedPropertyCard({
               {/* Labels + title top; photo + quiet ID centered on that band */}
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <ListingStatusBadge status={room.status} className="min-h-7 items-center" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ListingStatusBadge status={room.status} className="min-h-7 shrink-0 items-center" />
+                    <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
                   </div>
-                  <p className="mt-1 font-medium leading-snug text-body">{room.name}</p>
                 </div>
                 <PhotoThumb
                   src={room.thumb}
