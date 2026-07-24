@@ -196,7 +196,7 @@ function ListingActionRow({
         <div className="ml-auto shrink-0 pl-2">
           <LabeledAction
             tone={tone}
-            label="Cuartos"
+            label="Recámaras"
             onClick={onToggleRooms}
             trailingIcon={
               <ChevronDown
