@@ -122,7 +122,7 @@ function toneShell(tone: CardTone): string {
 function ProposalBadge({ children, tone }: { children: string; tone: CardTone }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+      className={`inline-flex min-h-8 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
         tone === "property"
           ? "bg-primary text-primary-fg"
           : "bg-secondary text-primary"
@@ -161,18 +161,21 @@ function IconAction({
   );
 }
 
-/** Compact share control sized to the photo column — not a round action chip. */
+/** Shared middle band so Cuarto and Propiedad place the photo the same way. */
+const CARD_MIDDLE_ROW = "mt-2 flex min-h-[6.75rem] items-start gap-3";
+
+/** Compact share — bottom-right; tone only changes accent color. */
 function ShareUnderPhoto({ tone }: { tone: CardTone }) {
   const ring =
     tone === "property"
-      ? "border-primary/20 text-primary hover:bg-primary/10"
-      : "border-secondary/35 text-primary hover:bg-secondary/20";
+      ? "border-primary/30 text-primary hover:bg-primary/10"
+      : "border-secondary/50 text-primary hover:bg-secondary/20";
   return (
     <button
       type="button"
       aria-label="Compartir"
       title="Compartir"
-      className={`flex w-full min-h-9 flex-col items-center justify-center gap-0.5 rounded-lg border bg-surface/90 px-1 py-1.5 text-[10px] font-semibold leading-none transition ${ring}`}
+      className={`flex w-full min-h-9 flex-col items-center justify-center gap-0.5 rounded-lg border bg-surface px-1 py-1.5 text-[10px] font-semibold leading-none transition ${ring}`}
     >
       <Share2 className="size-3.5 shrink-0" aria-hidden />
       <span>Share</span>
@@ -390,14 +393,14 @@ function ProposedSingleRoomCard({
           {/* Level 1: chips + On/Off */}
           <div className="flex min-h-8 flex-wrap items-center gap-2">
             <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
-            <ListingStatusBadge status={status} />
-            <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
-            <div className="ml-auto shrink-0">
-              <OnOffToggle active={active} onChange={setActive} tone={tone} />
+              <ListingStatusBadge status={status} className="min-h-8 items-center" />
+              <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
+              <div className="ml-auto shrink-0 self-center">
+                <OnOffToggle active={active} onChange={setActive} tone={tone} />
+              </div>
             </div>
-          </div>
-          {/* Level 2: title/meta + photo centered on this middle header band */}
-          <div className="mt-2 flex items-center gap-3">
+          {/* Level 2: fixed-height middle band — photo top-aligned with title (same on both cards) */}
+          <div className={CARD_MIDDLE_ROW}>
             <div className="min-w-0 flex-1">
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
                 {room.name}
@@ -454,13 +457,13 @@ function ProposedPropertyCard({
         <div className="min-h-0 min-w-0 flex-1">
           <div className="flex min-h-8 flex-wrap items-center gap-2">
             <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
-            <ListingStatusBadge status={status} noun="property" />
-            <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
-            <div className="ml-auto shrink-0">
-              <OnOffToggle active={active} onChange={setActive} tone={tone} />
+              <ListingStatusBadge status={status} noun="property" className="min-h-8 items-center" />
+              <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
+              <div className="ml-auto shrink-0 self-center">
+                <OnOffToggle active={active} onChange={setActive} tone={tone} />
+              </div>
             </div>
-          </div>
-          <div className="mt-2 flex items-center gap-3">
+          <div className={CARD_MIDDLE_ROW}>
             <div className="min-w-0 flex-1">
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
                 Casa amplia en Mezquitán Country
