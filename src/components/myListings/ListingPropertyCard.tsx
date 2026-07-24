@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, Eye, MoreHorizontal, Pencil, Share2 } from "lucide-react";
+import { ChevronDown, Eye, Pencil, Share2, Trash2 } from "lucide-react";
 import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
 import { MissingFieldsCallout } from "@/components/myListings/MissingFieldsCallout";
 import {
@@ -61,86 +61,6 @@ function isAvailable(l: PropertyListing): boolean {
   return (l.roomOccupancyStatus ?? "available") === "available";
 }
 
-/** Small overflow menu for the lifecycle actions that don't fit the card footer. */
-function CardMenu({
-  label,
-  size = "default",
-  items,
-}: {
-  label: string;
-  size?: "default" | "compact";
-  items: { key: string; label: string; onClick: () => void; danger?: boolean }[];
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  if (!items.length) return null;
-
-  const triggerSize =
-    size === "compact"
-      ? "min-h-7 min-w-7 rounded-lg"
-      : "min-h-11 min-w-11 rounded-full";
-
-  return (
-    <div ref={wrapRef} className="relative shrink-0">
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center justify-center border border-border bg-surface text-body transition hover:bg-surface-elevated ${triggerSize}`}
-      >
-        <MoreHorizontal className={size === "compact" ? "size-3.5" : "size-4"} aria-hidden />
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute bottom-full right-0 z-30 mb-2 min-w-[13rem] overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
-        >
-          {items.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                item.onClick();
-              }}
-              className={`block w-full px-4 py-2.5 text-left text-sm font-medium transition hover:bg-surface-elevated ${
-                item.danger ? "text-error" : "text-body"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * Unified Mis Anuncios card for both viewports. A single-room post renders as one card
- * with a lime accent; a multi-room property renders with a forest accent plus a rooms
- * accordion where each room carries its own occupancy switch.
- */
 export function ListingPropertyCard({
   propertyId,
   head,
@@ -180,6 +100,7 @@ export function ListingPropertyCard({
     : listingPublicPath(first.id);
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
   const canShare = propSt === "published";
+  const canArchive = propSt === "draft" || propSt === "published" || propSt === "paused";
 
   // The header switch always tracks publication. For property posts, pausing also
   // marks every available room as occupied after the user confirms the room list.
@@ -194,26 +115,6 @@ export function ListingPropertyCard({
     const result = await shareListingLink(path, title);
     if (result === "shared" || result === "copied") onShared(result);
     else if (result === "failed") onShareFailed();
-  }
-
-  const propertyMenuItems: { key: string; label: string; onClick: () => void; danger?: boolean }[] =
-    [];
-  // Pausar / Republicar live on the card On/Off toggle — keep only archive lifecycle here.
-  if (propSt === "archived") {
-    propertyMenuItems.push({
-      key: "restore",
-      label: "Restaurar",
-      onClick: () =>
-        isProperty ? onPropertyActive(true) : onPropertyStatus("published"),
-    });
-  }
-  if (propSt === "published" || propSt === "paused") {
-    propertyMenuItems.push({
-      key: "archive",
-      label: isProperty ? "Archivar propiedad" : "Archivar anuncio",
-      onClick: onArchiveProperty,
-      danger: true,
-    });
   }
 
   return (
@@ -380,9 +281,27 @@ export function ListingPropertyCard({
               icon={<Share2 className="size-4 shrink-0" aria-hidden />}
             />
           ) : null}
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 pl-2">
-            <CardMenu label="Más acciones" items={propertyMenuItems} />
-            {isProperty ? (
+          {canArchive ? (
+            <CardAction
+              tone={tone}
+              label="Archivar"
+              disabled={propertyBusy}
+              onClick={onArchiveProperty}
+              icon={<Trash2 className="size-4 shrink-0" aria-hidden />}
+            />
+          ) : null}
+          {propSt === "archived" ? (
+            <CardAction
+              tone={tone}
+              label="Restaurar"
+              disabled={propertyBusy}
+              onClick={() =>
+                isProperty ? onPropertyActive(true) : onPropertyStatus("published")
+              }
+            />
+          ) : null}
+          {isProperty ? (
+            <div className="ml-auto flex shrink-0 items-center pl-2">
               <CardAction
                 tone={tone}
                 label="Recámaras"
@@ -395,8 +314,8 @@ export function ListingPropertyCard({
                   />
                 }
               />
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -409,27 +328,6 @@ export function ListingPropertyCard({
             const label = roomTitle(l);
             const busy = rowBusy(l);
             const roomPath = `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`;
-            // Property rooms use occupancy (On/Off) for search visibility — no per-room Pausar.
-            const roomMenuItems: {
-              key: string;
-              label: string;
-              onClick: () => void;
-              danger?: boolean;
-            }[] = [];
-            if (roomSt === "archived") {
-              roomMenuItems.push({
-                key: "restore",
-                label: "Restaurar recámara",
-                onClick: () => onRestoreRoom(l),
-              });
-            } else {
-              roomMenuItems.push({
-                key: "archive",
-                label: "Archivar recámara",
-                onClick: () => onArchiveRoom(l),
-                danger: true,
-              });
-            }
 
             return (
               <li key={l.id} className={`px-4 py-3 ${busy ? "opacity-60" : ""}`}>
@@ -486,7 +384,24 @@ export function ListingPropertyCard({
                           icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
                         />
                       ) : null}
-                      <CardMenu label={`Más acciones de ${label}`} size="compact" items={roomMenuItems} />
+                      {roomSt === "archived" ? (
+                        <CardAction
+                          tone={tone}
+                          size="compact"
+                          label="Restaurar"
+                          disabled={busy}
+                          onClick={() => onRestoreRoom(l)}
+                        />
+                      ) : (
+                        <CardAction
+                          tone={tone}
+                          size="compact"
+                          label="Archivar"
+                          disabled={busy || propSt === "archived"}
+                          onClick={() => onArchiveRoom(l)}
+                          icon={<Trash2 className="size-3.5 shrink-0" aria-hidden />}
+                        />
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-center gap-2">

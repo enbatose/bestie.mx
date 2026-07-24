@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Home, RefreshCw, Search, X } from "lucide-react";
+import { Home, RefreshCw, Search, X } from "lucide-react";
 import { AppConfirmDialog } from "@/components/AppConfirmDialog";
 import { ListingPropertyCard } from "@/components/myListings/ListingPropertyCard";
 import {
@@ -43,13 +43,14 @@ type PendingConfirm =
   | { kind: "deactivate-property"; propertyId: string; rooms: PropertyListing[] }
   | null;
 
-/** Primary hub tabs — published vs drafts. Pausados/Archivados stay secondary. */
-type ListingsTab = "published" | "draft";
+/** Primary hub tabs — archived, published, drafts. Pausados stay secondary under Publicados. */
+type ListingsTab = "archived" | "published" | "draft";
 
 const PRIMARY_TABS: readonly {
   key: ListingsTab;
   title: string;
 }[] = [
+  { key: "archived", title: "Archivados" },
   { key: "published", title: "Publicados" },
   { key: "draft", title: "Borradores" },
 ];
@@ -192,23 +193,19 @@ export function MyListingsPage() {
 
   const tabCounts = useMemo(
     () => ({
+      archived: groupsByStatus.archived.length,
       published: groupsByStatus.published.length,
       draft: groupsByStatus.draft.length,
     }),
     [groupsByStatus],
   );
 
-  /** The result counter only speaks for the two tabs; paused/archived are extra sections. */
-  const matchCount = tabCounts.published + tabCounts.draft;
+  const matchCount = tabCounts.archived + tabCounts.published + tabCounts.draft;
 
   const resolvedTab: ListingsTab = activeTab ?? "published";
 
   const pausedSection = useMemo(
     () => MY_LISTINGS_SECTIONS.find((s) => s.key === "paused")!,
-    [],
-  );
-  const archivedSection = useMemo(
-    () => MY_LISTINGS_SECTIONS.find((s) => s.key === "archived")!,
     [],
   );
 
@@ -234,7 +231,10 @@ export function MyListingsPage() {
   /** Pick a sensible default tab once listings load (prefer publicados, else borradores). */
   useEffect(() => {
     if (activeTab !== null || rows === null) return;
-    setActiveTab(allCounts.published === 0 && allCounts.draft > 0 ? "draft" : "published");
+    if (allCounts.published > 0 || allCounts.paused > 0) setActiveTab("published");
+    else if (allCounts.draft > 0) setActiveTab("draft");
+    else if (allCounts.archived > 0) setActiveTab("archived");
+    else setActiveTab("published");
   }, [activeTab, rows, allCounts]);
 
   useEffect(() => {
@@ -311,13 +311,15 @@ export function MyListingsPage() {
       track("my_listing_status_changed", { listing_id: l.id, status });
       await load();
       if (status === "paused") setFlash({ text: "Anuncio pausado. Puedes republicarlo cuando quieras." });
-      else if (status === "archived") setFlash({ text: "Anuncio archivado. Lo encuentras en Archivados." });
-      else
+      else if (status === "archived") setFlash({ text: "Recámara archivada." });
+      else {
+        setActiveTab("published");
         setFlash({
           text: "El anuncio ya está publicado.",
           to: listingPublicPath(l.id),
           linkText: "Ver anuncio publicado",
         });
+      }
     } catch (e) {
       setPropertyError(l.propertyId, e, "No se pudo actualizar el anuncio.");
     } finally {
@@ -335,13 +337,17 @@ export function MyListingsPage() {
       await updateProperty(propertyId, { status });
       await load();
       if (status === "paused") setFlash({ text: "Propiedad pausada. Puedes republicarla cuando quieras." });
-      else if (status === "archived") setFlash({ text: "Propiedad archivada. La encuentras en Archivados." });
-      else
+      else if (status === "archived") {
+        setActiveTab("archived");
+        setFlash({ text: "Propiedad archivada. La encuentras en Archivados." });
+      } else {
+        setActiveTab("published");
         setFlash({
           text: "La propiedad ya está publicada.",
           to: publicListingId ? listingPublicPath(publicListingId) : undefined,
           linkText: "Ver publicación",
         });
+      }
     } catch (e) {
       setPropertyError(propertyId, e, "No se pudo actualizar la propiedad.");
     } finally {
@@ -457,6 +463,7 @@ export function MyListingsPage() {
       }
       await updateProperty(propertyId, { status: "published" });
       await load();
+      setActiveTab("published");
       setFlash({
         text: `Propiedad publicada. ${ready.length} recámara${ready.length === 1 ? "" : "s"} disponible${
           ready.length === 1 ? "" : "s"
@@ -654,11 +661,12 @@ export function MyListingsPage() {
   }
 
   const activeTabMeta = PRIMARY_TABS.find((t) => t.key === resolvedTab)!;
-  const otherTabMeta = PRIMARY_TABS.find((t) => t.key !== resolvedTab)!;
-  const otherTabMatches = tabCounts[otherTabMeta.key];
+  const otherTabWithMatches = PRIMARY_TABS.find(
+    (t) => t.key !== resolvedTab && tabCounts[t.key] > 0,
+  );
+  const otherTabMatches = otherTabWithMatches ? tabCounts[otherTabWithMatches.key] : 0;
   const activeGroups = groupsByStatus[resolvedTab];
   const pausedGroups = groupsByStatus.paused;
-  const archivedGroups = groupsByStatus.archived;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-6xl">
@@ -790,7 +798,7 @@ export function MyListingsPage() {
                     ? "Sin resultados"
                     : `${matchCount} resultado${matchCount === 1 ? "" : "s"}`}
                   {matchCount > 0
-                    ? ` · ${tabCounts.published} en Publicados · ${tabCounts.draft} en Borradores`
+                    ? ` · ${tabCounts.archived} en Archivados · ${tabCounts.published} en Publicados · ${tabCounts.draft} en Borradores`
                     : ""}
                 </p>
               ) : null}
@@ -844,22 +852,22 @@ export function MyListingsPage() {
                 ) : searching ? (
                   <div className="rounded-2xl border border-border bg-surface px-4 py-8 text-center shadow-sm">
                     <p className="text-sm font-medium text-body">
-                      {otherTabMatches > 0
+                      {otherTabWithMatches
                         ? `Sin coincidencias en ${activeTabMeta.title}.`
                         : `Ningún anuncio coincide con “${query.trim()}”.`}
                     </p>
                     <p className="mt-1 text-sm text-muted">
-                      {otherTabMatches > 0
-                        ? `Hay ${otherTabMatches} coincidencia${otherTabMatches === 1 ? "" : "s"} en ${otherTabMeta.title}.`
+                      {otherTabWithMatches
+                        ? `Hay ${otherTabMatches} coincidencia${otherTabMatches === 1 ? "" : "s"} en ${otherTabWithMatches.title}.`
                         : "Prueba con la colonia, la ciudad o el monto de renta."}
                     </p>
-                    {otherTabMatches > 0 ? (
+                    {otherTabWithMatches ? (
                       <button
                         type="button"
-                        onClick={() => setActiveTab(otherTabMeta.key)}
+                        onClick={() => setActiveTab(otherTabWithMatches.key)}
                         className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
                       >
-                        Ver {otherTabMeta.title}
+                        Ver {otherTabWithMatches.title}
                       </button>
                     ) : (
                       <button
@@ -876,14 +884,18 @@ export function MyListingsPage() {
                     <p className="text-sm font-medium text-body">
                       {resolvedTab === "published"
                         ? "No tienes anuncios publicados."
-                        : "No tienes borradores."}
+                        : resolvedTab === "draft"
+                          ? "No tienes borradores."
+                          : "No tienes anuncios archivados."}
                     </p>
                     <p className="mt-1 text-sm text-muted">
                       {resolvedTab === "published"
                         ? "Publica un borrador o crea un anuncio nuevo."
-                        : "Guarda un anuncio desde Publicar para retomarlo aquí."}
+                        : resolvedTab === "draft"
+                          ? "Guarda un anuncio desde Publicar para retomarlo aquí."
+                          : "Los anuncios que archives aparecerán en esta pestaña."}
                     </p>
-                    {resolvedTab === "draft" && tabCounts.published > 0 ? (
+                    {resolvedTab === "archived" && tabCounts.published > 0 ? (
                       <button
                         type="button"
                         onClick={() => setActiveTab("published")}
@@ -891,14 +903,22 @@ export function MyListingsPage() {
                       >
                         Ver publicados
                       </button>
-                    ) : (
+                    ) : resolvedTab === "draft" && tabCounts.published > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("published")}
+                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+                      >
+                        Ver publicados
+                      </button>
+                    ) : resolvedTab !== "archived" ? (
                       <Link
                         to="/publicar"
                         className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99]"
                       >
                         Publicar anuncio
                       </Link>
-                    )}
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -917,25 +937,6 @@ export function MyListingsPage() {
                 </div>
                 {renderPropertyGroups(pausedGroups)}
               </div>
-            ) : null}
-
-            {archivedGroups.length > 0 ? (
-              <details className="group">
-                <summary className="mb-4 flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-border pb-3 marker:content-none [&::-webkit-details-marker]:hidden">
-                  <ChevronDown
-                    className="size-4 shrink-0 text-muted transition group-open:rotate-180"
-                    aria-hidden
-                  />
-                  <h2 className="text-lg font-semibold text-body">{archivedSection.title}</h2>
-                  <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
-                    {archivedGroups.length}
-                  </span>
-                  <span className="text-sm text-muted group-open:hidden">Mostrar</span>
-                  <span className="hidden text-sm text-muted group-open:inline">Ocultar</span>
-                  <p className="w-full text-sm text-muted">{archivedSection.description}</p>
-                </summary>
-                {renderPropertyGroups(archivedGroups)}
-              </details>
             ) : null}
           </>
         )}
@@ -965,6 +966,7 @@ export function MyListingsPage() {
             setActionPropertyId(propertyIdToPublish);
             void updateProperty(propertyIdToPublish, { status: "published" })
               .then(async () => {
+                setActiveTab("published");
                 setFlash({ text: `Propiedad publicada. ${message}` });
                 await load();
               })
