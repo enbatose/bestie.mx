@@ -183,18 +183,26 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 /**
  * Sliding On/Off switch with label inside the track.
  *
- * Vertical centering: flex `items-center` + `p-1` (not absolute top-1/2), so the
- * knob is always optically centered in the track regardless of border width.
- * Brand: lime track when on, forest text/ring, soft lime glow — Bestie tokens.
+ * Vertical centering: flex `items-center` + `p-1`.
+ * On color by post type: property → forest (primary); single room → lime (secondary).
  */
 function OnOffToggle({
   active,
   onChange,
+  tone = "room",
 }: {
   active: boolean;
   onChange: (next: boolean) => void;
   tone?: CardTone;
 }) {
+  const onTrack =
+    tone === "property"
+      ? "border-primary bg-primary shadow-[0_0_0_3px_rgba(20,61,48,0.18)]"
+      : "border-secondary/80 bg-secondary shadow-[0_0_0_3px_rgba(132,204,22,0.22)]";
+  const onLabel = tone === "property" ? "text-primary-fg" : "text-primary";
+  const focusRing =
+    tone === "property" ? "focus-visible:ring-primary/40" : "focus-visible:ring-secondary/50";
+
   return (
     <button
       type="button"
@@ -203,40 +211,26 @@ function OnOffToggle({
       aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
       title={active ? "On — visible" : "Off — pausada"}
       onClick={() => onChange(!active)}
-      className={`relative inline-flex h-9 w-[4.5rem] shrink-0 items-center rounded-full border p-1 transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${
-        active
-          ? "border-secondary/80 bg-secondary shadow-[0_0_0_3px_rgba(132,204,22,0.22)]"
-          : "border-primary/20 bg-primary/[0.06]"
+      className={`relative inline-flex h-9 w-[4.5rem] shrink-0 items-center rounded-full border p-1 transition duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRing} ${
+        active ? onTrack : "border-primary/20 bg-primary/[0.06]"
       }`}
     >
-      {/* Label in the open half (opposite the knob). */}
       <span
         className={`pointer-events-none absolute inset-y-0 z-0 flex items-center text-[10px] font-bold uppercase tracking-wide ${
-          active ? "left-0 pl-2.5 text-primary" : "right-0 pr-2 text-primary/45"
+          active ? `left-0 pl-2.5 ${onLabel}` : "right-0 pr-2 text-primary/45"
         }`}
         aria-hidden
       >
         {active ? "On" : "Off"}
       </span>
-      {/*
-        Knob: flex-centered vertically via parent items-center + p-1.
-        Travel 2.375rem = track (4.5rem) − padding (0.5rem) − borders (~2px) − knob (1.5rem).
-      */}
       <span
-        className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+        className={`relative z-10 size-6 shrink-0 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
           active
             ? "translate-x-[2.375rem] ring-2 ring-primary/20"
             : "translate-x-0 ring-1 ring-primary/10"
         }`}
         aria-hidden
-      >
-        {/* Tiny lime pip when On — playful Bestie accent without clutter. */}
-        <span
-          className={`size-1.5 rounded-full transition-colors duration-200 ${
-            active ? "bg-secondary" : "bg-primary/20"
-          }`}
-        />
-      </span>
+      />
     </button>
   );
 }
@@ -412,7 +406,7 @@ function ProposedSingleRoomCard({
         <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
           <div className="shrink-0 border-l border-border pl-3">
-            <OnOffToggle active={active} onChange={setActive} />
+            <OnOffToggle active={active} onChange={setActive} tone={tone} />
           </div>
         </div>
       </div>
@@ -485,7 +479,7 @@ function ProposedPropertyCard({
             onToggleRooms={() => setOpen((v) => !v)}
           />
           <div className="shrink-0 border-l border-border pl-3">
-            <OnOffToggle active={active} onChange={setActive} />
+            <OnOffToggle active={active} onChange={setActive} tone={tone} />
           </div>
         </div>
       </div>
