@@ -221,15 +221,15 @@ function OnOffToggle({
         aria-hidden
       >
         <span
-          className={`absolute left-1.5 z-0 text-[11px] font-bold uppercase tracking-wide transition-opacity ${
-            active ? `${labelOn} opacity-100` : "text-primary/35 opacity-70"
+          className={`absolute left-1.5 z-0 text-[11px] font-bold uppercase tracking-wide ${labelOn} ${
+            active ? "opacity-100" : "invisible"
           }`}
         >
           On
         </span>
         <span
-          className={`absolute right-1.5 z-0 text-[11px] font-bold uppercase tracking-wide transition-opacity ${
-            active ? `${labelOn} opacity-40` : "text-primary/55 opacity-100"
+          className={`absolute right-1.5 z-0 text-[11px] font-bold uppercase tracking-wide text-primary/70 ${
+            active ? "invisible" : "opacity-100"
           }`}
         >
           Off
