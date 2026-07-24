@@ -158,7 +158,7 @@ function LabeledAction({
       : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
   const sizeClass =
     size === "compact"
-      ? "min-h-9 gap-1 rounded-full px-2.5 text-[11px]"
+      ? "min-h-7 gap-1 rounded-lg px-2 py-0.5 text-[11px] leading-none"
       : "min-h-11 gap-1.5 rounded-full px-3 text-xs";
   return (
     <button
