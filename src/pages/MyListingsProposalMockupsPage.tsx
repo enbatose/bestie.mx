@@ -181,10 +181,8 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 }
 
 /**
- * Sliding On/Off switch with label inside the track.
- *
- * Vertical centering: flex `items-center` + `p-1`.
- * On color by post type: property → forest (primary); single room → lime (secondary).
+ * Sliding On/Off: compact recessed rail for the knob; tiny On/Off end labels.
+ * Property On → forest; single room On → lime.
  */
 function OnOffToggle({
   active,
@@ -195,11 +193,11 @@ function OnOffToggle({
   onChange: (next: boolean) => void;
   tone?: CardTone;
 }) {
-  const onTrack =
+  const onShell =
     tone === "property"
       ? "border-primary bg-primary shadow-[0_0_0_3px_rgba(20,61,48,0.18)]"
       : "border-secondary/80 bg-secondary shadow-[0_0_0_3px_rgba(132,204,22,0.22)]";
-  const onLabel = tone === "property" ? "text-primary-fg" : "text-primary";
+  const labelOn = tone === "property" ? "text-primary-fg" : "text-primary";
   const focusRing =
     tone === "property" ? "focus-visible:ring-primary/40" : "focus-visible:ring-secondary/50";
 
@@ -211,26 +209,39 @@ function OnOffToggle({
       aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
       title={active ? "On — visible" : "Off — pausada"}
       onClick={() => onChange(!active)}
-      className={`relative inline-flex h-9 w-[4.5rem] shrink-0 items-center rounded-full border p-1 transition duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRing} ${
-        active ? onTrack : "border-primary/20 bg-primary/[0.06]"
+      className={`relative inline-flex h-9 w-[4.75rem] shrink-0 items-center rounded-full border p-[3px] transition duration-200 focus-visible:outline-none focus-visible:ring-2 ${focusRing} ${
+        active ? onShell : "border-primary/20 bg-primary/[0.06]"
       }`}
     >
+      {/* Recessed rail — the path the knob travels L → R */}
       <span
-        className={`pointer-events-none absolute inset-y-0 z-0 flex items-center text-[10px] font-bold uppercase tracking-wide ${
-          active ? `left-0 pl-2.5 ${onLabel}` : "right-0 pr-2 text-primary/45"
+        className={`relative flex h-full w-full items-center rounded-full px-1 ${
+          active ? "bg-black/10" : "bg-primary/[0.08]"
         }`}
         aria-hidden
       >
-        {active ? "On" : "Off"}
+        <span
+          className={`absolute left-1.5 z-0 text-[8px] font-bold uppercase tracking-wide transition-opacity ${
+            active ? `${labelOn} opacity-100` : "text-primary/35 opacity-70"
+          }`}
+        >
+          On
+        </span>
+        <span
+          className={`absolute right-1.5 z-0 text-[8px] font-bold uppercase tracking-wide transition-opacity ${
+            active ? `${labelOn} opacity-40` : "text-primary/55 opacity-100"
+          }`}
+        >
+          Off
+        </span>
+        <span
+          className={`relative z-10 size-6 shrink-0 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+            active
+              ? "translate-x-[2.4rem] ring-2 ring-white/30"
+              : "translate-x-0 ring-1 ring-primary/10"
+          }`}
+        />
       </span>
-      <span
-        className={`relative z-10 size-6 shrink-0 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
-          active
-            ? "translate-x-[2.375rem] ring-2 ring-primary/20"
-            : "translate-x-0 ring-1 ring-primary/10"
-        }`}
-        aria-hidden
-      />
     </button>
   );
 }
