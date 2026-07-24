@@ -188,9 +188,10 @@ function CardSharedTop({
 }) {
   return (
     <div className="min-h-0 min-w-0 flex-1">
-      <div className="flex min-h-8 flex-wrap items-center gap-2">
-        {labels}
-        <div className="ml-auto shrink-0 self-center">
+      {/* Labels + toggle: shared row midpoint (toggle h-8 matches compact chips). */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="flex min-h-8 flex-wrap items-center gap-2">{labels}</div>
+        <div className="flex h-8 items-center justify-end">
           <OnOffToggle active={active} onChange={onActiveChange} tone={tone} />
         </div>
       </div>
@@ -246,8 +247,8 @@ function OnOffToggle({
 }) {
   const onShell =
     tone === "property"
-      ? "border-primary bg-primary shadow-[0_0_0_2px_rgba(20,61,48,0.16)]"
-      : "border-secondary/80 bg-secondary shadow-[0_0_0_2px_rgba(132,204,22,0.2)]";
+      ? "border-primary bg-primary"
+      : "border-secondary/80 bg-secondary";
   const labelOn = tone === "property" ? "text-primary-fg" : "text-primary";
   const focusRing =
     tone === "property" ? "focus-visible:ring-primary/40" : "focus-visible:ring-secondary/50";
