@@ -161,8 +161,8 @@ function IconAction({
   );
 }
 
-/** Shared middle band so Cuarto and Propiedad place the photo the same way. */
-const CARD_MIDDLE_ROW = "mt-2 flex min-h-[6.75rem] items-start gap-3";
+/** Shared middle band — photo vertically centered (Propiedad-style) on both cards. */
+const CARD_MIDDLE_ROW = "mt-2 flex min-h-[6.75rem] items-center gap-3";
 
 /** Compact share — bottom-right; tone only changes accent color. */
 function ShareUnderPhoto({ tone }: { tone: CardTone }) {
@@ -399,7 +399,7 @@ function ProposedSingleRoomCard({
                 <OnOffToggle active={active} onChange={setActive} tone={tone} />
               </div>
             </div>
-          {/* Level 2: fixed-height middle band — photo top-aligned with title (same on both cards) */}
+          {/* Level 2: same band height; photo centered like Propiedad */}
           <div className={CARD_MIDDLE_ROW}>
             <div className="min-w-0 flex-1">
               <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
