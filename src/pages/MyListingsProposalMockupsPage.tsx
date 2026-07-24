@@ -281,23 +281,17 @@ function ListingActionRow({
   );
 }
 
-function PhotoColumn({
-  tone,
+function PhotoThumb({
   src,
   badge,
 }: {
-  tone: CardTone;
   src?: string;
   badge?: ReactNode;
 }) {
   return (
-    <div className="flex w-[4.25rem] shrink-0 flex-col gap-2">
-      <div className="relative">
-        <ListingThumb src={src ?? PLACEHOLDER} className="size-[4.25rem] rounded-xl" />
-        {badge}
-      </div>
-      {/* Share under photo; On/Off lives in the header chip row. */}
-      <ShareUnderPhoto tone={tone} />
+    <div className="relative shrink-0">
+      <ListingThumb src={src ?? PLACEHOLDER} className="size-[4.25rem] rounded-xl" />
+      {badge}
     </div>
   );
 }
@@ -371,7 +365,7 @@ function CurrentSingleRoomPain() {
   );
 }
 
-/** Proposed flat single-room card — photo top-right; On/Off in header with chips. */
+/** Proposed flat single-room card — photo beside title; Share bottom-right. */
 function ProposedSingleRoomCard({
   room,
   active: controlledActive,
@@ -392,32 +386,39 @@ function ProposedSingleRoomCard({
       }`}
     >
       <div className={CARD_SHELL}>
-        <div className="flex min-h-0 min-w-0 flex-1 items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex min-h-8 flex-wrap items-center gap-2">
-              <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
-              <ListingStatusBadge status={status} />
-              <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
-              <div className="ml-auto shrink-0">
-                <OnOffToggle active={active} onChange={setActive} tone={tone} />
-              </div>
-            </div>
-            <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body">
-              {room.name}
-            </h3>
-            <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              {room.rentLabel ? (
-                <span className="text-sm font-semibold text-body">{room.rentLabel}</span>
-              ) : null}
-              <span className="text-xs text-muted">{room.metrics}</span>
+        <div className="min-h-0 min-w-0 flex-1">
+          {/* Level 1: chips + On/Off */}
+          <div className="flex min-h-8 flex-wrap items-center gap-2">
+            <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
+            <ListingStatusBadge status={status} />
+            <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
+            <div className="ml-auto shrink-0">
+              <OnOffToggle active={active} onChange={setActive} tone={tone} />
             </div>
           </div>
-          <PhotoColumn tone={tone} src={room.thumb} />
+          {/* Level 2: title/meta + photo aligned to this row */}
+          <div className="mt-2 flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
+                {room.name}
+              </h3>
+              <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
+              <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                {room.rentLabel ? (
+                  <span className="text-sm font-semibold text-body">{room.rentLabel}</span>
+                ) : null}
+                <span className="text-xs text-muted">{room.metrics}</span>
+              </div>
+            </div>
+            <PhotoThumb src={room.thumb} />
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
+          <div className="w-[4.25rem] shrink-0">
+            <ShareUnderPhoto tone={tone} />
+          </div>
         </div>
       </div>
     </article>
@@ -450,47 +451,51 @@ function ProposedPropertyCard({
       }`}
     >
       <div className={CARD_SHELL}>
-        <div className="flex min-h-0 min-w-0 flex-1 items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex min-h-8 flex-wrap items-center gap-2">
-              <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
-              <ListingStatusBadge status={status} noun="property" />
-              <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
-              <div className="ml-auto shrink-0">
-                <OnOffToggle active={active} onChange={setActive} tone={tone} />
-              </div>
+        <div className="min-h-0 min-w-0 flex-1">
+          <div className="flex min-h-8 flex-wrap items-center gap-2">
+            <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
+            <ListingStatusBadge status={status} noun="property" />
+            <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
+            <div className="ml-auto shrink-0">
+              <OnOffToggle active={active} onChange={setActive} tone={tone} />
             </div>
-            <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body">
-              Casa amplia en Mezquitán Country
-            </h3>
-            <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
-            <p className="mt-2 text-sm text-body">
-              <span className="font-semibold">{rooms.length} recámaras</span>
-              <span className="text-muted">
-                {" "}
-                · {available} disponible{available === 1 ? "" : "s"} · {occupied} ocupada
-                {occupied === 1 ? "" : "s"}
-              </span>
-            </p>
-            <p className="mt-1 text-xs text-muted">23 vistas · 3 mensajes (suma)</p>
           </div>
-          <PhotoColumn
-            tone={tone}
-            badge={
-              <span className="absolute -bottom-1 -left-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
-                {rooms.length}
-              </span>
-            }
-          />
+          <div className="mt-2 flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="line-clamp-2 text-base font-semibold leading-snug text-body">
+                Casa amplia en Mezquitán Country
+              </h3>
+              <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
+              <p className="mt-2 text-sm text-body">
+                <span className="font-semibold">{rooms.length} recámaras</span>
+                <span className="text-muted">
+                  {" "}
+                  · {available} disponible{available === 1 ? "" : "s"} · {occupied} ocupada
+                  {occupied === 1 ? "" : "s"}
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-muted">23 vistas · 3 mensajes (suma)</p>
+            </div>
+            <PhotoThumb
+              badge={
+                <span className="absolute -bottom-1 -left-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
+                  {rooms.length}
+                </span>
+              }
+            />
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center border-t border-border/60 pt-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border/60 pt-3">
           <ListingActionRow
             tone={tone}
             roomCount={rooms.length}
             roomsOpen={open}
             onToggleRooms={() => setOpen((v) => !v)}
           />
+          <div className="w-[4.25rem] shrink-0">
+            <ShareUnderPhoto tone={tone} />
+          </div>
         </div>
       </div>
 
@@ -591,8 +596,7 @@ function HubComposition() {
         )}
       </div>
       <p className="mt-3 text-xs text-muted">
-        Foto a la derecha (tope alineado) · Share bajo la foto · On/Off en el header con el ID.
-        ID primero.
+        Foto alineada al título · Share abajo a la derecha · On/Off en el header con el ID.
       </p>
     </div>
   );
@@ -715,7 +719,7 @@ export function MyListingsProposalMockupsPage() {
           Menos ruido, más control por tipo de post
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Foto a la derecha (tope alineado) · On/Off en el header junto al ID · Share bajo la foto.
+          Foto alineada al título · On/Off en el header · Share abajo a la derecha.
         </p>
       </header>
 
@@ -765,7 +769,7 @@ export function MyListingsProposalMockupsPage() {
           <ProposalBadge tone="room">Cuarto</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          ID primero · foto alineada al tope · On/Off en el header · Share bajo la foto.
+          ID primero · foto alineada al título · On/Off en el header · Share abajo a la derecha.
         </p>
 
         {!isMobile ? (
