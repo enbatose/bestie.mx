@@ -2,9 +2,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronDown,
-  Home,
+  Eye,
   LayoutGrid,
   MoreHorizontal,
+  Pause,
+  Pencil,
   RefreshCw,
   Smartphone,
 } from "lucide-react";
@@ -23,6 +25,13 @@ const MOCK_PATH = "/mockups/mis-anuncios-proposal";
 const MOCK_MOBILE_PATH = `${MOCK_PATH}?v=mobile`;
 const MOCK_DESKTOP_PATH = `${MOCK_PATH}?v=desktop`;
 
+/** Shared collapsed-card body so Cuarto and Propiedad shells match. */
+function cardShellClass(compact: boolean): string {
+  return compact
+    ? "flex min-h-[11.5rem] flex-col justify-between gap-3 p-4"
+    : "flex min-h-[10.5rem] flex-row items-stretch gap-4 p-4";
+}
+
 const PLACEHOLDER =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -40,6 +49,7 @@ type MockRoom = {
 };
 
 type Viewport = "desktop" | "mobile";
+type CardTone = "room" | "property";
 
 const MOCK_SINGLE: MockRoom = {
   id: "A11111111",
@@ -99,11 +109,84 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
   },
 ];
 
-function ProposalBadge({ children }: { children: string }) {
+function toneShell(tone: CardTone): string {
+  // Dark green = property (primary). Light green = single room (secondary).
+  return tone === "property"
+    ? "border-primary/40 border-l-primary bg-primary/[0.04]"
+    : "border-secondary/50 border-l-secondary bg-secondary/10";
+}
+
+function ProposalBadge({ children, tone }: { children: string; tone: CardTone }) {
   return (
-    <span className="inline-flex rounded-full bg-secondary/20 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+        tone === "property"
+          ? "bg-primary text-primary-fg"
+          : "bg-secondary text-primary"
+      }`}
+    >
       {children}
     </span>
+  );
+}
+
+function IconAction({
+  label,
+  onClick,
+  tone,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  tone: CardTone;
+  children: ReactNode;
+}) {
+  const ring =
+    tone === "property"
+      ? "border-primary/25 bg-primary/10 text-primary hover:bg-primary/15"
+      : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border transition ${ring}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TextAction({
+  children,
+  tone,
+  primary = false,
+  onClick,
+}: {
+  children: ReactNode;
+  tone: CardTone;
+  primary?: boolean;
+  onClick?: () => void;
+}) {
+  const primaryCls =
+    tone === "property"
+      ? "bg-primary text-primary-fg hover:brightness-110"
+      : "bg-secondary text-primary hover:brightness-95";
+  const secondaryCls =
+    tone === "property"
+      ? "border-primary/30 bg-surface text-primary hover:bg-primary/5"
+      : "border-secondary/50 bg-surface text-primary hover:bg-secondary/15";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition ${
+        primary ? primaryCls : `border ${secondaryCls}`
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -163,86 +246,112 @@ function CurrentSingleRoomPain() {
   );
 }
 
-function ProposedSingleRoomCard({ room }: { room: MockRoom }) {
+/** Proposed flat single-room card — lime accent. */
+function ProposedSingleRoomCard({
+  room,
+  iconActions = false,
+}: {
+  room: MockRoom;
+  iconActions?: boolean;
+}) {
+  const tone: CardTone = "room";
   return (
-    <article className="rounded-2xl border border-border border-l-4 border-l-primary/50 bg-surface shadow-sm">
-      <div className="flex gap-3 p-4 sm:gap-4">
-        <ListingThumb src={room.thumb} className="size-16 shrink-0 rounded-xl sm:size-24" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <ListingStatusBadge status={room.status} />
-            <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
-            <ProposalBadge>Cuarto</ProposalBadge>
-          </div>
-          <h3 className="mt-2 text-base font-semibold leading-snug text-body sm:text-lg">{room.name}</h3>
-          <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            {room.rentLabel ? (
-              <span className="text-sm font-semibold text-body">{room.rentLabel}</span>
-            ) : null}
-            <span className="text-xs text-muted">{room.metrics}</span>
+    <article className={`rounded-2xl border border-l-4 shadow-sm ${toneShell(tone)}`}>
+      <div className={cardShellClass(iconActions)}>
+        <div className="flex min-w-0 flex-1 gap-3">
+          <ListingThumb
+            src={room.thumb}
+            className={`size-16 shrink-0 rounded-xl ${iconActions ? "" : "sm:size-[4.5rem]"}`}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <ListingStatusBadge status={room.status} />
+              <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
+              <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
+            </div>
+            <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body sm:text-lg">
+              {room.name}
+            </h3>
+            <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
+            <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {room.rentLabel ? (
+                <span className="text-sm font-semibold text-body">{room.rentLabel}</span>
+              ) : null}
+              <span className="text-xs text-muted">{room.metrics}</span>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 border-t border-border px-4 py-3 sm:flex sm:flex-wrap">
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary hover:bg-primary/15"
-        >
-          Editar
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
-        >
-          Ver publicación
-        </button>
-        <button
-          type="button"
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
-        >
-          Pausar
-        </button>
-        <button
-          type="button"
-          aria-label="Más acciones"
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border text-body hover:bg-surface-elevated"
-        >
-          <MoreHorizontal className="size-4" aria-hidden />
-        </button>
+
+        {/* Mobile mockup: icons · Desktop: horizontal text (no vertical stack) */}
+        <div className="flex shrink-0 items-end">
+          {iconActions ? (
+            <div className="flex flex-nowrap items-center gap-1.5">
+              <IconAction label="Editar" tone={tone}>
+                <Pencil className="size-4" aria-hidden />
+              </IconAction>
+              <IconAction label="Ver publicación" tone={tone}>
+                <Eye className="size-4" aria-hidden />
+              </IconAction>
+              <IconAction label="Pausar" tone={tone}>
+                <Pause className="size-4" aria-hidden />
+              </IconAction>
+              <IconAction label="Más acciones" tone={tone}>
+                <MoreHorizontal className="size-4" aria-hidden />
+              </IconAction>
+            </div>
+          ) : (
+            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+              <TextAction tone={tone} primary>
+                Editar
+              </TextAction>
+              <TextAction tone={tone}>Ver publicación</TextAction>
+              <TextAction tone={tone}>Pausar</TextAction>
+              <IconAction label="Más acciones" tone={tone}>
+                <MoreHorizontal className="size-4" aria-hidden />
+              </IconAction>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );
 }
 
+/** Proposed compact property — forest accent; same shell size as single-room when collapsed. */
 function ProposedPropertyCard({
   rooms,
   defaultOpen = false,
+  iconActions = false,
 }: {
   rooms: MockRoom[];
   defaultOpen?: boolean;
+  iconActions?: boolean;
 }) {
+  const tone: CardTone = "property";
   const [open, setOpen] = useState(defaultOpen);
   const available = rooms.filter((r) => !r.occupied).length;
   const occupied = rooms.length - available;
 
   return (
-    <section className="rounded-2xl border border-border border-l-4 border-l-primary/50 bg-surface shadow-sm">
-      <div className="flex flex-col gap-4 p-4">
-        <div className="flex min-w-0 gap-3">
+    <section className={`rounded-2xl border border-l-4 shadow-sm ${toneShell(tone)}`}>
+      <div className={cardShellClass(iconActions)}>
+        <div className="flex min-w-0 flex-1 gap-3">
           <div className="relative shrink-0">
-            <ListingThumb src={PLACEHOLDER} className="size-16 rounded-xl sm:size-20" />
+            <ListingThumb
+              src={PLACEHOLDER}
+              className={`size-16 rounded-xl ${iconActions ? "" : "sm:size-[4.5rem]"}`}
+            />
             <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
               {rooms.length}
             </span>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <ListingStatusBadge status="published" noun="property" />
               <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
-              <ProposalBadge>Propiedad</ProposalBadge>
+              <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
             </div>
-            <h3 className="mt-2 text-base font-semibold leading-snug text-body sm:text-lg">
+            <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body sm:text-lg">
               Casa amplia en Mezquitán Country
             </h3>
             <p className="mt-1 text-xs text-muted">Providencia · Guadalajara</p>
@@ -257,64 +366,74 @@ function ProposedPropertyCard({
             <p className="mt-1 text-xs text-muted">23 vistas · 3 mensajes (suma)</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary hover:bg-primary/15"
-          >
-            Editar anuncio
-          </button>
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
-          >
-            Ver publicación
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-bg-light px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
-          >
-            <ChevronDown
-              className={`size-4 transition ${open ? "rotate-180" : ""}`}
-              aria-hidden
-            />
-            {open ? "Ocultar recámaras" : `Ver ${rooms.length} recámaras`}
-          </button>
+
+        <div className="flex shrink-0 items-end">
+          {iconActions ? (
+            <div className="flex flex-nowrap items-center gap-1.5">
+              <IconAction label="Editar anuncio" tone={tone}>
+                <Pencil className="size-4" aria-hidden />
+              </IconAction>
+              <IconAction label="Ver publicación" tone={tone}>
+                <Eye className="size-4" aria-hidden />
+              </IconAction>
+              <IconAction
+                label={open ? "Ocultar recámaras" : `Ver ${rooms.length} recámaras`}
+                tone={tone}
+                onClick={() => setOpen((v) => !v)}
+              >
+                <ChevronDown
+                  className={`size-4 transition ${open ? "rotate-180" : ""}`}
+                  aria-hidden
+                />
+              </IconAction>
+              <IconAction label="Más acciones" tone={tone}>
+                <MoreHorizontal className="size-4" aria-hidden />
+              </IconAction>
+            </div>
+          ) : (
+            <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
+              <TextAction tone={tone} primary>
+                Editar
+              </TextAction>
+              <TextAction tone={tone}>Ver publicación</TextAction>
+              <TextAction tone={tone} onClick={() => setOpen((v) => !v)}>
+                <span className="inline-flex items-center gap-1.5">
+                  <ChevronDown
+                    className={`size-3.5 transition ${open ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                  {open ? "Ocultar" : `${rooms.length} recámaras`}
+                </span>
+              </TextAction>
+              <IconAction label="Más acciones" tone={tone}>
+                <MoreHorizontal className="size-4" aria-hidden />
+              </IconAction>
+            </div>
+          )}
         </div>
       </div>
 
       {open ? (
-        <ul className="divide-y divide-border border-t border-border">
+        <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
-            <li key={room.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                <ListingThumb src={room.thumb} className="size-12 rounded-lg" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-body">{room.name}</p>
-                    <ListingStatusBadge status={room.status} />
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
-                  </p>
+            <li key={room.id} className="flex items-center gap-3 px-4 py-3">
+              <ListingThumb src={room.thumb} className="size-12 shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium text-body">{room.name}</p>
+                  <ListingStatusBadge status={room.status} />
                 </div>
+                <p className="mt-0.5 text-xs text-muted">
+                  {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto">
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary sm:min-h-9"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  aria-label="Más acciones"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-border sm:min-h-9 sm:min-w-9"
-                >
+              <div className="flex flex-nowrap items-center gap-1.5">
+                <IconAction label="Editar" tone={tone}>
+                  <Pencil className="size-4" aria-hidden />
+                </IconAction>
+                <IconAction label="Más acciones" tone={tone}>
                   <MoreHorizontal className="size-4" aria-hidden />
-                </button>
+                </IconAction>
               </div>
             </li>
           ))}
@@ -324,7 +443,7 @@ function ProposedPropertyCard({
   );
 }
 
-function HubComposition() {
+function HubComposition({ iconActions = false }: { iconActions?: boolean }) {
   return (
     <div className="rounded-2xl border border-border bg-bg-light/50 p-3 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
@@ -346,9 +465,14 @@ function HubComposition() {
         <p className="text-sm text-muted">Anuncios visibles para quienes buscan roomie.</p>
       </div>
       <div className="space-y-4">
-        <ProposedSingleRoomCard room={MOCK_SINGLE} />
-        <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} />
+        <ProposedSingleRoomCard room={MOCK_SINGLE} iconActions={iconActions} />
+        <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} iconActions={iconActions} />
       </div>
+      <p className="mt-3 text-xs text-muted">
+        Color: <span className="font-semibold text-secondary">lima</span> = cuarto ·{" "}
+        <span className="font-semibold text-primary">forest</span> = propiedad. Misma altura de
+        tarjeta cuando la propiedad está colapsada.
+      </p>
     </div>
   );
 }
@@ -462,13 +586,6 @@ export function MyListingsProposalMockupsPage() {
             Mobile
           </button>
         </div>
-        {isMobile ? (
-          <p className="mt-2 flex items-start gap-2 text-xs text-muted">
-            <Home className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            Modo mobile activo. En el teléfono abre{" "}
-            <span className="break-all font-mono text-[11px] text-body">{MOCK_MOBILE_PATH}</span>
-          </p>
-        ) : null}
       </div>
 
       <header className="mt-6 sm:mt-8">
@@ -477,9 +594,10 @@ export function MyListingsProposalMockupsPage() {
           Menos ruido, más control por tipo de post
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Separar la presentación de posts de <strong className="text-body">cuarto</strong> y de{" "}
-          <strong className="text-body">propiedad</strong>. Hoy ambos usan el mismo shell de
-          propiedad + tabla de recámaras; eso sobra en single-room y abruma en multi-room.
+          Tarjetas del mismo tamaño.{" "}
+          <span className="font-semibold text-secondary">Lima</span> = cuarto ·{" "}
+          <span className="font-semibold text-primary">Forest</span> = propiedad. Mobile = iconos;
+          desktop = texto en fila horizontal.
         </p>
       </header>
 
@@ -493,8 +611,8 @@ export function MyListingsProposalMockupsPage() {
         <a href="#hub" className="shrink-0 rounded-full border border-border bg-surface px-3 py-2 font-medium text-body hover:bg-surface-elevated">
           3. Hub
         </a>
-        <a href="#decisions" className="shrink-0 rounded-full border border-border bg-surface px-3 py-2 font-medium text-body hover:bg-surface-elevated">
-          Decisiones
+        <a href="#size-compare" className="shrink-0 rounded-full border border-border bg-surface px-3 py-2 font-medium text-body hover:bg-surface-elevated">
+          Tamaño
         </a>
       </nav>
 
@@ -502,43 +620,34 @@ export function MyListingsProposalMockupsPage() {
         <ProblemCallout />
       </div>
 
-      <section className="mt-10">
-        <h2 className="text-lg font-semibold text-body">Principios</h2>
-        <ol className="mt-4 grid gap-4 sm:grid-cols-3">
-          <li className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">01</p>
-            <p className="mt-2 font-semibold text-body">Un objeto = una tarjeta</p>
-            <p className="mt-1 text-sm text-muted">
-              Si publicaste un cuarto, ves un anuncio. Si publicaste una casa con N recámaras, ves
-              la propiedad.
+      <section id="size-compare" className="mt-10 scroll-mt-24 sm:scroll-mt-8">
+        <h2 className="text-lg font-semibold text-body">Misma altura · color distinto</h2>
+        <p className="mt-1 text-sm text-muted">
+          Comparación lado a lado (colapsada). Ambas shells usan la misma altura mínima.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">
+              Cuarto · lima
             </p>
-          </li>
-          <li className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">02</p>
-            <p className="mt-2 font-semibold text-body">Detalle bajo demanda</p>
-            <p className="mt-1 text-sm text-muted">
-              Las recámaras de una propiedad viven en un accordion colapsado. El default es escanear
-              propiedades, no filas.
+            <ProposedSingleRoomCard room={MOCK_SINGLE} iconActions={isMobile} />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+              Propiedad · forest
             </p>
-          </li>
-          <li className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">03</p>
-            <p className="mt-2 font-semibold text-body">Acciones en el nivel correcto</p>
-            <p className="mt-1 text-sm text-muted">
-              Pausar/archivar propiedad en el shell. Editar/pausar recámara solo al expandir.
-              Single-room: un solo set de acciones.
-            </p>
-          </li>
-        </ol>
+            <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} iconActions={isMobile} />
+          </div>
+        </div>
       </section>
 
-      <section id="single-room" className="mt-10 scroll-mt-24 sm:scroll-mt-8">
+      <section id="single-room" className="mt-14 scroll-mt-24 sm:scroll-mt-8">
         <div className="mb-4 flex flex-wrap items-baseline gap-3">
           <h2 className="text-xl font-bold text-primary">1. Post de un solo cuarto</h2>
-          <ProposalBadge>Cuarto</ProposalBadge>
+          <ProposalBadge tone="room">Cuarto</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          Sin shell de propiedad. Una tarjeta plana: foto, título, renta, métricas y acciones.
+          Sin shell de propiedad. Acento lima. Mobile = iconos; desktop = texto horizontal.
         </p>
 
         {!isMobile ? (
@@ -548,7 +657,7 @@ export function MyListingsProposalMockupsPage() {
               <CurrentSingleRoomPain />
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Propuesta</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">Propuesta</p>
               <ProposedSingleRoomCard room={MOCK_SINGLE} />
             </div>
           </div>
@@ -557,8 +666,8 @@ export function MyListingsProposalMockupsPage() {
             <MobileFrame label="Hoy">
               <CurrentSingleRoomPain />
             </MobileFrame>
-            <MobileFrame label="Propuesta">
-              <ProposedSingleRoomCard room={MOCK_SINGLE} />
+            <MobileFrame label="Propuesta · iconos">
+              <ProposedSingleRoomCard room={MOCK_SINGLE} iconActions />
             </MobileFrame>
           </div>
         )}
@@ -566,104 +675,63 @@ export function MyListingsProposalMockupsPage() {
 
       <section id="property" className="mt-14 scroll-mt-24 sm:scroll-mt-8">
         <div className="mb-4 flex flex-wrap items-baseline gap-3">
-          <h2 className="text-xl font-bold text-primary">2. Post de propiedad (multi-recámara)</h2>
-          <ProposalBadge>Propiedad</ProposalBadge>
+          <h2 className="text-xl font-bold text-primary">2. Post de propiedad</h2>
+          <ProposalBadge tone="property">Propiedad</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          Shell compacto + accordion de recámaras{" "}
-          <strong className="text-body">colapsado por defecto</strong>. Prueba el botón
-          interactivo.
+          Acento forest. Accordion colapsado por defecto. Misma altura de shell que el post de
+          cuarto.
         </p>
 
         {!isMobile ? (
           <div className="mt-6 space-y-4">
             <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} />
-            <p className="text-xs text-muted">Variante abierta (para comparar densidad):</p>
+            <p className="text-xs text-muted">Variante abierta:</p>
             <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} defaultOpen />
           </div>
         ) : (
           <div className="mt-6 grid gap-8">
-            <MobileFrame label="Colapsado (default)">
-              <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} />
+            <MobileFrame label="Colapsado · iconos">
+              <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} iconActions />
             </MobileFrame>
             <MobileFrame label="Expandido">
-              <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} defaultOpen />
+              <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} defaultOpen iconActions />
             </MobileFrame>
           </div>
         )}
       </section>
 
       <section id="hub" className="mt-14 scroll-mt-24 sm:scroll-mt-8">
-        <h2 className="text-xl font-bold text-primary">3. Cómo se ve el hub mezclado</h2>
+        <h2 className="text-xl font-bold text-primary">3. Hub mezclado</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Misma sección Publicados: un cuarto + una propiedad colapsada.
+          Un cuarto (lima) + una propiedad colapsada (forest), misma altura.
         </p>
         <div className="mt-6">
           {!isMobile ? (
             <HubComposition />
           ) : (
             <MobileFrame label="Hub mobile">
-              <HubComposition />
+              <HubComposition iconActions />
             </MobileFrame>
           )}
-        </div>
-      </section>
-
-      <section id="decisions" className="mt-14 scroll-mt-24 sm:scroll-mt-8">
-        <h2 className="text-lg font-semibold text-body">Decisiones a validar contigo</h2>
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-border bg-surface">
-          <table className="w-full min-w-[28rem] text-left text-sm">
-            <thead className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-              <tr>
-                <th className="px-4 py-3">Tema</th>
-                <th className="px-4 py-3">Recomendación</th>
-                <th className="px-4 py-3">Alternativa</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-body">
-              <tr>
-                <td className="px-4 py-3 font-medium">Accordion default</td>
-                <td className="px-4 py-3">Colapsado</td>
-                <td className="px-4 py-3 text-muted">Abierto si ≤2 recámaras</td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3 font-medium">Badge de tipo</td>
-                <td className="px-4 py-3">Cuarto / Propiedad</td>
-                <td className="px-4 py-3 text-muted">Solo icono; sin texto</td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3 font-medium">Métricas propiedad</td>
-                <td className="px-4 py-3">Suma de recámaras</td>
-                <td className="px-4 py-3 text-muted">Solo en filas al expandir</td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3 font-medium">Pausar en single-room</td>
-                <td className="px-4 py-3">Un botón Pausar</td>
-                <td className="px-4 py-3 text-muted">Mantener “Pausar propiedad”</td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3 font-medium">Desktop rooms UI</td>
-                <td className="px-4 py-3">Lista compacta</td>
-                <td className="px-4 py-3 text-muted">Tabla solo al expandir</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </section>
 
       <footer className="mt-12 rounded-2xl border border-border bg-surface px-4 py-5 text-sm text-muted">
         <p className="font-semibold text-body">Siguiente paso</p>
         <p className="mt-1">
-          Cuando apruebes esta dirección, implementamos en{" "}
-          <code className="rounded bg-bg-light px-1.5 py-0.5 text-xs">/mis-anuncios</code> según{" "}
-          <code className="rounded bg-bg-light px-1.5 py-0.5 text-xs">propertyPostMode</code>.
+          Cuando apruebes, implementamos en{" "}
+          <code className="rounded bg-bg-light px-1.5 py-0.5 text-xs">/mis-anuncios</code>.
         </p>
         <p className="mt-3 flex flex-col gap-2 sm:flex-row sm:gap-4">
           <Link to={MOCK_MOBILE_PATH} className="font-semibold text-primary underline-offset-2 hover:underline">
             Abrir vista mobile
           </Link>
+          <Link to={MOCK_DESKTOP_PATH} className="font-semibold text-primary underline-offset-2 hover:underline">
+            Abrir vista desktop
+          </Link>
           <Link to="/mis-anuncios" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Volver a Mis anuncios (live)
+            Mis anuncios (live)
           </Link>
         </p>
       </footer>
