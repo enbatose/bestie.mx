@@ -1,11 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  Archive,
   ChevronDown,
   Eye,
   LayoutGrid,
-  Pause,
   Pencil,
   RefreshCw,
   Share2,
@@ -26,12 +24,9 @@ const MOCK_PATH = "/mockups/mis-anuncios-proposal";
 const MOCK_MOBILE_PATH = `${MOCK_PATH}?v=mobile`;
 const MOCK_DESKTOP_PATH = `${MOCK_PATH}?v=desktop`;
 
-/**
- * Fixed collapsed-card height so Cuarto and Propiedad match
- * (single-room may show empty space).
- */
+/** Fixed collapsed height so Cuarto and Propiedad shells match. */
 const CARD_SHELL =
-  "flex h-[14.5rem] flex-col justify-between gap-3 p-4 sm:h-[13.75rem]";
+  "flex h-[15.25rem] flex-col justify-between gap-3 p-4 sm:h-[14.5rem]";
 
 const PLACEHOLDER =
   "data:image/svg+xml," +
@@ -51,6 +46,13 @@ type MockRoom = {
 
 type Viewport = "desktop" | "mobile";
 type CardTone = "room" | "property";
+type HubKind = "room" | "property";
+
+type HubItem = {
+  key: string;
+  kind: HubKind;
+  active: boolean;
+};
 
 const MOCK_SINGLE: MockRoom = {
   id: "A11111111",
@@ -111,7 +113,6 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
 ];
 
 function toneShell(tone: CardTone): string {
-  // Same gray-green wash for both; accent stripe + UI chrome differ by type.
   const base = "border-primary/40 bg-primary/[0.04]";
   return tone === "property"
     ? `${base} border-l-primary`
@@ -160,7 +161,73 @@ function IconAction({
   );
 }
 
-/** All listing actions visible — nothing tucked under “…”. */
+/** Compact share control sized to the photo column — not a round action chip. */
+function ShareUnderPhoto({ tone }: { tone: CardTone }) {
+  const ring =
+    tone === "property"
+      ? "border-primary/20 text-primary hover:bg-primary/10"
+      : "border-secondary/35 text-primary hover:bg-secondary/20";
+  return (
+    <button
+      type="button"
+      aria-label="Compartir"
+      title="Compartir"
+      className={`flex w-full min-h-9 flex-col items-center justify-center gap-0.5 rounded-lg border bg-surface/90 px-1 py-1.5 text-[10px] font-semibold leading-none transition ${ring}`}
+    >
+      <Share2 className="size-3.5 shrink-0" aria-hidden />
+      <span>Share</span>
+    </button>
+  );
+}
+
+/**
+ * On/Off for publish visibility. Placed bottom-right, visually separated from
+ * photo/share (upper-right) and from edit/view icons (bottom-left).
+ */
+function OnOffToggle({
+  active,
+  onChange,
+  tone,
+}: {
+  active: boolean;
+  onChange: (next: boolean) => void;
+  tone: CardTone;
+}) {
+  const trackOn =
+    tone === "property" ? "bg-primary" : "bg-secondary";
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={active}
+      aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
+      title={active ? "On — visible" : "Off — pausada"}
+      onClick={() => onChange(!active)}
+      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-1.5 shadow-sm transition hover:bg-surface-elevated"
+    >
+      <span
+        className={`text-[11px] font-bold uppercase tracking-wide ${
+          active ? "text-body" : "text-muted"
+        }`}
+      >
+        {active ? "On" : "Off"}
+      </span>
+      <span
+        className={`relative h-6 w-11 rounded-full transition-colors ${
+          active ? trackOn : "bg-border"
+        }`}
+        aria-hidden
+      >
+        <span
+          className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform ${
+            active ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 function ListingActionRow({
   tone,
   onToggleRooms,
@@ -173,21 +240,12 @@ function ListingActionRow({
   roomCount?: number;
 }) {
   return (
-    <div className="flex flex-nowrap items-center gap-1.5">
+    <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
       <IconAction label="Editar" tone={tone}>
         <Pencil className="size-4" aria-hidden />
       </IconAction>
       <IconAction label="Ver publicación" tone={tone}>
         <Eye className="size-4" aria-hidden />
-      </IconAction>
-      <IconAction label="Pausar" tone={tone}>
-        <Pause className="size-4" aria-hidden />
-      </IconAction>
-      <IconAction label="Compartir" tone={tone}>
-        <Share2 className="size-4" aria-hidden />
-      </IconAction>
-      <IconAction label="Archivar" tone={tone}>
-        <Archive className="size-4" aria-hidden />
       </IconAction>
       {onToggleRooms ? (
         <IconAction
@@ -203,6 +261,40 @@ function ListingActionRow({
       ) : null}
     </div>
   );
+}
+
+function PhotoColumn({
+  tone,
+  src,
+  badge,
+}: {
+  tone: CardTone;
+  src?: string;
+  badge?: ReactNode;
+}) {
+  return (
+    <div className="flex w-[4.25rem] shrink-0 flex-col gap-2">
+      <div className="relative">
+        <ListingThumb src={src ?? PLACEHOLDER} className="size-[4.25rem] rounded-xl" />
+        {badge}
+      </div>
+      {/* Share lives with the photo — away from the On/Off toggle in the footer. */}
+      <ShareUnderPhoto tone={tone} />
+    </div>
+  );
+}
+
+function useActiveState(
+  controlledActive: boolean | undefined,
+  onActiveChange: ((next: boolean) => void) | undefined,
+) {
+  const [internal, setInternal] = useState(true);
+  const active = controlledActive ?? internal;
+  function setActive(next: boolean) {
+    if (onActiveChange) onActiveChange(next);
+    else setInternal(next);
+  }
+  return [active, setActive] as const;
 }
 
 function ProblemCallout() {
@@ -261,18 +353,32 @@ function CurrentSingleRoomPain() {
   );
 }
 
-/** Proposed flat single-room card — lime accents, same gray wash as property. */
-function ProposedSingleRoomCard({ room }: { room: MockRoom }) {
+/** Proposed flat single-room card — photo right, share under photo, On/Off bottom-right. */
+function ProposedSingleRoomCard({
+  room,
+  active: controlledActive,
+  onActiveChange,
+}: {
+  room: MockRoom;
+  active?: boolean;
+  onActiveChange?: (next: boolean) => void;
+}) {
   const tone: CardTone = "room";
+  const [active, setActive] = useActiveState(controlledActive, onActiveChange);
+  const status = active ? room.status : "paused";
+
   return (
-    <article className={`rounded-2xl border border-l-4 shadow-sm ${toneShell(tone)}`}>
+    <article
+      className={`rounded-2xl border border-l-4 shadow-sm transition ${toneShell(tone)} ${
+        active ? "" : "opacity-75"
+      }`}
+    >
       <div className={CARD_SHELL}>
         <div className="flex min-h-0 min-w-0 flex-1 gap-3">
-          <ListingThumb src={room.thumb} className="size-16 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <ListingStatusBadge status={room.status} />
               <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
+              <ListingStatusBadge status={status} />
               <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
             </div>
             <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body">
@@ -286,43 +392,52 @@ function ProposedSingleRoomCard({ room }: { room: MockRoom }) {
               <span className="text-xs text-muted">{room.metrics}</span>
             </div>
           </div>
+          <PhotoColumn tone={tone} src={room.thumb} />
         </div>
 
-        <div className="shrink-0">
+        {/* Footer: icons left · On/Off far right (separated from share above). */}
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-3">
           <ListingActionRow tone={tone} />
+          <div className="shrink-0 border-l border-border pl-3">
+            <OnOffToggle active={active} onChange={setActive} tone={tone} />
+          </div>
         </div>
       </div>
     </article>
   );
 }
 
-/** Proposed compact property — forest accents; same fixed shell height when collapsed. */
+/** Proposed compact property — same shell; rooms accordion. */
 function ProposedPropertyCard({
   rooms,
   defaultOpen = false,
+  active: controlledActive,
+  onActiveChange,
 }: {
   rooms: MockRoom[];
   defaultOpen?: boolean;
+  active?: boolean;
+  onActiveChange?: (next: boolean) => void;
 }) {
   const tone: CardTone = "property";
   const [open, setOpen] = useState(defaultOpen);
+  const [active, setActive] = useActiveState(controlledActive, onActiveChange);
   const available = rooms.filter((r) => !r.occupied).length;
   const occupied = rooms.length - available;
+  const status = active ? "published" : "paused";
 
   return (
-    <section className={`rounded-2xl border border-l-4 shadow-sm ${toneShell(tone)}`}>
+    <section
+      className={`rounded-2xl border border-l-4 shadow-sm transition ${toneShell(tone)} ${
+        active ? "" : "opacity-75"
+      }`}
+    >
       <div className={CARD_SHELL}>
         <div className="flex min-h-0 min-w-0 flex-1 gap-3">
-          <div className="relative shrink-0">
-            <ListingThumb src={PLACEHOLDER} className="size-16 rounded-xl" />
-            <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
-              {rooms.length}
-            </span>
-          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <ListingStatusBadge status="published" noun="property" />
               <ListingReferenceChip code="P90F93372" label="Propiedad" size="compact" />
+              <ListingStatusBadge status={status} noun="property" />
               <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
             </div>
             <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug text-body">
@@ -339,15 +454,26 @@ function ProposedPropertyCard({
             </p>
             <p className="mt-1 text-xs text-muted">23 vistas · 3 mensajes (suma)</p>
           </div>
+          <PhotoColumn
+            tone={tone}
+            badge={
+              <span className="absolute -bottom-1 -left-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
+                {rooms.length}
+              </span>
+            }
+          />
         </div>
 
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t border-border/60 pt-3">
           <ListingActionRow
             tone={tone}
             roomCount={rooms.length}
             roomsOpen={open}
             onToggleRooms={() => setOpen((v) => !v)}
           />
+          <div className="shrink-0 border-l border-border pl-3">
+            <OnOffToggle active={active} onChange={setActive} tone={tone} />
+          </div>
         </div>
       </div>
 
@@ -355,17 +481,27 @@ function ProposedPropertyCard({
         <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
             <li key={room.id} className="flex items-center gap-3 px-4 py-3">
-              <ListingThumb src={room.thumb} className="size-12 shrink-0 rounded-lg" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-body">{room.name}</p>
+                  <ListingReferenceChip code={room.id} label="Anuncio" size="compact" />
                   <ListingStatusBadge status={room.status} />
+                  <p className="font-medium text-body">{room.name}</p>
                 </div>
                 <p className="mt-0.5 text-xs text-muted">
                   {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
                 </p>
               </div>
-              <ListingActionRow tone={tone} />
+              <div className="flex w-[3.5rem] shrink-0 flex-col gap-1.5">
+                <ListingThumb src={room.thumb} className="size-14 rounded-lg" />
+                <button
+                  type="button"
+                  aria-label="Compartir"
+                  title="Compartir"
+                  className="inline-flex min-h-8 w-full items-center justify-center rounded-md border border-primary/20 bg-surface text-primary hover:bg-primary/10"
+                >
+                  <Share2 className="size-3.5" aria-hidden />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -374,13 +510,34 @@ function ProposedPropertyCard({
   );
 }
 
+function sortOnFirst(items: HubItem[]): HubItem[] {
+  return [...items].sort((a, b) => Number(b.active) - Number(a.active));
+}
+
 function HubComposition() {
+  const [items, setItems] = useState<HubItem[]>(() =>
+    sortOnFirst([
+      { key: "room", kind: "room", active: true },
+      { key: "property", kind: "property", active: true },
+    ]),
+  );
+
+  function setActive(key: string, active: boolean) {
+    setItems((prev) =>
+      sortOnFirst(prev.map((item) => (item.key === key ? { ...item, active } : item))),
+    );
+  }
+
+  const onCount = items.filter((i) => i.active).length;
+
   return (
     <div className="rounded-2xl border border-border bg-bg-light/50 p-3 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h3 className="text-xl font-bold text-primary sm:text-2xl">Mis anuncios</h3>
-          <p className="mt-1 text-sm text-muted">1 publicado · 1 propiedad</p>
+          <p className="mt-1 text-sm text-muted">
+            {onCount} On · {items.length - onCount} Off (Off al final)
+          </p>
         </div>
         <div className="flex gap-2">
           <span className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg sm:flex-none">
@@ -393,16 +550,32 @@ function HubComposition() {
       </div>
       <div className="mb-4 border-b border-border pb-3">
         <h4 className="text-lg font-semibold text-body">Publicados</h4>
-        <p className="text-sm text-muted">Anuncios visibles para quienes buscan roomie.</p>
+        <p className="text-sm text-muted">
+          Prueba el toggle On/Off: el post Off baja al final de la lista.
+        </p>
       </div>
       <div className="space-y-4">
-        <ProposedSingleRoomCard room={MOCK_SINGLE} />
-        <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} />
+        {items.map((item) =>
+          item.kind === "room" ? (
+            <ProposedSingleRoomCard
+              key={item.key}
+              room={MOCK_SINGLE}
+              active={item.active}
+              onActiveChange={(next) => setActive(item.key, next)}
+            />
+          ) : (
+            <ProposedPropertyCard
+              key={item.key}
+              rooms={MOCK_PROPERTY_ROOMS}
+              active={item.active}
+              onActiveChange={(next) => setActive(item.key, next)}
+            />
+          ),
+        )}
       </div>
       <p className="mt-3 text-xs text-muted">
-        Mismo fondo gris. Acento: <span className="font-semibold text-secondary">lima</span> =
-        cuarto · <span className="font-semibold text-primary">forest</span> = propiedad. Misma
-        altura fija (colapsada). Hover en iconos = etiqueta.
+        Foto a la derecha · Share bajo la foto · On/Off esquina inferior derecha (separado). ID
+        primero en el header.
       </p>
     </div>
   );
@@ -525,10 +698,8 @@ export function MyListingsProposalMockupsPage() {
           Menos ruido, más control por tipo de post
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Misma altura y mismo fondo gris. Acentos:{" "}
-          <span className="font-semibold text-secondary">lima</span> = cuarto ·{" "}
-          <span className="font-semibold text-primary">forest</span> = propiedad. Desktop y mobile =
-          mismos iconos (hover = etiqueta). Sin menú “…”.
+          Foto a la derecha · Share bajo la foto · On/Off abajo a la derecha (separado) · ID
+          primero. En el hub, Off va al final.
         </p>
       </header>
 
@@ -578,8 +749,7 @@ export function MyListingsProposalMockupsPage() {
           <ProposalBadge tone="room">Cuarto</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          Sin shell de propiedad. Fondo gris igual a propiedad; acentos lima. Todas las acciones
-          visibles como iconos.
+          ID primero · foto derecha · Share bajo la foto · On/Off abajo a la derecha.
         </p>
 
         {!isMobile ? (
@@ -598,7 +768,7 @@ export function MyListingsProposalMockupsPage() {
             <MobileFrame label="Hoy">
               <CurrentSingleRoomPain />
             </MobileFrame>
-            <MobileFrame label="Propuesta · iconos">
+            <MobileFrame label="Propuesta">
               <ProposedSingleRoomCard room={MOCK_SINGLE} />
             </MobileFrame>
           </div>
@@ -611,7 +781,7 @@ export function MyListingsProposalMockupsPage() {
           <ProposalBadge tone="property">Propiedad</ProposalBadge>
         </div>
         <p className="max-w-2xl text-sm text-muted">
-          Acento forest. Accordion colapsado por defecto. Misma altura fija que el post de cuarto.
+          Misma composición. Accordion colapsado por defecto.
         </p>
 
         {!isMobile ? (
@@ -622,7 +792,7 @@ export function MyListingsProposalMockupsPage() {
           </div>
         ) : (
           <div className="mt-6 grid gap-8">
-            <MobileFrame label="Colapsado · iconos">
+            <MobileFrame label="Colapsado">
               <ProposedPropertyCard rooms={MOCK_PROPERTY_ROOMS} />
             </MobileFrame>
             <MobileFrame label="Expandido">
@@ -633,9 +803,9 @@ export function MyListingsProposalMockupsPage() {
       </section>
 
       <section id="hub" className="mt-14 scroll-mt-24 sm:scroll-mt-8">
-        <h2 className="text-xl font-bold text-primary">3. Hub mezclado</h2>
+        <h2 className="text-xl font-bold text-primary">3. Hub mezclado · orden On → Off</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Un cuarto (lima) + una propiedad colapsada (forest), misma altura y mismo fondo.
+          Apaga un post con el toggle: baja al final. Enciéndelo: vuelve arriba.
         </p>
         <div className="mt-6">
           {!isMobile ? (
