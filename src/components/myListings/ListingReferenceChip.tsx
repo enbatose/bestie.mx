@@ -5,8 +5,8 @@ type Props = {
   code: string;
   label?: string;
   title?: string;
-  /** `compact` drops the mobile min-h-11 for dense desktop tables. */
-  size?: "default" | "compact";
+  /** `compact` drops the mobile min-h-11 for dense desktop tables. `quiet` is a discrete under-photo id. */
+  size?: "default" | "compact" | "quiet";
 };
 
 async function copyText(text: string): Promise<boolean> {
@@ -44,7 +44,18 @@ export function ListingReferenceChip({ code, label = "Ref.", title, size = "defa
     window.setTimeout(() => setCopied(false), 2000);
   }, [code]);
 
-  const sizeClass = size === "compact" ? "min-h-8 px-2 py-0.5" : "min-h-11 px-2.5 py-1";
+  const sizeClass =
+    size === "quiet"
+      ? "min-h-0 max-w-full gap-0.5 rounded px-0.5 py-0.5 font-mono text-[9px] font-medium text-muted hover:text-body"
+      : size === "compact"
+        ? "min-h-8 gap-1 rounded-full border border-border bg-bg-light px-2 py-0.5 font-mono text-[11px] font-semibold text-muted hover:border-primary/30 hover:text-body"
+        : "min-h-11 gap-1 rounded-full border border-border bg-bg-light px-2.5 py-1 font-mono text-[11px] font-semibold text-muted hover:border-primary/30 hover:text-body";
+
+  const iconClass = size === "quiet" ? "size-2.5 opacity-50" : "size-3 opacity-60";
+  const labelClass =
+    size === "quiet"
+      ? "shrink-0 text-[9px] font-medium text-muted/70"
+      : "shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted/80";
 
   return (
     <button
@@ -52,14 +63,14 @@ export function ListingReferenceChip({ code, label = "Ref.", title, size = "defa
       onClick={() => void onCopy()}
       title={title ?? `Copiar referencia ${code}`}
       aria-label={copied ? `Referencia ${code} copiada` : `Copiar referencia ${code}`}
-      className={`inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-bg-light font-mono text-[11px] font-semibold text-muted transition hover:border-primary/30 hover:text-body ${sizeClass}`}
+      className={`inline-flex max-w-full items-center transition ${sizeClass}`}
     >
-      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted/80">{label}</span>
-      <span className="truncate text-body">{code}</span>
+      <span className={labelClass}>{label}</span>
+      <span className={`truncate ${size === "quiet" ? "text-muted" : "text-body"}`}>{code}</span>
       {copied ? (
-        <Check className="size-3 text-primary" aria-hidden />
+        <Check className={`${iconClass} text-primary`} aria-hidden />
       ) : (
-        <Copy className="size-3 opacity-60" aria-hidden />
+        <Copy className={iconClass} aria-hidden />
       )}
       <span className="sr-only" aria-live="polite">
         {copied ? "Referencia copiada." : ""}

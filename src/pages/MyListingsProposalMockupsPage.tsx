@@ -342,14 +342,21 @@ function OnOffToggle({
 function PhotoThumb({
   src,
   badge,
+  idCode,
+  thumbClassName = "size-[4.25rem] rounded-xl",
 }: {
   src?: string;
   badge?: ReactNode;
+  idCode?: string;
+  thumbClassName?: string;
 }) {
   return (
-    <div className="relative shrink-0">
-      <ListingThumb src={src ?? PLACEHOLDER} className="size-[4.25rem] rounded-xl" />
-      {badge}
+    <div className="flex w-[4.25rem] shrink-0 flex-col items-center gap-0.5">
+      <div className="relative">
+        <ListingThumb src={src ?? PLACEHOLDER} className={thumbClassName} />
+        {badge}
+      </div>
+      {idCode ? <ListingReferenceChip code={idCode} label="#" size="quiet" /> : null}
     </div>
   );
 }
@@ -450,13 +457,12 @@ function ProposedSingleRoomCard({
           onActiveChange={setActive}
           labels={
             <>
-              <ListingReferenceChip code={room.id} label="#" size="compact" />
               <ListingStatusBadge status={status} className="min-h-8 items-center" />
               <ProposalBadge tone={tone}>Cuarto</ProposalBadge>
             </>
           }
           title={room.name}
-          photo={<PhotoThumb src={room.thumb} />}
+          photo={<PhotoThumb src={room.thumb} idCode={room.id} />}
           details={
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               {room.rentLabel ? (
@@ -507,7 +513,6 @@ function ProposedPropertyCard({
           onActiveChange={setActive}
           labels={
             <>
-              <ListingReferenceChip code="P90F93372" label="#" size="compact" />
               <ListingStatusBadge status={status} noun="property" className="min-h-8 items-center" />
               <ProposalBadge tone={tone}>Propiedad</ProposalBadge>
             </>
@@ -515,6 +520,7 @@ function ProposedPropertyCard({
           title="Casa amplia en Mezquitán Country"
           photo={
             <PhotoThumb
+              idCode="P90F93372"
               badge={
                 <span className="absolute -bottom-1 -left-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
                   {rooms.length}
@@ -550,16 +556,19 @@ function ProposedPropertyCard({
         <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
             <li key={room.id} className="px-4 py-3">
-              {/* Labels + title top; photo centered on that band */}
+              {/* Labels + title top; photo + quiet ID centered on that band */}
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <ListingReferenceChip code={room.id} label="#" size="compact" />
                     <ListingStatusBadge status={room.status} className="min-h-7 items-center" />
                   </div>
                   <p className="mt-1 font-medium leading-snug text-body">{room.name}</p>
                 </div>
-                <ListingThumb src={room.thumb} className="size-14 shrink-0 rounded-lg" />
+                <PhotoThumb
+                  src={room.thumb}
+                  idCode={room.id}
+                  thumbClassName="size-14 rounded-lg"
+                />
               </div>
               <p className="mt-1 text-xs text-muted">
                 {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
