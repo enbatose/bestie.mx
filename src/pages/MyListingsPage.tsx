@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Home, RefreshCw, X } from "lucide-react";
+import { ChevronDown, Home, RefreshCw, Search, X } from "lucide-react";
 import { AppConfirmDialog } from "@/components/AppConfirmDialog";
 import { ListingPropertyCard } from "@/components/myListings/ListingPropertyCard";
 import {
@@ -19,6 +19,11 @@ import {
   MY_LISTINGS_SECTIONS,
   propertyStatusSortKey,
 } from "@/lib/listingReference";
+import {
+  buildListingSearchIndex,
+  listingMatchesQuery,
+  parseMyListingsQuery,
+} from "@/lib/myListingsSearch";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { roomDisplayName } from "@/lib/roomDisplay";
@@ -72,6 +77,29 @@ function isRoomAvailable(l: PropertyListing): boolean {
   return (l.roomOccupancyStatus ?? "available") === "available";
 }
 
+function groupByStatus(groups: readonly PropertyGroup[]): Record<ListingStatus, PropertyGroup[]> {
+  const map: Record<ListingStatus, PropertyGroup[]> = {
+    published: [],
+    draft: [],
+    paused: [],
+    archived: [],
+  };
+  for (const g of groups) {
+    map[g.list[0]?.propertyStatus ?? "published"].push(g);
+  }
+  return map;
+}
+
+function countByStatus(groups: readonly PropertyGroup[]): Record<ListingStatus, number> {
+  const byStatus = groupByStatus(groups);
+  return {
+    published: byStatus.published.length,
+    draft: byStatus.draft.length,
+    paused: byStatus.paused.length,
+    archived: byStatus.archived.length,
+  };
+}
+
 function ListingsSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Cargando anuncios">
@@ -101,6 +129,7 @@ export function MyListingsPage() {
   /** Room whose rental data must be completed before it can be offered for rent. */
   const [activatingRoom, setActivatingRoom] = useState<PropertyListing | null>(null);
   const [activeTab, setActiveTab] = useState<ListingsTab | null>(null);
+  const [query, setQuery] = useState("");
 
   const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
     if (!bundle) return ["No se pudo leer la propiedad"];
@@ -147,19 +176,26 @@ export function MyListingsPage() {
       });
   }, [rows]);
 
-  const groupsByStatus = useMemo(() => {
-    const map: Record<ListingStatus, PropertyGroup[]> = {
-      published: [],
-      draft: [],
-      paused: [],
-      archived: [],
-    };
-    for (const g of propertyGroups) {
-      const st = g.list[0]?.propertyStatus ?? "published";
-      map[st].push(g);
-    }
+  const parsedQuery = useMemo(() => parseMyListingsQuery(query), [query]);
+  const searching = parsedQuery.terms.length > 0;
+
+  /** One search corpus per property, rebuilt only when the listings change. */
+  const searchIndexByProperty = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof buildListingSearchIndex>>();
+    for (const g of propertyGroups) map.set(g.propertyId, buildListingSearchIndex(g.list));
     return map;
   }, [propertyGroups]);
+
+  const matchedGroups = useMemo(() => {
+    if (!searching) return propertyGroups;
+    return propertyGroups.filter((g) => {
+      const index = searchIndexByProperty.get(g.propertyId);
+      return index ? listingMatchesQuery(index, parsedQuery) : false;
+    });
+  }, [propertyGroups, searchIndexByProperty, parsedQuery, searching]);
+
+  const allCounts = useMemo(() => countByStatus(propertyGroups), [propertyGroups]);
+  const groupsByStatus = useMemo(() => groupByStatus(matchedGroups), [matchedGroups]);
 
   const tabCounts = useMemo(
     () => ({
@@ -168,6 +204,9 @@ export function MyListingsPage() {
     }),
     [groupsByStatus],
   );
+
+  /** The result counter only speaks for the two tabs; paused/archived are extra sections. */
+  const matchCount = tabCounts.published + tabCounts.draft;
 
   const resolvedTab: ListingsTab = activeTab ?? "published";
 
@@ -181,19 +220,14 @@ export function MyListingsPage() {
   );
 
   const summaryParts = useMemo(() => {
-    const counts = {
-      published: groupsByStatus.published.length,
-      draft: groupsByStatus.draft.length,
-      paused: groupsByStatus.paused.length,
-      archived: groupsByStatus.archived.length,
-    };
+    const counts = allCounts;
     const parts: string[] = [];
     if (counts.published) parts.push(`${counts.published} publicado${counts.published === 1 ? "" : "s"}`);
     if (counts.draft) parts.push(`${counts.draft} borrador${counts.draft === 1 ? "" : "es"}`);
     if (counts.paused) parts.push(`${counts.paused} pausado${counts.paused === 1 ? "" : "s"}`);
     if (counts.archived) parts.push(`${counts.archived} archivado${counts.archived === 1 ? "" : "s"}`);
     return parts;
-  }, [groupsByStatus]);
+  }, [allCounts]);
 
   useEffect(() => {
     const st = location.state as { draftSaved?: boolean } | null;
@@ -207,10 +241,8 @@ export function MyListingsPage() {
   /** Pick a sensible default tab once listings load (prefer publicados, else borradores). */
   useEffect(() => {
     if (activeTab !== null || rows === null) return;
-    if (tabCounts.published > 0) setActiveTab("published");
-    else if (tabCounts.draft > 0) setActiveTab("draft");
-    else setActiveTab("published");
-  }, [activeTab, rows, tabCounts]);
+    setActiveTab(allCounts.published === 0 && allCounts.draft > 0 ? "draft" : "published");
+  }, [activeTab, rows, allCounts]);
 
   useEffect(() => {
     if (!flash) return;
@@ -585,6 +617,8 @@ export function MyListingsPage() {
   }
 
   const activeTabMeta = PRIMARY_TABS.find((t) => t.key === resolvedTab)!;
+  const otherTabMeta = PRIMARY_TABS.find((t) => t.key !== resolvedTab)!;
+  const otherTabMatches = tabCounts[otherTabMeta.key];
   const activeGroups = groupsByStatus[resolvedTab];
   const pausedGroups = groupsByStatus.paused;
   const archivedGroups = groupsByStatus.archived;
@@ -689,10 +723,50 @@ export function MyListingsPage() {
         ) : (
           <>
             <div>
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Buscar en mis anuncios"
+                  aria-describedby="mis-anuncios-search-help"
+                  placeholder="Buscar por título, descripción, colonia, ciudad o renta"
+                  className="min-h-12 w-full rounded-full border border-border bg-surface pl-11 pr-11 text-sm text-body placeholder:text-muted focus-visible:border-accent [&::-webkit-search-cancel-button]:hidden"
+                />
+                {query ? (
+                  <button
+                    type="button"
+                    aria-label="Limpiar búsqueda"
+                    onClick={() => setQuery("")}
+                    className="absolute right-1.5 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-muted transition hover:bg-surface-elevated hover:text-body"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+              <p id="mis-anuncios-search-help" className="mt-2 text-xs text-muted">
+                Busca en publicados y borradores a la vez. Acepta abreviaturas de ciudad (GDL,
+                CDMX) y rentas en cualquier formato ($4,800, 4800, 4.8k, menos de 5 mil).
+              </p>
+              {searching ? (
+                <p className="mt-2 text-sm font-medium text-body" role="status" aria-live="polite">
+                  {matchCount === 0
+                    ? "Sin resultados"
+                    : `${matchCount} resultado${matchCount === 1 ? "" : "s"}`}
+                  {matchCount > 0
+                    ? ` · ${tabCounts.published} en Publicados · ${tabCounts.draft} en Borradores`
+                    : ""}
+                </p>
+              ) : null}
+
               <div
                 role="tablist"
                 aria-label="Tipo de anuncio"
-                className="-mb-px flex gap-1 border-b border-border"
+                className="-mb-px mt-6 flex gap-1 border-b border-border"
               >
                 {PRIMARY_TABS.map((tab) => {
                   const active = resolvedTab === tab.key;
@@ -736,6 +810,36 @@ export function MyListingsPage() {
                 <p className="mb-4 text-sm text-muted">{activeTabMeta.description}</p>
                 {activeGroups.length ? (
                   renderPropertyGroups(activeGroups)
+                ) : searching ? (
+                  <div className="rounded-2xl border border-border bg-surface px-4 py-8 text-center shadow-sm">
+                    <p className="text-sm font-medium text-body">
+                      {otherTabMatches > 0
+                        ? `Sin coincidencias en ${activeTabMeta.title}.`
+                        : `Ningún anuncio coincide con “${query.trim()}”.`}
+                    </p>
+                    <p className="mt-1 text-sm text-muted">
+                      {otherTabMatches > 0
+                        ? `Hay ${otherTabMatches} coincidencia${otherTabMatches === 1 ? "" : "s"} en ${otherTabMeta.title}.`
+                        : "Prueba con la colonia, la ciudad o el monto de renta."}
+                    </p>
+                    {otherTabMatches > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(otherTabMeta.key)}
+                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+                      >
+                        Ver {otherTabMeta.title}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setQuery("")}
+                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+                      >
+                        Limpiar búsqueda
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="rounded-2xl border border-border bg-surface px-4 py-8 text-center shadow-sm">
                     <p className="text-sm font-medium text-body">
@@ -769,7 +873,7 @@ export function MyListingsPage() {
               </div>
             </div>
 
-            {resolvedTab === "published" && pausedGroups.length > 0 ? (
+            {(searching || resolvedTab === "published") && pausedGroups.length > 0 ? (
               <div>
                 <div className="mb-4 border-b border-border pb-3">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
