@@ -9,10 +9,22 @@ import {
   RefreshCw,
   Share2,
   Smartphone,
+  Star,
+  X,
 } from "lucide-react";
 import { ListingReferenceChip } from "@/components/myListings/ListingReferenceChip";
 import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
 import { ListingThumb } from "@/components/myListings/ListingThumb";
+import { WizardNumberStepper } from "@/components/WizardNumberStepper";
+import {
+  LISTING_TAG_LABEL_OVERRIDES,
+  ROOM_TAG_GROUPS,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL,
+  isRoomIdealParaTag,
+} from "@/lib/listingTags";
+import { TAG_LABELS } from "@/lib/searchFilters";
+import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
+import type { ListingTag } from "@/types/listing";
 
 /**
  * UX proposal mockups for Mis Anuncios IA.
@@ -35,22 +47,11 @@ const PLACEHOLDER =
     `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect fill="#E2E8F0" width="160" height="160"/><text x="50%" y="54%" text-anchor="middle" fill="#64748B" font-family="system-ui" font-size="14">foto</text></svg>`,
   );
 
-/**
- * Fields the publish wizard requires before a room slot can be offered for rent
- * (see `collectRoomFieldIssues` in `roomWizardValidation.ts`). Labels mirror the
- * live validation copy so the mockup asks for the same things.
- */
-const ROOM_ACTIVATION_FIELDS = {
-  rent: { label: "Renta (MXN / mes)", kind: "number", placeholder: "5200" },
-  deposit: { label: "Depósito (MXN)", kind: "number", placeholder: "5200" },
-  availableFrom: { label: "Disponible desde", kind: "date", placeholder: "" },
-  minStay: { label: "Estancia mínima (meses)", kind: "number", placeholder: "6" },
-  roomType: { label: "Tipo de recámara", kind: "roomType", placeholder: "" },
-  roomSize: { label: "Tamaño de la recámara", kind: "roomSize", placeholder: "" },
-  summary: { label: "Detalles de esta recámara", kind: "textarea", placeholder: "Describe la recámara (mínimo 40 caracteres)" },
-} as const;
+/** Mirrors the property-room summary placeholder in PropertyRoomManager. */
+const ROOM_SUMMARY_PLACEHOLDER =
+  "Describe el tamaño, la iluminación, si tiene clóset, y qué incluye.";
 
-type RoomActivationField = keyof typeof ROOM_ACTIVATION_FIELDS;
+const ROOM_STAY_MAX = 36;
 
 type MockRoom = {
   id: string;
@@ -59,9 +60,13 @@ type MockRoom = {
   occupied: boolean;
   status: "published" | "paused" | "draft" | "archived";
   metrics: string;
+  /** Saved room photos. Omit / empty → no photo area on the card. */
   thumb?: string;
-  /** Mandatory data still missing before this room can be turned On (offered for rent). */
-  missingToActivate?: RoomActivationField[];
+  /**
+   * Occupied rooms that never finished rental data need the full activation form
+   * before they can be turned On (offered for rent).
+   */
+  needsActivationForm?: boolean;
 };
 
 type Viewport = "desktop" | "mobile";
@@ -92,8 +97,8 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
     occupied: true,
     status: "published",
     metrics: "0 vistas · 0 mensajes",
-    thumb: PLACEHOLDER,
-    missingToActivate: ["rent", "availableFrom", "minStay", "summary"],
+    // Occupied + never rented → no saved photos, no photo area on the card.
+    needsActivationForm: true,
   },
   {
     id: "A22222222",
@@ -102,8 +107,7 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
     occupied: true,
     status: "published",
     metrics: "0 vistas · 0 mensajes",
-    thumb: PLACEHOLDER,
-    missingToActivate: ["rent", "roomType", "roomSize"],
+    needsActivationForm: true,
   },
   {
     id: "A22222223",
@@ -121,7 +125,7 @@ const MOCK_PROPERTY_ROOMS: MockRoom[] = [
     occupied: true,
     status: "published",
     metrics: "0 vistas · 0 mensajes",
-    thumb: PLACEHOLDER,
+    // Complete rental data already on file — toggles On without the form. Still no photos.
   },
   {
     id: "A22222225",
@@ -379,23 +383,166 @@ function OnOffToggle({
   );
 }
 
-const ROOM_TYPE_OPTIONS = [
-  { value: "private_room", label: "Recámara privada" },
-  { value: "shared_room", label: "Recámara compartida" },
-];
-
-const ROOM_SIZE_OPTIONS = [
-  { value: "small", label: "Recámara chica" },
-  { value: "medium", label: "Recámara mediana" },
-  { value: "large", label: "Recámara grande" },
-];
-
 const MODAL_INPUT =
-  "w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25";
+  "mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2";
+
+type RoomActivationDraft = {
+  title: string;
+  lodgingType: "private_room" | "shared_room" | "";
+  roomDimension: "small" | "medium" | "large" | "";
+  rentMxn: string;
+  rentIncludesUtilities: boolean;
+  depositMxn: string;
+  avalRequired: boolean;
+  availableFrom: string;
+  minimalStayMonths: number;
+  roommateGenderPref: "any" | "female" | "male" | "";
+  ageMin: number;
+  ageMax: number;
+  summary: string;
+  tags: ListingTag[];
+  photos: string[];
+};
+
+function emptyActivationDraft(room: MockRoom): RoomActivationDraft {
+  return {
+    title: room.name,
+    lodgingType: "",
+    roomDimension: "",
+    rentMxn: "",
+    rentIncludesUtilities: false,
+    depositMxn: "",
+    avalRequired: false,
+    availableFrom: "",
+    minimalStayMonths: 1,
+    roommateGenderPref: "",
+    ageMin: 18,
+    ageMax: 99,
+    summary: "",
+    tags: [],
+    photos: [],
+  };
+}
+
+function activationDraftComplete(d: RoomActivationDraft): boolean {
+  if (!d.title.trim()) return false;
+  if (!d.lodgingType || !d.roomDimension) return false;
+  if (!Number.isFinite(Number(d.rentMxn)) || Number(d.rentMxn) <= 0) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.availableFrom.trim())) return false;
+  if (d.minimalStayMonths < 1) return false;
+  if (!d.roommateGenderPref) return false;
+  if (d.ageMin < 18 || d.ageMax < 18 || d.ageMax > 99 || d.ageMin > d.ageMax) return false;
+  const summary = d.summary.trim();
+  if (summary.length < ROOM_SUMMARY_MIN || summary.length > ROOM_SUMMARY_MAX) return false;
+  if (!d.tags.some((t) => isRoomIdealParaTag(t))) return false;
+  return true;
+}
 
 /**
- * Turning a room On requires the same mandatory data the publish wizard asks for.
- * Rather than bouncing the owner to the wizard, collect the missing fields here.
+ * Local-only photo widget that mirrors BulkImageUploader chrome for the mockup —
+ * no API upload, just object URLs so the activation form looks complete.
+ */
+function MockRoomPhotoWidget({
+  title,
+  photos,
+  onChange,
+}: {
+  title: string;
+  photos: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const maxCount = 20;
+  const addFiles = (files: File[]) => {
+    const take = files.slice(0, Math.max(0, maxCount - photos.length));
+    if (!take.length) return;
+    const urls = take.map((f) => URL.createObjectURL(f));
+    onChange([...photos, ...urls]);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-body">{title}</h3>
+          <p className="mt-1 text-xs text-muted">
+            {photos.length}/{maxCount} fotos · Solo el interior de esta recámara. No incluyas sala,
+            cocina ni otras áreas comunes.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                e.target.value = "";
+                addFiles(files);
+              }}
+            />
+            Subir fotos
+          </label>
+          <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                e.target.value = "";
+                addFiles(files);
+              }}
+            />
+            Tomar foto
+          </label>
+        </div>
+      </div>
+      {photos.length === 0 ? (
+        <p className="mt-3 rounded-xl border border-dashed border-border bg-bg-light px-3 py-6 text-center text-xs text-muted">
+          Arrastra y suelta aquí… Toca la estrella para elegir la portada.
+        </p>
+      ) : (
+        <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {photos.map((src, i) => (
+            <li key={src} className="relative aspect-square overflow-hidden rounded-lg border border-border">
+              <img src={src} alt="" className="h-full w-full object-cover" />
+              {i === 0 ? (
+                <span className="absolute left-1 top-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-fg">
+                  Portada
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Hacer portada"
+                  title="Hacer portada"
+                  onClick={() => onChange([src, ...photos.filter((p) => p !== src)])}
+                  className="absolute left-1 top-1 rounded-full bg-black/50 p-1 text-white"
+                >
+                  <Star className="size-3" aria-hidden />
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Quitar"
+                onClick={() => onChange(photos.filter((p) => p !== src))}
+                className="absolute right-1 top-1 rounded-full bg-black/50 p-0.5 text-white"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Full property-room form (same fields/labels as AvailableRoomFields in PropertyRoomManager)
+ * so turning an occupied room On does not send owners back to the wizard.
  * Portaled to `document.body` at the app-modal layer so it clears the sticky header.
  */
 function RoomActivationModal({
@@ -405,10 +552,12 @@ function RoomActivationModal({
 }: {
   room: MockRoom;
   onCancel: () => void;
-  onActivate: (values: Record<string, string>) => void;
+  onActivate: (draft: RoomActivationDraft) => void;
 }) {
-  const fields = room.missingToActivate ?? [];
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState<RoomActivationDraft>(() => emptyActivationDraft(room));
+  const patch = (next: Partial<RoomActivationDraft>) =>
+    setDraft((prev) => ({ ...prev, ...next }));
+  const complete = activationDraftComplete(draft);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -418,12 +567,11 @@ function RoomActivationModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onCancel]);
 
-  const complete = fields.every((key) => {
-    const raw = values[key]?.trim() ?? "";
-    if (!raw) return false;
-    if (key === "summary") return raw.length >= 40;
-    return true;
-  });
+  const toggleTag = (tag: ListingTag, active: boolean) => {
+    patch({
+      tags: active ? draft.tags.filter((t) => t !== tag) : [...draft.tags, tag],
+    });
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[2100] flex items-end justify-center sm:items-center">
@@ -437,72 +585,290 @@ function RoomActivationModal({
         role="dialog"
         aria-modal="true"
         aria-label={`Completar ${room.name} para ofrecerla en renta`}
-        className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-surface shadow-xl sm:rounded-2xl"
+        className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-surface shadow-xl sm:rounded-2xl"
       >
         <div className="border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <RoomOccupancyBadge available={false} />
-            <p className="min-w-0 truncate text-sm font-semibold text-body">{room.name}</p>
+            <p className="min-w-0 truncate text-sm font-semibold text-body">{draft.title || room.name}</p>
           </div>
           <h2 className="mt-2 text-base font-semibold text-body">
             Completa estos datos para ofrecerla en renta
           </h2>
           <p className="mt-1 text-xs text-muted">
-            Al marcarla como disponible se publica dentro de la propiedad, así que necesitamos la
-            información que ven las personas interesadas.
+            Mismos campos que al publicar una recámara disponible. Al guardar, la recámara pasa a
+            Disponible dentro de la propiedad.
           </p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          {fields.map((key) => {
-            const field = ROOM_ACTIVATION_FIELDS[key];
-            const value = values[key] ?? "";
-            const setValue = (next: string) =>
-              setValues((prev) => ({ ...prev, [key]: next }));
-            return (
-              <label key={key} className="block">
-                <span className="mb-1 block text-xs font-semibold text-body">{field.label}</span>
-                {field.kind === "textarea" ? (
-                  <>
-                    <textarea
-                      rows={3}
-                      value={value}
-                      placeholder={field.placeholder}
-                      onChange={(e) => setValue(e.target.value)}
+          <label className="block text-sm font-medium text-body">
+            Título de la recámara
+            <span className="text-error"> *</span>
+            <input
+              type="text"
+              value={draft.title}
+              placeholder={`Ej. Cuarto con balcón · ${room.name}`}
+              onChange={(e) => patch({ title: e.target.value })}
+              className={MODAL_INPUT}
+            />
+          </label>
+
+          <div>
+            <h3 className="text-sm font-bold text-primary">Información principal</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-body">
+                Tipo de recámara
+                <span className="text-error"> *</span>
+                <select
+                  value={draft.lodgingType}
+                  onChange={(e) =>
+                    patch({ lodgingType: e.target.value as RoomActivationDraft["lodgingType"] })
+                  }
+                  className={MODAL_INPUT}
+                >
+                  <option value="">Selecciona una opción</option>
+                  <option value="private_room">Recámara privada</option>
+                  <option value="shared_room">Recámara compartida</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-body">
+                Tamaño de la recámara
+                <span className="text-error"> *</span>
+                <select
+                  value={draft.roomDimension}
+                  onChange={(e) =>
+                    patch({
+                      roomDimension: e.target.value as RoomActivationDraft["roomDimension"],
+                    })
+                  }
+                  className={MODAL_INPUT}
+                >
+                  <option value="">Selecciona una opción</option>
+                  <option value="small">Individual (Cabe cama individual + buró)</option>
+                  <option value="medium">Matrimonial (Cabe cama matrimonial + escritorio)</option>
+                  <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
+                </select>
+              </label>
+              <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-body">
+                    Renta (MXN / mes)
+                    <span className="text-error"> *</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={draft.rentMxn}
+                      onChange={(e) => patch({ rentMxn: e.target.value })}
                       className={MODAL_INPUT}
                     />
-                    <span className="mt-1 block text-[11px] text-muted">
-                      {value.trim().length}/40 caracteres mínimos
+                  </label>
+                  <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
+                    <input
+                      type="checkbox"
+                      checked={draft.rentIncludesUtilities}
+                      onChange={(e) => patch({ rentIncludesUtilities: e.target.checked })}
+                      className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-body">
+                        Servicios básicos incluidos
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted">
+                        Activa esta opción si el precio de renta ya cubre luz, agua, gas e internet
+                        (Wi-Fi).
+                      </span>
                     </span>
-                  </>
-                ) : field.kind === "roomType" || field.kind === "roomSize" ? (
-                  <select
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    className={MODAL_INPUT}
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {(field.kind === "roomType" ? ROOM_TYPE_OPTIONS : ROOM_SIZE_OPTIONS).map(
-                      (opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                ) : (
+                  </label>
+                </div>
+                <label className="block text-sm font-medium text-body">
+                  Depósito (MXN)
                   <input
-                    type={field.kind === "date" ? "date" : "number"}
-                    min={field.kind === "number" ? 1 : undefined}
-                    value={value}
-                    placeholder={field.placeholder}
-                    onChange={(e) => setValue(e.target.value)}
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={draft.depositMxn}
+                    placeholder="0"
+                    onChange={(e) => patch({ depositMxn: e.target.value })}
                     className={MODAL_INPUT}
                   />
-                )}
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={draft.avalRequired}
+                    onChange={(e) => patch({ avalRequired: e.target.checked })}
+                    className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-body">Se requiere aval</span>
+                    <span className="mt-0.5 block text-xs leading-snug text-muted">
+                      Activa esta opción si para rentar esta recámara es obligatorio presentar aval.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-primary">Disponibilidad</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-body">
+                Disponible desde
+                <span className="text-error"> *</span>
+                <input
+                  type="date"
+                  value={draft.availableFrom}
+                  onChange={(e) => patch({ availableFrom: e.target.value })}
+                  className={MODAL_INPUT}
+                />
               </label>
-            );
-          })}
+              <div className="block text-sm font-medium text-body">
+                <span className="block">
+                  Estancia mín. (meses)
+                  <span className="text-error"> *</span>
+                </span>
+                <WizardNumberStepper
+                  editableCenter
+                  maxInputDigits={2}
+                  value={Math.min(ROOM_STAY_MAX, Math.max(0, draft.minimalStayMonths))}
+                  min={0}
+                  max={ROOM_STAY_MAX}
+                  onChange={(n) => patch({ minimalStayMonths: n })}
+                  decrementLabel="Menos meses"
+                  incrementLabel="Más meses"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-primary">Perfil buscado</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block text-sm font-medium text-body">
+                {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                <span className="text-error"> *</span>
+                <select
+                  value={draft.roommateGenderPref}
+                  onChange={(e) =>
+                    patch({
+                      roommateGenderPref: e.target
+                        .value as RoomActivationDraft["roommateGenderPref"],
+                    })
+                  }
+                  className={MODAL_INPUT}
+                >
+                  <option value="">Selecciona una opción</option>
+                  <option value="any">Sin preferencia</option>
+                  <option value="female">Mujeres</option>
+                  <option value="male">Hombres</option>
+                </select>
+              </label>
+              <div className="block text-sm font-medium text-body">
+                <span className="block">
+                  Edad mín.
+                  <span className="text-error"> *</span>
+                </span>
+                <WizardNumberStepper
+                  editableCenter
+                  maxInputDigits={2}
+                  value={draft.ageMin}
+                  min={18}
+                  max={99}
+                  onChange={(n) =>
+                    patch({
+                      ageMin: n,
+                      ageMax: draft.ageMax < n ? n : draft.ageMax,
+                    })
+                  }
+                  decrementLabel="Menor edad mínima"
+                  incrementLabel="Mayor edad mínima"
+                />
+              </div>
+              <div className="block text-sm font-medium text-body">
+                <span className="block">
+                  Edad máx.
+                  <span className="text-error"> *</span>
+                </span>
+                <WizardNumberStepper
+                  editableCenter
+                  maxInputDigits={2}
+                  value={draft.ageMax}
+                  min={18}
+                  max={99}
+                  onChange={(n) =>
+                    patch({
+                      ageMax: n,
+                      ageMin: draft.ageMin > n ? n : draft.ageMin,
+                    })
+                  }
+                  decrementLabel="Menor edad máxima"
+                  incrementLabel="Mayor edad máxima"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-primary">
+              Detalles de esta recámara
+              <span className="text-error"> *</span>
+            </h3>
+            <textarea
+              value={draft.summary}
+              onChange={(e) => patch({ summary: e.target.value })}
+              rows={3}
+              maxLength={ROOM_SUMMARY_MAX}
+              placeholder={ROOM_SUMMARY_PLACEHOLDER}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+            />
+            <span
+              className={`block text-xs ${
+                draft.summary.trim().length < ROOM_SUMMARY_MIN ? "text-warning-fg" : "text-muted"
+              }`}
+            >
+              {draft.summary.trim().length}/{ROOM_SUMMARY_MIN}
+            </span>
+            <MockRoomPhotoWidget
+              title={`Fotos de ${draft.title.trim() || room.name}`}
+              photos={draft.photos}
+              onChange={(photos) => patch({ photos })}
+            />
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
+            {ROOM_TAG_GROUPS.map((group) => (
+              <div key={group.title}>
+                <p className="text-sm font-medium text-body">
+                  {group.title}
+                  {group.title === "Ideal para" ? <span className="text-error"> *</span> : null}
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {group.tags.map((tag) => {
+                    const active = draft.tags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={active}
+                        onClick={() => toggleTag(tag, active)}
+                        className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                          active
+                            ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
+                            : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
+                        }`}
+                      >
+                        {LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
@@ -516,7 +882,7 @@ function RoomActivationModal({
           <button
             type="button"
             disabled={!complete}
-            onClick={() => onActivate(values)}
+            onClick={() => onActivate(draft)}
             className="inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Guardar y activar
@@ -744,8 +1110,22 @@ function ProposedPropertyCard({
     Object.fromEntries(rooms.map((r) => [r.id, !r.occupied])),
   );
   const [activating, setActivating] = useState<MockRoom | null>(null);
-  /** Rooms whose missing data was filled in this session — don't ask twice. */
+  /** Rooms whose activation form was filled this session — don't ask twice. */
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  /** Title / rent / photo overrides after the owner fills the activation form. */
+  const [overrides, setOverrides] = useState<
+    Record<string, { name?: string; rentLabel?: string; thumb?: string }>
+  >({});
+  const displayRoom = (room: MockRoom): MockRoom => {
+    const o = overrides[room.id];
+    if (!o) return room;
+    return {
+      ...room,
+      name: o.name ?? room.name,
+      rentLabel: o.rentLabel ?? room.rentLabel,
+      thumb: o.thumb ?? room.thumb,
+    };
+  };
   const isAvailable = (room: MockRoom) => occupancy[room.id] ?? !room.occupied;
   const setAvailable = (room: MockRoom, next: boolean) =>
     setOccupancy((prev) => ({ ...prev, [room.id]: next }));
@@ -754,8 +1134,8 @@ function ProposedPropertyCard({
   const status = active ? "published" : "paused";
 
   const handleRoomToggle = (room: MockRoom, next: boolean) => {
-    // Turning a room On offers it for rent, so mandatory data must be complete first.
-    const needsData = (room.missingToActivate?.length ?? 0) > 0 && !completed[room.id];
+    // Turning a room On offers it for rent, so incomplete rooms open the full form first.
+    const needsData = Boolean(room.needsActivationForm) && !completed[room.id];
     if (next && needsData) {
       setActivating(room);
       return;
@@ -817,58 +1197,66 @@ function ProposedPropertyCard({
 
       {open ? (
         <ul className="divide-y divide-border border-t border-primary/20">
-          {rooms.map((room) => (
-            <li key={room.id} className="px-4 py-3">
-              {/*
-                Right column leads with the toggle: both it and the badge row are h-7 and start
-                at the same y, so the toggle centers on the header line. Photo + ID sit under it.
-              */}
-              <div className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RoomOccupancyBadge available={isAvailable(room)} />
-                    <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
+          {rooms.map((raw) => {
+            const room = displayRoom(raw);
+            const hasPhotos = Boolean(room.thumb);
+            return (
+              <li key={room.id} className="px-4 py-3">
+                {/*
+                  Right column: toggle aligned to the header line. Photo + ID only when
+                  the room has saved photos — occupied slots with none omit that object.
+                */}
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RoomOccupancyBadge available={isAvailable(room)} />
+                      <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
+                    </div>
+                    {isAvailable(room) ? (
+                      <p className="mt-1 text-xs text-muted">
+                        {[room.rentLabel, room.metrics].filter(Boolean).join(" · ")}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <LabeledAction
+                        tone={tone}
+                        size="compact"
+                        label="Ver"
+                        icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
+                      />
+                      <LabeledAction
+                        tone={tone}
+                        size="compact"
+                        label="Edit"
+                        icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
+                      />
+                      <LabeledAction
+                        tone={tone}
+                        size="compact"
+                        label="Compartir"
+                        icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
+                      />
+                    </div>
                   </div>
-                  {isAvailable(room) ? (
-                    <p className="mt-1 text-xs text-muted">
-                      {[room.rentLabel, room.metrics].filter(Boolean).join(" · ")}
-                    </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <LabeledAction
-                      tone={tone}
-                      size="compact"
-                      label="Ver"
-                      icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
+                  <div className="flex shrink-0 flex-col items-center gap-2">
+                    <RoomOnOffToggle
+                      available={isAvailable(room)}
+                      onChange={(next) => handleRoomToggle(raw, next)}
                     />
-                    <LabeledAction
-                      tone={tone}
-                      size="compact"
-                      label="Edit"
-                      icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
-                    />
-                    <LabeledAction
-                      tone={tone}
-                      size="compact"
-                      label="Compartir"
-                      icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
-                    />
+                    {hasPhotos ? (
+                      <PhotoThumb
+                        src={room.thumb}
+                        idCode={room.id}
+                        thumbClassName="size-14 rounded-lg"
+                      />
+                    ) : (
+                      <ListingReferenceChip code={room.id} label="#" size="quiet" />
+                    )}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-center gap-2">
-                  <RoomOnOffToggle
-                    available={isAvailable(room)}
-                    onChange={(next) => handleRoomToggle(room, next)}
-                  />
-                  <PhotoThumb
-                    src={room.thumb}
-                    idCode={room.id}
-                    thumbClassName="size-14 rounded-lg"
-                  />
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
@@ -876,7 +1264,16 @@ function ProposedPropertyCard({
         <RoomActivationModal
           room={activating}
           onCancel={() => setActivating(null)}
-          onActivate={() => {
+          onActivate={(draft) => {
+            const rent = Number(draft.rentMxn);
+            setOverrides((prev) => ({
+              ...prev,
+              [activating.id]: {
+                name: draft.title.trim() || activating.name,
+                rentLabel: Number.isFinite(rent) && rent > 0 ? `$${rent.toLocaleString("es-MX")} /mes` : undefined,
+                thumb: draft.photos[0],
+              },
+            }));
             setCompleted((prev) => ({ ...prev, [activating.id]: true }));
             setAvailable(activating, true);
             setActivating(null);
