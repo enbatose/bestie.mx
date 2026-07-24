@@ -181,9 +181,9 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 }
 
 /**
- * Sliding On/Off switch — same control as Save Search email alerts
- * (`SaveSearchModal`: secondary track when on, white thumb).
- * Labels clarify state; the hit target is the whole control (min-h-11).
+ * Sliding On/Off switch with label inside the track.
+ * Brand: lime (secondary) when on — same family as Save Search alerts.
+ * Knob is vertically centered; horizontal inset is symmetric (4px).
  */
 function OnOffToggle({
   active,
@@ -201,27 +201,28 @@ function OnOffToggle({
       aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
       title={active ? "On — visible" : "Off — pausada"}
       onClick={() => onChange(!active)}
-      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-1 transition hover:bg-surface-elevated/80"
+      className={`relative inline-flex h-9 w-[4.5rem] shrink-0 items-center rounded-full border transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 ${
+        active
+          ? "border-secondary bg-secondary shadow-sm"
+          : "border-border bg-bg-light"
+      }`}
     >
+      {/* Label sits in the open half of the track (opposite the knob). */}
       <span
-        className={`min-w-[1.75rem] text-right text-xs font-semibold tabular-nums ${
-          active ? "text-body" : "text-muted"
-        }`}
-      >
-        {active ? "On" : "Off"}
-      </span>
-      <span
-        className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border transition ${
-          active ? "border-secondary bg-secondary" : "border-border bg-border"
+        className={`pointer-events-none absolute inset-y-0 z-0 flex items-center text-[10px] font-bold uppercase tracking-wide ${
+          active ? "left-0 pl-2.5 text-primary" : "right-0 pr-2 text-muted"
         }`}
         aria-hidden
       >
-        <span
-          className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left] ${
-            active ? "left-[1.35rem]" : "left-0.5"
-          }`}
-        />
+        {active ? "On" : "Off"}
       </span>
+      {/* Knob: 28px in 36px track → 4px inset; centered with top-1/2 -translate-y-1/2 */}
+      <span
+        className={`pointer-events-none absolute top-1/2 z-10 size-7 -translate-y-1/2 rounded-full bg-white shadow-md ring-1 ring-black/5 transition-[left] duration-200 ease-out ${
+          active ? "left-[calc(100%-2rem)]" : "left-1"
+        }`}
+        aria-hidden
+      />
     </button>
   );
 }
