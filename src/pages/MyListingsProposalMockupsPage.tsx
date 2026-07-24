@@ -182,8 +182,10 @@ function ShareUnderPhoto({ tone }: { tone: CardTone }) {
 
 /**
  * Sliding On/Off switch with label inside the track.
- * Brand: lime (secondary) when on — same family as Save Search alerts.
- * Knob is vertically centered; horizontal inset is symmetric (4px).
+ *
+ * Vertical centering: flex `items-center` + `p-1` (not absolute top-1/2), so the
+ * knob is always optically centered in the track regardless of border width.
+ * Brand: lime track when on, forest text/ring, soft lime glow — Bestie tokens.
  */
 function OnOffToggle({
   active,
@@ -201,28 +203,40 @@ function OnOffToggle({
       aria-label={active ? "Publicación On — tocar para apagar" : "Publicación Off — tocar para encender"}
       title={active ? "On — visible" : "Off — pausada"}
       onClick={() => onChange(!active)}
-      className={`relative inline-flex h-9 w-[4.5rem] shrink-0 items-center rounded-full border transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 ${
+      className={`relative inline-flex h-9 w-[4.5rem] shrink-0 items-center rounded-full border p-1 transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${
         active
-          ? "border-secondary bg-secondary shadow-sm"
-          : "border-border bg-bg-light"
+          ? "border-secondary/80 bg-secondary shadow-[0_0_0_3px_rgba(132,204,22,0.22)]"
+          : "border-primary/20 bg-primary/[0.06]"
       }`}
     >
-      {/* Label sits in the open half of the track (opposite the knob). */}
+      {/* Label in the open half (opposite the knob). */}
       <span
         className={`pointer-events-none absolute inset-y-0 z-0 flex items-center text-[10px] font-bold uppercase tracking-wide ${
-          active ? "left-0 pl-2.5 text-primary" : "right-0 pr-2 text-muted"
+          active ? "left-0 pl-2.5 text-primary" : "right-0 pr-2 text-primary/45"
         }`}
         aria-hidden
       >
         {active ? "On" : "Off"}
       </span>
-      {/* Knob: 28px in 36px track → 4px inset; centered with top-1/2 -translate-y-1/2 */}
+      {/*
+        Knob: flex-centered vertically via parent items-center + p-1.
+        Travel 2.375rem = track (4.5rem) − padding (0.5rem) − borders (~2px) − knob (1.5rem).
+      */}
       <span
-        className={`pointer-events-none absolute top-1/2 z-10 size-7 -translate-y-1/2 rounded-full bg-white shadow-md ring-1 ring-black/5 transition-[left] duration-200 ease-out ${
-          active ? "left-[calc(100%-2rem)]" : "left-1"
+        className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+          active
+            ? "translate-x-[2.375rem] ring-2 ring-primary/20"
+            : "translate-x-0 ring-1 ring-primary/10"
         }`}
         aria-hidden
-      />
+      >
+        {/* Tiny lime pip when On — playful Bestie accent without clutter. */}
+        <span
+          className={`size-1.5 rounded-full transition-colors duration-200 ${
+            active ? "bg-secondary" : "bg-primary/20"
+          }`}
+        />
+      </span>
     </button>
   );
 }
