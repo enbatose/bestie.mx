@@ -179,13 +179,13 @@ function ListingActionRow({
     <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5">
       <LabeledAction
         tone={tone}
-        label="Edit"
-        icon={<Pencil className="size-4 shrink-0" aria-hidden />}
+        label="Ver"
+        icon={<Eye className="size-4 shrink-0" aria-hidden />}
       />
       <LabeledAction
         tone={tone}
-        label="Ver"
-        icon={<Eye className="size-4 shrink-0" aria-hidden />}
+        label="Edit"
+        icon={<Pencil className="size-4 shrink-0" aria-hidden />}
       />
       <LabeledAction
         tone={tone}
