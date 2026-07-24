@@ -733,7 +733,6 @@ export function MyListingsPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   aria-label="Buscar en mis anuncios"
-                  aria-describedby="mis-anuncios-search-help"
                   placeholder="Buscar por título, descripción, colonia, ciudad o renta"
                   className="min-h-12 w-full rounded-full border border-border bg-surface pl-11 pr-11 text-sm text-body placeholder:text-muted focus-visible:border-accent [&::-webkit-search-cancel-button]:hidden"
                 />
@@ -748,10 +747,6 @@ export function MyListingsPage() {
                   </button>
                 ) : null}
               </div>
-              <p id="mis-anuncios-search-help" className="mt-2 text-xs text-muted">
-                Busca en publicados y borradores a la vez. Acepta abreviaturas de ciudad (GDL,
-                CDMX) y rentas en cualquier formato ($4,800, 4800, 4.8k, menos de 5 mil).
-              </p>
               {searching ? (
                 <p className="mt-2 text-sm font-medium text-body" role="status" aria-live="polite">
                   {matchCount === 0
