@@ -78,6 +78,12 @@ export type AnalyticsProps = {
     status: "paused" | "published" | "archived";
   };
 
+  /** Room offered for rent vs marked as lived-in, from Mis Anuncios. */
+  my_room_occupancy_changed: {
+    listing_id: string;
+    occupancy: "available" | "occupied";
+  };
+
   group_created: Record<string, never>;
   group_joined: Record<string, never>;
 };

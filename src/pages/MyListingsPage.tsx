@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, Home, RefreshCw, X } from "lucide-react";
 import { AppConfirmDialog } from "@/components/AppConfirmDialog";
-import { DesktopRoomTable } from "@/components/myListings/DesktopRoomTable";
-import { ListingReferenceChip } from "@/components/myListings/ListingReferenceChip";
-import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
-import { MissingFieldsCallout } from "@/components/myListings/MissingFieldsCallout";
-import { MobileListingCard } from "@/components/myListings/MobileListingCard";
+import { ListingPropertyCard } from "@/components/myListings/ListingPropertyCard";
+import {
+  RoomActivationModal,
+  roomReadyToOffer,
+} from "@/components/myListings/RoomActivationModal";
 import {
   fetchMyListings,
+  patchDraftRoom,
   updateListingStatus,
   updateProperty,
   fetchPropertyWithRooms,
@@ -16,7 +17,6 @@ import {
 import {
   listingPublicPath,
   MY_LISTINGS_SECTIONS,
-  propertyReferenceCode,
   propertyStatusSortKey,
 } from "@/lib/listingReference";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
@@ -32,9 +32,10 @@ type FlashMessage = {
   linkText?: string;
 };
 
-type PendingArchive =
-  | { kind: "room"; id: string }
-  | { kind: "property"; id: string }
+type PendingConfirm =
+  | { kind: "archive-room"; id: string }
+  | { kind: "archive-property"; id: string }
+  | { kind: "deactivate-property"; propertyId: string; rooms: PropertyListing[] }
   | null;
 
 function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
@@ -47,23 +48,16 @@ function listingRowTitle(head: PropertyListing, l: PropertyListing, list: Proper
   return l.title;
 }
 
-const propActionClass =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm font-semibold transition disabled:opacity-50";
+function isRoomAvailable(l: PropertyListing): boolean {
+  return (l.roomOccupancyStatus ?? "available") === "available";
+}
 
 function ListingsSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Cargando anuncios">
       {[0, 1, 2].map((i) => (
         <div key={i} className="overflow-hidden rounded-2xl border border-border bg-bg-light">
-          <div className="min-h-[12.5rem] animate-pulse md:hidden" />
-          <div className="hidden md:block">
-            <div className="h-[4.5rem] animate-pulse border-b border-border bg-surface-elevated/60" />
-            <div className="space-y-2 p-4">
-              {[0, 1, 2].map((r) => (
-                <div key={r} className="h-11 animate-pulse rounded-lg bg-surface-elevated/80" />
-              ))}
-            </div>
-          </div>
+          <div className="min-h-[12.5rem] animate-pulse" />
         </div>
       ))}
     </div>
@@ -83,7 +77,9 @@ export function MyListingsPage() {
   const [missingByProperty, setMissingByProperty] = useState<Record<string, string>>({});
   const [localErrByProperty, setLocalErrByProperty] = useState<Record<string, string>>({});
   const [me, setMe] = useState<AuthMe | null>(null);
-  const [pendingArchive, setPendingArchive] = useState<PendingArchive>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  /** Room whose rental data must be completed before it can be offered for rent. */
+  const [activatingRoom, setActivatingRoom] = useState<PropertyListing | null>(null);
 
   const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
     if (!bundle) return ["No se pudo leer la propiedad"];
@@ -210,120 +206,179 @@ export function MyListingsPage() {
       .catch(() => setMe(null));
   }, []);
 
-  async function pause(id: string) {
-    const propertyId = rows?.find((r) => r.id === id)?.propertyId;
-    setActionId(id);
+  function setPropertyError(propertyId: string, e: unknown, fallback: string) {
+    setLocalErrByProperty((m) => ({
+      ...m,
+      [propertyId]: e instanceof Error ? e.message : fallback,
+    }));
+  }
+
+  function clearPropertyError(propertyId: string) {
+    setLocalErrByProperty((m) => {
+      const next = { ...m };
+      delete next[propertyId];
+      return next;
+    });
+  }
+
+  async function setRoomStatus(
+    l: PropertyListing,
+    status: "published" | "paused" | "archived",
+  ) {
+    setActionId(l.id);
     setErr(null);
+    clearPropertyError(l.propertyId);
     try {
-      await updateListingStatus(id, "paused");
-      track("my_listing_status_changed", { listing_id: id, status: "paused" });
+      await updateListingStatus(l.id, status);
+      track("my_listing_status_changed", { listing_id: l.id, status });
       await load();
-      setFlash({ text: "Anuncio pausado. Puedes republicarlo cuando quieras." });
+      if (status === "paused") setFlash({ text: "Anuncio pausado. Puedes republicarlo cuando quieras." });
+      else if (status === "archived") setFlash({ text: "Anuncio archivado. Lo encuentras en Archivados." });
+      else
+        setFlash({
+          text: "El anuncio ya está publicado.",
+          to: listingPublicPath(l.id),
+          linkText: "Ver anuncio publicado",
+        });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "No se pudo pausar.";
-      if (propertyId) setLocalErrByProperty((m) => ({ ...m, [propertyId]: msg }));
-      else setErr(msg);
+      setPropertyError(l.propertyId, e, "No se pudo actualizar el anuncio.");
     } finally {
       setActionId(null);
+      setPendingConfirm(null);
     }
   }
 
-  async function republish(id: string) {
-    const propertyId = rows?.find((r) => r.id === id)?.propertyId;
-    setActionId(id);
-    setErr(null);
-    try {
-      await updateListingStatus(id, "published");
-      track("my_listing_status_changed", { listing_id: id, status: "published" });
-      await load();
-      setFlash({
-        text: "El anuncio ya está publicado.",
-        to: listingPublicPath(id),
-        linkText: "Ver anuncio publicado",
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "No se pudo republicar.";
-      if (propertyId) setLocalErrByProperty((m) => ({ ...m, [propertyId]: msg }));
-      else setErr(msg);
-    } finally {
-      setActionId(null);
-    }
-  }
-
-  async function archive(id: string) {
-    const propertyId = rows?.find((r) => r.id === id)?.propertyId;
-    setActionId(id);
-    setErr(null);
-    try {
-      await updateListingStatus(id, "archived");
-      track("my_listing_status_changed", { listing_id: id, status: "archived" });
-      await load();
-      setFlash({ text: "Anuncio archivado. Lo encuentras en Archivados." });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "No se pudo archivar.";
-      if (propertyId) setLocalErrByProperty((m) => ({ ...m, [propertyId]: msg }));
-      else setErr(msg);
-    } finally {
-      setActionId(null);
-      setPendingArchive(null);
-    }
-  }
-
-  async function pauseProperty(propertyId: string) {
+  async function setPropertyStatus(propertyId: string, status: ListingStatus) {
     setActionPropertyId(propertyId);
     setErr(null);
-    try {
-      await updateProperty(propertyId, { status: "paused" });
-      await load();
-      setFlash({ text: "Propiedad pausada. Puedes republicarla cuando quieras." });
-    } catch (e) {
-      setLocalErrByProperty((m) => ({
-        ...m,
-        [propertyId]: e instanceof Error ? e.message : "No se pudo pausar la propiedad.",
-      }));
-    } finally {
-      setActionPropertyId(null);
-    }
-  }
-
-  async function republishProperty(propertyId: string) {
-    setActionPropertyId(propertyId);
-    setErr(null);
+    clearPropertyError(propertyId);
     const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
     try {
-      await updateProperty(propertyId, { status: "published" });
+      await updateProperty(propertyId, { status });
+      await load();
+      if (status === "paused") setFlash({ text: "Propiedad pausada. Puedes republicarla cuando quieras." });
+      else if (status === "archived") setFlash({ text: "Propiedad archivada. La encuentras en Archivados." });
+      else
+        setFlash({
+          text: "La propiedad ya está publicada.",
+          to: publicListingId ? listingPublicPath(publicListingId) : undefined,
+          linkText: "Ver publicación",
+        });
+    } catch (e) {
+      setPropertyError(propertyId, e, "No se pudo actualizar la propiedad.");
+    } finally {
+      setActionPropertyId(null);
+      setPendingConfirm(null);
+    }
+  }
+
+  /** Flips one room between offered-for-rent and lived-in. */
+  async function setRoomAvailability(l: PropertyListing, available: boolean) {
+    setActionId(l.id);
+    setErr(null);
+    clearPropertyError(l.propertyId);
+    try {
+      await patchDraftRoom(l.propertyId, l.id, {
+        occupancyStatus: available ? "available" : "occupied",
+      });
+      track("my_room_occupancy_changed", {
+        listing_id: l.id,
+        occupancy: available ? "available" : "occupied",
+      });
       await load();
       setFlash({
-        text: "La propiedad ya está publicada.",
-        to: publicListingId ? listingPublicPath(publicListingId) : undefined,
-        linkText: "Ver publicación",
+        text: available
+          ? "Recámara marcada como disponible."
+          : "Recámara marcada como ocupada. Ya no se ofrece en renta.",
       });
     } catch (e) {
-      setLocalErrByProperty((m) => ({
-        ...m,
-        [propertyId]: e instanceof Error ? e.message : "No se pudo republicar la propiedad.",
-      }));
+      setPropertyError(l.propertyId, e, "No se pudo actualizar la recámara.");
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  /**
+   * Turning a room On publishes it for rent, so it must carry complete rental data.
+   * Incomplete rooms open the activation form instead of failing server-side.
+   */
+  function handleRoomOccupancy(l: PropertyListing, available: boolean) {
+    if (available && !roomReadyToOffer(l)) {
+      setActivatingRoom(l);
+      return;
+    }
+    void setRoomAvailability(l, available);
+  }
+
+  /** Marks every currently available room in a property as occupied. */
+  async function deactivatePropertyRooms(propertyId: string, roomsToClose: PropertyListing[]) {
+    setActionPropertyId(propertyId);
+    setErr(null);
+    clearPropertyError(propertyId);
+    try {
+      for (const room of roomsToClose) {
+        await patchDraftRoom(propertyId, room.id, { occupancyStatus: "occupied" });
+        track("my_room_occupancy_changed", { listing_id: room.id, occupancy: "occupied" });
+      }
+      await load();
+      setFlash({
+        text: `${roomsToClose.length} recámara${
+          roomsToClose.length === 1 ? "" : "s"
+        } marcada${roomsToClose.length === 1 ? "" : "s"} como ocupada${
+          roomsToClose.length === 1 ? "" : "s"
+        }.`,
+      });
+    } catch (e) {
+      setPropertyError(propertyId, e, "No se pudieron marcar las recámaras como ocupadas.");
+    } finally {
+      setActionPropertyId(null);
+      setPendingConfirm(null);
+    }
+  }
+
+  /** Re-offers every occupied room that already has complete rental data. */
+  async function activatePropertyRooms(propertyId: string, ready: PropertyListing[]) {
+    setActionPropertyId(propertyId);
+    setErr(null);
+    clearPropertyError(propertyId);
+    try {
+      for (const room of ready) {
+        await patchDraftRoom(propertyId, room.id, { occupancyStatus: "available" });
+        track("my_room_occupancy_changed", { listing_id: room.id, occupancy: "available" });
+      }
+      await load();
+      setFlash({
+        text: `${ready.length} recámara${ready.length === 1 ? "" : "s"} disponible${
+          ready.length === 1 ? "" : "s"
+        } para renta.`,
+      });
+    } catch (e) {
+      setPropertyError(propertyId, e, "No se pudieron activar las recámaras.");
     } finally {
       setActionPropertyId(null);
     }
   }
 
-  async function archiveProperty(propertyId: string) {
-    setActionPropertyId(propertyId);
-    setErr(null);
-    try {
-      await updateProperty(propertyId, { status: "archived" });
-      await load();
-      setFlash({ text: "Propiedad archivada. La encuentras en Archivados." });
-    } catch (e) {
-      setLocalErrByProperty((m) => ({
-        ...m,
-        [propertyId]: e instanceof Error ? e.message : "No se pudo archivar la propiedad.",
-      }));
-    } finally {
-      setActionPropertyId(null);
-      setPendingArchive(null);
+  /**
+   * The property switch reflects room occupancy: On means at least one room is offered
+   * for rent. Turning it Off closes every available room, so it always confirms first.
+   */
+  function handlePropertyActive(propertyId: string, list: PropertyListing[], next: boolean) {
+    if (!next) {
+      const openRooms = list.filter(isRoomAvailable);
+      if (!openRooms.length) return;
+      setPendingConfirm({ kind: "deactivate-property", propertyId, rooms: openRooms });
+      return;
     }
+    const occupied = list.filter((l) => !isRoomAvailable(l));
+    const ready = occupied.filter((l) => roomReadyToOffer(l));
+    if (ready.length) {
+      void activatePropertyRooms(propertyId, ready);
+      return;
+    }
+    // Nothing can be re-offered as-is; collect the missing data for the first room.
+    const first = occupied[0];
+    if (first) setActivatingRoom(first);
   }
 
   async function publishDraftProperty(propertyId: string) {
@@ -343,11 +398,7 @@ export function MyListingsPage() {
     }
     setActionPropertyId(propertyId);
     setErr(null);
-    setLocalErrByProperty((m) => {
-      const next = { ...m };
-      delete next[propertyId];
-      return next;
-    });
+    clearPropertyError(propertyId);
     const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
     try {
       await updateProperty(propertyId, { status: "published" });
@@ -369,11 +420,62 @@ export function MyListingsPage() {
     return actionId === l.id || actionPropertyId === l.propertyId;
   }
 
-  function confirmPendingArchive() {
-    if (!pendingArchive) return;
-    if (pendingArchive.kind === "room") void archive(pendingArchive.id);
-    else void archiveProperty(pendingArchive.id);
+  function confirmPending() {
+    if (!pendingConfirm) return;
+    if (pendingConfirm.kind === "archive-room") {
+      const room = rows?.find((r) => r.id === pendingConfirm.id);
+      if (room) void setRoomStatus(room, "archived");
+      return;
+    }
+    if (pendingConfirm.kind === "archive-property") {
+      void setPropertyStatus(pendingConfirm.id, "archived");
+      return;
+    }
+    void deactivatePropertyRooms(pendingConfirm.propertyId, pendingConfirm.rooms);
   }
+
+  const confirmBusy =
+    pendingConfirm?.kind === "archive-room"
+      ? actionId === pendingConfirm.id
+      : pendingConfirm?.kind === "archive-property"
+        ? actionPropertyId === pendingConfirm.id
+        : pendingConfirm?.kind === "deactivate-property"
+          ? actionPropertyId === pendingConfirm.propertyId
+          : false;
+
+  const confirmCopy = (() => {
+    if (pendingConfirm?.kind === "deactivate-property") {
+      const names = pendingConfirm.rooms
+        .map((r) => {
+          const list = rows?.filter((x) => x.propertyId === r.propertyId) ?? [];
+          const head = list[0] ?? r;
+          return listingRowTitle(head, r, list);
+        })
+        .join(", ");
+      return {
+        title: "Marcar todas como ocupadas",
+        message: `Estas recámaras dejarán de ofrecerse en renta y quedarán como ocupadas: ${names}. Podrás volver a activarlas una por una cuando quieras.`,
+        confirmLabel: confirmBusy ? "Aplicando…" : "Marcar como ocupadas",
+        intent: "default" as const,
+      };
+    }
+    if (pendingConfirm?.kind === "archive-property") {
+      return {
+        title: "Archivar propiedad",
+        message:
+          "La propiedad y sus recámaras dejarán de verse en la búsqueda. Puedes volver a publicarlas cuando quieras.",
+        confirmLabel: confirmBusy ? "Archivando…" : "Archivar",
+        intent: "danger" as const,
+      };
+    }
+    return {
+      title: "Archivar anuncio",
+      message:
+        "El anuncio ya no será visible en la búsqueda. Puedes volver a publicarlo en cualquier momento.",
+      confirmLabel: confirmBusy ? "Archivando…" : "Archivar",
+      intent: "danger" as const,
+    };
+  })();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-6xl">
@@ -479,229 +581,47 @@ export function MyListingsPage() {
                 {section.groups.map(({ propertyId, list }) => {
                   const head = list[0]!;
                   const propSt = head.propertyStatus ?? "published";
-                  const propActing = actionPropertyId === propertyId;
-                  const propRef = propertyReferenceCode(propertyId);
-                  const sectionAccent =
-                    section.key === "published"
-                      ? "border-l-primary/50"
-                      : section.key === "draft"
-                        ? "border-l-warning"
-                        : section.key === "paused"
-                          ? "border-l-primary/30"
-                          : "border-l-muted/40";
-
                   return (
-                    <section
+                    <ListingPropertyCard
                       key={propertyId}
-                      aria-labelledby={`prop-heading-${propertyId}`}
-                      className={`rounded-2xl border border-border border-l-4 ${sectionAccent} bg-surface shadow-sm`}
-                    >
-                      <div className="flex flex-col gap-4 border-b border-border bg-surface-elevated px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <ListingStatusBadge status={head.propertyStatus} noun="property" />
-                            <ListingReferenceChip
-                              code={propRef}
-                              label="Propiedad"
-                              title={`Referencia de propiedad: ${propRef}`}
-                            />
-                          </div>
-                          <h3
-                            id={`prop-heading-${propertyId}`}
-                            className="mt-2 break-words text-lg font-semibold text-body"
-                          >
-                            {head.propertyTitle ?? head.title}
-                          </h3>
-                          <p className="mt-1 text-xs text-muted">
-                            {head.neighborhood} · {head.city}
-                          </p>
-                          {head.propertyPostMode === "property" ? (
-                            <p className="mt-1 text-xs text-muted">
-                              {list.length} recámara{list.length === 1 ? "" : "s"}
-                            </p>
-                          ) : null}
-                          {propSt === "draft" && missingByProperty[propertyId] ? (
-                            <MissingFieldsCallout
-                              fields={missingByProperty[propertyId]}
-                              className="mt-3"
-                            />
-                          ) : null}
-                          {propSt !== "draft" && localErrByProperty[propertyId] ? (
-                            <p className="mt-3 text-xs text-error" role="alert">
-                              {localErrByProperty[propertyId]}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px] sm:items-stretch">
-                          {propSt === "draft" ? (
-                            <>
-                              <Link
-                                to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                                className={`${propActionClass} border border-border bg-surface text-body hover:bg-surface-elevated`}
-                              >
-                                Editar borrador
-                              </Link>
-                              <label
-                                htmlFor={`legal-publish-${propertyId}`}
-                                className="flex cursor-pointer items-start gap-2 text-xs leading-snug text-body"
-                              >
-                                <input
-                                  id={`legal-publish-${propertyId}`}
-                                  type="checkbox"
-                                  checked={Boolean(legalPublishByProperty[propertyId])}
-                                  onChange={(e) => {
-                                    setLegalPublishByProperty((m) => ({
-                                      ...m,
-                                      [propertyId]: e.target.checked,
-                                    }));
-                                    setLocalErrByProperty((m) => {
-                                      const next = { ...m };
-                                      delete next[propertyId];
-                                      return next;
-                                    });
-                                  }}
-                                  className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
-                                />
-                                <span>
-                                  Confirmo que la información es verídica y acepto los{" "}
-                                  <Link
-                                    to="/legal/terminos"
-                                    className="font-semibold text-primary underline-offset-2 hover:underline"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    Términos de uso
-                                  </Link>{" "}
-                                  para publicar.
-                                </span>
-                              </label>
-                              {localErrByProperty[propertyId] ? (
-                                <p className="text-xs text-error" role="alert">
-                                  {localErrByProperty[propertyId]}
-                                </p>
-                              ) : null}
-                              <button
-                                type="button"
-                                disabled={propActing}
-                                aria-busy={propActing}
-                                onClick={() => void publishDraftProperty(propertyId)}
-                                className={`${propActionClass} bg-primary text-primary-fg enabled:hover:brightness-110 active:scale-[0.99]`}
-                              >
-                                {propActing ? "Publicando…" : "Publicar"}
-                              </button>
-                            </>
-                          ) : null}
-                          {propSt === "published" ? (
-                            <>
-                              <Link
-                                to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                                className={`${propActionClass} bg-primary/10 text-primary hover:bg-primary/15`}
-                              >
-                                Editar anuncio
-                              </Link>
-                              <Link
-                                to={
-                                  head.propertyPostMode === "property"
-                                    ? `${listingPublicPath(list[0]!.id)}?roomId=${encodeURIComponent(list[0]!.id)}`
-                                    : listingPublicPath(list[0]!.id)
-                                }
-                                className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
-                              >
-                                Ver publicación
-                              </Link>
-                              <button
-                                type="button"
-                                disabled={propActing}
-                                aria-busy={propActing}
-                                onClick={() => void pauseProperty(propertyId)}
-                                className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
-                              >
-                                {propActing ? "Pausando…" : "Pausar propiedad"}
-                              </button>
-                            </>
-                          ) : null}
-                          {propSt === "paused" ? (
-                            <>
-                              <Link
-                                to={`/publicar?edit=${encodeURIComponent(propertyId)}`}
-                                className={`${propActionClass} bg-primary/10 text-primary hover:bg-primary/15`}
-                              >
-                                Editar
-                              </Link>
-                              <button
-                                type="button"
-                                disabled={propActing}
-                                aria-busy={propActing}
-                                onClick={() => void republishProperty(propertyId)}
-                                className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
-                              >
-                                {propActing ? "Republicando…" : "Republicar propiedad"}
-                              </button>
-                            </>
-                          ) : null}
-                          {propSt === "archived" ? (
-                            <button
-                              type="button"
-                              disabled={propActing}
-                              aria-busy={propActing}
-                              onClick={() => void republishProperty(propertyId)}
-                              className={`${propActionClass} border border-border text-body hover:bg-surface-elevated`}
-                            >
-                              {propActing ? "Restaurando…" : "Restaurar propiedad"}
-                            </button>
-                          ) : null}
-                          {propSt === "published" || propSt === "paused" ? (
-                            <button
-                              type="button"
-                              disabled={propActing}
-                              aria-busy={propActing}
-                              onClick={() => setPendingArchive({ kind: "property", id: propertyId })}
-                              className={`${propActionClass} border border-border text-muted hover:bg-surface-elevated`}
-                            >
-                              Archivar propiedad
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <ul className="divide-y divide-border md:hidden">
-                        {list.map((l) => (
-                          <MobileListingCard
-                            key={l.id}
-                            listing={l}
-                            head={head}
-                            title={listingRowTitle(head, l, list)}
-                            propertyId={propertyId}
-                            propSt={propSt}
-                            acting={rowBusy(l)}
-                            onPause={() => void pause(l.id)}
-                            onRepublish={() => void republish(l.id)}
-                            onArchive={() => setPendingArchive({ kind: "room", id: l.id })}
-                            onRestore={() => void republish(l.id)}
-                            onShared={(mode) =>
-                              setFlash({
-                                text:
-                                  mode === "shared"
-                                    ? "Enlace listo para compartir."
-                                    : "Enlace del anuncio copiado.",
-                              })
-                            }
-                            onShareFailed={() =>
-                              setFlash({ text: "No se pudo copiar el enlace. Intenta de nuevo." })
-                            }
-                          />
-                        ))}
-                      </ul>
-                      <DesktopRoomTable
-                        propertyId={propertyId}
-                        head={head}
-                        list={list}
-                        propSt={propSt}
-                        rowBusy={rowBusy}
-                        onPause={(id) => void pause(id)}
-                        onRepublish={(id) => void republish(id)}
-                        onArchive={(id) => setPendingArchive({ kind: "room", id })}
-                        onRestore={(id) => void republish(id)}
-                      />
-                    </section>
+                      propertyId={propertyId}
+                      head={head}
+                      list={list}
+                      propSt={propSt}
+                      roomTitle={(l) => listingRowTitle(head, l, list)}
+                      propertyBusy={actionPropertyId === propertyId}
+                      rowBusy={rowBusy}
+                      missingFields={missingByProperty[propertyId]}
+                      localError={localErrByProperty[propertyId]}
+                      legalChecked={Boolean(legalPublishByProperty[propertyId])}
+                      onLegalChange={(next) => {
+                        setLegalPublishByProperty((m) => ({ ...m, [propertyId]: next }));
+                        clearPropertyError(propertyId);
+                      }}
+                      onPublishDraft={() => void publishDraftProperty(propertyId)}
+                      onSingleRoomActive={(next) =>
+                        void setPropertyStatus(propertyId, next ? "published" : "paused")
+                      }
+                      onPropertyActive={(next) => handlePropertyActive(propertyId, list, next)}
+                      onPropertyStatus={(status) => void setPropertyStatus(propertyId, status)}
+                      onArchiveProperty={() =>
+                        setPendingConfirm({ kind: "archive-property", id: propertyId })
+                      }
+                      onRoomOccupancy={handleRoomOccupancy}
+                      onRoomStatus={(l, status) => void setRoomStatus(l, status)}
+                      onArchiveRoom={(l) => setPendingConfirm({ kind: "archive-room", id: l.id })}
+                      onShared={(mode) =>
+                        setFlash({
+                          text:
+                            mode === "shared"
+                              ? "Enlace listo para compartir."
+                              : "Enlace del anuncio copiado.",
+                        })
+                      }
+                      onShareFailed={() =>
+                        setFlash({ text: "No se pudo copiar el enlace. Intenta de nuevo." })
+                      }
+                    />
                   );
                 })}
               </div>
@@ -746,31 +666,32 @@ export function MyListingsPage() {
         )}
       </div>
 
+      {activatingRoom ? (
+        <RoomActivationModal
+          listing={activatingRoom}
+          roomLabel={(() => {
+            const list = rows?.filter((x) => x.propertyId === activatingRoom.propertyId) ?? [];
+            const head = list[0] ?? activatingRoom;
+            return listingRowTitle(head, activatingRoom, list);
+          })()}
+          onCancel={() => setActivatingRoom(null)}
+          onActivated={(message) => {
+            setActivatingRoom(null);
+            setFlash({ text: message });
+            void load();
+          }}
+        />
+      ) : null}
+
       <AppConfirmDialog
-        open={pendingArchive != null}
-        intent="danger"
-        title={pendingArchive?.kind === "property" ? "Archivar propiedad" : "Archivar anuncio"}
-        message={
-          pendingArchive?.kind === "property"
-            ? "La propiedad y sus recámaras dejarán de verse en la búsqueda. Puedes volver a publicarlas cuando quieras."
-            : "El anuncio ya no será visible en la búsqueda. Puedes volver a publicarlo en cualquier momento."
-        }
-        confirmLabel={
-          pendingArchive &&
-          ((pendingArchive.kind === "room" && actionId === pendingArchive.id) ||
-            (pendingArchive.kind === "property" && actionPropertyId === pendingArchive.id))
-            ? "Archivando…"
-            : "Archivar"
-        }
-        busy={
-          pendingArchive?.kind === "room"
-            ? actionId === pendingArchive.id
-            : pendingArchive?.kind === "property"
-              ? actionPropertyId === pendingArchive.id
-              : false
-        }
-        onConfirm={confirmPendingArchive}
-        onCancel={() => setPendingArchive(null)}
+        open={pendingConfirm != null}
+        intent={confirmCopy.intent}
+        title={confirmCopy.title}
+        message={confirmCopy.message}
+        confirmLabel={confirmCopy.confirmLabel}
+        busy={confirmBusy}
+        onConfirm={confirmPending}
+        onCancel={() => setPendingConfirm(null)}
       />
     </div>
   );

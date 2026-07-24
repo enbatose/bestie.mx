@@ -60,7 +60,7 @@ Hero, H1–H3, Body, Label, Caption, Overline, Button — aligned with `.cursor/
 | **Publisher / StatusBadge** | Components / Publisher (add) | `ListingStatusBadge.tsx` — semantic pills for draft / published / paused / archived |
 | **Publisher / ListingThumb** | Components / Publisher (add) | `ListingThumb.tsx` — 64×64 square thumb + Home fallback |
 | **Publisher / MissingFieldsCallout** | Components / Publisher (add) | `MissingFieldsCallout.tsx` — warning callout before draft publish |
-| **Publisher / DesktopRoomTable** | Components / Publisher (add) | `DesktopRoomTable.tsx` — thumb + rent + metrics + compact actions overflow |
+| **Publisher / ListingPropertyCard** | Components / Publisher (add) | `ListingPropertyCard.tsx` — one card for mobile + desktop; On/Off switch, rooms accordion with per-room occupancy switch |
 | **Publisher / ReferenceChip** | Components / Publisher (add) | `ListingReferenceChip.tsx` — copyable `P…` / `A…` refs |
 | **Dialog / Confirm** | Components / Dialog | `AppConfirmDialog.tsx` — `intent="default" \| "danger"`, focus trap + restore |
 

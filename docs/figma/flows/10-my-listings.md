@@ -34,8 +34,9 @@
 ## Components
 
 - `Publisher/PropertyCard` (status pill: draft / published / paused / archived)
-- `Publisher/DesktopRoomTable` — thumb, rent, metrics, overflow actions
-- `Publisher/MobileListingCard` — thumb + rent + metrics + overflow (share/archive/restore)
+- `Publisher/ListingPropertyCard` — unified card for both viewports: status + type badges, On/Off switch, title + place + thumb with reference underneath, footer actions (Ver / Editar / Compartir / Recámaras), rooms accordion
+- `Publisher/RoomOnOffToggle` — outlined room switch (On = disponible, Off = ocupada)
+- `Publisher/RoomActivationModal` — collects the room rental fields required before offering an occupied room for rent
 - `Publisher/ListingThumb`, `Publisher/StatusBadge`, `Publisher/ReferenceChip`
 - `Callout/MissingFields` → `MissingFieldsCallout.tsx`
 - `Dialog/Confirm` with `intent="danger"` before archive (focus trap + `aria-describedby`)
