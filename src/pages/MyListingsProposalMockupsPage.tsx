@@ -556,14 +556,12 @@ function ProposedPropertyCard({
         <ul className="divide-y divide-border border-t border-primary/20">
           {rooms.map((room) => (
             <li key={room.id} className="px-4 py-3">
-              {/* Header band height matches photo (size-14) so title mid = photo mid; ID hangs under photo. */}
+              {/* Title starts at the top; photo nudged so its mid sits near the header line without leaving a gap. */}
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-h-14 items-center">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <ListingStatusBadge status={room.status} className="min-h-7 shrink-0 items-center" />
-                      <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ListingStatusBadge status={room.status} className="min-h-7 shrink-0 items-center" />
+                    <p className="min-w-0 font-medium leading-snug text-body">{room.name}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted">
                     {room.occupied ? "Ocupada" : room.rentLabel} · {room.metrics}
