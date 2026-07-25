@@ -239,9 +239,8 @@ export type CardActionItem = {
 } & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
 
 /**
- * Single connected control for Ver / Editar / Compartir / Archivar.
- * One shared shell + dividers instead of separate pills, so the cluster stays compact
- * while keeping property (forest) vs room (lime) coloring.
+ * Connected on mobile; restores the original separate icon-and-label pills from `sm` up.
+ * Both layouts keep property (forest) vs room (lime) coloring.
  */
 export function CardActionGroup({
   tone,
@@ -272,43 +271,71 @@ export function CardActionGroup({
     size === "compact" ? "min-w-7 px-1.5" : "min-w-10 px-2.5 sm:min-w-11 sm:px-3";
 
   return (
-    <div
-      role="group"
-      aria-label={ariaLabel}
-      className={`inline-flex shrink-0 items-stretch overflow-hidden border ${sizeClass} ${shell} ${divider} divide-x`}
-    >
-      {actions.map((action) => {
-        const itemClass = `inline-flex flex-1 items-center justify-center ${itemPad} transition disabled:opacity-50 ${hover}`;
-        if (action.to && !action.disabled) {
+    <>
+      <div
+        role="group"
+        aria-label={ariaLabel}
+        className={`inline-flex shrink-0 items-stretch overflow-hidden border sm:hidden ${sizeClass} ${shell} ${divider} divide-x`}
+      >
+        {actions.map((action) => {
+          const itemClass = `inline-flex flex-1 items-center justify-center ${itemPad} transition disabled:opacity-50 ${hover}`;
+          if (action.to && !action.disabled) {
+            return (
+              <Link
+                key={action.key}
+                to={action.to}
+                aria-label={action.label}
+                title={action.label}
+                className={itemClass}
+              >
+                {action.icon}
+                {!action.icon ? <span className="text-[11px] font-semibold">{action.label}</span> : null}
+              </Link>
+            );
+          }
           return (
-            <Link
+            <button
               key={action.key}
-              to={action.to}
+              type="button"
               aria-label={action.label}
               title={action.label}
+              disabled={action.disabled}
+              onClick={action.onClick}
               className={itemClass}
             >
               {action.icon}
               {!action.icon ? <span className="text-[11px] font-semibold">{action.label}</span> : null}
-            </Link>
+            </button>
           );
-        }
-        return (
-          <button
-            key={action.key}
-            type="button"
-            aria-label={action.label}
-            title={action.label}
-            disabled={action.disabled}
-            onClick={action.onClick}
-            className={itemClass}
-          >
-            {action.icon}
-            {!action.icon ? <span className="text-[11px] font-semibold">{action.label}</span> : null}
-          </button>
-        );
-      })}
-    </div>
+        })}
+      </div>
+
+      <div role="group" aria-label={ariaLabel} className="hidden flex-wrap items-center gap-1.5 sm:flex">
+        {actions.map((action) =>
+          action.to ? (
+            <CardAction
+              key={action.key}
+              tone={tone}
+              size={size}
+              label={action.label}
+              icon={action.icon}
+              disabled={action.disabled}
+              to={action.to}
+            />
+          ) : (
+            <CardAction
+              key={action.key}
+              tone={tone}
+              size={size}
+              label={action.label}
+              icon={action.icon}
+              disabled={action.disabled}
+              onClick={action.onClick}
+            />
+          ),
+        )}
+      </div>
+    </>
   );
 }
 
