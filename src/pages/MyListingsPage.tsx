@@ -683,7 +683,7 @@ export function MyListingsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
           <Link
             to="/publicar"
-            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface px-3.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-primary bg-surface px-3.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
           >
             Publicar anuncio
           </Link>
