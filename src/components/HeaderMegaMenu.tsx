@@ -665,13 +665,13 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
               setNotificationsOpen(false);
               setAvatarOpen((v) => !v);
             }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:w-auto md:px-0.5"
+            className="inline-flex h-9 items-center rounded-full px-0.5 transition hover:ring-2 hover:ring-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             aria-expanded={avatarOpen}
             aria-haspopup="menu"
             aria-label={me?.id ? "Menú de cuenta" : "Abrir menú"}
           >
             <span className="inline-flex h-9 items-center md:hidden">
-              <AvatarTrigger me={me} size="sm" />
+              <AvatarTrigger me={me} size="sm" showChevron />
             </span>
             <span className="hidden h-9 items-center md:inline-flex">
               <AvatarTrigger me={me} size="md" showChevron />

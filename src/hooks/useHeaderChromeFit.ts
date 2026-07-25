@@ -15,8 +15,8 @@ const SAFETY_PX = 6;
 const MAX_ICON_GAP_PX = 4;
 const MD_MIN_WIDTH_PX = 768;
 
-/** Worst-case logged-in mobile actions (search + publicar + msg + bell + avatar, no chevrons). */
-const LOGGED_IN_ACTIONS_ZERO_GAP_PX = 36 + 36 + 36 + 36 + 36;
+/** Worst-case logged-in mobile actions (search + publicar + msg + bell + avatar+chevron). */
+const LOGGED_IN_ACTIONS_ZERO_GAP_PX = 36 + 36 + 36 + 36 + 44;
 
 function isNarrowViewport(): boolean {
   if (typeof window === "undefined") return true;
