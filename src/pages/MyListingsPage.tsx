@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, RefreshCw, Search, X } from "lucide-react";
+import { Home, Search, X } from "lucide-react";
 import { AppConfirmDialog } from "@/components/AppConfirmDialog";
 import { ListingPropertyCard } from "@/components/myListings/ListingPropertyCard";
 import {
@@ -672,48 +672,35 @@ export function MyListingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-6xl">
-      <div className="flex flex-col gap-4">
-        <div className="min-w-0">
-          {me ? (
-            <p className="mb-1 text-sm text-muted">
-              Hola, <span className="font-semibold text-body">{me.displayName}</span>
-            </p>
-          ) : null}
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
-            <Link
-              to="/publicar"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
-            >
-              Publicar anuncio
-            </Link>
-          </div>
-          {summaryParts.length ? (
-            <p className="mt-2 text-sm font-medium text-body">{summaryParts.join(" · ")}</p>
-          ) : (
-            <p className="mt-2 text-sm text-muted">
-              {me
-                ? "Administra borradores y anuncios activos."
-                : "Los borradores se pueden crear sin cuenta. Para publicar necesitas iniciar sesión."}
-            </p>
-          )}
-          {summaryParts.length && !me ? (
-            <p className="mt-1 text-xs text-muted sm:hidden">
-              Para publicar necesitas iniciar sesión.
-            </p>
-          ) : null}
-        </div>
-        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:self-end">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void load()}
-            aria-label="Actualizar anuncios"
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-border text-body transition enabled:hover:bg-surface-elevated disabled:opacity-50"
+      <div className="min-w-0">
+        {me ? (
+          <p className="mb-1 text-sm text-muted">
+            Hola, <span className="font-semibold text-body">{me.displayName}</span>
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
+          <Link
+            to="/publicar"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
           >
-            <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} aria-hidden />
-          </button>
+            Publicar anuncio
+          </Link>
         </div>
+        {summaryParts.length ? (
+          <p className="mt-2 text-sm font-medium text-body">{summaryParts.join(" · ")}</p>
+        ) : (
+          <p className="mt-2 text-sm text-muted">
+            {me
+              ? "Administra borradores y anuncios activos."
+              : "Los borradores se pueden crear sin cuenta. Para publicar necesitas iniciar sesión."}
+          </p>
+        )}
+        {summaryParts.length && !me ? (
+          <p className="mt-1 text-xs text-muted sm:hidden">
+            Para publicar necesitas iniciar sesión.
+          </p>
+        ) : null}
       </div>
 
       {flash ? (
