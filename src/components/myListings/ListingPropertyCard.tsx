@@ -5,6 +5,7 @@ import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
 import { MissingFieldsCallout } from "@/components/myListings/MissingFieldsCallout";
 import {
   CardAction,
+  CardActionGroup,
   CardHeader,
   CardOnOffToggle,
   cardShellClass,
@@ -12,6 +13,7 @@ import {
   PhotoWithReference,
   RoomOccupancyBadge,
   RoomOnOffToggle,
+  type CardActionItem,
   type CardTone,
 } from "@/components/myListings/listingCardChrome";
 import {
@@ -116,6 +118,57 @@ export function ListingPropertyCard({
     if (result === "shared" || result === "copied") onShared(result);
     else if (result === "failed") onShareFailed();
   }
+
+  const cardActions: CardActionItem[] = [
+    {
+      key: "view",
+      label: propSt === "published" ? "Ver" : "Vista previa",
+      to: publicPath,
+      icon: <Eye className="size-4 shrink-0" aria-hidden />,
+    },
+    ...(canEdit
+      ? [
+          {
+            key: "edit",
+            label: "Editar",
+            to: editPath,
+            icon: <Pencil className="size-4 shrink-0" aria-hidden />,
+          } satisfies CardActionItem,
+        ]
+      : []),
+    ...(canShare
+      ? [
+          {
+            key: "share",
+            label: "Compartir",
+            onClick: () => void share(publicPath, head.propertyTitle ?? head.title),
+            icon: <Share2 className="size-4 shrink-0" aria-hidden />,
+          } satisfies CardActionItem,
+        ]
+      : []),
+    ...(canArchive
+      ? [
+          {
+            key: "archive",
+            label: "Archivar",
+            disabled: propertyBusy,
+            onClick: onArchiveProperty,
+            icon: <Trash2 className="size-4 shrink-0" aria-hidden />,
+          } satisfies CardActionItem,
+        ]
+      : []),
+    ...(propSt === "archived"
+      ? [
+          {
+            key: "restore",
+            label: "Restaurar",
+            disabled: propertyBusy,
+            onClick: () =>
+              isProperty ? onPropertyActive(true) : onPropertyStatus("published"),
+          } satisfies CardActionItem,
+        ]
+      : []),
+  ];
 
   return (
     <section
@@ -258,52 +311,8 @@ export function ListingPropertyCard({
           </p>
         ) : null}
 
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 border-t border-border/60 pt-3">
-          <CardAction
-            tone={tone}
-            label={propSt === "published" ? "Ver" : "Vista previa"}
-            to={publicPath}
-            iconOnlyOnMobile
-            icon={<Eye className="size-4 shrink-0" aria-hidden />}
-          />
-          {canEdit ? (
-            <CardAction
-              tone={tone}
-              label="Editar"
-              to={editPath}
-              iconOnlyOnMobile
-              icon={<Pencil className="size-4 shrink-0" aria-hidden />}
-            />
-          ) : null}
-          {canShare ? (
-            <CardAction
-              tone={tone}
-              label="Compartir"
-              onClick={() => void share(publicPath, head.propertyTitle ?? head.title)}
-              iconOnlyOnMobile
-              icon={<Share2 className="size-4 shrink-0" aria-hidden />}
-            />
-          ) : null}
-          {canArchive ? (
-            <CardAction
-              tone={tone}
-              label="Archivar"
-              disabled={propertyBusy}
-              onClick={onArchiveProperty}
-              iconOnlyOnMobile
-              icon={<Trash2 className="size-4 shrink-0" aria-hidden />}
-            />
-          ) : null}
-          {propSt === "archived" ? (
-            <CardAction
-              tone={tone}
-              label="Restaurar"
-              disabled={propertyBusy}
-              onClick={() =>
-                isProperty ? onPropertyActive(true) : onPropertyStatus("published")
-              }
-            />
-          ) : null}
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+          <CardActionGroup tone={tone} actions={cardActions} />
           {isProperty ? (
             <div className="flex shrink-0 items-center sm:ml-auto sm:pl-2">
               <CardAction
@@ -332,6 +341,52 @@ export function ListingPropertyCard({
             const label = roomTitle(l);
             const busy = rowBusy(l);
             const roomPath = `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`;
+            const roomActions: CardActionItem[] = [
+              {
+                key: "view",
+                label: "Ver",
+                to: roomPath,
+                icon: <Eye className="size-3.5 shrink-0" aria-hidden />,
+              },
+              ...(canEdit
+                ? [
+                    {
+                      key: "edit",
+                      label: "Editar",
+                      to: `${editPath}&room=${encodeURIComponent(l.id)}`,
+                      icon: <Pencil className="size-3.5 shrink-0" aria-hidden />,
+                    } satisfies CardActionItem,
+                  ]
+                : []),
+              ...(available && propSt === "published"
+                ? [
+                    {
+                      key: "share",
+                      label: "Compartir",
+                      onClick: () => void share(roomPath, label),
+                      icon: <Share2 className="size-3.5 shrink-0" aria-hidden />,
+                    } satisfies CardActionItem,
+                  ]
+                : []),
+              ...(roomSt === "archived"
+                ? [
+                    {
+                      key: "restore",
+                      label: "Restaurar",
+                      disabled: busy,
+                      onClick: () => onRestoreRoom(l),
+                    } satisfies CardActionItem,
+                  ]
+                : [
+                    {
+                      key: "archive",
+                      label: "Archivar",
+                      disabled: busy || propSt === "archived",
+                      onClick: () => onArchiveRoom(l),
+                      icon: <Trash2 className="size-3.5 shrink-0" aria-hidden />,
+                    } satisfies CardActionItem,
+                  ]),
+            ];
 
             return (
               <li key={l.id} className={`px-4 py-3 ${busy ? "opacity-60" : ""}`}>
@@ -362,54 +417,8 @@ export function ListingPropertyCard({
                           .join(" · ")}
                       </p>
                     ) : null}
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <CardAction
-                        tone={tone}
-                        size="compact"
-                        label="Ver"
-                        to={roomPath}
-                        iconOnlyOnMobile
-                        icon={<Eye className="size-3.5 shrink-0" aria-hidden />}
-                      />
-                      {canEdit ? (
-                        <CardAction
-                          tone={tone}
-                          size="compact"
-                          label="Editar"
-                          to={`${editPath}&room=${encodeURIComponent(l.id)}`}
-                          iconOnlyOnMobile
-                          icon={<Pencil className="size-3.5 shrink-0" aria-hidden />}
-                        />
-                      ) : null}
-                      {available && propSt === "published" ? (
-                        <CardAction
-                          tone={tone}
-                          size="compact"
-                          label="Compartir"
-                          onClick={() => void share(roomPath, label)}
-                          iconOnlyOnMobile
-                          icon={<Share2 className="size-3.5 shrink-0" aria-hidden />}
-                        />
-                      ) : null}
-                      {roomSt === "archived" ? (
-                        <CardAction
-                          tone={tone}
-                          size="compact"
-                          label="Restaurar"
-                          disabled={busy}
-                          onClick={() => onRestoreRoom(l)}
-                        />
-                      ) : (
-                        <CardAction
-                          tone={tone}
-                          size="compact"
-                          label="Archivar"
-                          disabled={busy || propSt === "archived"}
-                          onClick={() => onArchiveRoom(l)}
-                          iconOnlyOnMobile
-                          icon={<Trash2 className="size-3.5 shrink-0" aria-hidden />}
-                        />
-                      )}
+                    <div className="mt-2">
+                      <CardActionGroup tone={tone} size="compact" actions={roomActions} />
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-center gap-2">

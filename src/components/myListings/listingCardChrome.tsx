@@ -181,14 +181,9 @@ type CardActionProps = {
   emphasizeBorder?: boolean;
   size?: "default" | "compact";
   disabled?: boolean;
-  /**
-   * Hide the visible label below `sm` (icon/title/aria-label remain).
-   * Use for Ver / Editar / Compartir / Archivar; keep off for Recámaras.
-   */
-  iconOnlyOnMobile?: boolean;
 } & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
 
-/** Pill action used in card footers; renders a Link when `to` is given. */
+/** Standalone pill action (e.g. Recámaras / Restaurar); use `CardActionGroup` for icon clusters. */
 export function CardAction({
   tone,
   label,
@@ -197,7 +192,6 @@ export function CardAction({
   emphasizeBorder = false,
   size = "default",
   disabled = false,
-  iconOnlyOnMobile = false,
   to,
   onClick,
 }: CardActionProps) {
@@ -208,20 +202,15 @@ export function CardAction({
       : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
   const sizeClass =
     size === "compact"
-      ? iconOnlyOnMobile
-        ? "min-h-7 min-w-7 gap-1 rounded-lg px-1.5 py-0.5 text-[11px] leading-none sm:min-w-0 sm:px-2"
-        : "min-h-7 gap-1 rounded-lg px-2 py-0.5 text-[11px] leading-none"
-      : iconOnlyOnMobile
-        ? "min-h-11 min-w-11 gap-1.5 rounded-full px-2.5 text-xs sm:min-w-0 sm:px-3"
-        : "min-h-11 gap-1.5 rounded-full px-3 text-xs";
+      ? "min-h-7 gap-1 rounded-lg px-2 py-0.5 text-[11px] leading-none"
+      : "min-h-11 gap-1.5 rounded-full px-3 text-xs";
   const className = `inline-flex shrink-0 items-center justify-center border font-semibold transition disabled:opacity-50 ${sizeClass} ${ring}`;
-  const labelClass = iconOnlyOnMobile ? "hidden sm:inline" : undefined;
 
   if (to && !disabled) {
     return (
       <Link to={to} aria-label={label} title={label} className={className}>
         {icon}
-        <span className={labelClass}>{label}</span>
+        <span>{label}</span>
         {trailingIcon}
       </Link>
     );
@@ -236,9 +225,90 @@ export function CardAction({
       className={className}
     >
       {icon}
-      <span className={labelClass}>{label}</span>
+      <span>{label}</span>
       {trailingIcon}
     </button>
+  );
+}
+
+export type CardActionItem = {
+  key: string;
+  label: string;
+  icon?: ReactNode;
+  disabled?: boolean;
+} & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
+
+/**
+ * Single connected control for Ver / Editar / Compartir / Archivar.
+ * One shared shell + dividers instead of separate pills, so the cluster stays compact
+ * while keeping property (forest) vs room (lime) coloring.
+ */
+export function CardActionGroup({
+  tone,
+  size = "default",
+  actions,
+  "aria-label": ariaLabel = "Acciones del anuncio",
+}: {
+  tone: CardTone;
+  size?: "default" | "compact";
+  actions: readonly CardActionItem[];
+  "aria-label"?: string;
+}) {
+  if (actions.length === 0) return null;
+
+  const shell =
+    tone === "property"
+      ? "border-primary/25 bg-primary/10 text-primary"
+      : "border-secondary/40 bg-secondary/20 text-primary";
+  const divider =
+    tone === "property" ? "divide-primary/15" : "divide-secondary/35";
+  const hover =
+    tone === "property" ? "hover:bg-primary/15" : "hover:bg-secondary/30";
+  const sizeClass =
+    size === "compact"
+      ? "h-7 rounded-lg"
+      : "h-11 rounded-full";
+  const itemPad =
+    size === "compact" ? "min-w-7 px-1.5" : "min-w-10 px-2.5 sm:min-w-11 sm:px-3";
+
+  return (
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className={`inline-flex shrink-0 items-stretch overflow-hidden border ${sizeClass} ${shell} ${divider} divide-x`}
+    >
+      {actions.map((action) => {
+        const itemClass = `inline-flex flex-1 items-center justify-center ${itemPad} transition disabled:opacity-50 ${hover}`;
+        if (action.to && !action.disabled) {
+          return (
+            <Link
+              key={action.key}
+              to={action.to}
+              aria-label={action.label}
+              title={action.label}
+              className={itemClass}
+            >
+              {action.icon}
+              {!action.icon ? <span className="text-[11px] font-semibold">{action.label}</span> : null}
+            </Link>
+          );
+        }
+        return (
+          <button
+            key={action.key}
+            type="button"
+            aria-label={action.label}
+            title={action.label}
+            disabled={action.disabled}
+            onClick={action.onClick}
+            className={itemClass}
+          >
+            {action.icon}
+            {!action.icon ? <span className="text-[11px] font-semibold">{action.label}</span> : null}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
