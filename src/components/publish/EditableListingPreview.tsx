@@ -422,12 +422,20 @@ export function EditableListingPreview({
   const detailsRoom = roomDetailsDraft ?? room;
   const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
 
-  const previewHeaderTitle = publicListingHeaderTitle({
-    postMode: draft.postMode,
-    neighborhood: neighborhoodLabel,
-    lodgingType: room.lodgingType,
-    propertyKind: draft.propertyKind,
-  });
+  // Prefer the saved title so live-edit matches Mis Anuncios / the public page.
+  // Fall back to the kind+colonia synthesis only when the draft still has no name.
+  const savedHeaderTitle =
+    draft.postMode === "property"
+      ? draft.propertyTitle.trim()
+      : listing.title.trim();
+  const previewHeaderTitle =
+    savedHeaderTitle ||
+    publicListingHeaderTitle({
+      postMode: draft.postMode,
+      neighborhood: neighborhoodLabel,
+      lodgingType: room.lodgingType,
+      propertyKind: draft.propertyKind,
+    });
 
   return (
     <div className="space-y-6">
