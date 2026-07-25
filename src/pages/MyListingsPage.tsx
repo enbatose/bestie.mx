@@ -57,8 +57,10 @@ const PRIMARY_TABS: readonly {
 
 function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
   if (head.propertyPostMode === "property") {
+    // Use the room's own title (never the concatenated "{property} · {room}"
+    // public display title) so every room row reads consistently.
     return roomDisplayName(
-      { customName: l.roomCustomName, title: l.title },
+      { customName: l.roomCustomName, title: l.roomTitle },
       list.findIndex((x) => x.id === l.id),
     );
   }
@@ -670,14 +672,22 @@ export function MyListingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-6xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div className="min-w-0">
           {me ? (
             <p className="mb-1 text-sm text-muted">
               Hola, <span className="font-semibold text-body">{me.displayName}</span>
             </p>
           ) : null}
-          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
+            <Link
+              to="/publicar"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
+            >
+              Publicar anuncio
+            </Link>
+          </div>
           {summaryParts.length ? (
             <p className="mt-2 text-sm font-medium text-body">{summaryParts.join(" · ")}</p>
           ) : (
@@ -693,13 +703,7 @@ export function MyListingsPage() {
             </p>
           ) : null}
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <Link
-            to="/publicar"
-            className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 sm:flex-none"
-          >
-            Publicar anuncio
-          </Link>
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:self-end">
           <button
             type="button"
             disabled={busy}
