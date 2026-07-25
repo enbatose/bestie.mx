@@ -159,6 +159,11 @@ export type PropertyListing = {
   /** Publishing strategy of the parent property. */
   propertyPostMode?: "room" | "property";
   title: string;
+  /**
+   * Raw room-specific title (no property-title prefix). `title` holds the
+   * concatenated public display title; use this for per-room dashboard rows.
+   */
+  roomTitle?: string;
   city: string;
   neighborhood: string;
   lat: number;

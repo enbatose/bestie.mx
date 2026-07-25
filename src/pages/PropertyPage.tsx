@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { fetchPropertyWithRooms } from "@/lib/listingsApi";
+import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { PropertyWithRooms } from "@/types/listing";
 
 export function PropertyPage() {
@@ -30,9 +31,13 @@ export function PropertyPage() {
 
   useEffect(() => {
     if (!propertyPack) return;
-    const firstPublishedRoom = propertyPack.rooms.find((room) => room.status === "published");
-    if (firstPublishedRoom) {
-      navigate(listingPublicPath(firstPublishedRoom.id), { replace: true });
+    const publishedRooms = propertyPack.rooms.filter((room) => room.status === "published");
+    // Prefer a room that is actually offered for rent so the public listing shows
+    // the property instead of the "recámara ocupada" notice.
+    const entryRoom =
+      publishedRooms.find((room) => isRoomAvailableForRent(room)) ?? publishedRooms[0];
+    if (entryRoom) {
+      navigate(listingPublicPath(entryRoom.id), { replace: true });
     }
   }, [navigate, propertyPack]);
 

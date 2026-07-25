@@ -147,6 +147,11 @@ export type PropertyListing = {
   propertyBathrooms: number;
   showWhatsApp: boolean;
   title: string;
+  /**
+   * Raw room-specific title (no property-title prefix). Use this for per-room
+   * rows in owner dashboards; `title` carries the concatenated public display title.
+   */
+  roomTitle?: string;
   city: string;
   neighborhood: string;
   lat: number;

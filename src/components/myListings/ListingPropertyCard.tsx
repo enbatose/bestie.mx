@@ -96,9 +96,14 @@ export function ListingPropertyCard({
   const occupiedCount = list.length - availableCount;
   const propRef = propertyReferenceCode(propertyId);
 
+  // For a property post, "Ver" opens the property overview. Anchor it to an
+  // available room so the public page doesn't short-circuit to the
+  // "recámara ocupada" notice when the first room happens to be occupied.
+  const propertyEntry = list.find(isAvailable) ?? first;
+
   const editPath = `/publicar?edit=${encodeURIComponent(propertyId)}`;
   const publicPath = isProperty
-    ? `${listingPublicPath(first.id)}?roomId=${encodeURIComponent(first.id)}`
+    ? listingPublicPath(propertyEntry.id)
     : listingPublicPath(first.id);
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
   const canShare = propSt === "published";

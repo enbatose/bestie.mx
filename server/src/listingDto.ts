@@ -102,6 +102,7 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     propertyStatus: listingStatusFromRow(row.property_status),
     propertyPostMode: postMode,
     title: displayTitle,
+    ...(trimmedRoomTitle ? { roomTitle: trimmedRoomTitle } : {}),
     city: String(row.city),
     neighborhood: String(row.neighborhood),
     lat: Number(row.lat),
