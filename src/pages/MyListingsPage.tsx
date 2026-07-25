@@ -43,16 +43,16 @@ type PendingConfirm =
   | { kind: "deactivate-property"; propertyId: string; rooms: PropertyListing[] }
   | null;
 
-/** Primary hub tabs — archived, published, drafts. Pausados stay secondary under Publicados. */
-type ListingsTab = "archived" | "published" | "draft";
+/** Primary hub tabs — published, drafts, archived. Pausados stay secondary under Publicados. */
+type ListingsTab = "published" | "draft" | "archived";
 
 const PRIMARY_TABS: readonly {
   key: ListingsTab;
   title: string;
 }[] = [
-  { key: "archived", title: "Archivados" },
   { key: "published", title: "Publicados" },
   { key: "draft", title: "Borradores" },
+  { key: "archived", title: "Archivados" },
 ];
 
 function listingRowTitle(head: PropertyListing, l: PropertyListing, list: PropertyListing[]): string {
@@ -798,7 +798,7 @@ export function MyListingsPage() {
                     ? "Sin resultados"
                     : `${matchCount} resultado${matchCount === 1 ? "" : "s"}`}
                   {matchCount > 0
-                    ? ` · ${tabCounts.archived} en Archivados · ${tabCounts.published} en Publicados · ${tabCounts.draft} en Borradores`
+                    ? ` · ${tabCounts.published} en Publicados · ${tabCounts.draft} en Borradores · ${tabCounts.archived} en Archivados`
                     : ""}
                 </p>
               ) : null}
