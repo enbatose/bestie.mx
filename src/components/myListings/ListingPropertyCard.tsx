@@ -314,7 +314,7 @@ export function ListingPropertyCard({
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 border-t border-border/60 pt-3">
           <CardActionGroup tone={tone} actions={cardActions} />
           {isProperty ? (
-            <div className="flex shrink-0 items-center sm:ml-auto sm:pl-2">
+            <div className="ml-auto flex shrink-0 items-center pl-2">
               <CardAction
                 tone={tone}
                 label="Recámaras"
