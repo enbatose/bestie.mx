@@ -603,7 +603,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           className={(props) =>
             [
               mobileHeaderActionClass,
-              "w-9 md:hidden",
+              "w-8 md:hidden",
               props.isActive ? "bg-surface-elevated text-primary ring-1 ring-border" : "",
             ].join(" ")
           }
@@ -619,8 +619,8 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
               mobileHeaderActionClass,
               "md:hidden",
               homePublishMobileLabel
-                ? "gap-1.5 bg-primary/10 px-2.5 text-primary ring-1 ring-primary/20"
-                : "w-9",
+                ? "gap-1.5 bg-primary/10 px-2 text-primary ring-1 ring-primary/20"
+                : "w-8",
               props.isActive && !homePublishMobileLabel
                 ? "bg-surface-elevated text-primary ring-1 ring-border"
                 : "",
