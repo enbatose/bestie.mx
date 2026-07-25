@@ -4,7 +4,8 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 import { publisherIdsForOwnerSession } from "./propertyRequestAccess.js";
 import { readAuthUserId } from "./jwtSession.js";
 
-const MY_LISTINGS_ORDER = `ORDER BY CASE p.status WHEN 'published' THEN 0 WHEN 'paused' THEN 1 WHEN 'draft' THEN 2 ELSE 3 END, p.title ASC, r.sort_order ASC, r.rent_mxn ASC, r.id ASC`;
+/** Published and paused share rank 0 so pausing does not sink items in Mis anuncios. */
+const MY_LISTINGS_ORDER = `ORDER BY CASE p.status WHEN 'published' THEN 0 WHEN 'paused' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END, p.title ASC, r.sort_order ASC, r.rent_mxn ASC, r.id ASC`;
 
 export function myListingsHandler(db: DatabaseSync) {
   return (req: Request, res: Response): void => {

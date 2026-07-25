@@ -44,11 +44,12 @@ export function propertyPublicPath(propertyId: string): string {
   return `/propiedad/${propertyReferenceCode(propertyId)}`;
 }
 
+/** Published and paused share a rank so pausing does not reorder the hub list. */
 const PROPERTY_STATUS_ORDER: Record<ListingStatus, number> = {
   published: 0,
-  paused: 1,
-  draft: 2,
-  archived: 3,
+  paused: 0,
+  draft: 1,
+  archived: 2,
 };
 
 export function propertyStatusSortKey(status: ListingStatus | undefined): number {

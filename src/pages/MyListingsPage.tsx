@@ -16,7 +16,6 @@ import {
 } from "@/lib/listingsApi";
 import {
   listingPublicPath,
-  MY_LISTINGS_SECTIONS,
   propertyStatusSortKey,
 } from "@/lib/listingReference";
 import {
@@ -43,7 +42,7 @@ type PendingConfirm =
   | { kind: "deactivate-property"; propertyId: string; rooms: PropertyListing[] }
   | null;
 
-/** Primary hub tabs — published, drafts, archived. Pausados stay secondary under Publicados. */
+/** Primary hub tabs — published (includes paused inline), drafts, archived. */
 type ListingsTab = "published" | "draft" | "archived";
 
 const PRIMARY_TABS: readonly {
@@ -196,7 +195,8 @@ export function MyListingsPage() {
   const tabCounts = useMemo(
     () => ({
       archived: groupsByStatus.archived.length,
-      published: groupsByStatus.published.length,
+      // Paused stay in Publicados (same sort order); only the card shows paused state.
+      published: groupsByStatus.published.length + groupsByStatus.paused.length,
       draft: groupsByStatus.draft.length,
     }),
     [groupsByStatus],
@@ -205,11 +205,6 @@ export function MyListingsPage() {
   const matchCount = tabCounts.archived + tabCounts.published + tabCounts.draft;
 
   const resolvedTab: ListingsTab = activeTab ?? "published";
-
-  const pausedSection = useMemo(
-    () => MY_LISTINGS_SECTIONS.find((s) => s.key === "paused")!,
-    [],
-  );
 
   const summaryParts = useMemo(() => {
     const counts = allCounts;
@@ -667,8 +662,14 @@ export function MyListingsPage() {
     (t) => t.key !== resolvedTab && tabCounts[t.key] > 0,
   );
   const otherTabMatches = otherTabWithMatches ? tabCounts[otherTabWithMatches.key] : 0;
-  const activeGroups = groupsByStatus[resolvedTab];
-  const pausedGroups = groupsByStatus.paused;
+  /** Publicados keeps paused inline (badge/toggle), not a separate subsection. */
+  const activeGroups =
+    resolvedTab === "published"
+      ? matchedGroups.filter((g) => {
+          const st = g.list[0]?.propertyStatus ?? "published";
+          return st === "published" || st === "paused";
+        })
+      : groupsByStatus[resolvedTab];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10 xl:max-w-6xl">
@@ -914,21 +915,6 @@ export function MyListingsPage() {
                 )}
               </div>
             </div>
-
-            {(searching || resolvedTab === "published") && pausedGroups.length > 0 ? (
-              <div>
-                <div className="mb-4 border-b border-border pb-3">
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h2 className="text-lg font-semibold text-body">{pausedSection.title}</h2>
-                    <span className="rounded-full bg-bg-light px-2.5 py-0.5 text-xs font-semibold text-muted ring-1 ring-border">
-                      {pausedGroups.length}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-muted">{pausedSection.description}</p>
-                </div>
-                {renderPropertyGroups(pausedGroups)}
-              </div>
-            ) : null}
           </>
         )}
       </div>
