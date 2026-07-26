@@ -243,6 +243,8 @@ export type CardActionItem = {
   label: string;
   icon?: ReactNode;
   disabled?: boolean;
+  /** Stronger forest border / lit treatment (e.g. nudge after Ver más). */
+  emphasize?: boolean;
   /** Router location state for contextual return (e.g. Mis Anuncios). */
   state?: unknown;
 } & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
@@ -272,6 +274,10 @@ export function CardActionGroup({
     tone === "property" ? "divide-primary/15" : "divide-secondary/35";
   const hover =
     tone === "property" ? "hover:bg-primary/15" : "hover:bg-secondary/30";
+  const emphasizeItem =
+    tone === "property"
+      ? "bg-primary/25 ring-2 ring-inset ring-primary/40"
+      : "bg-secondary/45 ring-2 ring-inset ring-secondary/50";
   const sizeClass =
     size === "compact"
       ? "h-7 rounded-lg"
@@ -287,7 +293,9 @@ export function CardActionGroup({
         className={`inline-flex shrink-0 items-stretch overflow-hidden border sm:hidden ${sizeClass} ${shell} ${divider} divide-x`}
       >
         {actions.map((action) => {
-          const itemClass = `inline-flex flex-1 items-center justify-center ${itemPad} transition disabled:opacity-50 ${hover}`;
+          const itemClass = `inline-flex flex-1 items-center justify-center ${itemPad} transition disabled:opacity-50 ${
+            action.emphasize ? emphasizeItem : hover
+          }`;
           if (action.to && !action.disabled) {
             return (
               <Link
@@ -329,6 +337,7 @@ export function CardActionGroup({
               size={size}
               label={action.label}
               icon={action.icon}
+              emphasizeBorder={action.emphasize}
               disabled={action.disabled}
               to={action.to}
               state={action.state}
@@ -340,6 +349,7 @@ export function CardActionGroup({
               size={size}
               label={action.label}
               icon={action.icon}
+              emphasizeBorder={action.emphasize}
               disabled={action.disabled}
               onClick={action.onClick}
             />

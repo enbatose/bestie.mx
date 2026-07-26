@@ -18,6 +18,12 @@ import {
   describeActiveSearchFilterChips,
   formatSavedSearchTimestamp,
 } from "@/lib/savedSearchDraftLabel";
+import { quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
+import {
+  savedSearchCardFilterIcons,
+  savedSearchHasNonIconFilters,
+  type SearchQuickAttribute,
+} from "@/components/search/searchQuickAttributes";
 import {
   parseSearchLocation,
   routeCityCodeFromPath,
@@ -28,7 +34,7 @@ import {
   savedSearchesReturnFromLocation,
 } from "@/lib/savedSearchesReturn";
 
-const CHIP_MAX = 6;
+const FILTER_ICON_MAX = 6;
 const CARD_TONE = "property" as const;
 
 /**
@@ -56,10 +62,12 @@ type ParsedSearch = {
   pathname: string;
 };
 
-/** Row + its parsed filters/chips/city/haystack computed once (see `rowViews` useMemo). */
+/** Row + its parsed filters/icons/city/haystack computed once (see `rowViews` useMemo). */
 type RowView = {
   row: SavedSearchDto;
   parsed: ParsedSearch | null;
+  filterIcons: SearchQuickAttribute[];
+  showVerMas: boolean;
   chipLabels: string[];
   cityLabel: string;
   haystack: string;
@@ -85,34 +93,60 @@ function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
 
 function buildRowView(row: SavedSearchDto): RowView {
   const parsed = parseRowSearch(row);
+  const filterIcons = parsed ? savedSearchCardFilterIcons(parsed.filters) : [];
+  const hasHidden = parsed
+    ? savedSearchHasNonIconFilters(parsed.filters, parsed.location)
+    : false;
+  const showVerMas = hasHidden || filterIcons.length > FILTER_ICON_MAX;
   const chipLabels = parsed
     ? describeActiveSearchFilterChips(parsed.filters, parsed.location)
     : [];
   const cityLabel = parsed?.location.cityLabel?.trim() ?? "";
   const haystack = [row.label, cityLabel, ...chipLabels].join(" ").toLowerCase();
-  return { row, parsed, chipLabels, cityLabel, haystack };
+  return { row, parsed, filterIcons, showVerMas, chipLabels, cityLabel, haystack };
 }
 
-function FilterChips({ labels }: { labels: string[] }) {
-  if (labels.length === 0) return null;
-  const visible = labels.slice(0, CHIP_MAX);
-  const overflow = labels.length - visible.length;
+function FilterIconPreview({
+  icons,
+  showVerMas,
+  onVerMas,
+}: {
+  icons: SearchQuickAttribute[];
+  showVerMas: boolean;
+  onVerMas: () => void;
+}) {
+  const visible = icons.slice(0, FILTER_ICON_MAX);
+  if (visible.length === 0 && !showVerMas) return null;
+
   return (
-    <ul className="mt-2 flex flex-wrap gap-1.5">
-      {visible.map((label, i) => (
-        <li
-          key={`${i}-${label}`}
-          className="rounded-full border border-border bg-bg-light px-2.5 py-0.5 text-xs text-body"
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {visible.map((item) => {
+        const Icon = item.icon;
+        return (
+          <span key={item.id} className="group/icon relative inline-flex">
+            <span
+              className="inline-flex size-7 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border"
+              aria-label={item.tooltip}
+              title={item.tooltip}
+            >
+              <Icon className={quickAttributeGenderIconClass(item.id, true)} aria-hidden="true" />
+            </span>
+            <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block">
+              {item.tooltip}
+            </span>
+          </span>
+        );
+      })}
+      {showVerMas ? (
+        <button
+          type="button"
+          onClick={onVerMas}
+          className="inline-flex min-h-7 items-center rounded-full border border-border bg-bg-light px-2.5 text-[11px] font-semibold text-primary transition hover:bg-surface-elevated"
         >
-          {label}
-        </li>
-      ))}
-      {overflow > 0 ? (
-        <li className="rounded-full border border-border bg-bg-light px-2.5 py-0.5 text-xs text-muted">
-          +{overflow}
-        </li>
+          Ver más
+        </button>
       ) : null}
-    </ul>
+    </div>
   );
 }
 
@@ -315,6 +349,7 @@ export function SavedSearchesPage() {
   const [editLocation, setEditLocation] = useState<SearchLocationState | null>(null);
   const [editPathname, setEditPathname] = useState<string>("/buscar");
   const [editOriginal, setEditOriginal] = useState<string>("");
+  const [highlightFiltersId, setHighlightFiltersId] = useState<string | null>(null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const rowViews = useMemo(() => rows?.map(buildRowView) ?? [], [rows]);
@@ -428,7 +463,7 @@ export function SavedSearchesPage() {
     }
   };
 
-  const onEditFilters = (row: SavedSearchDto) => {
+  const onEditFilters = (row: SavedSearchDto, opts?: { highlight?: boolean }) => {
     setErr(null);
     setFlash(null);
     const parsed = parseRowSearch(row);
@@ -436,6 +471,7 @@ export function SavedSearchesPage() {
       setErr("No se pudieron cargar los filtros de esta búsqueda.");
       return;
     }
+    setHighlightFiltersId(opts?.highlight ? row.id : null);
     setEditRow(row);
     setEditFilters(parsed.filters);
     setEditLocation(parsed.location);
@@ -449,9 +485,17 @@ export function SavedSearchesPage() {
     const loc = editLocation;
     const pathname = editPathname;
     const unchanged = flt != null && JSON.stringify(flt) === editOriginal;
+    const litFiltersId = highlightFiltersId;
     setEditRow(null);
     setEditFilters(null);
     setEditLocation(null);
+    if (litFiltersId) {
+      window.setTimeout(() => {
+        setHighlightFiltersId((cur) => (cur === litFiltersId ? null : cur));
+      }, 2500);
+    } else {
+      setHighlightFiltersId(null);
+    }
     if (!row || !flt || !loc || unchanged) return;
 
     setBusyId(row.id);
@@ -841,7 +885,7 @@ export function SavedSearchesPage() {
                     )}
                   </div>
                 ) : (
-                  visibleRows.map(({ row, parsed, chipLabels, cityLabel }) => {
+                  visibleRows.map(({ row, parsed, filterIcons, showVerMas, cityLabel }) => {
                     const cityCode = parsed?.location.cityCode ?? "gdl";
                     const timestamp = formatSavedSearchTimestamp(row.updatedAt, cityCode);
                     const matchLabel =
@@ -850,6 +894,7 @@ export function SavedSearchesPage() {
                         : null;
                     const rowBusy = busyId === row.id;
                     const noEmailHintId = `mis-busquedas-no-email-${row.id}`;
+                    const lightFilters = highlightFiltersId === row.id;
 
                     return (
                       <article
@@ -877,7 +922,11 @@ export function SavedSearchesPage() {
                                 <Pencil className="size-3.5" aria-hidden strokeWidth={2.2} />
                               </button>
                             </div>
-                            <FilterChips labels={chipLabels} />
+                            <FilterIconPreview
+                              icons={filterIcons}
+                              showVerMas={showVerMas}
+                              onVerMas={() => onEditFilters(row, { highlight: true })}
+                            />
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <p className="text-xs text-muted">
                                 Actualizada {timestamp}
@@ -946,6 +995,7 @@ export function SavedSearchesPage() {
                                   />
                                 ),
                                 disabled: rowBusy,
+                                emphasize: lightFilters,
                                 onClick: () => onEditFilters(row),
                               },
                               {

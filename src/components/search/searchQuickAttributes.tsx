@@ -21,6 +21,7 @@ import {
   MustacheIcon,
 } from "@/components/icons/GenderFilterIcons";
 import type { SearchFilters } from "@/lib/searchFilters";
+import type { SearchLocationState } from "@/lib/searchLocation";
 import type { ListingTag, PropertyKind, PropertyListing } from "@/types/listing";
 
 export type SearchQuickAttribute = {
@@ -308,4 +309,53 @@ export function listingCardQuickAttributes(listing: PropertyListing): SearchQuic
   }
 
   return items;
+}
+
+/**
+ * Icon-only preview of active saved-search filters that have dedicated filter /
+ * listing-card icons. Budget, age, colonias, map area, etc. are intentionally omitted.
+ */
+export function savedSearchCardFilterIcons(filters: SearchFilters): SearchQuickAttribute[] {
+  const items: SearchQuickAttribute[] = [];
+  const seen = new Set<string>();
+  const push = (item: SearchQuickAttribute) => {
+    if (seen.has(item.id)) return;
+    seen.add(item.id);
+    items.push(item);
+  };
+
+  if (filters.wantHouse) push(PROPERTY_TYPE_META.house);
+  if (filters.wantApartment) push(PROPERTY_TYPE_META.apartment);
+  if (filters.wantLoft) push(PROPERTY_TYPE_META.loft);
+
+  if (filters.lodgingType === "private_room") push(ROOM_TYPE_META.private_room);
+  if (filters.lodgingType === "shared_room") push(ROOM_TYPE_META.shared_room);
+
+  if (filters.pref === "female") push(GENDER_META.female);
+  else if (filters.pref === "male") push(GENDER_META.male);
+
+  for (const tag of filters.tags) {
+    const meta = ADVANCED_TAG_META[tag];
+    if (meta) push(meta);
+  }
+
+  return items;
+}
+
+/** True when the search has active criteria that are not represented by filter icons. */
+export function savedSearchHasNonIconFilters(
+  filters: SearchFilters,
+  searchLocation: Pick<SearchLocationState, "neighborhoods">,
+): boolean {
+  if (filters.budgetMin != null || filters.budgetMax != null) return true;
+  if (filters.age != null || filters.ageMin != null || filters.ageMax != null) return true;
+  if (searchLocation.neighborhoods.length > 0) return true;
+  if (filters.roomDimensions.length > 0) return true;
+  if (filters.availableFrom) return true;
+  if (filters.minimalStayMonths != null) return true;
+  if (filters.avalRequired != null || filters.subletAllowed != null) return true;
+  if (filters.bbox) return true;
+  if (filters.lodgingType === "whole_home") return true;
+  if (filters.q.trim()) return true;
+  return filters.tags.some((tag) => !ADVANCED_TAG_META[tag]);
 }
