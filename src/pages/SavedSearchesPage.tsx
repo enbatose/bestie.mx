@@ -858,9 +858,25 @@ export function SavedSearchesPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <h2 className="text-base font-semibold leading-snug text-body">
-                              {row.label}
-                            </h2>
+                            <div className="flex min-w-0 items-start gap-1">
+                              <h2 className="min-w-0 text-base font-semibold leading-snug text-body">
+                                {row.label}
+                              </h2>
+                              <button
+                                type="button"
+                                disabled={rowBusy}
+                                aria-label="Renombrar búsqueda"
+                                title="Renombrar"
+                                onClick={() => {
+                                  setErr(null);
+                                  setRenameErr(null);
+                                  setRenamePending(row);
+                                }}
+                                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-surface-elevated hover:text-primary disabled:opacity-50"
+                              >
+                                <Pencil className="size-3.5" aria-hidden strokeWidth={2.2} />
+                              </button>
+                            </div>
                             <FilterChips labels={chipLabels} />
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <p className="text-xs text-muted">
@@ -906,11 +922,11 @@ export function SavedSearchesPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                        <div className="mt-4 flex flex-row flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => navigate(row.searchUrl, { state: savedSearchesNav })}
-                            className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99] sm:w-auto"
+                            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99] sm:flex-none"
                           >
                             <Search className="size-4" aria-hidden strokeWidth={2.2} />
                             Abrir
@@ -921,7 +937,7 @@ export function SavedSearchesPage() {
                             actions={[
                               {
                                 key: "edit",
-                                label: "Editar filtros",
+                                label: "Filtros",
                                 icon: (
                                   <SlidersHorizontal
                                     className="size-3.5"
@@ -931,19 +947,6 @@ export function SavedSearchesPage() {
                                 ),
                                 disabled: rowBusy,
                                 onClick: () => onEditFilters(row),
-                              },
-                              {
-                                key: "rename",
-                                label: "Renombrar",
-                                icon: (
-                                  <Pencil className="size-3.5" aria-hidden strokeWidth={2.2} />
-                                ),
-                                disabled: rowBusy,
-                                onClick: () => {
-                                  setErr(null);
-                                  setRenameErr(null);
-                                  setRenamePending(row);
-                                },
                               },
                               {
                                 key: "delete",
