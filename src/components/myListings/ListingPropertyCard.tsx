@@ -28,7 +28,7 @@ import {
   propertyReferenceCode,
   roomReferenceCode,
 } from "@/lib/listingReference";
-import { messagesInboxPath } from "@/lib/messagesApi";
+import { messagesInboxPath, messagesInboxSearchQuery } from "@/lib/messagesApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 export type ListingPropertyCardProps = {
@@ -243,8 +243,7 @@ export function ListingPropertyCard({
                   viewsCount={summedViews}
                   inquiryCount={summedInquiries}
                   messagesTo={messagesInboxPath({
-                    propertyId,
-                    q: head.propertyTitle ?? head.title,
+                    q: messagesInboxSearchQuery(head.propertyTitle ?? head.title, propertyId),
                   })}
                 />
               </div>
@@ -259,8 +258,7 @@ export function ListingPropertyCard({
                   viewsCount={first.viewsCount}
                   inquiryCount={first.inquiryCount}
                   messagesTo={messagesInboxPath({
-                    listingRoomId: first.id,
-                    q: first.title,
+                    q: messagesInboxSearchQuery(first.title, first.id),
                   })}
                 />
                 {formatAvailableFrom(first.availableFrom) ? (
@@ -426,8 +424,7 @@ export function ListingPropertyCard({
                           viewsCount={l.viewsCount}
                           inquiryCount={l.inquiryCount}
                           messagesTo={messagesInboxPath({
-                            listingRoomId: l.id,
-                            q: label,
+                            q: messagesInboxSearchQuery(label, l.id),
                           })}
                         />
                         {formatAvailableFrom(l.availableFrom) ? (

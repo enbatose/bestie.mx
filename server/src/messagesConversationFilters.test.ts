@@ -171,6 +171,23 @@ describe("GET /api/messages/conversations — listing and property filters", () 
     expect(rows[0]!.listingRoomId).toBe(roomA2);
   });
 
+  it("ANDs multiple search keywords and matches listing room ids", async () => {
+    const rows = await conversations(`?q=${encodeURIComponent(`Hilo ${roomA1}`)}`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.listingRoomId).toBe(roomA1);
+  });
+
+  it("scopes by property id in the search bar even when titles overlap", async () => {
+    const rows = await conversations(`?q=${encodeURIComponent(`Hilo ${propertyA}`)}`);
+    expect(rows.map((r) => r.listingRoomId).sort()).toEqual([roomA1, roomA2].sort());
+  });
+
+  it("excludes same-title conversations when the room id keyword does not match", async () => {
+    const rows = await conversations(`?q=${encodeURIComponent(`Hilo ${roomB1}`)}`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.listingRoomId).toBe(roomB1);
+  });
+
   it("returns nothing when the property has no conversations", async () => {
     const emptyProperty = `prp__${randomUUID()}`;
     insertProperty(db, emptyProperty);

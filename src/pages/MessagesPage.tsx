@@ -31,10 +31,7 @@ function SupportBadge() {
 export function MessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeId = searchParams.get("c");
-  const listingRoomId = searchParams.get("listing") || undefined;
-  const propertyId = searchParams.get("property") || undefined;
   const qParam = searchParams.get("q") ?? "";
-  const hasListingFilter = Boolean(listingRoomId || propertyId);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [rows, setRows] = useState<ConversationSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -45,56 +42,43 @@ export function MessagesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
-  const [searchInput, setSearchInput] = useState(() => (hasListingFilter ? qParam : ""));
-  const [debouncedSearch, setDebouncedSearch] = useState(() =>
-    hasListingFilter ? "" : qParam.trim(),
-  );
+  const [searchInput, setSearchInput] = useState(() => qParam);
+  const [debouncedSearch, setDebouncedSearch] = useState(() => qParam.trim());
   const [sortKey, setSortKey] = useState<UserConversationSortKey>("updated");
   const [filtersOpen, setFiltersOpen] = useState(true);
   const listSeqRef = useRef(0);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
-  /** Seeded search text that represents the listing/property filter in the search bar. */
-  const contextSeedRef = useRef<string | null>(hasListingFilter ? qParam : null);
-  const seededFilterKeyRef = useRef<string | null>(
-    hasListingFilter ? `${listingRoomId ?? ""}|${propertyId ?? ""}|${qParam}` : null,
-  );
+  const lastSeededQRef = useRef<string | null>(qParam || null);
 
   const loadMe = useCallback(async () => {
     setMe(await authMe().catch(() => null));
   }, []);
 
-  const loadList = useCallback(
-    async (opts?: { q?: string; listingRoomId?: string; propertyId?: string }) => {
-      const seq = ++listSeqRef.current;
-      try {
-        setLoadingList(true);
-        const next = await fetchConversations({
-          q: opts?.q,
-          listingRoomId: opts?.listingRoomId,
-          propertyId: opts?.propertyId,
+  const loadList = useCallback(async (q?: string) => {
+    const seq = ++listSeqRef.current;
+    try {
+      setLoadingList(true);
+      const next = await fetchConversations({ q });
+      if (seq !== listSeqRef.current) return;
+      setRows((prev) => {
+        // Preserve a cleared unread chip if the active thread was opened while this list was in flight.
+        if (!activeIdRef.current) return next;
+        return next.map((row) => {
+          if (row.id !== activeIdRef.current) return row;
+          const prevRow = prev.find((p) => p.id === row.id);
+          if (prevRow && prevRow.unreadCount === 0) return { ...row, unreadCount: 0 };
+          return row;
         });
-        if (seq !== listSeqRef.current) return;
-        setRows((prev) => {
-          // Preserve a cleared unread chip if the active thread was opened while this list was in flight.
-          if (!activeIdRef.current) return next;
-          return next.map((row) => {
-            if (row.id !== activeIdRef.current) return row;
-            const prevRow = prev.find((p) => p.id === row.id);
-            if (prevRow && prevRow.unreadCount === 0) return { ...row, unreadCount: 0 };
-            return row;
-          });
-        });
-      } catch (x) {
-        if (seq !== listSeqRef.current) return;
-        setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
-        setRows([]);
-      } finally {
-        if (seq === listSeqRef.current) setLoadingList(false);
-      }
-    },
-    [],
-  );
+      });
+    } catch (x) {
+      if (seq !== listSeqRef.current) return;
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+      setRows([]);
+    } finally {
+      if (seq === listSeqRef.current) setLoadingList(false);
+    }
+  }, []);
 
   const loadThread = useCallback(async () => {
     if (!activeId) {
@@ -123,45 +107,34 @@ export function MessagesPage() {
     void loadMe();
   }, [loadMe]);
 
-  // Seed the search bar from Mis Anuncios deep-links (`?listing=` / `?property=` + `?q=`).
+  // Seed / refresh the search bar when arriving from Mis Anuncios (`?q=title id`).
   useEffect(() => {
-    if (!hasListingFilter) {
-      seededFilterKeyRef.current = null;
-      contextSeedRef.current = null;
-      return;
-    }
-    const key = `${listingRoomId ?? ""}|${propertyId ?? ""}|${qParam}`;
-    if (seededFilterKeyRef.current === key) return;
-    seededFilterKeyRef.current = key;
-    contextSeedRef.current = qParam;
+    if (qParam === lastSeededQRef.current) return;
+    lastSeededQRef.current = qParam;
     setSearchInput(qParam);
-    setDebouncedSearch("");
-    setFiltersOpen(true);
-  }, [hasListingFilter, listingRoomId, propertyId, qParam]);
-
-  // If we arrived without a title, fill the search bar from the first matching conversation.
-  useEffect(() => {
-    if (!hasListingFilter || searchInput.trim() || !rows.length) return;
-    const seed = rows[0]?.contextTitle?.trim();
-    if (!seed) return;
-    contextSeedRef.current = seed;
-    setSearchInput(seed);
-  }, [hasListingFilter, searchInput, rows]);
+    setDebouncedSearch(qParam.trim());
+    if (qParam.trim()) setFiltersOpen(true);
+  }, [qParam]);
 
   useEffect(() => {
-    if (hasListingFilter) return;
     const t = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(t);
-  }, [searchInput, hasListingFilter]);
+  }, [searchInput]);
+
+  // Keep `?q=` in sync with the search bar so clearing it restores the full inbox.
+  useEffect(() => {
+    const current = searchParams.get("q") ?? "";
+    if (debouncedSearch === current) return;
+    const next = new URLSearchParams(searchParams);
+    if (debouncedSearch) next.set("q", debouncedSearch);
+    else next.delete("q");
+    lastSeededQRef.current = debouncedSearch;
+    setSearchParams(next, { replace: true });
+  }, [debouncedSearch, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (!me?.id) return;
-    if (hasListingFilter) {
-      void loadList({ listingRoomId, propertyId });
-      return;
-    }
-    void loadList({ q: debouncedSearch || undefined });
-  }, [me, loadList, hasListingFilter, listingRoomId, propertyId, debouncedSearch]);
+    if (me?.id) void loadList(debouncedSearch || undefined);
+  }, [me, loadList, debouncedSearch]);
 
   useEffect(() => {
     void loadThread();
@@ -186,40 +159,6 @@ export function MessagesPage() {
     setSearchParams(next, { replace: false });
   };
 
-  const clearListingContextFromUrl = useCallback(
-    (nextQ?: string) => {
-      const next = new URLSearchParams(searchParams);
-      next.delete("listing");
-      next.delete("property");
-      const trimmed = nextQ?.trim() ?? "";
-      if (trimmed) next.set("q", trimmed);
-      else next.delete("q");
-      contextSeedRef.current = null;
-      seededFilterKeyRef.current = null;
-      setSearchParams(next, { replace: true });
-    },
-    [searchParams, setSearchParams],
-  );
-
-  const onSearchChange = (value: string) => {
-    setSearchInput(value);
-    if (!hasListingFilter) return;
-
-    // Clearing the search bar drops the Mis Anuncios context and shows all conversations.
-    if (!value.trim()) {
-      clearListingContextFromUrl();
-      setDebouncedSearch("");
-      return;
-    }
-
-    // Editing away from the seeded context switches to ordinary text search.
-    const seed = contextSeedRef.current ?? "";
-    if (value.trim() !== seed.trim()) {
-      clearListingContextFromUrl(value);
-      setDebouncedSearch(value.trim());
-    }
-  };
-
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeId || (!draft.trim() && attachFiles.length === 0)) return;
@@ -234,8 +173,7 @@ export function MessagesPage() {
       setDraft("");
       setAttachFiles([]);
       await loadThread();
-      if (hasListingFilter) await loadList({ listingRoomId, propertyId });
-      else await loadList({ q: debouncedSearch || undefined });
+      await loadList(debouncedSearch || undefined);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -304,8 +242,8 @@ export function MessagesPage() {
                 <input
                   type="search"
                   value={searchInput}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                  placeholder="Buscar título o mensajes…"
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Buscar por título, id o mensajes…"
                   className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2 dark:border-slate-600 dark:bg-slate-800"
                 />
               </label>
@@ -332,11 +270,9 @@ export function MessagesPage() {
             <p className="p-3 text-sm text-muted">Cargando…</p>
           ) : sortedRows.length === 0 ? (
             <p className="p-3 text-sm text-muted">
-              {hasListingFilter
-                ? `${propertyId ? "Esta propiedad" : "Este anuncio"} aún no tiene conversaciones.`
-                : debouncedSearch
-                  ? "No hay conversaciones que coincidan con tu búsqueda."
-                  : "Aún no tienes mensajes. Abre un anuncio y usa “Mensaje al anunciante”."}
+              {debouncedSearch
+                ? "No hay conversaciones que coincidan con tu búsqueda."
+                : "Aún no tienes mensajes. Abre un anuncio y usa “Mensaje al anunciante”."}
             </p>
           ) : (
             <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto md:max-h-[70vh]">
@@ -506,10 +442,7 @@ export function MessagesPage() {
         <button
           type="button"
           className="font-semibold text-primary underline"
-          onClick={() => {
-            if (hasListingFilter) void loadList({ listingRoomId, propertyId });
-            else void loadList({ q: debouncedSearch || undefined });
-          }}
+          onClick={() => void loadList(debouncedSearch || undefined)}
         >
           Actualizar lista
         </button>

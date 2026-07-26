@@ -33,17 +33,22 @@ export type ChatMessage = {
   attachments: MessageAttachment[];
 };
 
-/** Deep-link into Mensajes with an optional listing/property filter seeded into the search bar. */
+/** Search-bar context from Mis Anuncios: title first, post id appended for uniqueness. */
+export function messagesInboxSearchQuery(title: string | undefined | null, postId: string): string {
+  const id = postId.trim();
+  const label = (title ?? "").trim().replace(/\s+/g, " ");
+  if (!label) return id;
+  if (!id || label.includes(id)) return label;
+  return `${label} ${id}`;
+}
+
+/** Deep-link into Mensajes with search-bar context (multi-keyword AND on the server). */
 export function messagesInboxPath(opts: {
-  listingRoomId?: string;
-  propertyId?: string;
-  /** Shown in the Messages search bar as the active context. */
-  q?: string;
+  /** Shown/edited in the Messages search bar. Prefer `messagesInboxSearchQuery(title, id)`. */
+  q: string;
 }): string {
   const params = new URLSearchParams();
-  if (opts.listingRoomId) params.set("listing", opts.listingRoomId);
-  if (opts.propertyId) params.set("property", opts.propertyId);
-  const q = opts.q?.trim();
+  const q = opts.q.trim();
   if (q) params.set("q", q);
   const qs = params.size > 0 ? `?${params.toString()}` : "";
   return `/mensajes${qs}`;

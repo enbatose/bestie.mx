@@ -180,11 +180,17 @@ export function messagesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
-    const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 80) : "";
-    const like =
+    // Multi-keyword AND: every whitespace-separated token must match somewhere
+    // (title, counterpart name, body, room id, or parent property id).
+    const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 240) : "";
+    const tokens =
       rawQ.length > 0
-        ? `%${rawQ.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
-        : null;
+        ? rawQ
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter(Boolean)
+            .slice(0, 12)
+        : [];
     const listingRoomId =
       typeof req.query.listing === "string" ? req.query.listing.trim() : "";
     const propertyId =
@@ -200,16 +206,23 @@ export function messagesRouter(db: DatabaseSync) {
 
     const conditions: string[] = [];
     const params: string[] = [me, me, me];
-    if (like) {
+    for (const token of tokens) {
+      const like = `%${token.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
       conditions.push(
         `(c.context_title LIKE ? ESCAPE '\\'
           OR other.display_name LIKE ? ESCAPE '\\'
+          OR IFNULL(c.listing_room_id, '') LIKE ? ESCAPE '\\'
+          OR EXISTS (
+               SELECT 1 FROM rooms filtered_room
+               WHERE filtered_room.id = c.listing_room_id
+                 AND filtered_room.property_id LIKE ? ESCAPE '\\'
+             )
           OR EXISTS (
                SELECT 1 FROM messages searched
                WHERE searched.conversation_id = c.id AND searched.body LIKE ? ESCAPE '\\'
              ))`,
       );
-      params.push(like, like, like);
+      params.push(like, like, like, like, like);
     }
     if (listingRoomId) {
       conditions.push("c.listing_room_id = ?");
