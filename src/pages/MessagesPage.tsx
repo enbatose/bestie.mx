@@ -573,6 +573,13 @@ export function MessagesPage() {
                       rows={2}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Enter sends; Shift+Enter (same on Mac) inserts a newline.
+                        if (e.key !== "Enter" || e.shiftKey) return;
+                        e.preventDefault();
+                        if (sendingMessage || (!draft.trim() && attachFiles.length === 0)) return;
+                        e.currentTarget.form?.requestSubmit();
+                      }}
                       placeholder="Escribe un mensaje…"
                       disabled={sendingMessage}
                       className="min-h-[44px] flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900"
