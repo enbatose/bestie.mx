@@ -131,6 +131,7 @@ function LoggedInIconActions({
   notificationsOpen,
   onToggleNotifications,
   onNotificationClick,
+  onMarkAllRead,
   notificationsRef,
   onDismiss,
   iconGapPx,
@@ -141,6 +142,7 @@ function LoggedInIconActions({
   notificationsOpen: boolean;
   onToggleNotifications: () => void;
   onNotificationClick: (id: string) => void;
+  onMarkAllRead: () => void;
   notificationsRef: React.RefObject<HTMLDivElement | null>;
   onDismiss: () => void;
   iconGapPx: number;
@@ -257,14 +259,22 @@ function LoggedInIconActions({
                   </li>
                 ))}
               </ul>
-              <div className="shrink-0 border-t border-border p-1.5 dark:border-slate-600">
+              <div className="flex shrink-0 items-center gap-1.5 border-t border-border p-1.5 dark:border-slate-600">
                 <Link
                   to="/notifications"
                   onClick={onDismiss}
-                  className="block w-full rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-primary transition hover:bg-surface-elevated"
+                  className="block flex-1 rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-primary transition hover:bg-surface-elevated"
                 >
                   Ver todas las notificaciones
                 </Link>
+                <button
+                  type="button"
+                  onClick={onMarkAllRead}
+                  disabled={!hasUnreadNotifications}
+                  className="rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-primary transition hover:bg-surface-elevated disabled:cursor-not-allowed disabled:text-muted disabled:hover:bg-transparent"
+                >
+                  Marcar como leídas
+                </button>
               </div>
             </div>
           </div>
@@ -305,7 +315,8 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
   const navigate = useNavigate();
   const location = useLocation();
   const { openLogin } = useAuthModal();
-  const { notifications, hasUnreadNotifications, markNotificationRead } = useNotifications();
+  const { notifications, hasUnreadNotifications, markNotificationRead, markAllNotificationsRead } =
+    useNotifications();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [homePublishDesktopPulse, setHomePublishDesktopPulse] = useState(false);
@@ -665,6 +676,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
               setNotificationsOpen((v) => !v);
             }}
             onNotificationClick={markNotificationRead}
+            onMarkAllRead={markAllNotificationsRead}
             notificationsRef={notificationsRef}
             onDismiss={dismissNav}
             iconGapPx={iconGapPx}
