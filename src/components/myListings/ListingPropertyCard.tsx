@@ -28,6 +28,7 @@ import {
   propertyReferenceCode,
   roomReferenceCode,
 } from "@/lib/listingReference";
+import { messagesInboxPath } from "@/lib/messagesApi";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 export type ListingPropertyCardProps = {
@@ -241,7 +242,10 @@ export function ListingPropertyCard({
                   summed
                   viewsCount={summedViews}
                   inquiryCount={summedInquiries}
-                  messagesTo={`/mensajes?property=${encodeURIComponent(propertyId)}`}
+                  messagesTo={messagesInboxPath({
+                    propertyId,
+                    q: head.propertyTitle ?? head.title,
+                  })}
                 />
               </div>
             ) : (
@@ -254,7 +258,10 @@ export function ListingPropertyCard({
                 <PublisherMetricChips
                   viewsCount={first.viewsCount}
                   inquiryCount={first.inquiryCount}
-                  messagesTo={`/mensajes?listing=${encodeURIComponent(first.id)}`}
+                  messagesTo={messagesInboxPath({
+                    listingRoomId: first.id,
+                    q: first.title,
+                  })}
                 />
                 {formatAvailableFrom(first.availableFrom) ? (
                   <span className="text-xs text-muted">
@@ -418,7 +425,10 @@ export function ListingPropertyCard({
                         <PublisherMetricChips
                           viewsCount={l.viewsCount}
                           inquiryCount={l.inquiryCount}
-                          messagesTo={`/mensajes?listing=${encodeURIComponent(l.id)}`}
+                          messagesTo={messagesInboxPath({
+                            listingRoomId: l.id,
+                            q: label,
+                          })}
                         />
                         {formatAvailableFrom(l.availableFrom) ? (
                           <span className="text-xs text-muted">

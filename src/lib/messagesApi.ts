@@ -33,6 +33,22 @@ export type ChatMessage = {
   attachments: MessageAttachment[];
 };
 
+/** Deep-link into Mensajes with an optional listing/property filter seeded into the search bar. */
+export function messagesInboxPath(opts: {
+  listingRoomId?: string;
+  propertyId?: string;
+  /** Shown in the Messages search bar as the active context. */
+  q?: string;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.listingRoomId) params.set("listing", opts.listingRoomId);
+  if (opts.propertyId) params.set("property", opts.propertyId);
+  const q = opts.q?.trim();
+  if (q) params.set("q", q);
+  const qs = params.size > 0 ? `?${params.toString()}` : "";
+  return `/mensajes${qs}`;
+}
+
 export async function fetchUnreadMessageCount(signal?: AbortSignal): Promise<number> {
   const base = apiBase();
   const res = await fetch(`${base}/api/messages/unread-count`, { credentials: cred, signal });
