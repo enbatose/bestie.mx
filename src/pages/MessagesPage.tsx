@@ -388,7 +388,7 @@ export function MessagesPage() {
         </p>
       ) : null}
 
-      <div className="grid h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="grid h-[min(91vh,832px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <aside
           className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-3 shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
             activeId ? "hidden md:flex" : "flex"
@@ -495,7 +495,7 @@ export function MessagesPage() {
         </aside>
 
         <section
-          className={`flex h-[min(70vh,640px)] max-h-[min(70vh,640px)] min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
+          className={`flex h-[min(91vh,832px)] max-h-[min(91vh,832px)] min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
             activeId ? "flex" : "hidden md:flex"
           }`}
         >
@@ -638,14 +638,14 @@ export function MessagesPage() {
                                     </p>
                                   ) : null}
                                   <MessageAttachmentList attachments={m.attachments} />
-                                  {mine ? (
-                                    <div className="mt-1 flex justify-end">
-                                      <MessageReceiptTicks
-                                        deliveredAt={m.deliveredAt}
-                                        readAt={m.readAt}
-                                      />
-                                    </div>
-                                  ) : null}
+                                </div>
+                              ) : null}
+                              {mine ? (
+                                <div className="mt-0.5 flex justify-end px-0.5">
+                                  <MessageReceiptTicks
+                                    deliveredAt={m.deliveredAt}
+                                    readAt={m.readAt}
+                                  />
                                 </div>
                               ) : null}
                             </div>
