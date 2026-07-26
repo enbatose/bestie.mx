@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
@@ -12,7 +12,11 @@ import {
   type AuthMe,
 } from "@/lib/authApi";
 import { identifyUser, resetAnalyticsUser, track } from "@/lib/analytics";
-import { POST_LOGIN_RESOLVE_PATH, resolvePostLoginPath } from "@/lib/postLoginRedirect";
+import {
+  destinationAfterAuth,
+  oauthReturnToFor,
+  safeClientReturnTo,
+} from "@/lib/postLoginRedirect";
 
 export function SignInPage() {
   const location = useLocation();
@@ -26,6 +30,14 @@ export function SignInPage() {
 
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const redirectTo = useMemo(() => {
+    const fromQuery = safeClientReturnTo(new URLSearchParams(location.search).get("returnTo"));
+    const fromState = safeClientReturnTo(
+      (location.state as { returnTo?: string } | null)?.returnTo ?? null,
+    );
+    return oauthReturnToFor(fromQuery ?? fromState);
+  }, [location.search, location.state]);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -63,11 +75,10 @@ export function SignInPage() {
         track("user_logged_in", { method: "email" });
       }
       await refreshMe();
-      if (session && needsEmailVerification(session)) {
-        navigate("/verificar-correo", { replace: true });
-        return;
-      }
-      navigate(await resolvePostLoginPath(), { replace: true });
+      navigate(
+        await destinationAfterAuth(redirectTo, Boolean(session && needsEmailVerification(session))),
+        { replace: true },
+      );
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -146,7 +157,7 @@ export function SignInPage() {
       </p>
 
       <div className="mt-6">
-        <SocialSignInButtons returnTo={POST_LOGIN_RESOLVE_PATH} />
+        <SocialSignInButtons returnTo={redirectTo} />
       </div>
       <AuthLegalConsent action="continuar" />
       <AuthMethodDivider />

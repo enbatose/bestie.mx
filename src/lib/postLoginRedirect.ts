@@ -12,6 +12,18 @@ function pathOnly(redirectTo: string): string {
   return redirectTo.split(/[?#]/)[0] || "/";
 }
 
+/**
+ * Same-origin relative path only (blocks open redirects). Returns null when invalid.
+ * Mirrors server `safeReturnTo` shape without forcing Mis Anuncios as the fallback.
+ */
+export function safeClientReturnTo(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) return null;
+  if (trimmed.length > 500) return null;
+  return trimmed;
+}
+
 /** True when redirect should use post-login heuristics instead of a contextual return URL. */
 export function shouldResolvePostLoginDestination(redirectTo?: string | null): boolean {
   if (!redirectTo?.trim()) return true;
@@ -26,7 +38,22 @@ export function shouldResolvePostLoginDestination(redirectTo?: string | null): b
 
 /** OAuth `returnTo` — resolve path for defaults, otherwise keep the contextual URL. */
 export function oauthReturnToFor(redirectTo?: string | null): string {
-  return shouldResolvePostLoginDestination(redirectTo) ? POST_LOGIN_RESOLVE_PATH : redirectTo!.trim();
+  const safe = safeClientReturnTo(redirectTo ?? null);
+  return shouldResolvePostLoginDestination(safe) ? POST_LOGIN_RESOLVE_PATH : safe!;
+}
+
+/** Final in-app destination after email/password auth (includes verify-email gate). */
+export async function destinationAfterAuth(
+  redirectTo: string | null | undefined,
+  needsVerify: boolean,
+): Promise<string> {
+  const safe = safeClientReturnTo(redirectTo ?? null);
+  if (needsVerify) {
+    if (!safe || shouldResolvePostLoginDestination(safe)) return "/verificar-correo";
+    return `/verificar-correo?returnTo=${encodeURIComponent(safe)}`;
+  }
+  if (shouldResolvePostLoginDestination(safe)) return resolvePostLoginPath();
+  return safe!;
 }
 
 export function listingIsActivePublished(listing: PropertyListing): boolean {

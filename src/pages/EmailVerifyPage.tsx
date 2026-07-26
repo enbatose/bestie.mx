@@ -8,7 +8,7 @@ import {
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
-import { resolvePostLoginPath } from "@/lib/postLoginRedirect";
+import { resolvePostLoginPath, safeClientReturnTo, shouldResolvePostLoginDestination } from "@/lib/postLoginRedirect";
 
 function notifyMeChanged() {
   window.dispatchEvent(new Event("bestie:me-changed"));
@@ -88,13 +88,18 @@ export function EmailVerifyPage() {
   useEffect(() => {
     if (!me || needsEmailVerification(me)) return;
     let cancelled = false;
-    void resolvePostLoginPath().then((dest) => {
+    void (async () => {
+      const returnTo = safeClientReturnTo(searchParams.get("returnTo"));
+      const dest =
+        returnTo && !shouldResolvePostLoginDestination(returnTo)
+          ? returnTo
+          : await resolvePostLoginPath();
       if (!cancelled) navigate(dest, { replace: true });
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [me, navigate]);
+  }, [me, navigate, searchParams]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -172,7 +177,12 @@ export function EmailVerifyPage() {
           try {
             await authVerifyEmail(trimmed);
             notifyMeChanged();
-            navigate(await resolvePostLoginPath(), { replace: true });
+            const returnTo = safeClientReturnTo(searchParams.get("returnTo"));
+            if (returnTo && !shouldResolvePostLoginDestination(returnTo)) {
+              navigate(returnTo, { replace: true });
+            } else {
+              navigate(await resolvePostLoginPath(), { replace: true });
+            }
           } catch (x) {
             const message = x instanceof Error ? x.message : "No se pudo completar la acción.";
             if (message === "code_expired") {

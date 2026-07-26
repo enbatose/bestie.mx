@@ -6,9 +6,8 @@ import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/a
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { identifyUser, track } from "@/lib/analytics";
 import {
+  destinationAfterAuth,
   oauthReturnToFor,
-  resolvePostLoginPath,
-  shouldResolvePostLoginDestination,
 } from "@/lib/postLoginRedirect";
 
 export function AuthModal() {
@@ -24,12 +23,6 @@ export function AuthModal() {
 
   const socialReturnTo = oauthReturnToFor(redirectTo);
 
-  const destinationAfterAuth = async (needsVerify: boolean): Promise<string> => {
-    if (needsVerify) return "/verificar-correo";
-    if (shouldResolvePostLoginDestination(redirectTo)) return resolvePostLoginPath();
-    return redirectTo;
-  };
-
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -43,7 +36,9 @@ export function AuthModal() {
         track("user_logged_in", { method: "email" });
       }
       window.dispatchEvent(new Event("bestie:me-changed"));
-      window.location.assign(await destinationAfterAuth(Boolean(me && needsEmailVerification(me))));
+      window.location.assign(
+        await destinationAfterAuth(redirectTo, Boolean(me && needsEmailVerification(me))),
+      );
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -71,7 +66,7 @@ export function AuthModal() {
       }
       close();
       window.dispatchEvent(new Event("bestie:me-changed"));
-      window.location.assign(await destinationAfterAuth(needsEmailVerification(me)));
+      window.location.assign(await destinationAfterAuth(redirectTo, needsEmailVerification(me)));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {

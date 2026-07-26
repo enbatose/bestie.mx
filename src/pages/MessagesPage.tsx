@@ -5,6 +5,7 @@ import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import {
   formatRelativeUpdatedAt,
   sortUserConversations,
@@ -110,8 +111,11 @@ function formatThreadTime(iso: string): string {
 export function MessagesPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { openLogin } = useAuthModal();
   const activeId = searchParams.get("c");
   const qParam = searchParams.get("q") ?? "";
+  const messagesReturnTo = `${location.pathname}${location.search}`;
+  const loginPromptedRef = useRef(false);
   const myListingsRestorePath = useMemo(() => {
     const ctx = readMyListingsReturn(location.state);
     return ctx ? buildMyListingsRestorePath(ctx) : null;
@@ -237,6 +241,13 @@ export function MessagesPage() {
     return () => window.clearInterval(t);
   }, [activeId, me?.id, loadThread]);
 
+  useEffect(() => {
+    if (me !== null) return;
+    if (loginPromptedRef.current) return;
+    loginPromptedRef.current = true;
+    openLogin(messagesReturnTo);
+  }, [me, openLogin, messagesReturnTo]);
+
   const sortedRows = useMemo(() => sortUserConversations(rows, sortKey), [rows, sortKey]);
   const active = useMemo(() => rows.find((r) => r.id === activeId), [rows, activeId]);
   const isSupportThread = active?.kind === "support";
@@ -282,9 +293,13 @@ export function MessagesPage() {
       <div className="mx-auto max-w-lg px-4 py-10">
         <h1 className="text-2xl font-bold text-primary">Mensajes</h1>
         <p className="mt-2 text-sm text-muted">Inicia sesión para ver tus conversaciones.</p>
-        <Link to="/entrar" className="mt-6 inline-block text-sm font-semibold text-primary underline">
+        <button
+          type="button"
+          onClick={() => openLogin(messagesReturnTo)}
+          className="mt-6 text-sm font-semibold text-primary underline"
+        >
           Entrar
-        </Link>
+        </button>
       </div>
     );
   }
