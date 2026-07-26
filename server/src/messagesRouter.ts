@@ -5,7 +5,13 @@ import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
 import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
-import { clampMessageAttachments, clampStr, isSafeRoomOrListingId, type MessageAttachment } from "./validation.js";
+import {
+  clampMessageAttachments,
+  clampStr,
+  isSafePropertyId,
+  isSafeRoomOrListingId,
+  type MessageAttachment,
+} from "./validation.js";
 
 const postMsgLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 });
@@ -179,43 +185,61 @@ export function messagesRouter(db: DatabaseSync) {
       rawQ.length > 0
         ? `%${rawQ.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
         : null;
-    const rows = (
-      like
-        ? db
-            .prepare(
-              `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
-                      other.id AS other_user_id,
-                      other.display_name AS other_display_name,
-                      (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
-               FROM conversations c
-               JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
-               JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
-               JOIN users other ON other.id = om.user_id
-               WHERE c.context_title LIKE ? ESCAPE '\\'
-                  OR other.display_name LIKE ? ESCAPE '\\'
-                  OR EXISTS (
-                       SELECT 1 FROM messages m
-                       WHERE m.conversation_id = c.id AND m.body LIKE ? ESCAPE '\\'
-                     )
-               ORDER BY c.updated_at DESC`,
-            )
-            .all(me, me, me, like, like, like)
-        : db
-            .prepare(
-              `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
-                      other.id AS other_user_id,
-                      other.display_name AS other_display_name,
-                      (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
-               FROM conversations c
-               JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
-               JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
-               JOIN users other ON other.id = om.user_id
-               ORDER BY c.updated_at DESC`,
-            )
-            .all(me, me, me)
-    ) as Record<string, unknown>[];
+    const listingRoomId =
+      typeof req.query.listing === "string" ? req.query.listing.trim() : "";
+    const propertyId =
+      typeof req.query.property === "string" ? req.query.property.trim() : "";
+    if (listingRoomId && !isSafeRoomOrListingId(listingRoomId)) {
+      res.status(400).json({ error: "invalid_listing_room_id" });
+      return;
+    }
+    if (propertyId && !isSafePropertyId(propertyId)) {
+      res.status(400).json({ error: "invalid_property_id" });
+      return;
+    }
+
+    const conditions: string[] = [];
+    const params: string[] = [me, me, me];
+    if (like) {
+      conditions.push(
+        `(c.context_title LIKE ? ESCAPE '\\'
+          OR other.display_name LIKE ? ESCAPE '\\'
+          OR EXISTS (
+               SELECT 1 FROM messages searched
+               WHERE searched.conversation_id = c.id AND searched.body LIKE ? ESCAPE '\\'
+             ))`,
+      );
+      params.push(like, like, like);
+    }
+    if (listingRoomId) {
+      conditions.push("c.listing_room_id = ?");
+      params.push(listingRoomId);
+    }
+    if (propertyId) {
+      conditions.push(
+        `EXISTS (
+           SELECT 1 FROM rooms filtered_room
+           WHERE filtered_room.id = c.listing_room_id AND filtered_room.property_id = ?
+         )`,
+      );
+      params.push(propertyId);
+    }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const rows = db
+      .prepare(
+        `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
+                other.id AS other_user_id,
+                other.display_name AS other_display_name,
+                (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
+                (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+         FROM conversations c
+         JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
+         JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
+         JOIN users other ON other.id = om.user_id
+         ${where}
+         ORDER BY c.updated_at DESC`,
+      )
+      .all(...params) as Record<string, unknown>[];
     res.json({
       conversations: rows.map((row) => ({
         id: row.id,

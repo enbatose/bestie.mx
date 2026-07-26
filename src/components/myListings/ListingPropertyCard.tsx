@@ -241,6 +241,7 @@ export function ListingPropertyCard({
                   summed
                   viewsCount={summedViews}
                   inquiryCount={summedInquiries}
+                  messagesTo={`/mensajes?property=${encodeURIComponent(propertyId)}`}
                 />
               </div>
             ) : (
@@ -253,6 +254,7 @@ export function ListingPropertyCard({
                 <PublisherMetricChips
                   viewsCount={first.viewsCount}
                   inquiryCount={first.inquiryCount}
+                  messagesTo={`/mensajes?listing=${encodeURIComponent(first.id)}`}
                 />
                 {formatAvailableFrom(first.availableFrom) ? (
                   <span className="text-xs text-muted">
@@ -416,6 +418,7 @@ export function ListingPropertyCard({
                         <PublisherMetricChips
                           viewsCount={l.viewsCount}
                           inquiryCount={l.inquiryCount}
+                          messagesTo={`/mensajes?listing=${encodeURIComponent(l.id)}`}
                         />
                         {formatAvailableFrom(l.availableFrom) ? (
                           <span className="text-xs text-muted">

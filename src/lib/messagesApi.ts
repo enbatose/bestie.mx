@@ -43,11 +43,20 @@ export async function fetchUnreadMessageCount(signal?: AbortSignal): Promise<num
 }
 
 export async function fetchConversations(
-  opts?: { q?: string; signal?: AbortSignal },
+  opts?: {
+    q?: string;
+    listingRoomId?: string;
+    propertyId?: string;
+    signal?: AbortSignal;
+  },
 ): Promise<ConversationSummary[]> {
   const base = apiBase();
+  const params = new URLSearchParams();
   const q = opts?.q?.trim();
-  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  if (q) params.set("q", q);
+  if (opts?.listingRoomId) params.set("listing", opts.listingRoomId);
+  if (opts?.propertyId) params.set("property", opts.propertyId);
+  const qs = params.size > 0 ? `?${params.toString()}` : "";
   const res = await fetch(`${base}/api/messages/conversations${qs}`, {
     credentials: cred,
     signal: opts?.signal,

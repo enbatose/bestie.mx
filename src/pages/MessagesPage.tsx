@@ -31,6 +31,9 @@ function SupportBadge() {
 export function MessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeId = searchParams.get("c");
+  const listingRoomId = searchParams.get("listing") || undefined;
+  const propertyId = searchParams.get("property") || undefined;
+  const hasListingFilter = Boolean(listingRoomId || propertyId);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [rows, setRows] = useState<ConversationSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -57,7 +60,7 @@ export function MessagesPage() {
     const seq = ++listSeqRef.current;
     try {
       setLoadingList(true);
-      const next = await fetchConversations({ q });
+      const next = await fetchConversations({ q, listingRoomId, propertyId });
       if (seq !== listSeqRef.current) return;
       setRows((prev) => {
         // Preserve a cleared unread chip if the active thread was opened while this list was in flight.
@@ -76,7 +79,7 @@ export function MessagesPage() {
     } finally {
       if (seq === listSeqRef.current) setLoadingList(false);
     }
-  }, []);
+  }, [listingRoomId, propertyId]);
 
   const loadThread = useCallback(async () => {
     if (!activeId) {
@@ -132,7 +135,16 @@ export function MessagesPage() {
   const isSupportThread = active?.kind === "support";
 
   const clearActive = () => {
-    setSearchParams({}, { replace: false });
+    const next = new URLSearchParams(searchParams);
+    next.delete("c");
+    setSearchParams(next, { replace: false });
+  };
+
+  const clearListingFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("listing");
+    next.delete("property");
+    setSearchParams(next, { replace: false });
   };
 
   const send = async (e: React.FormEvent) => {
@@ -242,12 +254,37 @@ export function MessagesPage() {
             </div>
           ) : null}
 
+          {hasListingFilter ? (
+            <div className="mx-1 mt-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-body">
+              <p className="font-semibold">
+                Mensajes de {propertyId ? "esta propiedad" : "este anuncio"}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                <button
+                  type="button"
+                  onClick={clearListingFilter}
+                  className="font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Ver todas las conversaciones
+                </button>
+                <Link
+                  to="/mis-anuncios"
+                  className="font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Volver a Mis anuncios
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
           {loadingList ? (
             <p className="p-3 text-sm text-muted">Cargando…</p>
           ) : sortedRows.length === 0 ? (
             <p className="p-3 text-sm text-muted">
               {debouncedSearch
                 ? "No hay conversaciones que coincidan con tu búsqueda."
+                : hasListingFilter
+                  ? `${propertyId ? "Esta propiedad" : "Este anuncio"} aún no tiene conversaciones.`
                 : "Aún no tienes mensajes. Abre un anuncio y usa “Mensaje al anunciante”."}
             </p>
           ) : (
@@ -257,7 +294,9 @@ export function MessagesPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSearchParams({ c: r.id }, { replace: false });
+                      const next = new URLSearchParams(searchParams);
+                      next.set("c", r.id);
+                      setSearchParams(next, { replace: false });
                     }}
                     className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
                       r.id === activeId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"

@@ -1,4 +1,5 @@
 import { Eye, MessageSquare } from "lucide-react";
+import { Link } from "react-router-dom";
 import { formatPublisherMetrics } from "@/components/myListings/listingFormat";
 
 type PublisherMetricChipsProps = {
@@ -6,6 +7,8 @@ type PublisherMetricChipsProps = {
   inquiryCount: number | undefined | null;
   /** When true, tooltip notes these are summed across all rooms. */
   summed?: boolean;
+  /** Opens the inbox filtered to the listing(s) represented by this metric. */
+  messagesTo: string;
   className?: string;
 };
 
@@ -17,6 +20,7 @@ export function PublisherMetricChips({
   viewsCount,
   inquiryCount,
   summed = false,
+  messagesTo,
   className = "",
 }: PublisherMetricChipsProps) {
   const label = formatPublisherMetrics(viewsCount, inquiryCount);
@@ -38,13 +42,14 @@ export function PublisherMetricChips({
         <Eye className="size-3.5 shrink-0" aria-hidden />
         {v}
       </span>
-      <span
-        className="inline-flex items-center gap-1"
-        aria-label={`${m} mensaje${m === 1 ? "" : "s"}`}
+      <Link
+        to={messagesTo}
+        className="inline-flex items-center gap-1 rounded-sm font-semibold text-primary underline-offset-2 hover:underline focus-visible:underline"
+        aria-label={`${m} mensaje${m === 1 ? "" : "s"}. Ver conversaciones de este anuncio`}
       >
         <MessageSquare className="size-3.5 shrink-0" aria-hidden />
         {m}
-      </span>
+      </Link>
     </span>
   );
 }
