@@ -781,6 +781,8 @@ export function PublishWizardPage() {
   const [liveEditReturnListingId, setLiveEditReturnListingId] = useState<string | null>(
     () => searchParams.get("room"),
   );
+  /** Property-card Edit omits `room`; room-row Edit includes it. Survives after query params are cleared. */
+  const [liveEditScope, setLiveEditScope] = useState<"property" | "room" | null>(null);
   const apiOn = isListingsApiConfigured();
   const [step, setStep] = useState(0);
   const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
@@ -1003,6 +1005,10 @@ export function PublishWizardPage() {
               ? editListingId
               : srvRooms[previewIdx]?.id) ?? srvRooms.find((r) => r.status === "published")?.id ?? srvRooms[0]?.id ?? null;
           setLiveEditReturnListingId(returnId);
+          // Property Mis Anuncios card → property scope; room row (or standalone room post) → room scope.
+          setLiveEditScope(
+            editListingId || nextDraft.postMode !== "property" ? "room" : "property",
+          );
 
           if (ps === "published" || ps === "paused") {
             setStep(publishWizardLastStepIndex(nextDraft.postMode));
@@ -2491,7 +2497,13 @@ export function PublishWizardPage() {
             <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
           </div>
         ) : null}
-        <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-primary">
+          {liveEditScope === "property"
+            ? "Editar propiedad"
+            : liveEditScope === "room"
+              ? "Editar recámara"
+              : "Editar anuncio"}
+        </h1>
         {handoffBanner ? (
           <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-fg">
             {handoffBanner}
@@ -2518,6 +2530,7 @@ export function PublishWizardPage() {
               myListingsReturnState: myListingsReturn
                 ? { myListingsReturn }
                 : undefined,
+              scope: liveEditScope ?? "room",
             }}
           />
         </div>

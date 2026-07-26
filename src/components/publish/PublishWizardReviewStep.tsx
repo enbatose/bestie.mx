@@ -5,6 +5,8 @@ import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDiscl
 import type { Draft } from "@/pages/PublishWizardPage";
 import type { ListingStatus } from "@/types/listing";
 
+export type LiveEditScope = "property" | "room";
+
 type LiveEditContext = {
   status: Extract<ListingStatus, "published" | "paused">;
   returnListingId?: string | null;
@@ -12,6 +14,8 @@ type LiveEditContext = {
   myListingsRestorePath?: string | null;
   /** Pass through so the public listing can still offer Volver a Mis anuncios. */
   myListingsReturnState?: unknown;
+  /** Property-card vs room-row entry from Mis Anuncios. */
+  scope?: LiveEditScope;
 };
 
 type Props = {
@@ -45,6 +49,7 @@ export function PublishWizardReviewStep({
   liveEdit = null,
 }: Props) {
   const isLiveEdit = liveEdit != null;
+  const editScope = liveEdit?.scope ?? null;
   const returnListingId = liveEdit?.returnListingId ?? null;
   const myListingsRestorePath = liveEdit?.myListingsRestorePath ?? null;
   const myListingsReturnState = liveEdit?.myListingsReturnState;
@@ -63,26 +68,48 @@ export function PublishWizardReviewStep({
           ? "Guardar y republicar"
           : "Publicar anuncio";
 
+  const heading =
+    editScope === "property"
+      ? "Editar propiedad"
+      : editScope === "room"
+        ? "Editar recámara"
+        : isLiveEdit
+          ? "Editar anuncio"
+          : "Revisión final";
+
+  const intro =
+    editScope === "property" ? (
+      <>
+        Edita los datos de la <strong className="font-medium text-body">propiedad</strong> (título, fotos
+        compartidas, amenidades, ubicación). Para cambiar una recámara, vuelve a Mis anuncios y usa Editar en esa
+        recámara.
+      </>
+    ) : editScope === "room" ? (
+      <>
+        Estás editando esta <strong className="font-medium text-body">recámara</strong>. Toca{" "}
+        <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
+        descripción y más.
+      </>
+    ) : isLiveEdit ? (
+      <>
+        Tu anuncio se ve como en la página publicada. Toca{" "}
+        <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
+        descripción y más.
+      </>
+    ) : (
+      <>
+        Así se verá tu anuncio publicado. Toca <strong className="font-medium text-body">Editar</strong> en cada
+        bloque para ajustar el contenido aquí mismo, sin salir de este paso.
+      </>
+    );
+
+  const showRoomPicker = draft.rooms.length > 1 && editScope !== "property";
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm">
-        <h3 className="text-[15px] font-bold text-primary">
-          {isLiveEdit ? "Editar anuncio" : "Revisión final"}
-        </h3>
-        <p className="mt-2 text-sm text-muted">
-          {isLiveEdit ? (
-            <>
-              Tu anuncio se ve como en la página publicada. Toca{" "}
-              <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
-              descripción y más.
-            </>
-          ) : (
-            <>
-              Así se verá tu anuncio publicado. Toca <strong className="font-medium text-body">Editar</strong> en cada
-              bloque para ajustar el contenido aquí mismo, sin salir de este paso.
-            </>
-          )}
-        </p>
+        <h3 className="text-[15px] font-bold text-primary">{heading}</h3>
+        <p className="mt-2 text-sm text-muted">{intro}</p>
         {isLiveEdit && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
@@ -94,7 +121,7 @@ export function PublishWizardReviewStep({
         ) : null}
       </div>
 
-      {draft.rooms.length > 1 ? (
+      {showRoomPicker ? (
         <label className="block text-sm font-medium text-body">
           {isLiveEdit ? "Recámara que estás editando" : "Recámara en vista previa"}
           <select
@@ -116,6 +143,7 @@ export function PublishWizardReviewStep({
         roomIndex={roomIndex}
         apiOn={apiOn}
         variant={isLiveEdit ? "live-edit" : "preview"}
+        editScope={editScope}
         profilePhoneE164={profilePhoneE164}
         onDraftChange={onDraftChange}
       />

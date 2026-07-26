@@ -16,6 +16,7 @@ import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
   PROPERTY_SUMMARY_MAX,
   PROPERTY_SUMMARY_MIN,
+  PROPERTY_TITLE_MAX,
   ROOM_SUMMARY_MAX,
   ROOM_SUMMARY_MIN,
   CITY_ANCHOR,
@@ -42,6 +43,7 @@ import {
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 import type { ListingTagGroup } from "@/lib/listingTags";
+import type { LiveEditScope } from "@/components/publish/PublishWizardReviewStep";
 
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
@@ -57,6 +59,8 @@ type Props = {
   roomIndex: number;
   apiOn?: boolean;
   variant?: "preview" | "live-edit";
+  /** Live-edit from Mis Anuncios: property card vs room row. Null keeps full wizard preview. */
+  editScope?: LiveEditScope | null;
   profilePhoneE164?: string | null;
   onDraftChange: (updater: (d: Draft) => Draft) => void;
 };
@@ -232,6 +236,7 @@ export function EditableListingPreview({
   roomIndex,
   apiOn = false,
   variant = "preview",
+  editScope = null,
   profilePhoneE164,
   onDraftChange,
 }: Props) {
@@ -250,6 +255,11 @@ export function EditableListingPreview({
     ],
   );
   const room = draft.rooms[roomIndex];
+  const isPropertyScope = editScope === "property";
+  const isRoomScope = editScope === "room";
+  /** Wizard review shows everything; scoped live-edit shows only the relevant blocks. */
+  const showPropertyBlocks = !isRoomScope;
+  const showRoomBlocks = !isPropertyScope;
 
   const [editingHeader, setEditingHeader] = useState(false);
   const [editingProperty, setEditingProperty] = useState(false);
@@ -261,6 +271,7 @@ export function EditableListingPreview({
 
   const [headerDraft, setHeaderDraft] = useState({
     neighborhood: draft.neighborhood,
+    propertyTitle: draft.propertyTitle,
     roomTitle: room?.title ?? "",
     rentMxn: room?.rentMxn ?? 0,
     depositMxn: room?.depositMxn ?? 0,
@@ -271,15 +282,34 @@ export function EditableListingPreview({
   const [roomTagsDraft, setRoomTagsDraft] = useState<ListingTag[]>([]);
   const [roomDetailsDraft, setRoomDetailsDraft] = useState<RoomDraft | null>(null);
 
-  const galleryUrls = useMemo(
-    () =>
-      listingGalleryImageUrls({
-        postMode: listing.propertyPostMode,
+  const galleryUrls = useMemo(() => {
+    if (isPropertyScope) {
+      return listingGalleryImageUrls({
+        postMode: "property",
         propertyImageUrls: listing.propertyImageUrls,
+        roomImageUrls: [],
+      });
+    }
+    if (isRoomScope) {
+      return listingGalleryImageUrls({
+        postMode: draft.postMode === "room" ? "room" : "property",
+        propertyImageUrls: draft.postMode === "room" ? listing.propertyImageUrls : [],
         roomImageUrls: listing.roomImageUrls,
-      }),
-    [listing.propertyPostMode, listing.propertyImageUrls, listing.roomImageUrls],
-  );
+      });
+    }
+    return listingGalleryImageUrls({
+      postMode: listing.propertyPostMode,
+      propertyImageUrls: listing.propertyImageUrls,
+      roomImageUrls: listing.roomImageUrls,
+    });
+  }, [
+    isPropertyScope,
+    isRoomScope,
+    draft.postMode,
+    listing.propertyPostMode,
+    listing.propertyImageUrls,
+    listing.roomImageUrls,
+  ]);
 
   const mapCenter = useMemo(
     (): [number, number] => [CITY_ANCHOR[draft.city].lat, CITY_ANCHOR[draft.city].lng],
@@ -306,6 +336,7 @@ export function EditableListingPreview({
   const openHeaderEdit = () => {
     setHeaderDraft({
       neighborhood: draft.neighborhood,
+      propertyTitle: draft.propertyTitle,
       roomTitle: room.title,
       rentMxn: room.rentMxn,
       depositMxn: room.depositMxn,
@@ -314,6 +345,15 @@ export function EditableListingPreview({
   };
 
   const saveHeader = () => {
+    if (isPropertyScope) {
+      onDraftChange((d) => ({
+        ...d,
+        neighborhood: headerDraft.neighborhood,
+        propertyTitle: headerDraft.propertyTitle.slice(0, PROPERTY_TITLE_MAX),
+      }));
+      setEditingHeader(false);
+      return;
+    }
     onDraftChange((d) => ({
       ...d,
       neighborhood: headerDraft.neighborhood,
@@ -448,7 +488,13 @@ export function EditableListingPreview({
                 : "bg-warning/15 text-warning-fg"
             }`}
           >
-            {variant === "live-edit" ? "Editando anuncio" : "Vista previa · Borrador"}
+            {variant === "live-edit"
+              ? isPropertyScope
+                ? "Editando propiedad"
+                : isRoomScope
+                  ? "Editando recámara"
+                  : "Editando anuncio"
+              : "Vista previa · Borrador"}
           </span>
           {!editingHeader ? (
             <button
@@ -464,11 +510,26 @@ export function EditableListingPreview({
 
         {editingHeader ? (
           <InlineFieldEditor
-            label="Ubicación y precio"
+            label={isPropertyScope ? "Título y colonia" : "Ubicación y precio"}
             onSave={saveHeader}
             onCancel={() => setEditingHeader(false)}
           >
-            {draft.postMode === "property" ? (
+            {isPropertyScope ? (
+              <label className="block text-sm font-medium text-body">
+                Título de la propiedad
+                <input
+                  value={headerDraft.propertyTitle}
+                  maxLength={PROPERTY_TITLE_MAX}
+                  onChange={(e) =>
+                    setHeaderDraft((h) => ({ ...h, propertyTitle: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                />
+                <span className="mt-1 block text-xs text-muted">
+                  {headerDraft.propertyTitle.trim().length} / {PROPERTY_TITLE_MAX}
+                </span>
+              </label>
+            ) : draft.postMode === "property" ? (
               <label className="block text-sm font-medium text-body">
                 Título de esta recámara
                 <input
@@ -478,7 +539,11 @@ export function EditableListingPreview({
                 />
               </label>
             ) : null}
-            <label className={`block text-sm font-medium text-body ${draft.postMode === "property" ? "mt-2" : ""}`}>
+            <label
+              className={`block text-sm font-medium text-body ${
+                isPropertyScope || draft.postMode === "property" ? "mt-2" : ""
+              }`}
+            >
               Colonia o zona
               <input
                 value={headerDraft.neighborhood}
@@ -486,37 +551,42 @@ export function EditableListingPreview({
                 className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
             </label>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-body">
-                Renta (MXN / mes)
-                <input
-                  type="number"
-                  min={0}
-                  step={100}
-                  value={headerDraft.rentMxn === 0 ? "" : headerDraft.rentMxn}
-                  onChange={(e) =>
-                    setHeaderDraft((h) => ({ ...h, rentMxn: Math.max(0, Number(e.target.value) || 0) }))
-                  }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                />
-              </label>
-              <label className="block text-sm font-medium text-body">
-                Depósito (MXN)
-                <input
-                  type="number"
-                  min={0}
-                  step={100}
-                  value={headerDraft.depositMxn === 0 ? "" : headerDraft.depositMxn}
-                  onChange={(e) =>
-                    setHeaderDraft((h) => ({
-                      ...h,
-                      depositMxn: Math.max(0, Number(e.target.value) || 0),
-                    }))
-                  }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                />
-              </label>
-            </div>
+            {!isPropertyScope ? (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-body">
+                  Renta (MXN / mes)
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={headerDraft.rentMxn === 0 ? "" : headerDraft.rentMxn}
+                    onChange={(e) =>
+                      setHeaderDraft((h) => ({
+                        ...h,
+                        rentMxn: Math.max(0, Number(e.target.value) || 0),
+                      }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-body">
+                  Depósito (MXN)
+                  <input
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={headerDraft.depositMxn === 0 ? "" : headerDraft.depositMxn}
+                    onChange={(e) =>
+                      setHeaderDraft((h) => ({
+                        ...h,
+                        depositMxn: Math.max(0, Number(e.target.value) || 0),
+                      }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+            ) : null}
           </InlineFieldEditor>
         ) : (
           <>
@@ -526,14 +596,14 @@ export function EditableListingPreview({
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-primary sm:text-3xl">
               {previewHeaderTitle}
             </h1>
-            {draft.postMode === "property" && listing.title.trim() ? (
+            {!isPropertyScope && draft.postMode === "property" && listing.title.trim() ? (
               <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
             ) : null}
-            <ListingHeroPrice rentMxn={listing.rentMxn} />
+            {!isPropertyScope ? <ListingHeroPrice rentMxn={listing.rentMxn} /> : null}
             <ListingHeaderBadges
               postMode={draft.postMode}
               roommateGenderPref={room.roommateGenderPref}
-              availableFrom={room.availableFrom}
+              availableFrom={isPropertyScope ? undefined : room.availableFrom}
               occupiedByMenCount={draft.occupiedByMenCount}
               occupiedByWomenCount={draft.occupiedByWomenCount}
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
@@ -541,7 +611,7 @@ export function EditableListingPreview({
               propertyKind={draft.propertyKind}
               tags={draft.propertyTags}
             />
-            {(listing.depositMxn ?? 0) > 0 ? (
+            {!isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
           </>
@@ -556,7 +626,7 @@ export function EditableListingPreview({
             onCancel={() => setEditingPhotos(false)}
             saveLabel="Listo"
           >
-            {draft.postMode === "property" && draft.unassignedImageUrls.length > 0 ? (
+            {showPropertyBlocks && draft.postMode === "property" && draft.unassignedImageUrls.length > 0 ? (
               <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">
                 <p className="font-medium">
                   {draft.unassignedImageUrls.length} foto(s) sin categorizar — asígnalas antes de publicar.
@@ -602,7 +672,7 @@ export function EditableListingPreview({
                                   ),
                                 };
                               }
-                              if (v.startsWith("room:")) {
+                              if (v.startsWith("room:") && !isPropertyScope) {
                                 const idx = Number(v.split(":")[1] ?? "1") - 1;
                                 if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
                                 const row = d.roomImageUrls[idx] ?? [];
@@ -627,11 +697,13 @@ export function EditableListingPreview({
                           <option value="uncat">Sin categorizar</option>
                           <option value="shared">Áreas compartidas</option>
                           <option value="facade">Fachada</option>
-                          {draft.rooms.map((r, idx) => (
-                            <option key={idx} value={`room:${idx + 1}`}>
-                              Recámara {idx + 1}: {r.title.trim() || "Sin título"}
-                            </option>
-                          ))}
+                          {!isPropertyScope
+                            ? draft.rooms.map((r, idx) => (
+                                <option key={idx} value={`room:${idx + 1}`}>
+                                  Recámara {idx + 1}: {r.title.trim() || "Sin título"}
+                                </option>
+                              ))
+                            : null}
                         </select>
                       </label>
                     </div>
@@ -639,7 +711,7 @@ export function EditableListingPreview({
                 </div>
               </div>
             ) : null}
-            {draft.postMode === "property" ? (
+            {showPropertyBlocks && draft.postMode === "property" ? (
               <BulkImageUploader
                 title="Áreas compartidas / fachada"
                 images={draft.propertyImageUrls}
@@ -648,20 +720,22 @@ export function EditableListingPreview({
                 onImagesChange={(next) => onDraftChange((d) => ({ ...d, propertyImageUrls: next }))}
               />
             ) : null}
-            <BulkImageUploader
-              title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
-              images={draft.roomImageUrls[roomIndex] ?? []}
-              maxCount={20}
-              apiOn={apiOn}
-              hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
-              onImagesChange={(next) =>
-                onDraftChange((d) => ({
-                  ...d,
-                  roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === roomIndex ? next : row)),
-                }))
-              }
-            />
-            {draft.postMode === "property" ? (
+            {showRoomBlocks ? (
+              <BulkImageUploader
+                title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
+                images={draft.roomImageUrls[roomIndex] ?? []}
+                maxCount={20}
+                apiOn={apiOn}
+                hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
+                onImagesChange={(next) =>
+                  onDraftChange((d) => ({
+                    ...d,
+                    roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === roomIndex ? next : row)),
+                  }))
+                }
+              />
+            ) : null}
+            {showPropertyBlocks && draft.postMode === "property" ? (
               <BulkImageUploader
                 title="Fotos a categorizar"
                 images={draft.unassignedImageUrls}
@@ -679,76 +753,83 @@ export function EditableListingPreview({
         )}
       </PreviewSection>
 
-      <PreviewSection
-        title="Amenidades de la propiedad"
-        onEdit={editingPropertyTags ? undefined : openPropertyTagsEdit}
-        editLabel="Editar amenidades"
-      >
-        <ScopeTagsBlock
-          heading="Amenidades de la propiedad"
-          tags={propertyTagsActive}
-          editing={editingPropertyTags}
-          onStartEdit={openPropertyTagsEdit}
-          onSave={savePropertyTags}
-          onCancel={() => setEditingPropertyTags(false)}
-          editGroups={PROPERTY_TAG_GROUPS}
-          draftTags={propertyTagsDraft}
-          onToggle={togglePropertyTagDraft}
-        />
-      </PreviewSection>
+      {showPropertyBlocks ? (
+        <PreviewSection
+          title="Amenidades de la propiedad"
+          onEdit={editingPropertyTags ? undefined : openPropertyTagsEdit}
+          editLabel="Editar amenidades"
+        >
+          <ScopeTagsBlock
+            heading="Amenidades de la propiedad"
+            tags={propertyTagsActive}
+            editing={editingPropertyTags}
+            onStartEdit={openPropertyTagsEdit}
+            onSave={savePropertyTags}
+            onCancel={() => setEditingPropertyTags(false)}
+            editGroups={PROPERTY_TAG_GROUPS}
+            draftTags={propertyTagsDraft}
+            onToggle={togglePropertyTagDraft}
+          />
+        </PreviewSection>
+      ) : null}
 
-      <PreviewSection title="Resumen de la propiedad">
-        <ListingPropertySummaryGrid
-          neighborhood={neighborhoodLabel}
-          propertyKind={draft.propertyKind}
-          propertyBedroomsTotal={draft.propertyBedroomsTotal}
-          occupiedByWomenCount={draft.occupiedByWomenCount}
-          occupiedByMenCount={draft.occupiedByMenCount}
-        />
-      </PreviewSection>
+      {showPropertyBlocks ? (
+        <PreviewSection title="Resumen de la propiedad">
+          <ListingPropertySummaryGrid
+            neighborhood={neighborhoodLabel}
+            propertyKind={draft.propertyKind}
+            propertyBedroomsTotal={draft.propertyBedroomsTotal}
+            occupiedByWomenCount={draft.occupiedByWomenCount}
+            occupiedByMenCount={draft.occupiedByMenCount}
+          />
+        </PreviewSection>
+      ) : null}
 
-      <PreviewSection
-        title={draft.postMode === "room" ? "Ubicación" : "Sobre la propiedad"}
-        onEdit={
-          draft.postMode === "room"
-            ? undefined
-            : () => {
-                setPropertySummaryDraft(draft.propertySummary);
-                setEditingProperty(true);
-              }
-        }
-      >
-        {draft.postMode === "room" ? (
-          <p className="text-sm text-muted">
-            {neighborhoodLabel} · {listing.city}. El mapa está al final de la vista previa.
-          </p>
-        ) : editingProperty ? (
-          <InlineFieldEditor
-            label="Descripción de la propiedad y áreas comunes"
-            onSave={savePropertySummary}
-            onCancel={() => setEditingProperty(false)}
-          >
-            <textarea
-              value={propertySummaryDraft}
-              onChange={(e) => setPropertySummaryDraft(e.target.value)}
-              rows={5}
-              maxLength={PROPERTY_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-            />
-            <span className="text-xs text-muted">
-              {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
-            </span>
-          </InlineFieldEditor>
-        ) : (
-          <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
-            {draft.propertySummary.trim() || (
-              <span className="italic">Sin descripción de la propiedad.</span>
-            )}
-          </div>
-        )}
-      </PreviewSection>
+      {showPropertyBlocks ? (
+        <PreviewSection
+          title={draft.postMode === "room" ? "Ubicación" : "Sobre la propiedad"}
+          onEdit={
+            draft.postMode === "room"
+              ? undefined
+              : () => {
+                  setPropertySummaryDraft(draft.propertySummary);
+                  setEditingProperty(true);
+                }
+          }
+        >
+          {draft.postMode === "room" ? (
+            <p className="text-sm text-muted">
+              {neighborhoodLabel} · {listing.city}. El mapa está al final de la vista previa.
+            </p>
+          ) : editingProperty ? (
+            <InlineFieldEditor
+              label="Descripción de la propiedad y áreas comunes"
+              onSave={savePropertySummary}
+              onCancel={() => setEditingProperty(false)}
+            >
+              <textarea
+                value={propertySummaryDraft}
+                onChange={(e) => setPropertySummaryDraft(e.target.value)}
+                rows={5}
+                maxLength={PROPERTY_SUMMARY_MAX}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              />
+              <span className="text-xs text-muted">
+                {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
+              </span>
+            </InlineFieldEditor>
+          ) : (
+            <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
+              {draft.propertySummary.trim() || (
+                <span className="italic">Sin descripción de la propiedad.</span>
+              )}
+            </div>
+          )}
+        </PreviewSection>
+      ) : null}
 
-      <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">
+      {showRoomBlocks ? (
+        <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">
         {editingRoomDetails && roomDetailsDraft ? (
           <InlineFieldEditor
             label="Tipo, disponibilidad y perfil buscado"
@@ -905,7 +986,9 @@ export function EditableListingPreview({
           />
         )}
       </PreviewSection>
+      ) : null}
 
+      {showRoomBlocks ? (
       <PreviewSection
         title="Descripción de la recámara"
         onEdit={() => {
@@ -949,6 +1032,7 @@ export function EditableListingPreview({
           </>
         )}
       </PreviewSection>
+      ) : null}
 
       <PreviewSection title="Ubicación">
         <PreviewPropertyLocationMap
