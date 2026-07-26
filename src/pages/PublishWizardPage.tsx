@@ -2475,7 +2475,7 @@ export function PublishWizardPage() {
       });
 
       if (opts?.finish) {
-        navigate("/mis-anuncios", { state: { draftSaved: true } });
+        navigate("/mis-anuncios?tab=draft", { state: { draftSaved: true } });
         return;
       }
 

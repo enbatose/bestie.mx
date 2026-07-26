@@ -4,6 +4,14 @@ export type MyListingsReturnContext = {
   search: string;
 };
 
+/** Hub status tabs — kept in sync with `?tab=` on `/mis-anuncios`. */
+export type MyListingsTab = "published" | "draft" | "archived";
+
+export function parseMyListingsTab(value: string | null | undefined): MyListingsTab | null {
+  if (value === "published" || value === "draft" || value === "archived") return value;
+  return null;
+}
+
 export function myListingsReturnFromLocation(
   pathname: string,
   search: string,

@@ -3,11 +3,20 @@ import {
   buildMyListingsRestorePath,
   myListingsNavigationState,
   myListingsReturnFromLocation,
+  parseMyListingsTab,
   readMyListingsReturn,
   withMyListingsReturn,
 } from "./myListingsReturn";
 
 describe("myListingsReturn", () => {
+  it("parses hub tab query values", () => {
+    expect(parseMyListingsTab("draft")).toBe("draft");
+    expect(parseMyListingsTab("published")).toBe("published");
+    expect(parseMyListingsTab("archived")).toBe("archived");
+    expect(parseMyListingsTab("paused")).toBeNull();
+    expect(parseMyListingsTab(null)).toBeNull();
+  });
+
   it("reads and restores a Mis Anuncios snapshot", () => {
     const ctx = myListingsReturnFromLocation("/mis-anuncios", "?tab=draft");
     const state = myListingsNavigationState(ctx);
