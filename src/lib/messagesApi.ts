@@ -30,6 +30,8 @@ export type ChatMessage = {
   senderUserId: string;
   body: string;
   createdAt: string;
+  /** Peer’s client has seen the message in their inbox (or opened the thread). */
+  deliveredAt: string | null;
   readAt: string | null;
   attachments: MessageAttachment[];
 };

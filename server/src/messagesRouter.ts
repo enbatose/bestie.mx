@@ -140,9 +140,26 @@ function parseAttachmentsJson(raw: unknown): MessageAttachment[] {
 }
 
 function markThreadRead(db: DatabaseSync, conversationId: string, readerUserId: string): void {
+  const now = isoNow();
+  // Delivery first so ticks can show “received” before “read” when the inbox is polled without opening.
+  db.prepare(
+    `UPDATE messages SET delivered_at = ? WHERE conversation_id = ? AND sender_user_id != ? AND delivered_at IS NULL`,
+  ).run(now, conversationId, readerUserId);
   db.prepare(
     `UPDATE messages SET read_at = ? WHERE conversation_id = ? AND sender_user_id != ? AND read_at IS NULL`,
-  ).run(isoNow(), conversationId, readerUserId);
+  ).run(now, conversationId, readerUserId);
+}
+
+/** Inbox poll: peer has “received” messages without necessarily opening the thread (read). */
+function markInboxDelivered(db: DatabaseSync, userId: string): void {
+  db.prepare(
+    `UPDATE messages SET delivered_at = ?
+     WHERE delivered_at IS NULL
+       AND sender_user_id != ?
+       AND conversation_id IN (
+         SELECT conversation_id FROM conversation_participants WHERE user_id = ?
+       )`,
+  ).run(isoNow(), userId, userId);
 }
 
 function countUnreadForUser(db: DatabaseSync, userId: string): number {
@@ -279,6 +296,7 @@ export function messagesRouter(db: DatabaseSync) {
          ORDER BY c.updated_at DESC`,
       )
       .all(...params) as Record<string, unknown>[];
+    markInboxDelivered(db, me);
     res.json({
       conversations: rows.map((row) => ({
         id: row.id,
@@ -387,7 +405,7 @@ export function messagesRouter(db: DatabaseSync) {
     const kind = conversationKind(db, id);
     const rows = db
       .prepare(
-        `SELECT m.id, m.sender_user_id, m.body, m.created_at, m.read_at, m.attachments_json
+        `SELECT m.id, m.sender_user_id, m.body, m.created_at, m.delivered_at, m.read_at, m.attachments_json
          FROM messages m WHERE m.conversation_id = ? ORDER BY m.created_at ASC`,
       )
       .all(id) as Record<string, unknown>[];
@@ -403,7 +421,8 @@ export function messagesRouter(db: DatabaseSync) {
           senderUserId,
           body: m.body,
           createdAt: m.created_at,
-          readAt: m.read_at,
+          deliveredAt: typeof m.delivered_at === "string" ? m.delivered_at : null,
+          readAt: typeof m.read_at === "string" ? m.read_at : null,
           attachments: parseAttachmentsJson(m.attachments_json),
         };
       }),

@@ -24,6 +24,12 @@ function migrateMessageAttachments(db: DatabaseSync): void {
   }
 }
 
+function migrateMessageDeliveredAt(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "messages", "delivered_at")) {
+    db.exec(`ALTER TABLE messages ADD COLUMN delivered_at TEXT`);
+  }
+}
+
 /** Seeds the "Soporte de Bestie" system account used as the counterpart of every support chat. */
 function ensureSupportBotUser(db: DatabaseSync): void {
   const row = db.prepare(`SELECT 1 AS x FROM users WHERE id = ?`).get(SUPPORT_BOT_USER_ID) as
@@ -78,5 +84,6 @@ export function ensureMessagingSchema(db: DatabaseSync): void {
   `);
   migrateConversationKind(db);
   migrateMessageAttachments(db);
+  migrateMessageDeliveredAt(db);
   ensureSupportBotUser(db);
 }

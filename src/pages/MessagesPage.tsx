@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Check, CheckCheck, ChevronDown } from "lucide-react";
 import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
@@ -108,6 +109,35 @@ function formatThreadTime(iso: string): string {
   });
 }
 
+/** WhatsApp-style ticks: sent → delivered → read (forest green). */
+function MessageReceiptTicks({
+  deliveredAt,
+  readAt,
+}: {
+  deliveredAt: string | null;
+  readAt: string | null;
+}) {
+  if (readAt) {
+    return (
+      <span className="inline-flex items-center" title="Leído" aria-label="Leído">
+        <CheckCheck className="size-3.5 text-primary" strokeWidth={2.5} aria-hidden />
+      </span>
+    );
+  }
+  if (deliveredAt) {
+    return (
+      <span className="inline-flex items-center" title="Recibido" aria-label="Recibido">
+        <CheckCheck className="size-3.5 text-muted" strokeWidth={2.5} aria-hidden />
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center" title="Enviado" aria-label="Enviado">
+      <Check className="size-3.5 text-muted" strokeWidth={2.5} aria-hidden />
+    </span>
+  );
+}
+
 export function MessagesPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,6 +168,9 @@ export function MessagesPage() {
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const lastSeededQRef = useRef<string | null>(qParam || null);
+  const threadScrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
   const loadMe = useCallback(async () => {
     setMe(await authMe().catch(() => null));
@@ -248,6 +281,35 @@ export function MessagesPage() {
     openLogin(messagesReturnTo);
   }, [me, openLogin, messagesReturnTo]);
 
+  const scrollThreadToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    const el = threadScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+    stickToBottomRef.current = true;
+    setShowJumpToLatest(false);
+  }, []);
+
+  const onThreadScroll = useCallback(() => {
+    const el = threadScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom < 80;
+    stickToBottomRef.current = nearBottom;
+    setShowJumpToLatest(!nearBottom);
+  }, []);
+
+  // Reset stick-to-bottom when switching conversations; scroll after messages render.
+  useEffect(() => {
+    stickToBottomRef.current = true;
+    setShowJumpToLatest(false);
+  }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId || loadingThread) return;
+    if (!stickToBottomRef.current) return;
+    scrollThreadToBottom("auto");
+  }, [activeId, loadingThread, messages, scrollThreadToBottom]);
+
   const sortedRows = useMemo(() => sortUserConversations(rows, sortKey), [rows, sortKey]);
   const active = useMemo(() => rows.find((r) => r.id === activeId), [rows, activeId]);
   const isSupportThread = active?.kind === "support";
@@ -271,8 +333,11 @@ export function MessagesPage() {
       await postConversationMessage(activeId, draft.trim(), attachments);
       setDraft("");
       setAttachFiles([]);
+      stickToBottomRef.current = true;
       await loadThread({ silent: true });
       await loadList(debouncedSearch || undefined);
+      // Ensure we land on the newest bubble after the DOM updates.
+      requestAnimationFrame(() => scrollThreadToBottom("smooth"));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
     } finally {
@@ -323,9 +388,9 @@ export function MessagesPage() {
         </p>
       ) : null}
 
-      <div className="grid min-h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="grid h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <aside
-          className={`flex min-h-0 flex-col rounded-2xl border border-border bg-surface p-3 shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
+          className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface p-3 shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
             activeId ? "hidden md:flex" : "flex"
           }`}
         >
@@ -430,7 +495,7 @@ export function MessagesPage() {
         </aside>
 
         <section
-          className={`min-h-[min(70vh,640px)] flex-col rounded-2xl border border-border bg-surface shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
+          className={`flex h-[min(70vh,640px)] max-h-[min(70vh,640px)] min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm dark:border-slate-600 dark:bg-slate-900 ${
             activeId ? "flex" : "hidden md:flex"
           }`}
         >
@@ -475,8 +540,13 @@ export function MessagesPage() {
                 </p>
               ) : null}
 
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="min-h-[200px] flex-1 overflow-y-auto p-4">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="relative min-h-0 flex-1">
+                  <div
+                    ref={threadScrollRef}
+                    onScroll={onThreadScroll}
+                    className="h-full overflow-y-auto p-4"
+                  >
                   {loadingThread ? (
                     <p className="text-sm text-muted">Cargando mensajes…</p>
                   ) : (
@@ -568,6 +638,14 @@ export function MessagesPage() {
                                     </p>
                                   ) : null}
                                   <MessageAttachmentList attachments={m.attachments} />
+                                  {mine ? (
+                                    <div className="mt-1 flex justify-end">
+                                      <MessageReceiptTicks
+                                        deliveredAt={m.deliveredAt}
+                                        readAt={m.readAt}
+                                      />
+                                    </div>
+                                  ) : null}
                                 </div>
                               ) : null}
                             </div>
@@ -576,9 +654,20 @@ export function MessagesPage() {
                       );
                     })
                   )}
+                  </div>
+                  {showJumpToLatest ? (
+                    <button
+                      type="button"
+                      onClick={() => scrollThreadToBottom("smooth")}
+                      className="absolute bottom-3 right-4 z-[1] inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-primary shadow-md hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-800"
+                      aria-label="Ir al mensaje más reciente"
+                    >
+                      <ChevronDown className="size-5" aria-hidden />
+                    </button>
+                  ) : null}
                 </div>
 
-                <form onSubmit={send} className="border-t border-border bg-bg-light p-3 dark:border-slate-600 dark:bg-slate-800">
+                <form onSubmit={send} className="shrink-0 border-t border-border bg-bg-light p-3 dark:border-slate-600 dark:bg-slate-800">
                   <label className="sr-only" htmlFor="msg-body">
                     Mensaje
                   </label>
