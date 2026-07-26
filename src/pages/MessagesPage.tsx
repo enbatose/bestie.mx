@@ -120,7 +120,7 @@ function MessageReceiptTicks({
   if (readAt) {
     return (
       <span className="inline-flex items-center" title="Leído" aria-label="Leído">
-        <CheckCheck className="size-3.5 text-primary" strokeWidth={2.5} aria-hidden />
+        <CheckCheck className="size-3.5 text-[#53BDEB]" strokeWidth={2.5} aria-hidden />
       </span>
     );
   }
