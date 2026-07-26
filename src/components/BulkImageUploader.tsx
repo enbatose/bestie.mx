@@ -5,6 +5,11 @@ import { uploadListingImage } from "@/lib/listingsApi";
 import { perfEnd, perfSampleImageInput, perfStart } from "@/lib/perf";
 import { trackImagePipeline } from "@/lib/imageTelemetry";
 import {
+  PREPARE_IMAGE_FAIL_MESSAGE,
+  PREPARE_IMAGE_HEIC_MESSAGE,
+  prepareListingImage,
+} from "@/lib/prepareListingImage";
+import {
   appendDraftImageUrl,
   removeDraftImage,
   setDraftImageCover,
@@ -33,99 +38,19 @@ type BusyRow = {
   stage: "preparando" | "optimizando" | "subiendo";
 };
 
-const MAX_SKIP_BYTES = 500_000;
-const MAX_EDGE = 1920;
-const WEB_SAFE_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"]);
-
-function supportsWebpCanvas(): boolean {
-  try {
-    if (typeof document === "undefined") return false;
-    const c = document.createElement("canvas");
-    return c.toDataURL("image/webp").startsWith("data:image/webp");
-  } catch {
-    return false;
+function friendlyUploadError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : "";
+  if (!raw) return "No se pudieron subir las imágenes.";
+  if (raw.includes("invalid_mimetype") || raw.includes("unsupported_image")) {
+    return "Formato de imagen no soportado. Intenta con JPG o PNG.";
   }
-}
-
-async function getImageDims(file: File): Promise<{ w: number; h: number }> {
-  const bmp = await createImageBitmap(file);
-  try {
-    return { w: bmp.width, h: bmp.height };
-  } finally {
-    bmp.close();
+  if (raw.includes("file_too_large") || raw.includes("LIMIT_FILE_SIZE")) {
+    return "La imagen supera el máximo de 5 MB.";
   }
-}
-
-function clampResize(w: number, h: number, maxEdge: number): { w: number; h: number } {
-  const edge = Math.max(w, h);
-  if (edge <= maxEdge) return { w, h };
-  const s = maxEdge / edge;
-  return { w: Math.max(1, Math.round(w * s)), h: Math.max(1, Math.round(h * s)) };
-}
-
-async function convertIfNeeded(file: File): Promise<{
-  outFile: File;
-  inputW: number;
-  inputH: number;
-  outputW: number;
-  outputH: number;
-  skipped: boolean;
-  outputType: string;
-}> {
-  const { w: inputW, h: inputH } = await getImageDims(file);
-  const { w: outputW, h: outputH } = clampResize(inputW, inputH, MAX_EDGE);
-
-  if (WEB_SAFE_UPLOAD_TYPES.has(file.type) && file.size <= MAX_SKIP_BYTES && outputW === inputW && outputH === inputH) {
-    return {
-      outFile: file,
-      inputW,
-      inputH,
-      outputW,
-      outputH,
-      skipped: true,
-      outputType: file.type || "unknown",
-    };
+  if (raw.startsWith("upload_http_")) {
+    return "No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.";
   }
-
-  const preferWebp = supportsWebpCanvas();
-  const bitmap = await createImageBitmap(file, {
-    resizeWidth: outputW,
-    resizeHeight: outputH,
-    resizeQuality: "high",
-  });
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) throw new Error("canvas_2d_unavailable");
-    ctx.drawImage(bitmap, 0, 0);
-
-    const type = preferWebp ? "image/webp" : "image/jpeg";
-    const quality = preferWebp ? 0.82 : 0.85;
-    const blob: Blob = await new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error("encode_failed"))),
-        type,
-        quality,
-      );
-    });
-
-    const nameBase = (file.name || "foto").replace(/\.[^.]+$/i, "");
-    const ext = preferWebp ? "webp" : "jpg";
-    const outFile = new File([blob], `${nameBase}.${ext}`, { type });
-    return {
-      outFile,
-      inputW,
-      inputH,
-      outputW: bitmap.width,
-      outputH: bitmap.height,
-      skipped: false,
-      outputType: type,
-    };
-  } finally {
-    bitmap.close();
-  }
+  return raw;
 }
 
 export function BulkImageUploader({ title, images, maxCount, onImagesChange, apiOn, hint, onBatchComplete }: Props) {
@@ -138,7 +63,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
   imagesRef.current = images;
 
   const remaining = Math.max(0, maxCount - images.length);
-  const accept = useMemo(() => "image/*", []);
+  const accept = useMemo(() => "image/*,image/heic,image/heif,.heic,.heif", []);
 
   const remove = useCallback(
     (ix: number) => {
@@ -171,9 +96,9 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
         for (const f of take) {
           setBusy({ name: f.name || "foto", stage: "optimizando" });
           const m1 = perfStart("convert");
-          let converted: Awaited<ReturnType<typeof convertIfNeeded>>;
+          let converted: Awaited<ReturnType<typeof prepareListingImage>>;
           try {
-            converted = await convertIfNeeded(f);
+            converted = await prepareListingImage(f);
           } catch (e) {
             await trackImagePipeline({
               batchId,
@@ -183,7 +108,13 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               error: e instanceof Error ? e.message : "convert_error",
               ...perfSampleImageInput(f),
             });
-            throw new Error("No se pudo preparar esa imagen. Intenta con otra foto o conviértela a JPG/PNG.");
+            if (
+              e instanceof Error &&
+              (e.message === PREPARE_IMAGE_FAIL_MESSAGE || e.message === PREPARE_IMAGE_HEIC_MESSAGE)
+            ) {
+              throw e;
+            }
+            throw new Error(PREPARE_IMAGE_FAIL_MESSAGE);
           }
 
           const convertSpan = perfEnd(m1);
@@ -221,7 +152,20 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           onImagesChange(current);
         }
       } catch (e) {
-        setErr(e instanceof Error ? e.message : "No se pudieron subir las imágenes.");
+        const raw = e instanceof Error ? e.message : "";
+        if (
+          raw.startsWith("upload_http_") ||
+          raw.includes("invalid_mimetype") ||
+          raw.includes("unsupported_image") ||
+          raw.includes("file_too_large") ||
+          raw.includes("LIMIT_FILE_SIZE")
+        ) {
+          setErr(friendlyUploadError(e));
+        } else if (raw) {
+          setErr(raw);
+        } else {
+          setErr(PREPARE_IMAGE_FAIL_MESSAGE);
+        }
       } finally {
         setBusy(null);
         const fullSpan = perfEnd(batchMark);

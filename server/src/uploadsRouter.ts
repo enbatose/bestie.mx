@@ -2,22 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
-
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml", "image/bmp"]);
-
-function extForMime(m: string): string {
-  if (m === "image/jpeg") return ".jpg";
-  if (m === "image/png") return ".png";
-  if (m === "image/webp") return ".webp";
-  if (m === "image/gif") return ".gif";
-  if (m === "image/avif") return ".avif";
-  if (m === "image/svg+xml") return ".svg";
-  if (m === "image/bmp") return ".bmp";
-  return ".bin";
-}
+import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
 
 const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|svg|bmp)$/i;
 
@@ -25,6 +13,28 @@ export type UploadsRouterOptions = {
   uploadDir: string;
   db?: DatabaseSync;
 };
+
+function uploadErrorMessage(err: unknown): { status: number; error: string; message: string } {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return {
+        status: 400,
+        error: "file_too_large",
+        message: "La imagen supera el máximo de 5 MB.",
+      };
+    }
+    return { status: 400, error: "upload_failed", message: "No se pudo subir el archivo." };
+  }
+  const msg = err instanceof Error ? err.message : "";
+  if (msg === "invalid_mimetype") {
+    return {
+      status: 400,
+      error: "invalid_mimetype",
+      message: "Formato de imagen no soportado. Usa JPG, PNG o WebP.",
+    };
+  }
+  return { status: 400, error: "upload_failed", message: "No se pudo subir el archivo." };
+}
 
 /**
  * POST / (multipart field `file`) — authenticated publisher; returns `{ url }`.
@@ -38,37 +48,64 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
-      if (ALLOWED.has(file.mimetype)) cb(null, true);
-      else cb(new Error("invalid_mimetype"));
+      const m = normalizeDeclaredImageMime(file.mimetype);
+      // Accept empty / octet-stream / any image/* — bytes are sniffed in the handler.
+      // WhatsApp and Android galleries often omit MIME or send image/jpg.
+      if (!m || m === "application/octet-stream" || m === "binary/octet-stream" || m.startsWith("image/")) {
+        cb(null, true);
+      } else {
+        cb(new Error("invalid_mimetype"));
+      }
     },
   });
 
   const r = express.Router();
 
-  r.post("/", upload.single("file"), (req: Request, res: Response) => {
-    void (readPublisherIdFromRequest(req) ?? getOrCreatePublisherId(req, res));
-    const f = req.file;
-    if (!f?.buffer?.length) {
-      res.status(400).json({ error: "file_required" });
-      return;
-    }
-    const ext = extForMime(f.mimetype);
-    const name = `${randomUUID()}${ext}`;
-    const dest = path.join(uploadDir, name);
-    try {
-      fs.writeFileSync(dest, f.buffer);
-      opts.db
-        ?.prepare(
-          `INSERT OR REPLACE INTO upload_blobs (filename, mime_type, bytes, created_at)
-           VALUES (?, ?, ?, ?)`,
-        )
-        .run(name, f.mimetype, f.buffer, new Date().toISOString());
-    } catch {
-      res.status(500).json({ error: "write_failed" });
-      return;
-    }
-    res.status(201).json({ url: `/api/uploads/${name}` });
-  });
+  r.post(
+    "/",
+    (req: Request, res: Response, next: NextFunction) => {
+      upload.single("file")(req, res, (err: unknown) => {
+        if (err) {
+          const body = uploadErrorMessage(err);
+          res.status(body.status).json({ error: body.error, message: body.message });
+          return;
+        }
+        next();
+      });
+    },
+    (req: Request, res: Response) => {
+      void (readPublisherIdFromRequest(req) ?? getOrCreatePublisherId(req, res));
+      const f = req.file;
+      if (!f?.buffer?.length) {
+        res.status(400).json({ error: "file_required" });
+        return;
+      }
+      const mime = resolveUploadMime(f.mimetype, f.buffer);
+      if (!mime) {
+        res.status(400).json({
+          error: "invalid_mimetype",
+          message: "Formato de imagen no soportado. Usa JPG, PNG o WebP.",
+        });
+        return;
+      }
+      const ext = extForUploadMime(mime);
+      const name = `${randomUUID()}${ext}`;
+      const dest = path.join(uploadDir, name);
+      try {
+        fs.writeFileSync(dest, f.buffer);
+        opts.db
+          ?.prepare(
+            `INSERT OR REPLACE INTO upload_blobs (filename, mime_type, bytes, created_at)
+             VALUES (?, ?, ?, ?)`,
+          )
+          .run(name, mime, f.buffer, new Date().toISOString());
+      } catch {
+        res.status(500).json({ error: "write_failed" });
+        return;
+      }
+      res.status(201).json({ url: `/api/uploads/${name}` });
+    },
+  );
 
   r.get("/:filename", (req: Request, res: Response) => {
     const filename = path.basename(req.params.filename ?? "");

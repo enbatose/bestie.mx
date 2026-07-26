@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { authUpdateMe } from "@/lib/authApi";
 import { uploadListingImage } from "@/lib/listingsApi";
+import { prepareListingImage } from "@/lib/prepareListingImage";
 
 type Props = {
   displayName: string;
@@ -21,7 +22,8 @@ export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated
     setMsg(null);
     setBusy(true);
     try {
-      const url = await uploadListingImage(file);
+      const prepared = await prepareListingImage(file);
+      const url = await uploadListingImage(prepared.outFile);
       await authUpdateMe({ profilePictureUrl: url });
       onUpdated(url);
       window.dispatchEvent(new Event("bestie:me-changed"));
