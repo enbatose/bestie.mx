@@ -82,6 +82,18 @@ function messageDayKey(iso: string): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+function messageMinuteKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+}
+
+function isSameMinuteGroup(a: ChatMessage, b: ChatMessage): boolean {
+  return (
+    a.senderUserId === b.senderUserId &&
+    messageMinuteKey(a.createdAt) === messageMinuteKey(b.createdAt)
+  );
+}
+
 function formatThreadDayLabel(iso: string): string {
   return new Date(iso)
     .toLocaleDateString("es-MX", { day: "numeric", month: "long" })
@@ -445,7 +457,7 @@ export function MessagesPage() {
               ) : null}
 
               <div className="flex min-h-0 flex-1 flex-col">
-                <div className="min-h-[200px] flex-1 space-y-4 overflow-y-auto p-4">
+                <div className="min-h-[200px] flex-1 overflow-y-auto p-4">
                   {loadingThread ? (
                     <p className="text-sm text-muted">Cargando mensajes…</p>
                   ) : (
@@ -455,62 +467,80 @@ export function MessagesPage() {
                       const displayName = mine
                         ? me.displayName
                         : (active?.otherDisplayName ?? "Usuario");
+                      const prev = index > 0 ? messages[index - 1]! : null;
+                      const showHeader = !prev || !isSameMinuteGroup(prev, m);
                       const showDay =
                         index === 0 ||
                         messageDayKey(m.createdAt) !== messageDayKey(messages[index - 1]!.createdAt);
+                      const topGap =
+                        showDay || index === 0 ? "" : showHeader ? "mt-4" : "mt-1";
                       return (
                         <div key={m.id}>
                           {showDay ? (
-                            <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-wide text-muted">
+                            <p
+                              className={`mb-4 text-center text-[11px] font-semibold uppercase tracking-wide text-muted ${
+                                index > 0 ? "mt-4" : ""
+                              }`}
+                            >
                               {formatThreadDayLabel(m.createdAt)}
                             </p>
                           ) : null}
                           <article
-                            className={`flex items-start gap-3 ${mine ? "flex-row-reverse" : ""}`}
+                            className={`flex items-start gap-3 ${mine ? "flex-row-reverse" : ""} ${topGap}`}
                           >
-                            <ParticipantAvatar
-                              displayName={displayName}
-                              profilePictureUrl={
-                                mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
-                              }
-                              useSupportMark={otherIsSupport}
-                              size="sm"
-                            />
+                            {showHeader ? (
+                              <ParticipantAvatar
+                                displayName={displayName}
+                                profilePictureUrl={
+                                  mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
+                                }
+                                useSupportMark={otherIsSupport}
+                                size="sm"
+                              />
+                            ) : (
+                              <span className="h-8 w-8 shrink-0" aria-hidden />
+                            )}
                             <div className={`min-w-0 max-w-[85%] ${mine ? "text-right" : ""}`}>
-                              <header
-                                className={`flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 ${
-                                  mine ? "justify-end" : ""
-                                }`}
-                              >
-                                {mine ? (
-                                  <>
-                                    <time dateTime={m.createdAt} className="text-xs text-muted">
-                                      {formatThreadTime(m.createdAt)}
-                                    </time>
-                                    <span className="text-xs text-muted" aria-hidden>
-                                      ·
-                                    </span>
-                                    <span className="text-sm font-semibold text-body">{displayName}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="text-sm font-semibold text-body">{displayName}</span>
-                                    {otherIsSupport ? <SupportBadge /> : null}
-                                    <span className="text-xs text-muted" aria-hidden>
-                                      ·
-                                    </span>
-                                    <time dateTime={m.createdAt} className="text-xs text-muted">
-                                      {formatThreadTime(m.createdAt)}
-                                    </time>
-                                  </>
-                                )}
-                              </header>
+                              {showHeader ? (
+                                <header
+                                  className={`flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 ${
+                                    mine ? "justify-end" : ""
+                                  }`}
+                                >
+                                  {mine ? (
+                                    <>
+                                      <time dateTime={m.createdAt} className="text-xs text-muted">
+                                        {formatThreadTime(m.createdAt)}
+                                      </time>
+                                      <span className="text-xs text-muted" aria-hidden>
+                                        ·
+                                      </span>
+                                      <span className="text-sm font-semibold text-body">{displayName}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-sm font-semibold text-body">{displayName}</span>
+                                      {otherIsSupport ? <SupportBadge /> : null}
+                                      <span className="text-xs text-muted" aria-hidden>
+                                        ·
+                                      </span>
+                                      <time dateTime={m.createdAt} className="text-xs text-muted">
+                                        {formatThreadTime(m.createdAt)}
+                                      </time>
+                                    </>
+                                  )}
+                                </header>
+                              ) : null}
                               {m.body || m.attachments.length > 0 ? (
                                 <div
-                                  className={`mt-1 inline-block max-w-full rounded-2xl px-3 py-2 text-left ${
+                                  className={`inline-block max-w-full rounded-2xl px-3 py-2 text-left ${
+                                    showHeader ? "mt-1" : ""
+                                  } ${
                                     mine
-                                      ? "rounded-tr-sm bg-secondary text-primary"
-                                      : "rounded-tl-sm bg-surface-elevated text-body dark:bg-slate-700 dark:text-slate-100"
+                                      ? `bg-secondary text-primary ${showHeader ? "rounded-tr-sm" : ""}`
+                                      : `bg-surface-elevated text-body dark:bg-slate-700 dark:text-slate-100 ${
+                                          showHeader ? "rounded-tl-sm" : ""
+                                        }`
                                   }`}
                                 >
                                   {m.body ? (
