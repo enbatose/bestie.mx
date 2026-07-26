@@ -57,12 +57,28 @@ Hero, H1–H3, Body, Label, Caption, Overline, Button — aligned with `.cursor/
 | **Card / Surface** | Components / Card | Home feature cards, panels |
 | **Logo mark & lockup** | Components / Brand | `BrandLogo.tsx`, `public/brand/*` |
 | **Filter icons** | Components / Filter Icons | `GenderFilterIcons.tsx`, `src/assets/icons/*`, plus lucide icons documented per `searchQuickAttributes.tsx` (`tag-aire-acondicionado`, `tag-parejas`, `tag-fumar-permitido-recamara` added for the Filtros avanzados redesign). Note: the `recamara` "Tipo de propiedad" chip/icon was removed from the product (redundant with "Tipo de habitación" Privada/Compartida) — the Figma frame for it may still exist as an orphaned asset. |
-| **Publisher / StatusBadge** | Components / Publisher (add) | `ListingStatusBadge.tsx` — semantic pills for draft / published / paused / archived |
-| **Publisher / ListingThumb** | Components / Publisher (add) | `ListingThumb.tsx` — 64×64 square thumb + Home fallback |
-| **Publisher / MissingFieldsCallout** | Components / Publisher (add) | `MissingFieldsCallout.tsx` — warning callout before draft publish |
-| **Publisher / ListingPropertyCard** | Components / Publisher (add) | `ListingPropertyCard.tsx` — one card for mobile + desktop; On/Off switch, rooms accordion with per-room occupancy switch |
-| **Publisher / ReferenceChip** | Components / Publisher (add) | `ListingReferenceChip.tsx` — copyable `P…` / `A…` refs |
+| **Publisher / StatusBadge** | Components / Publisher | `ListingStatusBadge.tsx` — Status × Noun (gendered Spanish) |
+| **Publisher / TypeBadge** | Components / Publisher | `ListingTypeBadge` — Propiedad (forest) / Cuarto (lime) |
+| **Publisher / OccupancyBadge** | Components / Publisher | `RoomOccupancyBadge` — Disponible / Ocupada |
+| **Publisher / OnOffToggle** | Components / Publisher | `CardOnOffToggle` — publication switch (filled; tone-colored) |
+| **Publisher / RoomOnOffToggle** | Components / Publisher | `RoomOnOffToggle` — occupancy switch (outlined) |
+| **Publisher / ReferenceChip** | Components / Publisher | `ListingReferenceChip.tsx` — Default / Compact / Quiet |
+| **Publisher / MetricChips** | Components / Publisher | `PublisherMetricChips.tsx` — vistas · mensajes |
+| **Publisher / MissingFieldsCallout** | Components / Publisher | `MissingFieldsCallout.tsx` — draft completeness warning |
+| **Publisher / CardAction** + **CardActionGroup** | Components / Publisher | `listingCardChrome.tsx` — labeled pills + mobile connected strip |
+| **Publisher / PhotoWithReference** | Components / Publisher | `PhotoWithReference` — thumb + quiet ref (omit empty thumb) |
+| **Publisher / ListingPropertyCard** | Components / Publisher | `ListingPropertyCard.tsx` — one card for mobile + desktop |
+| **Hub / StatusTab** | Components / Publisher | Underline lifecycle tab + count — `MyListingsPage` tablist |
+| **Hub / FlashToast** | Components / Publisher | Success flash (mobile bottom / desktop top-right) |
 | **Dialog / Confirm** | Components / Dialog | `AppConfirmDialog.tsx` — `intent="default" \| "danger"`, focus trap + restore |
+
+### Principles (publisher hub)
+
+| Page | Purpose |
+| --- | --- |
+| **Principles / Publisher Hub** | JTBD, reusable P1–P10 vs Mis Anuncios–specific rules |
+
+Canonical docs: [`docs/design/publisher-hub-principles.md`](../design/publisher-hub-principles.md) · Cursor skill: `.cursor/skills/publisher-hub-ui/SKILL.md`
 
 ### Foundations docs
 
@@ -158,7 +174,7 @@ Starter mappings live in `src/figma/` (add `.figma.ts` files as components stabi
 | --- | --- |
 | Shared `Button.tsx` primitive | Published library (manual step) |
 | Plain-lucide filter icons still undocumented in Figma (`Bath`, `CarFront`, `Armchair`, `PawPrint`, `House`, `Building2`, `Warehouse`, `DoorClosed` render fine in code via `searchQuickAttributes.tsx` but only the tinted-PNG icons + the 4 new 2026-07 additions have Figma swatches) | Dark-mode swatch page |
-| Listing card, map chrome, wizard stepper | Full molecule set |
+| Map chrome, wizard stepper | Full molecule set (Publisher hub molecules added 2026-07) |
 | Messenger / OAuth brand buttons | Motion / pulse-ring spec frame |
 | `Chip / Filter Icon` and `Tabs / Segment` use a representative icon/label only (House / Propiedad) instead of `INSTANCE_SWAP` — fine for a small, stable icon set, but revisit with instance-swap if the icon count grows | — |
 

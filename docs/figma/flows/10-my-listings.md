@@ -1,6 +1,12 @@
 # 10 — My listings (publisher hub)
 
-## Figma frames
+## Design principles (canonical)
+
+- **Doc:** [`docs/design/publisher-hub-principles.md`](../../design/publisher-hub-principles.md) — JTBD, reusable P1–P10 vs Mis Anuncios–specific rules, component map.
+- **Cursor skill:** `.cursor/skills/publisher-hub-ui/SKILL.md` — auto-apply when redesigning inventory / publisher hubs.
+- **Figma DS:** [Bestie.mx — Design System](https://www.figma.com/design/JVO8AoBQ5FJqfvtJXCe6Mv/Bestie.mx-%E2%80%94-Design-System) → `Principles / Publisher Hub` + `Components / Publisher`.
+
+## Figma frames (User flows file)
 
 - `Mis anuncios · loading`
 - `Mis anuncios · list with properties/rooms`
@@ -16,11 +22,15 @@
 
 `src/pages/MyListingsPage.tsx`
 
-## User goals
+## User goals (JTBD)
 
-- See all owned listings and property status.
-- Pause, resume, archive, edit; complete missing legal / profile requirements.
-- Jump into wizard for create/edit (`/publicar`, `/publicar?edit=:propertyId`).
+- **Inventory scan** — tabs + counts + summary.
+- **Lifecycle control** — header On/Off for publication (confirm when Off cascades).
+- **Slot management** — rooms accordion + occupancy On/Off.
+- **Finish & publish** — missing fields + legal + Publicar.
+- **Operate** — Ver / Editar / Compartir / Archivar (mobile icon strip / desktop pills).
+- **Performance** — quiet vistas · mensajes.
+- **Find one** — search; empty state can jump to another tab.
 
 ## Layout zones
 

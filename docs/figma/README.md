@@ -4,6 +4,8 @@
 
 **[Bestie.mx — Design System](https://www.figma.com/design/JVO8AoBQ5FJqfvtJXCe6Mv/Bestie.mx-%E2%80%94-Design-System)** (`fileKey` `JVO8AoBQ5FJqfvtJXCe6Mv`)
 
+Publisher hub principles (Mis Anuncios): [`docs/design/publisher-hub-principles.md`](../design/publisher-hub-principles.md) · skill `.cursor/skills/publisher-hub-ui` · Figma pages `Principles / Publisher Hub` and `Components / Publisher`.
+
 Canonical library for color/spacing/radius variables, Inter text styles, Button/Input/Chip/Card components, brand logos, and filter icons. Sync workflow and scope: [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md).
 
 ## User-flow file

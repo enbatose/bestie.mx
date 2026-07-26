@@ -1,5 +1,5 @@
 {
-  "runId": "bestie-ds-2026-07-05",
+  "runId": "bestie-ds-publisher-hub-2026-07-25",
   "fileKey": "JVO8AoBQ5FJqfvtJXCe6Mv",
   "fileUrl": "https://www.figma.com/design/JVO8AoBQ5FJqfvtJXCe6Mv/Bestie.mx-%E2%80%94-Design-System",
   "relatedFiles": {
@@ -8,12 +8,12 @@
       "fileUrl": "https://www.figma.com/design/tW5pbD3Cd7rycSLMtIzdAm/Bestie.mx-%E2%80%94-User-flows--screens-"
     }
   },
-  "phase": "phase4",
+  "phase": "publisher-hub-components",
   "collections": {
     "primitives": "VariableCollectionId:1:12",
     "color": "VariableCollectionId:1:33",
-    "spacing": "VariableCollectionId:1:63",
-    "radius": "VariableCollectionId:1:74"
+    "spacing": "VariableCollectionId:1:62",
+    "radius": "VariableCollectionId:1:73"
   },
   "components": {
     "button": "1:143",
@@ -21,12 +21,33 @@
     "chip": "1:146",
     "card": "1:148",
     "chipFilterIcon": "30:13",
-    "tabsSegment": "31:28"
+    "tabsSegment": "31:28",
+    "publisherStatusBadge": "33:51",
+    "publisherTypeBadge": "33:56",
+    "publisherOccupancyBadge": "33:61",
+    "publisherOnOffToggle": "33:84",
+    "publisherRoomOnOffToggle": "33:93",
+    "publisherReferenceChip": "33:103",
+    "publisherMetricChips": "33:104",
+    "publisherMissingFieldsCallout": "33:111",
+    "publisherCardAction": "33:122",
+    "publisherCardActionGroup": "33:141",
+    "hubStatusTab": "33:150",
+    "hubFlashToast": "33:151",
+    "publisherListingPropertyCard": "33:238",
+    "publisherPhotoWithReference": "33:239"
   },
   "pages": {
     "filterIcons": "1:11",
     "inputAndChip": "1:9",
-    "tabs": "31:2"
+    "tabs": "31:2",
+    "principlesPublisherHub": "33:2",
+    "componentsPublisher": "33:3"
+  },
+  "principles": {
+    "doc": "docs/design/publisher-hub-principles.md",
+    "skill": ".cursor/skills/publisher-hub-ui/SKILL.md",
+    "figmaPage": "33:2"
   },
   "filterIconsAdded2026-07": {
     "recamara": "29:8",
@@ -39,17 +60,22 @@
     "brandRule": ".cursor/rules/bestie-brand.mdc",
     "brandAssets": "public/brand/",
     "filterIcons": "src/assets/icons/",
-    "logoComponent": "src/components/BrandLogo.tsx"
+    "logoComponent": "src/components/BrandLogo.tsx",
+    "myListings": "src/components/myListings/",
+    "myListingsPage": "src/pages/MyListingsPage.tsx"
   },
   "completedSteps": [
     "phase0-discovery",
     "phase1-foundations",
     "phase2-structure",
-    "phase3-core-components"
+    "phase3-core-components",
+    "publisher-hub-principles-doc-and-skill",
+    "publisher-hub-figma-components"
   ],
   "pendingValidations": [
     "publish-team-library",
     "code-connect-mappings",
-    "shared-button-component-in-code"
+    "shared-button-component-in-code",
+    "polish-publisher-card-action-group-property-variant"
   ]
 }
