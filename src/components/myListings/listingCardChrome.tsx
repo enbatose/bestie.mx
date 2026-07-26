@@ -53,6 +53,7 @@ export function CardOnOffToggle({
   busy = false,
   onLabel,
   offLabel,
+  describedById,
 }: {
   active: boolean;
   onChange: (next: boolean) => void;
@@ -62,6 +63,8 @@ export function CardOnOffToggle({
   /** Accessible description of what On/Off does for this card. */
   onLabel: string;
   offLabel: string;
+  /** Id of a paragraph explaining why the toggle is disabled (e.g. missing email). */
+  describedById?: string;
 }) {
   const onShell =
     tone === "property" ? "border-primary bg-primary" : "border-secondary/80 bg-secondary";
@@ -76,6 +79,7 @@ export function CardOnOffToggle({
       aria-checked={active}
       aria-busy={busy || undefined}
       aria-label={active ? onLabel : offLabel}
+      aria-describedby={describedById}
       title={active ? onLabel : offLabel}
       disabled={disabled || busy}
       onClick={() => onChange(!active)}

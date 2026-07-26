@@ -59,9 +59,37 @@ const GENDER_LABELS: Record<string, string> = {
 
 const LODGING_LABELS: Record<string, string> = {
   whole_home: "Casa completa",
-  private_room: "Cuarto privado",
-  shared_room: "Cuarto compartido",
+  private_room: "Recámara privada",
+  shared_room: "Recámara compartida",
 };
+
+/** ISO / parseable date → short es-MX; leave human strings as-is. */
+function formatFilterAvailableFrom(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return raw;
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    const [y, m, d] = trimmed.slice(0, 10).split("-").map(Number);
+    if (y && m && d) {
+      return new Intl.DateTimeFormat("es-MX", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(y, m - 1, d));
+    }
+  }
+
+  const parsed = Date.parse(trimmed);
+  if (Number.isFinite(parsed) && /\d{4}/.test(trimmed)) {
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(parsed));
+  }
+
+  return trimmed;
+}
 
 const DIM_LABELS: Record<string, string> = {
   small: "Chica",
@@ -120,7 +148,7 @@ export function describeActiveSearchFilters(
   }
 
   if (filters.availableFrom) {
-    lines.push(`Disponible desde: ${filters.availableFrom}`);
+    lines.push(`Disponible desde: ${formatFilterAvailableFrom(filters.availableFrom)}`);
   }
 
   if (filters.minimalStayMonths != null) {
@@ -141,4 +169,87 @@ export function describeActiveSearchFilters(
   }
 
   return lines;
+}
+
+/**
+ * Compact chip labels for hub cards — short values without field prefixes
+ * (city already appears in the card meta line).
+ */
+const MAX_NEIGHBORHOOD_CHIPS = 2;
+
+export function describeActiveSearchFilterChips(
+  filters: SearchFilters,
+  searchLocation: Pick<SearchLocationState, "cityLabel" | "neighborhoods">,
+): string[] {
+  const chips: string[] = [];
+
+  // High-value chips first so a long list of colonias can't crowd out budget/type/gender.
+  if (filters.budgetMax != null) {
+    chips.push(`Máx. $${filters.budgetMax.toLocaleString("es-MX")}`);
+  } else if (filters.budgetMin != null) {
+    chips.push(`Mín. $${filters.budgetMin.toLocaleString("es-MX")}`);
+  }
+
+  if (filters.wantHouse) chips.push("Casa");
+  if (filters.wantApartment) chips.push("Departamento");
+  if (filters.wantLoft) chips.push("Loft");
+  if (filters.lodgingType) {
+    chips.push(LODGING_LABELS[filters.lodgingType] ?? filters.lodgingType);
+  }
+
+  if (filters.pref) {
+    chips.push(GENDER_LABELS[filters.pref] ?? filters.pref);
+  }
+
+  if (searchLocation.neighborhoods.length) {
+    const names = searchLocation.neighborhoods
+      .map((n) => n.name.trim())
+      .filter((name) => name.length > 0);
+    for (const name of names.slice(0, MAX_NEIGHBORHOOD_CHIPS)) {
+      chips.push(name);
+    }
+    const extraNeighborhoods = names.length - MAX_NEIGHBORHOOD_CHIPS;
+    if (extraNeighborhoods > 0) {
+      chips.push(`+${extraNeighborhoods} colonia${extraNeighborhoods === 1 ? "" : "s"}`);
+    }
+  }
+
+  if (filters.age != null) {
+    chips.push(`${filters.age} años`);
+  } else if (filters.ageMin != null || filters.ageMax != null) {
+    chips.push(`${filters.ageMin ?? 18}–${filters.ageMax ?? 99} años`);
+  }
+
+  if (filters.roomDimensions.length) {
+    for (const d of filters.roomDimensions) {
+      chips.push(DIM_LABELS[d] ?? d);
+    }
+  }
+
+  if (filters.availableFrom) {
+    chips.push(`Desde ${formatFilterAvailableFrom(filters.availableFrom)}`);
+  }
+
+  if (filters.minimalStayMonths != null) {
+    chips.push(
+      filters.minimalStayMonths === 1
+        ? "1 mes mín."
+        : `${filters.minimalStayMonths} meses mín.`,
+    );
+  }
+
+  if (filters.avalRequired === true) chips.push("Requiere aval");
+  if (filters.avalRequired === false) chips.push("Sin aval");
+  if (filters.subletAllowed === true) chips.push("Subarriendo permitido");
+  if (filters.subletAllowed === false) chips.push("Sin subarriendo");
+
+  for (const tag of filters.tags) {
+    chips.push(TAG_LABELS[tag] ?? tag);
+  }
+
+  if (filters.bbox) {
+    chips.push("Área del mapa");
+  }
+
+  return chips;
 }

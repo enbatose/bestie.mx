@@ -9,6 +9,8 @@ type Props = {
   busy?: boolean;
   /** `danger` styles the confirm action for destructive flows (archive, delete). */
   intent?: "default" | "danger";
+  /** Inline error shown above the actions; keeps the dialog open on a failed confirm. */
+  error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -22,11 +24,13 @@ export function AppConfirmDialog({
   cancelLabel = "Cancelar",
   busy = false,
   intent = "default",
+  error = null,
   onConfirm,
   onCancel,
 }: Props) {
   const titleId = useId();
   const descId = useId();
+  const errorId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -81,7 +85,7 @@ export function AppConfirmDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      aria-describedby={descId}
+      aria-describedby={error ? `${descId} ${errorId}` : descId}
       onClick={(ev) => {
         if (ev.target === ev.currentTarget && !busy) onCancel();
       }}
@@ -97,6 +101,15 @@ export function AppConfirmDialog({
         <p id={descId} className="mt-2 text-sm leading-relaxed text-body">
           {message}
         </p>
+        {error ? (
+          <p
+            id={errorId}
+            role="alert"
+            className="mt-3 rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
+          >
+            {error}
+          </p>
+        ) : null}
         <div className="mt-5 flex gap-2">
           <button
             ref={cancelRef}

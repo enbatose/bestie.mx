@@ -33,6 +33,11 @@ import {
   type SearchLocationState,
 } from "@/lib/searchLocation";
 import { SEARCH_SELECTED_PARAM, searchReturnFromLocation, type SearchReturnContext } from "@/lib/searchReturn";
+import {
+  buildSavedSearchesRestorePath,
+  readSavedSearchesReturn,
+} from "@/lib/savedSearchesReturn";
+import { SavedSearchesReturnLink } from "@/components/savedSearches/SavedSearchesReturnLink";
 import { authMe, type AuthMe } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -100,6 +105,14 @@ export function SearchPage() {
   const searchReturn = useMemo(
     (): SearchReturnContext => searchReturnFromLocation(location.pathname, location.search),
     [location.pathname, location.search],
+  );
+  const savedSearchesReturn = useMemo(
+    () => readSavedSearchesReturn(location.state),
+    [location.state],
+  );
+  const savedSearchesRestorePath = useMemo(
+    () => (savedSearchesReturn ? buildSavedSearchesRestorePath(savedSearchesReturn) : null),
+    [savedSearchesReturn],
   );
 
   const apiOn = isListingsApiConfigured();
@@ -677,6 +690,12 @@ export function SearchPage() {
             : undefined
         }
       />
+
+      {savedSearchesRestorePath ? (
+        <div className="w-full border-b border-border bg-surface px-4 py-2 sm:px-6 lg:px-8">
+          <SavedSearchesReturnLink to={savedSearchesRestorePath} />
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col border-border lg:flex-[2] lg:border-r">
