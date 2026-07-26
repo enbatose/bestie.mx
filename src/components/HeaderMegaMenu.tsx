@@ -398,7 +398,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
   };
 
   const avatarDropdown = me?.id ? (
-    <div className="flex w-56 flex-col gap-0.5 p-1.5">
+    <div className="flex w-full flex-col gap-0.5 p-1.5">
       {me.isAdmin ? (
         <>
           <NavLink to="/admin" className={desktopNavClass} onClick={dismissNav}>
@@ -457,7 +457,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
       </button>
     </div>
   ) : (
-    <div className="flex w-56 flex-col gap-0.5 p-1.5">
+    <div className="flex w-full flex-col gap-0.5 p-1.5">
       <button
         type="button"
         className={desktopMenuItem}
@@ -684,10 +684,10 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           </button>
           {avatarOpen ? (
             <div
-              className="absolute right-0 top-full z-[1850] mt-2 w-[min(92vw,16rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900 md:w-56"
+              className="absolute right-0 top-full z-[1850] mt-2 w-[min(92vw,16rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-xl dark:border-slate-600 dark:bg-slate-900 md:w-60"
               role="menu"
             >
-              <div className="max-h-[min(70dvh,28rem)] overflow-y-auto overscroll-contain md:max-h-none">
+              <div className="max-h-[min(70dvh,28rem)] overflow-x-hidden overflow-y-auto overscroll-contain md:max-h-none">
                 <div className="md:hidden">{mobileMenuPanel}</div>
                 <div className="hidden md:block">{avatarDropdown}</div>
               </div>
