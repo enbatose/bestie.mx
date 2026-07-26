@@ -759,11 +759,21 @@ type WizardResumeState = {
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const myListingsReturn = useMemo(() => readMyListingsReturn(location.state), [location.state]);
+  const locationMyListingsReturn = useMemo(
+    () => readMyListingsReturn(location.state),
+    [location.state],
+  );
+  /** Rewriting the URL to drop ?edit/?room clears history state, so remember where we came from. */
+  const [myListingsReturn, setMyListingsReturn] = useState(locationMyListingsReturn);
+  useEffect(() => {
+    if (locationMyListingsReturn) setMyListingsReturn(locationMyListingsReturn);
+  }, [locationMyListingsReturn]);
   const myListingsRestorePath = useMemo(
     () => (myListingsReturn ? buildMyListingsRestorePath(myListingsReturn) : null),
     [myListingsReturn],
   );
+  const myListingsReturnRef = useRef(myListingsReturn);
+  myListingsReturnRef.current = myListingsReturn;
   const { openAuthModal } = useAuthModal();
   const { me } = useAppShellOutlet();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1044,7 +1054,10 @@ export function PublishWizardPage() {
               n.delete("room");
               return n;
             },
-            { replace: true },
+            {
+              replace: true,
+              state: withMyListingsReturn(null, myListingsReturnRef.current) ?? null,
+            },
           );
         }
       }
@@ -2362,6 +2375,18 @@ export function PublishWizardPage() {
         );
         const returnId =
           serverSyncRef.current.roomIds[roomIdx] ?? liveEditReturnListingId ?? result.roomId;
+
+        if (editingLiveProperty && myListingsRestorePath) {
+          navigate(myListingsRestorePath, {
+            replace: true,
+            state: {
+              listingUpdated: true,
+              listingUpdatedPath: listingPublicPath(returnId),
+              listingRepublished: editingLiveProperty.status === "paused",
+            },
+          });
+          return;
+        }
 
         if (editingLiveProperty?.status === "published") {
           navigate(listingPublicPath(returnId), {

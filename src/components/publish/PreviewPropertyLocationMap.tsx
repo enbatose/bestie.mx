@@ -18,6 +18,8 @@ type Props = {
   isApproximateLocation: boolean;
   useCustomMapPin?: boolean;
   streetViewPov?: StreetViewPov;
+  /** Location belongs to the property; room-scoped editing views show it read-only. */
+  canEdit?: boolean;
   onSaveCoordinates: (lat: number, lng: number) => void;
 };
 
@@ -60,6 +62,7 @@ export function PreviewPropertyLocationMap({
   isApproximateLocation,
   useCustomMapPin,
   streetViewPov: streetViewPovProp,
+  canEdit = true,
   onSaveCoordinates,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -155,20 +158,22 @@ export function PreviewPropertyLocationMap({
         readOnlyMap(heightClass)
       )}
 
-      <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
-        {editingLocation ? (
-          <LocationEditActions compact onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditingLocation(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
-          >
-            <Pencil className="size-3.5" aria-hidden />
-            Editar ubicación
-          </button>
-        )}
-      </div>
+      {canEdit ? (
+        <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
+          {editingLocation ? (
+            <LocationEditActions compact onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingLocation(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+            >
+              <Pencil className="size-3.5" aria-hidden />
+              Editar ubicación
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {!editingLocation ? (
         <button

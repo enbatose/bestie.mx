@@ -226,10 +226,25 @@ export function MyListingsPage() {
   }, [allCounts]);
 
   useEffect(() => {
-    const st = location.state as { draftSaved?: boolean } | null;
+    const st = location.state as {
+      draftSaved?: boolean;
+      listingUpdated?: boolean;
+      listingUpdatedPath?: string;
+      listingRepublished?: boolean;
+    } | null;
     if (st?.draftSaved) {
       setActiveTab("draft");
       setFlash({ text: "Borrador guardado. Puedes publicarlo cuando esté listo." });
+      navigate(".", { replace: true, state: {} });
+      return;
+    }
+    if (st?.listingUpdated) {
+      setFlash({
+        text: st.listingRepublished
+          ? "Cambios guardados. Tu anuncio volvió a publicarse."
+          : "Cambios guardados.",
+        to: typeof st.listingUpdatedPath === "string" ? st.listingUpdatedPath : undefined,
+      });
       navigate(".", { replace: true, state: {} });
     }
   }, [location.state, navigate]);

@@ -260,6 +260,9 @@ export function EditableListingPreview({
   /** Wizard review shows everything; scoped live-edit shows only the relevant blocks. */
   const showPropertyBlocks = !isRoomScope;
   const showRoomBlocks = !isPropertyScope;
+  /** A room inside a property shares the property's address: edit it from the property screen. */
+  const isRoomOfProperty = isRoomScope && draft.postMode === "property";
+  const canEditLocation = !isRoomOfProperty;
 
   const [editingHeader, setEditingHeader] = useState(false);
   const [editingProperty, setEditingProperty] = useState(false);
@@ -356,7 +359,8 @@ export function EditableListingPreview({
     }
     onDraftChange((d) => ({
       ...d,
-      neighborhood: headerDraft.neighborhood,
+      // The colonia belongs to the property, so a room-scoped edit leaves it untouched.
+      neighborhood: isRoomOfProperty ? d.neighborhood : headerDraft.neighborhood,
       rooms: d.rooms.map((r, i) =>
         i === roomIndex
           ? {
@@ -539,18 +543,20 @@ export function EditableListingPreview({
                 />
               </label>
             ) : null}
-            <label
-              className={`block text-sm font-medium text-body ${
-                isPropertyScope || draft.postMode === "property" ? "mt-2" : ""
-              }`}
-            >
-              Colonia o zona
-              <input
-                value={headerDraft.neighborhood}
-                onChange={(e) => setHeaderDraft((h) => ({ ...h, neighborhood: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-              />
-            </label>
+            {!isRoomOfProperty ? (
+              <label
+                className={`block text-sm font-medium text-body ${
+                  isPropertyScope || draft.postMode === "property" ? "mt-2" : ""
+                }`}
+              >
+                Colonia o zona
+                <input
+                  value={headerDraft.neighborhood}
+                  onChange={(e) => setHeaderDraft((h) => ({ ...h, neighborhood: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                />
+              </label>
+            ) : null}
             {!isPropertyScope ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
@@ -1035,12 +1041,19 @@ export function EditableListingPreview({
       ) : null}
 
       <PreviewSection title="Ubicación">
+        {isRoomOfProperty ? (
+          <p className="mb-3 text-sm text-muted">
+            La ubicación y el Street View pertenecen a la propiedad. Edítalos desde Mis anuncios con{" "}
+            <strong className="font-medium text-body">Editar</strong> en la tarjeta de la propiedad.
+          </p>
+        ) : null}
         <PreviewPropertyLocationMap
           listing={listing}
           mapCenter={mapCenter}
           isApproximateLocation={draft.isApproximateLocation}
           useCustomMapPin={draft.useCustomMapPin}
           streetViewPov={draft.streetViewPov}
+          canEdit={canEditLocation}
           onSaveCoordinates={saveMapCoordinates}
         />
       </PreviewSection>
