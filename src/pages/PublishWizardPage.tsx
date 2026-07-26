@@ -2687,7 +2687,7 @@ export function PublishWizardPage() {
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
+      <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">

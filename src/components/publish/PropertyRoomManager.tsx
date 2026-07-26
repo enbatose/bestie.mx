@@ -171,8 +171,8 @@ function RoomTitleInlineEditor({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-base font-bold text-primary">{resolvedTitle}</span>
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <span className="break-words text-base font-bold text-primary">{resolvedTitle}</span>
       <button
         type="button"
         onClick={(e) => {
@@ -284,11 +284,15 @@ function RoomAvailabilityToggle({
   onChange: (nextAvailable: boolean) => void;
 }) {
   return (
-    <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm">
+    <div
+      className="inline-flex min-w-0 flex-1 rounded-xl border border-border bg-surface p-1 shadow-sm sm:flex-none"
+      role="group"
+      aria-label="Estado de la recámara"
+    >
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+        className={`min-h-9 flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition sm:flex-none sm:px-3 sm:py-1 ${
           !available
             ? "bg-bg-light text-body ring-1 ring-border"
             : "text-muted hover:bg-surface-elevated"
@@ -299,7 +303,7 @@ function RoomAvailabilityToggle({
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+        className={`min-h-9 flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition sm:flex-none sm:px-3 sm:py-1 ${
           available
             ? "bg-primary text-primary-fg ring-1 ring-primary/20"
             : "text-muted hover:bg-surface-elevated"
@@ -328,27 +332,29 @@ function RoomCardHeaderActions({
   showExpand?: boolean;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-2">
+    <span className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
       <RoomAvailabilityToggle available={available} onChange={onAvailabilityChange} />
       <RoomStatusBadges issues={issues} />
-      <span className="inline-flex size-7 shrink-0 items-center justify-center">
-        {showExpand && onExpandToggle ? (
-          <button
-            type="button"
-            aria-expanded={expanded}
-            aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
-            onClick={onExpandToggle}
-            className="inline-flex size-7 items-center justify-center rounded-full border border-border/80 bg-surface text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary"
-          >
-            <ChevronDown
-              className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
-              aria-hidden
-            />
-          </button>
-        ) : (
-          <span className="size-7" aria-hidden />
-        )}
-      </span>
+      {showExpand ? (
+        <span className="inline-flex size-9 shrink-0 items-center justify-center sm:size-7">
+          {onExpandToggle ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
+              onClick={onExpandToggle}
+              className="inline-flex size-9 items-center justify-center rounded-full border border-border/80 bg-surface text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary sm:size-7"
+            >
+              <ChevronDown
+                className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+          ) : (
+            <span className="size-9 sm:size-7" aria-hidden />
+          )}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -722,7 +728,7 @@ export function PropertyRoomManager({
           return (
             <div key={room.id} className={cardClass}>
               <div className="p-4">
-                <div className="flex w-full items-start justify-between gap-3">
+                <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <RoomTitleInlineEditor
                       room={room}
@@ -749,7 +755,7 @@ export function PropertyRoomManager({
 
         return (
           <div key={room.id} className={cardClass}>
-            <div className="flex w-full items-start justify-between gap-3 p-4">
+            <div className="flex w-full min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
               <div
                 className="min-w-0 flex-1 cursor-pointer"
                 role="button"
