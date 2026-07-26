@@ -652,7 +652,7 @@ export function SavedSearchesPage() {
             <Link
               to="/buscar"
               state={savedSearchesNav}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-primary bg-surface px-3.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+              className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-primary bg-surface px-3.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
             >
               Buscar
             </Link>
