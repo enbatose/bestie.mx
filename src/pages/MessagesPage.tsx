@@ -465,7 +465,9 @@ export function MessagesPage() {
                               {formatThreadDayLabel(m.createdAt)}
                             </p>
                           ) : null}
-                          <article className="flex items-start gap-3">
+                          <article
+                            className={`flex items-start gap-3 ${mine ? "flex-row-reverse" : ""}`}
+                          >
                             <ParticipantAvatar
                               displayName={displayName}
                               profilePictureUrl={
@@ -474,19 +476,34 @@ export function MessagesPage() {
                               useSupportMark={otherIsSupport}
                               size="sm"
                             />
-                            <div className="min-w-0 flex-1">
-                              <header className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                                <span className="text-sm font-semibold text-body">{displayName}</span>
-                                {otherIsSupport ? <SupportBadge /> : null}
-                                <span className="text-xs text-muted" aria-hidden>
-                                  ·
-                                </span>
-                                <time
-                                  dateTime={m.createdAt}
-                                  className="text-xs text-muted"
-                                >
-                                  {formatThreadTime(m.createdAt)}
-                                </time>
+                            <div className={`min-w-0 max-w-[85%] ${mine ? "text-right" : ""}`}>
+                              <header
+                                className={`flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 ${
+                                  mine ? "justify-end" : ""
+                                }`}
+                              >
+                                {mine ? (
+                                  <>
+                                    <time dateTime={m.createdAt} className="text-xs text-muted">
+                                      {formatThreadTime(m.createdAt)}
+                                    </time>
+                                    <span className="text-xs text-muted" aria-hidden>
+                                      ·
+                                    </span>
+                                    <span className="text-sm font-semibold text-body">{displayName}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-sm font-semibold text-body">{displayName}</span>
+                                    {otherIsSupport ? <SupportBadge /> : null}
+                                    <span className="text-xs text-muted" aria-hidden>
+                                      ·
+                                    </span>
+                                    <time dateTime={m.createdAt} className="text-xs text-muted">
+                                      {formatThreadTime(m.createdAt)}
+                                    </time>
+                                  </>
+                                )}
                               </header>
                               {m.body ? (
                                 <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
