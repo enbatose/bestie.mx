@@ -2501,9 +2501,20 @@ export function PublishWizardPage() {
           {liveEditScope === "property"
             ? "Editar propiedad"
             : liveEditScope === "room"
-              ? "Editar recámara"
+              ? `Editar recámara ${reviewRoomIndex + 1}`
               : "Editar anuncio"}
         </h1>
+        {liveEditScope === "room" && draft.rooms[reviewRoomIndex] ? (
+          <p className="mt-2 text-base font-semibold text-body">
+            {draft.rooms[reviewRoomIndex]!.title.trim() || "Sin título"}
+            {draft.propertyTitle.trim() ? (
+              <span className="font-normal text-muted"> · {draft.propertyTitle.trim()}</span>
+            ) : null}
+          </p>
+        ) : null}
+        {liveEditScope === "property" && draft.propertyTitle.trim() ? (
+          <p className="mt-2 text-base font-semibold text-body">{draft.propertyTitle.trim()}</p>
+        ) : null}
         {handoffBanner ? (
           <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-fg">
             {handoffBanner}

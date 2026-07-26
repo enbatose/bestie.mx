@@ -68,6 +68,12 @@ export function PublishWizardReviewStep({
           ? "Guardar y republicar"
           : "Publicar anuncio";
 
+  const safeRoomIndex = Math.min(roomIndex, Math.max(0, draft.rooms.length - 1));
+  const activeRoom = draft.rooms[safeRoomIndex];
+  const activeRoomTitle = activeRoom?.title.trim() || "Sin título";
+  const activeRoomLabel = `Recámara ${safeRoomIndex + 1}`;
+  const propertyLabel = draft.propertyTitle.trim() || draft.neighborhood.trim() || null;
+
   const heading =
     editScope === "property"
       ? "Editar propiedad"
@@ -86,9 +92,9 @@ export function PublishWizardReviewStep({
       </>
     ) : editScope === "room" ? (
       <>
-        Estás editando esta <strong className="font-medium text-body">recámara</strong>. Toca{" "}
-        <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
-        descripción y más.
+        Solo estás cambiando esta recámara. Toca{" "}
+        <strong className="font-medium text-body">Editar</strong> en cada bloque para fotos, precio, descripción y
+        más.
       </>
     ) : isLiveEdit ? (
       <>
@@ -104,12 +110,43 @@ export function PublishWizardReviewStep({
     );
 
   const showRoomPicker = draft.rooms.length > 1 && editScope !== "property";
+  const showRoomFocusBanner = editScope === "room" || (showRoomPicker && !isLiveEdit);
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm">
         <h3 className="text-[15px] font-bold text-primary">{heading}</h3>
-        <p className="mt-2 text-sm text-muted">{intro}</p>
+        {editScope === "room" && activeRoom ? (
+          <div className="mt-3 rounded-xl border border-primary/25 bg-primary px-4 py-3 text-primary-fg shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-fg/80">
+              Estás editando solo esta recámara
+            </p>
+            <p className="mt-1 text-lg font-bold tracking-tight sm:text-xl">
+              {activeRoomLabel}
+              <span className="font-semibold text-primary-fg/90"> · {activeRoomTitle}</span>
+            </p>
+            {propertyLabel ? (
+              <p className="mt-1 text-sm text-primary-fg/80">En {propertyLabel}</p>
+            ) : null}
+            {showRoomPicker ? (
+              <label className="mt-3 block text-xs font-semibold text-primary-fg/90">
+                Cambiar de recámara
+                <select
+                  value={safeRoomIndex}
+                  onChange={(e) => onRoomIndexChange(Number(e.target.value))}
+                  className="mt-1.5 w-full rounded-lg border border-primary-fg/25 bg-primary-fg/10 px-3 py-2 text-sm font-medium text-primary-fg outline-none ring-secondary focus:ring-2"
+                >
+                  {draft.rooms.map((r, i) => (
+                    <option key={i} value={i} className="text-body">
+                      Recámara {i + 1}: {r.title.trim() || "Sin título"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+        <p className={`text-sm text-muted ${editScope === "room" && activeRoom ? "mt-3" : "mt-2"}`}>{intro}</p>
         {isLiveEdit && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
@@ -121,11 +158,11 @@ export function PublishWizardReviewStep({
         ) : null}
       </div>
 
-      {showRoomPicker ? (
+      {showRoomFocusBanner && editScope !== "room" ? (
         <label className="block text-sm font-medium text-body">
-          {isLiveEdit ? "Recámara que estás editando" : "Recámara en vista previa"}
+          Recámara en vista previa
           <select
-            value={roomIndex}
+            value={safeRoomIndex}
             onChange={(e) => onRoomIndexChange(Number(e.target.value))}
             className="mt-1 w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm"
           >

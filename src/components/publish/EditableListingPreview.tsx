@@ -492,7 +492,7 @@ export function EditableListingPreview({
               ? isPropertyScope
                 ? "Editando propiedad"
                 : isRoomScope
-                  ? "Editando recámara"
+                  ? `Editando · Recámara ${roomIndex + 1}`
                   : "Editando anuncio"
               : "Vista previa · Borrador"}
           </span>
