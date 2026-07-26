@@ -203,7 +203,7 @@ export function CardAction({
   onClick,
 }: CardActionProps) {
   const ring = emphasizeBorder
-    ? "border-primary bg-primary/10 text-primary hover:bg-primary/15"
+    ? "border-primary bg-primary/25 text-primary ring-2 ring-primary/35 hover:bg-primary/30"
     : tone === "property"
       ? "border-primary/25 bg-primary/10 text-primary hover:bg-primary/15"
       : "border-secondary/40 bg-secondary/20 text-primary hover:bg-secondary/30";
@@ -266,18 +266,22 @@ export function CardActionGroup({
 }) {
   if (actions.length === 0) return null;
 
+  const anyEmphasized = actions.some((action) => action.emphasize);
   const shell =
     tone === "property"
       ? "border-primary/25 bg-primary/10 text-primary"
       : "border-secondary/40 bg-secondary/20 text-primary";
+  const shellLit =
+    tone === "property"
+      ? "border-primary ring-2 ring-primary/35"
+      : "border-secondary ring-2 ring-secondary/45";
   const divider =
     tone === "property" ? "divide-primary/15" : "divide-secondary/35";
   const hover =
     tone === "property" ? "hover:bg-primary/15" : "hover:bg-secondary/30";
+  // Fill only — no inset ring (that draws a rectangle inside the rounded strip).
   const emphasizeItem =
-    tone === "property"
-      ? "bg-primary/25 ring-2 ring-inset ring-primary/40"
-      : "bg-secondary/45 ring-2 ring-inset ring-secondary/50";
+    tone === "property" ? "bg-primary/30" : "bg-secondary/50";
   const sizeClass =
     size === "compact"
       ? "h-7 rounded-lg"
@@ -290,7 +294,9 @@ export function CardActionGroup({
       <div
         role="group"
         aria-label={ariaLabel}
-        className={`inline-flex shrink-0 items-stretch overflow-hidden border sm:hidden ${sizeClass} ${shell} ${divider} divide-x`}
+        className={`inline-flex shrink-0 items-stretch overflow-hidden border sm:hidden ${sizeClass} ${shell} ${divider} divide-x ${
+          anyEmphasized ? shellLit : ""
+        }`}
       >
         {actions.map((action) => {
           const itemClass = `inline-flex flex-1 items-center justify-center ${itemPad} transition disabled:opacity-50 ${
