@@ -399,9 +399,14 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
 
   const avatarDropdown = me?.id ? (
     <div className="flex w-56 flex-col gap-0.5 p-1.5">
-      <NavLink to="/perfil" className={desktopNavClass} onClick={dismissNav}>
-        Mi Perfil
-      </NavLink>
+      {me.isAdmin ? (
+        <>
+          <NavLink to="/admin" className={desktopNavClass} onClick={dismissNav}>
+            Administrador
+          </NavLink>
+          <DesktopMenuDivider />
+        </>
+      ) : null}
       <NavLink to="/mis-anuncios" className={desktopNavClass} onClick={dismissNav}>
         Mis anuncios
       </NavLink>
@@ -432,21 +437,21 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         </span>
       </NavLink>
 
-      {me.isAdmin ? (
-        <>
-          <DesktopMenuDivider />
-          <NavLink to="/admin" className={desktopNavClass} onClick={dismissNav}>
-            Administrador
-          </NavLink>
-        </>
-      ) : null}
+      <DesktopMenuDivider />
+      <NavLink to="/buscar" className={desktopNavClass} onClick={dismissNav}>
+        Buscar
+      </NavLink>
+      <NavLink to="/publicar" className={desktopNavClass} onClick={dismissNav}>
+        Publicar
+      </NavLink>
 
       <DesktopMenuDivider />
+      <NavLink to="/perfil" className={desktopNavClass} onClick={dismissNav}>
+        Mi Perfil
+      </NavLink>
       <Link to="/contacto" className={desktopMenuItem} onClick={dismissNav}>
         Contacto
       </Link>
-
-      <DesktopMenuDivider />
       <button type="button" className={desktopLogoutBtn} onClick={() => void onLogout()}>
         Cerrar sesión
       </button>
@@ -473,9 +478,22 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
 
   const mobileMenuPanel = me?.id ? (
     <div className="flex w-full flex-col gap-0.5 p-1.5">
-      <NavLink to="/buscar" className={mobileNavClass} onClick={dismissNav}>
-        <Search className="h-4 w-4 shrink-0" aria-hidden />
-        Buscar
+      {me.isAdmin ? (
+        <>
+          <NavLink to="/admin" className={mobileNavClass} onClick={dismissNav}>
+            <Shield className="h-4 w-4 shrink-0" aria-hidden />
+            Administrador
+          </NavLink>
+          <MobileMenuDivider />
+        </>
+      ) : null}
+      <NavLink to="/mis-anuncios" className={mobileNavClass} onClick={dismissNav}>
+        <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
+        Mis anuncios
+      </NavLink>
+      <NavLink to="/mis-busquedas" className={mobileNavClass} onClick={dismissNav}>
+        <SavedSearchIcon className="h-4 w-4 shrink-0" />
+        Mis Búsquedas
       </NavLink>
       <NavLink
         to="/mensajes"
@@ -498,13 +516,12 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           ) : null}
         </span>
       </NavLink>
-      <NavLink to="/mis-anuncios" className={mobileNavClass} onClick={dismissNav}>
-        <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
-        Mis anuncios
-      </NavLink>
-      <NavLink to="/mis-busquedas" className={mobileNavClass} onClick={dismissNav}>
-        <SavedSearchIcon className="h-4 w-4 shrink-0" />
-        Mis Búsquedas
+
+      <MobileMenuDivider />
+
+      <NavLink to="/buscar" className={mobileNavClass} onClick={dismissNav}>
+        <Search className="h-4 w-4 shrink-0" aria-hidden />
+        Buscar
       </NavLink>
       <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>
         <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
@@ -517,22 +534,10 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <User className="h-4 w-4 shrink-0" aria-hidden />
         Mi Perfil
       </NavLink>
-      {me.isAdmin ? (
-        <NavLink to="/admin" className={mobileNavClass} onClick={dismissNav}>
-          <Shield className="h-4 w-4 shrink-0" aria-hidden />
-          Administrador
-        </NavLink>
-      ) : null}
-
-      <MobileMenuDivider />
-
       <Link to="/contacto" className={mobileMenuItem} onClick={dismissNav}>
         <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
-
-      <MobileMenuDivider />
-
       <button
         type="button"
         className={`${mobileMenuItem} hover:bg-error/5 hover:text-error`}
