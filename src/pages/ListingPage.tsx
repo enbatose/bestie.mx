@@ -5,7 +5,6 @@ import {
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
@@ -29,7 +28,7 @@ import {
 import { buildSearchRestorePath, readSearchReturn } from "@/lib/searchReturn";
 import { roomDisplayName } from "@/lib/roomDisplay";
 import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
-import type { PropertyKind, PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
+import type { PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
 
 const MONTH_ABBREVIATIONS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -512,10 +511,6 @@ export function ListingPage() {
   const listingStatus = listing.status ?? "published";
   const createdAtLabel = formatListingDate(listing.createdAt);
   const updatedAtLabel = formatListingDate(listing.updatedAt);
-  const postMode = listing.propertyPostMode ?? propertyPack?.property.postMode ?? "room";
-  const propertyKind = (listing.propertyKind ??
-    propertyPack?.property.propertyKind ??
-    "house") as PropertyKind;
   const isApproximateLocation =
     listing.isApproximateLocation ?? propertyPack?.property.isApproximateLocation ?? false;
   const listingWithPrivacy: typeof listing = {
@@ -530,12 +525,14 @@ export function ListingPage() {
       : {}),
   };
   const propertySummary = propertyPack?.property.summary.trim() ?? "";
-  const categoryTitle = publicListingHeaderTitle({
-    postMode,
-    neighborhood: listing.neighborhood,
-    lodgingType: listing.lodgingType,
-    propertyKind,
-  });
+  // Breadcrumb must match the on-page title — never synthesize "Casa en {colonia}".
+  const breadcrumbTitle =
+    (isPropertyPost
+      ? propertyPack?.property.title?.trim() || listing.propertyTitle?.trim()
+      : listing.title.trim()) ||
+    listing.propertyTitle?.trim() ||
+    listing.title.trim() ||
+    "Anuncio";
 
   const canContact = listingStatus === "published";
   const stickyContactLabel = "Contactar";
@@ -599,7 +596,7 @@ export function ListingPage() {
         <span aria-hidden className="mx-2">
           /
         </span>
-        <span className="text-body">{categoryTitle}</span>
+        <span className="text-body">{breadcrumbTitle}</span>
       </nav>
 
       {listingUpdated ? (
