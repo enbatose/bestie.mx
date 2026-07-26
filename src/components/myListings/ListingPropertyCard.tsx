@@ -18,10 +18,10 @@ import {
 } from "@/components/myListings/listingCardChrome";
 import {
   formatAvailableFrom,
-  formatPublisherMetrics,
   formatRentMxn,
   listingThumbSrc,
 } from "@/components/myListings/listingFormat";
+import { PublisherMetricChips } from "@/components/myListings/PublisherMetricChips";
 import { shareListingLink } from "@/components/myListings/shareListing";
 import {
   listingPublicPath,
@@ -93,7 +93,6 @@ export function ListingPropertyCard({
 
   const first = list[0]!;
   const availableCount = list.filter(isAvailable).length;
-  const occupiedCount = list.length - availableCount;
   const propRef = propertyReferenceCode(propertyId);
 
   // For a property post, "Ver" opens the property overview. Anchor it to an
@@ -116,7 +115,6 @@ export function ListingPropertyCard({
 
   const summedViews = list.reduce((n, l) => n + (l.viewsCount ?? 0), 0);
   const summedInquiries = list.reduce((n, l) => n + (l.inquiryCount ?? 0), 0);
-  const propertyMetrics = formatPublisherMetrics(summedViews, summedInquiries);
 
   async function share(path: string, title: string) {
     const result = await shareListingLink(path, title);
@@ -232,21 +230,19 @@ export function ListingPropertyCard({
           }
           details={
             isProperty ? (
-              <>
-                <p className="text-sm text-body">
-                  <span className="font-semibold">
-                    {list.length} recámara{list.length === 1 ? "" : "s"}
-                  </span>
-                  <span className="text-muted">
-                    {" "}
-                    · {availableCount} disponible{availableCount === 1 ? "" : "s"} ·{" "}
-                    {occupiedCount} ocupada{occupiedCount === 1 ? "" : "s"}
-                  </span>
-                </p>
-                {propertyMetrics ? (
-                  <p className="mt-1 text-xs text-muted">{propertyMetrics} (suma)</p>
-                ) : null}
-              </>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm text-body">
+                <span className="font-semibold">
+                  {list.length} recámara{list.length === 1 ? "" : "s"}
+                </span>
+                <span className="text-muted">
+                  · {availableCount} disponible{availableCount === 1 ? "" : "s"}
+                </span>
+                <PublisherMetricChips
+                  summed
+                  viewsCount={summedViews}
+                  inquiryCount={summedInquiries}
+                />
+              </div>
             ) : (
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 {formatRentMxn(first.rentMxn) ? (
@@ -254,11 +250,10 @@ export function ListingPropertyCard({
                     {formatRentMxn(first.rentMxn)}
                   </span>
                 ) : null}
-                {formatPublisherMetrics(first.viewsCount, first.inquiryCount) ? (
-                  <span className="text-xs text-muted">
-                    {formatPublisherMetrics(first.viewsCount, first.inquiryCount)}
-                  </span>
-                ) : null}
+                <PublisherMetricChips
+                  viewsCount={first.viewsCount}
+                  inquiryCount={first.inquiryCount}
+                />
                 {formatAvailableFrom(first.availableFrom) ? (
                   <span className="text-xs text-muted">
                     {formatAvailableFrom(first.availableFrom)}
@@ -412,15 +407,22 @@ export function ListingPropertyCard({
                       </p>
                     </div>
                     {available ? (
-                      <p className="mt-1 text-xs text-muted">
-                        {[
-                          formatRentMxn(l.rentMxn),
-                          formatPublisherMetrics(l.viewsCount, l.inquiryCount),
-                          formatAvailableFrom(l.availableFrom),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        {formatRentMxn(l.rentMxn) ? (
+                          <span className="text-xs font-semibold text-body">
+                            {formatRentMxn(l.rentMxn)}
+                          </span>
+                        ) : null}
+                        <PublisherMetricChips
+                          viewsCount={l.viewsCount}
+                          inquiryCount={l.inquiryCount}
+                        />
+                        {formatAvailableFrom(l.availableFrom) ? (
+                          <span className="text-xs text-muted">
+                            {formatAvailableFrom(l.availableFrom)}
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                     <div className="mt-2">
                       <CardActionGroup tone={tone} size="compact" actions={roomActions} />
