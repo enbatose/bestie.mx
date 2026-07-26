@@ -48,14 +48,6 @@ function searchCardShellClass(alertsOn: boolean): string {
     : `${base} border-border border-l-muted/35 bg-surface`;
 }
 
-type AlertTab = "all" | "with-alert" | "without-alert";
-
-const ALERT_TABS: readonly { key: AlertTab; title: string }[] = [
-  { key: "all", title: "Todas" },
-  { key: "with-alert", title: "Con alerta" },
-  { key: "without-alert", title: "Sin alerta" },
-];
-
 type ParsedSearch = {
   filters: SearchFilters;
   location: SearchLocationState;
@@ -334,7 +326,6 @@ export function SavedSearchesPage() {
   const [flash, setFlash] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<AlertTab>("all");
   const [replaceNotifyPending, setReplaceNotifyPending] = useState<{
     otherLabel: string;
     row: SavedSearchDto;
@@ -570,32 +561,15 @@ export function SavedSearchesPage() {
 
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
-  const queryFiltered = pinAlertEnabledFirst(
+  const visibleRows = pinAlertEnabledFirst(
     q ? rowViews.filter((rv) => rv.haystack.includes(q)) : rowViews,
   );
-  const tabCounts = {
-    all: queryFiltered.length,
-    "with-alert": queryFiltered.filter((rv) => rv.row.emailNotifyEnabled).length,
-    "without-alert": queryFiltered.filter((rv) => !rv.row.emailNotifyEnabled).length,
-  };
-  const visibleRows =
-    activeTab === "all"
-      ? queryFiltered
-      : activeTab === "with-alert"
-        ? queryFiltered.filter((rv) => rv.row.emailNotifyEnabled)
-        : queryFiltered.filter((rv) => !rv.row.emailNotifyEnabled);
 
   const alertCount = rows?.filter((r) => r.emailNotifyEnabled).length ?? 0;
   const summaryLine =
     rows && rows.length > 0
       ? `${rows.length} búsqueda${rows.length === 1 ? "" : "s"} · ${alertCount} con alerta${alertCount === 1 ? "" : "s"}`
       : null;
-
-  const activeTabMeta = ALERT_TABS.find((t) => t.key === activeTab)!;
-  const otherTabWithItems = ALERT_TABS.find(
-    (t) => t.key !== activeTab && tabCounts[t.key] > 0,
-  );
-  const otherTabCount = otherTabWithItems ? tabCounts[otherTabWithItems.key] : 0;
 
   return (
     <>
@@ -761,112 +735,26 @@ export function SavedSearchesPage() {
               </div>
               {searching ? (
                 <p className="mt-2 text-sm font-medium text-body" role="status" aria-live="polite">
-                  {tabCounts.all === 0
+                  {visibleRows.length === 0
                     ? "Sin resultados"
-                    : `${tabCounts.all} resultado${tabCounts.all === 1 ? "" : "s"}`}
+                    : `${visibleRows.length} resultado${visibleRows.length === 1 ? "" : "s"}`}
                 </p>
               ) : null}
 
-              <div
-                role="tablist"
-                aria-label="Filtrar por alerta"
-                className="-mb-px mt-6 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border pb-px [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                onKeyDown={(ev) => {
-                  if (
-                    ev.key !== "ArrowLeft" &&
-                    ev.key !== "ArrowRight" &&
-                    ev.key !== "Home" &&
-                    ev.key !== "End"
-                  )
-                    return;
-                  const idx = ALERT_TABS.findIndex((t) => t.key === activeTab);
-                  if (idx < 0) return;
-                  const next =
-                    ev.key === "Home"
-                      ? ALERT_TABS[0]!
-                      : ev.key === "End"
-                        ? ALERT_TABS[ALERT_TABS.length - 1]!
-                        : ev.key === "ArrowRight"
-                          ? ALERT_TABS[(idx + 1) % ALERT_TABS.length]!
-                          : ALERT_TABS[(idx - 1 + ALERT_TABS.length) % ALERT_TABS.length]!;
-                  ev.preventDefault();
-                  setActiveTab(next.key);
-                  window.requestAnimationFrame(() => {
-                    document.getElementById(`mis-busquedas-tab-${next.key}`)?.focus();
-                  });
-                }}
-              >
-                {ALERT_TABS.map((tab) => {
-                  const active = activeTab === tab.key;
-                  const count = tabCounts[tab.key];
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      tabIndex={active ? 0 : -1}
-                      id={`mis-busquedas-tab-${tab.key}`}
-                      aria-controls={`mis-busquedas-panel-${tab.key}`}
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`relative inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 text-xs font-semibold transition sm:gap-2 sm:px-4 sm:text-sm ${
-                        active
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted hover:border-border hover:text-body"
-                      }`}
-                    >
-                      {tab.title}
-                      <span
-                        className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ring-1 sm:px-2 sm:text-xs ${
-                          active
-                            ? "bg-primary/10 text-primary ring-primary/20"
-                            : "bg-bg-light text-muted ring-border"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div
-                role="tabpanel"
-                id={`mis-busquedas-panel-${activeTab}`}
-                aria-labelledby={`mis-busquedas-tab-${activeTab}`}
-                className="space-y-4 pt-4"
-              >
+              <div className="mt-4 space-y-4">
                 {visibleRows.length === 0 ? (
                   <div className="rounded-2xl border border-border bg-surface px-4 py-8 text-center shadow-sm">
                     <p className="text-sm font-medium text-body">
                       {searching
-                        ? otherTabWithItems
-                          ? `Sin coincidencias en ${activeTabMeta.title}.`
-                          : `Ninguna búsqueda coincide con “${query.trim()}”.`
-                        : activeTab === "with-alert"
-                          ? "No tienes búsquedas con alerta."
-                          : activeTab === "without-alert"
-                            ? "No tienes búsquedas sin alerta."
-                            : "No hay búsquedas en esta pestaña."}
+                        ? `Ninguna búsqueda coincide con “${query.trim()}”.`
+                        : "No hay búsquedas para mostrar."}
                     </p>
                     <p className="mt-1 text-sm text-muted">
                       {searching
-                        ? otherTabWithItems
-                          ? `Hay ${otherTabCount} coincidencia${otherTabCount === 1 ? "" : "s"} en ${otherTabWithItems.title}.`
-                          : "Prueba con el nombre, una colonia o la ciudad."
-                        : otherTabWithItems
-                          ? `Hay ${otherTabCount} búsqueda${otherTabCount === 1 ? "" : "s"} en ${otherTabWithItems.title}.`
-                          : "Guarda una búsqueda desde el mapa para verla aquí."}
+                        ? "Prueba con el nombre, una colonia o la ciudad."
+                        : "Guarda una búsqueda desde el mapa para verla aquí."}
                     </p>
-                    {otherTabWithItems ? (
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab(otherTabWithItems.key)}
-                        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
-                      >
-                        Ver {otherTabWithItems.title}
-                      </button>
-                    ) : searching ? (
+                    {searching ? (
                       <button
                         type="button"
                         onClick={() => setQuery("")}
