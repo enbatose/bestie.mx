@@ -64,7 +64,7 @@ function PublishNudgePulseRing() {
 }
 
 const desktopMenuItem =
-  "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
+  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-body transition hover:bg-surface-elevated";
 
 function desktopNavClass({ isActive }: { isActive: boolean }) {
   return [
@@ -402,19 +402,19 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
       {me.isAdmin ? (
         <>
           <NavLink to="/admin" className={desktopNavClass} onClick={dismissNav}>
+            <Shield className="h-4 w-4 shrink-0" aria-hidden />
             Administrador
           </NavLink>
           <DesktopMenuDivider />
         </>
       ) : null}
       <NavLink to="/mis-anuncios" className={desktopNavClass} onClick={dismissNav}>
+        <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
         Mis anuncios
       </NavLink>
       <NavLink to="/mis-busquedas" className={desktopNavClass} onClick={dismissNav}>
-        <span className="inline-flex items-center gap-1.5">
-          <SavedSearchIcon className="h-4 w-4 shrink-0" />
-          Mis Búsquedas
-        </span>
+        <SavedSearchIcon className="h-4 w-4 shrink-0" />
+        Mis Búsquedas
       </NavLink>
       <NavLink
         to="/mensajes"
@@ -423,7 +423,8 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           dismissNav();
         }}
       >
-        <span className="inline-flex items-center gap-1.5">
+        <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="inline-flex min-w-0 flex-1 items-center gap-2">
           Mensajes
           {hasUnreadMessages ? (
             unreadCount > 0 ? (
@@ -439,20 +440,25 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
 
       <DesktopMenuDivider />
       <NavLink to="/buscar" className={desktopNavClass} onClick={dismissNav}>
+        <Search className="h-4 w-4 shrink-0" aria-hidden />
         Buscar
       </NavLink>
       <NavLink to="/publicar" className={desktopNavClass} onClick={dismissNav}>
+        <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
         Publicar
       </NavLink>
 
       <DesktopMenuDivider />
       <NavLink to="/perfil" className={desktopNavClass} onClick={dismissNav}>
+        <User className="h-4 w-4 shrink-0" aria-hidden />
         Mi Perfil
       </NavLink>
       <Link to="/contacto" className={desktopMenuItem} onClick={dismissNav}>
+        <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
       <button type="button" className={desktopLogoutBtn} onClick={() => void onLogout()}>
+        <LogOut className="h-4 w-4 shrink-0" aria-hidden />
         Cerrar sesión
       </button>
     </div>
@@ -466,11 +472,13 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           openLogin();
         }}
       >
+        <User className="h-4 w-4 shrink-0" aria-hidden />
         Iniciar sesión / Registrarse
       </button>
 
       <DesktopMenuDivider />
       <Link to="/contacto" className={desktopMenuItem} onClick={dismissNav}>
+        <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
     </div>
