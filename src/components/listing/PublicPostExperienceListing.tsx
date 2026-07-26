@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
 import { PostExperienceContactSection } from "@/components/listing/postExperience/PostExperienceContactSection";
@@ -22,6 +22,7 @@ import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { Property, PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
 import { SearchReturnLink } from "@/components/listing/SearchReturnButtons";
+import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 
 type ShareProps = {
   shareMsg: string | null;
@@ -58,6 +59,8 @@ type Props = {
   statusBadge?: ReactNode;
   /** When set, show inline return-to-search controls (hidden for direct URL visits). */
   searchRestorePath?: string | null;
+  /** When set, show return-to-Mis-Anuncios (takes precedence over search return). */
+  myListingsRestorePath?: string | null;
 };
 
 const DEFAULT_SINGLE_MESSAGE = "Hola, me interesa este cuarto. ¿Podemos agendar visita entre semana?";
@@ -78,21 +81,28 @@ function propertyRoomSharePath(listingRoomId: string, roomId: string): string {
 
 function ListingTopActions({
   searchRestorePath,
+  myListingsRestorePath,
   ownerActions,
 }: {
   searchRestorePath?: string | null;
+  myListingsRestorePath?: string | null;
   ownerActions?: ReactNode;
 }) {
-  if (!searchRestorePath && !ownerActions) return null;
+  const returnLink = myListingsRestorePath ? (
+    <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+  ) : searchRestorePath ? (
+    <SearchReturnLink to={searchRestorePath} placement="top" />
+  ) : null;
+  if (!returnLink && !ownerActions) return null;
   return (
     <div
       className={`flex flex-wrap items-center gap-2 ${
-        searchRestorePath && ownerActions ? "justify-between" : searchRestorePath ? "justify-start" : "justify-end"
+        returnLink && ownerActions ? "justify-between" : returnLink ? "justify-start" : "justify-end"
       }`}
     >
-      {searchRestorePath ? <SearchReturnLink to={searchRestorePath} placement="top" /> : null}
+      {returnLink}
       {ownerActions ? (
-        <div className={`flex flex-wrap items-center justify-end gap-2 ${searchRestorePath ? "ml-auto" : ""}`}>
+        <div className={`flex flex-wrap items-center justify-end gap-2 ${returnLink ? "ml-auto" : ""}`}>
           {ownerActions}
         </div>
       ) : null}
@@ -100,7 +110,20 @@ function ListingTopActions({
   );
 }
 
-function ListingBottomReturn({ searchRestorePath }: { searchRestorePath?: string | null }) {
+function ListingBottomReturn({
+  searchRestorePath,
+  myListingsRestorePath,
+}: {
+  searchRestorePath?: string | null;
+  myListingsRestorePath?: string | null;
+}) {
+  if (myListingsRestorePath) {
+    return (
+      <div className="flex justify-start pt-1">
+        <MyListingsReturnLink to={myListingsRestorePath} placement="bottom" />
+      </div>
+    );
+  }
   if (!searchRestorePath) return null;
   return (
     <div className="flex justify-start pt-1">
@@ -123,7 +146,9 @@ export function PublicPostExperienceListing({
   ownerActions,
   statusBadge,
   searchRestorePath,
+  myListingsRestorePath,
 }: Props) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [singleMessage, setSingleMessage] = useState(DEFAULT_SINGLE_MESSAGE);
   const [propertyMessage, setPropertyMessage] = useState(DEFAULT_PROPERTY_MESSAGE);
@@ -150,10 +175,10 @@ export function PublicPostExperienceListing({
           next.set("roomId", room.id);
           return next;
         },
-        { replace: true },
+        { replace: true, state: location.state },
       );
     },
-    [setSearchParams],
+    [location.state, setSearchParams],
   );
 
   const menCount = property?.occupiedByMenCount ?? 0;
@@ -179,9 +204,9 @@ export function PublicPostExperienceListing({
         next.delete("roomId");
         return next;
       },
-      { replace: true },
+      { replace: true, state: location.state },
     );
-  }, [searchParams, setSearchParams]);
+  }, [location.state, searchParams, setSearchParams]);
 
   const contactFromExpandedRoom = useCallback(
     (room: Room) => {
@@ -258,7 +283,11 @@ export function PublicPostExperienceListing({
 
     return (
       <section id="property-post-top" className="scroll-mt-24 space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <ListingTopActions searchRestorePath={searchRestorePath} ownerActions={ownerActions} />
+        <ListingTopActions
+          searchRestorePath={searchRestorePath}
+          myListingsRestorePath={myListingsRestorePath}
+          ownerActions={ownerActions}
+        />
         {statusBadge}
 
         <PropertyHeader property={property} availableRooms={availableRooms} shareActions={shareActions} />
@@ -304,7 +333,10 @@ export function PublicPostExperienceListing({
           onSend={() => contact.onSendProperty(propertyMessage, selectedRoomIds, availableRooms)}
         />
 
-        <ListingBottomReturn searchRestorePath={searchRestorePath} />
+        <ListingBottomReturn
+          searchRestorePath={searchRestorePath}
+          myListingsRestorePath={myListingsRestorePath}
+        />
 
         {expandedRoom ? (
           <PropertyRoomDetailModal
@@ -339,7 +371,11 @@ export function PublicPostExperienceListing({
 
   return (
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-      <ListingTopActions searchRestorePath={searchRestorePath} ownerActions={ownerActions} />
+      <ListingTopActions
+        searchRestorePath={searchRestorePath}
+        myListingsRestorePath={myListingsRestorePath}
+        ownerActions={ownerActions}
+      />
       {statusBadge}
 
       <SingleRoomHeader
@@ -377,7 +413,10 @@ export function PublicPostExperienceListing({
         onSend={() => contact.onSendSingle(singleMessage)}
       />
 
-      <ListingBottomReturn searchRestorePath={searchRestorePath} />
+      <ListingBottomReturn
+        searchRestorePath={searchRestorePath}
+        myListingsRestorePath={myListingsRestorePath}
+      />
     </section>
   );
 }

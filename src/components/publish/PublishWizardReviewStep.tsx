@@ -8,6 +8,10 @@ import type { ListingStatus } from "@/types/listing";
 type LiveEditContext = {
   status: Extract<ListingStatus, "published" | "paused">;
   returnListingId?: string | null;
+  /** When set, Cancelar returns to Mis Anuncios instead of the public listing. */
+  myListingsRestorePath?: string | null;
+  /** Pass through so the public listing can still offer Volver a Mis anuncios. */
+  myListingsReturnState?: unknown;
 };
 
 type Props = {
@@ -42,6 +46,14 @@ export function PublishWizardReviewStep({
 }: Props) {
   const isLiveEdit = liveEdit != null;
   const returnListingId = liveEdit?.returnListingId ?? null;
+  const myListingsRestorePath = liveEdit?.myListingsRestorePath ?? null;
+  const myListingsReturnState = liveEdit?.myListingsReturnState;
+  const cancelTo = myListingsRestorePath
+    ? myListingsRestorePath
+    : returnListingId
+      ? listingPublicPath(returnListingId)
+      : null;
+  const cancelLabel = myListingsRestorePath ? "Volver a Mis anuncios" : "Cancelar";
   const primaryLabel =
     submitInFlight === "publish"
       ? "Guardando…"
@@ -74,6 +86,7 @@ export function PublishWizardReviewStep({
         {isLiveEdit && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
+            state={myListingsReturnState}
             className="mt-3 inline-flex text-sm font-semibold text-primary underline-offset-2 hover:underline"
           >
             Volver al anuncio publicado
@@ -147,12 +160,12 @@ export function PublishWizardReviewStep({
               Sin API: configura <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code> para publicar.
             </span>
           )}
-          {isLiveEdit && returnListingId ? (
+          {isLiveEdit && cancelTo ? (
             <Link
-              to={listingPublicPath(returnListingId)}
+              to={cancelTo}
               className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
             >
-              Cancelar
+              {cancelLabel}
             </Link>
           ) : null}
         </div>

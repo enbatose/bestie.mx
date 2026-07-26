@@ -181,6 +181,8 @@ type CardActionProps = {
   emphasizeBorder?: boolean;
   size?: "default" | "compact";
   disabled?: boolean;
+  /** Router location state for contextual return (e.g. Mis Anuncios). */
+  state?: unknown;
 } & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
 
 /** Standalone pill action (e.g. Recámaras / Restaurar); use `CardActionGroup` for icon clusters. */
@@ -193,6 +195,7 @@ export function CardAction({
   size = "default",
   disabled = false,
   to,
+  state,
   onClick,
 }: CardActionProps) {
   const ring = emphasizeBorder
@@ -208,7 +211,7 @@ export function CardAction({
 
   if (to && !disabled) {
     return (
-      <Link to={to} aria-label={label} title={label} className={className}>
+      <Link to={to} state={state} aria-label={label} title={label} className={className}>
         {icon}
         <span>{label}</span>
         {trailingIcon}
@@ -236,6 +239,8 @@ export type CardActionItem = {
   label: string;
   icon?: ReactNode;
   disabled?: boolean;
+  /** Router location state for contextual return (e.g. Mis Anuncios). */
+  state?: unknown;
 } & ({ to: string; onClick?: never } | { to?: never; onClick?: () => void });
 
 /**
@@ -284,6 +289,7 @@ export function CardActionGroup({
               <Link
                 key={action.key}
                 to={action.to}
+                state={action.state}
                 aria-label={action.label}
                 title={action.label}
                 className={itemClass}
@@ -321,6 +327,7 @@ export function CardActionGroup({
               icon={action.icon}
               disabled={action.disabled}
               to={action.to}
+              state={action.state}
             />
           ) : (
             <CardAction

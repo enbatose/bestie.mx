@@ -1,5 +1,10 @@
 import { useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
+import {
+  buildMyListingsRestorePath,
+  readMyListingsReturn,
+} from "@/lib/myListingsReturn";
 
 /** Effective / last-updated date shared across every legal document. */
 export const LEGAL_LAST_UPDATED = "24 de julio de 2026";
@@ -47,9 +52,19 @@ export function LegalShell({
   children: ReactNode;
 }) {
   useScrollToHash();
+  const location = useLocation();
+  const myListingsRestorePath = (() => {
+    const ctx = readMyListingsReturn(location.state);
+    return ctx ? buildMyListingsRestorePath(ctx) : null;
+  })();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      {myListingsRestorePath ? (
+        <div className="mb-4">
+          <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+        </div>
+      ) : null}
       <nav className="mb-6 text-xs font-medium text-muted">
         <Link to="/legal" className="text-primary underline-offset-2 hover:underline">
           Centro legal

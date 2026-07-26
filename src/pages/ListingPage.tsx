@@ -20,6 +20,12 @@ import {
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
+import {
+  buildMyListingsRestorePath,
+  myListingsNavigationState,
+  readMyListingsReturn,
+  withMyListingsReturn,
+} from "@/lib/myListingsReturn";
 import { buildSearchRestorePath, readSearchReturn } from "@/lib/searchReturn";
 import { roomDisplayName } from "@/lib/roomDisplay";
 import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
@@ -175,10 +181,15 @@ export function ListingPage() {
     (location.state as { listingUpdated?: boolean } | null)?.listingUpdated,
   );
   const searchReturn = useMemo(() => readSearchReturn(location.state), [location.state]);
+  const myListingsReturn = useMemo(() => readMyListingsReturn(location.state), [location.state]);
   useEffect(() => {
     if (!listingUpdated) return;
-    navigate(location.pathname + location.search, { replace: true, state: null });
-  }, [listingUpdated, location.pathname, location.search, navigate]);
+    // Clear the one-shot banner flag without dropping Mis Anuncios return context.
+    navigate(location.pathname + location.search, {
+      replace: true,
+      state: withMyListingsReturn(null, myListingsReturn) ?? null,
+    });
+  }, [listingUpdated, location.pathname, location.search, myListingsReturn, navigate]);
 
   useLayoutEffect(() => {
     const roomId = new URLSearchParams(location.search).get("roomId");
@@ -257,6 +268,10 @@ export function ListingPage() {
   const searchRestorePath = useMemo(
     () => (searchReturn && listing ? buildSearchRestorePath(searchReturn, listing) : null),
     [listing, searchReturn],
+  );
+  const myListingsRestorePath = useMemo(
+    () => (myListingsReturn ? buildMyListingsRestorePath(myListingsReturn) : null),
+    [myListingsReturn],
   );
 
   useEffect(() => {
@@ -529,6 +544,13 @@ export function ListingPage() {
     listing.viewerIsOwner && listingStatus === "published" ? (
       <Link
         to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}&room=${encodeURIComponent(listing.id)}`}
+        state={
+          myListingsReturn
+            ? myListingsNavigationState(myListingsReturn)
+            : searchReturn
+              ? { searchReturn }
+              : undefined
+        }
         className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
       >
         Editar anuncio
@@ -555,7 +577,14 @@ export function ListingPage() {
   return (
     <div className="relative mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
       <nav className="text-sm text-muted">
-        {searchRestorePath ? (
+        {myListingsRestorePath ? (
+          <Link
+            to={myListingsRestorePath}
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Mis anuncios
+          </Link>
+        ) : searchRestorePath ? (
           <Link
             to={searchRestorePath}
             className="font-medium text-primary underline-offset-2 hover:underline"
@@ -605,6 +634,7 @@ export function ListingPage() {
             ownerActions={ownerActions}
             statusBadge={statusBadge}
             searchRestorePath={searchRestorePath}
+            myListingsRestorePath={myListingsRestorePath}
             share={{
               shareMsg,
               onShareListing: () => void copyShareUrl(shareListingPath, "Enlace del anuncio"),
@@ -636,7 +666,13 @@ export function ListingPage() {
               <li key={s.id}>
                 <Link
                   to={listingPublicPath(s.id)}
-                  state={searchReturn ? { searchReturn } : undefined}
+                  state={
+                    myListingsReturn
+                      ? myListingsNavigationState(myListingsReturn)
+                      : searchReturn
+                        ? { searchReturn }
+                        : undefined
+                  }
                   className="font-medium text-primary underline-offset-2 hover:underline"
                 >
                   {s.label}

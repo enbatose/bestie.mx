@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, Eye, Pencil, Share2, Trash2 } from "lucide-react";
 import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
 import { MissingFieldsCallout } from "@/components/myListings/MissingFieldsCallout";
@@ -29,6 +29,10 @@ import {
   roomReferenceCode,
 } from "@/lib/listingReference";
 import { messagesInboxPath, messagesInboxSearchQuery } from "@/lib/messagesApi";
+import {
+  myListingsNavigationState,
+  myListingsReturnFromLocation,
+} from "@/lib/myListingsReturn";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
 
 export type ListingPropertyCardProps = {
@@ -88,6 +92,10 @@ export function ListingPropertyCard({
   onShareFailed,
   defaultRoomsOpen = false,
 }: ListingPropertyCardProps) {
+  const location = useLocation();
+  const returnState = myListingsNavigationState(
+    myListingsReturnFromLocation(location.pathname, location.search),
+  );
   const isProperty = head.propertyPostMode === "property";
   const tone: CardTone = isProperty ? "property" : "room";
   const [roomsOpen, setRoomsOpen] = useState(defaultRoomsOpen);
@@ -128,6 +136,7 @@ export function ListingPropertyCard({
       key: "view",
       label: propSt === "published" ? "Ver" : "Vista previa",
       to: publicPath,
+      state: returnState,
       icon: <Eye className="size-4 shrink-0" aria-hidden />,
     },
     ...(canEdit
@@ -136,6 +145,7 @@ export function ListingPropertyCard({
             key: "edit",
             label: "Editar",
             to: editPath,
+            state: returnState,
             icon: <Pencil className="size-4 shrink-0" aria-hidden />,
           } satisfies CardActionItem,
         ]
@@ -248,6 +258,7 @@ export function ListingPropertyCard({
                       propertyReferenceCode(propertyId),
                     ),
                   })}
+                  messagesState={returnState}
                 />
               </div>
             ) : (
@@ -263,6 +274,7 @@ export function ListingPropertyCard({
                   messagesTo={messagesInboxPath({
                     q: messagesInboxSearchQuery(first.title, roomReferenceCode(first.id)),
                   })}
+                  messagesState={returnState}
                 />
                 {formatAvailableFrom(first.availableFrom) ? (
                   <span className="text-xs text-muted">
@@ -295,6 +307,7 @@ export function ListingPropertyCard({
                 Confirmo que la información es verídica y acepto los{" "}
                 <Link
                   to="/legal/terminos"
+                  state={returnState}
                   className="font-semibold text-primary underline-offset-2 hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -356,6 +369,7 @@ export function ListingPropertyCard({
                 key: "view",
                 label: "Ver",
                 to: roomPath,
+                state: returnState,
                 icon: <Eye className="size-3.5 shrink-0" aria-hidden />,
               },
               ...(canEdit
@@ -364,6 +378,7 @@ export function ListingPropertyCard({
                       key: "edit",
                       label: "Editar",
                       to: `${editPath}&room=${encodeURIComponent(l.id)}`,
+                      state: returnState,
                       icon: <Pencil className="size-3.5 shrink-0" aria-hidden />,
                     } satisfies CardActionItem,
                   ]
@@ -429,6 +444,7 @@ export function ListingPropertyCard({
                           messagesTo={messagesInboxPath({
                             q: messagesInboxSearchQuery(label, roomReferenceCode(l.id)),
                           })}
+                          messagesState={returnState}
                         />
                         {formatAvailableFrom(l.availableFrom) ? (
                           <span className="text-xs text-muted">

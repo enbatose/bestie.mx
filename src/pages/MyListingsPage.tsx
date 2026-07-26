@@ -23,6 +23,10 @@ import {
   listingMatchesQuery,
   parseMyListingsQuery,
 } from "@/lib/myListingsSearch";
+import {
+  myListingsNavigationState,
+  myListingsReturnFromLocation,
+} from "@/lib/myListingsReturn";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { roomDisplayName } from "@/lib/roomDisplay";
@@ -125,6 +129,11 @@ export function MyListingsPage() {
   const [activatingPropertyId, setActivatingPropertyId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ListingsTab | null>(null);
   const [query, setQuery] = useState("");
+
+  const returnState = useMemo(
+    () => myListingsNavigationState(myListingsReturnFromLocation(location.pathname, location.search)),
+    [location.pathname, location.search],
+  );
 
   const computeMissing = useCallback((bundle: Awaited<ReturnType<typeof fetchPropertyWithRooms>>): string[] => {
     if (!bundle) return ["No se pudo leer la propiedad"];
@@ -683,6 +692,7 @@ export function MyListingsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis anuncios</h1>
           <Link
             to="/publicar"
+            state={returnState}
             className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-full border border-primary bg-surface px-3.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
           >
             Publicar anuncio
@@ -714,7 +724,11 @@ export function MyListingsPage() {
             {flash.to ? (
               <>
                 {" "}
-                <Link to={flash.to} className="font-semibold text-primary underline-offset-2 hover:underline">
+                <Link
+                  to={flash.to}
+                  state={returnState}
+                  className="font-semibold text-primary underline-offset-2 hover:underline"
+                >
                   {flash.linkText ?? "Ver publicación"}
                 </Link>
               </>
@@ -752,6 +766,7 @@ export function MyListingsPage() {
             <p className="mt-1 text-sm text-muted">Publica un cuarto y adminístralo aquí.</p>
             <Link
               to="/publicar"
+              state={returnState}
               className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99]"
             >
               Publicar anuncio
@@ -906,6 +921,7 @@ export function MyListingsPage() {
                     ) : resolvedTab !== "archived" ? (
                       <Link
                         to="/publicar"
+                        state={returnState}
                         className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99]"
                       >
                         Publicar anuncio

@@ -26,6 +26,12 @@ import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
+  buildMyListingsRestorePath,
+  readMyListingsReturn,
+  withMyListingsReturn,
+} from "@/lib/myListingsReturn";
+import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
+import {
   LISTING_TAG_LABEL_OVERRIDES,
   LISTING_TAG_SLUG_SET,
   migrateDraftTagScopes,
@@ -753,6 +759,11 @@ type WizardResumeState = {
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const myListingsReturn = useMemo(() => readMyListingsReturn(location.state), [location.state]);
+  const myListingsRestorePath = useMemo(
+    () => (myListingsReturn ? buildMyListingsRestorePath(myListingsReturn) : null),
+    [myListingsReturn],
+  );
   const { openAuthModal } = useAuthModal();
   const { me } = useAppShellOutlet();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -827,8 +838,11 @@ export function PublishWizardPage() {
     if (typeof st.resumeStep === "number" && Number.isFinite(st.resumeStep)) {
       setStep(Math.max(0, st.resumeStep));
     }
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
-  }, [location.pathname, location.search, location.state, navigate]);
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: withMyListingsReturn(null, myListingsReturn) ?? null,
+    });
+  }, [location.pathname, location.search, location.state, myListingsReturn, navigate]);
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -2346,7 +2360,7 @@ export function PublishWizardPage() {
         if (editingLiveProperty?.status === "published") {
           navigate(listingPublicPath(returnId), {
             replace: true,
-            state: { listingUpdated: true },
+            state: withMyListingsReturn({ listingUpdated: true }, myListingsReturn),
           });
           return;
         }
@@ -2472,6 +2486,11 @@ export function PublishWizardPage() {
             showRing={showAutosaveRing}
           />
         ) : null}
+        {myListingsRestorePath ? (
+          <div className="mb-4">
+            <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+          </div>
+        ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-primary">Editar anuncio</h1>
         {handoffBanner ? (
           <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning-fg">
@@ -2495,6 +2514,10 @@ export function PublishWizardPage() {
             liveEdit={{
               status: editingLiveProperty.status,
               returnListingId,
+              myListingsRestorePath,
+              myListingsReturnState: myListingsReturn
+                ? { myListingsReturn }
+                : undefined,
             }}
           />
         </div>
@@ -2538,16 +2561,26 @@ export function PublishWizardPage() {
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
             to={listingPublicPath(publishSuccessRoomId)}
+            state={myListingsReturn ? { myListingsReturn } : undefined}
             className="inline-flex w-full max-w-xs items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             Ver mi anuncio
           </Link>
-          <Link
-            to="/"
-            className="text-sm font-medium text-muted transition hover:text-body"
-          >
-            Ir al inicio
-          </Link>
+          {myListingsRestorePath ? (
+            <Link
+              to={myListingsRestorePath}
+              className="text-sm font-medium text-muted transition hover:text-body"
+            >
+              Ir a Mis anuncios
+            </Link>
+          ) : (
+            <Link
+              to="/"
+              className="text-sm font-medium text-muted transition hover:text-body"
+            >
+              Ir al inicio
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -2562,6 +2595,11 @@ export function PublishWizardPage() {
           flashKey={autosaveFlashKey}
           showRing={showAutosaveRing}
         />
+      ) : null}
+      {myListingsRestorePath ? (
+        <div className="mb-4">
+          <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+        </div>
       ) : null}
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
 

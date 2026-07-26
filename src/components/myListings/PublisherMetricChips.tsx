@@ -9,6 +9,8 @@ type PublisherMetricChipsProps = {
   summed?: boolean;
   /** Opens the inbox filtered to the listing(s) represented by this metric. */
   messagesTo: string;
+  /** Router state so Mensajes can offer “Volver a Mis anuncios”. */
+  messagesState?: unknown;
   className?: string;
 };
 
@@ -21,6 +23,7 @@ export function PublisherMetricChips({
   inquiryCount,
   summed = false,
   messagesTo,
+  messagesState,
   className = "",
 }: PublisherMetricChipsProps) {
   const label = formatPublisherMetrics(viewsCount, inquiryCount);
@@ -44,6 +47,7 @@ export function PublisherMetricChips({
       </span>
       <Link
         to={messagesTo}
+        state={messagesState}
         className="inline-flex items-center gap-1 rounded-sm font-semibold text-primary underline-offset-2 hover:underline focus-visible:underline"
         aria-label={`${m} mensaje${m === 1 ? "" : "s"}. Ver conversaciones de este anuncio`}
       >

@@ -1,8 +1,9 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
+import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import {
   formatRelativeUpdatedAt,
   sortUserConversations,
@@ -18,6 +19,10 @@ import {
   type ConversationSummary,
   type MessageAttachment,
 } from "@/lib/messagesApi";
+import {
+  buildMyListingsRestorePath,
+  readMyListingsReturn,
+} from "@/lib/myListingsReturn";
 import { authMe, type AuthMe } from "@/lib/authApi";
 
 function SupportBadge() {
@@ -29,9 +34,14 @@ function SupportBadge() {
 }
 
 export function MessagesPage() {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeId = searchParams.get("c");
   const qParam = searchParams.get("q") ?? "";
+  const myListingsRestorePath = useMemo(() => {
+    const ctx = readMyListingsReturn(location.state);
+    return ctx ? buildMyListingsRestorePath(ctx) : null;
+  }, [location.state]);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [rows, setRows] = useState<ConversationSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -129,8 +139,8 @@ export function MessagesPage() {
     if (debouncedSearch) next.set("q", debouncedSearch);
     else next.delete("q");
     lastSeededQRef.current = debouncedSearch;
-    setSearchParams(next, { replace: true });
-  }, [debouncedSearch, searchParams, setSearchParams]);
+    setSearchParams(next, { replace: true, state: location.state });
+  }, [debouncedSearch, location.state, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (me?.id) void loadList(debouncedSearch || undefined);
@@ -156,7 +166,7 @@ export function MessagesPage() {
   const clearActive = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("c");
-    setSearchParams(next, { replace: false });
+    setSearchParams(next, { replace: false, state: location.state });
   };
 
   const send = async (e: React.FormEvent) => {
@@ -203,6 +213,9 @@ export function MessagesPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 sm:px-6">
+      {myListingsRestorePath ? (
+        <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+      ) : null}
       <header className={activeId ? "hidden md:block" : undefined}>
         <h1 className="text-2xl font-bold text-primary">Mensajes</h1>
         <p className="mt-1 text-sm text-muted">
@@ -283,7 +296,7 @@ export function MessagesPage() {
                     onClick={() => {
                       const next = new URLSearchParams(searchParams);
                       next.set("c", r.id);
-                      setSearchParams(next, { replace: false });
+                      setSearchParams(next, { replace: false, state: location.state });
                     }}
                     className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
                       r.id === activeId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
