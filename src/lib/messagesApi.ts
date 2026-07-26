@@ -33,18 +33,24 @@ export type ChatMessage = {
   attachments: MessageAttachment[];
 };
 
-/** Search-bar context from Mis Anuncios: title first, post id appended for uniqueness. */
-export function messagesInboxSearchQuery(title: string | undefined | null, postId: string): string {
-  const id = postId.trim();
+/**
+ * Search-bar context from Mis Anuncios: title first, then the public reference code
+ * (e.g. `A550E8400` / `PC2193A56`) so similar titles cannot collide.
+ */
+export function messagesInboxSearchQuery(
+  title: string | undefined | null,
+  referenceCode: string,
+): string {
+  const code = referenceCode.trim();
   const label = (title ?? "").trim().replace(/\s+/g, " ");
-  if (!label) return id;
-  if (!id || label.includes(id)) return label;
-  return `${label} ${id}`;
+  if (!label) return code;
+  if (!code || label.includes(code)) return label;
+  return `${label} ${code}`;
 }
 
 /** Deep-link into Mensajes with search-bar context (multi-keyword AND on the server). */
 export function messagesInboxPath(opts: {
-  /** Shown/edited in the Messages search bar. Prefer `messagesInboxSearchQuery(title, id)`. */
+  /** Shown/edited in the Messages search bar. Prefer `messagesInboxSearchQuery(title, refCode)`. */
   q: string;
 }): string {
   const params = new URLSearchParams();

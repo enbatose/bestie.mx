@@ -243,7 +243,7 @@ export function MessagesPage() {
                   type="search"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Buscar por título, id o mensajes…"
+                  placeholder="Buscar por título, código o mensajes…"
                   className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2 dark:border-slate-600 dark:bg-slate-800"
                 />
               </label>

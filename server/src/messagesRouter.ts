@@ -6,6 +6,10 @@ import { isAdminUser } from "./adminAuth.js";
 import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import {
+  parsePropertyReferenceSuffix,
+  parseRoomReferenceSuffix,
+} from "./listingReference.js";
+import {
   clampMessageAttachments,
   clampStr,
   isSafePropertyId,
@@ -181,7 +185,7 @@ export function messagesRouter(db: DatabaseSync) {
       return;
     }
     // Multi-keyword AND: every whitespace-separated token must match somewhere
-    // (title, counterpart name, body, room id, or parent property id).
+    // (title, counterpart name, body, room/property GUID, or public ref like A550E8400 / PC2193A56).
     const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 240) : "";
     const tokens =
       rawQ.length > 0
@@ -208,21 +212,42 @@ export function messagesRouter(db: DatabaseSync) {
     const params: string[] = [me, me, me];
     for (const token of tokens) {
       const like = `%${token.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
-      conditions.push(
-        `(c.context_title LIKE ? ESCAPE '\\'
-          OR other.display_name LIKE ? ESCAPE '\\'
-          OR IFNULL(c.listing_room_id, '') LIKE ? ESCAPE '\\'
-          OR EXISTS (
-               SELECT 1 FROM rooms filtered_room
-               WHERE filtered_room.id = c.listing_room_id
-                 AND filtered_room.property_id LIKE ? ESCAPE '\\'
-             )
-          OR EXISTS (
-               SELECT 1 FROM messages searched
-               WHERE searched.conversation_id = c.id AND searched.body LIKE ? ESCAPE '\\'
-             ))`,
-      );
+      const parts = [
+        `c.context_title LIKE ? ESCAPE '\\'`,
+        `other.display_name LIKE ? ESCAPE '\\'`,
+        `IFNULL(c.listing_room_id, '') LIKE ? ESCAPE '\\'`,
+        `EXISTS (
+             SELECT 1 FROM rooms filtered_room
+             WHERE filtered_room.id = c.listing_room_id
+               AND filtered_room.property_id LIKE ? ESCAPE '\\'
+           )`,
+        `EXISTS (
+             SELECT 1 FROM messages searched
+             WHERE searched.conversation_id = c.id AND searched.body LIKE ? ESCAPE '\\'
+           )`,
+      ];
       params.push(like, like, like, like, like);
+
+      const roomRefSuffix = parseRoomReferenceSuffix(token);
+      if (roomRefSuffix) {
+        parts.push(
+          `UPPER(REPLACE(IFNULL(c.listing_room_id, ''), '-', '')) LIKE ? ESCAPE '\\'`,
+        );
+        params.push(`${roomRefSuffix}%`);
+      }
+      const propertyRefSuffix = parsePropertyReferenceSuffix(token);
+      if (propertyRefSuffix) {
+        parts.push(
+          `EXISTS (
+             SELECT 1 FROM rooms ref_room
+             WHERE ref_room.id = c.listing_room_id
+               AND UPPER(REPLACE(REPLACE(ref_room.property_id, 'prp__', ''), '-', '')) LIKE ? ESCAPE '\\'
+           )`,
+        );
+        params.push(`${propertyRefSuffix}%`);
+      }
+
+      conditions.push(`(${parts.join("\n          OR ")})`);
     }
     if (listingRoomId) {
       conditions.push("c.listing_room_id = ?");

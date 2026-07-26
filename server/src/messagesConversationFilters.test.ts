@@ -8,7 +8,16 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
+import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
 import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
+
+function inboxQuery(title: string, referenceCode: string): string {
+  const code = referenceCode.trim();
+  const label = title.trim().replace(/\s+/g, " ");
+  if (!label) return code;
+  if (!code || label.includes(code)) return label;
+  return `${label} ${code}`;
+}
 
 type ConversationRow = { id: string; listingRoomId: string | null; contextTitle: string };
 
@@ -171,19 +180,22 @@ describe("GET /api/messages/conversations — listing and property filters", () 
     expect(rows[0]!.listingRoomId).toBe(roomA2);
   });
 
-  it("ANDs multiple search keywords and matches listing room ids", async () => {
-    const rows = await conversations(`?q=${encodeURIComponent(`Hilo ${roomA1}`)}`);
+  it("ANDs title keywords with a public room reference code", async () => {
+    const q = inboxQuery("Hilo", roomReferenceCode(roomA1));
+    const rows = await conversations(`?q=${encodeURIComponent(q)}`);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.listingRoomId).toBe(roomA1);
   });
 
-  it("scopes by property id in the search bar even when titles overlap", async () => {
-    const rows = await conversations(`?q=${encodeURIComponent(`Hilo ${propertyA}`)}`);
+  it("scopes by public property reference code when titles overlap", async () => {
+    const q = inboxQuery("Hilo", propertyReferenceCode(propertyA));
+    const rows = await conversations(`?q=${encodeURIComponent(q)}`);
     expect(rows.map((r) => r.listingRoomId).sort()).toEqual([roomA1, roomA2].sort());
   });
 
-  it("excludes same-title conversations when the room id keyword does not match", async () => {
-    const rows = await conversations(`?q=${encodeURIComponent(`Hilo ${roomB1}`)}`);
+  it("excludes same-title conversations when the room reference does not match", async () => {
+    const q = inboxQuery("Hilo", roomReferenceCode(roomB1));
+    const rows = await conversations(`?q=${encodeURIComponent(q)}`);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.listingRoomId).toBe(roomB1);
   });

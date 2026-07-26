@@ -243,7 +243,10 @@ export function ListingPropertyCard({
                   viewsCount={summedViews}
                   inquiryCount={summedInquiries}
                   messagesTo={messagesInboxPath({
-                    q: messagesInboxSearchQuery(head.propertyTitle ?? head.title, propertyId),
+                    q: messagesInboxSearchQuery(
+                      head.propertyTitle ?? head.title,
+                      propertyReferenceCode(propertyId),
+                    ),
                   })}
                 />
               </div>
@@ -258,7 +261,7 @@ export function ListingPropertyCard({
                   viewsCount={first.viewsCount}
                   inquiryCount={first.inquiryCount}
                   messagesTo={messagesInboxPath({
-                    q: messagesInboxSearchQuery(first.title, first.id),
+                    q: messagesInboxSearchQuery(first.title, roomReferenceCode(first.id)),
                   })}
                 />
                 {formatAvailableFrom(first.availableFrom) ? (
@@ -424,7 +427,7 @@ export function ListingPropertyCard({
                           viewsCount={l.viewsCount}
                           inquiryCount={l.inquiryCount}
                           messagesTo={messagesInboxPath({
-                            q: messagesInboxSearchQuery(label, l.id),
+                            q: messagesInboxSearchQuery(label, roomReferenceCode(l.id)),
                           })}
                         />
                         {formatAvailableFrom(l.availableFrom) ? (
