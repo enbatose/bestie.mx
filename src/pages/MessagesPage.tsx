@@ -164,13 +164,14 @@ export function MessagesPage() {
     }
   }, []);
 
-  const loadThread = useCallback(async () => {
+  const loadThread = useCallback(async (opts?: { silent?: boolean }) => {
     if (!activeId) {
       setMessages([]);
       return;
     }
+    const silent = opts?.silent === true;
     try {
-      setLoadingThread(true);
+      if (!silent) setLoadingThread(true);
       const { messages: nextMessages, unreadCount } = await fetchConversationMessages(activeId);
       setMessages(nextMessages);
       setRows((prev) =>
@@ -179,11 +180,14 @@ export function MessagesPage() {
       window.dispatchEvent(
         new CustomEvent("bestie:messages-read-changed", { detail: { unreadCount } }),
       );
+      if (!silent) setErr(null);
     } catch (x) {
+      // Background polls should not blank the thread or flash a hard error.
+      if (silent) return;
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       setMessages([]);
     } finally {
-      setLoadingThread(false);
+      if (!silent) setLoadingThread(false);
     }
   }, [activeId]);
 
@@ -229,7 +233,7 @@ export function MessagesPage() {
 
   useEffect(() => {
     if (!activeId || !me?.id) return;
-    const t = window.setInterval(() => void loadThread(), 12_000);
+    const t = window.setInterval(() => void loadThread({ silent: true }), 12_000);
     return () => window.clearInterval(t);
   }, [activeId, me?.id, loadThread]);
 
@@ -256,7 +260,7 @@ export function MessagesPage() {
       await postConversationMessage(activeId, draft.trim(), attachments);
       setDraft("");
       setAttachFiles([]);
-      await loadThread();
+      await loadThread({ silent: true });
       await loadList(debouncedSearch || undefined);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
