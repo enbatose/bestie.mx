@@ -2,11 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bookmark, Pencil, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
-import {
-  CardActionGroup,
-  CardOnOffToggle,
-  cardShellClass,
-} from "@/components/myListings/listingCardChrome";
+import { CardActionGroup, CardOnOffToggle } from "@/components/myListings/listingCardChrome";
 import { SavedSearchFiltersPicker } from "@/components/search/SavedSearchFiltersPicker";
 import {
   buildSavedSearchUrl,
@@ -34,6 +30,17 @@ import {
 
 const CHIP_MAX = 6;
 const CARD_TONE = "property" as const;
+
+/**
+ * Only one search can hold the email alert, so the forest edge is reserved for it.
+ * The rest stay slate to keep the active one scannable in a stack.
+ */
+function searchCardShellClass(alertsOn: boolean): string {
+  const base = "rounded-2xl border border-l-4 shadow-sm";
+  return alertsOn
+    ? `${base} border-primary/40 border-l-primary bg-primary/[0.04]`
+    : `${base} border-border border-l-muted bg-surface`;
+}
 
 type AlertTab = "all" | "with-alert" | "without-alert";
 
@@ -836,7 +843,10 @@ export function SavedSearchesPage() {
                     const noEmailHintId = `mis-busquedas-no-email-${row.id}`;
 
                     return (
-                      <article key={row.id} className={`${cardShellClass(CARD_TONE)} p-4`}>
+                      <article
+                        key={row.id}
+                        className={`${searchCardShellClass(row.emailNotifyEnabled)} p-4`}
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <h2 className="text-base font-semibold leading-snug text-body">
