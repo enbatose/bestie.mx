@@ -34,6 +34,67 @@ function SupportBadge() {
   );
 }
 
+const AVATAR_SIZE = {
+  sm: "h-8 w-8",
+  md: "h-9 w-9",
+} as const;
+
+/** Profile photo / initials, or Bestie mark for Soporte threads. */
+function ParticipantAvatar({
+  displayName,
+  profilePictureUrl,
+  useSupportMark = false,
+  size = "sm",
+  className = "",
+}: {
+  displayName?: string | null;
+  profilePictureUrl?: string | null;
+  useSupportMark?: boolean;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  if (useSupportMark) {
+    return (
+      <span
+        aria-hidden
+        className={[
+          "inline-flex shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-border",
+          AVATAR_SIZE[size],
+          className,
+        ].join(" ")}
+      >
+        <img src="/brand/logo-mark.svg" alt="" className="h-[70%] w-[70%] object-contain" />
+      </span>
+    );
+  }
+  return (
+    <UserAvatar
+      displayName={displayName}
+      profilePictureUrl={profilePictureUrl}
+      size={size}
+      className={className}
+    />
+  );
+}
+
+function messageDayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatThreadDayLabel(iso: string): string {
+  return new Date(iso)
+    .toLocaleDateString("es-MX", { day: "numeric", month: "long" })
+    .toUpperCase();
+}
+
+function formatThreadTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("es-MX", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function MessagesPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -303,9 +364,10 @@ export function MessagesPage() {
                       r.id === activeId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
                     }`}
                   >
-                    <UserAvatar
+                    <ParticipantAvatar
                       displayName={r.otherDisplayName}
                       profilePictureUrl={r.otherProfilePictureUrl}
+                      useSupportMark={r.kind === "support"}
                       size="sm"
                       className="mt-0.5"
                     />
@@ -383,44 +445,57 @@ export function MessagesPage() {
               ) : null}
 
               <div className="flex min-h-0 flex-1 flex-col">
-                <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto p-4">
+                <div className="min-h-[200px] flex-1 space-y-4 overflow-y-auto p-4">
                   {loadingThread ? (
                     <p className="text-sm text-muted">Cargando mensajes…</p>
                   ) : (
-                    messages.map((m) => {
+                    messages.map((m, index) => {
                       const mine = m.senderUserId === me.id;
-                      const avatar = (
-                        <UserAvatar
-                          displayName={mine ? me.displayName : active?.otherDisplayName}
-                          profilePictureUrl={
-                            mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
-                          }
-                          size="sm"
-                          className="mt-0.5"
-                        />
-                      );
+                      const otherIsSupport = Boolean(isSupportThread && !mine);
+                      const displayName = mine
+                        ? me.displayName
+                        : (active?.otherDisplayName ?? "Usuario");
+                      const showDay =
+                        index === 0 ||
+                        messageDayKey(m.createdAt) !== messageDayKey(messages[index - 1]!.createdAt);
                       return (
-                        <div
-                          key={m.id}
-                          className={`flex max-w-[90%] items-end gap-2 ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
-                        >
-                          {avatar}
-                          <div
-                            className={`min-w-0 rounded-2xl px-3 py-2 text-sm ${
-                              mine
-                                ? "bg-primary text-primary-fg"
-                                : "border border-border bg-bg-light text-body dark:border-slate-600 dark:bg-slate-800"
-                            }`}
-                          >
-                            {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
-                            <MessageAttachmentList attachments={m.attachments} />
-                            <p className={`mt-1 text-[10px] ${mine ? "text-primary-fg/70" : "text-muted"}`}>
-                              {new Date(m.createdAt).toLocaleString("es-MX", {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                              })}
+                        <div key={m.id}>
+                          {showDay ? (
+                            <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-wide text-muted">
+                              {formatThreadDayLabel(m.createdAt)}
                             </p>
-                          </div>
+                          ) : null}
+                          <article className="flex items-start gap-3">
+                            <ParticipantAvatar
+                              displayName={displayName}
+                              profilePictureUrl={
+                                mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
+                              }
+                              useSupportMark={otherIsSupport}
+                              size="sm"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <header className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                <span className="text-sm font-semibold text-body">{displayName}</span>
+                                {otherIsSupport ? <SupportBadge /> : null}
+                                <span className="text-xs text-muted" aria-hidden>
+                                  ·
+                                </span>
+                                <time
+                                  dateTime={m.createdAt}
+                                  className="text-xs text-muted"
+                                >
+                                  {formatThreadTime(m.createdAt)}
+                                </time>
+                              </header>
+                              {m.body ? (
+                                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
+                                  {m.body}
+                                </p>
+                              ) : null}
+                              <MessageAttachmentList attachments={m.attachments} />
+                            </div>
+                          </article>
                         </div>
                       );
                     })
