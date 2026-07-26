@@ -505,12 +505,22 @@ export function MessagesPage() {
                                   </>
                                 )}
                               </header>
-                              {m.body ? (
-                                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
-                                  {m.body}
-                                </p>
+                              {m.body || m.attachments.length > 0 ? (
+                                <div
+                                  className={`mt-1 inline-block max-w-full rounded-2xl px-3 py-2 text-left ${
+                                    mine
+                                      ? "rounded-tr-sm bg-secondary text-primary"
+                                      : "rounded-tl-sm bg-surface-elevated text-body dark:bg-slate-700 dark:text-slate-100"
+                                  }`}
+                                >
+                                  {m.body ? (
+                                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                                      {m.body}
+                                    </p>
+                                  ) : null}
+                                  <MessageAttachmentList attachments={m.attachments} />
+                                </div>
                               ) : null}
-                              <MessageAttachmentList attachments={m.attachments} />
                             </div>
                           </article>
                         </div>
