@@ -4,6 +4,7 @@ import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   formatRelativeUpdatedAt,
   sortUserConversations,
@@ -288,7 +289,7 @@ export function MessagesPage() {
                 : "Aún no tienes mensajes. Abre un anuncio y usa “Mensaje al anunciante”."}
             </p>
           ) : (
-            <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto md:max-h-[70vh]">
+            <ul className="mt-2 min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto dark:divide-slate-600/60 md:max-h-[70vh]">
               {sortedRows.map((r) => (
                 <li key={r.id}>
                   <button
@@ -298,26 +299,36 @@ export function MessagesPage() {
                       next.set("c", r.id);
                       setSearchParams(next, { replace: false, state: location.state });
                     }}
-                    className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                    className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
                       r.id === activeId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"
                     }`}
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-1.5 font-semibold text-body">
-                        <span className="truncate">{r.otherDisplayName}</span>
-                        {r.kind === "support" ? <SupportBadge /> : null}
+                    <UserAvatar
+                      displayName={r.otherDisplayName}
+                      profilePictureUrl={r.otherProfilePictureUrl}
+                      size="sm"
+                      className="mt-0.5"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-1.5 font-semibold text-body">
+                          <span className="truncate">{r.otherDisplayName}</span>
+                          {r.kind === "support" ? <SupportBadge /> : null}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted">
+                          {formatRelativeUpdatedAt(r.updatedAt)}
+                        </span>
                       </span>
-                      <span className="shrink-0 text-[10px] text-muted">{formatRelativeUpdatedAt(r.updatedAt)}</span>
+                      <span className="line-clamp-1 text-xs text-muted">{r.contextTitle}</span>
+                      {r.lastPreview ? (
+                        <span className="line-clamp-1 text-xs text-muted">{r.lastPreview}</span>
+                      ) : null}
+                      {r.unreadCount > 0 ? (
+                        <span className="mt-1 inline-flex w-fit rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">
+                          {r.unreadCount} nuevo{r.unreadCount > 1 ? "s" : ""}
+                        </span>
+                      ) : null}
                     </span>
-                    <span className="line-clamp-1 text-xs text-muted">{r.contextTitle}</span>
-                    {r.lastPreview ? (
-                      <span className="line-clamp-1 text-xs text-muted">{r.lastPreview}</span>
-                    ) : null}
-                    {r.unreadCount > 0 ? (
-                      <span className="mt-1 inline-flex w-fit rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">
-                        {r.unreadCount} nuevo{r.unreadCount > 1 ? "s" : ""}
-                      </span>
-                    ) : null}
                   </button>
                 </li>
               ))}

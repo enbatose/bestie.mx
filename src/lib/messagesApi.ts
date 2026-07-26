@@ -20,6 +20,7 @@ export type ConversationSummary = {
   updatedAt: string;
   otherUserId: string;
   otherDisplayName: string;
+  otherProfilePictureUrl: string | null;
   lastPreview: string;
   unreadCount: number;
 };

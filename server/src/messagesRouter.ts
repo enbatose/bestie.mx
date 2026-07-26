@@ -268,6 +268,7 @@ export function messagesRouter(db: DatabaseSync) {
         `SELECT c.id, c.context_title, c.listing_room_id, c.kind, c.updated_at,
                 other.id AS other_user_id,
                 other.display_name AS other_display_name,
+                other.profile_picture_url AS other_profile_picture_url,
                 (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
                 (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
          FROM conversations c
@@ -287,6 +288,8 @@ export function messagesRouter(db: DatabaseSync) {
         updatedAt: row.updated_at,
         otherUserId: row.other_user_id,
         otherDisplayName: row.other_display_name,
+        otherProfilePictureUrl:
+          typeof row.other_profile_picture_url === "string" ? row.other_profile_picture_url : null,
         lastPreview: row.last_preview ?? "",
         unreadCount: Number(row.unread_count) || 0,
       })),
