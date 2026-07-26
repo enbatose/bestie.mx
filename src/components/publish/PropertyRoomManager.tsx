@@ -601,7 +601,7 @@ function AvailableRoomFields({
                       role="checkbox"
                       aria-checked={active}
                       onClick={() => onToggleTag(tag, active)}
-                      className={`rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                      className={`min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                         active
                           ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
                           : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"

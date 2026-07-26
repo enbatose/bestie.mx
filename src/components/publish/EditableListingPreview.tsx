@@ -135,10 +135,10 @@ function InlineFieldEditor({
 }
 
 const TAG_CHIP_ACTIVE =
-  "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
+  "min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
 
 const TAG_CHIP_INACTIVE =
-  "rounded-full px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 border border-dashed border-border bg-surface-elevated/90 text-muted opacity-75 hover:border-border hover:opacity-100 hover:bg-surface";
+  "min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 border border-dashed border-border bg-surface-elevated/90 text-muted opacity-75 hover:border-border hover:opacity-100 hover:bg-surface";
 
 function TagGroupsEditor({
   groups,

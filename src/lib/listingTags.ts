@@ -139,9 +139,15 @@ export const LEGACY_PROPERTY_TO_ROOM_TAG_SLUGS: readonly ListingTag[] = [
 
 export const LEGACY_PROPERTY_TO_ROOM_TAG_SET = new Set<string>(LEGACY_PROPERTY_TO_ROOM_TAG_SLUGS);
 
+/**
+ * Soft hyphen (U+00AD). Invisible unless the line breaks here; then a visible "-" is shown.
+ * Use in constrained pills/chips when a Spanish word is too long to fit (see `.cursor/rules/chip-label-soft-hyphens.mdc`).
+ */
+export const SOFT_HYPHEN = "\u00AD";
+
 /** Etiquetas con copy distinto en wizard / preview. */
 export const LISTING_TAG_LABEL_OVERRIDES: Partial<Record<ListingTag, string>> = {
-  estacionamiento: "Estacionamiento privado",
+  estacionamiento: `Estacionami${SOFT_HYPHEN}ento privado`,
   muebles: "Amueblado",
   "fumar-permitido-recamara": "Permitido fumar",
 };
@@ -469,7 +475,7 @@ export const SEARCH_RAIL_DETALLE_TAG_SLUGS = [
 ] as const satisfies readonly ListingTag[];
 
 export const SEARCH_RAIL_TAG_LABELS: Partial<Record<ListingTag, string>> = {
-  estacionamiento: "Estacionamiento privado",
+  estacionamiento: `Estacionami${SOFT_HYPHEN}ento privado`,
   muebles: "Amueblado",
   "fumar-permitido-recamara": "Permitido fumar",
 };

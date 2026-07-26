@@ -282,13 +282,15 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
   });
 }
 
+import { SOFT_HYPHEN } from "@/lib/listingTags";
+
 export const TAG_LABELS: Record<ListingTag, string> = {
   wifi: "Wi‑Fi",
   agua: "Agua",
   luz: "Luz",
   gas: "Gas",
   mascotas: "Mascotas",
-  estacionamiento: "Estacionamiento privado",
+  estacionamiento: `Estacionami${SOFT_HYPHEN}ento privado`,
   muebles: "Amueblado",
   "baño-privado": "Baño privado",
   fumar: "Fumar en áreas comunes",

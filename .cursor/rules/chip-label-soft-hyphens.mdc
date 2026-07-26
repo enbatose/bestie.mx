@@ -1,0 +1,42 @@
+---
+description: Soft-hyphen long Spanish words in constrained pill/chip labels so they wrap with a dash instead of overflowing.
+alwaysApply: true
+---
+
+# Chip / pill label soft hyphens
+
+When a label in a **fixed-width pill, chip, or 2-column tag grid** overflows because one Spanish word is too long (e.g. “Estacionamiento”), do **not** shrink font size, force `whitespace-nowrap`, or rely on `break-all` (ugly mid-syllable cuts without a dash).
+
+## Preferred fix: soft hyphen (U+00AD)
+
+Insert a **soft hyphen** at a sensible syllable break. It stays invisible when the word fits on one line; when the line wraps at that point, the browser shows a visible `-`.
+
+```ts
+import { SOFT_HYPHEN } from "@/lib/listingTags";
+
+// Renders as "Estacionamiento" when it fits, or "Estacionami-" / "ento …" when it wraps.
+`Estacionami${SOFT_HYPHEN}ento privado`
+```
+
+Canonical constant: `SOFT_HYPHEN` in `src/lib/listingTags.ts`.
+
+## Pair with layout so wrapping can happen
+
+On grid/flex chip buttons that hold wrapping text:
+
+- Add `min-w-0` so CSS grid/flex items may shrink below the unbreakable min-content width.
+- Prefer `hyphens-manual` so only soft hyphens you inserted act as break points (not automatic language hyphenation).
+
+Example classes: `min-w-0 … hyphens-manual text-left text-xs`.
+
+## When to apply
+
+- Publish wizard / room editor tag pills (`Propiedades de la recámara`, amenity grids).
+- Any similar rounded-full choice chip where mobile half-width columns clip long words.
+- Add new soft-hyphen points in the **shared label maps** (`LISTING_TAG_LABEL_OVERRIDES`, `TAG_LABELS`, etc.) when you discover another overflowing word — do not hardcode a line break only in one screen.
+
+## Avoid
+
+- Hard `<br />` or forced `\n` (always two lines even on wide layouts).
+- `break-all` / `break-words` alone for Spanish compound words (no hyphen, poor readability).
+- Inventing a shorter marketing synonym just to dodge overflow when soft hyphening keeps the correct term.
