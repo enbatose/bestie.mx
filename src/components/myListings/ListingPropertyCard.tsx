@@ -31,6 +31,7 @@ import {
 import { messagesInboxPath, messagesInboxSearchQuery } from "@/lib/messagesApi";
 import {
   myListingsNavigationState,
+  myListingsPropertyDomId,
   myListingsReturnFromLocation,
 } from "@/lib/myListingsReturn";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
@@ -186,8 +187,9 @@ export function ListingPropertyCard({
 
   return (
     <section
+      id={myListingsPropertyDomId(propertyId)}
       aria-labelledby={`prop-heading-${propertyId}`}
-      className={`${cardShellClass(tone)} transition ${active || propSt === "draft" ? "" : "opacity-75"}`}
+      className={`${cardShellClass(tone)} scroll-mt-14 transition ${active || propSt === "draft" ? "" : "opacity-75"}`}
     >
       <div className="flex flex-col gap-3 p-4">
         <CardHeader

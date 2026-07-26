@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, Search, X } from "lucide-react";
 import { AppConfirmDialog } from "@/components/AppConfirmDialog";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/myListingsSearch";
 import {
   myListingsNavigationState,
+  myListingsPropertyDomId,
   myListingsReturnFromLocation,
   parseMyListingsTab,
   type MyListingsTab,
@@ -131,8 +132,10 @@ export function MyListingsPage() {
   /** Parent to publish after the activation modal makes its first room available. */
   const [activatingPropertyId, setActivatingPropertyId] = useState<string | null>(null);
   const tabFromUrl = parseMyListingsTab(searchParams.get("tab"));
+  const focusPropertyId = searchParams.get("focus")?.trim() || null;
   const [activeTab, setActiveTab] = useState<ListingsTab | null>(() => tabFromUrl);
   const [query, setQuery] = useState("");
+  const scrolledFocusRef = useRef<string | null>(null);
 
   const returnState = useMemo(
     () => myListingsNavigationState(myListingsReturnFromLocation(location.pathname, location.search)),
@@ -255,9 +258,11 @@ export function MyListingsPage() {
     if (st?.draftSaved) {
       setActiveTab("draft");
       setFlash({ text: "Borrador guardado. Puedes publicarlo cuando esté listo." });
-      // One navigation: keep Borradores in the URL and drop ephemeral state.
+      // One navigation: keep Borradores (+ focus) in the URL and drop ephemeral state.
+      const next = new URLSearchParams(location.search);
+      next.set("tab", "draft");
       navigate(
-        { pathname: location.pathname, search: "?tab=draft" },
+        { pathname: location.pathname, search: `?${next.toString()}` },
         { replace: true, state: {} },
       );
       return;
@@ -284,6 +289,31 @@ export function MyListingsPage() {
     else if (allCounts.archived > 0) selectTab("archived");
     else selectTab("published");
   }, [activeTab, allCounts, rows, selectTab, tabFromUrl]);
+
+  /** After draft save (or ?focus=), align the target card to the top of the scrollport. */
+  useEffect(() => {
+    if (!focusPropertyId || rows === null) return;
+    if (scrolledFocusRef.current === focusPropertyId) return;
+    if (!rows.some((r) => r.propertyId === focusPropertyId)) return;
+
+    const el = document.getElementById(myListingsPropertyDomId(focusPropertyId));
+    if (!el) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrolledFocusRef.current = focusPropertyId;
+      setSearchParams(
+        (prev) => {
+          if (!prev.has("focus")) return prev;
+          const next = new URLSearchParams(prev);
+          next.delete("focus");
+          return next;
+        },
+        { replace: true, state: location.state },
+      );
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusPropertyId, location.state, resolvedTab, rows, setSearchParams]);
 
   useEffect(() => {
     if (!flash) return;

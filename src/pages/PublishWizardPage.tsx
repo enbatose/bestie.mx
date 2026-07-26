@@ -26,6 +26,7 @@ import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
+  buildMyListingsHubPath,
   buildMyListingsRestorePath,
   readMyListingsReturn,
   withMyListingsReturn,
@@ -2475,7 +2476,13 @@ export function PublishWizardPage() {
       });
 
       if (opts?.finish) {
-        navigate("/mis-anuncios?tab=draft", { state: { draftSaved: true } });
+        navigate(
+          buildMyListingsHubPath({
+            tab: "draft",
+            focusPropertyId: synced.serverSync.propertyId,
+          }),
+          { state: { draftSaved: true } },
+        );
         return;
       }
 

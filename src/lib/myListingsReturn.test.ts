@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildMyListingsHubPath,
   buildMyListingsRestorePath,
   myListingsNavigationState,
+  myListingsPropertyDomId,
   myListingsReturnFromLocation,
   parseMyListingsTab,
   readMyListingsReturn,
@@ -15,6 +17,14 @@ describe("myListingsReturn", () => {
     expect(parseMyListingsTab("archived")).toBe("archived");
     expect(parseMyListingsTab("paused")).toBeNull();
     expect(parseMyListingsTab(null)).toBeNull();
+  });
+
+  it("builds hub paths with tab and focus", () => {
+    expect(buildMyListingsHubPath({ tab: "draft" })).toBe("/mis-anuncios?tab=draft");
+    expect(buildMyListingsHubPath({ tab: "draft", focusPropertyId: "prop-1" })).toBe(
+      "/mis-anuncios?tab=draft&focus=prop-1",
+    );
+    expect(myListingsPropertyDomId("prop-1")).toBe("listing-property-prop-1");
   });
 
   it("reads and restores a Mis Anuncios snapshot", () => {

@@ -12,6 +12,24 @@ export function parseMyListingsTab(value: string | null | undefined): MyListings
   return null;
 }
 
+/** DOM id for a property card on Mis Anuncios (`?focus=` deep-link). */
+export function myListingsPropertyDomId(propertyId: string): string {
+  return `listing-property-${propertyId}`;
+}
+
+/** Build hub path with tab + optional card focus for post-save redirects. */
+export function buildMyListingsHubPath(opts: {
+  tab?: MyListingsTab;
+  focusPropertyId?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (opts.tab) params.set("tab", opts.tab);
+  const focus = opts.focusPropertyId?.trim();
+  if (focus) params.set("focus", focus);
+  const qs = params.toString();
+  return qs ? `/mis-anuncios?${qs}` : "/mis-anuncios";
+}
+
 export function myListingsReturnFromLocation(
   pathname: string,
   search: string,
