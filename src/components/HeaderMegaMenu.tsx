@@ -273,7 +273,7 @@ function LoggedInIconActions({
                   disabled={!hasUnreadNotifications}
                   className="rounded-lg px-3 py-2.5 text-center text-sm font-semibold text-primary transition hover:bg-surface-elevated disabled:cursor-not-allowed disabled:text-muted disabled:hover:bg-transparent"
                 >
-                  Marcar como leídas
+                  Marcar todas las notificaciones como leídas
                 </button>
               </div>
             </div>
