@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bookmark, Pencil, Search, SlidersHorizontal, X } from "lucide-react";
+import { Bookmark, Pencil, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
 import {
   CardActionGroup,
@@ -887,61 +887,60 @@ export function SavedSearchesPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4">
-                          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                            <button
-                              type="button"
-                              onClick={() => navigate(row.searchUrl, { state: savedSearchesNav })}
-                              className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99] sm:w-auto"
-                            >
-                              <Search className="size-4" aria-hidden strokeWidth={2.2} />
-                              Abrir
-                            </button>
-                            <CardActionGroup
-                              tone={CARD_TONE}
-                              aria-label="Acciones de la búsqueda"
-                              actions={[
-                                {
-                                  key: "edit",
-                                  label: "Editar filtros",
-                                  icon: (
-                                    <SlidersHorizontal
-                                      className="size-3.5"
-                                      aria-hidden
-                                      strokeWidth={2.2}
-                                    />
-                                  ),
-                                  disabled: rowBusy,
-                                  onClick: () => onEditFilters(row),
+                        <div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                          <button
+                            type="button"
+                            onClick={() => navigate(row.searchUrl, { state: savedSearchesNav })}
+                            className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:brightness-110 active:scale-[0.99] sm:w-auto"
+                          >
+                            <Search className="size-4" aria-hidden strokeWidth={2.2} />
+                            Abrir
+                          </button>
+                          <CardActionGroup
+                            tone={CARD_TONE}
+                            aria-label="Acciones de la búsqueda"
+                            actions={[
+                              {
+                                key: "edit",
+                                label: "Editar filtros",
+                                icon: (
+                                  <SlidersHorizontal
+                                    className="size-3.5"
+                                    aria-hidden
+                                    strokeWidth={2.2}
+                                  />
+                                ),
+                                disabled: rowBusy,
+                                onClick: () => onEditFilters(row),
+                              },
+                              {
+                                key: "rename",
+                                label: "Renombrar",
+                                icon: (
+                                  <Pencil className="size-3.5" aria-hidden strokeWidth={2.2} />
+                                ),
+                                disabled: rowBusy,
+                                onClick: () => {
+                                  setErr(null);
+                                  setRenameErr(null);
+                                  setRenamePending(row);
                                 },
-                                {
-                                  key: "rename",
-                                  label: "Renombrar",
-                                  icon: (
-                                    <Pencil className="size-3.5" aria-hidden strokeWidth={2.2} />
-                                  ),
-                                  disabled: rowBusy,
-                                  onClick: () => {
-                                    setErr(null);
-                                    setRenameErr(null);
-                                    setRenamePending(row);
-                                  },
+                              },
+                              {
+                                key: "delete",
+                                label: "Eliminar",
+                                icon: (
+                                  <Trash2 className="size-3.5" aria-hidden strokeWidth={2.2} />
+                                ),
+                                disabled: rowBusy,
+                                onClick: () => {
+                                  setErr(null);
+                                  setDeleteErr(null);
+                                  setDeletePending(row);
                                 },
-                              ]}
-                            />
-                            <button
-                              type="button"
-                              disabled={rowBusy}
-                              onClick={() => {
-                                setErr(null);
-                                setDeleteErr(null);
-                                setDeletePending(row);
-                              }}
-                              className="inline-flex min-h-11 w-full items-center justify-start rounded-lg px-2 text-xs font-semibold text-error underline underline-offset-2 transition hover:bg-error/5 disabled:opacity-50 sm:ml-auto sm:w-auto sm:justify-center"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
+                              },
+                            ]}
+                          />
                         </div>
                       </article>
                     );
