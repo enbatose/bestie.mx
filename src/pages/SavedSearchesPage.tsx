@@ -891,7 +891,7 @@ export function SavedSearchesPage() {
                             </div>
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="flex w-[5.25rem] flex-col items-center gap-1">
                               <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                                 Alertas
                               </span>
