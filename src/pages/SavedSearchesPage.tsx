@@ -14,10 +14,7 @@ import {
 } from "@/lib/savedSearchesApi";
 import { authMe, type AuthMe } from "@/lib/authApi";
 import { parseFilters, type SearchFilters } from "@/lib/searchFilters";
-import {
-  describeActiveSearchFilterChips,
-  formatSavedSearchTimestamp,
-} from "@/lib/savedSearchDraftLabel";
+import { describeActiveSearchFilterChips } from "@/lib/savedSearchDraftLabel";
 import { quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import {
   savedSearchCardFilterIcons,
@@ -62,6 +59,8 @@ type RowView = {
   showVerMas: boolean;
   chipLabels: string[];
   cityLabel: string;
+  /** Neighborhoods (or map-area fallback) for the card location line. */
+  locationSummary: string | null;
   haystack: string;
 };
 
@@ -83,6 +82,18 @@ function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
   }
 }
 
+function locationSummaryForCard(
+  filters: SearchFilters,
+  location: SearchLocationState,
+): string | null {
+  const names = location.neighborhoods
+    .map((n) => n.name.trim())
+    .filter((name) => name.length > 0);
+  if (names.length) return names.join(", ");
+  if (filters.bbox) return "Área del mapa";
+  return null;
+}
+
 function buildRowView(row: SavedSearchDto): RowView {
   const parsed = parseRowSearch(row);
   const filterIcons = parsed ? savedSearchCardFilterIcons(parsed.filters) : [];
@@ -94,8 +105,22 @@ function buildRowView(row: SavedSearchDto): RowView {
     ? describeActiveSearchFilterChips(parsed.filters, parsed.location)
     : [];
   const cityLabel = parsed?.location.cityLabel?.trim() ?? "";
-  const haystack = [row.label, cityLabel, ...chipLabels].join(" ").toLowerCase();
-  return { row, parsed, filterIcons, showVerMas, chipLabels, cityLabel, haystack };
+  const locationSummary = parsed
+    ? locationSummaryForCard(parsed.filters, parsed.location)
+    : null;
+  const haystack = [row.label, cityLabel, locationSummary ?? "", ...chipLabels]
+    .join(" ")
+    .toLowerCase();
+  return {
+    row,
+    parsed,
+    filterIcons,
+    showVerMas,
+    chipLabels,
+    cityLabel,
+    locationSummary,
+    haystack,
+  };
 }
 
 function FilterIconPreview({
@@ -773,9 +798,7 @@ export function SavedSearchesPage() {
                     )}
                   </div>
                 ) : (
-                  visibleRows.map(({ row, parsed, filterIcons, showVerMas, cityLabel }) => {
-                    const cityCode = parsed?.location.cityCode ?? "gdl";
-                    const timestamp = formatSavedSearchTimestamp(row.updatedAt, cityCode);
+                  visibleRows.map(({ row, filterIcons, showVerMas, cityLabel, locationSummary }) => {
                     const matchLabel =
                       row.matchCount != null
                         ? `${row.matchCount} anuncio${row.matchCount === 1 ? "" : "s"}`
@@ -815,17 +838,25 @@ export function SavedSearchesPage() {
                               showVerMas={showVerMas}
                               onVerMas={() => onEditFilters(row, { highlight: true })}
                             />
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <p className="text-xs text-muted">
-                                Actualizada {timestamp}
-                                {cityLabel ? ` · ${cityLabel}` : ""}
+                            {locationSummary ? (
+                              <p className="mt-2 line-clamp-2 text-xs leading-snug text-muted">
+                                {locationSummary}
                               </p>
-                              {matchLabel ? (
-                                <span className="inline-flex min-h-6 items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
-                                  {matchLabel}
-                                </span>
-                              ) : null}
-                            </div>
+                            ) : null}
+                            {cityLabel || matchLabel ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {cityLabel ? (
+                                  <span className="inline-flex min-h-6 items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
+                                    {cityLabel}
+                                  </span>
+                                ) : null}
+                                {matchLabel ? (
+                                  <span className="inline-flex min-h-6 items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
+                                    {matchLabel}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                           <div className="flex shrink-0 flex-col items-end gap-1.5">
                             <div className="flex w-[5.25rem] flex-col items-center gap-1">
