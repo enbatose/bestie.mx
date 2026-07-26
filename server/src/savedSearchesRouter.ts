@@ -417,12 +417,32 @@ export function savedSearchesRouter(db: DatabaseSync) {
       return;
     }
 
-    const body = req.body as { label?: unknown; emailNotifyEnabled?: unknown };
+    const body = req.body as SaveSearchBody & { emailNotifyEnabled?: unknown };
     const now = isoNow();
 
     if (typeof body.label === "string" && body.label.trim()) {
       db.prepare(`UPDATE saved_searches SET label = ?, updated_at = ? WHERE id = ?`).run(
         body.label.trim().slice(0, 200),
+        now,
+        id,
+      );
+    }
+
+    // Editing a saved search's filters from "Mis Búsquedas": keep filters_json/location_json in
+    // sync with search_url so match counts and email alerts reflect the new criteria.
+    const editFilters = parseBodyFilters(body.filters);
+    const editLocation = parseBodyLocation(body.location);
+    const editSearchUrl = typeof body.searchUrl === "string" ? body.searchUrl.trim() : "";
+    if (editFilters && editLocation && editSearchUrl.startsWith("/buscar")) {
+      db.prepare(
+        `UPDATE saved_searches
+         SET filters_json = ?, location_json = ?, search_url = ?, city_code = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(
+        JSON.stringify(editFilters),
+        JSON.stringify(editLocation),
+        editSearchUrl,
+        editLocation.cityCode,
         now,
         id,
       );

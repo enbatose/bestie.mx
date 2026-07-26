@@ -103,7 +103,13 @@ export async function createSavedSearch(payload: SaveSavedSearchPayload): Promis
 
 export async function updateSavedSearch(
   id: string,
-  patch: { label?: string; emailNotifyEnabled?: boolean },
+  patch: {
+    label?: string;
+    emailNotifyEnabled?: boolean;
+    filters?: SearchFilters;
+    location?: SaveSavedSearchPayload["location"];
+    searchUrl?: string;
+  },
 ): Promise<SavedSearchDto> {
   const res = await fetch(`${apiBase()}/api/saved-searches/${encodeURIComponent(id)}`, {
     method: "PATCH",

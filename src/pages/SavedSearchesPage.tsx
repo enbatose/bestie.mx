@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { SlidersHorizontal } from "lucide-react";
 import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/components/AppConfirmDialog";
+import { SavedSearchFiltersPicker } from "@/components/search/SavedSearchFiltersPicker";
 import {
+  buildSavedSearchUrl,
   deleteSavedSearch,
   enableSavedSearchNotify,
   fetchSavedSearches,
@@ -9,6 +12,12 @@ import {
   type SavedSearchDto,
 } from "@/lib/savedSearchesApi";
 import { authMe, type AuthMe } from "@/lib/authApi";
+import { parseFilters, type SearchFilters } from "@/lib/searchFilters";
+import {
+  parseSearchLocation,
+  routeCityCodeFromPath,
+  type SearchLocationState,
+} from "@/lib/searchLocation";
 
 export function SavedSearchesPage() {
   const navigate = useNavigate();
@@ -21,6 +30,11 @@ export function SavedSearchesPage() {
     otherLabel: string;
     row: SavedSearchDto;
   } | null>(null);
+  const [editRow, setEditRow] = useState<SavedSearchDto | null>(null);
+  const [editFilters, setEditFilters] = useState<SearchFilters | null>(null);
+  const [editLocation, setEditLocation] = useState<SearchLocationState | null>(null);
+  const [editPathname, setEditPathname] = useState<string>("/buscar");
+  const [editOriginal, setEditOriginal] = useState<string>("");
 
   const load = useCallback(async () => {
     setErr(null);
@@ -110,6 +124,59 @@ export function SavedSearchesPage() {
     }
   };
 
+  const onEditFilters = (row: SavedSearchDto) => {
+    setErr(null);
+    setMsg(null);
+    try {
+      const url = new URL(row.searchUrl, window.location.origin);
+      const loc = parseSearchLocation(url.searchParams, routeCityCodeFromPath(url.pathname));
+      const flt = parseFilters(url.searchParams);
+      setEditRow(row);
+      setEditFilters(flt);
+      setEditLocation(loc);
+      setEditPathname(url.pathname);
+      setEditOriginal(JSON.stringify(flt));
+    } catch {
+      setErr("No se pudieron cargar los filtros de esta búsqueda.");
+    }
+  };
+
+  const closeEditor = async () => {
+    const row = editRow;
+    const flt = editFilters;
+    const loc = editLocation;
+    const pathname = editPathname;
+    const unchanged = flt != null && JSON.stringify(flt) === editOriginal;
+    setEditRow(null);
+    setEditFilters(null);
+    setEditLocation(null);
+    if (!row || !flt || !loc || unchanged) return;
+
+    setBusyId(row.id);
+    setErr(null);
+    try {
+      const searchUrl = buildSavedSearchUrl(pathname, flt, loc);
+      await updateSavedSearch(row.id, {
+        filters: flt,
+        location: {
+          cityCode: loc.cityCode,
+          cityLabel: loc.cityLabel,
+          neighborhoods: loc.neighborhoods,
+          lat: loc.lat,
+          lng: loc.lng,
+          zoom: loc.zoom,
+        },
+        searchUrl,
+      });
+      setMsg("Filtros de la búsqueda actualizados.");
+      await load();
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const onDelete = async (row: SavedSearchDto) => {
     if (!window.confirm(`¿Eliminar la búsqueda «${row.label}»?`)) return;
     setBusyId(row.id);
@@ -161,6 +228,15 @@ export function SavedSearchesPage() {
         onConfirm={onConfirmReplaceNotify}
         onCancel={() => setReplaceNotifyPending(null)}
       />
+      {editRow && editFilters && editLocation ? (
+        <SavedSearchFiltersPicker
+          open
+          onClose={() => void closeEditor()}
+          filters={editFilters}
+          onFiltersChange={setEditFilters}
+          searchLocation={editLocation}
+        />
+      ) : null}
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -233,6 +309,15 @@ export function SavedSearchesPage() {
                   className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-fg hover:brightness-110"
                 >
                   Abrir búsqueda
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === row.id}
+                  onClick={() => onEditFilters(row)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
+                >
+                  <SlidersHorizontal className="size-3.5" aria-hidden strokeWidth={2.2} />
+                  Editar filtros
                 </button>
                 <button
                   type="button"
