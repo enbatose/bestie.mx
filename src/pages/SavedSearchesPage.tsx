@@ -39,7 +39,7 @@ function searchCardShellClass(alertsOn: boolean): string {
   const base = "rounded-2xl border border-l-4 shadow-sm";
   return alertsOn
     ? `${base} border-primary/40 border-l-primary bg-primary/[0.04]`
-    : `${base} border-border border-l-muted bg-surface`;
+    : `${base} border-border border-l-muted/35 bg-surface`;
 }
 
 type AlertTab = "all" | "with-alert" | "without-alert";
@@ -64,6 +64,13 @@ type RowView = {
   cityLabel: string;
   haystack: string;
 };
+
+/** Alerts-on card first; otherwise keep API order (updated_at DESC). */
+function pinAlertEnabledFirst(views: RowView[]): RowView[] {
+  return [...views].sort(
+    (a, b) => Number(b.row.emailNotifyEnabled) - Number(a.row.emailNotifyEnabled),
+  );
+}
 
 function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
   try {
@@ -519,7 +526,9 @@ export function SavedSearchesPage() {
 
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
-  const queryFiltered = q ? rowViews.filter((rv) => rv.haystack.includes(q)) : rowViews;
+  const queryFiltered = pinAlertEnabledFirst(
+    q ? rowViews.filter((rv) => rv.haystack.includes(q)) : rowViews,
+  );
   const tabCounts = {
     all: queryFiltered.length,
     "with-alert": queryFiltered.filter((rv) => rv.row.emailNotifyEnabled).length,
