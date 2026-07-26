@@ -45,15 +45,14 @@ function baseName(fileName: string): string {
   return (fileName || "foto").replace(/\.[^.]+$/i, "") || "foto";
 }
 
-/** Rewrap mobile picks that arrive with empty / aliased MIME (WhatsApp, Android gallery). */
+/**
+ * Rewrap gallery / WhatsApp picks that arrive with empty or aliased MIME.
+ * HEIC is allowed through: iOS Safari/WebKit can decode it, then we re-encode to JPG/WebP.
+ */
 export async function ensureTypedImageFile(file: File): Promise<File> {
   const head = await file.slice(0, 64).arrayBuffer();
   const mime = resolveImageMime(file.type, file.name, head);
   if (!mime) return file;
-  if (isHeicLikeMime(mime)) {
-    throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
-  }
-
   if (file.type === mime) return file;
 
   const ext = extensionForImageMime(mime);
@@ -156,13 +155,25 @@ async function encodeCanvas(
 /** Normalize, optionally recompress, and return an API-safe upload File. */
 export async function prepareListingImage(file: File): Promise<PreparedListingImage> {
   const typed = await ensureTypedImageFile(file);
-  const decoded = await decodeImage(typed);
+  const heicLike = isHeicLikeMime(typed.type);
+
+  let decoded: DecodedImage;
+  try {
+    decoded = await decodeImage(typed);
+  } catch {
+    // Gallery HEIC on browsers without native decode (e.g. Chrome Android).
+    if (heicLike) throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
+    throw new Error(PREPARE_IMAGE_FAIL_MESSAGE);
+  }
+
   try {
     const inputW = decoded.width;
     const inputH = decoded.height;
     const { w: outputW, h: outputH } = clampResize(inputW, inputH, MAX_EDGE);
 
+    // Never skip re-encode for HEIC — the API does not accept it.
     if (
+      !heicLike &&
       WEB_SAFE_UPLOAD_TYPES.has(typed.type) &&
       typed.size <= MAX_SKIP_BYTES &&
       outputW === inputW &&
