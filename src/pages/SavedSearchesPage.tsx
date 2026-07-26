@@ -85,12 +85,13 @@ function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
 function locationSummaryForCard(
   filters: SearchFilters,
   location: SearchLocationState,
+  areaNeighborhoods?: string[],
 ): string | null {
-  const names = location.neighborhoods
+  const stored = location.neighborhoods
     .map((n) => n.name.trim())
     .filter((name) => name.length > 0);
-  if (names.length) return names.join(", ");
-  if (filters.bbox) return "Área del mapa";
+  if (stored.length) return stored.join(", ");
+  if (areaNeighborhoods?.length) return areaNeighborhoods.join(", ");
   return null;
 }
 
@@ -106,8 +107,10 @@ function buildRowView(row: SavedSearchDto): RowView {
     : [];
   const cityLabel = parsed?.location.cityLabel?.trim() ?? "";
   const locationSummary = parsed
-    ? locationSummaryForCard(parsed.filters, parsed.location)
-    : null;
+    ? locationSummaryForCard(parsed.filters, parsed.location, row.areaNeighborhoods)
+    : row.areaNeighborhoods?.length
+      ? row.areaNeighborhoods.join(", ")
+      : null;
   const haystack = [row.label, cityLabel, locationSummary ?? "", ...chipLabels]
     .join(" ")
     .toLowerCase();

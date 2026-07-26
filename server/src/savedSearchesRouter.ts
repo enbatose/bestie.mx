@@ -14,12 +14,14 @@ import {
   type SavedSearchRow,
 } from "./savedSearchNotify.js";
 import {
-  fetchMatchingListingsForSavedSearch,
+  matchSavedSearchListings,
+  neighborhoodsForSavedSearchCard,
   parseSavedSearchFilters,
   parseSavedSearchLocation,
   type SavedSearchLocationSnapshot,
 } from "./savedSearchMatch.js";
 import { MAX_SAVED_SEARCHES_PER_USER } from "./savedSearchSchema.js";
+import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import type { SearchFilters } from "./searchFilters.js";
 
 function jsonMw() {
@@ -219,19 +221,26 @@ export function savedSearchesRouter(db: DatabaseSync) {
         `SELECT * FROM saved_searches WHERE user_id = ? AND is_draft = 0 ORDER BY updated_at DESC`,
       )
       .all(uid) as SavedSearchRow[];
+    const published = fetchPublishedListings(db);
     res.json(
       rows.map((row) => {
         let matchCount: number | undefined;
+        let areaNeighborhoods: string[] | undefined;
         try {
-          matchCount = fetchMatchingListingsForSavedSearch(
+          const filters = parseSavedSearchFilters(row.filters_json);
+          const location = parseSavedSearchLocation(row.location_json);
+          matchCount = matchSavedSearchListings(published, filters, location).length;
+          areaNeighborhoods = neighborhoodsForSavedSearchCard(
             db,
-            parseSavedSearchFilters(row.filters_json),
-            parseSavedSearchLocation(row.location_json),
-          ).length;
+            filters,
+            location,
+            published,
+          );
         } catch {
           matchCount = undefined;
+          areaNeighborhoods = undefined;
         }
-        return rowToApi(row, matchCount);
+        return rowToApi(row, matchCount, areaNeighborhoods);
       }),
     );
   });

@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
+import { curatedNeighborhoodPins } from "./locationSearch.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
-import { filterListings, type SearchFilters } from "./searchFilters.js";
+import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
 import type { PropertyListing } from "./types.js";
 
 export type SavedSearchLocationSnapshot = {
@@ -21,6 +22,10 @@ function normalizeNeighborhood(value: string): string {
     .replace(/\b(colonia|col|barrio|zona)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function pointInBbox(lat: number, lng: number, b: Bbox): boolean {
+  return lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng;
 }
 
 function listingMatchesNeighborhoods(
@@ -61,6 +66,44 @@ export function fetchMatchingListingsForSavedSearch(
   location: SavedSearchLocationSnapshot,
 ): PropertyListing[] {
   return matchSavedSearchListings(fetchPublishedListings(db), filters, location);
+}
+
+/**
+ * Neighborhood names for a Mis Búsquedas card location line.
+ * Prefers stored colonia pins; for map-area saves, resolves names inside the bbox
+ * from curated pins and published listings (never a generic "Área del mapa" label).
+ */
+export function neighborhoodsForSavedSearchCard(
+  db: DatabaseSync,
+  filters: SearchFilters,
+  location: SavedSearchLocationSnapshot,
+  published?: PropertyListing[],
+): string[] {
+  const stored = location.neighborhoods
+    .map((n) => n.name.trim())
+    .filter((name) => name.length > 0);
+  if (stored.length) return stored;
+
+  if (!filters.bbox) return [];
+
+  const names = new Map<string, string>();
+  const add = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    const key = normalizeNeighborhood(trimmed);
+    if (!key || names.has(key)) return;
+    names.set(key, trimmed);
+  };
+
+  for (const pin of curatedNeighborhoodPins()) {
+    if (pointInBbox(pin.lat, pin.lng, filters.bbox)) add(pin.neighborhood);
+  }
+
+  for (const listing of published ?? fetchPublishedListings(db)) {
+    if (pointInBbox(listing.lat, listing.lng, filters.bbox)) add(listing.neighborhood);
+  }
+
+  return Array.from(names.values()).sort((a, b) => a.localeCompare(b, "es"));
 }
 
 export function parseSavedSearchFilters(raw: string): SearchFilters {

@@ -136,6 +136,19 @@ const CURATED_GUADALAJARA_NEIGHBORHOODS: Array<{
   },
 ];
 
+/** Point pins used to reverse-resolve colonia names inside a saved map bbox. */
+export function curatedNeighborhoodPins(): ReadonlyArray<{
+  neighborhood: string;
+  lat: number;
+  lng: number;
+}> {
+  return CURATED_GUADALAJARA_NEIGHBORHOODS.map(({ neighborhood, lat, lng }) => ({
+    neighborhood,
+    lat,
+    lng,
+  }));
+}
+
 function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }

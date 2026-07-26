@@ -259,7 +259,11 @@ export function startSavedSearchPollWorker(db: DatabaseSync): () => void {
   return () => clearInterval(t);
 }
 
-export function rowToApi(row: SavedSearchRow, matchCount?: number) {
+export function rowToApi(
+  row: SavedSearchRow,
+  matchCount?: number,
+  areaNeighborhoods?: string[],
+) {
   return {
     id: row.id,
     label: row.label,
@@ -270,6 +274,9 @@ export function rowToApi(row: SavedSearchRow, matchCount?: number) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(matchCount != null ? { matchCount } : {}),
+    ...(areaNeighborhoods && areaNeighborhoods.length
+      ? { areaNeighborhoods }
+      : {}),
   };
 }
 
