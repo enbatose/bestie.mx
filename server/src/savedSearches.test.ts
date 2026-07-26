@@ -108,6 +108,10 @@ describe("saved searches API", () => {
       .post("/api/auth/register")
       .send({ email: userEmail, password: "longenough1", displayName: "Seeker" })
       .expect(201);
+    db.prepare("UPDATE users SET email_verified_at = ? WHERE email = ?").run(
+      new Date().toISOString(),
+      userEmail,
+    );
 
     const payload = {
       cityCode: "gdl",
@@ -146,6 +150,17 @@ describe("saved searches API", () => {
     const created = await agent.post("/api/saved-searches").send(payload).expect(201);
     expect(created.body.label).toBe("GDL test");
     expect(created.body.emailNotifyEnabled).toBe(false);
+
+    // Simulate a record created before advanced filter fields were introduced.
+    // Enabling alerts must normalize the legacy JSON rather than crash the server.
+    const legacyFilters: Partial<typeof payload.filters> = { ...payload.filters };
+    delete legacyFilters.roomDimensions;
+    delete legacyFilters.avalRequired;
+    delete legacyFilters.subletAllowed;
+    db.prepare("UPDATE saved_searches SET filters_json = ? WHERE id = ?").run(
+      JSON.stringify(legacyFilters),
+      created.body.id,
+    );
 
     const list1 = await agent.get("/api/saved-searches").expect(200);
     expect(list1.body).toHaveLength(1);

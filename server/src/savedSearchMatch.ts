@@ -64,7 +64,31 @@ export function fetchMatchingListingsForSavedSearch(
 }
 
 export function parseSavedSearchFilters(raw: string): SearchFilters {
-  return JSON.parse(raw) as SearchFilters;
+  const parsed = JSON.parse(raw) as Partial<SearchFilters> | null;
+  const value = parsed && typeof parsed === "object" ? parsed : {};
+
+  // Saved searches outlive the filter schema. Normalize fields added after older
+  // records were stored so matching an alert can never crash the API process.
+  return {
+    q: typeof value.q === "string" ? value.q : "",
+    budgetMin: value.budgetMin ?? null,
+    budgetMax: value.budgetMax ?? null,
+    tags: Array.isArray(value.tags) ? value.tags : [],
+    pref: value.pref ?? null,
+    age: value.age ?? null,
+    ageMin: value.ageMin ?? null,
+    ageMax: value.ageMax ?? null,
+    bbox: value.bbox ?? null,
+    lodgingType: value.lodgingType ?? null,
+    wantHouse: value.wantHouse === true,
+    wantApartment: value.wantApartment === true,
+    wantLoft: value.wantLoft === true,
+    availableFrom: value.availableFrom ?? null,
+    minimalStayMonths: value.minimalStayMonths ?? null,
+    roomDimensions: Array.isArray(value.roomDimensions) ? value.roomDimensions : [],
+    avalRequired: value.avalRequired ?? null,
+    subletAllowed: value.subletAllowed ?? null,
+  };
 }
 
 export function parseSavedSearchLocation(raw: string): SavedSearchLocationSnapshot {
