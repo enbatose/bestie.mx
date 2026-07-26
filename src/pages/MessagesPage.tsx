@@ -389,23 +389,38 @@ export function MessagesPage() {
                   ) : (
                     messages.map((m) => {
                       const mine = m.senderUserId === me.id;
+                      const avatar = (
+                        <UserAvatar
+                          displayName={mine ? me.displayName : active?.otherDisplayName}
+                          profilePictureUrl={
+                            mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
+                          }
+                          size="sm"
+                          className="mt-0.5"
+                        />
+                      );
                       return (
                         <div
                           key={m.id}
-                          className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                            mine
-                              ? "ml-auto bg-primary text-primary-fg"
-                              : "mr-auto border border-border bg-bg-light text-body dark:border-slate-600 dark:bg-slate-800"
-                          }`}
+                          className={`flex max-w-[90%] items-end gap-2 ${mine ? "ml-auto flex-row-reverse" : "mr-auto"}`}
                         >
-                          {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
-                          <MessageAttachmentList attachments={m.attachments} />
-                          <p className={`mt-1 text-[10px] ${mine ? "text-primary-fg/70" : "text-muted"}`}>
-                            {new Date(m.createdAt).toLocaleString("es-MX", {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            })}
-                          </p>
+                          {avatar}
+                          <div
+                            className={`min-w-0 rounded-2xl px-3 py-2 text-sm ${
+                              mine
+                                ? "bg-primary text-primary-fg"
+                                : "border border-border bg-bg-light text-body dark:border-slate-600 dark:bg-slate-800"
+                            }`}
+                          >
+                            {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
+                            <MessageAttachmentList attachments={m.attachments} />
+                            <p className={`mt-1 text-[10px] ${mine ? "text-primary-fg/70" : "text-muted"}`}>
+                              {new Date(m.createdAt).toLocaleString("es-MX", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}
+                            </p>
+                          </div>
                         </div>
                       );
                     })
