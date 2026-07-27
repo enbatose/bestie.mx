@@ -5,7 +5,6 @@ import { AccountEditPage } from "@/pages/AccountEditPage";
 import { AdminPage } from "@/pages/AdminPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { FaqPage } from "@/pages/FaqPage";
-import { GroupsPage } from "@/pages/GroupsPage";
 import { HomePage } from "@/pages/HomePage";
 import { LegalPage } from "@/pages/LegalPage";
 import { TermsPage } from "@/pages/legal/TermsPage";
@@ -64,7 +63,7 @@ const router = createBrowserRouter([
       { path: "recuperar-contrasena", element: <ForgotPasswordPage /> },
       { path: "registro", element: <RegisterPage /> },
       { path: "verificar-correo", element: <EmailVerifyPage /> },
-      { path: "grupos", element: <GroupsPage /> },
+      { path: "grupos", element: <Navigate to="/" replace /> },
       { path: "admin", element: <AdminPage /> },
     ],
   },

@@ -9,9 +9,6 @@ export function SiteFooter() {
     <footer className="border-t border-border bg-surface px-4 py-6 sm:px-6">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-5">
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          <Link to="/grupos" className={linkClass}>
-            Comunidades
-          </Link>
           <Link to="/faq" className={linkClass}>
             Preguntas Frecuentes
           </Link>

@@ -93,7 +93,7 @@ export function TermsPage() {
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
             "Contactar a otros usuarios mediante el chat directo en Bestie u otros canales habilitados.",
-            "Crear un perfil, comunidades o grupos de búsqueda de roomies.",
+            "Crear y administrar un perfil de usuario.",
             "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) o desde el botón de ayuda en el mapa de búsqueda, para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas. Cuando tengas mensajes nuevos (incluido Soporte), podemos enviarte un correo de aviso (como máximo uno cada 3 horas), sin incluir el contenido de los mensajes.",
           ]}
         />

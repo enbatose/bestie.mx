@@ -83,7 +83,7 @@ export function PrivacyPage() {
               <strong>Datos de tus anuncios y actividad:</strong> información de las propiedades o
               habitaciones que publicas, mensajes (incluidos los que envías a Soporte de Bestie desde el
               chat directo en Contacto y los archivos que adjuntes, por ejemplo capturas de pantalla),
-              comunidades o grupos de búsqueda y tus interacciones en la Plataforma.
+              y tus interacciones en la Plataforma.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
