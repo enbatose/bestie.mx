@@ -3,6 +3,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { authUpdateMe } from "@/lib/authApi";
 import { uploadListingImage } from "@/lib/listingsApi";
 import { prepareListingImage } from "@/lib/prepareListingImage";
+import { persistPickedFile } from "@/lib/persistPickedFile";
 
 type Props = {
   displayName: string;
@@ -22,7 +23,9 @@ export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated
     setMsg(null);
     setBusy(true);
     try {
-      const prepared = await prepareListingImage(file);
+      const durable = await persistPickedFile(file);
+      if (inputRef.current) inputRef.current.value = "";
+      const prepared = await prepareListingImage(durable);
       const url = await uploadListingImage(prepared.outFile);
       await authUpdateMe({ profilePictureUrl: url });
       onUpdated(url);

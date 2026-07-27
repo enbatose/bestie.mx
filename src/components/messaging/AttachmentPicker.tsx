@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { apiBase } from "@/lib/apiBase";
 import type { MessageAttachment } from "@/lib/messagesApi";
+import { persistPickedFiles } from "@/lib/persistPickedFile";
 
 export const ATTACHMENT_MAX_FILES = 5;
 export const ATTACHMENT_MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -72,9 +73,10 @@ export function AttachmentPicker({
   const inputRef = useRef<HTMLInputElement>(null);
   const totalCount = files.length + uploadedAttachments.length;
 
-  const handlePicked = (picked: FileList | null) => {
+  const handlePicked = async (picked: FileList | null) => {
     if (!picked || picked.length === 0) return;
-    const { accepted, error } = validatePickedFiles(totalCount, Array.from(picked), maxFiles);
+    const durable = await persistPickedFiles(Array.from(picked));
+    const { accepted, error } = validatePickedFiles(totalCount, durable, maxFiles);
     if (accepted.length > 0) onFilesChange([...files, ...accepted]);
     if (error) onError?.(error);
   };
@@ -89,8 +91,10 @@ export function AttachmentPicker({
         disabled={disabled}
         className="sr-only"
         onChange={(e) => {
-          handlePicked(e.target.files);
-          e.target.value = "";
+          const input = e.target;
+          void handlePicked(input.files).finally(() => {
+            input.value = "";
+          });
         }}
       />
       <button

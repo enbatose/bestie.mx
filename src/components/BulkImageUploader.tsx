@@ -8,6 +8,7 @@ import {
   PREPARE_IMAGE_FAIL_MESSAGE,
   prepareListingImage,
 } from "@/lib/prepareListingImage";
+import { isFilePermissionError, persistPickedFiles } from "@/lib/persistPickedFile";
 import {
   appendDraftImageUrl,
   removeDraftImage,
@@ -40,6 +41,9 @@ type BusyRow = {
 function friendlyUploadError(err: unknown): string {
   const raw = err instanceof Error ? err.message : "";
   if (!raw) return "No se pudieron subir las imágenes.";
+  if (isFilePermissionError(raw)) {
+    return "No se pudo leer esa foto. Vuelve a seleccionarla e intenta de nuevo.";
+  }
   if (raw.includes("invalid_mimetype") || raw.includes("unsupported_image")) {
     return "Formato de imagen no soportado. Intenta con JPG o PNG.";
   }
@@ -48,6 +52,10 @@ function friendlyUploadError(err: unknown): string {
   }
   if (raw.startsWith("upload_http_")) {
     return "No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.";
+  }
+  // Keep known Spanish prepare messages; hide opaque browser English.
+  if (/^[A-Za-z]/.test(raw) && raw.includes(" ")) {
+    return PREPARE_IMAGE_FAIL_MESSAGE;
   }
   return raw;
 }
@@ -109,10 +117,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               error: e instanceof Error ? e.message : "convert_error",
               ...perfSampleImageInput(f),
             });
-            const msg =
-              e instanceof Error && e.message
-                ? e.message
-                : PREPARE_IMAGE_FAIL_MESSAGE;
+            const msg = friendlyUploadError(e);
             failures.push(msg);
             continue;
           }
@@ -204,9 +209,19 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               multiple
               className="sr-only"
               onChange={(e) => {
-                const files = e.target.files ? Array.from(e.target.files) : [];
-                e.target.value = "";
-                void addFiles(files);
+                const input = e.target;
+                const list = input.files ? Array.from(input.files) : [];
+                void (async () => {
+                  try {
+                    // Snapshot bytes before clearing — Android Chrome revokes File access on reset.
+                    const files = list.length ? await persistPickedFiles(list) : [];
+                    input.value = "";
+                    void addFiles(files);
+                  } catch (err) {
+                    input.value = "";
+                    setErr(friendlyUploadError(err));
+                  }
+                })();
               }}
             />
             Subir fotos
@@ -218,9 +233,18 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               capture="environment"
               className="sr-only"
               onChange={(e) => {
-                const files = e.target.files ? Array.from(e.target.files) : [];
-                e.target.value = "";
-                void addFiles(files);
+                const input = e.target;
+                const list = input.files ? Array.from(input.files) : [];
+                void (async () => {
+                  try {
+                    const files = list.length ? await persistPickedFiles(list) : [];
+                    input.value = "";
+                    void addFiles(files);
+                  } catch (err) {
+                    input.value = "";
+                    setErr(friendlyUploadError(err));
+                  }
+                })();
               }}
             />
             Tomar foto
