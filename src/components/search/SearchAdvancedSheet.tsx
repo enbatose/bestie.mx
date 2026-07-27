@@ -132,9 +132,8 @@ function IconOption({
 }
 
 /**
- * Connected 3-way segmented control for yes/no/either questions (e.g. aval, subarrendar).
- * Unlike two floating toggle chips, the always-visible "Cualquiera" segment makes the
- * unanswered state explicit instead of reading as "nothing selected yet".
+ * Connected Sí/No segmented control for yes/no filters (e.g. aval, subarrendar).
+ * Nothing selected (`null`) means either value — tap the active option again to clear.
  */
 function TriSegment({
   value,
@@ -147,8 +146,7 @@ function TriSegment({
   yesLabel?: string;
   noLabel?: string;
 }) {
-  const options: { v: boolean | null; label: string }[] = [
-    { v: null, label: "Cualquiera" },
+  const options: { v: boolean; label: string }[] = [
     { v: true, label: yesLabel },
     { v: false, label: noLabel },
   ];
@@ -164,7 +162,7 @@ function TriSegment({
             key={String(opt.v)}
             type="button"
             aria-pressed={active}
-            onClick={() => onChange(opt.v)}
+            onClick={() => onChange(active ? null : opt.v)}
             className={`flex-1 border-r border-primary/10 px-2 py-2 text-xs font-semibold transition last:border-r-0 sm:text-sm ${
               active ? "bg-primary text-primary-fg" : "text-body hover:bg-bg-light"
             }`}
