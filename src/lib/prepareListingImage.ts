@@ -87,6 +87,37 @@ function bitmapToDecoded(bmp: ImageBitmap): DecodedImage {
   };
 }
 
+function elementToDecoded(img: CanvasImageSource, width: number, height: number, close: () => void): DecodedImage {
+  if (!width || !height) throw new Error("image_zero_size");
+  return {
+    width,
+    height,
+    draw: (ctx, w, h) => {
+      ctx.drawImage(img, 0, 0, w, h);
+    },
+    close,
+  };
+}
+
+async function loadHtmlImage(src: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  img.decoding = "async";
+  const loaded = new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("html_image_decode_failed"));
+  });
+  img.src = src;
+  await loaded;
+  if (typeof img.decode === "function") {
+    try {
+      await img.decode();
+    } catch {
+      /* onload already succeeded */
+    }
+  }
+  return img;
+}
+
 /** Prefer downscaling during decode so 12MP+ camera photos don't OOM on mobile. */
 async function decodeViaImageBitmap(file: File): Promise<DecodedImage> {
   const full = await createImageBitmap(file);
@@ -108,39 +139,37 @@ async function decodeViaImageBitmap(file: File): Promise<DecodedImage> {
   }
 }
 
-async function decodeViaHtmlImage(file: File): Promise<DecodedImage> {
+async function decodeViaObjectUrl(file: File): Promise<DecodedImage> {
   const url = URL.createObjectURL(file);
   try {
-    const img = new Image();
-    img.decoding = "async";
-    const loaded = new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("html_image_decode_failed"));
+    const img = await loadHtmlImage(url);
+    return elementToDecoded(img, img.naturalWidth || img.width, img.naturalHeight || img.height, () => {
+      URL.revokeObjectURL(url);
     });
-    img.src = url;
-    await loaded;
-    if (typeof img.decode === "function") {
-      try {
-        await img.decode();
-      } catch {
-        /* onload already succeeded */
-      }
-    }
-    const width = img.naturalWidth || img.width;
-    const height = img.naturalHeight || img.height;
-    if (!width || !height) throw new Error("html_image_zero_size");
-    return {
-      width,
-      height,
-      draw: (ctx, w, h) => {
-        ctx.drawImage(img, 0, 0, w, h);
-      },
-      close: () => URL.revokeObjectURL(url),
-    };
   } catch (e) {
     URL.revokeObjectURL(url);
     throw e;
   }
+}
+
+/**
+ * Android Chrome gallery picks sometimes fail createImageBitmap + blob: URLs
+ * but still decode via FileReader data URLs.
+ */
+async function decodeViaFileReader(file: File): Promise<DecodedImage> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string" && reader.result.startsWith("data:")) resolve(reader.result);
+      else reject(new Error("filereader_bad_result"));
+    };
+    reader.onerror = () => reject(new Error("filereader_failed"));
+    reader.readAsDataURL(file);
+  });
+  const img = await loadHtmlImage(dataUrl);
+  return elementToDecoded(img, img.naturalWidth || img.width, img.naturalHeight || img.height, () => {
+    /* data URL — nothing to revoke */
+  });
 }
 
 async function decodeImage(file: File): Promise<DecodedImage> {
@@ -148,10 +177,14 @@ async function decodeImage(file: File): Promise<DecodedImage> {
     try {
       return await decodeViaImageBitmap(file);
     } catch {
-      /* fall through — empty MIME / older WebViews often need <img> */
+      /* fall through */
     }
   }
-  return decodeViaHtmlImage(file);
+  try {
+    return await decodeViaObjectUrl(file);
+  } catch {
+    return decodeViaFileReader(file);
+  }
 }
 
 /** Dynamic HEIC→JPEG for browsers without native HEIC (Chrome Android, etc.). */
@@ -195,24 +228,31 @@ async function encodeCanvas(
   throw new Error("encode_failed");
 }
 
+function looksLikeHeic(file: File, sniffed: string | null): boolean {
+  return (
+    isHeicLikeMime(file.type) ||
+    isHeicLikeMime(sniffed ?? "") ||
+    /\.hei[cf]$/i.test(file.name)
+  );
+}
+
 async function decodeWithHeicFallback(file: File): Promise<{ decoded: DecodedImage; source: File }> {
   try {
     return { decoded: await decodeImage(file), source: file };
   } catch (first) {
     const head = await file.slice(0, 64).arrayBuffer();
     const sniffed = sniffImageMime(head);
-    const maybeHeic =
-      isHeicLikeMime(file.type) ||
-      isHeicLikeMime(sniffed ?? "") ||
-      /\.hei[cf]$/i.test(file.name);
-    if (!maybeHeic) {
-      throw first instanceof Error ? first : new Error(PREPARE_IMAGE_FAIL_MESSAGE);
-    }
+    const maybeHeic = looksLikeHeic(file, sniffed);
+
+    // Samsung "High efficiency" often ships HEIF bytes labeled image/jpeg.
+    // Also try the library when native decode failed for any still image — heic2any
+    // rejects non-HEIC quickly, and this unblocks mislabeled gallery picks.
     try {
       const jpeg = await convertHeicWithLibrary(file);
       return { decoded: await decodeImage(jpeg), source: jpeg };
     } catch {
-      throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
+      if (maybeHeic) throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
+      throw first instanceof Error ? first : new Error(PREPARE_IMAGE_FAIL_MESSAGE);
     }
   }
 }

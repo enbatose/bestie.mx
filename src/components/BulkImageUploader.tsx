@@ -5,9 +5,7 @@ import { uploadListingImage } from "@/lib/listingsApi";
 import { perfEnd, perfSampleImageInput, perfStart } from "@/lib/perf";
 import { trackImagePipeline } from "@/lib/imageTelemetry";
 import {
-  PREPARE_IMAGE_EMPTY_MESSAGE,
   PREPARE_IMAGE_FAIL_MESSAGE,
-  PREPARE_IMAGE_HEIC_MESSAGE,
   prepareListingImage,
 } from "@/lib/prepareListingImage";
 import {
@@ -92,10 +90,12 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
 
       const batchId = batchIdRef.current;
       const batchMark = perfStart("batch_full");
+      const failures: string[] = [];
       try {
         let current = imagesRef.current;
         for (const f of take) {
-          setBusy({ name: f.name || "foto", stage: "optimizando" });
+          const label = f.name || "foto";
+          setBusy({ name: label, stage: "optimizando" });
           const m1 = perfStart("convert");
           let converted: Awaited<ReturnType<typeof prepareListingImage>>;
           try {
@@ -109,15 +109,12 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               error: e instanceof Error ? e.message : "convert_error",
               ...perfSampleImageInput(f),
             });
-            if (
-              e instanceof Error &&
-              (e.message === PREPARE_IMAGE_FAIL_MESSAGE ||
-                e.message === PREPARE_IMAGE_HEIC_MESSAGE ||
-                e.message === PREPARE_IMAGE_EMPTY_MESSAGE)
-            ) {
-              throw e;
-            }
-            throw new Error(PREPARE_IMAGE_FAIL_MESSAGE);
+            const msg =
+              e instanceof Error && e.message
+                ? e.message
+                : PREPARE_IMAGE_FAIL_MESSAGE;
+            failures.push(msg);
+            continue;
           }
 
           const convertSpan = perfEnd(m1);
@@ -136,7 +133,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
             outputH: converted.outputH,
           });
 
-          setBusy({ name: f.name || "foto", stage: "subiendo" });
+          setBusy({ name: label, stage: "subiendo" });
           const m2 = perfStart("upload");
           let url: string;
           try {
@@ -151,7 +148,8 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               outputBytes: converted.outFile.size,
               outputType: converted.outputType,
             });
-            throw uploadErr;
+            failures.push(friendlyUploadError(uploadErr));
+            continue;
           }
           const uploadSpan = perfEnd(m2);
           await trackImagePipeline({
@@ -168,20 +166,8 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           current = appendDraftImageUrl(current, url, maxCount);
           onImagesChange(current);
         }
-      } catch (e) {
-        const raw = e instanceof Error ? e.message : "";
-        if (
-          raw.startsWith("upload_http_") ||
-          raw.includes("invalid_mimetype") ||
-          raw.includes("unsupported_image") ||
-          raw.includes("file_too_large") ||
-          raw.includes("LIMIT_FILE_SIZE")
-        ) {
-          setErr(friendlyUploadError(e));
-        } else if (raw) {
-          setErr(raw);
-        } else {
-          setErr(PREPARE_IMAGE_FAIL_MESSAGE);
+        if (failures.length) {
+          setErr(failures[failures.length - 1] ?? PREPARE_IMAGE_FAIL_MESSAGE);
         }
       } finally {
         setBusy(null);
@@ -190,8 +176,9 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           batchId: batchIdRef.current,
           step: "full",
           ms: fullSpan.ms,
-          ok: true,
+          ok: failures.length === 0,
           fileCount: take.length,
+          error: failures[0],
         }).catch(() => null);
         onBatchComplete?.();
       }
