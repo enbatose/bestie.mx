@@ -3,6 +3,7 @@ import {
   extensionForImageMime,
   isHeicLikeMime,
   resolveImageMime,
+  sniffImageMime,
 } from "@/lib/imageMime";
 
 const MAX_SKIP_BYTES = 500_000;
@@ -13,6 +14,9 @@ export const PREPARE_IMAGE_HEIC_MESSAGE =
 
 export const PREPARE_IMAGE_FAIL_MESSAGE =
   "No se pudo preparar esa imagen. Intenta con otra foto o guárdala como JPG/PNG.";
+
+export const PREPARE_IMAGE_EMPTY_MESSAGE =
+  "No se pudo leer esa foto (a veces pasa si aún está en iCloud). Ábrela en Fotos para descargarla e intenta de nuevo.";
 
 export type PreparedListingImage = {
   outFile: File;
@@ -42,21 +46,24 @@ function clampResize(w: number, h: number, maxEdge: number): { w: number; h: num
 }
 
 function baseName(fileName: string): string {
-  return (fileName || "foto").replace(/\.[^.]+$/i, "") || "foto";
+  const raw = (fileName || "foto").replace(/\.[^.]+$/i, "");
+  return raw && raw !== "image" && raw !== "unnamed" ? raw : "foto";
 }
 
 /**
- * Rewrap gallery / WhatsApp picks that arrive with empty or aliased MIME.
- * HEIC is allowed through: iOS Safari/WebKit can decode it, then we re-encode to JPG/WebP.
+ * Rewrap gallery picks that arrive with empty, aliased, or mislabeled MIME.
+ * Magic bytes win over the declared type (phones often label HEIC as jpeg).
  */
 export async function ensureTypedImageFile(file: File): Promise<File> {
+  if (!file.size) throw new Error(PREPARE_IMAGE_EMPTY_MESSAGE);
+
   const head = await file.slice(0, 64).arrayBuffer();
   const mime = resolveImageMime(file.type, file.name, head);
   if (!mime) return file;
-  if (file.type === mime) return file;
+  if (file.type === mime && file.name) return file;
 
   const ext = extensionForImageMime(mime);
-  const name = /\.[^.]+$/i.test(file.name)
+  const name = file.name && /\.[^.]+$/i.test(file.name)
     ? file.name.replace(/\.[^.]+$/i, `.${ext}`)
     : `${baseName(file.name)}.${ext}`;
   return new File([file], name, { type: mime, lastModified: file.lastModified });
@@ -69,8 +76,7 @@ type DecodedImage = {
   close: () => void;
 };
 
-async function decodeViaImageBitmap(file: File): Promise<DecodedImage> {
-  const bmp = await createImageBitmap(file);
+function bitmapToDecoded(bmp: ImageBitmap): DecodedImage {
   return {
     width: bmp.width,
     height: bmp.height,
@@ -79,6 +85,27 @@ async function decodeViaImageBitmap(file: File): Promise<DecodedImage> {
     },
     close: () => bmp.close(),
   };
+}
+
+/** Prefer downscaling during decode so 12MP+ camera photos don't OOM on mobile. */
+async function decodeViaImageBitmap(file: File): Promise<DecodedImage> {
+  const full = await createImageBitmap(file);
+  const { w, h } = clampResize(full.width, full.height, MAX_EDGE);
+  if (w === full.width && h === full.height) return bitmapToDecoded(full);
+
+  try {
+    full.close();
+    const scaled = await createImageBitmap(file, {
+      resizeWidth: w,
+      resizeHeight: h,
+      resizeQuality: "high",
+    });
+    return bitmapToDecoded(scaled);
+  } catch {
+    // resize options unsupported — fall back to full bitmap (caller draws scaled).
+    const again = await createImageBitmap(file);
+    return bitmapToDecoded(again);
+  }
 }
 
 async function decodeViaHtmlImage(file: File): Promise<DecodedImage> {
@@ -127,16 +154,32 @@ async function decodeImage(file: File): Promise<DecodedImage> {
   return decodeViaHtmlImage(file);
 }
 
+/** Dynamic HEIC→JPEG for browsers without native HEIC (Chrome Android, etc.). */
+async function convertHeicWithLibrary(file: File): Promise<File> {
+  const mod = await import("heic2any");
+  const heic2any = mod.default;
+  const converted = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.85,
+  });
+  const blob = Array.isArray(converted) ? converted[0] : converted;
+  if (!(blob instanceof Blob) || blob.size <= 0) throw new Error("heic_convert_empty");
+  return new File([blob], `${baseName(file.name)}.jpg`, {
+    type: "image/jpeg",
+    lastModified: file.lastModified,
+  });
+}
+
 async function encodeCanvas(
   canvas: HTMLCanvasElement,
   nameBase: string,
 ): Promise<{ file: File; type: string }> {
-  const attempts: { type: string; quality: number; ext: string }[] = supportsWebpCanvas()
-    ? [
-        { type: "image/webp", quality: 0.82, ext: "webp" },
-        { type: "image/jpeg", quality: 0.85, ext: "jpg" },
-      ]
-    : [{ type: "image/jpeg", quality: 0.85, ext: "jpg" }];
+  // Prefer JPEG on mobile upload path — widest decoder/proxy support.
+  const attempts: { type: string; quality: number; ext: string }[] = [
+    { type: "image/jpeg", quality: 0.85, ext: "jpg" },
+    ...(supportsWebpCanvas() ? [{ type: "image/webp", quality: 0.82, ext: "webp" }] : []),
+  ];
 
   for (const attempt of attempts) {
     const blob: Blob | null = await new Promise((resolve) => {
@@ -152,16 +195,43 @@ async function encodeCanvas(
   throw new Error("encode_failed");
 }
 
+async function decodeWithHeicFallback(file: File): Promise<{ decoded: DecodedImage; source: File }> {
+  try {
+    return { decoded: await decodeImage(file), source: file };
+  } catch (first) {
+    const head = await file.slice(0, 64).arrayBuffer();
+    const sniffed = sniffImageMime(head);
+    const maybeHeic =
+      isHeicLikeMime(file.type) ||
+      isHeicLikeMime(sniffed ?? "") ||
+      /\.hei[cf]$/i.test(file.name);
+    if (!maybeHeic) {
+      throw first instanceof Error ? first : new Error(PREPARE_IMAGE_FAIL_MESSAGE);
+    }
+    try {
+      const jpeg = await convertHeicWithLibrary(file);
+      return { decoded: await decodeImage(jpeg), source: jpeg };
+    } catch {
+      throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
+    }
+  }
+}
+
 /** Normalize, optionally recompress, and return an API-safe upload File. */
 export async function prepareListingImage(file: File): Promise<PreparedListingImage> {
   const typed = await ensureTypedImageFile(file);
   const heicLike = isHeicLikeMime(typed.type);
 
   let decoded: DecodedImage;
+  let source = typed;
   try {
-    decoded = await decodeImage(typed);
-  } catch {
-    // Gallery HEIC on browsers without native decode (e.g. Chrome Android).
+    const result = await decodeWithHeicFallback(typed);
+    decoded = result.decoded;
+    source = result.source;
+  } catch (e) {
+    if (e instanceof Error && (e.message === PREPARE_IMAGE_HEIC_MESSAGE || e.message === PREPARE_IMAGE_EMPTY_MESSAGE)) {
+      throw e;
+    }
     if (heicLike) throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
     throw new Error(PREPARE_IMAGE_FAIL_MESSAGE);
   }
@@ -174,19 +244,20 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
     // Never skip re-encode for HEIC — the API does not accept it.
     if (
       !heicLike &&
-      WEB_SAFE_UPLOAD_TYPES.has(typed.type) &&
-      typed.size <= MAX_SKIP_BYTES &&
+      !isHeicLikeMime(source.type) &&
+      WEB_SAFE_UPLOAD_TYPES.has(source.type) &&
+      source.size <= MAX_SKIP_BYTES &&
       outputW === inputW &&
       outputH === inputH
     ) {
       return {
-        outFile: typed,
+        outFile: source,
         inputW,
         inputH,
         outputW,
         outputH,
         skipped: true,
-        outputType: typed.type || "unknown",
+        outputType: source.type || "unknown",
       };
     }
 
@@ -198,7 +269,7 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
     if (!ctx) throw new Error("canvas_2d_unavailable");
     decoded.draw(ctx, outputW, outputH);
 
-    const encoded = await encodeCanvas(canvas, baseName(typed.name));
+    const encoded = await encodeCanvas(canvas, baseName(source.name));
     return {
       outFile: encoded.file,
       inputW,

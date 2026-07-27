@@ -105,24 +105,27 @@ export function isHeicLikeMime(mime: string): boolean {
 }
 
 /**
- * Resolve the best MIME for a picked file: declared alias → magic bytes → extension.
- * Returns empty string when unknown.
+ * Resolve the best MIME for a picked file: magic bytes → declared alias → extension.
+ * Magic bytes win — phone galleries often mislabel HEIC as `image/jpeg`.
  */
 export function resolveImageMime(
   declaredType: string | undefined | null,
   name: string | undefined | null,
   headBytes?: ArrayBuffer | ArrayBufferView | null,
 ): string {
-  const declared = normalizeDeclaredImageMime(declaredType);
-  if (declared === "application/octet-stream" || declared === "binary/octet-stream") {
-    // fall through to sniff
-  } else if (declared.startsWith("image/")) {
-    return declared;
-  }
-
   if (headBytes) {
     const sniffed = sniffImageMime(headBytes);
     if (sniffed) return sniffed;
+  }
+
+  const declared = normalizeDeclaredImageMime(declaredType);
+  if (
+    declared &&
+    declared !== "application/octet-stream" &&
+    declared !== "binary/octet-stream" &&
+    declared.startsWith("image/")
+  ) {
+    return declared;
   }
 
   return mimeFromFileName(name) ?? "";

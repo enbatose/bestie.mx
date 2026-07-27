@@ -71,15 +71,15 @@ export function sniffImageMime(buf: Buffer | Uint8Array): string | null {
 }
 
 /**
- * Resolve a storeable upload MIME: alias → allowlist, else magic-byte sniff.
- * Returns null when the bytes are not an allowed image.
+ * Resolve a storeable upload MIME: magic bytes first (phones mislabel HEIC/JPEG),
+ * then declared alias. Returns null when the bytes are not an allowed image.
  */
 export function resolveUploadMime(declared: string | undefined | null, buffer: Buffer | Uint8Array): string | null {
-  const normalized = normalizeDeclaredImageMime(declared);
-  if (UPLOAD_ALLOWED_MIMES.has(normalized)) return normalized;
-
   const sniffed = sniffImageMime(buffer);
   if (sniffed && UPLOAD_ALLOWED_MIMES.has(sniffed)) return sniffed;
+
+  const normalized = normalizeDeclaredImageMime(declared);
+  if (UPLOAD_ALLOWED_MIMES.has(normalized)) return normalized;
   return null;
 }
 

@@ -43,4 +43,12 @@ describe("imageMime", () => {
     expect(resolveImageMime("image/jpg", "foto.jpg")).toBe("image/jpeg");
     expect(resolveImageMime("", "foto.heic")).toBe("image/heic");
   });
+
+  it("prefers magic bytes over a mislabeled declared type (HEIC labeled as jpeg)", () => {
+    const heic = new Uint8Array(12);
+    heic.set([0x00, 0x00, 0x00, 0x18], 0);
+    heic.set([0x66, 0x74, 0x79, 0x70], 4);
+    heic.set([0x68, 0x65, 0x69, 0x63], 8);
+    expect(resolveImageMime("image/jpeg", "IMG_001.jpg", heic)).toBe("image/heic");
+  });
 });

@@ -5,6 +5,7 @@ import { uploadListingImage } from "@/lib/listingsApi";
 import { perfEnd, perfSampleImageInput, perfStart } from "@/lib/perf";
 import { trackImagePipeline } from "@/lib/imageTelemetry";
 import {
+  PREPARE_IMAGE_EMPTY_MESSAGE,
   PREPARE_IMAGE_FAIL_MESSAGE,
   PREPARE_IMAGE_HEIC_MESSAGE,
   prepareListingImage,
@@ -45,7 +46,7 @@ function friendlyUploadError(err: unknown): string {
     return "Formato de imagen no soportado. Intenta con JPG o PNG.";
   }
   if (raw.includes("file_too_large") || raw.includes("LIMIT_FILE_SIZE")) {
-    return "La imagen supera el máximo de 5 MB.";
+    return "La imagen supera el máximo de 12 MB.";
   }
   if (raw.startsWith("upload_http_")) {
     return "No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.";
@@ -63,7 +64,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
   imagesRef.current = images;
 
   const remaining = Math.max(0, maxCount - images.length);
-  const accept = useMemo(() => "image/*,image/heic,image/heif,.heic,.heif", []);
+  const accept = useMemo(() => "image/*", []);
 
   const remove = useCallback(
     (ix: number) => {
@@ -110,7 +111,9 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
             });
             if (
               e instanceof Error &&
-              (e.message === PREPARE_IMAGE_FAIL_MESSAGE || e.message === PREPARE_IMAGE_HEIC_MESSAGE)
+              (e.message === PREPARE_IMAGE_FAIL_MESSAGE ||
+                e.message === PREPARE_IMAGE_HEIC_MESSAGE ||
+                e.message === PREPARE_IMAGE_EMPTY_MESSAGE)
             ) {
               throw e;
             }
@@ -135,7 +138,21 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
 
           setBusy({ name: f.name || "foto", stage: "subiendo" });
           const m2 = perfStart("upload");
-          const url = await uploadListingImage(converted.outFile);
+          let url: string;
+          try {
+            url = await uploadListingImage(converted.outFile);
+          } catch (uploadErr) {
+            await trackImagePipeline({
+              batchId,
+              step: "upload",
+              ms: perfEnd(m2).ms,
+              ok: false,
+              error: uploadErr instanceof Error ? uploadErr.message : "upload_error",
+              outputBytes: converted.outFile.size,
+              outputType: converted.outputType,
+            });
+            throw uploadErr;
+          }
           const uploadSpan = perfEnd(m2);
           await trackImagePipeline({
             batchId,

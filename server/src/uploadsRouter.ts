@@ -20,7 +20,7 @@ function uploadErrorMessage(err: unknown): { status: number; error: string; mess
       return {
         status: 400,
         error: "file_too_large",
-        message: "La imagen supera el máximo de 5 MB.",
+        message: "La imagen supera el máximo de 12 MB.",
       };
     }
     return { status: 400, error: "upload_failed", message: "No se pudo subir el archivo." };
@@ -46,7 +46,7 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
 
   const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: { fileSize: 12 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const m = normalizeDeclaredImageMime(file.mimetype);
       // Accept empty / octet-stream / any image/* — bytes are sniffed in the handler.
