@@ -1,0 +1,159 @@
+import { normalizeSearchText } from "@/lib/myListingsSearch";
+
+export type FaqItem = {
+  id: string;
+  question: string;
+  /** Plain-text answer used for display when no rich override is needed, and for search. */
+  answer: string;
+  /**
+   * Extra keywords / synonyms that should surface this entry
+   * (e.g. "costo" → comisión, "denunciar" → reportar).
+   */
+  synonyms: readonly string[];
+};
+
+export const FAQ_ITEMS: readonly FaqItem[] = [
+  {
+    id: "que-es",
+    question: "¿Qué es Bestie?",
+    answer:
+      "Un marketplace para encontrar roomies y rentas compartidas en ciudades de México, con foco en confianza y flujos sencillos (mapa, filtros y mensajes en la app).",
+    synonyms: [
+      "que es",
+      "plataforma",
+      "marketplace",
+      "app",
+      "aplicacion",
+      "roomie",
+      "roommate",
+      "companero",
+      "renta compartida",
+      "cuarto compartido",
+      "como funciona",
+      "servicio",
+      "producto",
+    ],
+  },
+  {
+    id: "como-buscar",
+    question: "¿Cómo busco un cuarto o roomie?",
+    answer:
+      "Entra a Buscar, elige ciudad o colonia en el mapa, aplica filtros (género, edad, baño, estacionamiento, etc.) y abre los anuncios que te interesen para contactar.",
+    synonyms: [
+      "buscar",
+      "busqueda",
+      "mapa",
+      "filtro",
+      "filtros",
+      "colonia",
+      "zona",
+      "ciudad",
+      "guadalajara",
+      "encontrar",
+      "como funciona",
+      "pasos",
+    ],
+  },
+  {
+    id: "como-publicar",
+    question: "¿Cómo publico un anuncio?",
+    answer:
+      "Ve a Publicar, completa los datos del cuarto o de la propiedad con varias recámaras, sube fotos y publica. Puedes pausar o editar tus anuncios desde Mis anuncios.",
+    synonyms: [
+      "publicar",
+      "anunciar",
+      "anuncio",
+      "publicacion",
+      "ofrecer",
+      "rentar",
+      "subir",
+      "fotos",
+      "mis anuncios",
+      "propietario",
+      "dueno",
+      "como funciona",
+    ],
+  },
+  {
+    id: "comision",
+    question: "¿Cobra comisión Bestie?",
+    answer:
+      "En esta etapa MVP el uso es gratuito para buscadores y anunciantes; cualquier cambio se publicará con anticipación en esta página y en avisos legales.",
+    synonyms: [
+      "comision",
+      "precio",
+      "costo",
+      "cuanto cuesta",
+      "gratis",
+      "gratuito",
+      "tarifa",
+      "pago",
+      "cobro",
+      "fee",
+      "monetizacion",
+      "plan",
+      "suscripcion",
+    ],
+  },
+  {
+    id: "reportar",
+    question: "¿Cómo reporto un anuncio sospechoso?",
+    answer:
+      "Escríbenos a contacto@bestie.mx con el enlace del anuncio y una breve descripción.",
+    synonyms: [
+      "reportar",
+      "denunciar",
+      "sospechoso",
+      "estafa",
+      "fraude",
+      "scam",
+      "abuso",
+      "spam",
+      "falso",
+      "seguridad",
+      "ayuda",
+      "soporte",
+      "contacto",
+    ],
+  },
+  {
+    id: "datos",
+    question: "¿Mis datos están seguros?",
+    answer:
+      "Consulta cómo tratamos y protegemos tus datos en nuestro Aviso de Privacidad.",
+    synonyms: [
+      "datos",
+      "privacidad",
+      "seguridad",
+      "proteccion",
+      "aviso",
+      "gdpr",
+      "lfpdppp",
+      "cuenta",
+      "correo",
+      "password",
+      "contrasena",
+      "eliminar datos",
+      "borrado",
+    ],
+  },
+];
+
+/**
+ * Filter FAQ entries by free-text query.
+ * Matches question/answer text and synonym keywords (accent/case-insensitive).
+ * Multi-word queries require every token to match at least one field.
+ */
+export function filterFaqItems(items: readonly FaqItem[], query: string): FaqItem[] {
+  const q = normalizeSearchText(query);
+  if (!q) return [...items];
+
+  const tokens = q.split(/\s+/).filter(Boolean);
+
+  return items.filter((item) => {
+    const fields = [item.question, item.answer, ...item.synonyms].map(normalizeSearchText);
+    // Prefer whole-phrase match when the query is a known multi-word synonym.
+    if (fields.some((field) => field.includes(q))) return true;
+    return tokens.every((token) => fields.some((field) => field.includes(token)));
+  });
+}

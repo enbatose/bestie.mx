@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
@@ -41,6 +41,19 @@ export function AppShellLayout() {
   useEffect(() => {
     void analyticsHeartbeat();
   }, []);
+
+  /**
+   * Reset scroll on route change. Without this, navigating from a long page
+   * (home CTA / footer) to a short page like FAQ keeps the previous scroll
+   * offset and lands at the bottom.
+   * Hash targets (e.g. /legal/privacidad#eliminacion-de-datos) are left to
+   * their own scroll handlers.
+   */
+  useLayoutEffect(() => {
+    if (location.hash) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.hash]);
 
   /** Keep header badge and menu in sync after login, profile PATCH, etc. (without full page reload). */
   useEffect(() => {
