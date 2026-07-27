@@ -5,7 +5,9 @@ import { uploadListingImage } from "@/lib/listingsApi";
 import { perfEnd, perfStart } from "@/lib/perf";
 import { fileAuditFields, trackImagePipeline } from "@/lib/imageTelemetry";
 import {
+  PREPARE_IMAGE_EMPTY_MESSAGE,
   PREPARE_IMAGE_FAIL_MESSAGE,
+  PREPARE_IMAGE_HEIC_MESSAGE,
   prepareListingImage,
 } from "@/lib/prepareListingImage";
 import { classifyImageError, sampleImageHead, type ImageUploadSource } from "@/lib/imageUploadDiagnostics";
@@ -48,11 +50,22 @@ function friendlyUploadError(err: unknown): string {
   if (isFilePermissionError(raw)) {
     return "No se pudo leer esa foto. Vuelve a seleccionarla e intenta de nuevo.";
   }
-  if (raw.includes("invalid_mimetype") || raw.includes("unsupported_image")) {
+  if (
+    raw.includes("invalid_mimetype") ||
+    raw.includes("unsupported_image") ||
+    /formato de imagen no soportado/i.test(raw)
+  ) {
     return "Formato de imagen no soportado. Intenta con JPG o PNG.";
   }
   if (raw.includes("file_too_large") || raw.includes("LIMIT_FILE_SIZE")) {
     return "La imagen supera el máximo de 12 MB.";
+  }
+  if (
+    raw === PREPARE_IMAGE_FAIL_MESSAGE ||
+    raw === PREPARE_IMAGE_HEIC_MESSAGE ||
+    raw === PREPARE_IMAGE_EMPTY_MESSAGE
+  ) {
+    return raw;
   }
   if (raw.startsWith("upload_http_")) {
     return "No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.";
@@ -366,7 +379,9 @@ export function BulkImageUploader({
                 img.isCover ? "border-primary ring-2 ring-primary/40" : "border-border"
               }`}
             >
-              <img src={apiAbsoluteUrl(img.url)} alt="" className="h-full w-full object-cover" />
+          <img src={apiAbsoluteUrl(img.url)} alt="" className="h-full w-full object-cover" onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
+          }} />
               {img.isCover ? (
                 <span className="absolute left-1 top-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-fg">
                   Portada

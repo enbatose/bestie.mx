@@ -78,17 +78,20 @@ export function draftImagesAppend(
 
 /**
  * When dual photo fields diverge (commonAreaPhotos vs propertyImageUrls, rooms[].photos vs
- * roomImageUrls), recover added photos from the longer strict-superset side. Prefer the
- * canonical/primary list when the change is ambiguous (e.g. deletions) — writers must set
- * both mirrors together for removals.
+ * roomImageUrls), recover added photos from the longer strict-superset side.
+ * An explicit empty primary array means the gallery was cleared — do not revive fallback.
  */
 export function preferDraftImages(
   primary: DraftImage[] | string[] | undefined,
   fallback: DraftImage[] | string[] | undefined,
 ): DraftImage[] {
+  if (primary === undefined) {
+    return normalizeDraftImages(fallback);
+  }
   const a = normalizeDraftImages(primary);
+  // Writers set `[]` when the user removes every photo; keep that clear.
+  if (a.length === 0) return [];
   const b = normalizeDraftImages(fallback);
-  if (a.length === 0) return b;
   if (b.length === 0) return a;
   const ua = draftImagesToUrls(a);
   const ub = draftImagesToUrls(b);
@@ -134,7 +137,14 @@ export function normalizePersistedDraftImages<T extends {
   unassignedImageUrls: DraftImage[] | string[];
   roomImageUrls: (DraftImage[] | string[])[];
 }>(draft: T): T {
-  const commonAreaPhotos = preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls);
+  // Prefer non-empty side when hydrating older JSON that only filled one mirror.
+  const commonRaw =
+    normalizeDraftImages(draft.commonAreaPhotos).length > 0
+      ? draft.commonAreaPhotos
+      : normalizeDraftImages(draft.propertyImageUrls).length > 0
+        ? draft.propertyImageUrls
+        : draft.commonAreaPhotos ?? draft.propertyImageUrls;
+  const commonAreaPhotos = normalizeDraftImages(commonRaw);
   return {
     ...draft,
     commonAreaPhotos,

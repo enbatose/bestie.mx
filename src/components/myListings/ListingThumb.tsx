@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Home } from "lucide-react";
 
 type Props = {
@@ -13,12 +14,22 @@ type Props = {
  * Do not hardcode conflicting size on this shell — see icon-filter-rendering-updates.
  */
 export function ListingThumb({ src, alt = "", className = "size-16" }: Props) {
+  const [failed, setFailed] = useState(false);
+  const showImage = Boolean(src) && !failed;
+
   return (
     <div
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-bg-light ring-1 ring-border ${className}`.trim()}
     >
-      {src ? (
-        <img src={src} alt={alt} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+      {showImage ? (
+        <img
+          src={src!}
+          alt={alt}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       ) : (
         <Home className="size-5 text-muted" strokeWidth={1.75} aria-hidden />
       )}

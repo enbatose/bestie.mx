@@ -1,6 +1,11 @@
 import { useRef } from "react";
 import { apiBase } from "@/lib/apiBase";
 import type { MessageAttachment } from "@/lib/messagesApi";
+import { resolveImageMime } from "@/lib/imageMime";
+import {
+  PREPARE_IMAGE_FAIL_MESSAGE,
+  prepareListingImage,
+} from "@/lib/prepareListingImage";
 import { persistPickedFiles } from "@/lib/persistPickedFile";
 
 export const ATTACHMENT_MAX_FILES = 5;
@@ -19,6 +24,15 @@ function AttachIcon() {
   );
 }
 
+async function resolvePickedMime(file: File): Promise<string> {
+  try {
+    const head = await file.slice(0, 64).arrayBuffer();
+    return resolveImageMime(file.type, file.name, head);
+  } catch {
+    return resolveImageMime(file.type, file.name, null);
+  }
+}
+
 /** Validates a batch of newly-picked files against the shared attachment limits. */
 export function validatePickedFiles(
   existingCount: number,
@@ -32,7 +46,8 @@ export function validatePickedFiles(
   const accepted: File[] = [];
   let error: string | null = null;
   for (const file of picked) {
-    if (!ATTACHMENT_ALLOWED_TYPES.has(file.type)) {
+    // Declared MIME only — callers that need sniffing should prepare first.
+    if (file.type && !ATTACHMENT_ALLOWED_TYPES.has(file.type)) {
       error = "Solo se permiten imágenes (JPG, PNG, WEBP o GIF).";
       continue;
     }
@@ -76,8 +91,37 @@ export function AttachmentPicker({
   const handlePicked = async (picked: FileList | null) => {
     if (!picked || picked.length === 0) return;
     const durable = await persistPickedFiles(Array.from(picked));
-    const { accepted, error } = validatePickedFiles(totalCount, durable, maxFiles);
-    if (accepted.length > 0) onFilesChange([...files, ...accepted]);
+    const room = Math.max(0, maxFiles - totalCount);
+    if (room <= 0) {
+      onError?.(`Puedes adjuntar hasta ${maxFiles} imágenes.`);
+      return;
+    }
+
+    const prepared: File[] = [];
+    let error: string | null = null;
+    for (const file of durable.slice(0, room)) {
+      try {
+        const mime = await resolvePickedMime(file);
+        if (mime && !ATTACHMENT_ALLOWED_TYPES.has(mime) && !mime.includes("heic") && !mime.includes("heif")) {
+          error = "Solo se permiten imágenes (JPG, PNG, WEBP o GIF).";
+          continue;
+        }
+        if (file.size > ATTACHMENT_MAX_SIZE_BYTES) {
+          error = "Cada imagen debe pesar máximo 5 MB.";
+          continue;
+        }
+        const converted = await prepareListingImage(file);
+        if (converted.outFile.size > ATTACHMENT_MAX_SIZE_BYTES) {
+          error = "Cada imagen debe pesar máximo 5 MB.";
+          continue;
+        }
+        prepared.push(converted.outFile);
+      } catch (e) {
+        error = e instanceof Error ? e.message : PREPARE_IMAGE_FAIL_MESSAGE;
+      }
+    }
+
+    if (prepared.length > 0) onFilesChange([...files, ...prepared]);
     if (error) onError?.(error);
   };
 
@@ -86,7 +130,7 @@ export function AttachmentPicker({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/*"
         multiple
         disabled={disabled}
         className="sr-only"

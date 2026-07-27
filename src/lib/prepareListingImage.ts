@@ -1,13 +1,12 @@
 import {
-  WEB_SAFE_UPLOAD_TYPES,
   extensionForImageMime,
   isHeicLikeMime,
+  normalizeDeclaredImageMime,
   resolveImageMime,
   sniffImageMime,
 } from "@/lib/imageMime";
 import type { ImageDecodePath } from "@/lib/imageUploadDiagnostics";
 
-const MAX_SKIP_BYTES = 500_000;
 const MAX_EDGE = 1920;
 
 export const PREPARE_IMAGE_HEIC_MESSAGE =
@@ -164,6 +163,18 @@ async function decodeViaObjectUrl(file: File): Promise<DecodedImage> {
  * but still decode via FileReader data URLs.
  */
 async function decodeViaFileReader(file: File): Promise<DecodedImage> {
+  const head = await file.slice(0, 64).arrayBuffer().catch(() => null);
+  const mime =
+    (head ? resolveImageMime(file.type, file.name, head) : normalizeDeclaredImageMime(file.type)) ||
+    "image/jpeg";
+  const forRead =
+    file.type === mime
+      ? file
+      : new File([file], file.name || `foto.${extensionForImageMime(mime)}`, {
+          type: mime,
+          lastModified: file.lastModified,
+        });
+
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -171,9 +182,11 @@ async function decodeViaFileReader(file: File): Promise<DecodedImage> {
       else reject(new Error("filereader_bad_result"));
     };
     reader.onerror = () => reject(new Error("filereader_failed"));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(forRead);
   });
-  const img = await loadHtmlImage(dataUrl);
+  // Some Android picks produce data URLs with an empty/octet MIME that <img> rejects.
+  const normalizedDataUrl = dataUrl.replace(/^data:[^;,]*/, `data:${mime}`);
+  const img = await loadHtmlImage(normalizedDataUrl);
   return elementToDecoded(img, img.naturalWidth || img.width, img.naturalHeight || img.height, () => {
     /* data URL — nothing to revoke */
   });
@@ -296,32 +309,8 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
     const inputH = decoded.height;
     const { w: outputW, h: outputH } = clampResize(inputW, inputH, MAX_EDGE);
 
-    // Never skip re-encode for HEIC — the API does not accept it.
-    if (
-      !heicLike &&
-      !isHeicLikeMime(source.type) &&
-      WEB_SAFE_UPLOAD_TYPES.has(source.type) &&
-      source.size <= MAX_SKIP_BYTES &&
-      outputW === inputW &&
-      outputH === inputH
-    ) {
-      return {
-        outFile: source,
-        inputW,
-        inputH,
-        outputW,
-        outputH,
-        skipped: true,
-        outputType: source.type || "unknown",
-        diagnostics: {
-          declaredMime,
-          sniffedMime,
-          decodePath: "skipped",
-          heicConverted,
-        },
-      };
-    }
-
+    // Always re-encode to a clean JPEG/WebP. Skipping let mislabeled gallery bytes
+    // (WhatsApp/Android) reach the server and fail with invalid_mimetype.
     if (typeof document === "undefined") throw new Error("canvas_unavailable");
     const canvas = document.createElement("canvas");
     canvas.width = outputW;

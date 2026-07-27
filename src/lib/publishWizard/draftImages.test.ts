@@ -31,6 +31,14 @@ describe("preferDraftImages", () => {
     const legacy = imgs("/a.jpg");
     expect(preferDraftImages(primary, legacy).map((i) => i.url)).toEqual(["/a.jpg", "/b.jpg"]);
   });
+
+  it("honors an explicit empty primary (gallery cleared)", () => {
+    expect(preferDraftImages([], imgs("/old.jpg"))).toEqual([]);
+  });
+
+  it("falls back when primary is undefined", () => {
+    expect(preferDraftImages(undefined, imgs("/only.jpg")).map((i) => i.url)).toEqual(["/only.jpg"]);
+  });
 });
 
 describe("syncDraftPhotoArrays", () => {
@@ -42,8 +50,22 @@ describe("syncDraftPhotoArrays", () => {
       roomImageUrls: [[]],
       rooms: [{ photos: [] }],
     });
+    // Explicit empty rooms[0].photos must not revive; property mirrors still merge.
     expect(synced.commonAreaPhotos.map((i) => i.url)).toEqual(["/old.jpg", "/new.jpg"]);
     expect(synced.propertyImageUrls.map((i) => i.url)).toEqual(["/old.jpg", "/new.jpg"]);
+    expect(synced.rooms[0]!.photos).toEqual([]);
+  });
+
+  it("clears room mirrors when photos were explicitly emptied", () => {
+    const synced = syncDraftPhotoArrays({
+      commonAreaPhotos: [],
+      propertyImageUrls: [],
+      unassignedImageUrls: [],
+      roomImageUrls: [imgs("/old.jpg", "/new.jpg")],
+      rooms: [{ photos: [] }],
+    });
+    expect(synced.rooms[0]!.photos).toEqual([]);
+    expect(synced.roomImageUrls[0]).toEqual([]);
   });
 
   it("writes both room mirrors from a legacy-only add", () => {

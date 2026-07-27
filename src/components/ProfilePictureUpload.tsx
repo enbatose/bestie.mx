@@ -84,7 +84,7 @@ export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+          accept="image/*"
           className="sr-only"
           onChange={(e) => void onPick(e.target.files?.[0])}
         />

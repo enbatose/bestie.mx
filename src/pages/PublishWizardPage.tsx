@@ -1926,6 +1926,7 @@ export function PublishWizardPage() {
                   syncDraftPhotoFields({
                     ...d,
                     rooms: d.rooms.map((room, i) => (i === roomIndex ? { ...room, photos } : room)),
+                    roomImageUrls: d.roomImageUrls.map((row, i) => (i === roomIndex ? photos : row)),
                   }),
                 )
               }
@@ -2299,6 +2300,9 @@ export function PublishWizardPage() {
                             syncDraftPhotoFields({
                               ...d,
                               rooms: d.rooms.map((r, ri) => (ri === i ? { ...r, photos: next } : r)),
+                              roomImageUrls: d.roomImageUrls.map((row, ri) =>
+                                ri === i ? next : row,
+                              ),
                             }),
                           );
                         }}

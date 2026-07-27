@@ -4,6 +4,7 @@ import { uploadListingImage } from "@/lib/listingsApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { preferDraftImages, syncDraftPhotoArrays } from "@/lib/publishWizard/draftImages";
+import { prepareListingImage } from "@/lib/prepareListingImage";
 
 async function uploadDraftImageUrlIfNeeded(url: string): Promise<string> {
   const normalized = normalizeListingImageUrlForApi(url);
@@ -19,7 +20,8 @@ async function uploadDraftImageUrlIfNeeded(url: string): Promise<string> {
     blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
   const name = url.split("/").pop()?.replace(/\?.*$/, "") || `photo.${ext}`;
   const file = new File([blob], name, { type: blob.type || "image/jpeg" });
-  return uploadListingImage(file);
+  const prepared = await prepareListingImage(file);
+  return uploadListingImage(prepared.outFile);
 }
 
 async function ensureDraftImagesUploaded(images: readonly DraftImage[]): Promise<DraftImage[]> {

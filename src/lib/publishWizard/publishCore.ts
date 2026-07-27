@@ -157,7 +157,8 @@ export function roomApiFieldsFromDraft(draft: Draft, room: RoomDraft, roomIndex:
     depositMxn: room.depositMxn,
     occupantWomenCount: Math.max(0, Math.floor(room.occupantWomenCount ?? 0)),
     occupantMenCount: Math.max(0, Math.floor(room.occupantMenCount ?? 0)),
-    ...(imageUrls.length > 0 ? { imageUrls } : {}),
+    // Always send (including []) so clearing the gallery persists.
+    imageUrls,
   };
   if (occupied) {
     return {
@@ -208,9 +209,9 @@ export function draftRoomImageUrlsForApi(draft: Draft, roomIndex: number): strin
   return listingImageUrlsForApi(draftRoomImageUrls(draft, roomIndex));
 }
 
-function propertyImagePatch(draft: Draft): { imageUrls?: string[] } {
-  const imageUrls = draftPropertyImageUrlsForSync(draft);
-  return imageUrls.length > 0 ? { imageUrls } : {};
+function propertyImagePatch(draft: Draft): { imageUrls: string[] } {
+  // Always include imageUrls (even []) so live-edit can clear the gallery.
+  return { imageUrls: draftPropertyImageUrlsForSync(draft) };
 }
 
 export function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTag[] {
