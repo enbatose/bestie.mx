@@ -65,6 +65,12 @@ type Props = {
   editScope?: LiveEditScope | null;
   profilePhoneE164?: string | null;
   onDraftChange: (updater: (d: Draft) => Draft) => void;
+  /** Re-open photo editor after camera/gallery remount (live edit). */
+  initialEditingPhotos?: boolean;
+  /** Notify parent when the inline photo editor opens/closes (persist across remounts). */
+  onEditingPhotosChange?: (editing: boolean) => void;
+  /** Flush live-edit snapshot before OS camera/gallery may kill the tab. */
+  onPhotoPickerOpen?: () => void;
 };
 
 function PreviewSection({
@@ -241,6 +247,9 @@ export function EditableListingPreview({
   editScope = null,
   profilePhoneE164,
   onDraftChange,
+  initialEditingPhotos = false,
+  onEditingPhotosChange,
+  onPhotoPickerOpen,
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
@@ -271,8 +280,13 @@ export function EditableListingPreview({
   const [editingPropertyTags, setEditingPropertyTags] = useState(false);
   const [editingRoom, setEditingRoom] = useState(false);
   const [editingRoomTags, setEditingRoomTags] = useState(false);
-  const [editingPhotos, setEditingPhotos] = useState(false);
+  const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos);
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
+
+  const setPhotosEditing = (next: boolean) => {
+    setEditingPhotos(next);
+    onEditingPhotosChange?.(next);
+  };
 
   const [headerDraft, setHeaderDraft] = useState({
     neighborhood: draft.neighborhood,
@@ -626,12 +640,12 @@ export function EditableListingPreview({
         )}
       </header>
 
-      <PreviewSection title="Fotos" onEdit={() => setEditingPhotos(true)} editLabel="Editar fotos">
+      <PreviewSection title="Fotos" onEdit={() => setPhotosEditing(true)} editLabel="Editar fotos">
         {editingPhotos ? (
           <InlineFieldEditor
             label="Galería de fotos"
-            onSave={() => setEditingPhotos(false)}
-            onCancel={() => setEditingPhotos(false)}
+            onSave={() => setPhotosEditing(false)}
+            onCancel={() => setPhotosEditing(false)}
             saveLabel="Listo"
           >
             {showPropertyBlocks && draft.postMode === "property" && draft.unassignedImageUrls.length > 0 ? (
@@ -732,6 +746,7 @@ export function EditableListingPreview({
                 images={preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls)}
                 maxCount={20}
                 apiOn={apiOn}
+                onPickerOpen={onPhotoPickerOpen}
                 onImagesChange={(next) =>
                   onDraftChange((d) =>
                     syncDraftPhotoArrays({
@@ -753,6 +768,7 @@ export function EditableListingPreview({
                 maxCount={20}
                 apiOn={apiOn}
                 hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
+                onPickerOpen={onPhotoPickerOpen}
                 onImagesChange={(next) =>
                   onDraftChange((d) =>
                     syncDraftPhotoArrays({
@@ -773,6 +789,7 @@ export function EditableListingPreview({
                 maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
                 apiOn={apiOn}
                 hint="Sube aquí y luego asígnalas arriba o en el paso de etiquetado."
+                onPickerOpen={onPhotoPickerOpen}
                 onImagesChange={(next) =>
                   onDraftChange((d) => syncDraftPhotoArrays({ ...d, unassignedImageUrls: next }))
                 }

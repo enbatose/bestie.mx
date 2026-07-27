@@ -32,6 +32,9 @@ type Props = {
   onPublish: () => void;
   /** Owner editing an already-published or paused listing (not the first-time wizard). */
   liveEdit?: LiveEditContext | null;
+  initialEditingPhotos?: boolean;
+  onEditingPhotosChange?: (editing: boolean) => void;
+  onPhotoPickerOpen?: () => void;
 };
 
 export function PublishWizardReviewStep({
@@ -47,6 +50,9 @@ export function PublishWizardReviewStep({
   onSaveDraft,
   onPublish,
   liveEdit = null,
+  initialEditingPhotos = false,
+  onEditingPhotosChange,
+  onPhotoPickerOpen,
 }: Props) {
   const isLiveEdit = liveEdit != null;
   const editScope = liveEdit?.scope ?? null;
@@ -183,6 +189,9 @@ export function PublishWizardReviewStep({
         editScope={editScope}
         profilePhoneE164={profilePhoneE164}
         onDraftChange={onDraftChange}
+        initialEditingPhotos={initialEditingPhotos}
+        onEditingPhotosChange={onEditingPhotosChange}
+        onPhotoPickerOpen={onPhotoPickerOpen}
       />
 
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">

@@ -10,6 +10,7 @@ import {
 } from "@/lib/prepareListingImage";
 import { classifyImageError, sampleImageHead, type ImageUploadSource } from "@/lib/imageUploadDiagnostics";
 import { isFilePermissionError, persistPickedFiles } from "@/lib/persistPickedFile";
+import { markPhotoPickerIntent, clearPhotoPickerIntent } from "@/lib/publishWizard/liveEditSession";
 import {
   appendDraftImageUrl,
   removeDraftImage,
@@ -32,6 +33,8 @@ type Props = {
   hint?: string;
   /** Called after a batch of files finishes uploading (or fails). */
   onBatchComplete?: () => void;
+  /** Called just before the OS gallery/camera picker opens (tab may be killed). */
+  onPickerOpen?: (source: ImageUploadSource) => void;
 };
 
 type BusyRow = {
@@ -66,7 +69,16 @@ function httpStatusFromUploadError(err: unknown): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
-export function BulkImageUploader({ title, images, maxCount, onImagesChange, apiOn, hint, onBatchComplete }: Props) {
+export function BulkImageUploader({
+  title,
+  images,
+  maxCount,
+  onImagesChange,
+  apiOn,
+  hint,
+  onBatchComplete,
+  onPickerOpen,
+}: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyRow | null>(null);
   const batchIdRef = useRef<string>(
@@ -237,6 +249,8 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
     (source: ImageUploadSource) => (e: ChangeEvent<HTMLInputElement>) => {
       const input = e.target;
       const list = input.files ? Array.from(input.files) : [];
+      // Picker returned in-page (no remount) — drop the kill-recovery intent.
+      clearPhotoPickerIntent();
       void (async () => {
         const persistMark = perfStart("persist");
         try {
@@ -272,6 +286,14 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
     [addFiles],
   );
 
+  const openPicker = useCallback(
+    (source: ImageUploadSource) => {
+      markPhotoPickerIntent(source === "camera" || source === "gallery" ? source : "unknown");
+      onPickerOpen?.(source);
+    },
+    [onPickerOpen],
+  );
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -283,11 +305,17 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated">
+          <label
+            className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated"
+            onClick={() => openPicker("gallery")}
+          >
             <input type="file" accept={accept} multiple className="sr-only" onChange={pickAndAdd("gallery")} />
             Subir fotos
           </label>
-          <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated">
+          <label
+            className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated"
+            onClick={() => openPicker("camera")}
+          >
             <input
               type="file"
               accept={accept}

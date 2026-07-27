@@ -26,6 +26,13 @@ import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
+  clearLiveEditSession,
+  consumePhotoPickerIntent,
+  readLiveEditSession,
+  writeLiveEditSession,
+  type LiveEditSession,
+} from "@/lib/publishWizard/liveEditSession";
+import {
   buildMyListingsHubPath,
   buildMyListingsRestorePath,
   readMyListingsReturn,
@@ -782,6 +789,7 @@ export function PublishWizardPage() {
   );
   /** Property-card Edit omits `room`; room-row Edit includes it. Survives after query params are cleared. */
   const [liveEditScope, setLiveEditScope] = useState<"property" | "room" | null>(null);
+  const [liveEditEditingPhotos, setLiveEditEditingPhotos] = useState(false);
   const apiOn = isListingsApiConfigured();
   const [step, setStep] = useState(0);
   const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
@@ -887,6 +895,8 @@ export function PublishWizardPage() {
       setStorageReady(false);
       setEditingLiveProperty(null);
       setEditPostModeLock(null);
+      setLiveEditEditingPhotos(false);
+      clearLiveEditSession();
       setDraft(defaultDraft());
       setServerSync({ propertyId: null, roomIds: [] });
       setStep(0);
@@ -906,6 +916,8 @@ export function PublishWizardPage() {
     if (didHydrateLocalForUserRef.current === uid) return;
     didHydrateLocalForUserRef.current = uid;
     clearLegacyWizardDraftStorage();
+    clearLiveEditSession();
+    setLiveEditEditingPhotos(false);
     setDraft(defaultDraft());
     setServerSync({ propertyId: null, roomIds: [] });
     setStep(0);
@@ -973,12 +985,88 @@ export function PublishWizardPage() {
   }, [apiOn, handoffToken, setSearchParams]);
 
   useEffect(() => {
+    // Camera/gallery can kill the tab after we used to strip ?edit= — restore the edit URL
+    // when a fresh photo-picker intent + live-edit snapshot are present.
+    if (editPropertyId) return;
+    const intent = consumePhotoPickerIntent();
+    if (!intent) return;
+    const cached = readLiveEditSession();
+    if (!cached) return;
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev);
+        n.set("edit", cached.propertyId);
+        if (cached.roomId) n.set("room", cached.roomId);
+        else n.delete("room");
+        return n;
+      },
+      {
+        replace: true,
+        state: withMyListingsReturn(null, myListingsReturnRef.current) ?? null,
+      },
+    );
+  }, [editPropertyId, setSearchParams]);
+
+  function applyLiveEditSession(cached: LiveEditSession) {
+    const nextDraft = normalizePersistedDraft(cached.draft);
+    setDraft(nextDraft);
+    setServerSync(cached.serverSync);
+    serverSyncRef.current = cached.serverSync;
+    setEditingLiveProperty({ status: cached.status });
+    setEditPostModeLock(cached.draft.postMode);
+    setLiveEditScope(cached.scope);
+    setLiveEditReturnListingId(cached.returnListingId);
+    setPreviewRoomIndex(
+      Math.min(cached.previewRoomIndex, Math.max(0, nextDraft.rooms.length - 1)),
+    );
+    setLiveEditEditingPhotos(cached.editingPhotos);
+    setStep(publishWizardLastStepIndex(nextDraft.postMode));
+    markAutosaveBaseline(nextDraft);
+    setHandoffBanner(
+      cached.status === "paused"
+        ? "Anuncio en pausa. Edita por sección y usa “Guardar y republicar” para volver a activarlo en búsqueda."
+        : null,
+    );
+  }
+
+  function persistLiveEditSession(opts?: { editingPhotos?: boolean }) {
+    const propertyId = serverSyncRef.current.propertyId ?? editPropertyId;
+    if (!editingLiveProperty || !propertyId) return;
+    writeLiveEditSession({
+      propertyId,
+      roomId: editListingId ?? liveEditReturnListingId,
+      scope: liveEditScope ?? "room",
+      status: editingLiveProperty.status,
+      draft: draftRef.current,
+      serverSync: serverSyncRef.current,
+      previewRoomIndex: previewRoomIndex,
+      returnListingId: liveEditReturnListingId,
+      editingPhotos: opts?.editingPhotos ?? liveEditEditingPhotos,
+      updatedAt: Date.now(),
+    });
+  }
+
+  useEffect(() => {
     if (!editPropertyId) return;
     if (!apiOn) return;
     setEditBundleReady(false);
     let cancelled = false;
     void (async () => {
       try {
+        const cached = readLiveEditSession();
+        const preferCached =
+          Boolean(cached) &&
+          cached!.propertyId === editPropertyId &&
+          (cached!.editingPhotos || Date.now() - cached!.updatedAt < 120_000);
+        if (preferCached && cached) {
+          if (!cancelled) {
+            applyLiveEditSession(cached);
+            const sessionUser = await authMe();
+            if (sessionUser?.id) didHydrateLocalForUserRef.current = sessionUser.id;
+          }
+          return;
+        }
+
         const bundle = await fetchPropertyWithRooms(editPropertyId);
         if (bundle && !cancelled) {
           const mapped = draftFromPropertyBundle(bundle);
@@ -1004,10 +1092,9 @@ export function PublishWizardPage() {
               ? editListingId
               : srvRooms[previewIdx]?.id) ?? srvRooms.find((r) => r.status === "published")?.id ?? srvRooms[0]?.id ?? null;
           setLiveEditReturnListingId(returnId);
-          // Property Mis Anuncios card → property scope; room row (or standalone room post) → room scope.
-          setLiveEditScope(
-            editListingId || nextDraft.postMode !== "property" ? "room" : "property",
-          );
+          const scope: "property" | "room" =
+            editListingId || nextDraft.postMode !== "property" ? "room" : "property";
+          setLiveEditScope(scope);
 
           if (ps === "published" || ps === "paused") {
             setStep(publishWizardLastStepIndex(nextDraft.postMode));
@@ -1021,8 +1108,21 @@ export function PublishWizardPage() {
                 ? "Anuncio en pausa. Edita por sección y usa “Guardar y republicar” para volver a activarlo en búsqueda."
                 : null,
             );
+            writeLiveEditSession({
+              propertyId: editPropertyId,
+              roomId: editListingId,
+              scope,
+              status: ps,
+              draft: nextDraft,
+              serverSync: mapped.serverSync,
+              previewRoomIndex: previewIdx,
+              returnListingId: returnId,
+              editingPhotos: false,
+              updatedAt: Date.now(),
+            });
           } else {
             setHandoffBanner("Borrador cargado para editar.");
+            clearLiveEditSession();
           }
           const session = await authMe();
           if (session?.id) didHydrateLocalForUserRef.current = session.id;
@@ -1036,25 +1136,30 @@ export function PublishWizardPage() {
         if (!cancelled) {
           setEditBundleReady(true);
           setStorageReady(true);
-          setSearchParams(
-            (prev) => {
-              const n = new URLSearchParams(prev);
-              n.delete("edit");
-              n.delete("room");
-              return n;
-            },
-            {
-              replace: true,
-              state: withMyListingsReturn(null, myListingsReturnRef.current) ?? null,
-            },
-          );
+          // Keep ?edit=&room= so Android camera/gallery tab kills remount back into live edit.
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [apiOn, editPropertyId, editListingId, setSearchParams]);
+  }, [apiOn, editPropertyId, editListingId]);
+
+  useEffect(() => {
+    if (!editingLiveProperty) return;
+    if (!serverSync.propertyId && !editPropertyId) return;
+    persistLiveEditSession();
+  }, [
+    editingLiveProperty,
+    draft,
+    serverSync,
+    previewRoomIndex,
+    liveEditReturnListingId,
+    liveEditScope,
+    liveEditEditingPhotos,
+    editPropertyId,
+    editListingId,
+  ]);
 
   /** Drop any stale reverse-geocode label; the UI shows a coordinate fallback until Nominatim returns. */
   useLayoutEffect(() => {
@@ -2373,6 +2478,7 @@ export function PublishWizardPage() {
           serverSyncRef.current.roomIds[roomIdx] ?? liveEditReturnListingId ?? result.roomId;
 
         if (editingLiveProperty && myListingsRestorePath) {
+          clearLiveEditSession();
           navigate(myListingsRestorePath, {
             replace: true,
             state: {
@@ -2385,6 +2491,7 @@ export function PublishWizardPage() {
         }
 
         if (editingLiveProperty?.status === "published") {
+          clearLiveEditSession();
           navigate(listingPublicPath(returnId), {
             replace: true,
             state: withMyListingsReturn({ listingUpdated: true }, myListingsReturn),
@@ -2393,6 +2500,7 @@ export function PublishWizardPage() {
         }
 
         setEditingLiveProperty(null);
+        clearLiveEditSession();
         setServerSync({ propertyId: null, roomIds: [] });
         serverSyncRef.current = { propertyId: null, roomIds: [] };
         setPublishSuccessRoomId(returnId);
@@ -2561,6 +2669,9 @@ export function PublishWizardPage() {
             submitInFlight={submitInFlight}
             onSaveDraft={() => void submitServerDraft()}
             onPublish={() => void submitPublish()}
+            initialEditingPhotos={liveEditEditingPhotos}
+            onEditingPhotosChange={setLiveEditEditingPhotos}
+            onPhotoPickerOpen={() => persistLiveEditSession({ editingPhotos: true })}
             liveEdit={{
               status: editingLiveProperty.status,
               returnListingId,
