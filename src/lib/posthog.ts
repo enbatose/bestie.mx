@@ -1,14 +1,16 @@
 import posthog from "posthog-js";
 
-/** Public project token (browser-safe). Prefer env so environments can override. */
-const DEFAULT_PROJECT_TOKEN = "phc_ogdsRzYPo7kFh9coJboaRrbaWgeYpCFe984sh6c4fN67";
+/** Ingestion host (US Cloud). Only used when a project token is set. */
 const DEFAULT_HOST = "https://us.i.posthog.com";
 
-const token =
-  import.meta.env.VITE_POSTHOG_PROJECT_TOKEN?.trim() || DEFAULT_PROJECT_TOKEN;
+/**
+ * PostHog is production-only. Dev / local builds leave
+ * `VITE_POSTHOG_PROJECT_TOKEN` unset so no events are sent.
+ */
+const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN?.trim() || "";
 const host = import.meta.env.VITE_POSTHOG_HOST?.trim() || DEFAULT_HOST;
 
-/** True when a project token is configured (local or production). */
+/** True when a project token is configured for this build. */
 export function isPostHogConfigured(): boolean {
   return Boolean(token);
 }

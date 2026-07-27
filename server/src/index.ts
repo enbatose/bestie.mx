@@ -67,7 +67,7 @@ const instanceId =
   randomUUID().slice(0, 12);
 
 const corsOrigins = (process.env.CORS_ORIGINS ??
-  "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://bestie.mx,https://www.bestie.mx")
+  "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://bestie.mx,https://www.bestie.mx,https://dev.bestie.mx")
   .split(",")
   .map((s) => s.trim().replace(/\/+$/, ""))
   .filter(Boolean);

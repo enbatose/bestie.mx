@@ -9,7 +9,7 @@ Product analytics for usage behavior. Client SDK: `posthog-js` + `@posthog/react
 | `VITE_POSTHOG_PROJECT_TOKEN` | Project token (`phc_…`) — public, browser-safe |
 | `VITE_POSTHOG_HOST` | Ingestion host (US: `https://us.i.posthog.com`) |
 
-Set these in `.env.local` (local) and in the **production build** environment (Vite inlines `VITE_*` at build time).
+Set these on the **production** Railway service only (Vite inlines `VITE_*` at build time). Leave them unset on Dev (`dev.bestie.mx`) and local so no events are sent.
 
 Organization: `019f71ea-041f-0000-e8d7-cf0412e4fc75` · Project ID: `517444` · Region: US Cloud.
 

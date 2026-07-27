@@ -100,14 +100,20 @@ Listing photos are stored as files (and duplicated in SQLite `upload_blobs`). If
 
 ### Hosting (Railway only)
 
-Production runs on **Railway** ([`Dockerfile`](Dockerfile) + [`railway.toml`](railway.toml)): one service serves the Vite SPA and the Express API on the same origin (`/api/...`). There is no GitHub Pages or other static frontend host.
+Two Railway services in project **discerning-quietude** each serve the Vite SPA and Express API on the same origin (`/api/...`):
 
-- **Canonical site:** `https://www.bestie.mx` (apex `bestie.mx` redirects to www with the same path).
-- **Local dev:** Vite on `:5173` proxies `/api` to the API process, or set `VITE_API_URL` via `npm run env:local`.
+| Environment | Domain | Git branch | Database |
+| --- | --- | --- | --- |
+| **Production** | `https://www.bestie.mx` (apex `bestie.mx` → www) | `main` | Fresh volume (`/data`) — pilot / real users |
+| **Dev** | `https://dev.bestie.mx` | `develop` | Existing test-data volume |
+
+- **Local:** Vite on `:5173` proxies `/api`, or set `VITE_API_URL` via `npm run env:local`.
+- **PostHog:** set `VITE_POSTHOG_PROJECT_TOKEN` on **production only**.
+- **Promote:** merge `develop` → `main` (or ask the agent to deploy to prod) after manual validation on Dev.
 
 **Apex DNS (`bestie.mx`) must hit Railway.** If `www.bestie.mx` works but `bestie.mx/buscar` returns 404, apex DNS is still pointed at a registrar redirect or old host—not the Railway service. Fix:
 
-1. In **Railway** → service → **Settings** → **Networking** → add custom domain **`bestie.mx`** (in addition to `www.bestie.mx`).
+1. In **Railway** → **production** service → **Settings** → **Networking** → add custom domain **`bestie.mx`** (in addition to `www.bestie.mx`).
 2. At your DNS provider, replace apex **A** records (registrar forwarding) with the **CNAME + TXT** pair Railway shows for `bestie.mx`. Providers without apex CNAME need **ALIAS/ANAME** or **Cloudflare** (CNAME flattening).
 3. Remove any **URL forwarding** / **domain redirect** rules for `bestie.mx` at the registrar.
 4. After DNS propagates, Express middleware in `server/src/appFactory.ts` 301s `bestie.mx/*` → `https://www.bestie.mx/*` with the path preserved.
@@ -116,9 +122,9 @@ Verify: `curl -I https://bestie.mx/buscar/gdl` should return `301` with `Locatio
 
 ### Google Maps / Street View (Railway)
 
-Set build-time env vars on the Railway service:
+Set build-time env vars on **both** Railway services (or at least the one you are testing):
 
-- **`VITE_GOOGLE_MAPS_EMBED_KEY`** — Maps JavaScript API + Embed API key (Vite bakes `VITE_*` at `npm run build`).
+- **`VITE_GOOGLE_MAPS_EMBED_KEY`** — Maps JavaScript API + Embed API key (Vite bakes `VITE_*` at `npm run build`). Add `https://dev.bestie.mx/*` to the GCP HTTP referrer allowlist.
 
 See **[`docs/integrations/google-maps-pricing.md`](docs/integrations/google-maps-pricing.md)** for GCP referrer restrictions, SKU pricing, session tracking, and the admin **Métricas** dashboard.
 
