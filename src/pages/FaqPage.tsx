@@ -44,7 +44,7 @@ export function FaqPage() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold text-primary">Preguntas frecuentes</h1>
       <p className="mt-2 text-sm text-muted">
-        Cómo funciona Bestie y respuestas cortas mientras el producto evoluciona.
+        Respuestas cortas sobre cómo funciona Bestie mientras el producto evoluciona.
       </p>
 
       <div className="relative mt-6">

@@ -38,7 +38,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     id: "como-buscar",
     question: "¿Cómo busco un cuarto o roomie?",
     answer:
-      "Entra a Buscar, elige ciudad o colonia en el mapa, aplica filtros (género, edad, baño, estacionamiento, etc.) y abre los anuncios que te interesen para contactar.",
+      "Entra a Buscar, elige ciudad o colonia en el mapa, aplica filtros (género, edad, baño, estacionamiento, etc.) y abre los anuncios que te interesen para contactar al anunciante.",
     synonyms: [
       "buscar",
       "busqueda",
@@ -78,7 +78,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     id: "comision",
     question: "¿Cobra comisión Bestie?",
     answer:
-      "En esta etapa MVP el uso es gratuito para buscadores y anunciantes; cualquier cambio se publicará con anticipación en esta página y en avisos legales.",
+      "En esta etapa el uso es gratuito para buscadores y anunciantes; cualquier cambio se publicará con anticipación en esta página y en avisos legales.",
     synonyms: [
       "comision",
       "precio",
