@@ -479,7 +479,8 @@ export function openDb(databasePath: string): DatabaseSync {
   ensureNotificationsSchema(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
-  if (countRow.c === 0) {
+  // Demo catalog only when explicitly enabled (local/dev). Production stays empty for pilots.
+  if (countRow.c === 0 && process.env.SEED_DEMO_ON_EMPTY === "1") {
     seedFromLegacyJson(db, legacySeed as LegacyListingRow[]);
   }
 

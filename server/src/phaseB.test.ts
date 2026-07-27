@@ -8,6 +8,8 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 
 describe("Phase B schema (properties + rooms)", () => {
   it("seeds catalog with at least one multi-room property", () => {
+    const prev = process.env.SEED_DEMO_ON_EMPTY;
+    process.env.SEED_DEMO_ON_EMPTY = "1";
     const dir = mkdtempSync(join(tmpdir(), "bestie-phaseb-"));
     const dbPath = join(dir, "test.db");
     let db: DatabaseSync | undefined;
@@ -30,7 +32,9 @@ describe("Phase B schema (properties + rooms)", () => {
       expect(listing.propertyId).toBe("prp__buc_duplex_demo");
       expect(listing.id).toBe("buc-demo-a");
     } finally {
-      db.close();
+      if (prev === undefined) delete process.env.SEED_DEMO_ON_EMPTY;
+      else process.env.SEED_DEMO_ON_EMPTY = prev;
+      db?.close();
       try {
         rmSync(dir, { recursive: true, force: true });
       } catch {
