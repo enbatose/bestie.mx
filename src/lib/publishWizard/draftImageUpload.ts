@@ -3,6 +3,7 @@ import { normalizeListingImageUrlForApi } from "@/lib/listingImageUrls";
 import { uploadListingImage } from "@/lib/listingsApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
+import { preferDraftImages, syncDraftPhotoArrays } from "@/lib/publishWizard/draftImages";
 
 async function uploadDraftImageUrlIfNeeded(url: string): Promise<string> {
   const normalized = normalizeListingImageUrlForApi(url);
@@ -33,14 +34,17 @@ async function ensureDraftImagesUploaded(images: readonly DraftImage[]): Promise
 
 /** Uploads local/seed preview URLs so sync/publish can persist `/api/uploads/...` paths. */
 export async function ensureDraftListingImagesUploadedForApi(draft: Draft): Promise<Draft> {
+  draft = syncDraftPhotoArrays(draft);
   const commonAreaPhotos = await ensureDraftImagesUploaded(
-    draft.commonAreaPhotos ?? draft.propertyImageUrls,
+    preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls),
   );
   const unassignedImageUrls = await ensureDraftImagesUploaded(draft.unassignedImageUrls);
   const rooms = await Promise.all(
     draft.rooms.map(async (room, i) => ({
       ...room,
-      photos: await ensureDraftImagesUploaded(room.photos ?? draft.roomImageUrls[i] ?? []),
+      photos: await ensureDraftImagesUploaded(
+        preferDraftImages(room.photos, draft.roomImageUrls[i]),
+      ),
     })),
   );
   const roomImageUrls = rooms.map((room) => room.photos);

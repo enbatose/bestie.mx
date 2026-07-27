@@ -76,13 +76,65 @@ export function draftImagesAppend(
   return merged.slice(0, maxCount);
 }
 
+/**
+ * When dual photo fields diverge (commonAreaPhotos vs propertyImageUrls, rooms[].photos vs
+ * roomImageUrls), recover added photos from the longer strict-superset side. Prefer the
+ * canonical/primary list when the change is ambiguous (e.g. deletions) — writers must set
+ * both mirrors together for removals.
+ */
+export function preferDraftImages(
+  primary: DraftImage[] | string[] | undefined,
+  fallback: DraftImage[] | string[] | undefined,
+): DraftImage[] {
+  const a = normalizeDraftImages(primary);
+  const b = normalizeDraftImages(fallback);
+  if (a.length === 0) return b;
+  if (b.length === 0) return a;
+  const ua = draftImagesToUrls(a);
+  const ub = draftImagesToUrls(b);
+  if (ua.join("\0") === ub.join("\0")) return a;
+  const setA = new Set(ua);
+  const setB = new Set(ub);
+  if (ub.length > ua.length && ua.every((u) => setB.has(u))) return b;
+  if (ua.length > ub.length && ub.every((u) => setA.has(u))) return a;
+  return a;
+}
+
+/** Keep property + room photo mirrors in sync before autosave / publish / edit save. */
+export function syncDraftPhotoArrays<
+  T extends {
+    commonAreaPhotos?: DraftImage[];
+    propertyImageUrls?: DraftImage[];
+    unassignedImageUrls?: DraftImage[];
+    roomImageUrls?: DraftImage[][];
+    rooms: Array<{ photos?: DraftImage[] } & Record<string, unknown>>;
+  },
+>(d: T): T {
+  const commonAreaPhotos = preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls);
+  const legacyRows = d.roomImageUrls ?? [];
+  const rooms = d.rooms.map((room, i) => ({
+    ...room,
+    photos: preferDraftImages(room.photos, legacyRows[i]),
+  }));
+  const roomImageUrls = rooms.map((r) => normalizeDraftImages(r.photos));
+  while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
+  return {
+    ...d,
+    rooms,
+    commonAreaPhotos,
+    propertyImageUrls: commonAreaPhotos,
+    unassignedImageUrls: normalizeDraftImages(d.unassignedImageUrls),
+    roomImageUrls: roomImageUrls.slice(0, Math.max(rooms.length, 1)),
+  };
+}
+
 export function normalizePersistedDraftImages<T extends {
   commonAreaPhotos?: DraftImage[] | string[];
   propertyImageUrls: DraftImage[] | string[];
   unassignedImageUrls: DraftImage[] | string[];
   roomImageUrls: (DraftImage[] | string[])[];
 }>(draft: T): T {
-  const commonAreaPhotos = normalizeDraftImages(draft.commonAreaPhotos ?? draft.propertyImageUrls);
+  const commonAreaPhotos = preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls);
   return {
     ...draft,
     commonAreaPhotos,

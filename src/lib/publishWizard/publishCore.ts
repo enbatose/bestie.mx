@@ -12,7 +12,7 @@ import {
 import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { ensureDraftListingImagesUploadedForApi } from "@/lib/publishWizard/draftImageUpload";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
-import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
+import { draftImagesToUrls, preferDraftImages } from "@/lib/publishWizard/draftImages";
 import { listingImageUrlsForApi } from "@/lib/listingImageUrls";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { formatRoomsValidationMessage } from "@/lib/publishWizard/roomWizardValidation";
@@ -177,11 +177,11 @@ export function effectiveRoomsAvailable(draft: Draft, roomIndex: number): number
 }
 
 export function draftCommonAreaPhotos(draft: Draft): DraftImage[] {
-  return draft.commonAreaPhotos ?? draft.propertyImageUrls ?? [];
+  return preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls);
 }
 
 export function draftRoomPhotos(draft: Draft, roomIndex: number): DraftImage[] {
-  return draft.rooms[roomIndex]?.photos ?? draft.roomImageUrls[roomIndex] ?? [];
+  return preferDraftImages(draft.rooms[roomIndex]?.photos, draft.roomImageUrls[roomIndex]);
 }
 
 export function draftPropertyImageUrls(draft: Draft): string[] {

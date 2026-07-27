@@ -47,6 +47,7 @@ import {
   hydrateDraftImagesFromUrls,
   normalizeDraftImages,
   normalizePersistedDraftImages,
+  syncDraftPhotoArrays,
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
 import {
@@ -195,20 +196,7 @@ function WizardAutosaveIndicator({
 }
 
 function syncDraftPhotoFields(d: Draft): Draft {
-  const commonAreaPhotos = normalizeDraftImages(d.commonAreaPhotos ?? d.propertyImageUrls ?? []);
-  const legacyRows = d.roomImageUrls ?? [];
-  const rooms = d.rooms.map((room, i) => ({
-    ...room,
-    photos: normalizeDraftImages(room.photos ?? legacyRows[i] ?? []),
-  }));
-  const roomImageUrls = rooms.map((r) => r.photos);
-  return {
-    ...d,
-    rooms,
-    commonAreaPhotos,
-    propertyImageUrls: commonAreaPhotos,
-    roomImageUrls,
-  };
+  return syncDraftPhotoArrays(d);
 }
 
 function normalizePersistedDraft(d: Draft): Draft {
@@ -2565,7 +2553,7 @@ export function PublishWizardPage() {
             draft={draft}
             roomIndex={reviewRoomIndex}
             onRoomIndexChange={setPreviewRoomIndex}
-            onDraftChange={(updater) => setDraft((d) => updater(d))}
+            onDraftChange={(updater) => setDraft((d) => syncDraftPhotoFields(updater(d)))}
             apiOn={apiOn}
             profilePhoneE164={me?.phoneE164}
             publishBlockedReason={publishBlockedReason}
@@ -2720,7 +2708,7 @@ export function PublishWizardPage() {
               draft={draft}
               roomIndex={Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))}
               onRoomIndexChange={setPreviewRoomIndex}
-              onDraftChange={(updater) => setDraft((d) => updater(d))}
+              onDraftChange={(updater) => setDraft((d) => syncDraftPhotoFields(updater(d)))}
               apiOn={apiOn}
               profilePhoneE164={me?.phoneE164}
               publishBlockedReason={publishBlockedReason}

@@ -35,6 +35,8 @@ import {
 import {
   draftImagesAppend,
   draftImagesWithoutUrl,
+  preferDraftImages,
+  syncDraftPhotoArrays,
 } from "@/lib/publishWizard/draftImages";
 import {
   ROOM_SINGLE_FLOW_PHOTO_HINT,
@@ -657,44 +659,51 @@ export function EditableListingPreview({
                             onDraftChange((d) => {
                               const nextUnassigned = d.unassignedImageUrls.filter((x) => x.url !== u);
                               if (v === "shared") {
-                                return {
+                                const nextShared = draftImagesAppend(
+                                  preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls),
+                                  { url: u, isCover: false },
+                                  20,
+                                );
+                                return syncDraftPhotoArrays({
                                   ...d,
                                   unassignedImageUrls: nextUnassigned,
-                                  propertyImageUrls: draftImagesAppend(
-                                    d.propertyImageUrls,
-                                    { url: u, isCover: false },
-                                    20,
-                                  ),
-                                };
+                                  commonAreaPhotos: nextShared,
+                                  propertyImageUrls: nextShared,
+                                });
                               }
                               if (v === "facade") {
-                                return {
+                                const base = preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls);
+                                const nextShared = draftImagesAppend(
+                                  draftImagesWithoutUrl(base, u),
+                                  { url: u, isCover: true },
+                                  20,
+                                );
+                                return syncDraftPhotoArrays({
                                   ...d,
                                   unassignedImageUrls: nextUnassigned,
-                                  propertyImageUrls: draftImagesAppend(
-                                    draftImagesWithoutUrl(d.propertyImageUrls, u),
-                                    { url: u, isCover: true },
-                                    20,
-                                  ),
-                                };
+                                  commonAreaPhotos: nextShared,
+                                  propertyImageUrls: nextShared,
+                                });
                               }
                               if (v.startsWith("room:") && !isPropertyScope) {
                                 const idx = Number(v.split(":")[1] ?? "1") - 1;
                                 if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
-                                const row = d.roomImageUrls[idx] ?? [];
-                                return {
+                                const row = preferDraftImages(d.rooms[idx]?.photos, d.roomImageUrls[idx]);
+                                const nextRow = draftImagesAppend(
+                                  row,
+                                  { url: u, isCover: row.length === 0 },
+                                  20,
+                                );
+                                return syncDraftPhotoArrays({
                                   ...d,
                                   unassignedImageUrls: nextUnassigned,
-                                  roomImageUrls: d.roomImageUrls.map((r, ri) =>
-                                    ri === idx
-                                      ? draftImagesAppend(
-                                          r,
-                                          { url: u, isCover: row.length === 0 },
-                                          20,
-                                        )
-                                      : r,
+                                  rooms: d.rooms.map((r, ri) =>
+                                    ri === idx ? { ...r, photos: nextRow } : r,
                                   ),
-                                };
+                                  roomImageUrls: d.roomImageUrls.map((r, ri) =>
+                                    ri === idx ? nextRow : r,
+                                  ),
+                                });
                               }
                               return d;
                             });
@@ -720,24 +729,40 @@ export function EditableListingPreview({
             {showPropertyBlocks && draft.postMode === "property" ? (
               <BulkImageUploader
                 title="Áreas compartidas / fachada"
-                images={draft.propertyImageUrls}
+                images={preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls)}
                 maxCount={20}
                 apiOn={apiOn}
-                onImagesChange={(next) => onDraftChange((d) => ({ ...d, propertyImageUrls: next }))}
+                onImagesChange={(next) =>
+                  onDraftChange((d) =>
+                    syncDraftPhotoArrays({
+                      ...d,
+                      commonAreaPhotos: next,
+                      propertyImageUrls: next,
+                    }),
+                  )
+                }
               />
             ) : null}
             {showRoomBlocks ? (
               <BulkImageUploader
                 title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
-                images={draft.roomImageUrls[roomIndex] ?? []}
+                images={preferDraftImages(
+                  draft.rooms[roomIndex]?.photos,
+                  draft.roomImageUrls[roomIndex],
+                )}
                 maxCount={20}
                 apiOn={apiOn}
                 hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
                 onImagesChange={(next) =>
-                  onDraftChange((d) => ({
-                    ...d,
-                    roomImageUrls: d.roomImageUrls.map((row, ri) => (ri === roomIndex ? next : row)),
-                  }))
+                  onDraftChange((d) =>
+                    syncDraftPhotoArrays({
+                      ...d,
+                      rooms: d.rooms.map((r, ri) => (ri === roomIndex ? { ...r, photos: next } : r)),
+                      roomImageUrls: d.roomImageUrls.map((row, ri) =>
+                        ri === roomIndex ? next : row,
+                      ),
+                    }),
+                  )
                 }
               />
             ) : null}
@@ -748,7 +773,9 @@ export function EditableListingPreview({
                 maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
                 apiOn={apiOn}
                 hint="Sube aquí y luego asígnalas arriba o en el paso de etiquetado."
-                onImagesChange={(next) => onDraftChange((d) => ({ ...d, unassignedImageUrls: next }))}
+                onImagesChange={(next) =>
+                  onDraftChange((d) => syncDraftPhotoArrays({ ...d, unassignedImageUrls: next }))
+                }
               />
             ) : null}
           </InlineFieldEditor>
