@@ -1,10 +1,12 @@
 # Resend webhooks — Bestie.mx
 
 Production endpoint: `POST https://www.bestie.mx/api/resend/webhook`  
+Dev endpoint: `POST https://dev.bestie.mx/api/resend/webhook` (outbound events only — no `email.received`, so inbound `contacto@` stays Prod-only)  
 Handler: `server/src/resendWebhook.ts`  
-Env: `RESEND_WEBHOOK_SECRET` (Railway + local `server/.env`)
+Env: `RESEND_WEBHOOK_SECRET` (per Railway service + local `server/.env`)
 
 Resend webhook ID (production): `59c91b7b-d3bb-420a-a2b0-9c9cf46143fe`  
+Resend webhook ID (dev): `4ab79503-a04a-411b-983d-89d10efcdc85`  
 Docs: [Resend webhooks](https://resend.com/docs/webhooks/introduction)
 
 ---

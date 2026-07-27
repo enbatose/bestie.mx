@@ -76,13 +76,19 @@ async function cf(method, path, body) {
 }
 
 /** DNS we need on Cloudflare (from GoDaddy / Railway / Resend). */
-const DNS_RECORDS = [
   {
     type: "CNAME",
     name: "www",
-    content: "iahsi6f0.up.railway.app",
+    content: "p8bgmecl.up.railway.app",
     proxied: false,
-    comment: "Railway app (DNS only — Railway terminates SSL)",
+    comment: "Railway bestie-prod (DNS only — Railway terminates SSL)",
+  },
+  {
+    type: "CNAME",
+    name: "dev",
+    content: "oqbm9i6q.up.railway.app",
+    proxied: false,
+    comment: "Railway bestie-dev (DNS only — Railway terminates SSL)",
   },
   {
     type: "CNAME",
@@ -140,13 +146,20 @@ const DNS_RECORDS = [
     proxied: false,
     comment: "Railway apex domain verification",
   },
+  {
+    type: "TXT",
+    name: "_railway-verify.dev",
+    content: "railway-verify=3a2cf626e7956c44023ed7f6d578b16d41fb218afa236b44f7363c532f83f866",
+    proxied: false,
+    comment: "Railway dev domain verification",
+  },
   /** Cloudflare CNAME flattening at apex → Railway; Express 301s bestie.mx → www.bestie.mx. */
   {
     type: "CNAME",
     name: "@",
-    content: "jh1qewnb.up.railway.app",
+    content: "35atfgdy.up.railway.app",
     proxied: false,
-    comment: "Railway apex (DNS only — app redirects to www with path)",
+    comment: "Railway bestie-prod apex (DNS only — app redirects to www with path)",
   },
 ];
 
