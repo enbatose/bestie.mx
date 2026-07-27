@@ -2295,6 +2295,13 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
+  /** Success replaces the wizard in-place (no route change), so scroll must reset. */
+  useLayoutEffect(() => {
+    if (!publishSuccessRoomId) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [publishSuccessRoomId]);
+
   const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 
   async function submitPublish() {
