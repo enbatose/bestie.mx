@@ -8,6 +8,7 @@ import {
   parseStreetViewInterface,
   streetViewMetricForEvent,
 } from "./streetViewAnalytics.js";
+import { IMAGE_PIPELINE_EVENT, recordImagePipelineDaily } from "./imageUploadAnalytics.js";
 
 export function analyticsRouter(db: DatabaseSync) {
   const r = express.Router();
@@ -90,6 +91,16 @@ export function analyticsRouter(db: DatabaseSync) {
       const day = new Date().toISOString().slice(0, 10);
       const dimension = parseStreetViewInterface(payload);
       incrementAnalyticsDaily(db, day, streetViewMetric, dimension);
+    }
+
+    if (name === IMAGE_PIPELINE_EVENT) {
+      let payload: unknown = {};
+      try {
+        payload = JSON.parse(payloadJson) as unknown;
+      } catch {
+        payload = {};
+      }
+      recordImagePipelineDaily(db, payload);
     }
 
     res.status(202).json({ ok: true });

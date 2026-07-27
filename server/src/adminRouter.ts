@@ -7,6 +7,7 @@ import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { clampMessageAttachments, clampStr, isSafePropertyId, type MessageAttachment } from "./validation.js";
 import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
+import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -129,6 +130,19 @@ export function adminRouter(db: DatabaseSync) {
       return;
     }
     res.json(body);
+  });
+
+  r.get("/analytics/image-uploads", (req: Request, res: Response) => {
+    const hours = Number(req.query.hours);
+    const limit = Number(req.query.limit);
+    const failuresOnly = req.query.failuresOnly === "1" || req.query.failuresOnly === "true";
+    res.json(
+      buildImageUploadAnalytics(db, {
+        hours: Number.isFinite(hours) ? hours : undefined,
+        limit: Number.isFinite(limit) ? limit : undefined,
+        failuresOnly,
+      }),
+    );
   });
 
   r.get("/analytics/summary", (_req: Request, res: Response) => {

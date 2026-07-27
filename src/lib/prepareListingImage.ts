@@ -5,6 +5,7 @@ import {
   resolveImageMime,
   sniffImageMime,
 } from "@/lib/imageMime";
+import type { ImageDecodePath } from "@/lib/imageUploadDiagnostics";
 
 const MAX_SKIP_BYTES = 500_000;
 const MAX_EDGE = 1920;
@@ -26,6 +27,12 @@ export type PreparedListingImage = {
   outputH: number;
   skipped: boolean;
   outputType: string;
+  diagnostics: {
+    declaredMime: string;
+    sniffedMime: string | null;
+    decodePath: ImageDecodePath;
+    heicConverted: boolean;
+  };
 };
 
 function supportsWebpCanvas(): boolean {
@@ -172,18 +179,18 @@ async function decodeViaFileReader(file: File): Promise<DecodedImage> {
   });
 }
 
-async function decodeImage(file: File): Promise<DecodedImage> {
+async function decodeImage(file: File): Promise<{ decoded: DecodedImage; path: ImageDecodePath }> {
   if (typeof createImageBitmap === "function") {
     try {
-      return await decodeViaImageBitmap(file);
+      return { decoded: await decodeViaImageBitmap(file), path: "bitmap" };
     } catch {
       /* fall through */
     }
   }
   try {
-    return await decodeViaObjectUrl(file);
+    return { decoded: await decodeViaObjectUrl(file), path: "objectUrl" };
   } catch {
-    return decodeViaFileReader(file);
+    return { decoded: await decodeViaFileReader(file), path: "fileReader" };
   }
 }
 
@@ -236,20 +243,21 @@ function looksLikeHeic(file: File, sniffed: string | null): boolean {
   );
 }
 
-async function decodeWithHeicFallback(file: File): Promise<{ decoded: DecodedImage; source: File }> {
+async function decodeWithHeicFallback(
+  file: File,
+): Promise<{ decoded: DecodedImage; source: File; path: ImageDecodePath; heicConverted: boolean }> {
   try {
-    return { decoded: await decodeImage(file), source: file };
+    const r = await decodeImage(file);
+    return { decoded: r.decoded, source: file, path: r.path, heicConverted: false };
   } catch (first) {
     const head = await file.slice(0, 64).arrayBuffer();
     const sniffed = sniffImageMime(head);
     const maybeHeic = looksLikeHeic(file, sniffed);
 
-    // Samsung "High efficiency" often ships HEIF bytes labeled image/jpeg.
-    // Also try the library when native decode failed for any still image — heic2any
-    // rejects non-HEIC quickly, and this unblocks mislabeled gallery picks.
     try {
       const jpeg = await convertHeicWithLibrary(file);
-      return { decoded: await decodeImage(jpeg), source: jpeg };
+      const r = await decodeImage(jpeg);
+      return { decoded: r.decoded, source: jpeg, path: "heic2any", heicConverted: true };
     } catch {
       if (maybeHeic) throw new Error(PREPARE_IMAGE_HEIC_MESSAGE);
       throw first instanceof Error ? first : new Error(PREPARE_IMAGE_FAIL_MESSAGE);
@@ -261,13 +269,20 @@ async function decodeWithHeicFallback(file: File): Promise<{ decoded: DecodedIma
 export async function prepareListingImage(file: File): Promise<PreparedListingImage> {
   const typed = await ensureTypedImageFile(file);
   const heicLike = isHeicLikeMime(typed.type);
+  const head = await typed.slice(0, 64).arrayBuffer().catch(() => null);
+  const sniffedMime = head ? sniffImageMime(head) : null;
+  const declaredMime = typed.type || "unknown";
 
   let decoded: DecodedImage;
   let source = typed;
+  let decodePath: ImageDecodePath = "unknown";
+  let heicConverted = false;
   try {
     const result = await decodeWithHeicFallback(typed);
     decoded = result.decoded;
     source = result.source;
+    decodePath = result.path;
+    heicConverted = result.heicConverted;
   } catch (e) {
     if (e instanceof Error && (e.message === PREPARE_IMAGE_HEIC_MESSAGE || e.message === PREPARE_IMAGE_EMPTY_MESSAGE)) {
       throw e;
@@ -298,6 +313,12 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
         outputH,
         skipped: true,
         outputType: source.type || "unknown",
+        diagnostics: {
+          declaredMime,
+          sniffedMime,
+          decodePath: "skipped",
+          heicConverted,
+        },
       };
     }
 
@@ -318,6 +339,12 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
       outputH,
       skipped: false,
       outputType: encoded.type,
+      diagnostics: {
+        declaredMime,
+        sniffedMime,
+        decodePath,
+        heicConverted,
+      },
     };
   } finally {
     decoded.close();

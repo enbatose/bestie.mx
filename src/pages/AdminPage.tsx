@@ -10,7 +10,9 @@ import {
   adminPutFeaturedCities,
   adminReplySupportThread,
   adminStreetViewAnalytics,
+  adminImageUploadAnalytics,
   type AdminStreetViewAnalytics,
+  type AdminImageUploadAnalytics,
   type AdminSupportConversationRow,
   type AdminSupportThread,
   type AdminUserRow,
@@ -72,6 +74,8 @@ export function AdminPage() {
   const monthChoices = useMemo(() => monthOptions(12), []);
   const [streetViewMonth, setStreetViewMonth] = useState(() => monthChoices[0] ?? new Date().toISOString().slice(0, 7));
   const [streetView, setStreetView] = useState<AdminStreetViewAnalytics | null>(null);
+  const [imageUploads, setImageUploads] = useState<AdminImageUploadAnalytics | null>(null);
+  const [imageFailuresOnly, setImageFailuresOnly] = useState(true);
   const [propId, setPropId] = useState("");
   const [propStatus, setPropStatus] = useState<"draft" | "published" | "paused" | "archived">("paused");
   const [busy, setBusy] = useState(false);
@@ -93,6 +97,10 @@ export function AdminPage() {
 
   const loadStreetView = useCallback(async (month: string) => {
     setStreetView(await adminStreetViewAnalytics(month));
+  }, []);
+
+  const loadImageUploads = useCallback(async (failuresOnly: boolean) => {
+    setImageUploads(await adminImageUploadAnalytics({ hours: 48, limit: 60, failuresOnly }));
   }, []);
 
   const loadSupportConversations = useCallback(async (q?: string) => {
@@ -147,12 +155,13 @@ export function AdminPage() {
         await loadCities();
         await loadSummary();
         await loadStreetView(streetViewMonth);
+        await loadImageUploads(imageFailuresOnly);
         setErr(null);
       } catch (x) {
         setErr(x instanceof Error ? x.message : "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).");
       }
     })();
-  }, [loadUsers, loadCities, loadSummary, loadStreetView, streetViewMonth]);
+  }, [loadUsers, loadCities, loadSummary, loadStreetView, loadImageUploads, streetViewMonth, imageFailuresOnly]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setSupportDebouncedSearch(supportSearchInput.trim()), 300);
@@ -180,7 +189,7 @@ export function AdminPage() {
     : 0;
 
   return (
-    <div className={`mx-auto px-4 py-10 sm:px-6 sm:py-14 ${tab === "soporte" ? "max-w-5xl" : "max-w-3xl"}`}>
+    <div className={`mx-auto px-4 py-10 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" ? "max-w-5xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
       <p className="mt-2 text-sm text-muted">
         Solo cuentas cuyo correo está en la lista de administradores del servidor (integrada +{" "}
@@ -394,12 +403,145 @@ export function AdminPage() {
             )}
           </div>
 
+          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-body">Subida de fotos — auditoría</h2>
+                <p className="mt-1 text-xs text-muted">
+                  Eventos `image_pipeline` de las últimas {imageUploads?.windowHours ?? 48} h (convert / upload /
+                  persist). Sin nombres de archivo completos.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-xs font-medium text-body">
+                <input
+                  type="checkbox"
+                  checked={imageFailuresOnly}
+                  onChange={(e) => setImageFailuresOnly(e.target.checked)}
+                  className="size-4 rounded border-border"
+                />
+                Solo fallos
+              </label>
+            </div>
+
+            {imageUploads ? (
+              <div className="mt-4 space-y-4">
+                <ul className="grid gap-2 sm:grid-cols-3 text-body">
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Ventana: <strong>{imageUploads.summary.ok}</strong> ok /{" "}
+                    <strong className="text-error">{imageUploads.summary.fail}</strong> fail
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Hoy: <strong>{imageUploads.today.ok}</strong> ok /{" "}
+                    <strong className="text-error">{imageUploads.today.fail}</strong> fail
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Fail rate móvil:{" "}
+                    <strong>
+                      {imageUploads.summary.mobileFailRate == null
+                        ? "—"
+                        : `${Math.round(imageUploads.summary.mobileFailRate * 100)}%`}
+                    </strong>
+                  </li>
+                </ul>
+
+                {Object.keys(imageUploads.summary.byErrorCode).length > 0 ? (
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Errores (ventana)</h3>
+                    <ul className="mt-2 space-y-1 text-xs text-body">
+                      {Object.entries(imageUploads.summary.byErrorCode)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([code, n]) => (
+                          <li key={code}>
+                            <code className="rounded bg-bg-light px-1.5 py-0.5">{code}</code>: {n}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {Object.keys(imageUploads.summary.bySource).length > 0 ? (
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Por origen</h3>
+                    <ul className="mt-2 space-y-1 text-xs text-body">
+                      {Object.entries(imageUploads.summary.bySource).map(([src, v]) => (
+                        <li key={src}>
+                          {src}: {v.ok} ok / {v.fail} fail
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                <div className="overflow-x-auto border-t border-border pt-4">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="text-muted">
+                      <tr>
+                        <th className="py-1 pr-3 font-semibold">Hora</th>
+                        <th className="py-1 pr-3 font-semibold">Paso</th>
+                        <th className="py-1 pr-3 font-semibold">Origen</th>
+                        <th className="py-1 pr-3 font-semibold">Código</th>
+                        <th className="py-1 pr-3 font-semibold">MIME</th>
+                        <th className="py-1 pr-3 font-semibold">Decode</th>
+                        <th className="py-1 pr-3 font-semibold">Detalle</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-body">
+                      {imageUploads.events.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-3 text-muted">
+                            Sin eventos en la ventana.
+                          </td>
+                        </tr>
+                      ) : (
+                        imageUploads.events.map((ev) => (
+                          <tr key={ev.id} className="border-t border-border/60 align-top">
+                            <td className="py-1.5 pr-3 whitespace-nowrap">
+                              {new Date(ev.createdAt).toLocaleString("es-MX", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              {ev.mobileLike ? (
+                                <span className="ml-1 rounded bg-secondary/20 px-1 text-[10px]">móvil</span>
+                              ) : null}
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              {ev.step ?? "—"}{" "}
+                              <span className={ev.ok ? "text-body" : "text-error"}>{ev.ok ? "ok" : "fail"}</span>
+                            </td>
+                            <td className="py-1.5 pr-3">{ev.source ?? "—"}</td>
+                            <td className="py-1.5 pr-3">
+                              <code>{ev.errorCode ?? "—"}</code>
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              {(ev.sniffedMime || ev.declaredMime || "—").replace("image/", "")}
+                              {ev.nameExt ? ` .${ev.nameExt}` : ""}
+                            </td>
+                            <td className="py-1.5 pr-3">{ev.decodePath ?? "—"}</td>
+                            <td className="py-1.5 pr-3 max-w-[14rem] truncate" title={ev.error ?? undefined}>
+                              {ev.error ??
+                                (ev.ms != null ? `${Math.round(ev.ms)} ms` : "—")}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-muted">Cargando subidas de fotos…</p>
+            )}
+          </div>
+
           <button
             type="button"
             className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
             onClick={() => {
               void loadSummary().catch(() => null);
               void loadStreetView(streetViewMonth).catch(() => null);
+              void loadImageUploads(imageFailuresOnly).catch(() => null);
             }}
           >
             Actualizar

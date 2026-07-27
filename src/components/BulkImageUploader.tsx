@@ -1,13 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Star } from "lucide-react";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { uploadListingImage } from "@/lib/listingsApi";
-import { perfEnd, perfSampleImageInput, perfStart } from "@/lib/perf";
-import { trackImagePipeline } from "@/lib/imageTelemetry";
+import { perfEnd, perfStart } from "@/lib/perf";
+import { fileAuditFields, trackImagePipeline } from "@/lib/imageTelemetry";
 import {
   PREPARE_IMAGE_FAIL_MESSAGE,
   prepareListingImage,
 } from "@/lib/prepareListingImage";
+import { classifyImageError, sampleImageHead, type ImageUploadSource } from "@/lib/imageUploadDiagnostics";
 import { isFilePermissionError, persistPickedFiles } from "@/lib/persistPickedFile";
 import {
   appendDraftImageUrl,
@@ -53,11 +54,16 @@ function friendlyUploadError(err: unknown): string {
   if (raw.startsWith("upload_http_")) {
     return "No se pudo subir la imagen. Revisa tu conexión e intenta de nuevo.";
   }
-  // Keep known Spanish prepare messages; hide opaque browser English.
   if (/^[A-Za-z]/.test(raw) && raw.includes(" ")) {
     return PREPARE_IMAGE_FAIL_MESSAGE;
   }
   return raw;
+}
+
+function httpStatusFromUploadError(err: unknown): number | undefined {
+  const raw = err instanceof Error ? err.message : "";
+  const m = /^upload_http_(\d+)/.exec(raw);
+  return m ? Number(m[1]) : undefined;
 }
 
 export function BulkImageUploader({ title, images, maxCount, onImagesChange, apiOn, hint, onBatchComplete }: Props) {
@@ -87,7 +93,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
   );
 
   const addFiles = useCallback(
-    async (files: File[]) => {
+    async (files: File[], source: ImageUploadSource = "unknown") => {
       setErr(null);
       if (!apiOn) {
         setErr("Configura VITE_API_URL para subir imágenes al servidor.");
@@ -99,26 +105,39 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
       const batchId = batchIdRef.current;
       const batchMark = perfStart("batch_full");
       const failures: string[] = [];
+      let successCount = 0;
       try {
         let current = imagesRef.current;
         for (const f of take) {
           const label = f.name || "foto";
+          const audit = fileAuditFields(f);
+          let sniffedMime: string | null | undefined;
+          try {
+            sniffedMime = (await sampleImageHead(f)).sniffedMime;
+          } catch {
+            sniffedMime = null;
+          }
+
           setBusy({ name: label, stage: "optimizando" });
           const m1 = perfStart("convert");
           let converted: Awaited<ReturnType<typeof prepareListingImage>>;
           try {
             converted = await prepareListingImage(f);
           } catch (e) {
+            const raw = e instanceof Error ? e.message : "convert_error";
             await trackImagePipeline({
               batchId,
               step: "convert",
               ms: perfEnd(m1).ms,
               ok: false,
-              error: e instanceof Error ? e.message : "convert_error",
-              ...perfSampleImageInput(f),
+              surface: "publish_wizard",
+              source,
+              error: raw,
+              errorCode: classifyImageError(e),
+              sniffedMime,
+              ...audit,
             });
-            const msg = friendlyUploadError(e);
-            failures.push(msg);
+            failures.push(friendlyUploadError(e));
             continue;
           }
 
@@ -128,14 +147,21 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
             step: "convert",
             ms: convertSpan.ms,
             ok: true,
+            surface: "publish_wizard",
+            source,
             inputBytes: f.size,
             outputBytes: converted.outFile.size,
             inputType: f.type || "unknown",
             outputType: converted.outputType,
+            declaredMime: converted.diagnostics.declaredMime,
+            sniffedMime: converted.diagnostics.sniffedMime,
+            decodePath: converted.diagnostics.decodePath,
+            heicConverted: converted.diagnostics.heicConverted,
             inputW: converted.inputW,
             inputH: converted.inputH,
             outputW: converted.outputW,
             outputH: converted.outputH,
+            ...audit,
           });
 
           setBusy({ name: label, stage: "subiendo" });
@@ -149,9 +175,15 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               step: "upload",
               ms: perfEnd(m2).ms,
               ok: false,
+              surface: "publish_wizard",
+              source,
               error: uploadErr instanceof Error ? uploadErr.message : "upload_error",
+              errorCode: classifyImageError(uploadErr),
+              httpStatus: httpStatusFromUploadError(uploadErr),
               outputBytes: converted.outFile.size,
               outputType: converted.outputType,
+              decodePath: converted.diagnostics.decodePath,
+              ...audit,
             });
             failures.push(friendlyUploadError(uploadErr));
             continue;
@@ -162,14 +194,19 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
             step: "upload",
             ms: uploadSpan.ms,
             ok: true,
+            surface: "publish_wizard",
+            source,
             outputBytes: converted.outFile.size,
             outputType: converted.outputType,
             outputW: converted.outputW,
             outputH: converted.outputH,
+            decodePath: converted.diagnostics.decodePath,
+            ...audit,
           });
 
           current = appendDraftImageUrl(current, url, maxCount);
           onImagesChange(current);
+          successCount += 1;
         }
         if (failures.length) {
           setErr(failures[failures.length - 1] ?? PREPARE_IMAGE_FAIL_MESSAGE);
@@ -182,13 +219,57 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           step: "full",
           ms: fullSpan.ms,
           ok: failures.length === 0,
+          surface: "publish_wizard",
+          source,
           fileCount: take.length,
+          successCount,
+          failureCount: failures.length,
           error: failures[0],
+          errorCode: failures.length ? classifyImageError(failures[0]) : undefined,
         }).catch(() => null);
         onBatchComplete?.();
       }
     },
     [apiOn, maxCount, onBatchComplete, onImagesChange, remaining],
+  );
+
+  const pickAndAdd = useCallback(
+    (source: ImageUploadSource) => (e: ChangeEvent<HTMLInputElement>) => {
+      const input = e.target;
+      const list = input.files ? Array.from(input.files) : [];
+      void (async () => {
+        const persistMark = perfStart("persist");
+        try {
+          const files = list.length ? await persistPickedFiles(list) : [];
+          await trackImagePipeline({
+            batchId: batchIdRef.current,
+            step: "persist",
+            ms: perfEnd(persistMark).ms,
+            ok: true,
+            surface: "publish_wizard",
+            source,
+            fileCount: files.length,
+          });
+          input.value = "";
+          void addFiles(files, source);
+        } catch (err) {
+          await trackImagePipeline({
+            batchId: batchIdRef.current,
+            step: "persist",
+            ms: perfEnd(persistMark).ms,
+            ok: false,
+            surface: "publish_wizard",
+            source,
+            error: err instanceof Error ? err.message : "persist_failed",
+            errorCode: classifyImageError(err),
+            fileCount: list.length,
+          });
+          input.value = "";
+          setErr(friendlyUploadError(err));
+        }
+      })();
+    },
+    [addFiles],
   );
 
   return (
@@ -203,27 +284,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
         </div>
         <div className="flex flex-wrap gap-2">
           <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated">
-            <input
-              type="file"
-              accept={accept}
-              multiple
-              className="sr-only"
-              onChange={(e) => {
-                const input = e.target;
-                const list = input.files ? Array.from(input.files) : [];
-                void (async () => {
-                  try {
-                    // Snapshot bytes before clearing — Android Chrome revokes File access on reset.
-                    const files = list.length ? await persistPickedFiles(list) : [];
-                    input.value = "";
-                    void addFiles(files);
-                  } catch (err) {
-                    input.value = "";
-                    setErr(friendlyUploadError(err));
-                  }
-                })();
-              }}
-            />
+            <input type="file" accept={accept} multiple className="sr-only" onChange={pickAndAdd("gallery")} />
             Subir fotos
           </label>
           <label className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated">
@@ -232,20 +293,7 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
               accept={accept}
               capture="environment"
               className="sr-only"
-              onChange={(e) => {
-                const input = e.target;
-                const list = input.files ? Array.from(input.files) : [];
-                void (async () => {
-                  try {
-                    const files = list.length ? await persistPickedFiles(list) : [];
-                    input.value = "";
-                    void addFiles(files);
-                  } catch (err) {
-                    input.value = "";
-                    setErr(friendlyUploadError(err));
-                  }
-                })();
-              }}
+              onChange={pickAndAdd("camera")}
             />
             Tomar foto
           </label>
@@ -271,7 +319,14 @@ export function BulkImageUploader({ title, images, maxCount, onImagesChange, api
           const files = Array.from(e.dataTransfer.files ?? []).filter(
             (f) => f.type.startsWith("image/") || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(f.name),
           );
-          void addFiles(files);
+          void (async () => {
+            try {
+              const durable = files.length ? await persistPickedFiles(files) : [];
+              void addFiles(durable, "drop");
+            } catch (dropErr) {
+              setErr(friendlyUploadError(dropErr));
+            }
+          })();
         }}
       >
         <p className="text-xs text-muted">Arrastra y suelta aquí para subir en bloque. Toca la estrella para elegir la portada.</p>

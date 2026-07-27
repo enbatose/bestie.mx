@@ -555,6 +555,59 @@ export async function adminStreetViewAnalytics(
   return (await res.json()) as AdminStreetViewAnalytics;
 }
 
+export type AdminImageUploadAnalytics = {
+  windowHours: number;
+  summary: {
+    total: number;
+    ok: number;
+    fail: number;
+    byStep: Record<string, { ok: number; fail: number }>;
+    byErrorCode: Record<string, number>;
+    bySource: Record<string, { ok: number; fail: number }>;
+    mobileFailRate: number | null;
+  };
+  today: { ok: number; fail: number; topErrors: { code: string; count: number }[] };
+  events: {
+    id: string;
+    createdAt: string;
+    publisherId: string;
+    userId: string | null;
+    step: string | null;
+    ok: boolean | null;
+    errorCode: string | null;
+    error: string | null;
+    source: string | null;
+    surface: string | null;
+    declaredMime: string | null;
+    sniffedMime: string | null;
+    decodePath: string | null;
+    nameExt: string | null;
+    nameKind: string | null;
+    inputBytes: number | null;
+    ms: number | null;
+    mobileLike: boolean | null;
+    httpStatus: number | null;
+  }[];
+};
+
+export async function adminImageUploadAnalytics(
+  opts: { hours?: number; limit?: number; failuresOnly?: boolean } = {},
+  signal?: AbortSignal,
+): Promise<AdminImageUploadAnalytics> {
+  const base = apiBase();
+  const q = new URLSearchParams();
+  if (opts.hours != null) q.set("hours", String(opts.hours));
+  if (opts.limit != null) q.set("limit", String(opts.limit));
+  if (opts.failuresOnly) q.set("failuresOnly", "1");
+  const qs = q.toString();
+  const res = await networkFetch(`${base}/api/admin/analytics/image-uploads${qs ? `?${qs}` : ""}`, {
+    credentials: cred,
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_image_uploads_${res.status}`);
+  return (await res.json()) as AdminImageUploadAnalytics;
+}
+
 export type GroupRow = {
   id: string;
   name: string;
