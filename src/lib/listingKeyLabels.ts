@@ -25,6 +25,7 @@ import {
   formatRoomAvailableFrom,
   minimalStayMonthsLabel,
   ROOM_IDEAL_PARA_TAG_SET,
+  SOFT_HYPHEN,
   utilitiesBundleSatisfied,
 } from "@/lib/listingTags";
 import type { ListingTag, Property, PropertyListing, Room, RoommateGenderPref } from "@/types/listing";
@@ -47,6 +48,8 @@ export type KeyLabelItem = {
   title: string;
   value: string;
 };
+
+const KEY_LABEL_ESTACIONAMIENTO_INCLUIDO = `Estacionami${SOFT_HYPHEN}ento incluido`;
 
 export function yesNo(v: boolean): string {
   return v ? "Sí" : "No";
@@ -132,7 +135,7 @@ export function buildSingleRoomKeyLabels(listing: PropertyListing): KeyLabelItem
     { icon: CheckCircle2, title: "Servicios básicos incluidos", value: basicServicesIncludedLabel(listing.tags) },
     { icon: Users, title: "Edades", value: `${listing.ageMin} - ${listing.ageMax}` },
     { icon: Bath, title: "Baño privado", value: yesNo(listing.tags.includes("baño-privado")) },
-    { icon: Car, title: "Estacionamiento incluido", value: yesNo(listing.tags.includes("estacionamiento")) },
+    { icon: Car, title: KEY_LABEL_ESTACIONAMIENTO_INCLUIDO, value: yesNo(listing.tags.includes("estacionamiento")) },
     { icon: Sparkles, title: "Ideal para", value: idealParaKeyLabel(listing.tags) },
   ];
 }
@@ -157,7 +160,7 @@ export function buildRoomKeyLabels(room: Room): KeyLabelItem[] {
     { icon: CheckCircle2, title: "Servicios básicos incluidos", value: basicServicesIncludedLabel(room.tags) },
     { icon: Users, title: "Edades", value: `${room.ageMin} - ${room.ageMax}` },
     { icon: Bath, title: "Baño privado", value: yesNo(room.tags.includes("baño-privado")) },
-    { icon: Car, title: "Estacionamiento incluido", value: yesNo(room.tags.includes("estacionamiento")) },
+    { icon: Car, title: KEY_LABEL_ESTACIONAMIENTO_INCLUIDO, value: yesNo(room.tags.includes("estacionamiento")) },
     { icon: Sparkles, title: "Ideal para", value: idealParaKeyLabel(room.tags) },
   ];
 }

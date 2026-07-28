@@ -42,7 +42,9 @@ function KeyLabelCard({ item }: { item: KeyLabelItem }) {
         <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="relative min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{item.title}</p>
+            <p className="min-w-0 hyphens-manual text-[11px] font-semibold uppercase tracking-wide text-muted">
+              {item.title}
+            </p>
             {isTruncated ? (
               <button
                 type="button"
