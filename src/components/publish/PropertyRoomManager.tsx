@@ -279,13 +279,18 @@ function OccupiedRoomFields({
 function RoomAvailabilityToggle({
   available,
   onChange,
+  fullWidth = false,
 }: {
   available: boolean;
   onChange: (nextAvailable: boolean) => void;
+  /** Stack below badges on narrow screens so controls do not overlap. */
+  fullWidth?: boolean;
 }) {
   return (
     <div
-      className="inline-flex min-w-0 flex-1 rounded-xl border border-border bg-surface p-1 shadow-sm sm:flex-none"
+      className={`inline-flex min-w-0 rounded-xl border border-border bg-surface p-1 shadow-sm ${
+        fullWidth ? "w-full" : "sm:flex-none"
+      }`}
       role="group"
       aria-label="Estado de la recámara"
     >
@@ -315,6 +320,31 @@ function RoomAvailabilityToggle({
   );
 }
 
+function RoomExpandButton({
+  expanded,
+  onExpandToggle,
+}: {
+  expanded?: boolean;
+  onExpandToggle: () => void;
+}) {
+  return (
+    <span className="inline-flex size-9 shrink-0 items-center justify-center sm:size-7">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
+        onClick={onExpandToggle}
+        className="inline-flex size-9 items-center justify-center rounded-full border border-border/80 bg-surface text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary sm:size-7"
+      >
+        <ChevronDown
+          className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
+          aria-hidden
+        />
+      </button>
+    </span>
+  );
+}
+
 /** Keeps toggle, status badge, and expand control aligned across occupied/available cards. */
 function RoomCardHeaderActions({
   available,
@@ -331,31 +361,33 @@ function RoomCardHeaderActions({
   onExpandToggle?: () => void;
   showExpand?: boolean;
 }) {
+  const expandBtn =
+    showExpand && onExpandToggle ? (
+      <RoomExpandButton expanded={expanded} onExpandToggle={onExpandToggle} />
+    ) : null;
+
   return (
-    <span className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
-      <RoomAvailabilityToggle available={available} onChange={onAvailabilityChange} />
-      <RoomStatusBadges issues={issues} />
-      {showExpand ? (
-        <span className="inline-flex size-9 shrink-0 items-center justify-center sm:size-7">
-          {onExpandToggle ? (
-            <button
-              type="button"
-              aria-expanded={expanded}
-              aria-label={expanded ? "Contraer recámara" : "Expandir recámara"}
-              onClick={onExpandToggle}
-              className="inline-flex size-9 items-center justify-center rounded-full border border-border/80 bg-surface text-body/70 shadow-sm transition hover:border-primary/30 hover:bg-surface-elevated hover:text-primary sm:size-7"
-            >
-              <ChevronDown
-                className={`size-4 stroke-[2.5] transition ${expanded ? "rotate-180" : ""}`}
-                aria-hidden
-              />
-            </button>
-          ) : (
-            <span className="size-9 sm:size-7" aria-hidden />
-          )}
+    <>
+      {/* Mobile: badge row + full-width toggle — avoids pill overlap on narrow screens. */}
+      <span className="flex w-full min-w-0 flex-col gap-2 sm:hidden">
+        <span className="flex items-center justify-between gap-2">
+          <RoomStatusBadges issues={issues} />
+          {expandBtn}
         </span>
-      ) : null}
-    </span>
+        <RoomAvailabilityToggle
+          available={available}
+          onChange={onAvailabilityChange}
+          fullWidth
+        />
+      </span>
+
+      {/* sm+: inline toggle, badge, and chevron. */}
+      <span className="hidden sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
+        <RoomAvailabilityToggle available={available} onChange={onAvailabilityChange} />
+        <RoomStatusBadges issues={issues} />
+        {expandBtn ?? (showExpand ? <span className="size-7 shrink-0" aria-hidden /> : null)}
+      </span>
+    </>
   );
 }
 
