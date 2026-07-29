@@ -13,6 +13,7 @@ import {
 import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
@@ -76,7 +77,9 @@ import {
   publishDraftFromWizard,
   syncDraftToServer,
   PROPERTY_SUMMARY_MIN,
+  PROPERTY_SUMMARY_MAX,
   ROOM_SUMMARY_MIN,
+  ROOM_SUMMARY_MAX,
 } from "@/lib/publishWizard/publishCore";
 import { firstRoomIndexWithIssues } from "@/lib/publishWizard/roomWizardValidation";
 import {
@@ -107,7 +110,6 @@ const PROPERTY_TITLE_MIN = 10;
 const PROPERTY_TITLE_MAX = 70;
 const PROPERTY_NEIGHBORHOOD_MIN = 3;
 const PROPERTY_NEIGHBORHOOD_MAX = 50;
-const PROPERTY_SUMMARY_MAX = 1500;
 const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;
 
@@ -121,8 +123,6 @@ const WIZARD_STEP_RECAMARAS = 3;
 
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
-
-const ROOM_SUMMARY_MAX = 1500;
 
 /** Título por defecto del listado en modo un solo cuarto (campo oculto en el paso Recámaras). */
 const SINGLE_ROOM_DEFAULT_TITLE = "Recámara 1";
@@ -1704,9 +1704,14 @@ export function PublishWizardPage() {
                   placeholder="Ej. Casa compartida Chapalita / Depa zona Minerva"
                   className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
-                <span className="mt-1 block text-right text-[10px] text-muted">
-                  {draft.propertyTitle.trim().length} / {PROPERTY_TITLE_MAX}
-                </span>
+                <FieldCharCount
+                  current={draft.propertyTitle.trim().length}
+                  min={PROPERTY_TITLE_MIN}
+                  max={PROPERTY_TITLE_MAX}
+                  warnBelowMin
+                  size="xxs"
+                  className="mt-1"
+                />
               </label>
               <label className="block text-sm font-medium text-body">
                 Colonia o zona
@@ -1730,12 +1735,18 @@ export function PublishWizardPage() {
                       rows={5}
                       maxLength={PROPERTY_SUMMARY_MAX}
                       placeholder={DEFAULT_PROPERTY_SUMMARY}
-                      className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                      className="mt-2 w-full resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                     />
-                    <span className="mt-1 block text-xs text-muted">
-                      Mínimo {PROPERTY_SUMMARY_MIN} caracteres · Solo convivencia y zonas compartidas (cada recámara
-                      se describe en el paso 4) · {draft.propertySummary.trim().length} ahora
-                    </span>
+                    <p className="mt-1 text-xs text-muted">
+                      Solo convivencia y zonas compartidas (cada recámara se describe en el paso 4).
+                    </p>
+                    <FieldCharCount
+                      current={draft.propertySummary.trim().length}
+                      min={PROPERTY_SUMMARY_MIN}
+                      max={PROPERTY_SUMMARY_MAX}
+                      warnBelowMin
+                      className="mt-1"
+                    />
                   </label>
 
                   <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
@@ -2229,15 +2240,15 @@ export function PublishWizardPage() {
                       rows={3}
                       maxLength={ROOM_SUMMARY_MAX}
                       placeholder={ROOM_SUMMARY_PLACEHOLDER}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                      className="mt-1 w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
-                    <span
-                      className={`mt-1 block text-xs ${
-                        room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-warning-fg" : "text-muted"
-                      }`}
-                    >
-                      {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
-                    </span>
+                    <FieldCharCount
+                      current={room.summary.trim().length}
+                      min={ROOM_SUMMARY_MIN}
+                      max={ROOM_SUMMARY_MAX}
+                      warnBelowMin
+                      className="mt-1"
+                    />
                   </label>
                   <div className="mt-3 space-y-4">
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (

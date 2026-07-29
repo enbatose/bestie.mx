@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
@@ -417,15 +418,14 @@ export function RoomActivationModal({
               rows={3}
               maxLength={ROOM_SUMMARY_MAX}
               placeholder={ROOM_SUMMARY_PLACEHOLDER}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
             />
-            <span
-              className={`block text-xs ${
-                draft.summary.trim().length < ROOM_SUMMARY_MIN ? "text-warning-fg" : "text-muted"
-              }`}
-            >
-              {draft.summary.trim().length}/{ROOM_SUMMARY_MIN}
-            </span>
+            <FieldCharCount
+              current={draft.summary.trim().length}
+              min={ROOM_SUMMARY_MIN}
+              max={ROOM_SUMMARY_MAX}
+              warnBelowMin
+            />
             <BulkImageUploader
               title={`Fotos de ${draft.customName.trim() || roomLabel}`}
               images={draft.photos}

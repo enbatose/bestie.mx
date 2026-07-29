@@ -9,6 +9,7 @@ import {
 import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingTagChips, listingTagLabel } from "@/components/listing/ListingTagChips";
 import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
+import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -17,6 +18,7 @@ import {
   PROPERTY_SUMMARY_MAX,
   PROPERTY_SUMMARY_MIN,
   PROPERTY_TITLE_MAX,
+  PROPERTY_TITLE_MIN,
   ROOM_SUMMARY_MAX,
   ROOM_SUMMARY_MIN,
   CITY_ANCHOR,
@@ -545,9 +547,13 @@ export function EditableListingPreview({
                   }
                   className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                 />
-                <span className="mt-1 block text-xs text-muted">
-                  {headerDraft.propertyTitle.trim().length} / {PROPERTY_TITLE_MAX}
-                </span>
+                <FieldCharCount
+                  current={headerDraft.propertyTitle.trim().length}
+                  min={PROPERTY_TITLE_MIN}
+                  max={PROPERTY_TITLE_MAX}
+                  warnBelowMin
+                  className="mt-1"
+                />
               </label>
             ) : draft.postMode === "property" ? (
               <label className="block text-sm font-medium text-body">
@@ -862,11 +868,14 @@ export function EditableListingPreview({
                 onChange={(e) => setPropertySummaryDraft(e.target.value)}
                 rows={5}
                 maxLength={PROPERTY_SUMMARY_MAX}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
-              <span className="text-xs text-muted">
-                {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
-              </span>
+              <FieldCharCount
+                current={propertySummaryDraft.trim().length}
+                min={PROPERTY_SUMMARY_MIN}
+                max={PROPERTY_SUMMARY_MAX}
+                warnBelowMin
+              />
             </InlineFieldEditor>
           ) : (
             <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
@@ -1057,11 +1066,14 @@ export function EditableListingPreview({
               onChange={(e) => setRoomSummaryDraft(e.target.value)}
               rows={5}
               maxLength={ROOM_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
-            <span className="text-xs text-muted">
-              {roomSummaryDraft.trim().length}/{ROOM_SUMMARY_MIN} mín.
-            </span>
+            <FieldCharCount
+              current={roomSummaryDraft.trim().length}
+              min={ROOM_SUMMARY_MIN}
+              max={ROOM_SUMMARY_MAX}
+              warnBelowMin
+            />
           </InlineFieldEditor>
         ) : (
           <>

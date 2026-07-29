@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
@@ -17,6 +18,7 @@ import {
   collectRoomFieldIssues,
   roomValidationIssuesByIndex,
 } from "@/lib/publishWizard/roomWizardValidation";
+import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -24,8 +26,6 @@ import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 
 const ROOM_STAY_MAX = 36;
-const ROOM_SUMMARY_MIN = 100;
-const ROOM_SUMMARY_MAX = 1500;
 const ROOM_OCCUPANT_MAX = 12;
 
 const ROOM_SUMMARY_PLACEHOLDER =
@@ -596,15 +596,14 @@ function AvailableRoomFields({
           rows={3}
           maxLength={ROOM_SUMMARY_MAX}
           placeholder={ROOM_SUMMARY_PLACEHOLDER}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+          className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
         />
-        <span
-          className={`block text-xs ${
-            room.summary.trim().length < ROOM_SUMMARY_MIN ? "text-warning-fg" : "text-muted"
-          }`}
-        >
-          {room.summary.trim().length}/{ROOM_SUMMARY_MIN}
-        </span>
+        <FieldCharCount
+          current={room.summary.trim().length}
+          min={ROOM_SUMMARY_MIN}
+          max={ROOM_SUMMARY_MAX}
+          warnBelowMin
+        />
         <BulkImageUploader
           title={`Fotos de ${roomLabel}`}
           images={room.photos}

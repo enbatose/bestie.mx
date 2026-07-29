@@ -394,7 +394,14 @@ export function getPublishBlockedReason(draft: Draft): string | null {
   return null;
 }
 
-export { PROPERTY_SUMMARY_MIN, PROPERTY_SUMMARY_MAX, ROOM_SUMMARY_MIN, ROOM_SUMMARY_MAX, PROPERTY_TITLE_MAX };
+export {
+  PROPERTY_SUMMARY_MIN,
+  PROPERTY_SUMMARY_MAX,
+  ROOM_SUMMARY_MIN,
+  ROOM_SUMMARY_MAX,
+  PROPERTY_TITLE_MIN,
+  PROPERTY_TITLE_MAX,
+};
 
 export type SyncDraftToServerResult = {
   serverSync: PublishWizardServerSync;
