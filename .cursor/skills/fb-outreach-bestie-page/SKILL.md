@@ -15,9 +15,9 @@ Redacta un **comentario listo para pegar** en el post de Facebook que el usuario
 
 - Screenshot de un post de renta/cuartos/roomies en un grupo de Facebook.
 - El usuario indica que publicará como **Bestie** (página / empresa), no con su perfil personal.
-- Outreach donde la identidad de marca ya es aceptable (menos “soy el dueño”, más producto).
+- Outreach donde la identidad de marca ya es aceptable (voz de Página, no “parte del equipo” desde perfil personal).
 
-Si el comentario irá desde la **cuenta personal** del fundador (lanzamiento / confianza), usa el skill `fb-outreach-personal` en su lugar.
+Si el comentario irá desde una **cuenta personal** (lanzamiento / confianza), usa el skill `fb-outreach-personal` en su lugar.
 
 ## Objetivo del mensaje
 
@@ -43,7 +43,7 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 
 - Español de México, **tú**, amable y profesional — marca cercana, no corporativo frío.
 - Habla como **Bestie** (“en Bestie…”, “te invitamos…”, “puedes publicar…”).
-- **No** digas “soy el dueño” ni firmes con nombre personal (eso es cuenta personal).
+- **No** digas “soy parte del equipo” ni firmes con nombre personal (eso es cuenta personal).
 - Corto: ~2–5 oraciones + enlace.
 - 0–2 emojis máximo. Sin hashtags. Sin spam de “síguenos”.
 - No criticar Facebook ni el grupo. No pedir que quiten su post.
@@ -60,7 +60,7 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 
 ## Must-include
 
-- [ ] Identidad de marca Bestie (no fundador en primera persona)
+- [ ] Identidad de marca Bestie (no “parte del equipo” en primera persona)
 - [ ] URL `https://www.bestie.mx`
 - [ ] Local Guadalajara (+ “nueva” o “recién lanzada” si encaja natural)
 - [ ] Sin costo / gratis **siempre**
@@ -68,7 +68,7 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 
 ## Must-avoid
 
-- Voz de “yo fundé / mi proyecto” (reservado a cuenta personal).
+- Voz de “soy parte del equipo” / nombre personal (reservado a cuenta personal).
 - CTA principal = like / follow de la Page (el CTA es publicar en el sitio).
 - Copy largo de marketing, bullets o tono de anuncio pagado.
 - Inventar métricas, partners o cobertura fuera de GDL si el post es local.

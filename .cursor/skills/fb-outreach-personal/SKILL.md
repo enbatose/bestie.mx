@@ -1,16 +1,15 @@
 ---
 name: fb-outreach-personal
 description: >-
-  Draft Facebook group comments from the founder's personal account inviting
-  landlords/room publishers to post on bestie.mx. Use when the user shares a
-  Facebook post screenshot for outreach, asks for a comentario personal,
-  cuenta personal, o reclutamiento de publicadores en grupos de Facebook
-  durante el lanzamiento.
+  Draft Facebook group comments from a personal account inviting landlords/room
+  publishers to post on bestie.mx. Use when the user shares a Facebook post
+  screenshot for outreach, asks for a comentario personal, cuenta personal, o
+  reclutamiento de publicadores en grupos de Facebook durante el lanzamiento.
 ---
 
 # Facebook outreach — cuenta personal (lanzamiento)
 
-Redacta un **comentario listo para pegar** en el post de Facebook que el usuario adjuntó (screenshot). Se publica desde la **cuenta personal** del fundador para generar confianza.
+Redacta un **comentario listo para pegar** en el post de Facebook que el usuario adjuntó (screenshot). Se publica desde una **cuenta personal** (no la página oficial) para generar confianza.
 
 ## Cuándo usar este skill
 
@@ -24,7 +23,7 @@ Si el comentario irá desde la **página oficial de Bestie**, usa el skill `fb-o
 
 Invitar al publicador a publicar (o también) en **bestie.mx**, dejando claro:
 
-1. Quién escribe: vínculo personal con Bestie en primera persona, **sin** “soy el dueño” (suena presuntuoso). Preferir: “estoy armando Bestie”, “Bestie es un proyecto mío”, “creé Bestie”, “ando lanzando Bestie”.
+1. Quién escribe: **“soy parte del equipo de Bestie.mx”** (o variación cercana: “ando con el equipo de Bestie.mx”). No digas “dueño”, “fundador”, “creé” ni “proyecto mío”.
 2. Qué es: plataforma **nueva**, **local de Guadalajara** (roomies / renta de cuartos).
 3. Precio: **sin costo y siempre lo será** (énfasis claro, sin letra chica).
 4. CTA: enlace para crear el anuncio → `https://www.bestie.mx`
@@ -43,7 +42,7 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 ## Tono (cuenta personal)
 
 - Español de México, **tú**, cercano y respetuoso.
-- Como vecino / fundador local, no como vendedor frío.
+- Como alguien del equipo local, no como vendedor frío ni como “el jefe”.
 - Corto: ~2–5 oraciones o un párrafo breve + enlace. Cabe en un comentario de FB.
 - Sin emojis excesivos (0–2 máximo). Sin hashtags. Sin “¡¡¡”.
 - No criticar Facebook ni el grupo. No pedir que borren su post.
@@ -53,14 +52,14 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 ## Estructura sugerida
 
 1. Saludo breve + gancho con detalle del post (zona / tipo).
-2. Presentación humilde: “estoy armando / creé Bestie…”, plataforma nueva local en GDL.
+2. Presentación: “soy parte del equipo de Bestie.mx…”, plataforma nueva local en GDL.
 3. Propuesta: pueden publicar su anuncio ahí; **gratis / sin costo siempre**.
 4. Enlace: `https://www.bestie.mx`
 5. Cierre suave (opcional): “si les late” / “cualquier duda me escriben”.
 
 ## Must-include
 
-- [ ] Primera persona con vínculo personal a Bestie (confianza), sin “dueño”.
+- [ ] “Parte del equipo de Bestie.mx” (o equivalente suave).
 - [ ] bestie.mx nombrado + URL `https://www.bestie.mx`
 - [ ] Nueva + local Guadalajara
 - [ ] Sin costo / gratis **siempre** (o equivalente inequívoco)
@@ -68,8 +67,8 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 
 ## Must-avoid
 
-- “Soy el dueño”, “soy el propietario”, “es mía la plataforma” u otras frases que suenen a alarde.
-- Hablar en “nosotros la empresa” / voz corporativa de página.
+- “Soy el dueño”, “soy el propietario”, “creé Bestie”, “es mía”, “fundador”, “estoy armando Bestie” u otras frases de autoría/propiedad.
+- Hablar en “nosotros la empresa” / voz corporativa de página (sí puedes decir “el equipo”).
 - Pedir likes, follows o unirse a la página como CTA principal.
 - Bloques largos, listas numeradas o copy de landing.
 - Mentir sobre features, usuarios o métricas.
