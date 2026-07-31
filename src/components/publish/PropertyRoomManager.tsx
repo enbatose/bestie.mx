@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
+import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
@@ -590,13 +591,13 @@ function AvailableRoomFields({
           Detalles de esta recámara
           <span className="text-error"> *</span>
         </h3>
-        <textarea
+        <ResizableTextarea
           value={room.summary}
           onChange={(e) => onChange({ summary: e.target.value })}
           rows={6}
           maxLength={ROOM_SUMMARY_MAX}
           placeholder={ROOM_SUMMARY_PLACEHOLDER}
-          className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
         />
         <FieldCharCount
           current={room.summary.trim().length}

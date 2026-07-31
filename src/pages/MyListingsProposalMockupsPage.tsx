@@ -16,6 +16,7 @@ import { ListingReferenceChip } from "@/components/myListings/ListingReferenceCh
 import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
 import { ListingThumb } from "@/components/myListings/ListingThumb";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
+import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
   ROOM_TAG_GROUPS,
@@ -816,13 +817,13 @@ function RoomActivationModal({
               Detalles de esta recámara
               <span className="text-error"> *</span>
             </h3>
-            <textarea
+            <ResizableTextarea
               value={draft.summary}
               onChange={(e) => patch({ summary: e.target.value })}
               rows={6}
               maxLength={ROOM_SUMMARY_MAX}
               placeholder={ROOM_SUMMARY_PLACEHOLDER}
-              className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
             />
             <span
               className={`flex justify-between gap-2 text-xs ${

@@ -14,6 +14,7 @@ import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
+import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
@@ -1729,13 +1730,14 @@ export function PublishWizardPage() {
                   <label className="block text-sm font-medium text-body">
                     El ambiente y las áreas comunes
                     <span className="text-error"> *</span>
-                    <textarea
+                    <ResizableTextarea
                       value={draft.propertySummary}
                       onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
                       rows={6}
                       maxLength={PROPERTY_SUMMARY_MAX}
                       placeholder={DEFAULT_PROPERTY_SUMMARY}
-                      className="mt-2 min-h-[9rem] max-h-[70vh] w-full resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                      containerClassName="mt-2"
+                      className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                     />
                     <p className="mt-1 text-xs text-muted">
                       Solo convivencia y zonas compartidas (cada recámara se describe en el paso 4).
@@ -2234,13 +2236,14 @@ export function PublishWizardPage() {
                   <label className="block text-sm font-medium text-body">
                     Descripción de la recámara
                     <span className="text-error"> *</span>
-                    <textarea
+                    <ResizableTextarea
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
                       rows={6}
                       maxLength={ROOM_SUMMARY_MAX}
                       placeholder={ROOM_SUMMARY_PLACEHOLDER}
-                      className="mt-1 min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                      containerClassName="mt-1"
+                      className="rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                     <FieldCharCount
                       current={room.summary.trim().length}
