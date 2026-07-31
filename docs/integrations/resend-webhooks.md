@@ -64,7 +64,7 @@ Check: `npm run resend:validate` (DNS SPF probe) or:
 dig +short TXT send.bestie.mx
 ```
 
-Fix: edit Cloudflare TXT `send`, or re-run `npm run cloudflare:setup` (script updates mismatched TXT).
+Fix: edit Cloudflare TXT `send`, or re-run `npm run cloudflare:setup` (updates mismatched TXT; requires `CLOUDFLARE_API_TOKEN` in `server/.env`).
 
 ### Ops: list / re-forward stuck inbound
 

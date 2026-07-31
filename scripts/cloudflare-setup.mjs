@@ -76,6 +76,7 @@ async function cf(method, path, body) {
 }
 
 /** DNS we need on Cloudflare (from GoDaddy / Railway / Resend). */
+const DNS_RECORDS = [
   {
     type: "CNAME",
     name: "www",

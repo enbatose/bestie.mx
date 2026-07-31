@@ -172,7 +172,7 @@ async function probeSpfDns() {
       console.log(`Result: OK (includes amazonses.com)`);
     } else {
       console.log(`Result: FAILED — expected "${expected}"`);
-      console.log("Fix: npm run cloudflare:setup (after fixing scripts/cloudflare-setup.mjs SPF)");
+      console.log("Fix: npm run cloudflare:setup");
       console.log("  or Cloudflare DNS → edit TXT send → v=spf1 include:amazonses.com ~all");
     }
     console.log("");
