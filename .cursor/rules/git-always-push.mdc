@@ -1,13 +1,18 @@
 ---
-description: After committing changes in this repo, always push to origin.
+description: After committing changes in this repo, always push to origin (Dev-first).
 alwaysApply: true
 ---
 
 # Git: always push after commit
 
-When you create a commit in **this repository** (`bestie.mx`), **always run `git push origin <current-branch>`** (or the branch the user is on) immediately after, unless:
+When you create a commit in **this repository** (`bestie.mx`), **always run `git push origin <current-branch>`** immediately after, unless:
 
 - The user explicitly asked not to push, or  
 - There is **no `origin` remote** or push fails with an access error — then report the failure and the exact command for the user to run locally.
+
+## Branch target
+
+- Default deploy branch is **`develop`** (Dev). Prefer committing on `develop` and pushing `origin develop`.
+- **Do not** push implementation work to **`main`** (Prod) unless the user explicitly asked to promote (“go to prod”) — see `deploy-dev-first.mdc`.
 
 Do not leave commits only on the machine when the remote is available and push is expected.

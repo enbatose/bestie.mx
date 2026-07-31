@@ -18,6 +18,6 @@ Prefer linking work to **BES** instead of other Jira projects for this codebase.
 ## When to set status to **Done** (critical)
 
 - **Do not** move issues to **Done** for backlog import, planning-only work, or “ticket created” milestones.
-- **Only** transition to **Done** after the issue’s scope is **implemented in this repo**, **committed**, and **pushed (merged) to the canonical GitHub branch** (typically `main` on `enbatose/bestie.mx`), unless the user explicitly defines a different completion gate.
-- For parent epics: leave **To Do** / **In Progress** until **all** agreed child work is merged (or split the epic).
+- **Only** transition to **Done** after the issue’s scope is **implemented**, **committed**, and **promoted to Prod** (`main` on `enbatose/bestie.mx` → `www.bestie.mx`), typically after the user says **“go to prod”**. Work on **Dev only** (`develop`) stays **In Progress** (or add a progress comment) until Prod promotion.
+- For parent epics: leave **To Do** / **In Progress** until **all** agreed child work is on Prod (or split the epic).
 - If unsure, leave the issue **To Do** or **In Progress** and add a **comment** with progress instead of closing.

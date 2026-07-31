@@ -104,12 +104,12 @@ Two Railway services in project **discerning-quietude** each serve the Vite SPA 
 
 | Environment | Domain | Git branch | Database |
 | --- | --- | --- | --- |
-| **Production** | `https://www.bestie.mx` (apex `bestie.mx` → www) | `main` | Fresh volume (`/data`) — pilot / real users |
 | **Dev** | `https://dev.bestie.mx` | `develop` | Existing test-data volume |
+| **Production** | `https://www.bestie.mx` (apex `bestie.mx` → www) | `main` | Fresh volume (`/data`) — pilot / real users |
 
 - **Local:** Vite on `:5173` proxies `/api`, or set `VITE_API_URL` via `npm run env:local`.
 - **PostHog:** set `VITE_POSTHOG_PROJECT_TOKEN` on **production only**.
-- **Promote:** merge `develop` → `main` (or ask the agent to deploy to prod) after manual validation on Dev.
+- **Deploy order (strict):** ship every change to **Dev** (`develop`) first. Promote to **Prod** only when asked explicitly (e.g. “go to prod”): merge `develop` → `main` and push. Agents must not push feature work straight to `main`.
 
 **Apex DNS (`bestie.mx`) must hit Railway.** If `www.bestie.mx` works but `bestie.mx/buscar` returns 404, apex DNS is still pointed at a registrar redirect or old host—not the Railway service. Fix:
 

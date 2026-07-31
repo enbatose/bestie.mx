@@ -1,0 +1,48 @@
+---
+description: Deploy Dev-first; promote to Prod only on explicit "go to prod".
+alwaysApply: true
+---
+
+# Deploy: Dev first, Prod only on “go to prod”
+
+## Environments (Railway)
+
+| Env | Domain | Git branch |
+| --- | --- | --- |
+| **Dev** | `https://dev.bestie.mx` | `develop` |
+| **Prod** | `https://www.bestie.mx` | `main` |
+
+## Default path (every implementation)
+
+1. Work on **`develop`** (or a feature branch that merges into `develop`).
+2. After implementing, **commit and push to `develop` only**.
+3. Tell the user the change is on **Dev** (`dev.bestie.mx`) and wait for validation.
+
+**Never** push implementation commits directly to `main` / Prod as part of normal prompt work.
+
+## Promote to Prod — only on explicit request
+
+Promote **only** when the user clearly says to ship Prod, e.g.:
+
+- “go to prod”
+- “promote to prod”
+- “deploy to production”
+- “merge develop to main”
+
+Then:
+
+1. Ensure `develop` is clean and contains the intended work.
+2. Merge `develop` → `main` (or PR + merge), then `git push origin main`.
+3. Confirm Prod (`www.bestie.mx`) will pick up `main`.
+
+If the user did **not** use that kind of language, **do not** push/merge to `main`.
+
+## Forbidden without “go to prod”
+
+- Committing or pushing feature work straight to `main`
+- Merging `develop` → `main` “to finish the task”
+- Treating `main` as the default deploy target for agent work
+
+## After a mistaken Prod push
+
+If work landed on `main` first, still sync Dev (`merge main → develop` or cherry-pick) and remind the user of this rule for next time.

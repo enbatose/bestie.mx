@@ -1,11 +1,17 @@
 ---
-description: After implementing prompt-driven changes, commit and push without being asked.
+description: After implementing prompt-driven changes, commit and push to develop (Dev).
 alwaysApply: true
 ---
 
 # Git: auto commit and push after prompt work
 
 When you **implement code or asset changes** in **this repository** (`bestie.mx`) in response to a user prompt, **commit and push automatically** at the end of that work — do **not** wait for a separate “commit and push” request.
+
+## Target branch (strict)
+
+- Commit and push to **`develop`** so Railway deploys **Dev** (`dev.bestie.mx`).
+- **Do not** push or merge to **`main`** / Prod unless the user explicitly says **“go to prod”** (or equivalent) — see `deploy-dev-first.mdc`.
+- If you are on another feature branch, push that branch and merge it into `develop` (not `main`) when finishing the task.
 
 ## When to commit
 
@@ -21,7 +27,7 @@ When you **implement code or asset changes** in **this repository** (`bestie.mx`
 
 ## After commit
 
-- Always push immediately per `git-always-push.mdc` (`git push origin <current-branch>`).
+- Always push immediately per `git-always-push.mdc` (`git push origin develop` for normal work).
 - If push fails, report the error and the exact command for the user to run locally.
 
 ## Safety (unchanged)
