@@ -5,6 +5,13 @@ import { cleanEnv } from "./mailer.js";
 /** Inbound address on bestie.mx that forwards to RESEND_CONTACT_FORWARD_TO. */
 export const CONTACT_INBOUND_ADDRESS = "contacto@bestie.mx";
 
+/** Extra @bestie.mx aliases that should also forward (Meta / support typos). */
+export const EXTRA_INBOUND_FORWARD_ADDRESSES = [
+  "soporte@bestie.mx",
+  "support@bestie.mx",
+  "privacy@bestie.mx",
+] as const;
+
 /** Default forward target when RESEND_CONTACT_FORWARD_TO is unset. */
 export const DEFAULT_CONTACT_FORWARD_TO = "batani.enrique@gmail.com";
 
@@ -35,6 +42,31 @@ export function resolveContactForwardFrom(): string {
   );
 }
 
+/** True when Svix webhook secret is present (no secret value exposed). */
+export function resendWebhookConfigured(): boolean {
+  return Boolean(cleanEnv(process.env.RESEND_WEBHOOK_SECRET));
+}
+
+/** True when a key usable for receiving/forward APIs is present. */
+export function resendReceivingConfigured(): boolean {
+  return Boolean(getResendReceivingApiKey());
+}
+
+/** Public inbound status for `/api/health` (booleans only — no secrets). */
+export function getResendInboundDiagnostics(): {
+  webhookConfigured: boolean;
+  receivingKeyConfigured: boolean;
+  forwardTo: string;
+  inboundAddresses: string[];
+} {
+  return {
+    webhookConfigured: resendWebhookConfigured(),
+    receivingKeyConfigured: resendReceivingConfigured(),
+    forwardTo: resolveContactForwardTo(),
+    inboundAddresses: [CONTACT_INBOUND_ADDRESS, ...EXTRA_INBOUND_FORWARD_ADDRESSES],
+  };
+}
+
 /** Strip display name from RFC 5322 addresses (`Name <user@host>` → `user@host`). */
 export function normalizeEmailAddress(value: string): string {
   const trimmed = value.trim();
@@ -51,6 +83,13 @@ export function matchesInboundAddress(
   return recipients.some((recipient) => normalizeEmailAddress(recipient) === normalizedTarget);
 }
 
+/** True when any recipient should be forwarded to the contact inbox. */
+export function shouldForwardInbound(recipients: string[] | undefined): boolean {
+  if (!recipients?.length) return false;
+  if (matchesInboundAddress(recipients, CONTACT_INBOUND_ADDRESS)) return true;
+  return EXTRA_INBOUND_FORWARD_ADDRESSES.some((addr) => matchesInboundAddress(recipients, addr));
+}
+
 async function forwardContactEmail(client: Resend, emailId: string): Promise<void> {
   const { data, error } = await client.emails.receiving.forward({
     emailId,
@@ -63,7 +102,7 @@ async function forwardContactEmail(client: Resend, emailId: string): Promise<voi
   }
 
   console.log(
-    `[resend] forwarded ${CONTACT_INBOUND_ADDRESS} email_id=${emailId} forward_id=${data?.id ?? "unknown"}`,
+    `[resend] forwarded inbound email_id=${emailId} to=${resolveContactForwardTo()} forward_id=${data?.id ?? "unknown"}`,
   );
 }
 
@@ -98,6 +137,8 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
     const data = event.data as unknown as Record<string, unknown> | undefined;
     const emailId = typeof data?.email_id === "string" ? data.email_id : undefined;
     const to = Array.isArray(data?.to) ? (data.to as string[]) : undefined;
+    const from = typeof data?.from === "string" ? data.from : undefined;
+    const subject = typeof data?.subject === "string" ? data.subject : undefined;
     const domain =
       typeof data?.name === "string"
         ? data.name
@@ -106,15 +147,13 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
           : undefined;
     const parts: string[] = [event.type];
     if (emailId) parts.push(`email_id=${emailId}`);
+    if (from) parts.push(`from=${from}`);
     if (to?.length) parts.push(`to=${to.join(",")}`);
+    if (subject) parts.push(`subject=${subject.slice(0, 80)}`);
     if (domain) parts.push(`domain=${domain}`);
     console.log(`[resend] ${parts.join(" ")}`);
 
-    if (
-      event.type === "email.received" &&
-      emailId &&
-      matchesInboundAddress(to, CONTACT_INBOUND_ADDRESS)
-    ) {
+    if (event.type === "email.received" && emailId && shouldForwardInbound(to)) {
       try {
         await forwardContactEmail(client, emailId);
       } catch (forwardErr) {
@@ -123,6 +162,10 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
         res.status(500).json({ error: "forward_failed" });
         return;
       }
+    } else if (event.type === "email.received" && emailId) {
+      console.log(
+        `[resend] email.received not forwarded (no matching inbound address) email_id=${emailId} to=${(to ?? []).join(",")}`,
+      );
     }
 
     res.status(200).json({ ok: true });

@@ -13,7 +13,7 @@ import { locationSearchHandler } from "./locationSearch.js";
 import { messagesRouter } from "./messagesRouter.js";
 import { notificationsRouter } from "./notificationsRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
-import { resendWebhookPost } from "./resendWebhook.js";
+import { getResendInboundDiagnostics, resendWebhookPost } from "./resendWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { savedSearchesRouter } from "./savedSearchesRouter.js";
@@ -117,6 +117,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
   app.get("/api/health", (_req: Request, res: Response) => {
     const smtp = getSmtpDiagnostics();
+    const inbound = getResendInboundDiagnostics();
     res.json({
       ok: true,
       service: "bestie-mx-api",
@@ -129,6 +130,12 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
         verifiedAt: smtp.verifiedAt,
         verifyError: smtp.verifyError,
         ...(getSmtpMode() === "off" ? { setupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
+      },
+      resendInbound: {
+        webhookConfigured: inbound.webhookConfigured,
+        receivingKeyConfigured: inbound.receivingKeyConfigured,
+        forwardTo: inbound.forwardTo,
+        inboundAddresses: inbound.inboundAddresses,
       },
       ...(databasePath ? { databasePath } : {}),
       ...(instanceId ? { instanceId } : {}),

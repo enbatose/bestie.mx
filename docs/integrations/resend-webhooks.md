@@ -44,8 +44,42 @@ Resend receives any `@bestie.mx` address once domain **receiving** is enabled an
 - Forward target env: `RESEND_CONTACT_FORWARD_TO` (default `batani.enrique@gmail.com`)
 - Forward from env: `RESEND_CONTACT_FORWARD_FROM` (default `Bestie Contacto <contacto@bestie.mx>`)
 - Receiving API key env: `RESEND_RECEIVING_API_KEY` (**full_access** — required on Railway; `RESEND_API_KEY` sending-only returns 401 on forward)
+- Also forwarded (same inbox): `soporte@`, `support@`, `privacy@` @bestie.mx
 
 Production must use `getResendReceivingApiKey()` in `server/src/resendWebhook.ts` (prefers `RESEND_RECEIVING_API_KEY`).
+
+### SPF for forwards (critical)
+
+Resend sends (including **inbound forwards**) use return-path on `send.bestie.mx`. That TXT **must** be:
+
+```text
+v=spf1 include:amazonses.com ~all
+```
+
+A bare `v=spf1` (no `include:amazonses.com`) fails SPF. With apex DMARC `p=quarantine`, Gmail often **quarantines or hides** the forward — Facebook/Meta validation mail can look like it “never arrived.”
+
+Check: `npm run resend:validate` (DNS SPF probe) or:
+
+```bash
+dig +short TXT send.bestie.mx
+```
+
+Fix: edit Cloudflare TXT `send`, or re-run `npm run cloudflare:setup` (script updates mismatched TXT).
+
+### Ops: list / re-forward stuck inbound
+
+```bash
+# List recent received (needs full_access key in server/.env)
+RESEND_VALIDATE_LIST=1 npm run resend:validate
+# or
+node --env-file=server/.env scripts/resend-validate.mjs --list
+
+# Re-send matching inbound to Gmail (dry-run first)
+node --env-file=server/.env scripts/resend-reforward-inbound.mjs --dry-run
+node --env-file=server/.env scripts/resend-reforward-inbound.mjs
+```
+
+Health (prod): `GET https://www.bestie.mx/api/health` → `resendInbound.webhookConfigured` / `receivingKeyConfigured` / `forwardTo`.
 
 ---
 

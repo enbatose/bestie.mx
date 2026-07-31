@@ -116,8 +116,11 @@ async function cf(method, path, body) {
   {
     type: "TXT",
     name: "send",
-    content: "v=spf1",
+    // Resend return-path SPF (must include amazonses.com — bare "v=spf1" fails SPF and
+    // Gmail can quarantine forwards of contacto@ → personal inbox under DMARC p=quarantine).
+    content: "v=spf1 include:amazonses.com ~all",
     proxied: false,
+    comment: "Resend/SES SPF for send.bestie.mx",
   },
   {
     type: "TXT",
@@ -244,9 +247,21 @@ async function upsertDns(zoneId) {
       continue;
     }
     const sameName = existing.filter((r) => r.type === spec.type && namesMatch(r.name, spec.name));
-    if (sameName.length === 1 && spec.type !== "TXT") {
+    // Update single-record names (including TXT) when content drifted — e.g. truncated SPF.
+    if (sameName.length === 1) {
       await cf("PATCH", `/zones/${zoneId}/dns_records/${sameName[0].id}`, payload);
-      console.log(`DNS update ${spec.type} ${spec.name}`);
+      console.log(`DNS update ${spec.type} ${spec.name} → ${spec.content}`);
+      continue;
+    }
+    if (sameName.length > 1 && spec.type === "TXT") {
+      // Replace mismatched duplicates with the canonical record.
+      for (const r of sameName) {
+        await cf("DELETE", `/zones/${zoneId}/dns_records/${r.id}`);
+        console.log(`DNS remove stale ${r.type} ${r.name} (${r.content})`);
+      }
+      await cf("POST", `/zones/${zoneId}/dns_records`, payload);
+      console.log(`DNS add ${spec.type} ${spec.name}`);
+      byKey.set(recordKey(spec), spec);
       continue;
     }
     if (
