@@ -24,7 +24,7 @@ Si el comentario irá desde la **página oficial de Bestie**, usa el skill `fb-o
 
 Invitar al publicador a publicar (o también) en **bestie.mx**, dejando claro:
 
-1. Quién escribe: el dueño / creador de Bestie (primera persona, natural).
+1. Quién escribe: vínculo personal con Bestie en primera persona, **sin** “soy el dueño” (suena presuntuoso). Preferir: “estoy armando Bestie”, “Bestie es un proyecto mío”, “creé Bestie”, “ando lanzando Bestie”.
 2. Qué es: plataforma **nueva**, **local de Guadalajara** (roomies / renta de cuartos).
 3. Precio: **sin costo y siempre lo será** (énfasis claro, sin letra chica).
 4. CTA: enlace para crear el anuncio → `https://www.bestie.mx`
@@ -53,14 +53,14 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 ## Estructura sugerida
 
 1. Saludo breve + gancho con detalle del post (zona / tipo).
-2. Presentación: soy el dueño de Bestie, plataforma nueva local en GDL.
+2. Presentación humilde: “estoy armando / creé Bestie…”, plataforma nueva local en GDL.
 3. Propuesta: pueden publicar su anuncio ahí; **gratis / sin costo siempre**.
 4. Enlace: `https://www.bestie.mx`
 5. Cierre suave (opcional): “si les late” / “cualquier duda me escriben”.
 
 ## Must-include
 
-- [ ] Primera persona como dueño/creador (confianza).
+- [ ] Primera persona con vínculo personal a Bestie (confianza), sin “dueño”.
 - [ ] bestie.mx nombrado + URL `https://www.bestie.mx`
 - [ ] Nueva + local Guadalajara
 - [ ] Sin costo / gratis **siempre** (o equivalente inequívoco)
@@ -68,6 +68,7 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 
 ## Must-avoid
 
+- “Soy el dueño”, “soy el propietario”, “es mía la plataforma” u otras frases que suenen a alarde.
 - Hablar en “nosotros la empresa” / voz corporativa de página.
 - Pedir likes, follows o unirse a la página como CTA principal.
 - Bloques largos, listas numeradas o copy de landing.
