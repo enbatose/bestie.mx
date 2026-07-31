@@ -101,6 +101,18 @@
   }
 }
 
+@keyframes feedback-fab-flash {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+  }
+  50% {
+    transform: scale(1.14);
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.45), 0 8px 18px rgba(0, 0, 0, 0.16);
+  }
+}
+
 /* Home hero — soft presence (respect reduced motion) */
 @keyframes home-orb-drift {
   0%,

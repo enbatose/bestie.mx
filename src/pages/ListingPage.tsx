@@ -26,6 +26,7 @@ import {
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
 import { buildSearchRestorePath, readSearchReturn } from "@/lib/searchReturn";
+import { recordSearchListingClosed } from "@/lib/feedbackSession";
 import { roomDisplayName } from "@/lib/roomDisplay";
 import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
 import type { PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
@@ -284,6 +285,24 @@ export function ListingPage() {
     // Fire once per listing id (not on searchReturn object identity churn).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional once-per-listing
   }, [listing?.id]);
+
+  // Count full listing open→close cycles from search (once per session prompt at 3).
+  // Delay confirmation so React Strict Mode remounts don't inflate the counter.
+  useEffect(() => {
+    if (!searchReturn || !listing?.id) return;
+    const snapshot = {
+      id: listing.id,
+      title: (listing.title || "").trim() || listing.id,
+    };
+    let confirmed = false;
+    const timer = window.setTimeout(() => {
+      confirmed = true;
+    }, 600);
+    return () => {
+      window.clearTimeout(timer);
+      if (confirmed) recordSearchListingClosed(snapshot);
+    };
+  }, [searchReturn, listing?.id, listing?.title]);
 
   useEffect(() => {
     if (!listing?.id || !id) return;

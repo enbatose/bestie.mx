@@ -4,8 +4,26 @@ import type { DatabaseSync } from "node:sqlite";
 export const SUPPORT_BOT_USER_ID = "support-bestie";
 export const SUPPORT_BOT_DISPLAY_NAME = "Soporte de Bestie";
 const SUPPORT_BOT_EMAIL = "soporte-sistema@bestie.mx";
+
+/** Fixed system account used as the "other participant" in every feedback conversation. */
+export const FEEDBACK_BOT_USER_ID = "feedback-bestie";
+export const FEEDBACK_BOT_DISPLAY_NAME = "Feedback de Bestie";
+const FEEDBACK_BOT_EMAIL = "feedback-sistema@bestie.mx";
+
 /** Not a valid scrypt hash — any login attempt against this account fails `verifyPassword`. */
-const SUPPORT_BOT_PASSWORD_MARKER = "system-support-account-no-login";
+const SYSTEM_BOT_PASSWORD_MARKER = "system-support-account-no-login";
+
+export type MessagingConversationKind = "listing" | "support" | "feedback";
+
+export function isSystemMessagingBot(userId: string): boolean {
+  return userId === SUPPORT_BOT_USER_ID || userId === FEEDBACK_BOT_USER_ID;
+}
+
+export function normalizeConversationKind(kind: string | null | undefined): MessagingConversationKind {
+  if (kind === "support") return "support";
+  if (kind === "feedback") return "feedback";
+  return "listing";
+}
 
 function tableHasColumn(db: DatabaseSync, table: string, column: string): boolean {
   const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -30,27 +48,31 @@ function migrateMessageDeliveredAt(db: DatabaseSync): void {
   }
 }
 
-/** Seeds the "Soporte de Bestie" system account used as the counterpart of every support chat. */
-function ensureSupportBotUser(db: DatabaseSync): void {
-  const row = db.prepare(`SELECT 1 AS x FROM users WHERE id = ?`).get(SUPPORT_BOT_USER_ID) as
-    | { x: number }
-    | undefined;
+function ensureSystemBotUser(
+  db: DatabaseSync,
+  id: string,
+  email: string,
+  displayName: string,
+): void {
+  const row = db.prepare(`SELECT 1 AS x FROM users WHERE id = ?`).get(id) as { x: number } | undefined;
   if (row) return;
   db.prepare(
     `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at)
      VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
-  ).run(
-    SUPPORT_BOT_USER_ID,
-    SUPPORT_BOT_EMAIL,
-    SUPPORT_BOT_EMAIL,
-    SUPPORT_BOT_PASSWORD_MARKER,
-    SUPPORT_BOT_DISPLAY_NAME,
-    new Date().toISOString(),
-    null,
-  );
+  ).run(id, email, email, SYSTEM_BOT_PASSWORD_MARKER, displayName, new Date().toISOString(), null);
 }
 
-/** In-app 1:1 messaging (listing threads + support chats), read receipts, and attachments. */
+/** Seeds the "Soporte de Bestie" system account used as the counterpart of every support chat. */
+function ensureSupportBotUser(db: DatabaseSync): void {
+  ensureSystemBotUser(db, SUPPORT_BOT_USER_ID, SUPPORT_BOT_EMAIL, SUPPORT_BOT_DISPLAY_NAME);
+}
+
+/** Seeds the "Feedback de Bestie" system account used as the counterpart of every feedback chat. */
+function ensureFeedbackBotUser(db: DatabaseSync): void {
+  ensureSystemBotUser(db, FEEDBACK_BOT_USER_ID, FEEDBACK_BOT_EMAIL, FEEDBACK_BOT_DISPLAY_NAME);
+}
+
+/** In-app 1:1 messaging (listing threads + support/feedback chats), read receipts, and attachments. */
 export function ensureMessagingSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS conversations (
@@ -86,4 +108,5 @@ export function ensureMessagingSchema(db: DatabaseSync): void {
   migrateMessageAttachments(db);
   migrateMessageDeliveredAt(db);
   ensureSupportBotUser(db);
+  ensureFeedbackBotUser(db);
 }

@@ -10,7 +10,7 @@ export type MessageAttachment = {
   filename: string;
 };
 
-export type ConversationKind = "listing" | "support";
+export type ConversationKind = "listing" | "support" | "feedback";
 
 export type ConversationSummary = {
   id: string;
@@ -112,6 +112,38 @@ export async function startSupportConversation(
   const j = (await res.json().catch(() => ({}))) as { conversationId?: string; error?: string; message?: string };
   if (!res.ok) {
     throw new Error(j.message || j.error || `support_start_${res.status}`);
+  }
+  if (!j.conversationId) throw new Error("missing_conversation");
+  return { conversationId: j.conversationId };
+}
+
+export type FeedbackSource = "publish" | "search" | "menu" | "map";
+
+export async function startFeedbackConversation(
+  input: {
+    rating: number;
+    body: string;
+    subject?: string;
+    source?: FeedbackSource;
+  },
+  signal?: AbortSignal,
+): Promise<{ conversationId: string }> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/messages/conversations/from-feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({
+      rating: input.rating,
+      body: input.body,
+      subject: input.subject ?? "Feedback",
+      source: input.source ?? "menu",
+    }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { conversationId?: string; error?: string; message?: string };
+  if (!res.ok) {
+    throw new Error(j.message || j.error || `feedback_start_${res.status}`);
   }
   if (!j.conversationId) throw new Error("missing_conversation");
   return { conversationId: j.conversationId };

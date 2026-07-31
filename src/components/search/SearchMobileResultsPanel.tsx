@@ -1,5 +1,6 @@
 import { List, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { MapFeedbackFab } from "@/components/search/MapFeedbackFab";
 import { MapSupportFab } from "@/components/search/MapSupportFab";
 import { MOBILE_LIST_DRAWER_LEFT_CLASS } from "@/components/search/SearchFilterRail";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
@@ -16,6 +17,8 @@ type Props = {
   autoExpandKey?: string;
   onDrawerOpen?: () => void;
   onOpenSupport?: () => void;
+  onOpenFeedback?: () => void;
+  flashFeedbackFab?: boolean;
 };
 
 const LIST_TAB_WIDTH = "2.75rem";
@@ -30,6 +33,8 @@ export function SearchMobileResultsPanel({
   autoExpandKey,
   onDrawerOpen,
   onOpenSupport,
+  onOpenFeedback,
+  flashFeedbackFab = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const restoreAfterLegendCollapseRef = useRef(false);
@@ -116,6 +121,9 @@ export function SearchMobileResultsPanel({
             <List className="size-5" aria-hidden="true" />
           </button>
           {onOpenSupport ? <MapSupportFab onClick={onOpenSupport} /> : null}
+          {onOpenFeedback ? (
+            <MapFeedbackFab onClick={onOpenFeedback} flash={flashFeedbackFab} />
+          ) : null}
         </div>
 
         {expanded ? (

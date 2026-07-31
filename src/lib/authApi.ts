@@ -622,6 +622,7 @@ export type GroupRow = {
 export type AdminSupportConversationRow = {
   id: string;
   subject: string;
+  kind?: "support" | "feedback";
   updatedAt: string;
   customerUserId: string;
   customerDisplayName: string;
@@ -631,11 +632,14 @@ export type AdminSupportConversationRow = {
 };
 
 export async function adminListSupportConversations(
-  opts?: { q?: string; signal?: AbortSignal },
+  opts?: { q?: string; kind?: "all" | "support" | "feedback"; signal?: AbortSignal },
 ): Promise<AdminSupportConversationRow[]> {
   const base = apiBase();
+  const params = new URLSearchParams();
   const q = opts?.q?.trim();
-  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  if (q) params.set("q", q);
+  if (opts?.kind && opts.kind !== "all") params.set("kind", opts.kind);
+  const qs = params.size > 0 ? `?${params.toString()}` : "";
   const res = await networkFetch(`${base}/api/admin/support/conversations${qs}`, {
     credentials: cred,
     signal: opts?.signal,
@@ -657,6 +661,7 @@ export type AdminSupportMessage = {
 
 export type AdminSupportThread = {
   subject: string;
+  kind?: "support" | "feedback";
   customer: { id: string; displayName: string; email: string | null } | null;
   messages: AdminSupportMessage[];
 };

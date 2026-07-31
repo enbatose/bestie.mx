@@ -81,9 +81,11 @@ export function PrivacyPage() {
             </>,
             <>
               <strong>Datos de tus anuncios y actividad:</strong> información de las propiedades o
-              habitaciones que publicas, mensajes (incluidos los que envías a Soporte de Bestie desde el
-              chat directo en Contacto y los archivos que adjuntes, por ejemplo capturas de pantalla),
-              y tus interacciones en la Plataforma.
+              habitaciones que publicas, mensajes (incluidos los que envías a Soporte de Bestie o a
+              Feedback de Bestie desde el chat directo, el menú Feedback, el mapa de búsqueda o las
+              invitaciones a calificar el producto, y los archivos que adjuntes, por ejemplo capturas
+              de pantalla), calificaciones (por ejemplo de 1 a 5 estrellas) y comentarios opcionales
+              asociados a ese feedback, y tus interacciones en la Plataforma.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
@@ -195,7 +197,7 @@ export function PrivacyPage() {
           items={[
             "Crear, autenticar y administrar tu cuenta.",
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
-            "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie, incluidos los archivos que adjuntes.",
+            "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
             "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña, notificaciones del servicio).",
             "Enviarte correos de aviso cuando tengas mensajes nuevos en Bestie (como máximo uno cada 3 horas; el correo no incluye el contenido de los mensajes). Si en ese periodo también se crearon notificaciones en la app, podemos resumirlas en el mismo correo.",
             "Prevenir fraudes, abusos y garantizar la seguridad de la Plataforma.",

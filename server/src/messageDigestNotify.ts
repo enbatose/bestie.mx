@@ -8,7 +8,7 @@ import {
 import { buildMessageDigestEmail } from "./emails/messageDigestEmail.js";
 import { isUserEmailVerified } from "./emailVerification.js";
 import { sendTransactionalEmail } from "./mailer.js";
-import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
+import { FEEDBACK_BOT_USER_ID, SUPPORT_BOT_USER_ID, isSystemMessagingBot } from "./messagingSchema.js";
 
 /** Minimum interval between message digest emails (aggregates activity in this window). */
 export const MESSAGE_DIGEST_DEBOUNCE_MS = 3 * 60 * 60 * 1000;
@@ -144,9 +144,9 @@ function candidateUserIds(db: DatabaseSync): string[] {
        JOIN messages m ON m.conversation_id = p.conversation_id
        WHERE m.sender_user_id != p.user_id
          AND m.read_at IS NULL
-         AND p.user_id != ?`,
+         AND p.user_id NOT IN (?, ?)`,
     )
-    .all(SUPPORT_BOT_USER_ID) as { user_id: string }[];
+    .all(SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID) as { user_id: string }[];
   return rows.map((r) => r.user_id);
 }
 
@@ -158,7 +158,7 @@ function canSendDigest(lastDigestAt: string | null, nowMs: number): boolean {
 }
 
 export async function sendMessageDigestForUser(db: DatabaseSync, userId: string): Promise<boolean> {
-  if (userId === SUPPORT_BOT_USER_ID) return false;
+  if (isSystemMessagingBot(userId)) return false;
   const user = loadUserForDigest(db, userId);
   if (!user) return false;
 
@@ -171,7 +171,9 @@ export async function sendMessageDigestForUser(db: DatabaseSync, userId: string)
   const now = new Date(nowMs);
   const messageRows = unreadMessagesForDigest(db, userId).map((row) => {
     const tz = resolveTimeZoneForConversation({ kind: row.kind, city: row.city });
-    const title = (row.context_title || "").trim() || (row.kind === "support" ? "Soporte Bestie" : "Mensaje");
+    const title =
+      (row.context_title || "").trim() ||
+      (row.kind === "support" ? "Soporte Bestie" : row.kind === "feedback" ? "Feedback Bestie" : "Mensaje");
     return {
       contextTitle: title,
       whenLabel: formatFriendlyEmailDateTime(row.created_at, tz, now),
