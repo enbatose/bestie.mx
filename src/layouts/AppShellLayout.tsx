@@ -5,6 +5,7 @@ import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
+import { FeedbackModalProvider } from "@/contexts/FeedbackModalContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { PostHogIdentify, PostHogPageViews } from "@/components/analytics/PostHogApp";
 import { analyticsHeartbeat, authMe, needsEmailVerification, type AuthMe } from "@/lib/authApi";
@@ -97,6 +98,7 @@ export function AppShellLayout() {
 
   return (
     <AuthModalProvider>
+      <FeedbackModalProvider>
       <NotificationsProvider>
       <PostHogPageViews />
       <PostHogIdentify me={me} />
@@ -141,6 +143,7 @@ export function AppShellLayout() {
         <AuthModal />
       </div>
       </NotificationsProvider>
+      </FeedbackModalProvider>
     </AuthModalProvider>
   );
 }

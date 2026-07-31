@@ -1,5 +1,6 @@
 import { Filter } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { MapFeedbackFab } from "@/components/search/MapFeedbackFab";
 import { MapSupportFab } from "@/components/search/MapSupportFab";
 import {
   ADVANCED_FILTERS_META,
@@ -13,6 +14,8 @@ type Props = {
   onOpenAdvanced: () => void;
   onLabelsExpandedChange?: (expanded: boolean) => void;
   onOpenSupport?: () => void;
+  onOpenFeedback?: () => void;
+  flashFeedbackFab?: boolean;
 };
 
 export type SearchFilterRailHandle = {
@@ -67,7 +70,15 @@ function legendLabelClass(expanded: boolean, active?: boolean) {
 }
 
 export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(function SearchFilterRail(
-  { filters, onChange, onOpenAdvanced, onLabelsExpandedChange, onOpenSupport },
+  {
+    filters,
+    onChange,
+    onOpenAdvanced,
+    onLabelsExpandedChange,
+    onOpenSupport,
+    onOpenFeedback,
+    flashFeedbackFab = false,
+  },
   ref,
 ) {
   const [labelsExpanded, setLabelsExpanded] = useState(getRailDefaultExpanded);
@@ -218,9 +229,12 @@ export const SearchFilterRail = forwardRef<SearchFilterRailHandle, Props>(functi
           </div>
         </div>
 
-        {onOpenSupport ? (
-          <div className="pointer-events-none hidden w-[calc(2.25rem+1rem)] justify-center sm:w-[calc(2.5rem+1rem)] lg:flex">
-            <MapSupportFab onClick={onOpenSupport} className="size-9" />
+        {onOpenSupport || onOpenFeedback ? (
+          <div className="pointer-events-none hidden w-[calc(2.25rem+1rem)] flex-col items-center gap-2 sm:w-[calc(2.5rem+1rem)] lg:flex">
+            {onOpenSupport ? <MapSupportFab onClick={onOpenSupport} className="size-9" /> : null}
+            {onOpenFeedback ? (
+              <MapFeedbackFab onClick={onOpenFeedback} className="size-9" flash={flashFeedbackFab} />
+            ) : null}
           </div>
         ) : null}
       </div>

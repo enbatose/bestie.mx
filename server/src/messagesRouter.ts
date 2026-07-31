@@ -3,7 +3,13 @@ import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
-import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
+import {
+  FEEDBACK_BOT_USER_ID,
+  SUPPORT_BOT_USER_ID,
+  isSystemMessagingBot,
+  normalizeConversationKind,
+  type MessagingConversationKind,
+} from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import {
   parsePropertyReferenceSuffix,
@@ -22,6 +28,10 @@ const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 
 
 const SUPPORT_SUBJECT_MAX_LEN = 200;
 const SUPPORT_BODY_MAX_LEN = 4000;
+const FEEDBACK_SUBJECT_MAX_LEN = 200;
+const FEEDBACK_BODY_MAX_LEN = 4000;
+const FEEDBACK_RATING_MIN = 1;
+const FEEDBACK_RATING_MAX = 5;
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -67,12 +77,12 @@ function assertMember(db: DatabaseSync, conversationId: string, userId: string):
   return Boolean(r);
 }
 
-function conversationKind(db: DatabaseSync, conversationId: string): "listing" | "support" | null {
+function conversationKind(db: DatabaseSync, conversationId: string): MessagingConversationKind | null {
   const row = db.prepare(`SELECT kind FROM conversations WHERE id = ?`).get(conversationId) as
     | { kind: string }
     | undefined;
   if (!row) return null;
-  return row.kind === "support" ? "support" : "listing";
+  return normalizeConversationKind(row.kind);
 }
 
 function findExistingConversation(
@@ -100,7 +110,7 @@ function createConversation(
   userB: string,
   listingRoomId: string | null,
   contextTitle: string,
-  kind: "listing" | "support" = "listing",
+  kind: MessagingConversationKind = "listing",
 ): string {
   const id = randomUUID();
   const now = isoNow();
@@ -302,7 +312,7 @@ export function messagesRouter(db: DatabaseSync) {
         id: row.id,
         contextTitle: row.context_title,
         listingRoomId: row.listing_room_id,
-        kind: row.kind === "support" ? "support" : "listing",
+        kind: normalizeConversationKind(typeof row.kind === "string" ? row.kind : null),
         updatedAt: row.updated_at,
         otherUserId: row.other_user_id,
         otherDisplayName: row.other_display_name,
@@ -359,7 +369,7 @@ export function messagesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
-    if (me === SUPPORT_BOT_USER_ID) {
+    if (isSystemMessagingBot(me)) {
       res.status(400).json({ error: "invalid_sender" });
       return;
     }
@@ -383,6 +393,53 @@ export function messagesRouter(db: DatabaseSync) {
     const conversationId = createConversation(db, me, SUPPORT_BOT_USER_ID, null, subject, "support");
     const message = insertMessage(db, conversationId, me, messageBody, attachments);
     res.status(201).json({ conversationId, messageId: message.id, createdAt: message.createdAt });
+  });
+
+  /** Creates a brand-new feedback conversation with the Feedback de Bestie account. */
+  r.post("/conversations/from-feedback", jsonMw(), (req: Request, res: Response) => {
+    const me = readAuthUserId(req);
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (isSystemMessagingBot(me)) {
+      res.status(400).json({ error: "invalid_sender" });
+      return;
+    }
+    const lim = startConvLimiter(req.ip ?? "ip");
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const body = req.body as {
+      subject?: unknown;
+      body?: unknown;
+      rating?: unknown;
+      source?: unknown;
+    };
+    const ratingRaw = typeof body.rating === "number" ? body.rating : Number(body.rating);
+    const rating = Number.isInteger(ratingRaw) ? ratingRaw : NaN;
+    if (!Number.isFinite(rating) || rating < FEEDBACK_RATING_MIN || rating > FEEDBACK_RATING_MAX) {
+      res.status(400).json({ error: "rating_required" });
+      return;
+    }
+    const subject =
+      clampStr(typeof body.subject === "string" ? body.subject : "", FEEDBACK_SUBJECT_MAX_LEN) ||
+      "Feedback";
+    const messageBody = clampStr(typeof body.body === "string" ? body.body : "", FEEDBACK_BODY_MAX_LEN);
+    if (!messageBody) {
+      res.status(400).json({ error: "empty_body" });
+      return;
+    }
+    const conversationId = createConversation(db, me, FEEDBACK_BOT_USER_ID, null, subject, "feedback");
+    const message = insertMessage(db, conversationId, me, messageBody, []);
+    res.status(201).json({
+      conversationId,
+      messageId: message.id,
+      createdAt: message.createdAt,
+      rating,
+      source: typeof body.source === "string" ? body.source.slice(0, 40) : null,
+    });
   });
 
   r.get("/conversations/:id/messages", (req: Request, res: Response) => {
@@ -413,9 +470,12 @@ export function messagesRouter(db: DatabaseSync) {
       unreadCount,
       messages: rows.map((m) => {
         const rawSenderId = String(m.sender_user_id);
-        // Never reveal which real admin replied to a support chat — customers only see "Soporte de Bestie".
-        const senderUserId =
-          kind === "support" && rawSenderId !== me && isAdminUser(db, rawSenderId) ? SUPPORT_BOT_USER_ID : rawSenderId;
+        // Never reveal which real admin replied — customers only see the system bot identity.
+        let senderUserId = rawSenderId;
+        if (rawSenderId !== me && isAdminUser(db, rawSenderId)) {
+          if (kind === "support") senderUserId = SUPPORT_BOT_USER_ID;
+          else if (kind === "feedback") senderUserId = FEEDBACK_BOT_USER_ID;
+        }
         return {
           id: m.id,
           senderUserId,

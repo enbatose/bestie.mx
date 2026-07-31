@@ -1,8 +1,9 @@
 import type { ConversationKind, ConversationSummary } from "@/lib/messagesApi";
 import type { AdminSupportConversationRow } from "@/lib/authApi";
 
-export type UserConversationSortKey = "updated" | "user" | "unread" | "listing" | "support";
+export type UserConversationSortKey = "updated" | "user" | "unread" | "listing" | "support" | "feedback";
 export type AdminSupportSortKey = "updated" | "user" | "unread" | "email";
+export type AdminSupportKindFilter = "all" | "support" | "feedback";
 
 export const USER_CONVERSATION_SORT_OPTIONS: { value: UserConversationSortKey; label: string }[] = [
   { value: "updated", label: "Más recientes" },
@@ -10,6 +11,7 @@ export const USER_CONVERSATION_SORT_OPTIONS: { value: UserConversationSortKey; l
   { value: "unread", label: "No leídos" },
   { value: "listing", label: "Anuncios primero" },
   { value: "support", label: "Soporte primero" },
+  { value: "feedback", label: "Feedback primero" },
 ];
 
 export const ADMIN_SUPPORT_SORT_OPTIONS: { value: AdminSupportSortKey; label: string }[] = [
@@ -19,11 +21,17 @@ export const ADMIN_SUPPORT_SORT_OPTIONS: { value: AdminSupportSortKey; label: st
   { value: "email", label: "Correo" },
 ];
 
+export const ADMIN_SUPPORT_KIND_FILTER_OPTIONS: { value: AdminSupportKindFilter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "support", label: "Solo Soporte" },
+  { value: "feedback", label: "Solo Feedback" },
+];
+
 function cmpStr(a: string, b: string): number {
   return a.localeCompare(b, "es", { sensitivity: "base" });
 }
 
-function kindRank(kind: ConversationKind, prefer: "listing" | "support"): number {
+function kindRank(kind: ConversationKind, prefer: ConversationKind): number {
   if (kind === prefer) return 0;
   return 1;
 }
@@ -46,6 +54,10 @@ export function sortUserConversations(
       case "support":
         return (
           kindRank(a.kind, "support") - kindRank(b.kind, "support") || b.updatedAt.localeCompare(a.updatedAt)
+        );
+      case "feedback":
+        return (
+          kindRank(a.kind, "feedback") - kindRank(b.kind, "feedback") || b.updatedAt.localeCompare(a.updatedAt)
         );
       case "updated":
       default:

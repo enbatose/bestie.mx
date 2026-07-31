@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Search,
   Shield,
+  Star,
   User,
 } from "lucide-react";
 import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
@@ -17,6 +18,7 @@ import type { AuthMe } from "@/lib/authApi";
 import { authLogout } from "@/lib/authApi";
 import { resetAnalyticsUser, track } from "@/lib/analytics";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import type { NotificationItem } from "@/lib/notificationsApi";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -315,6 +317,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
   const navigate = useNavigate();
   const location = useLocation();
   const { openLogin } = useAuthModal();
+  const { openFeedback } = useFeedbackModal();
   const { notifications, hasUnreadNotifications, markNotificationRead, markAllNotificationsRead } =
     useNotifications();
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -468,6 +471,17 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
+      <button
+        type="button"
+        className={desktopMenuItem}
+        onClick={() => {
+          dismissNav();
+          openFeedback({ source: "menu" });
+        }}
+      >
+        <Star className="h-4 w-4 shrink-0" aria-hidden />
+        Feedback
+      </button>
       <button type="button" className={desktopLogoutBtn} onClick={() => void onLogout()}>
         <LogOut className="h-4 w-4 shrink-0" aria-hidden />
         Cerrar sesión
@@ -492,6 +506,17 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
+      <button
+        type="button"
+        className={desktopMenuItem}
+        onClick={() => {
+          dismissNav();
+          openFeedback({ source: "menu" });
+        }}
+      >
+        <Star className="h-4 w-4 shrink-0" aria-hidden />
+        Feedback
+      </button>
     </div>
   );
 
@@ -559,6 +584,17 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
       </Link>
       <button
         type="button"
+        className={mobileMenuItem}
+        onClick={() => {
+          dismissNav();
+          openFeedback({ source: "menu" });
+        }}
+      >
+        <Star className="h-4 w-4 shrink-0" aria-hidden />
+        Feedback
+      </button>
+      <button
+        type="button"
         className={`${mobileMenuItem} hover:bg-error/5 hover:text-error`}
         onClick={() => void onLogout()}
       >
@@ -597,6 +633,17 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <Mail className="h-4 w-4 shrink-0" aria-hidden />
         Contacto
       </Link>
+      <button
+        type="button"
+        className={mobileMenuItem}
+        onClick={() => {
+          dismissNav();
+          openFeedback({ source: "menu" });
+        }}
+      >
+        <Star className="h-4 w-4 shrink-0" aria-hidden />
+        Feedback
+      </button>
     </div>
   );
 

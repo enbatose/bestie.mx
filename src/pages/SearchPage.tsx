@@ -10,6 +10,7 @@ import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResult
 import { MapSupportModal } from "@/components/search/MapSupportModal";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar, type SearchTopBarHandle } from "@/components/search/SearchTopBar";
+import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
 import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
@@ -206,6 +207,7 @@ export function SearchPage() {
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportAutoResume] = useState(() => searchParams.get(SUPPORT_RESUME_PARAM) === "1");
   const { openLogin } = useAuthModal();
+  const { openFeedback, flashMapFab } = useFeedbackModal();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveModalFilters, setSaveModalFilters] = useState<SearchFilters | null>(null);
@@ -724,6 +726,8 @@ export function SearchPage() {
               onOpenAdvanced={() => setAdvancedOpen(true)}
               onLabelsExpandedChange={setFilterRailLabelsExpanded}
               onOpenSupport={() => setSupportOpen(true)}
+              onOpenFeedback={() => openFeedback({ source: "map" })}
+              flashFeedbackFab={flashMapFab}
             />
             <SearchMobileResultsPanel
               listings={mobileDrawerListings}
@@ -735,6 +739,8 @@ export function SearchPage() {
               autoExpandKey={farNeighborhoodAutoOpenKey}
               onDrawerOpen={handleMobileDrawerOpen}
               onOpenSupport={() => setSupportOpen(true)}
+              onOpenFeedback={() => openFeedback({ source: "map" })}
+              flashFeedbackFab={flashMapFab}
             />
           </div>
         </section>

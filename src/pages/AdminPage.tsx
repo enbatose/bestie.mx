@@ -19,9 +19,11 @@ import {
 } from "@/lib/authApi";
 import { apiBase } from "@/lib/apiBase";
 import {
+  ADMIN_SUPPORT_KIND_FILTER_OPTIONS,
   ADMIN_SUPPORT_SORT_OPTIONS,
   formatRelativeUpdatedAt,
   sortAdminSupportConversations,
+  type AdminSupportKindFilter,
   type AdminSupportSortKey,
 } from "@/lib/conversationInbox";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
@@ -67,6 +69,7 @@ export function AdminPage() {
   const [supportSearchInput, setSupportSearchInput] = useState("");
   const [supportDebouncedSearch, setSupportDebouncedSearch] = useState("");
   const [supportSortKey, setSupportSortKey] = useState<AdminSupportSortKey>("updated");
+  const [supportKindFilter, setSupportKindFilter] = useState<AdminSupportKindFilter>("all");
   const [supportFiltersOpen, setSupportFiltersOpen] = useState(true);
   const [summary, setSummary] = useState<{ publishedPropertyCount: number; dauPublishersApprox: number; day: string } | null>(
     null,
@@ -103,10 +106,10 @@ export function AdminPage() {
     setImageUploads(await adminImageUploadAnalytics({ hours: 48, limit: 60, failuresOnly }));
   }, []);
 
-  const loadSupportConversations = useCallback(async (q?: string) => {
+  const loadSupportConversations = useCallback(async (q?: string, kind: AdminSupportKindFilter = "all") => {
     setSupportLoadingList(true);
     try {
-      setSupportRows(await adminListSupportConversations({ q }));
+      setSupportRows(await adminListSupportConversations({ q, kind }));
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo cargar Soporte al Cliente.");
     } finally {
@@ -140,7 +143,7 @@ export function AdminPage() {
       setSupportDraft("");
       setSupportFiles([]);
       await loadSupportThread(supportActiveId);
-      await loadSupportConversations(supportDebouncedSearch || undefined);
+      await loadSupportConversations(supportDebouncedSearch || undefined, supportKindFilter);
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo enviar la respuesta.");
     } finally {
@@ -169,8 +172,8 @@ export function AdminPage() {
   }, [supportSearchInput]);
 
   useEffect(() => {
-    if (tab === "soporte") void loadSupportConversations(supportDebouncedSearch || undefined);
-  }, [tab, loadSupportConversations, supportDebouncedSearch]);
+    if (tab === "soporte") void loadSupportConversations(supportDebouncedSearch || undefined, supportKindFilter);
+  }, [tab, loadSupportConversations, supportDebouncedSearch, supportKindFilter]);
 
   useEffect(() => {
     if (supportActiveId) void loadSupportThread(supportActiveId);
@@ -609,7 +612,7 @@ export function AdminPage() {
             }`}
           >
             <div className="flex items-center justify-between gap-2 px-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Soporte al Cliente</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Soporte y Feedback</h2>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -621,7 +624,7 @@ export function AdminPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void loadSupportConversations(supportDebouncedSearch || undefined)}
+                  onClick={() => void loadSupportConversations(supportDebouncedSearch || undefined, supportKindFilter)}
                   className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
                 >
                   Actualizar
@@ -640,6 +643,22 @@ export function AdminPage() {
                     placeholder="Buscar usuario, asunto o mensajes…"
                     className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                   />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Tipo
+                  </span>
+                  <select
+                    value={supportKindFilter}
+                    onChange={(e) => setSupportKindFilter(e.target.value as AdminSupportKindFilter)}
+                    className="min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                  >
+                    {ADMIN_SUPPORT_KIND_FILTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted">
@@ -666,7 +685,7 @@ export function AdminPage() {
               <p className="p-3 text-sm text-muted">
                 {supportDebouncedSearch
                   ? "No hay conversaciones que coincidan con tu búsqueda."
-                  : "Sin conversaciones de soporte todavía."}
+                  : "Sin conversaciones de soporte o feedback todavía."}
               </p>
             ) : (
               <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto md:max-h-[70vh]">
@@ -682,7 +701,18 @@ export function AdminPage() {
                       }`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold text-body">{row.customerDisplayName}</span>
+                        <span className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-body">
+                          <span className="truncate">{row.customerDisplayName}</span>
+                          <span
+                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                              row.kind === "feedback"
+                                ? "bg-amber-500/15 text-amber-800 dark:text-amber-300"
+                                : "bg-primary/10 text-primary"
+                            }`}
+                          >
+                            {row.kind === "feedback" ? "Feedback" : "Soporte"}
+                          </span>
+                        </span>
                         <span className="shrink-0 text-[10px] text-muted">
                           {formatRelativeUpdatedAt(row.updatedAt)}
                         </span>
@@ -717,7 +747,11 @@ export function AdminPage() {
               </div>
             ) : (
               <>
-                <div className="border-b border-border bg-primary px-4 py-3 text-primary-fg">
+                <div
+                  className={`border-b border-border px-4 py-3 text-primary-fg ${
+                    supportThread?.kind === "feedback" ? "bg-amber-700" : "bg-primary"
+                  }`}
+                >
                   <div className="flex items-start gap-2">
                     <button
                       type="button"
@@ -728,6 +762,7 @@ export function AdminPage() {
                     </button>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
+                        {supportThread?.kind === "feedback" ? "Feedback" : "Soporte"} ·{" "}
                         {supportThread?.customer?.displayName ?? "…"} ·{" "}
                         {supportThread?.customer?.email ?? "sin correo"}
                       </p>
@@ -784,7 +819,11 @@ export function AdminPage() {
                         rows={2}
                         value={supportDraft}
                         onChange={(e) => setSupportDraft(e.target.value)}
-                        placeholder="Responder como Soporte de Bestie…"
+                        placeholder={
+                          supportThread?.kind === "feedback"
+                            ? "Responder como Feedback de Bestie…"
+                            : "Responder como Soporte de Bestie…"
+                        }
                         disabled={supportSending}
                         className="min-h-[44px] flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2 disabled:opacity-60"
                       />

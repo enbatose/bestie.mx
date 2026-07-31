@@ -3,6 +3,7 @@ import { CheckCircle2, CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import {
   APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
@@ -772,6 +773,7 @@ export function PublishWizardPage() {
   const myListingsReturnRef = useRef(myListingsReturn);
   myListingsReturnRef.current = myListingsReturn;
   const { openAuthModal } = useAuthModal();
+  const { openFeedback } = useFeedbackModal();
   const { me } = useAppShellOutlet();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
@@ -2412,6 +2414,22 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [publishSuccessRoomId]);
+
+  /** Soft-prompt feedback shortly after a successful publish. */
+  useEffect(() => {
+    if (!publishSuccessRoomId) return;
+    const title =
+      (draft.postMode === "property" ? draft.propertyTitle : draft.rooms[0]?.title)?.trim() ||
+      "Anuncio publicado";
+    const timer = window.setTimeout(() => {
+      openFeedback({
+        source: "publish",
+        publishedRoomId: publishSuccessRoomId,
+        publishedTitle: title,
+      });
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [publishSuccessRoomId, openFeedback, draft.postMode, draft.propertyTitle, draft.rooms]);
 
   const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 

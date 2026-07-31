@@ -3,7 +3,12 @@ import type { DatabaseSync } from "node:sqlite";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
-import { SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
+import {
+  FEEDBACK_BOT_USER_ID,
+  SUPPORT_BOT_USER_ID,
+  isSystemMessagingBot,
+  normalizeConversationKind,
+} from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { clampMessageAttachments, clampStr, isSafePropertyId, type MessageAttachment } from "./validation.js";
 import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
@@ -160,7 +165,7 @@ export function adminRouter(db: DatabaseSync) {
     });
   });
 
-  // --- Soporte al Cliente: shared admin inbox for all support conversations. ---
+  // --- Soporte / Feedback: shared admin inbox for support + feedback conversations. ---
 
   r.get("/support/conversations", (req: Request, res: Response) => {
     const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 80) : "";
@@ -168,20 +173,29 @@ export function adminRouter(db: DatabaseSync) {
       rawQ.length > 0
         ? `%${rawQ.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
         : null;
+    const kindFilterRaw = typeof req.query.kind === "string" ? req.query.kind.trim().toLowerCase() : "all";
+    const kindFilter =
+      kindFilterRaw === "support" || kindFilterRaw === "feedback" ? kindFilterRaw : "all";
+    const kindSql =
+      kindFilter === "all" ? `c.kind IN ('support', 'feedback')` : `c.kind = '${kindFilter}'`;
     const rows = (
       like
         ? db
             .prepare(
-              `SELECT c.id, c.context_title, c.updated_at,
+              `SELECT c.id, c.context_title, c.kind, c.updated_at,
                       customer.id AS customer_user_id,
                       customer.display_name AS customer_display_name,
                       customer.email AS customer_email,
                       (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+                      (SELECT COUNT(*) FROM messages m
+                        WHERE m.conversation_id = c.id
+                          AND m.sender_user_id NOT IN (?, ?)
+                          AND m.read_at IS NULL) AS unread_count
                FROM conversations c
-               JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id != ?
+               JOIN conversation_participants cp ON cp.conversation_id = c.id
+                 AND cp.user_id NOT IN (?, ?)
                JOIN users customer ON customer.id = cp.user_id
-               WHERE c.kind = 'support'
+               WHERE ${kindSql}
                  AND (
                    c.context_title LIKE ? ESCAPE '\\'
                    OR customer.display_name LIKE ? ESCAPE '\\'
@@ -193,27 +207,41 @@ export function adminRouter(db: DatabaseSync) {
                  )
                ORDER BY c.updated_at DESC`,
             )
-            .all(SUPPORT_BOT_USER_ID, SUPPORT_BOT_USER_ID, like, like, like, like)
+            .all(
+              SUPPORT_BOT_USER_ID,
+              FEEDBACK_BOT_USER_ID,
+              SUPPORT_BOT_USER_ID,
+              FEEDBACK_BOT_USER_ID,
+              like,
+              like,
+              like,
+              like,
+            )
         : db
             .prepare(
-              `SELECT c.id, c.context_title, c.updated_at,
+              `SELECT c.id, c.context_title, c.kind, c.updated_at,
                       customer.id AS customer_user_id,
                       customer.display_name AS customer_display_name,
                       customer.email AS customer_email,
                       (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+                      (SELECT COUNT(*) FROM messages m
+                        WHERE m.conversation_id = c.id
+                          AND m.sender_user_id NOT IN (?, ?)
+                          AND m.read_at IS NULL) AS unread_count
                FROM conversations c
-               JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id != ?
+               JOIN conversation_participants cp ON cp.conversation_id = c.id
+                 AND cp.user_id NOT IN (?, ?)
                JOIN users customer ON customer.id = cp.user_id
-               WHERE c.kind = 'support'
+               WHERE ${kindSql}
                ORDER BY c.updated_at DESC`,
             )
-            .all(SUPPORT_BOT_USER_ID, SUPPORT_BOT_USER_ID)
+            .all(SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID)
     ) as Record<string, unknown>[];
     res.json({
       conversations: rows.map((row) => ({
         id: row.id,
         subject: row.context_title,
+        kind: normalizeConversationKind(typeof row.kind === "string" ? row.kind : null),
         updatedAt: row.updated_at,
         customerUserId: row.customer_user_id,
         customerDisplayName: row.customer_display_name,
@@ -224,16 +252,19 @@ export function adminRouter(db: DatabaseSync) {
     });
   });
 
-  function assertSupportConversation(id: string): boolean {
+  function assertAdminInboxConversation(id: string): "support" | "feedback" | null {
     const row = db.prepare(`SELECT kind FROM conversations WHERE id = ?`).get(id) as
       | { kind: string }
       | undefined;
-    return Boolean(row && row.kind === "support");
+    if (!row) return null;
+    const kind = normalizeConversationKind(row.kind);
+    return kind === "support" || kind === "feedback" ? kind : null;
   }
 
   r.get("/support/conversations/:id/messages", (req: Request, res: Response) => {
     const id = req.params.id;
-    if (!id || id.length > 120 || !assertSupportConversation(id)) {
+    const kind = id && id.length <= 120 ? assertAdminInboxConversation(id) : null;
+    if (!kind) {
       res.status(404).json({ error: "not_found" });
       return;
     }
@@ -245,9 +276,11 @@ export function adminRouter(db: DatabaseSync) {
         `SELECT u.id, u.display_name, u.email
          FROM conversation_participants cp
          JOIN users u ON u.id = cp.user_id
-         WHERE cp.conversation_id = ? AND cp.user_id != ?`,
+         WHERE cp.conversation_id = ? AND cp.user_id NOT IN (?, ?)`,
       )
-      .get(id, SUPPORT_BOT_USER_ID) as { id: string; display_name: string; email: string | null } | undefined;
+      .get(id, SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID) as
+      | { id: string; display_name: string; email: string | null }
+      | undefined;
     // Mark only the customer's inbound messages as read for the admin inbox.
     if (customer?.id) {
       db.prepare(
@@ -265,6 +298,7 @@ export function adminRouter(db: DatabaseSync) {
       .all(id) as Record<string, unknown>[];
     res.json({
       subject: conv.context_title,
+      kind,
       customer: customer
         ? { id: customer.id, displayName: customer.display_name, email: customer.email }
         : null,
@@ -286,8 +320,12 @@ export function adminRouter(db: DatabaseSync) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
+    if (isSystemMessagingBot(adminId)) {
+      res.status(400).json({ error: "invalid_sender" });
+      return;
+    }
     const id = req.params.id;
-    if (!id || id.length > 120 || !assertSupportConversation(id)) {
+    if (!id || id.length > 120 || !assertAdminInboxConversation(id)) {
       res.status(404).json({ error: "not_found" });
       return;
     }

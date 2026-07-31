@@ -51,7 +51,7 @@ export function resolveTimeZoneForConversation(opts: {
   city: string | null | undefined;
 }): ResolvedEmailTimeZone {
   const kind = (opts.kind ?? "").trim().toLowerCase();
-  if (kind === "support" || !opts.city?.trim()) {
+  if (kind === "support" || kind === "feedback" || !opts.city?.trim()) {
     return mexicoCityTimeZone();
   }
   return resolveTimeZoneForListingCity(opts.city);

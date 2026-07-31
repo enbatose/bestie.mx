@@ -36,31 +36,46 @@ function SupportBadge() {
   );
 }
 
+function FeedbackBadge() {
+  return (
+    <span className="inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+      Feedback
+    </span>
+  );
+}
+
 const AVATAR_SIZE = {
   sm: "h-8 w-8",
   md: "h-9 w-9",
 } as const;
 
-/** Profile photo / initials, or Bestie mark for Soporte threads. */
+/** Profile photo / initials, or Bestie mark for Soporte / Feedback threads. */
 function ParticipantAvatar({
   displayName,
   profilePictureUrl,
-  useSupportMark = false,
+  useSystemMark = false,
+  systemTone = "support",
   size = "sm",
   className = "",
 }: {
   displayName?: string | null;
   profilePictureUrl?: string | null;
-  useSupportMark?: boolean;
+  useSystemMark?: boolean;
+  systemTone?: "support" | "feedback";
   size?: "sm" | "md";
   className?: string;
 }) {
-  if (useSupportMark) {
+  if (useSystemMark) {
+    const ring =
+      systemTone === "feedback"
+        ? "bg-amber-500/15 ring-1 ring-amber-500/30"
+        : "bg-primary/10 ring-1 ring-border";
     return (
       <span
         aria-hidden
         className={[
-          "inline-flex shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-border",
+          "inline-flex shrink-0 items-center justify-center rounded-full",
+          ring,
           AVATAR_SIZE[size],
           className,
         ].join(" ")}
@@ -313,6 +328,8 @@ export function MessagesPage() {
   const sortedRows = useMemo(() => sortUserConversations(rows, sortKey), [rows, sortKey]);
   const active = useMemo(() => rows.find((r) => r.id === activeId), [rows, activeId]);
   const isSupportThread = active?.kind === "support";
+  const isFeedbackThread = active?.kind === "feedback";
+  const isSystemThread = isSupportThread || isFeedbackThread;
 
   const clearActive = () => {
     const next = new URLSearchParams(searchParams);
@@ -377,8 +394,7 @@ export function MessagesPage() {
       <header className={activeId ? "hidden md:block" : undefined}>
         <h1 className="text-2xl font-bold text-primary">Mensajes</h1>
         <p className="mt-1 text-sm text-muted">
-          Conversaciones agrupadas por anuncio, más tu chat con Soporte de Bestie si nos escribiste desde
-          Contacto.
+          Conversaciones agrupadas por anuncio, más tus chats con Soporte o Feedback de Bestie.
         </p>
       </header>
 
@@ -463,7 +479,8 @@ export function MessagesPage() {
                     <ParticipantAvatar
                       displayName={r.otherDisplayName}
                       profilePictureUrl={r.otherProfilePictureUrl}
-                      useSupportMark={r.kind === "support"}
+                      useSystemMark={r.kind === "support" || r.kind === "feedback"}
+                      systemTone={r.kind === "feedback" ? "feedback" : "support"}
                       size="sm"
                       className="mt-0.5"
                     />
@@ -472,6 +489,7 @@ export function MessagesPage() {
                         <span className="flex min-w-0 items-center gap-1.5 font-semibold text-body">
                           <span className="truncate">{r.otherDisplayName}</span>
                           {r.kind === "support" ? <SupportBadge /> : null}
+                          {r.kind === "feedback" ? <FeedbackBadge /> : null}
                         </span>
                         <span className="shrink-0 text-[10px] text-muted">
                           {formatRelativeUpdatedAt(r.updatedAt)}
@@ -505,7 +523,11 @@ export function MessagesPage() {
             </div>
           ) : (
             <>
-              <div className="border-b border-border bg-primary px-4 py-3 text-primary-fg dark:border-slate-600">
+              <div
+                className={`border-b border-border px-4 py-3 text-primary-fg dark:border-slate-600 ${
+                  isFeedbackThread ? "bg-amber-700" : "bg-primary"
+                }`}
+              >
                 <div className="flex items-start gap-2">
                   <button
                     type="button"
@@ -516,7 +538,7 @@ export function MessagesPage() {
                   </button>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
-                      {isSupportThread ? "Asunto" : "Publicación"}
+                      {isSystemThread ? "Asunto" : "Publicación"}
                     </p>
                     <p className="text-sm font-semibold">{active?.contextTitle ?? "…"}</p>
                     <p className="mt-0.5 truncate text-xs text-primary-fg/80">{active?.otherDisplayName}</p>
@@ -539,6 +561,11 @@ export function MessagesPage() {
                   Soporte de Bestie · las respuestas pueden tardar hasta 48 horas.
                 </p>
               ) : null}
+              {isFeedbackThread ? (
+                <p className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-body">
+                  Feedback de Bestie · las respuestas pueden tardar hasta 48 horas.
+                </p>
+              ) : null}
 
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="relative min-h-0 flex-1">
@@ -552,7 +579,7 @@ export function MessagesPage() {
                   ) : (
                     messages.map((m, index) => {
                       const mine = m.senderUserId === me.id;
-                      const otherIsSupport = Boolean(isSupportThread && !mine);
+                      const otherIsSystem = Boolean(isSystemThread && !mine);
                       const displayName = mine
                         ? me.displayName
                         : (active?.otherDisplayName ?? "Usuario");
@@ -583,7 +610,8 @@ export function MessagesPage() {
                                 profilePictureUrl={
                                   mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
                                 }
-                                useSupportMark={otherIsSupport}
+                                useSystemMark={otherIsSystem}
+                                systemTone={isFeedbackThread ? "feedback" : "support"}
                                 size="sm"
                               />
                             ) : (
