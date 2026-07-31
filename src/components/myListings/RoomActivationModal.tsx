@@ -415,10 +415,10 @@ export function RoomActivationModal({
             <textarea
               value={draft.summary}
               onChange={(e) => patch({ summary: e.target.value })}
-              rows={3}
+              rows={6}
               maxLength={ROOM_SUMMARY_MAX}
               placeholder={ROOM_SUMMARY_PLACEHOLDER}
-              className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
             />
             <FieldCharCount
               current={draft.summary.trim().length}

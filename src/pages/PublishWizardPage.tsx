@@ -1732,10 +1732,10 @@ export function PublishWizardPage() {
                     <textarea
                       value={draft.propertySummary}
                       onChange={(e) => setDraft((d) => ({ ...d, propertySummary: e.target.value }))}
-                      rows={5}
+                      rows={6}
                       maxLength={PROPERTY_SUMMARY_MAX}
                       placeholder={DEFAULT_PROPERTY_SUMMARY}
-                      className="mt-2 w-full resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                      className="mt-2 min-h-[9rem] max-h-[70vh] w-full resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                     />
                     <p className="mt-1 text-xs text-muted">
                       Solo convivencia y zonas compartidas (cada recámara se describe en el paso 4).
@@ -2237,10 +2237,10 @@ export function PublishWizardPage() {
                     <textarea
                       value={room.summary}
                       onChange={(e) => updateRoom(i, { summary: e.target.value })}
-                      rows={3}
+                      rows={6}
                       maxLength={ROOM_SUMMARY_MAX}
                       placeholder={ROOM_SUMMARY_PLACEHOLDER}
-                      className="mt-1 w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                      className="mt-1 min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
                     />
                     <FieldCharCount
                       current={room.summary.trim().length}

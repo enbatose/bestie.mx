@@ -866,9 +866,9 @@ export function EditableListingPreview({
               <textarea
                 value={propertySummaryDraft}
                 onChange={(e) => setPropertySummaryDraft(e.target.value)}
-                rows={5}
+                rows={6}
                 maxLength={PROPERTY_SUMMARY_MAX}
-                className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
               <FieldCharCount
                 current={propertySummaryDraft.trim().length}
@@ -1064,9 +1064,9 @@ export function EditableListingPreview({
             <textarea
               value={roomSummaryDraft}
               onChange={(e) => setRoomSummaryDraft(e.target.value)}
-              rows={5}
+              rows={6}
               maxLength={ROOM_SUMMARY_MAX}
-              className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
             <FieldCharCount
               current={roomSummaryDraft.trim().length}
