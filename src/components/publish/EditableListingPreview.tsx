@@ -860,12 +860,15 @@ export function EditableListingPreview({
               <textarea
                 value={propertySummaryDraft}
                 onChange={(e) => setPropertySummaryDraft(e.target.value)}
-                rows={5}
+                rows={6}
                 maxLength={PROPERTY_SUMMARY_MAX}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
-              <span className="text-xs text-muted">
-                {propertySummaryDraft.trim().length}/{PROPERTY_SUMMARY_MIN} mín.
+              <span className="flex justify-between gap-2 text-xs text-muted">
+                <span>Mín. {PROPERTY_SUMMARY_MIN} caracteres</span>
+                <span>
+                  {propertySummaryDraft.trim().length} / {PROPERTY_SUMMARY_MAX}
+                </span>
               </span>
             </InlineFieldEditor>
           ) : (
@@ -1055,12 +1058,15 @@ export function EditableListingPreview({
             <textarea
               value={roomSummaryDraft}
               onChange={(e) => setRoomSummaryDraft(e.target.value)}
-              rows={5}
+              rows={6}
               maxLength={ROOM_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="min-h-[9rem] max-h-[70vh] w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
-            <span className="text-xs text-muted">
-              {roomSummaryDraft.trim().length}/{ROOM_SUMMARY_MIN} mín.
+            <span className="flex justify-between gap-2 text-xs text-muted">
+              <span>Mín. {ROOM_SUMMARY_MIN} caracteres</span>
+              <span>
+                {roomSummaryDraft.trim().length} / {ROOM_SUMMARY_MAX}
+              </span>
             </span>
           </InlineFieldEditor>
         ) : (
