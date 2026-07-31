@@ -19,8 +19,9 @@ type ResizableTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 const DEFAULT_MIN_PX = 144; // 9rem
 const DEFAULT_MAX_VH = 0.7;
 
-/** Hit target (invisible); visual grip stays small like a native textarea resizer. */
-const HANDLE_HIT = 22;
+/** Square hit target; icon is centered inside. */
+const HANDLE_HIT = 28;
+const GRIP_PX = 14;
 
 function maxHeightPx(vhFraction: number): number {
   if (typeof window === "undefined") return 640;
@@ -28,17 +29,23 @@ function maxHeightPx(vhFraction: number): number {
 }
 
 /**
- * Classic textarea corner grip: two short parallel diagonals.
- * Subtle gray, no chrome — matches the native browser look, just clearer.
+ * Classic textarea corner grip: two equal parallel diagonals, centered in the icon box.
  */
 function NativeStyleResizeGrip() {
   return (
-    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden className="block">
+    <svg
+      viewBox="0 0 14 14"
+      width={GRIP_PX}
+      height={GRIP_PX}
+      aria-hidden
+      className="block"
+    >
+      {/* Equal-length parallels, evenly spaced, centered on the SE–NW diagonal */}
       <path
-        d="M7.5 11 L11 7.5 M9.5 11 L11 9.5"
+        d="M3.5 12.5 L12.5 3.5 M7.5 12.5 L12.5 7.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.75"
         strokeLinecap="round"
       />
     </svg>
@@ -47,7 +54,7 @@ function NativeStyleResizeGrip() {
 
 /**
  * Textarea with a subtle native-style bottom-right drag grip (two diagonal lines).
- * Keeps a slightly larger invisible hit target so dragging stays easy.
+ * Grip is centered in a corner inset so it reads as a balanced control.
  */
 export function ResizableTextarea({
   className = "",
@@ -120,7 +127,7 @@ export function ResizableTextarea({
         title="Arrastra para agrandar o reducir"
         aria-label="Arrastra para cambiar la altura del texto"
         onPointerDown={startDrag}
-        className="absolute bottom-0 right-0 z-10 flex cursor-ns-resize touch-none items-end justify-end p-1 text-muted/80 hover:text-body"
+        className="absolute bottom-1.5 right-1.5 z-10 flex cursor-ns-resize touch-none items-center justify-center text-muted hover:text-body"
         style={{ width: HANDLE_HIT, height: HANDLE_HIT }}
       >
         <NativeStyleResizeGrip />
