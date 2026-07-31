@@ -18,28 +18,27 @@ type ResizableTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 
 const DEFAULT_MIN_PX = 144; // 9rem
 const DEFAULT_MAX_VH = 0.7;
-const HANDLE_SIZE = 40;
+
+/** Hit target (invisible); visual grip stays small like a native textarea resizer. */
+const HANDLE_HIT = 22;
 
 function maxHeightPx(vhFraction: number): number {
   if (typeof window === "undefined") return 640;
   return Math.round(window.innerHeight * vhFraction);
 }
 
-/** Diagonal grip lines — larger and higher contrast than the native browser resizer. */
-function ResizeGripIcon({ className = "" }: { className?: string }) {
+/**
+ * Classic textarea corner grip: two short parallel diagonals.
+ * Subtle gray, no chrome — matches the native browser look, just clearer.
+ */
+function NativeStyleResizeGrip() {
   return (
-    <svg
-      viewBox="0 0 16 16"
-      width="18"
-      height="18"
-      aria-hidden
-      className={className}
-    >
+    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden className="block">
       <path
-        d="M4.5 14.5 L14.5 4.5 M8 14.5 L14.5 8 M11.5 14.5 L14.5 11.5"
+        d="M7.5 11 L11 7.5 M9.5 11 L11 9.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
     </svg>
@@ -47,8 +46,8 @@ function ResizeGripIcon({ className = "" }: { className?: string }) {
 }
 
 /**
- * Textarea with a large, visible bottom-right drag handle to grow/shrink height.
- * Replaces the tiny native browser resize grip on publish description fields.
+ * Textarea with a subtle native-style bottom-right drag grip (two diagonal lines).
+ * Keeps a slightly larger invisible hit target so dragging stays easy.
  */
 export function ResizableTextarea({
   className = "",
@@ -114,17 +113,17 @@ export function ResizableTextarea({
         ref={textareaRef}
         onChange={onChange}
         style={mergedStyle}
-        className={`w-full resize-none pb-10 ${className}`.trim()}
+        className={`w-full resize-none ${className}`.trim()}
       />
       <div
         role="presentation"
         title="Arrastra para agrandar o reducir"
         aria-label="Arrastra para cambiar la altura del texto"
         onPointerDown={startDrag}
-        className="absolute bottom-2 right-2 z-10 flex cursor-ns-resize touch-none items-center justify-center rounded-lg border-2 border-primary/35 bg-surface text-primary shadow-md transition hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-[0.97]"
-        style={{ width: HANDLE_SIZE, height: HANDLE_SIZE }}
+        className="absolute bottom-0 right-0 z-10 flex cursor-ns-resize touch-none items-end justify-end p-1 text-muted/80 hover:text-body"
+        style={{ width: HANDLE_HIT, height: HANDLE_HIT }}
       >
-        <ResizeGripIcon />
+        <NativeStyleResizeGrip />
       </div>
     </div>
   );
