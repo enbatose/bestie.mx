@@ -3,9 +3,9 @@ import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
+import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import {
-  LISTING_TAG_LABEL_OVERRIDES,
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
@@ -22,7 +22,6 @@ import {
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
-import { TAG_LABELS } from "@/lib/searchFilters";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 
@@ -618,33 +617,14 @@ function AvailableRoomFields({
       <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
         <div className="space-y-4">
           {ROOM_TAG_GROUPS.map((group) => (
-            <div key={group.title}>
-              <p className="text-sm font-medium text-body">
-                {group.title}
-                {group.title === "Ideal para" ? <span className="text-error"> *</span> : null}
-              </p>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {group.tags.map((tag) => {
-                  const active = room.tags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      role="checkbox"
-                      aria-checked={active}
-                      onClick={() => onToggleTag(tag, active)}
-                      className={`min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                        active
-                          ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                          : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                      }`}
-                    >
-                      {LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <TagChoiceSection
+              key={group.title}
+              title={group.title}
+              tags={group.tags}
+              selected={room.tags}
+              required={group.title === "Ideal para"}
+              onToggle={(tag, active) => onToggleTag(tag, active)}
+            />
           ))}
         </div>
       </div>

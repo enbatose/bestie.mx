@@ -3,16 +3,15 @@ import { createPortal } from "react-dom";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
+import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
 import {
-  LISTING_TAG_LABEL_OVERRIDES,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   isRoomIdealParaTag,
 } from "@/lib/listingTags";
-import { TAG_LABELS } from "@/lib/searchFilters";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import {
   draftImagesToUrls,
@@ -439,39 +438,18 @@ export function RoomActivationModal({
 
           <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
             {ROOM_TAG_GROUPS.map((group) => (
-              <div key={group.title}>
-                <p className="text-sm font-medium text-body">
-                  {group.title}
-                  {group.title === "Ideal para" ? <span className="text-error"> *</span> : null}
-                </p>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {group.tags.map((tag) => {
-                    const active = draft.tags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        role="checkbox"
-                        aria-checked={active}
-                        onClick={() =>
-                          patch({
-                            tags: active
-                              ? draft.tags.filter((t) => t !== tag)
-                              : [...draft.tags, tag],
-                          })
-                        }
-                        className={`min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                          active
-                            ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                            : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                        }`}
-                      >
-                        {LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag]}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <TagChoiceSection
+                key={group.title}
+                title={group.title}
+                tags={group.tags}
+                selected={draft.tags}
+                required={group.title === "Ideal para"}
+                onToggle={(tag, active) =>
+                  patch({
+                    tags: active ? draft.tags.filter((t) => t !== tag) : [...draft.tags, tag],
+                  })
+                }
+              />
             ))}
           </div>
         </div>

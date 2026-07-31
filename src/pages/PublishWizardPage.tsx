@@ -42,8 +42,8 @@ import {
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
+import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
-  LISTING_TAG_LABEL_OVERRIDES,
   LISTING_TAG_SLUG_SET,
   migrateDraftTagScopes,
   PROPERTY_AMENITY_TAG_SLUGS,
@@ -93,7 +93,6 @@ import {
 } from "@/lib/publishWizard/propertyRoomSlots";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { newRoomDraftId } from "@/lib/roomDisplay";
-import { TAG_LABELS } from "@/lib/searchFilters";
 import { normalizeRoomDraft } from "@/lib/publishWizard/normalizeRoomDraft";
 import type {
   ListingStatus,
@@ -135,7 +134,6 @@ const ROOM_SUMMARY_PLACEHOLDER =
 const WIZARD_PROPERTY_AMENITY_SLUGS = PROPERTY_AMENITY_TAG_SLUGS;
 const WIZARD_PROPERTY_PERMITIDO_SLUGS = PROPERTY_PERMITIDO_TAG_SLUGS;
 const WIZARD_STEP3_TAG_SET = PROPERTY_SCOPE_TAG_SET;
-const WIZARD_STEP4_TAG_LABELS = LISTING_TAG_LABEL_OVERRIDES;
 const WIZARD_ROOM_TAG_GROUPS = ROOM_TAG_GROUPS;
 
 function formatAutosaveTime(ts: number | null): string | null {
@@ -1865,54 +1863,18 @@ export function PublishWizardPage() {
               </div>
               ) : null}
               <div className="mt-4 space-y-4 border-t border-border pt-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-body">La propiedad cuenta con:</label>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {WIZARD_PROPERTY_AMENITY_SLUGS.map((tag) => {
-                      const active = draft.propertyTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={active}
-                          onClick={() => setDraft((d) => togglePropertyTag(d, tag))}
-                          className={`min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
-                            active
-                              ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                              : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                          }`}
-                        >
-                          {TAG_LABELS[tag]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-body">Se permite:</p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {WIZARD_PROPERTY_PERMITIDO_SLUGS.map((tag) => {
-                      const active = draft.propertyTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={active}
-                          onClick={() => setDraft((d) => togglePropertyTag(d, tag))}
-                          className={`min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
-                            active
-                              ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                              : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                          }`}
-                        >
-                          {TAG_LABELS[tag]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <TagChoiceSection
+                  title="La propiedad cuenta con:"
+                  tags={WIZARD_PROPERTY_AMENITY_SLUGS}
+                  selected={draft.propertyTags}
+                  onToggle={(tag) => setDraft((d) => togglePropertyTag(d, tag))}
+                />
+                <TagChoiceSection
+                  title="Se permite:"
+                  tags={WIZARD_PROPERTY_PERMITIDO_SLUGS}
+                  selected={draft.propertyTags}
+                  onToggle={(tag) => setDraft((d) => togglePropertyTag(d, tag))}
+                />
               </div>
             </div>
           </form>
@@ -2257,35 +2219,14 @@ export function PublishWizardPage() {
                   </label>
                   <div className="mt-3 space-y-4">
                     {WIZARD_ROOM_TAG_GROUPS.map((group) => (
-                      <div key={group.title}>
-                        <p className="text-sm font-medium text-body">
-                          {group.title}
-                          {group.title === "Ideal para" ? (
-                            <span className="text-error"> *</span>
-                          ) : null}
-                        </p>
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {group.tags.map((tag) => {
-                            const active = room.tags.includes(tag);
-                            return (
-                              <button
-                                key={tag}
-                                type="button"
-                                role="checkbox"
-                                aria-checked={active}
-                                onClick={() => setDraft((d) => toggleRoomTag(d, i, tag, active))}
-                                className={`min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 ${
-                                  active
-                                    ? "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20"
-                                    : "border border-border bg-surface text-body shadow-sm hover:bg-surface-elevated"
-                                }`}
-                              >
-                                {WIZARD_STEP4_TAG_LABELS[tag] ?? TAG_LABELS[tag]}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <TagChoiceSection
+                        key={group.title}
+                        title={group.title}
+                        tags={group.tags}
+                        selected={room.tags}
+                        required={group.title === "Ideal para"}
+                        onToggle={(tag, active) => setDraft((d) => toggleRoomTag(d, i, tag, active))}
+                      />
                     ))}
                   </div>
                 </div>

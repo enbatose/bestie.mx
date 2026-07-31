@@ -145,9 +145,31 @@ export const LEGACY_PROPERTY_TO_ROOM_TAG_SET = new Set<string>(LEGACY_PROPERTY_T
  */
 export const SOFT_HYPHEN = "\u00AD";
 
-/** Etiquetas con copy distinto en wizard / preview. */
+/** Etiquetas con copy distinto en wizard / preview (full / display name). */
 export const LISTING_TAG_LABEL_OVERRIDES: Partial<Record<ListingTag, string>> = {
   estacionamiento: `Estacionami${SOFT_HYPHEN}ento privado`,
+  muebles: "Amueblado",
+  "fumar-permitido-recamara": "Permitido fumar",
+};
+
+/**
+ * Compact one-line labels for wizard / editor choice pills (2-column grids).
+ * Full names stay in `TAG_LABELS` / overrides and appear in the section info dialog.
+ */
+export const LISTING_TAG_CHIP_LABELS: Partial<Record<ListingTag, string>> = {
+  "cerca-transporte": "Transporte cercano",
+  "seguridad-acceso": "Seguridad / acceso",
+  vigilancia: `Vigilancia / porte${SOFT_HYPHEN}ría`,
+  fumar: "Fumar (comunes)",
+  "cerradura-cuarto": "Llave a recámara",
+  "aire-acondicionado": `Aire acondicio${SOFT_HYPHEN}nado`,
+  estacionamiento: `Estacionami${SOFT_HYPHEN}ento`,
+  terraza: "Terraza / balcón",
+  "nomadas-digitales": `Nómadas digi${SOFT_HYPHEN}tales`,
+  "individuos-solo": "Individuos (solo)",
+  "familiar-ninos": "Familiar / niños",
+  "residentes-medicos": "Residentes médicos",
+  cocina-equipada: "Cocina equipada",
   muebles: "Amueblado",
   "fumar-permitido-recamara": "Permitido fumar",
 };

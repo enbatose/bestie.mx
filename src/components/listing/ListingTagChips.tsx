@@ -1,4 +1,4 @@
-import { LISTING_TAG_LABEL_OVERRIDES } from "@/lib/listingTags";
+import { LISTING_TAG_CHIP_LABELS, LISTING_TAG_LABEL_OVERRIDES } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import type { ListingTag } from "@/types/listing";
 
@@ -7,6 +7,16 @@ const TAG_CHIP_CLASS =
 
 export function listingTagLabel(tag: ListingTag): string {
   return LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag];
+}
+
+/** One-line chip label for publish / room-editor pill grids. */
+export function listingTagChipLabel(tag: ListingTag): string {
+  return LISTING_TAG_CHIP_LABELS[tag] ?? listingTagLabel(tag);
+}
+
+/** Full label for section info dialogs (soft hyphens stripped for readability). */
+export function listingTagFullLabel(tag: ListingTag): string {
+  return listingTagLabel(tag).replace(/\u00AD/g, "");
 }
 
 export function ListingTagChips({ tags }: { tags: readonly ListingTag[] }) {

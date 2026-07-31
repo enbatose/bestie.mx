@@ -12,6 +12,7 @@ import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from 
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
+import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
@@ -148,9 +149,6 @@ function InlineFieldEditor({
 const TAG_CHIP_ACTIVE =
   "min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
 
-const TAG_CHIP_INACTIVE =
-  "min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 border border-dashed border-border bg-surface-elevated/90 text-muted opacity-75 hover:border-border hover:opacity-100 hover:bg-surface";
-
 function TagGroupsEditor({
   groups,
   selected,
@@ -163,26 +161,14 @@ function TagGroupsEditor({
   return (
     <div className="space-y-4">
       {groups.map((group) => (
-        <div key={group.title}>
-          <p className="text-sm font-medium text-body">{group.title}</p>
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {group.tags.map((tag) => {
-              const active = selected.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={active}
-                  onClick={() => onToggle(tag)}
-                  className={active ? TAG_CHIP_ACTIVE : TAG_CHIP_INACTIVE}
-                >
-                  {listingTagLabel(tag)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <TagChoiceSection
+          key={group.title}
+          title={group.title}
+          tags={group.tags}
+          selected={selected}
+          dashedInactive
+          onToggle={(tag) => onToggle(tag)}
+        />
       ))}
     </div>
   );
