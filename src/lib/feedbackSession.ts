@@ -1,3 +1,4 @@
+import { listingPublicPath } from "@/lib/listingReference";
 import type { FeedbackSource } from "@/lib/messagesApi";
 
 const CLOSES_KEY = "bestie.feedback.listingCloses";
@@ -58,7 +59,9 @@ function readViewed(): FeedbackViewedListing[] {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((x): x is FeedbackViewedListing => Boolean(x && typeof x === "object" && typeof (x as FeedbackViewedListing).id === "string"))
+      .filter((x): x is FeedbackViewedListing =>
+        Boolean(x && typeof x === "object" && typeof (x as FeedbackViewedListing).id === "string"),
+      )
       .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : x.id }))
       .slice(-12);
   } catch {
@@ -104,6 +107,13 @@ export function dispatchFeedbackOpen(detail: FeedbackOpenDetail): void {
   window.dispatchEvent(new CustomEvent<FeedbackOpenDetail>(FEEDBACK_OPEN_EVENT, { detail }));
 }
 
+function listingMarkdownLink(id: string, title: string): string {
+  const label = title.trim() || "Anuncio";
+  // Escape brackets in titles so markdown stays parseable.
+  const safeLabel = label.replace(/[\[\]]/g, "");
+  return `[${safeLabel}](${listingPublicPath(id)})`;
+}
+
 export function buildFeedbackMessageBody(input: {
   rating: number;
   comment: string;
@@ -121,15 +131,17 @@ export function buildFeedbackMessageBody(input: {
   lines.push("", "Contexto:");
   if (input.source === "publish" && (input.publishedRoomId || input.publishedTitle)) {
     const title = (input.publishedTitle || "").trim() || "Anuncio publicado";
-    const id = input.publishedRoomId ? ` (${input.publishedRoomId})` : "";
-    lines.push(`- Publicación: ${title}${id}`);
+    if (input.publishedRoomId) {
+      lines.push(`- Publicación: ${listingMarkdownLink(input.publishedRoomId, title)}`);
+    } else {
+      lines.push(`- Publicación: ${title}`);
+    }
   } else if (input.source === "search") {
     const viewed = input.viewedListings?.length ? input.viewedListings : getViewedListingsForFeedback();
     if (viewed.length) {
       lines.push("- Anuncios abiertos en la búsqueda:");
       for (const v of viewed.slice(-SEARCH_PROMPT_NEEDED)) {
-        const title = v.title.trim() || v.id;
-        lines.push(`  · ${title} (${v.id})`);
+        lines.push(`  · ${listingMarkdownLink(v.id, v.title.trim() || v.id)}`);
       }
     } else {
       lines.push("- Origen: búsqueda (mapa)");

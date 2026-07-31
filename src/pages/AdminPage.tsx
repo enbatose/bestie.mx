@@ -27,6 +27,7 @@ import {
   type AdminSupportSortKey,
 } from "@/lib/conversationInbox";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
+import { ChatMessageBody } from "@/components/messaging/ChatMessageBody";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
 
@@ -792,7 +793,17 @@ export function AdminPage() {
                           >
                             {m.senderIsCustomer ? m.senderDisplayName : `Admin: ${m.senderDisplayName}`}
                           </p>
-                          {m.body ? <p className="whitespace-pre-wrap">{m.body}</p> : null}
+                          {m.body ? (
+                            <ChatMessageBody
+                              body={m.body}
+                              className="text-sm"
+                              linkClassName={
+                                m.senderIsCustomer
+                                  ? "font-semibold text-primary underline underline-offset-2"
+                                  : "font-semibold underline underline-offset-2"
+                              }
+                            />
+                          ) : null}
                           <MessageAttachmentList attachments={m.attachments} />
                           <p
                             className={`mt-1 text-[10px] ${

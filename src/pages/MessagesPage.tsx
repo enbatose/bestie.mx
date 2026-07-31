@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Check, CheckCheck, ChevronDown } from "lucide-react";
 import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
+import { ChatMessageBody } from "@/components/messaging/ChatMessageBody";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -661,9 +662,15 @@ export function MessagesPage() {
                                   }`}
                                 >
                                   {m.body ? (
-                                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                                      {m.body}
-                                    </p>
+                                    <ChatMessageBody
+                                      body={m.body}
+                                      className="text-sm leading-relaxed"
+                                      linkClassName={
+                                        mine
+                                          ? "font-semibold underline underline-offset-2"
+                                          : "font-semibold text-primary underline underline-offset-2"
+                                      }
+                                    />
                                   ) : null}
                                   <MessageAttachmentList attachments={m.attachments} />
                                 </div>
