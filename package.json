@@ -21,6 +21,7 @@
     "dns:cleanup:follow-up": "node --env-file=server/.env scripts/dns-cutover-cleanup.mjs --follow-up --interval 20m",
     "resend:validate": "node scripts/resend-validate.mjs",
     "resend:reforward": "node --env-file=server/.env scripts/resend-reforward-inbound.mjs",
+    "railway:set-resend-env": "node --env-file=server/.env scripts/railway-set-resend-env.mjs",
     "google:validate": "node scripts/google-validate.mjs",
     "facebook:validate": "node scripts/facebook-validate.mjs",
     "meta:mcp-auth-check": "node scripts/meta-mcp-auth-preflight.mjs",

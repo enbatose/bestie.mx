@@ -27,7 +27,7 @@ These events are enabled on the Bestie webhook as of 2026-07-04.
 | `email.complained` | Email | Logs | **Disable notifications**; protect domain reputation |
 | `email.failed` | Email | Logs | Retry / alert ops |
 | `email.suppressed` | Email | Logs | **Stop sending** to suppressed recipients |
-| `email.received` | Email | **Forward `contacto@bestie.mx` → `batani.enrique@gmail.com`** | Inbound helpdesk for other addresses |
+| `email.received` | Email | **Forward `contacto@bestie.mx` → `batani.enrique@gmail.com`** | — |
 | `domain.created` | Domain | Logs | Audit when domains are added in Resend |
 | `domain.updated` | Domain | Logs | Track tracking/DNS setting changes |
 | `domain.deleted` | Domain | Logs | Alert if domain removed accidentally |
@@ -35,18 +35,33 @@ These events are enabled on the Bestie webhook as of 2026-07-04.
 Handler behavior today: verify Svix signature → log event → for `email.received` to `contacto@bestie.mx`, call `resend.emails.receiving.forward()` → `200 OK`.  
 Planned: persist bounces/suppressions and auto-disable `email_notify` on saved searches.
 
-## Inbound mail — `contacto@bestie.mx`
+## Inbound mail — `contacto@bestie.mx` only
 
-Resend receives any `@bestie.mx` address once domain **receiving** is enabled and the apex MX record is published:
+Resend receives any `@bestie.mx` address once domain **receiving** is enabled and the apex MX record is published, but Bestie **only forwards** `contacto@bestie.mx` (the only published support address).
 
 - MX `@` → `inbound-smtp.us-east-1.amazonaws.com` (priority 10) — added via `scripts/cloudflare-setup.mjs`
 - Resend domain `bestie.mx`: receiving **enabled**
 - Forward target env: `RESEND_CONTACT_FORWARD_TO` (default `batani.enrique@gmail.com`)
 - Forward from env: `RESEND_CONTACT_FORWARD_FROM` (default `Bestie Contacto <contacto@bestie.mx>`)
-- Receiving API key env: `RESEND_RECEIVING_API_KEY` (**full_access** — required on Railway; `RESEND_API_KEY` sending-only returns 401 on forward)
-- Also forwarded (same inbox): `soporte@`, `support@`, `privacy@` @bestie.mx
+- Receiving API key env: `RESEND_RECEIVING_API_KEY` (**full_access** — **required on Railway**)
+  - Do **not** use sending-only `RESEND_API_KEY` for inbound; the webhook ignores it for receiving/forward
+  - Local fallback: `RESEND_ADMIN_API_KEY` (full_access) is accepted for receiving only when `RESEND_RECEIVING_API_KEY` is unset
+- Push to Railway: `npm run railway:set-resend-env` (requires receiving/admin full_access key in `server/.env`)
 
-Production must use `getResendReceivingApiKey()` in `server/src/resendWebhook.ts` (prefers `RESEND_RECEIVING_API_KEY`).
+### Health probes (boot)
+
+`GET /api/health` → `resendInbound`:
+
+| Field | Meaning |
+|-------|---------|
+| `webhookConfigured` | `RESEND_WEBHOOK_SECRET` present |
+| `receivingKeyConfigured` | `RESEND_RECEIVING_API_KEY` or `RESEND_ADMIN_API_KEY` present |
+| `receivingProbeOk` | Boot probe: receiving API list succeeded |
+| `spfOk` | Live DNS: `send.bestie.mx` TXT includes `amazonses.com` |
+| `forwardTo` | Gmail (or configured) target |
+| `inboundAddresses` | Always `["contacto@bestie.mx"]` |
+
+If forward fails at runtime, the webhook returns `500` (Resend retries) and sends a rate-limited alert email to `forwardTo` (max ~1 / 15 min).
 
 ### SPF for forwards (critical)
 
@@ -58,11 +73,9 @@ v=spf1 include:amazonses.com ~all
 
 A bare `v=spf1` (no `include:amazonses.com`) fails SPF. With apex DMARC `p=quarantine`, Gmail often **quarantines or hides** the forward — Facebook/Meta validation mail can look like it “never arrived.”
 
-Check: `npm run resend:validate` (DNS SPF probe) or:
+Even with SPF OK, check Gmail **Spam / Promotions** for `Bestie Contacto`.
 
-```bash
-dig +short TXT send.bestie.mx
-```
+Check: `npm run resend:validate` (DNS SPF probe) or `/api/health` → `resendInbound.spfOk`.
 
 Fix: edit Cloudflare TXT `send`, or re-run `npm run cloudflare:setup` (updates mismatched TXT; requires `CLOUDFLARE_API_TOKEN` in `server/.env`).
 
@@ -74,7 +87,7 @@ RESEND_VALIDATE_LIST=1 npm run resend:validate
 # or
 node --env-file=server/.env scripts/resend-validate.mjs --list
 
-# Re-send matching inbound to Gmail (dry-run first)
+# Re-send matching contacto@ inbound to Gmail (dry-run first)
 node --env-file=server/.env scripts/resend-reforward-inbound.mjs --dry-run
 # Meta/Facebook only (validation / business verification mail)
 node --env-file=server/.env scripts/resend-reforward-inbound.mjs --meta-only
@@ -82,9 +95,6 @@ node --env-file=server/.env scripts/resend-reforward-inbound.mjs
 ```
 
 Uses the Resend Node SDK `emails.receiving.forward` helper (there is no REST `POST /emails/receiving/:id/forward`).
-
-
-Health (prod): `GET https://www.bestie.mx/api/health` → `resendInbound.webhookConfigured` / `receivingKeyConfigured` / `forwardTo`.
 
 ---
 
@@ -106,7 +116,7 @@ Use this table when designing features — propose adding events only when there
 | `email.complained` | Yes | — |
 | `email.failed` | Yes | — |
 | `email.suppressed` | Yes | — |
-| `email.received` | Yes | Forward `contacto@bestie.mx`; extend for other inbound addresses |
+| `email.received` | Yes | Forward `contacto@bestie.mx` only |
 
 ### Contact events (marketing / audiences)
 

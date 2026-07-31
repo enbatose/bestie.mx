@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Re-forward recent Resend inbound emails that match contacto@ (or support aliases).
+ * Re-forward recent Resend inbound emails to contacto@bestie.mx's forward target.
  *
  * Use when Facebook/Meta validation mail landed in Resend but the webhook forward
- * failed (e.g. sending-only API key) or Gmail never showed the forward.
+ * failed (e.g. missing RESEND_RECEIVING_API_KEY) or Gmail never showed the forward.
  *
  * Forwarding uses the Resend Node SDK helper (`emails.receiving.forward`) — there is
  * no public REST POST /emails/receiving/:id/forward endpoint.
@@ -28,7 +28,6 @@ const require = createRequire(resolve(root, "server", "package.json"));
 const { Resend } = require("resend");
 
 const CONTACT = "contacto@bestie.mx";
-const EXTRA = ["soporte@bestie.mx", "support@bestie.mx", "privacy@bestie.mx"];
 const DEFAULT_TO = "batani.enrique@gmail.com";
 const META_FROM_RE = /facebookmail\.com|business\.facebook\.com|meta\.com/i;
 
@@ -57,8 +56,7 @@ function normalizeEmail(value) {
 }
 
 function shouldForward(toList) {
-  const targets = new Set([CONTACT, ...EXTRA]);
-  return (toList ?? []).some((t) => targets.has(normalizeEmail(t)));
+  return (toList ?? []).some((t) => normalizeEmail(t) === CONTACT);
 }
 
 if (!existsSync(envPath)) {
@@ -67,12 +65,10 @@ if (!existsSync(envPath)) {
 }
 
 const env = parseEnv(readFileSync(envPath, "utf8"));
-const key =
-  env.get("RESEND_RECEIVING_API_KEY") ||
-  env.get("RESEND_ADMIN_API_KEY") ||
-  env.get("RESEND_API_KEY");
+const key = env.get("RESEND_RECEIVING_API_KEY") || env.get("RESEND_ADMIN_API_KEY");
 if (!key) {
   console.error("Need RESEND_RECEIVING_API_KEY or RESEND_ADMIN_API_KEY in server/.env");
+  console.error("Do not use sending-only RESEND_API_KEY for inbound forward.");
   process.exit(1);
 }
 
@@ -101,7 +97,11 @@ if (listed.error) {
   process.exit(1);
 }
 
-const rows = Array.isArray(listed.data?.data) ? listed.data.data : Array.isArray(listed.data) ? listed.data : [];
+const rows = Array.isArray(listed.data?.data)
+  ? listed.data.data
+  : Array.isArray(listed.data)
+    ? listed.data
+    : [];
 console.log(
   `Got ${rows.length}. Forward target: ${forwardTo}${dryRun ? " (dry-run)" : ""}${metaOnly ? " [meta-only]" : ""}`,
 );

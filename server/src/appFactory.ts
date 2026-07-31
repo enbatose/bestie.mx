@@ -134,6 +134,12 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
       resendInbound: {
         webhookConfigured: inbound.webhookConfigured,
         receivingKeyConfigured: inbound.receivingKeyConfigured,
+        receivingProbeOk: inbound.receivingProbeOk,
+        receivingProbeError: inbound.receivingProbeError,
+        receivingProbedAt: inbound.receivingProbedAt,
+        spfOk: inbound.spfOk,
+        spfTxt: inbound.spfTxt,
+        spfProbedAt: inbound.spfProbedAt,
         forwardTo: inbound.forwardTo,
         inboundAddresses: inbound.inboundAddresses,
       },

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONTACT_INBOUND_ADDRESS,
   DEFAULT_CONTACT_FORWARD_TO,
-  EXTRA_INBOUND_FORWARD_ADDRESSES,
   getResendInboundDiagnostics,
   getResendReceivingApiKey,
   matchesInboundAddress,
@@ -28,13 +27,14 @@ describe("resendWebhook inbound routing", () => {
     expect(matchesInboundAddress(["support@bestie.mx"], CONTACT_INBOUND_ADDRESS)).toBe(false);
   });
 
-  it("forwards contacto and support aliases", () => {
+  it("forwards only contacto@bestie.mx", () => {
     expect(shouldForwardInbound(["contacto@bestie.mx"])).toBe(true);
-    expect(shouldForwardInbound(["Bestie <soporte@bestie.mx>"])).toBe(true);
-    expect(shouldForwardInbound(["privacy@bestie.mx"])).toBe(true);
+    expect(shouldForwardInbound(["Bestie <contacto@bestie.mx>"])).toBe(true);
+    expect(shouldForwardInbound(["Bestie <soporte@bestie.mx>"])).toBe(false);
+    expect(shouldForwardInbound(["privacy@bestie.mx"])).toBe(false);
+    expect(shouldForwardInbound(["support@bestie.mx"])).toBe(false);
     expect(shouldForwardInbound(["random@bestie.mx"])).toBe(false);
     expect(shouldForwardInbound(["someone@gmail.com"])).toBe(false);
-    expect(EXTRA_INBOUND_FORWARD_ADDRESSES).toContain("soporte@bestie.mx");
   });
 
   it("defaults forward target and from address", () => {
@@ -42,9 +42,16 @@ describe("resendWebhook inbound routing", () => {
     expect(resolveContactForwardFrom()).toBe(`Bestie Contacto <${CONTACT_INBOUND_ADDRESS}>`);
   });
 
-  it("prefers RESEND_RECEIVING_API_KEY over sending-only RESEND_API_KEY", () => {
-    vi.stubEnv("RESEND_RECEIVING_API_KEY", "re_receiving_key");
+  it("uses receiving or admin keys, never sending-only RESEND_API_KEY", () => {
+    vi.stubEnv("RESEND_RECEIVING_API_KEY", "");
+    vi.stubEnv("RESEND_ADMIN_API_KEY", "");
     vi.stubEnv("RESEND_API_KEY", "re_sending_key");
+    expect(getResendReceivingApiKey()).toBeUndefined();
+
+    vi.stubEnv("RESEND_ADMIN_API_KEY", "re_admin_key");
+    expect(getResendReceivingApiKey()).toBe("re_admin_key");
+
+    vi.stubEnv("RESEND_RECEIVING_API_KEY", "re_receiving_key");
     expect(getResendReceivingApiKey()).toBe("re_receiving_key");
   });
 
@@ -56,7 +63,7 @@ describe("resendWebhook inbound routing", () => {
     expect(d.webhookConfigured).toBe(true);
     expect(d.receivingKeyConfigured).toBe(true);
     expect(d.forwardTo).toBe("ops@example.com");
-    expect(d.inboundAddresses).toContain(CONTACT_INBOUND_ADDRESS);
+    expect(d.inboundAddresses).toEqual([CONTACT_INBOUND_ADDRESS]);
   });
 
   afterEach(() => {

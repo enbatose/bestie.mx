@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 import { logOutboundMailHintIfDisabled, verifySmtpConnection } from "./mailer.js";
+import { verifyResendInbound } from "./resendWebhook.js";
 import { startSavedSearchPollWorker } from "./savedSearchNotify.js";
 import { startMessageDigestPollWorker } from "./messageDigestNotify.js";
 
@@ -110,6 +111,7 @@ function onListen() {
   }
   logOutboundMailHintIfDisabled();
   void verifySmtpConnection();
+  void verifyResendInbound();
   startSavedSearchPollWorker(db);
   startMessageDigestPollWorker(db);
 }

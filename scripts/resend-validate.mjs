@@ -207,8 +207,7 @@ const emailFrom = env.get("EMAIL_FROM");
 const webhook = env.get("RESEND_WEBHOOK_SECRET");
 const receivingKey =
   env.get("RESEND_RECEIVING_API_KEY") ||
-  env.get("RESEND_ADMIN_API_KEY") ||
-  env.get("RESEND_API_KEY");
+  env.get("RESEND_ADMIN_API_KEY");
 
 console.log(`Env file: ${envPath}\n`);
 console.log(`EMAIL_FROM: ${emailFrom ?? "(missing)"}`);
