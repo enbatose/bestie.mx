@@ -205,7 +205,6 @@ const LISTING_CARD_KEY_TAG_ORDER: readonly ListingTag[] = [
   "individuos-solo",
   "profesionistas",
   "nomadas-digitales",
-  "residentes-medicos",
   "familiar-ninos",
 ];
 
