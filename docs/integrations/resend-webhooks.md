@@ -76,8 +76,13 @@ node --env-file=server/.env scripts/resend-validate.mjs --list
 
 # Re-send matching inbound to Gmail (dry-run first)
 node --env-file=server/.env scripts/resend-reforward-inbound.mjs --dry-run
+# Meta/Facebook only (validation / business verification mail)
+node --env-file=server/.env scripts/resend-reforward-inbound.mjs --meta-only
 node --env-file=server/.env scripts/resend-reforward-inbound.mjs
 ```
+
+Uses the Resend Node SDK `emails.receiving.forward` helper (there is no REST `POST /emails/receiving/:id/forward`).
+
 
 Health (prod): `GET https://www.bestie.mx/api/health` → `resendInbound.webhookConfigured` / `receivingKeyConfigured` / `forwardTo`.
 
