@@ -467,7 +467,7 @@ export async function adminPatchPropertyStatus(
   propertyId: string,
   status: "draft" | "published" | "paused" | "archived",
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ propertyId: string; status: string }> {
   const base = apiBase();
   const res = await networkFetch(`${base}/api/admin/properties/${encodeURIComponent(propertyId)}/status`, {
     method: "PATCH",
@@ -477,6 +477,7 @@ export async function adminPatchPropertyStatus(
     signal,
   });
   if (!res.ok) throw new Error(`admin_status_${res.status}`);
+  return (await res.json()) as { propertyId: string; status: string };
 }
 
 export async function adminGetFeaturedCities(signal?: AbortSignal): Promise<string[]> {

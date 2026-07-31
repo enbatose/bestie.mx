@@ -10,7 +10,8 @@ import {
   normalizeConversationKind,
 } from "./messagingSchema.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
-import { clampMessageAttachments, clampStr, isSafePropertyId, type MessageAttachment } from "./validation.js";
+import { clampMessageAttachments, clampStr, type MessageAttachment } from "./validation.js";
+import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
 import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
 
@@ -75,8 +76,9 @@ export function adminRouter(db: DatabaseSync) {
   });
 
   r.patch("/properties/:id/status", jsonMw(), (req: Request, res: Response) => {
-    const id = req.params.id;
-    if (!isSafePropertyId(id)) {
+    const rawId = String(req.params.id ?? "").trim();
+    const propertyId = resolveAdminPropertyIdFromParam(db, rawId);
+    if (!propertyId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
@@ -85,13 +87,16 @@ export function adminRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_status" });
       return;
     }
-    const r0 = db.prepare(`UPDATE properties SET status = ? WHERE id = ?`).run(st, id);
+    const r0 = db.prepare(`UPDATE properties SET status = ? WHERE id = ?`).run(st, propertyId);
     if (r0.changes === 0) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    db.prepare(`UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ?`).run(st, id);
-    res.json({ ok: true, propertyId: id, status: st });
+    db.prepare(`UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ?`).run(
+      st,
+      propertyId,
+    );
+    res.json({ ok: true, propertyId, status: st });
   });
 
   r.get("/settings/featured-cities", (_req: Request, res: Response) => {

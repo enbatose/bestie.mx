@@ -45,3 +45,23 @@ export function resolveRoomIdFromRouteParam(db: DatabaseSync, param: string): st
   if (isSafeRoomOrListingId(trimmed)) return trimmed;
   return null;
 }
+
+/**
+ * Admin property-status target: `prp__…` / `P…`, or room short code `A…` → parent property.
+ * Returns null when the param is malformed or nothing matches.
+ */
+export function resolveAdminPropertyIdFromParam(db: DatabaseSync, param: string): string | null {
+  const trimmed = param.trim();
+  if (!trimmed || trimmed.length > 160) return null;
+
+  const asProperty = resolvePropertyIdFromRouteParam(db, trimmed);
+  if (asProperty) return asProperty;
+
+  const roomId = resolveRoomIdFromRouteParam(db, trimmed);
+  if (!roomId) return null;
+
+  const row = db.prepare(`SELECT property_id FROM rooms WHERE id = ?`).get(roomId) as
+    | { property_id: string }
+    | undefined;
+  return row?.property_id ?? null;
+}

@@ -82,6 +82,7 @@ export function AdminPage() {
   const [imageFailuresOnly, setImageFailuresOnly] = useState(true);
   const [propId, setPropId] = useState("");
   const [propStatus, setPropStatus] = useState<"draft" | "published" | "paused" | "archived">("paused");
+  const [propOk, setPropOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const loadUsers = useCallback(async () => {
@@ -556,12 +557,19 @@ export function AdminPage() {
       {tab === "property" ? (
         <div className="mt-6 space-y-3 rounded-xl border border-border bg-surface p-4">
           <label className="block text-sm font-medium text-body">
-            ID de propiedad
+            ID o código corto
             <input
               value={propId}
-              onChange={(e) => setPropId(e.target.value.trim())}
+              onChange={(e) => {
+                setPropId(e.target.value.trim());
+                setPropOk(null);
+              }}
+              placeholder="A5DFC4CCA · P550E8400 · prp__…"
               className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 font-mono text-sm outline-none ring-accent focus:ring-2"
             />
+            <span className="mt-1 block text-xs font-normal text-muted">
+              Acepta código de anuncio (A…), de propiedad (P…) o id canónico (prp__). Un código A… pausa/publica la propiedad padre.
+            </span>
           </label>
           <label className="block text-sm font-medium text-body">
             Estado
@@ -576,6 +584,7 @@ export function AdminPage() {
               <option value="archived">archived</option>
             </select>
           </label>
+          {propOk ? <p className="text-sm text-primary">{propOk}</p> : null}
           {propId ? (
             <Link
               to={`/publicar?edit=${encodeURIComponent(propId)}`}
@@ -590,8 +599,11 @@ export function AdminPage() {
             onClick={async () => {
               setBusy(true);
               setErr(null);
+              setPropOk(null);
               try {
-                await adminPatchPropertyStatus(propId, propStatus);
+                const result = await adminPatchPropertyStatus(propId, propStatus);
+                setPropId(result.propertyId);
+                setPropOk(`Listo: ${result.propertyId} → ${result.status}`);
               } catch (x) {
                 setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
               } finally {
