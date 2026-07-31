@@ -42,20 +42,22 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 ## Tono (cuenta personal)
 
 - Español de México, **tú**, cercano y respetuoso.
+- Debe sentirse **personal**: como si le escribieras a alguien del grupo, no como anuncio.
+- Abre con algo humano (reconocer el post, la zona o lo que ofrecen) antes del pitch.
 - Como alguien del equipo local, no como vendedor frío ni como “el jefe”.
 - Corto: ~2–5 oraciones o un párrafo breve + enlace. Cabe en un comentario de FB.
 - Sin emojis excesivos (0–2 máximo). Sin hashtags. Sin “¡¡¡”.
 - No criticar Facebook ni el grupo. No pedir que borren su post.
 - No prometer leads, tráfico ni resultados garantizados.
-- No sonar a bot ni plantilla obvia: variar apertura según el post.
+- No sonar a bot ni plantilla obvia: variar apertura según el post; evitar frases calcadas (“plataforma nueva y local… para publicar cuartos y roomies”) en cada comentario.
 
 ## Estructura sugerida
 
-1. Saludo breve + gancho con detalle del post (zona / tipo).
-2. Presentación: “soy parte del equipo de Bestie.mx…”, plataforma nueva local en GDL.
-3. Propuesta: pueden publicar su anuncio ahí; **gratis / sin costo siempre**.
+1. Saludo + detalle personal del post (zona, amueblado, tipo, etc.) — 1 frase genuina.
+2. Presentación breve: “soy parte del equipo de Bestie.mx…”.
+3. Propuesta en tono de tip / ayuda, no de venta: publicar sin costo **siempre**.
 4. Enlace: `https://www.bestie.mx`
-5. Cierre suave (opcional): “si les late” / “cualquier duda me escriben”.
+5. Cierre humano (opcional): “si te late”, “cualquier duda me escribes por aquí”, “éxito con la renta”.
 
 ## Must-include
 
