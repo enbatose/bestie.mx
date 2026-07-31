@@ -25,7 +25,8 @@
     "google:validate": "node scripts/google-validate.mjs",
     "facebook:validate": "node scripts/facebook-validate.mjs",
     "meta:mcp-auth-check": "node scripts/meta-mcp-auth-preflight.mjs",
-    "oauth:golive": "node scripts/oauth-golive.mjs"
+    "oauth:golive": "node scripts/oauth-golive.mjs",
+    "backup:cron": "npm run server:build && node server/dist/backupCronEntry.js"
   },
   "dependencies": {
     "@posthog/react": "^1.10.3",

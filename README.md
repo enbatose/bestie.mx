@@ -106,6 +106,7 @@ Two Railway services in project **discerning-quietude** each serve the Vite SPA 
 | --- | --- | --- | --- |
 | **Dev** | `https://dev.bestie.mx` | `develop` | Existing test-data volume |
 | **Production** | `https://www.bestie.mx` (apex `bestie.mx` → www) | `main` | Fresh volume (`/data`) — pilot / real users |
+| **Backup (cold)** | _(no public URL)_ | `main` (cron service `bestie-backup`) | US East warm volume + Railway Bucket `bestie-prod-backups` (iad) — see [`docs/ops/database-backups.md`](docs/ops/database-backups.md) |
 
 - **Local:** Vite on `:5173` proxies `/api`, or set `VITE_API_URL` via `npm run env:local`.
 - **PostHog:** set `VITE_POSTHOG_PROJECT_TOKEN` on **production only**.

@@ -242,6 +242,7 @@ export function PrivacyPage() {
           items={[
             "Proveedores de inicio de sesión e identidad (Google LLC y Meta Platforms, Inc.).",
             "Proveedor de infraestructura y alojamiento de la aplicación.",
+            "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
             "Proveedor de envío de correos electrónicos transaccionales.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",

@@ -24,6 +24,8 @@ import {
   OUTBOUND_SMTP_SETUP_HINT,
   smtpConfigured,
 } from "./mailer.js";
+import { backupRouter } from "./backup/backupRouter.js";
+import { resolveUploadDir } from "./dataPaths.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -35,21 +37,6 @@ function normalizeCorsOrigins(origins: string[]): string[] {
     out.push(o);
   }
   return out;
-}
-
-/**
- * When `UPLOAD_DIR` is unset, store files next to the SQLite DB so a mounted DB volume
- * keeps both listing data and image bytes (avoids ephemeral cwd vs persistent `/data/bestie.db`).
- */
-function resolveUploadDir(databasePath: string | undefined): string {
-  const envDir = process.env.UPLOAD_DIR?.trim();
-  if (envDir) return path.resolve(envDir);
-  const rawDb = databasePath?.trim();
-  if (rawDb) {
-    const dbAbs = path.isAbsolute(rawDb) ? path.resolve(rawDb) : path.resolve(process.cwd(), rawDb);
-    return path.join(path.dirname(dbAbs), "uploads");
-  }
-  return path.resolve(process.cwd(), "data", "uploads");
 }
 
 export type CreateAppOptions = {
@@ -183,6 +170,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));
   app.use("/api/compliance", complianceRouter());
+  app.use("/api/internal/backup", backupRouter(db, databasePath));
 
   const spaDist = opts.webDistDir?.trim();
   if (spaDist) {
