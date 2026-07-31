@@ -638,7 +638,8 @@ export function MessagesPage() {
                                   ) : (
                                     <>
                                       <span className="text-sm font-semibold text-body">{displayName}</span>
-                                      {otherIsSupport ? <SupportBadge /> : null}
+                                      {otherIsSystem && isSupportThread ? <SupportBadge /> : null}
+                                      {otherIsSystem && isFeedbackThread ? <FeedbackBadge /> : null}
                                       <span className="text-xs text-muted" aria-hidden>
                                         ·
                                       </span>
