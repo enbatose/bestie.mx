@@ -6,7 +6,8 @@ type Props = {
 
 /**
  * Circular map support FAB — intentionally not the list-tab shape.
- * Surface + forest border for contrast; plain "?" keeps the glyph simple.
+ * Surface + forest border for contrast.
+ * SVG "?" (not a text glyph) so the mark sits geometrically centered, same as MapFeedbackFab.
  */
 export function MapSupportFab({ onClick, className = "" }: Props) {
   return (
@@ -17,9 +18,19 @@ export function MapSupportFab({ onClick, className = "" }: Props) {
       title="Ayuda y contacto"
       className={`pointer-events-auto inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-surface text-primary shadow-[0_8px_18px_rgba(0,0,0,0.16)] transition hover:scale-[1.04] hover:bg-bg-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 ${className}`}
     >
-      <span className="translate-y-px text-[1.15rem] font-bold leading-none" aria-hidden="true">
-        ?
-      </span>
+      <svg
+        viewBox="0 0 24 24"
+        className="size-[1.05rem]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <path d="M12 17h.01" />
+      </svg>
     </button>
   );
 }
