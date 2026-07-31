@@ -55,7 +55,7 @@ async function sendHelp(psid: string, base: string): Promise<void> {
       "Puedes buscar cuarto con filtros guiados (ciudad, presupuesto, preferencia de roomies) y ver resultados aquí.",
       `Mapa y filtros avanzados: ${base}/buscar`,
       `Publicar (fotos y mapa en la web): usa “Publicar” o ${base}/publicar`,
-      "Soporte: soporte@bestie.mx",
+      "Soporte: contacto@bestie.mx",
     ].join("\n\n"),
   );
 }
