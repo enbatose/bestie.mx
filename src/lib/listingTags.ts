@@ -169,7 +169,7 @@ export const LISTING_TAG_CHIP_LABELS: Partial<Record<ListingTag, string>> = {
   "individuos-solo": "Individuos (solo)",
   "familiar-ninos": "Familiar / niños",
   "residentes-medicos": "Residentes médicos",
-  cocina-equipada: "Cocina equipada",
+  "cocina-equipada": "Cocina equipada",
   muebles: "Amueblado",
   "fumar-permitido-recamara": "Permitido fumar",
 };
