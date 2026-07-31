@@ -10,6 +10,7 @@ import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingTagChips, listingTagLabel } from "@/components/listing/ListingTagChips";
 import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
+import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
@@ -863,12 +864,12 @@ export function EditableListingPreview({
               onSave={savePropertySummary}
               onCancel={() => setEditingProperty(false)}
             >
-              <textarea
+              <ResizableTextarea
                 value={propertySummaryDraft}
                 onChange={(e) => setPropertySummaryDraft(e.target.value)}
-                rows={5}
+                rows={6}
                 maxLength={PROPERTY_SUMMARY_MAX}
-                className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
               <FieldCharCount
                 current={propertySummaryDraft.trim().length}
@@ -1061,12 +1062,12 @@ export function EditableListingPreview({
             onSave={saveRoomSummary}
             onCancel={() => setEditingRoom(false)}
           >
-            <textarea
+            <ResizableTextarea
               value={roomSummaryDraft}
               onChange={(e) => setRoomSummaryDraft(e.target.value)}
-              rows={5}
+              rows={6}
               maxLength={ROOM_SUMMARY_MAX}
-              className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
             <FieldCharCount
               current={roomSummaryDraft.trim().length}
