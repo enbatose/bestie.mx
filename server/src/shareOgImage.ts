@@ -117,7 +117,6 @@ export async function composeBrandedShareImage(source: Buffer): Promise<Buffer> 
   const base = sharp(source).rotate().resize({ width: MAX_SHARE_WIDTH, withoutEnlargement: true });
   const { data: photoBuf, info } = await base.toBuffer({ resolveWithObject: true });
   const w = info.width;
-  const h = info.height;
   const pad = Math.max(12, Math.round(w * EDGE_PAD_RATIO));
   const badgePad = Math.max(6, Math.round(w * BADGE_PAD_RATIO));
   const lockupW = Math.max(120, Math.round(w * LOCKUP_WIDTH_RATIO));
