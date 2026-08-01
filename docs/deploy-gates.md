@@ -47,7 +47,31 @@ npm run smoke:prod
 node scripts/smoke-deploy.mjs https://dev.bestie.mx
 ```
 
-## Promoting security fixes
+## 3. Playwright end-to-end — `CI` job `Playwright E2E`
 
-1. Push to `develop` → CI green → smoke against Dev green  
-2. Merge `develop` → `main` → CI green → smoke against Prod green  
+**Folder:** `e2e/` · **Config:** `playwright.config.ts`
+
+Runs after unit tests in CI against an **isolated local stack** (`scripts/e2e-serve.mjs`):
+
+- Temporary SQLite DB with demo seed
+- Never uses Dev/Prod databases
+- Drafts created in tests stay unpublished (not in `/api/listings`)
+
+### Flows covered
+
+| Spec | Flow |
+| --- | --- |
+| `browse.spec.ts` | Home, `/buscar/gdl`, open a seeded listing detail |
+| `auth.spec.ts` | Register → verify screen → logout → login |
+| `publisher-draft.spec.ts` | Create **draft** via API, see it in Mis anuncios, assert not public; wizard shell loads |
+| `public-pages.spec.ts` | FAQ, Terms, Privacy |
+| `live-readonly.spec.ts` | Optional read-only against Dev (`npm run test:e2e:live-dev`) — no writes |
+
+### Local
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+npm run test:e2e:ui
+npm run test:e2e:live-dev   # read-only vs https://dev.bestie.mx
+```
