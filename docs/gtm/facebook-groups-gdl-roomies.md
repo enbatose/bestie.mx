@@ -13,15 +13,16 @@ This inventory is the working list for Bestie go-to-market outreach (group-by-gr
 | Metric | Count |
 | --- | ---: |
 | Groups in paste | **163** |
-| Already member (personal UI signals) | **34** |
+| In coverage (member or join requested) | **55** |
 | Tier A — roomies / cuartos / students | **54** |
+| Tier A still to join | **0** |
 | Tier B — general rentals (casas/depas) | **77** |
 | Tier C — sales-heavy / short-stay / other | **8** |
 | Tier D — off-topic or reputation-only | **24** |
 
 *(Exact tier counts live in the CSV `relevance_tier` column; re-run the parser after new pastes.)*
 
-Membership inferred from Facebook UI signals: `Miembro desde…`, `Perteneces a este grupo`, or unread post counts.
+Membership: originally inferred from Facebook UI signals (`Miembro desde…`, unread counts, `Perteneces a este grupo`). On **2026-08-01** the user joined or requested all **21** Tier A gaps; see [`membership-overrides.json`](./membership-overrides.json). Private groups may still be pending admin approval — treat as in-coverage for planning.
 
 ## Relevance tiers (for Bestie)
 
@@ -33,9 +34,9 @@ Membership inferred from Facebook UI signals: `Miembro desde…`, `Perteneces a 
 | `D_off_topic` | Jobs, furniture, bodegas, locales, rides, etc. | Skip |
 | `D_reputation_not_supply` | e.g. Malos Roomies Gdl | Do **not** pitch inventory; optional brand hygiene only |
 
-## Wave 1 — already a member (Tier A, largest first)
+## Wave 1 — Tier A coverage (largest first)
 
-Start outreach here: no join wait, unread activity already proves feed access.
+All Tier A groups from this search are now in coverage (member or join requested). Prioritize publics with confirmed **IR**; privados may still be pending.
 
 | ~Members | Privacy | Group |
 | ---: | --- | --- |
@@ -58,30 +59,14 @@ Start outreach here: no join wait, unread activity already proves feed access.
 | 24k | Privado | Roomies GDL |
 | … | … | +16 more Tier A memberships in the CSV (`is_member=yes`) |
 
-## Wave 2 — join queue (Tier A, not yet member)
+## Wave 2 — join queue (Tier A) — DONE 2026-08-01
 
-High-value targets to join before or while Wave 1 runs.
-
-| ~Members | Privacy | Group |
-| ---: | --- | --- |
-| 102k | Privado | Renta de vivienda / Rooms for rent GUADALAJARA Y ZONA METROPOLITANA |
-| 42k | Privado | Renta Cuarto o Depa, Zona Real, Chapalita, Providencia, GDL, Jalisco Mexico |
-| 34k | Público | FORANEOS EN GUADALAJARA |
-| 9.6k | Público | Renta de cuartos en Guadalajara centro |
-| 9.5k | Privado | Casas Departamentos Locales en JALISCO \| Venta Renta \| Guadalajara \| Roomie |
-| 6.7k | Público | RENTA DE CUARTOS GUADALAJARA |
-| 6.3k | Público | Hospedaje GDL Students (Accommodation) |
-| 3.7k | Privado | Roomies Mujeres Gdl |
-| 3.3k | Público | BuscoCuarto.com - Guadalajara, Zapopan |
-| 2.9k | Público | ROOMIES RENTA DE CUARTOS ITESO Y UVM |
-| 2.9k | Público | Renta de Habitaciones TEC, UP, Cuauhtémoc, UVM campus GDL |
-
-Campus / niche (ITESO, UVM, TEC, UP, mujeres, foráneos) are often better conversion than mega general-rental groups despite smaller size.
+All **21** Tier A gaps were joined or join-requested. Coverage for Tier A is complete for planning (private approvals may still be pending).
 
 ## Suggested sequencing (for next strategize session)
 
-1. **Wave 1 only** — comment from personal account on landlord room posts in the largest Tier A groups you already belong to.
-2. **Join Wave 2** private groups in parallel (approval lag).
+1. **Wave 1 outreach** — comment from personal account on landlord room posts across Tier A (start with largest + campus niches).
+2. **Check private approvals** — confirm IR (not pending) on privados before relying on them for volume.
 3. **Bestie Page** — only after testing which groups allow Page posts/comments; many roomies groups restrict Pages.
 4. **Tier B** — after Tier A is saturated; treat as landlord pools, not roomie-native.
 5. **Skip Tier D** for supply recruitment.

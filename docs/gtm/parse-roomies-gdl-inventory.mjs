@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -171,6 +171,21 @@ for (const g of groups) {
     g.notes = "possible duplicate row";
   }
   seen.set(key, true);
+}
+
+const overridesPath = resolve(dir, "membership-overrides.json");
+if (existsSync(overridesPath)) {
+  const overrides = JSON.parse(readFileSync(overridesPath, "utf8"));
+  const markIds = new Set(
+    (overrides.mark_member_ids || []).map((id) => Number(id)),
+  );
+  const joinNote =
+    "joined_or_requested 2026-08-01 (user confirmed; private may be pending)";
+  for (const g of groups) {
+    if (!markIds.has(Number(g.id))) continue;
+    g.is_member = "yes";
+    g.notes = g.notes ? `${g.notes}; ${joinNote}` : joinNote;
+  }
 }
 
 const cols = [
