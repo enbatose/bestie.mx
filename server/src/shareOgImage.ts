@@ -15,12 +15,16 @@ import {
 import type { PropertyListing } from "./types.js";
 
 const MAX_SHARE_EDGE = 1200;
-/** Lockup width as a fraction of the photo — readable in WhatsApp’s small square thumb. */
-const LOCKUP_WIDTH_RATIO = 0.36;
-const EDGE_PAD_RATIO = 0.03;
-const BADGE_PAD_RATIO = 0.014;
+/**
+ * Lockup width vs photo — WhatsApp thumbs are tiny; keep the wordmark readable.
+ * ~45% of edge ≈ 540px on a 1200 canvas.
+ */
+const LOCKUP_WIDTH_RATIO = 0.45;
+/** Inset from edges so WhatsApp round corners / side crops don’t clip the badge. */
+const EDGE_PAD_RATIO = 0.055;
+const BADGE_PAD_RATIO = 0.018;
 /** Bump when overlay layout changes so clients re-fetch. */
-export const SHARE_OG_IMAGE_VERSION = "v2";
+export const SHARE_OG_IMAGE_VERSION = "v3";
 
 const UPLOAD_PATH_RE =
   /^\/api\/uploads\/([A-Za-z0-9][A-Za-z0-9._-]{0,200}\.(?:jpg|jpeg|png|webp|gif))$/i;
@@ -109,8 +113,8 @@ export function readUploadBytes(
 }
 
 /**
- * Composite Bestie lockup (mark + bestie.mx) top-right on a semi-opaque badge.
- * Output is a square cover crop so WhatsApp’s square thumbnail keeps the badge.
+ * Composite Bestie lockup (mark + bestie.mx) top-left on a semi-opaque badge.
+ * Square cover crop; inset so WhatsApp’s rounded preview corners don’t clip it.
  */
 export async function composeBrandedShareImage(source: Buffer): Promise<Buffer> {
   const lockupPath = resolveBrandLockupPath();
@@ -128,18 +132,18 @@ export async function composeBrandedShareImage(source: Buffer): Promise<Buffer> 
     .resize(MAX_SHARE_EDGE, MAX_SHARE_EDGE, { fit: "cover", position: "centre" })
     .toBuffer({ resolveWithObject: true });
   const w = info.width;
-  const pad = Math.max(14, Math.round(w * EDGE_PAD_RATIO));
-  const badgePad = Math.max(8, Math.round(w * BADGE_PAD_RATIO));
-  const lockupW = Math.max(160, Math.round(w * LOCKUP_WIDTH_RATIO));
+  const pad = Math.max(48, Math.round(w * EDGE_PAD_RATIO));
+  const badgePad = Math.max(12, Math.round(w * BADGE_PAD_RATIO));
+  const lockupW = Math.max(220, Math.round(w * LOCKUP_WIDTH_RATIO));
   // Lockup SVG viewBox 251×74
-  const lockupH = Math.max(48, Math.round((lockupW * 74) / 251));
+  const lockupH = Math.max(64, Math.round((lockupW * 74) / 251));
   const badgeW = lockupW + badgePad * 2;
   const badgeH = lockupH + badgePad * 2;
-  const radius = Math.max(10, Math.round(badgeH * 0.22));
+  const radius = Math.max(12, Math.round(badgeH * 0.22));
 
   const badgeSvg = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${badgeW}" height="${badgeH}">
-      <rect width="${badgeW}" height="${badgeH}" rx="${radius}" ry="${radius}" fill="rgba(20,61,48,0.82)"/>
+      <rect width="${badgeW}" height="${badgeH}" rx="${radius}" ry="${radius}" fill="rgba(20,61,48,0.88)"/>
     </svg>`,
   );
   const badgePng = await sharp(badgeSvg).png().toBuffer();
@@ -148,7 +152,8 @@ export async function composeBrandedShareImage(source: Buffer): Promise<Buffer> 
     .png()
     .toBuffer();
 
-  const left = Math.max(0, w - badgeW - pad);
+  // Top-left with generous inset (WhatsApp clips top-right and outer corners).
+  const left = pad;
   const top = pad;
 
   return sharp(photoBuf)
