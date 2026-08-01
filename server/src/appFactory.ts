@@ -27,6 +27,7 @@ import {
 import { backupRouter } from "./backup/backupRouter.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
+import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -198,7 +199,8 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
         }
 
         // Per-listing Open Graph for WhatsApp / Messenger / Facebook scrapers.
-        const og = resolveListingShareOg(db, req.path);
+        // Base must match the request host so Dev images are not pointed at Prod.
+        const og = resolveListingShareOg(db, req.path, sharePreviewBaseUrl(req));
         if (og) {
           try {
             const html = injectListingShareOg(readIndexHtml(), og);

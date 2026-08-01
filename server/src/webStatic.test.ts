@@ -138,7 +138,10 @@ describe("SPA static from API process", () => {
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
 
     const ref = roomReferenceCode(roomId);
-    const res = await request(app).get(`/anuncio/${encodeURIComponent(ref)}`).expect(200);
+    const res = await request(app)
+      .get(`/anuncio/${encodeURIComponent(ref)}`)
+      .set("Host", "dev.bestie.mx")
+      .expect(200);
     expect(res.text).toContain("og:title");
     expect(res.text).toContain("Cuarto OG Providencia");
     expect(res.text).toContain("7,200");
@@ -146,6 +149,7 @@ describe("SPA static from API process", () => {
     expect(res.text).toContain(`og:image" content="https://dev.bestie.mx${TEST_LISTING_IMAGE_URL}"`);
     expect(res.text).toContain("twitter:card");
     expect(res.text).not.toContain("Bestie — bestie.mx");
+    expect(res.text).not.toContain("https://www.bestie.mx/api/uploads/");
   });
 
   it("GET /propiedad/:ref injects property-level Open Graph meta", async () => {
@@ -211,7 +215,10 @@ describe("SPA static from API process", () => {
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "published" }).expect(200);
 
     const pref = propertyReferenceCode(propertyId);
-    const res = await request(app).get(`/propiedad/${encodeURIComponent(pref)}`).expect(200);
+    const res = await request(app)
+      .get(`/propiedad/${encodeURIComponent(pref)}`)
+      .set("Host", "dev.bestie.mx")
+      .expect(200);
     expect(res.text).toContain("Casa Multi OG");
     expect(res.text).toContain("2 cuartos disponibles");
     expect(res.text).toContain("6,000");
