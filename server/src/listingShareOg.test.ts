@@ -4,6 +4,7 @@ import {
   buildPropertyShareOg,
   buildRoomShareOg,
   coverImageForPost,
+  injectFacebookAppId,
   injectListingShareOg,
   OG_DESC_MAX,
   OG_TITLE_MAX,
@@ -98,6 +99,8 @@ describe("listingShareOg helpers", () => {
   });
 
   it("injectListingShareOg replaces default OG tags and adds image", () => {
+    const prev = process.env.FACEBOOK_APP_ID;
+    process.env.FACEBOOK_APP_ID = "123456789012345";
     const html = `<!doctype html><html><head>
 <meta property="og:title" content="Bestie — bestie.mx" />
 <meta property="og:description" content="Generic" />
@@ -105,15 +108,27 @@ describe("listingShareOg helpers", () => {
 <meta name="description" content="Generic" />
 <title>Bestie — bestie.mx</title>
 </head><body></body></html>`;
-    const out = injectListingShareOg(html, {
-      title: 'Cuarto "top" en GDL',
-      description: "8500 MXN/mes · Providencia",
-      url: "https://www.bestie.mx/anuncio/AABCDEF12",
-      imageUrl: "https://www.bestie.mx/api/uploads/x.jpg",
-    });
-    expect(out).toContain('property="og:title" content="Cuarto &quot;top&quot; en GDL"');
-    expect(out).toContain('property="og:image" content="https://www.bestie.mx/api/uploads/x.jpg"');
-    expect(out).toContain('name="twitter:card" content="summary_large_image"');
-    expect(out).not.toContain("Bestie — bestie.mx");
+    try {
+      const out = injectListingShareOg(html, {
+        title: 'Cuarto "top" en GDL',
+        description: "8500 MXN/mes · Providencia",
+        url: "https://www.bestie.mx/anuncio/AABCDEF12",
+        imageUrl: "https://www.bestie.mx/api/uploads/x.jpg",
+      });
+      expect(out).toContain('property="og:title" content="Cuarto &quot;top&quot; en GDL"');
+      expect(out).toContain('property="og:image" content="https://www.bestie.mx/api/uploads/x.jpg"');
+      expect(out).toContain('name="twitter:card" content="summary_large_image"');
+      expect(out).toContain('property="fb:app_id" content="123456789012345"');
+      expect(out).not.toContain("Bestie — bestie.mx");
+    } finally {
+      if (prev === undefined) delete process.env.FACEBOOK_APP_ID;
+      else process.env.FACEBOOK_APP_ID = prev;
+    }
+  });
+
+  it("injectFacebookAppId is a no-op without FACEBOOK_APP_ID", () => {
+    const html = "<html><head></head><body></body></html>";
+    expect(injectFacebookAppId(html, null)).toBe(html);
+    expect(injectFacebookAppId(html, "999")).toContain('property="fb:app_id" content="999"');
   });
 });

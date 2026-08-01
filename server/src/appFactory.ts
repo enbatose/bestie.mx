@@ -26,7 +26,7 @@ import {
 } from "./mailer.js";
 import { backupRouter } from "./backup/backupRouter.js";
 import { resolveUploadDir } from "./dataPaths.js";
-import { injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
+import { injectFacebookAppId, injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
 import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
@@ -212,9 +212,13 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
           }
         }
 
-        res.sendFile(indexHtmlPath, (err) => {
-          if (err) next(err);
-        });
+        // Non-listing SPA routes: still attach fb:app_id when configured.
+        try {
+          const html = injectFacebookAppId(readIndexHtml());
+          res.status(200).type("html").send(html);
+        } catch (err) {
+          next(err);
+        }
       });
     }
   }

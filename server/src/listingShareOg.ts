@@ -300,6 +300,18 @@ function upsertTitle(html: string, title: string): string {
   return html.replace(/<\/head>/i, `    ${tag}\n  </head>`);
 }
 
+/** Public Facebook App ID from env (safe to expose in page meta). */
+export function facebookAppIdFromEnv(): string | null {
+  const id = process.env.FACEBOOK_APP_ID?.trim();
+  return id || null;
+}
+
+/** Inject `fb:app_id` when configured — clears Sharing Debugger warning; ties shares to the app. */
+export function injectFacebookAppId(html: string, appId: string | null = facebookAppIdFromEnv()): string {
+  if (!appId) return html;
+  return upsertMetaByProperty(html, "fb:app_id", appId);
+}
+
 /** Inject listing OG (+ twitter card) into the SPA `index.html` shell. */
 export function injectListingShareOg(html: string, meta: ListingShareOgMeta): string {
   let out = html;
@@ -320,5 +332,6 @@ export function injectListingShareOg(html: string, meta: ListingShareOgMeta): st
   if (meta.imageUrl) {
     out = upsertMetaByName(out, "twitter:image", meta.imageUrl);
   }
+  out = injectFacebookAppId(out);
   return out;
 }
