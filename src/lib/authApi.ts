@@ -480,6 +480,66 @@ export async function adminPatchPropertyStatus(
   return (await res.json()) as { propertyId: string; status: string };
 }
 
+export type AdminPostStatus = "draft" | "published" | "paused" | "archived";
+
+export type AdminPostRow = {
+  propertyId: string;
+  shortId: string;
+  postMode: "room" | "property";
+  title: string;
+  city: string;
+  neighborhood: string;
+  status: AdminPostStatus;
+  createdAt: string | null;
+  publishedAt: string | null;
+  wizardStep: number | null;
+  wizardStepLabel: string | null;
+  creatorLoggedIn: boolean;
+  creatorUserId: string | null;
+  creatorDisplayName: string | null;
+  creatorEmail: string | null;
+  feedbackCompleted: boolean;
+  feedbackRating: number | null;
+  feedbackComment: string | null;
+  feedbackAt: string | null;
+  posthogSessionId: string | null;
+  posthogReplayUrl: string | null;
+  viewPath: string;
+  editPath: string;
+  primaryRoomId: string | null;
+};
+
+export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;
+
+export async function adminListPosts(
+  opts: {
+    q?: string;
+    status?: AdminPostStatus | "all";
+    limit?: number;
+    offset?: number;
+  } = {},
+  signal?: AbortSignal,
+): Promise<{ posts: AdminPostRow[]; total: number; limit: number; offset: number }> {
+  const base = apiBase();
+  const q = new URLSearchParams();
+  if (opts.q?.trim()) q.set("q", opts.q.trim());
+  if (opts.status && opts.status !== "all") q.set("status", opts.status);
+  if (opts.limit != null) q.set("limit", String(opts.limit));
+  if (opts.offset != null) q.set("offset", String(opts.offset));
+  const qs = q.toString();
+  const res = await networkFetch(`${base}/api/admin/posts${qs ? `?${qs}` : ""}`, {
+    credentials: cred,
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_posts_${res.status}`);
+  return (await res.json()) as {
+    posts: AdminPostRow[];
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}
+
 export async function adminGetFeaturedCities(signal?: AbortSignal): Promise<string[]> {
   const base = apiBase();
   const res = await networkFetch(`${base}/api/admin/settings/featured-cities`, { credentials: cred, signal });

@@ -14,6 +14,7 @@ import { clampMessageAttachments, clampStr, type MessageAttachment } from "./val
 import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
 import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
+import { listAdminPosts } from "./adminPosts.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -87,16 +88,35 @@ export function adminRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_status" });
       return;
     }
-    const r0 = db.prepare(`UPDATE properties SET status = ? WHERE id = ?`).run(st, propertyId);
-    if (r0.changes === 0) {
+    const cur = db.prepare(`SELECT status, published_at FROM properties WHERE id = ?`).get(propertyId) as
+      | { status: string; published_at: string | null }
+      | undefined;
+    if (!cur) {
       res.status(404).json({ error: "not_found" });
       return;
+    }
+    if (st === "published" && (cur.published_at == null || String(cur.published_at).trim() === "")) {
+      db.prepare(`UPDATE properties SET status = ?, published_at = ? WHERE id = ?`).run(
+        st,
+        new Date().toISOString(),
+        propertyId,
+      );
+    } else {
+      db.prepare(`UPDATE properties SET status = ? WHERE id = ?`).run(st, propertyId);
     }
     db.prepare(`UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ?`).run(
       st,
       propertyId,
     );
     res.json({ ok: true, propertyId, status: st });
+  });
+
+  r.get("/posts", (req: Request, res: Response) => {
+    const q = typeof req.query.q === "string" ? req.query.q : undefined;
+    const status = typeof req.query.status === "string" ? req.query.status : undefined;
+    const limit = req.query.limit != null ? Number(req.query.limit) : undefined;
+    const offset = req.query.offset != null ? Number(req.query.offset) : undefined;
+    res.json(listAdminPosts(db, { q, status, limit, offset }));
   });
 
   r.get("/settings/featured-cities", (_req: Request, res: Response) => {

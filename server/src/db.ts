@@ -198,6 +198,50 @@ function migratePropertyStreetViewPov(db: DatabaseSync): void {
   }
 }
 
+/** Admin posts report + publish analytics: timestamps, wizard progress, replay, feedback. */
+function migratePropertyAdminTracking(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "created_at")) {
+    db.exec(
+      `ALTER TABLE properties ADD COLUMN created_at TEXT NOT NULL DEFAULT '${ROOM_TS_ALTER_PLACEHOLDER}'`,
+    );
+    // Backfill from earliest room timestamp when available.
+    db.exec(`
+      UPDATE properties
+      SET created_at = COALESCE(
+        (SELECT MIN(r.created_at) FROM rooms r WHERE r.property_id = properties.id),
+        datetime('now')
+      )
+      WHERE created_at = '${ROOM_TS_ALTER_PLACEHOLDER}'
+    `);
+  }
+  if (!tableHasColumn(db, "properties", "published_at")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN published_at TEXT`);
+    db.exec(`
+      UPDATE properties
+      SET published_at = COALESCE(
+        (SELECT MIN(r.updated_at) FROM rooms r WHERE r.property_id = properties.id AND r.status = 'published'),
+        datetime('now')
+      )
+      WHERE status = 'published' AND (published_at IS NULL OR trim(published_at) = '')
+    `);
+  }
+  if (!tableHasColumn(db, "properties", "wizard_step")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN wizard_step INTEGER`);
+  }
+  if (!tableHasColumn(db, "properties", "posthog_session_id")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN posthog_session_id TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "feedback_rating")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN feedback_rating INTEGER`);
+  }
+  if (!tableHasColumn(db, "properties", "feedback_comment")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN feedback_comment TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "feedback_at")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN feedback_at TEXT`);
+  }
+}
+
 /** SQLite `ALTER TABLE ADD COLUMN` only allows constant DEFAULTs — not `CURRENT_TIMESTAMP`. */
 const ROOM_TS_ALTER_PLACEHOLDER = "1970-01-01T00:00:00.000Z";
 
@@ -276,7 +320,14 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       bathrooms REAL NOT NULL DEFAULT 1,
       show_whatsapp INTEGER NOT NULL DEFAULT 1,
       image_urls_json TEXT NOT NULL DEFAULT '[]',
-      is_approximate_location INTEGER NOT NULL DEFAULT 0
+      is_approximate_location INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      published_at TEXT,
+      wizard_step INTEGER,
+      posthog_session_id TEXT,
+      feedback_rating INTEGER,
+      feedback_comment TEXT,
+      feedback_at TEXT
     );
     CREATE TABLE IF NOT EXISTS rooms (
       id TEXT PRIMARY KEY,
@@ -316,6 +367,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migratePropertyApproximateLocation(db);
   migratePropertyOccupantCounts(db);
   migratePropertyStreetViewPov(db);
+  migratePropertyAdminTracking(db);
   migrateRoomTimestamps(db);
   migrateRoomOccupancyFields(db);
   migrateRoomViewsCount(db);

@@ -30,6 +30,7 @@ import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { ChatMessageBody } from "@/components/messaging/ChatMessageBody";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
+import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 
 function monthOptions(count = 12): string[] {
   const out: string[] = [];
@@ -193,8 +194,12 @@ export function AdminPage() {
     ? Math.min(100, (streetView.dynamicStreetView.total / streetView.dynamicStreetView.freeTierLimit) * 100)
     : 0;
 
+  const clearErr = useCallback((message: string | null) => {
+    setErr(message);
+  }, []);
+
   return (
-    <div className={`mx-auto px-4 py-10 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" ? "max-w-5xl" : "max-w-3xl"}`}>
+    <div className={`mx-auto px-4 py-10 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" ? "max-w-7xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
       <p className="mt-2 text-sm text-muted">
         Solo cuentas cuyo correo está en la lista de administradores del servidor (integrada +{" "}
@@ -231,7 +236,7 @@ export function AdminPage() {
                 : t === "analytics"
                   ? "Métricas"
                   : t === "property"
-                    ? "Propiedad"
+                    ? "Posts"
                     : "Soporte"}
           </button>
         ))}
@@ -555,65 +560,73 @@ export function AdminPage() {
       ) : null}
 
       {tab === "property" ? (
-        <div className="mt-6 space-y-3 rounded-xl border border-border bg-surface p-4">
-          <label className="block text-sm font-medium text-body">
-            ID o código corto
-            <input
-              value={propId}
-              onChange={(e) => {
-                setPropId(e.target.value.trim());
+        <div>
+          <p className="mt-2 text-sm text-muted">
+            Todos los posts (publicados y borradores). Busca por cualquier columna, pagina el reporte y
+            pausa o archiva desde cada fila. Como admin puedes abrir posts no publicados.
+          </p>
+          <AdminPostsPanel onError={clearErr} />
+          <div className="mt-8 space-y-3 rounded-xl border border-dashed border-border bg-surface/60 p-4">
+            <h2 className="text-sm font-semibold text-body">Cambio rápido por ID</h2>
+            <label className="block text-sm font-medium text-body">
+              ID o código corto
+              <input
+                value={propId}
+                onChange={(e) => {
+                  setPropId(e.target.value.trim());
+                  setPropOk(null);
+                }}
+                placeholder="A5DFC4CCA · P550E8400 · prp__…"
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 font-mono text-sm outline-none ring-accent focus:ring-2"
+              />
+              <span className="mt-1 block text-xs font-normal text-muted">
+                Acepta código de anuncio (A…), de propiedad (P…) o id canónico (prp__).
+              </span>
+            </label>
+            <label className="block text-sm font-medium text-body">
+              Estado
+              <select
+                value={propStatus}
+                onChange={(e) => setPropStatus(e.target.value as typeof propStatus)}
+                className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              >
+                <option value="draft">draft</option>
+                <option value="published">published</option>
+                <option value="paused">paused</option>
+                <option value="archived">archived</option>
+              </select>
+            </label>
+            {propOk ? <p className="text-sm text-primary">{propOk}</p> : null}
+            {propId ? (
+              <Link
+                to={`/publicar?edit=${encodeURIComponent(propId)}`}
+                className="inline-flex w-full justify-center rounded-full border border-secondary/60 bg-secondary/15 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-secondary/25 sm:w-auto"
+              >
+                Abrir en editor de anuncios
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy || !propId}
+              onClick={async () => {
+                setBusy(true);
+                setErr(null);
                 setPropOk(null);
+                try {
+                  const result = await adminPatchPropertyStatus(propId, propStatus);
+                  setPropId(result.propertyId);
+                  setPropOk(`Listo: ${result.propertyId} → ${result.status}`);
+                } catch (x) {
+                  setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+                } finally {
+                  setBusy(false);
+                }
               }}
-              placeholder="A5DFC4CCA · P550E8400 · prp__…"
-              className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 font-mono text-sm outline-none ring-accent focus:ring-2"
-            />
-            <span className="mt-1 block text-xs font-normal text-muted">
-              Acepta código de anuncio (A…), de propiedad (P…) o id canónico (prp__). Un código A… pausa/publica la propiedad padre.
-            </span>
-          </label>
-          <label className="block text-sm font-medium text-body">
-            Estado
-            <select
-              value={propStatus}
-              onChange={(e) => setPropStatus(e.target.value as typeof propStatus)}
-              className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50"
             >
-              <option value="draft">draft</option>
-              <option value="published">published</option>
-              <option value="paused">paused</option>
-              <option value="archived">archived</option>
-            </select>
-          </label>
-          {propOk ? <p className="text-sm text-primary">{propOk}</p> : null}
-          {propId ? (
-            <Link
-              to={`/publicar?edit=${encodeURIComponent(propId)}`}
-              className="inline-flex w-full justify-center rounded-full border border-secondary/60 bg-secondary/15 px-4 py-2 text-center text-sm font-semibold text-primary transition hover:bg-secondary/25 sm:w-auto"
-            >
-              Abrir en editor de anuncios
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy || !propId}
-            onClick={async () => {
-              setBusy(true);
-              setErr(null);
-              setPropOk(null);
-              try {
-                const result = await adminPatchPropertyStatus(propId, propStatus);
-                setPropId(result.propertyId);
-                setPropOk(`Listo: ${result.propertyId} → ${result.status}`);
-              } catch (x) {
-                setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50"
-          >
-            Aplicar
-          </button>
+              Aplicar
+            </button>
+          </div>
         </div>
       ) : null}
 

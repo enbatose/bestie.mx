@@ -22,6 +22,7 @@ import {
   isSafeRoomOrListingId,
   type MessageAttachment,
 } from "./validation.js";
+import { attachPublishFeedbackToProperty } from "./adminPosts.js";
 
 const postMsgLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 });
@@ -416,6 +417,8 @@ export function messagesRouter(db: DatabaseSync) {
       body?: unknown;
       rating?: unknown;
       source?: unknown;
+      listingRoomId?: unknown;
+      comment?: unknown;
     };
     const ratingRaw = typeof body.rating === "number" ? body.rating : Number(body.rating);
     const rating = Number.isInteger(ratingRaw) ? ratingRaw : NaN;
@@ -431,14 +434,28 @@ export function messagesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "empty_body" });
       return;
     }
+    const source = typeof body.source === "string" ? body.source.slice(0, 40) : null;
+    const listingRoomId =
+      typeof body.listingRoomId === "string" ? body.listingRoomId.trim().slice(0, 120) : "";
+    const comment =
+      typeof body.comment === "string"
+        ? clampStr(body.comment, FEEDBACK_BODY_MAX_LEN)
+        : "";
     const conversationId = createConversation(db, me, FEEDBACK_BOT_USER_ID, null, subject, "feedback");
     const message = insertMessage(db, conversationId, me, messageBody, []);
+    if (source === "publish" && listingRoomId) {
+      attachPublishFeedbackToProperty(db, {
+        listingRoomId,
+        rating,
+        comment,
+      });
+    }
     res.status(201).json({
       conversationId,
       messageId: message.id,
       createdAt: message.createdAt,
       rating,
-      source: typeof body.source === "string" ? body.source.slice(0, 40) : null,
+      source,
     });
   });
 

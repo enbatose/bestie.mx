@@ -153,6 +153,24 @@ function imageUrlsFromRow(raw: unknown): string[] {
   }
 }
 
+/** Optional 0-based publish-wizard step index (0–20). */
+function optWizardStep(raw: unknown): number | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.max(0, Math.min(20, Math.floor(n)));
+}
+
+/** PostHog session id for admin replay links (opaque string). */
+function optPosthogSessionId(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  if (typeof raw !== "string") return undefined;
+  const t = raw.trim().slice(0, 128);
+  return t || null;
+}
+
 function rowToProperty(row: Record<string, unknown>): Property {
   const pk = optPropertyKind(row.property_kind);
   const st = String(row.status ?? "draft");
@@ -482,8 +500,8 @@ export function propertiesRouter(db: DatabaseSync) {
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
-        occupied_by_women, occupied_by_men, street_view_pov_json
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        occupied_by_women, occupied_by_men, street_view_pov_json, created_at, published_at
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
@@ -525,6 +543,8 @@ export function propertiesRouter(db: DatabaseSync) {
         occWPub,
         occMPub,
         streetViewPovJsonPub,
+        createdAt,
+        createdAt,
       );
 
       let order = 0;
@@ -709,12 +729,17 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_street_view_pov" });
       return;
     }
+    const wizardStepCreate = optWizardStep((body as { wizardStep?: unknown }).wizardStep);
+    const posthogSessionCreate = optPosthogSessionId(
+      (body as { posthogSessionId?: unknown }).posthogSessionId,
+    );
+    const createdAtDraft = new Date().toISOString();
     db.prepare(
       `INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
-        occupied_by_women, occupied_by_men, street_view_pov_json
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        occupied_by_women, occupied_by_men, street_view_pov_json, created_at, wizard_step, posthog_session_id
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
@@ -742,6 +767,9 @@ export function propertiesRouter(db: DatabaseSync) {
       occWCreate,
       occMCreate,
       streetViewPovJsonCreate,
+      createdAtDraft,
+      wizardStepCreate ?? null,
+      posthogSessionCreate ?? null,
     );
     const created = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<string, unknown>;
     res.status(201).json(rowToProperty(created));
@@ -1121,6 +1149,8 @@ export function propertiesRouter(db: DatabaseSync) {
       occupiedByWomenCount?: unknown;
       occupiedByMenCount?: unknown;
       streetViewPov?: unknown;
+      wizardStep?: unknown;
+      posthogSessionId?: unknown;
     };
 
     const curStatus = String(prop.status) as ListingStatus;
@@ -1308,6 +1338,35 @@ export function propertiesRouter(db: DatabaseSync) {
             : curMode
         : curMode;
 
+    const nextWizardStep =
+      patch.wizardStep !== undefined
+        ? (optWizardStep(patch.wizardStep) ?? null)
+        : prop.wizard_step != null && Number.isFinite(Number(prop.wizard_step))
+          ? Math.floor(Number(prop.wizard_step))
+          : null;
+    const nextPosthogSessionId =
+      patch.posthogSessionId !== undefined
+        ? (() => {
+            const incoming = optPosthogSessionId(patch.posthogSessionId);
+            const existing =
+              prop.posthog_session_id != null && String(prop.posthog_session_id).trim()
+                ? String(prop.posthog_session_id).trim()
+                : null;
+            // Prefer the first session captured during draft creation; don't overwrite.
+            return existing ?? incoming ?? null;
+          })()
+        : prop.posthog_session_id != null && String(prop.posthog_session_id).trim()
+          ? String(prop.posthog_session_id).trim()
+          : null;
+
+    const nextPublishedAt =
+      nextStatus === "published" &&
+      (prop.published_at == null || String(prop.published_at).trim() === "")
+        ? new Date().toISOString()
+        : prop.published_at != null && String(prop.published_at).trim()
+          ? String(prop.published_at)
+          : null;
+
     db.prepare(
       `UPDATE properties SET
         status = ?,
@@ -1316,7 +1375,8 @@ export function propertiesRouter(db: DatabaseSync) {
         contact_whatsapp = ?, property_kind = ?,
         bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?,
         approximate_radius_m = ?,
-        occupied_by_women = ?, occupied_by_men = ?, street_view_pov_json = ?
+        occupied_by_women = ?, occupied_by_men = ?, street_view_pov_json = ?,
+        wizard_step = ?, posthog_session_id = ?, published_at = ?
       WHERE id = ?`,
     ).run(
       nextStatus,
@@ -1338,6 +1398,9 @@ export function propertiesRouter(db: DatabaseSync) {
       nextOccW,
       nextOccM,
       nextStreetViewPovJson,
+      nextWizardStep,
+      nextPosthogSessionId,
+      nextPublishedAt,
       propertyId,
     );
 

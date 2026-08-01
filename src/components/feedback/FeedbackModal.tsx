@@ -152,6 +152,8 @@ export function FeedbackModal({
         body,
         subject: feedbackSubjectForSource(source),
         source,
+        listingRoomId: publishedRoomId,
+        comment: comment.trim(),
       });
       setSent(true);
     } catch (x) {

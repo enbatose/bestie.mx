@@ -19,6 +19,8 @@ import { formatRoomsValidationMessage } from "@/lib/publishWizard/roomWizardVali
 import { derivedPropertyOccupantCounts } from "@/lib/publishWizard/propertyRoomSlots";
 import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from "@/types/listing";
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
+import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
+import { getPosthogSessionId } from "@/lib/posthog";
 
 /** Titles used in `PublishWizardPage` steps — keep in sync when renaming steps. */
 export const WIZARD_STEP_TITLES = {
@@ -408,10 +410,16 @@ export type SyncDraftToServerResult = {
   draft: Draft;
 };
 
+export type SyncDraftMeta = {
+  /** Current 0-based wizard step index. */
+  wizardStep?: number;
+};
+
 export async function syncDraftToServer(
   draft: Draft,
   serverSync: PublishWizardServerSync,
   profilePhoneE164?: string | null,
+  meta?: SyncDraftMeta,
 ): Promise<SyncDraftToServerResult> {
   if (!isListingsApiConfigured()) return { serverSync, draft };
 
@@ -427,6 +435,10 @@ export async function syncDraftToServer(
       occupiedByWomenCount: draft.occupiedByWomenCount,
       occupiedByMenCount: draft.occupiedByMenCount,
     };
+  const tracking = {
+    ...(typeof meta?.wizardStep === "number" ? { wizardStep: meta.wizardStep } : {}),
+    ...(getPosthogSessionId() ? { posthogSessionId: getPosthogSessionId() } : {}),
+  };
 
   for (let attempt = 0; attempt < 2; attempt++) {
     let propertyId = serverSync.propertyId;
@@ -454,6 +466,7 @@ export async function syncDraftToServer(
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
+        ...tracking,
       });
       propertyId = prop.id;
       roomIds = draft.rooms.map(() => "");
@@ -503,6 +516,7 @@ export async function syncDraftToServer(
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
+        ...tracking,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -531,10 +545,17 @@ export async function publishDraftFromWizard(opts: {
   apiOn: boolean;
   isLoggedIn: boolean;
   profilePhoneE164?: string | null;
+  wizardStep?: number;
 }): Promise<PublishDraftResult> {
   let { draft } = opts;
   const { editingLiveProperty, apiOn, isLoggedIn, profilePhoneE164 } = opts;
   let serverSync = opts.serverSync;
+  const syncMeta = {
+    wizardStep:
+      typeof opts.wizardStep === "number"
+        ? opts.wizardStep
+        : publishWizardLastStepIndex(draft.postMode),
+  };
 
   const blocked = getPublishBlockedReason(draft);
   if (blocked) return { kind: "error", message: blocked, draft };
@@ -552,7 +573,7 @@ export async function publishDraftFromWizard(opts: {
   if (!isLoggedIn) {
     if (apiOn) {
       try {
-        ({ serverSync, draft } = await syncDraftToServer(draft, serverSync, profilePhoneE164));
+        ({ serverSync, draft } = await syncDraftToServer(draft, serverSync, profilePhoneE164, syncMeta));
       } catch (e) {
         return { kind: "error", message: e instanceof Error ? e.message : "No se pudo guardar el borrador.", draft };
       }
@@ -565,7 +586,7 @@ export async function publishDraftFromWizard(opts: {
   }
 
   try {
-    ({ serverSync, draft } = await syncDraftToServer(draft, serverSync, profilePhoneE164));
+    ({ serverSync, draft } = await syncDraftToServer(draft, serverSync, profilePhoneE164, syncMeta));
     const { lat, lng } = resolveLatLngForDraft(draft);
     const firstRoomId =
       serverSync.roomIds.find((id) => typeof id === "string" && id.length > 0) ?? null;
@@ -649,6 +670,7 @@ export async function saveDraftFromWizard(opts: {
   serverSync: PublishWizardServerSync;
   apiOn: boolean;
   profilePhoneE164?: string | null;
+  wizardStep?: number;
 }): Promise<{ serverSync: PublishWizardServerSync; draft: Draft; error?: string }> {
   const blocked =
     propertyGeneralStepInvalidReason(opts.draft) ?? validateRoomsForSubmit(opts.draft);
@@ -667,6 +689,7 @@ export async function saveDraftFromWizard(opts: {
       opts.draft,
       opts.serverSync,
       opts.profilePhoneE164,
+      typeof opts.wizardStep === "number" ? { wizardStep: opts.wizardStep } : undefined,
     );
     return { serverSync, draft };
   } catch (e) {

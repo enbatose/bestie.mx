@@ -5,7 +5,7 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 import { isListingTag } from "./listingTags.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
-import { canWritePropertyByRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
+import { canWritePropertyByRequest, isAdminRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
@@ -164,8 +164,14 @@ export function listingsRouter(db: DatabaseSync) {
       .get(roomId) as Record<string, unknown> | undefined;
 
     const publisherId = readPublisherIdFromRequest(req);
+    const admin = isAdminRequest(db, req);
     const row =
       publishedRow ??
+      (admin
+        ? (db
+            .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
+            .get(roomId) as Record<string, unknown> | undefined)
+        : undefined) ??
       (publisherId
         ? (db
             .prepare(

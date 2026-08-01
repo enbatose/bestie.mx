@@ -35,7 +35,10 @@ export function PropertyPage() {
     // Prefer a room that is actually offered for rent so the public listing shows
     // the property instead of the "recámara ocupada" notice.
     const entryRoom =
-      publishedRooms.find((room) => isRoomAvailableForRent(room)) ?? publishedRooms[0];
+      publishedRooms.find((room) => isRoomAvailableForRent(room)) ??
+      publishedRooms[0] ??
+      // Owner/admin preview: fall back to any room (draft/paused/archived) when nothing is live.
+      propertyPack.rooms[0];
     if (entryRoom) {
       navigate(listingPublicPath(entryRoom.id), { replace: true });
     }

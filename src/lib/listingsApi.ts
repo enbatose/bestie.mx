@@ -238,6 +238,10 @@ export type CreateDraftPropertyPayload = {
   streetViewPov?: StreetViewPov | null;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  /** 0-based publish wizard step for admin drafts report. */
+  wizardStep?: number;
+  /** PostHog session id for admin replay links. */
+  posthogSessionId?: string | null;
 };
 
 export type AddDraftRoomPayload = {
@@ -286,6 +290,8 @@ export type UpdatePropertyPayload = {
   streetViewPov?: StreetViewPov | null;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  wizardStep?: number;
+  posthogSessionId?: string | null;
 };
 
 export type PatchDraftRoomPayload = Partial<Omit<AddDraftRoomPayload, "id">>;

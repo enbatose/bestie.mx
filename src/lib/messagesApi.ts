@@ -125,6 +125,8 @@ export async function startFeedbackConversation(
     body: string;
     subject?: string;
     source?: FeedbackSource;
+    listingRoomId?: string;
+    comment?: string;
   },
   signal?: AbortSignal,
 ): Promise<{ conversationId: string }> {
@@ -138,6 +140,8 @@ export async function startFeedbackConversation(
       body: input.body,
       subject: input.subject ?? "Feedback",
       source: input.source ?? "menu",
+      ...(input.listingRoomId ? { listingRoomId: input.listingRoomId } : {}),
+      ...(input.comment != null ? { comment: input.comment } : {}),
     }),
     signal,
   });

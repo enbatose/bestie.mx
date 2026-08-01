@@ -63,3 +63,14 @@ export function initPostHog(): typeof posthog | null {
 }
 
 export { posthog };
+
+/** Current PostHog session id when analytics is active; otherwise null. */
+export function getPosthogSessionId(): string | null {
+  if (!isPostHogConfigured() || !initialized) return null;
+  try {
+    const id = posthog.get_session_id?.();
+    return typeof id === "string" && id.trim() ? id.trim() : null;
+  } catch {
+    return null;
+  }
+}

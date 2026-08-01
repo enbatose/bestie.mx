@@ -22,6 +22,7 @@ import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
   isListingsApiConfigured,
+  updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
@@ -1284,13 +1285,23 @@ export function PublishWizardPage() {
 
     const beforeSig = wizardAutosaveSignature(d);
     if (beforeSig === lastSavedSignatureRef.current) {
+      // Draft fields unchanged — still persist wizard step for the admin report.
+      if (serverSyncRef.current.propertyId && typeof step === "number") {
+        try {
+          await updateProperty(serverSyncRef.current.propertyId, { wizardStep: step });
+        } catch {
+          /* non-blocking */
+        }
+      }
       setAutosaveNote("idle");
       return serverSyncRef.current.propertyId ? serverSyncRef.current : null;
     }
 
     try {
       setAutosaveNote("saving");
-      const synced = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164);
+      const synced = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164, {
+        wizardStep: step,
+      });
       if (generation !== autosaveGenerationRef.current) {
         return synced.serverSync;
       }
@@ -1357,7 +1368,7 @@ export function PublishWizardPage() {
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [draft, apiOn, me?.id, storageReady]);
+  }, [draft, apiOn, me?.id, storageReady, step]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -2402,6 +2413,7 @@ export function PublishWizardPage() {
             draftRef.current,
             serverSyncRef.current,
             meRef.current?.phoneE164,
+            { wizardStep: step },
           );
           serverSyncRef.current = synced.serverSync;
           setServerSync(synced.serverSync);
@@ -2440,6 +2452,7 @@ export function PublishWizardPage() {
         apiOn,
         isLoggedIn: true,
         profilePhoneE164: me?.phoneE164,
+        wizardStep: step,
       });
       if (result.kind === "published") {
         setDraft(result.draft);
@@ -2525,6 +2538,7 @@ export function PublishWizardPage() {
         draftRef.current,
         serverSyncRef.current,
         meRef.current?.phoneE164,
+        { wizardStep: step },
       );
       serverSyncRef.current = synced.serverSync;
       setServerSync(synced.serverSync);
