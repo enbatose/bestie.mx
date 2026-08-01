@@ -25,6 +25,7 @@ import { PublisherMetricChips } from "@/components/myListings/PublisherMetricChi
 import { shareListingLink } from "@/components/myListings/shareListing";
 import {
   listingPublicPath,
+  propertyPublicPath,
   propertyReferenceCode,
   roomReferenceCode,
 } from "@/lib/listingReference";
@@ -111,7 +112,13 @@ export function ListingPropertyCard({
   const propertyEntry = list.find(isAvailable) ?? first;
 
   const editPath = `/publicar?edit=${encodeURIComponent(propertyId)}`;
+  // Property posts share/open via `/propiedad/…` so social scrapers get property-level OG
+  // (cover, price range, room count). Room posts use `/anuncio/…`.
   const publicPath = isProperty
+    ? propertyPublicPath(propertyId)
+    : listingPublicPath(first.id);
+  // "Ver" for property posts still lands on a published room so the SPA shows the hub.
+  const viewPath = isProperty
     ? listingPublicPath(propertyEntry.id)
     : listingPublicPath(first.id);
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
@@ -136,7 +143,7 @@ export function ListingPropertyCard({
     {
       key: "view",
       label: propSt === "published" ? "Ver" : "Vista previa",
-      to: publicPath,
+      to: viewPath,
       state: returnState,
       icon: <Eye className="size-4 shrink-0" aria-hidden />,
     },
@@ -390,7 +397,9 @@ export function ListingPropertyCard({
                     {
                       key: "share",
                       label: "Compartir",
-                      onClick: () => void share(roomPath, label),
+                      // Promote the property post (range + cover), not a room deep link.
+                      onClick: () =>
+                        void share(propertyPublicPath(propertyId), head.propertyTitle ?? head.title),
                       icon: <Share2 className="size-3.5 shrink-0" aria-hidden />,
                     } satisfies CardActionItem,
                   ]

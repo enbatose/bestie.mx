@@ -16,6 +16,7 @@ import {
 } from "@/lib/listingsApi";
 import {
   listingPublicPath,
+  propertyPublicPath,
   propertyStatusSortKey,
 } from "@/lib/listingReference";
 import {
@@ -411,6 +412,13 @@ export function MyListingsPage() {
     setErr(null);
     clearPropertyError(propertyId);
     const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
+    const flashListing = rows?.find((l) => l.propertyId === propertyId);
+    const publishedPath =
+      flashListing?.propertyPostMode === "property"
+        ? propertyPublicPath(propertyId)
+        : publicListingId
+          ? listingPublicPath(publicListingId)
+          : undefined;
     try {
       await updateProperty(propertyId, { status });
       await load();
@@ -422,7 +430,7 @@ export function MyListingsPage() {
         selectTab("published");
         setFlash({
           text: "La propiedad ya está publicada.",
-          to: publicListingId ? listingPublicPath(publicListingId) : undefined,
+          to: publishedPath,
           linkText: "Ver publicación",
         });
       }
@@ -607,6 +615,13 @@ export function MyListingsPage() {
     setErr(null);
     clearPropertyError(propertyId);
     const publicListingId = rows?.find((l) => l.propertyId === propertyId)?.id;
+    const flashListing = rows?.find((l) => l.propertyId === propertyId);
+    const publishedPath =
+      flashListing?.propertyPostMode === "property"
+        ? propertyPublicPath(propertyId)
+        : publicListingId
+          ? listingPublicPath(publicListingId)
+          : undefined;
     try {
       await updateProperty(propertyId, { status: "published" });
       await load();
@@ -614,7 +629,7 @@ export function MyListingsPage() {
       selectTab("published");
       setFlash({
         text: "Ya está publicado.",
-        to: publicListingId ? listingPublicPath(publicListingId) : undefined,
+        to: publishedPath,
         linkText: "Ver publicación",
       });
     } catch (e) {

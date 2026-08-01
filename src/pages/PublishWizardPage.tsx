@@ -27,7 +27,7 @@ import {
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
-import { listingPublicPath } from "@/lib/listingReference";
+import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
   clearLiveEditSession,
@@ -799,6 +799,7 @@ export function PublishWizardPage() {
   const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
+  const [publishSuccessPath, setPublishSuccessPath] = useState<string | null>(null);
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
@@ -2466,6 +2467,10 @@ export function PublishWizardPage() {
         );
         const returnId =
           serverSyncRef.current.roomIds[roomIdx] ?? liveEditReturnListingId ?? result.roomId;
+        const sharePath =
+          draftRef.current.postMode === "property" && serverSyncRef.current.propertyId
+            ? propertyPublicPath(serverSyncRef.current.propertyId)
+            : listingPublicPath(returnId);
 
         if (editingLiveProperty && myListingsRestorePath) {
           clearLiveEditSession();
@@ -2473,7 +2478,7 @@ export function PublishWizardPage() {
             replace: true,
             state: {
               listingUpdated: true,
-              listingUpdatedPath: listingPublicPath(returnId),
+              listingUpdatedPath: sharePath,
               listingRepublished: editingLiveProperty.status === "paused",
             },
           });
@@ -2482,7 +2487,7 @@ export function PublishWizardPage() {
 
         if (editingLiveProperty?.status === "published") {
           clearLiveEditSession();
-          navigate(listingPublicPath(returnId), {
+          navigate(sharePath, {
             replace: true,
             state: withMyListingsReturn({ listingUpdated: true }, myListingsReturn),
           });
@@ -2493,6 +2498,7 @@ export function PublishWizardPage() {
         clearLiveEditSession();
         setServerSync({ propertyId: null, roomIds: [] });
         serverSyncRef.current = { propertyId: null, roomIds: [] };
+        setPublishSuccessPath(sharePath);
         setPublishSuccessRoomId(returnId);
         return;
       }
@@ -2713,7 +2719,7 @@ export function PublishWizardPage() {
 
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
-            to={listingPublicPath(publishSuccessRoomId)}
+            to={publishSuccessPath ?? listingPublicPath(publishSuccessRoomId)}
             state={myListingsReturn ? { myListingsReturn } : undefined}
             className="inline-flex w-full max-w-xs items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >

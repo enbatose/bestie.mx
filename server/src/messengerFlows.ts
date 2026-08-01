@@ -34,10 +34,18 @@ function featuredCitiesList(db: DatabaseSync): string[] {
 }
 
 function listingPrimaryImage(base: string, l: PropertyListing): string | undefined {
-  const u = l.propertyImageUrls?.[0] ?? l.roomImageUrls?.[0];
-  if (!u) return undefined;
-  if (u.startsWith("http")) return u;
-  return `${base}${u.startsWith("/") ? u : `/${u}`}`;
+  const mode = l.propertyPostMode === "property" ? "property" : "room";
+  const ordered =
+    mode === "room"
+      ? [...(l.roomImageUrls ?? []), ...(l.propertyImageUrls ?? [])]
+      : [...(l.propertyImageUrls ?? []), ...(l.roomImageUrls ?? [])];
+  for (const raw of ordered) {
+    const u = raw?.trim();
+    if (!u) continue;
+    if (u.startsWith("http")) return u;
+    return `${base}${u.startsWith("/") ? u : `/${u}`}`;
+  }
+  return undefined;
 }
 
 async function sendMainMenu(psid: string): Promise<void> {

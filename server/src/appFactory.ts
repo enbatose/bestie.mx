@@ -26,6 +26,7 @@ import {
 } from "./mailer.js";
 import { backupRouter } from "./backup/backupRouter.js";
 import { resolveUploadDir } from "./dataPaths.js";
+import { injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -175,8 +176,16 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   const spaDist = opts.webDistDir?.trim();
   if (spaDist) {
     const absDist = path.resolve(spaDist);
-    const indexHtml = path.join(absDist, "index.html");
-    if (fs.existsSync(indexHtml)) {
+    const indexHtmlPath = path.join(absDist, "index.html");
+    if (fs.existsSync(indexHtmlPath)) {
+      let indexHtmlCache: string | null = null;
+      const readIndexHtml = (): string => {
+        if (indexHtmlCache == null) {
+          indexHtmlCache = fs.readFileSync(indexHtmlPath, "utf8");
+        }
+        return indexHtmlCache;
+      };
+
       app.use(express.static(absDist, { index: false }));
       app.use((req: Request, res: Response, next: NextFunction) => {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -187,7 +196,21 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
           next();
           return;
         }
-        res.sendFile(indexHtml, (err) => {
+
+        // Per-listing Open Graph for WhatsApp / Messenger / Facebook scrapers.
+        const og = resolveListingShareOg(db, req.path);
+        if (og) {
+          try {
+            const html = injectListingShareOg(readIndexHtml(), og);
+            res.status(200).type("html").send(html);
+            return;
+          } catch (err) {
+            next(err);
+            return;
+          }
+        }
+
+        res.sendFile(indexHtmlPath, (err) => {
           if (err) next(err);
         });
       });

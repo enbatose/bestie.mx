@@ -47,10 +47,11 @@ function listingSubtitle(listing: PropertyListing): string {
 }
 
 function listingCoverPath(listing: PropertyListing): string | null {
-  const urls = [
-    ...(listing.roomImageUrls ?? []),
-    ...(listing.propertyImageUrls ?? []),
-  ];
+  const mode = listing.propertyPostMode === "property" ? "property" : "room";
+  const urls =
+    mode === "room"
+      ? [...(listing.roomImageUrls ?? []), ...(listing.propertyImageUrls ?? [])]
+      : [...(listing.propertyImageUrls ?? []), ...(listing.roomImageUrls ?? [])];
   for (const raw of urls) {
     const t = raw.trim();
     if (t.startsWith("/api/uploads/")) return t;
