@@ -109,7 +109,7 @@ Two Railway services in project **discerning-quietude** each serve the Vite SPA 
 | **Backup (cold)** | _(no public URL)_ | `main` (cron service `bestie-backup`) | US East warm volume + Railway Bucket `bestie-prod-backups` (iad) — see [`docs/ops/database-backups.md`](docs/ops/database-backups.md) |
 
 - **Local:** Vite on `:5173` proxies `/api`, or set `VITE_API_URL` via `npm run env:local`.
-- **PostHog:** set `VITE_POSTHOG_PROJECT_TOKEN` on **production only**.
+- **PostHog:** set `VITE_POSTHOG_PROJECT_TOKEN` on **bestie-prod only**. The client also refuses to init outside `bestie.mx` / `www.bestie.mx`.
 - **Deploy order (strict):** ship every change to **Dev** (`develop`) first. Promote to **Prod** only when asked explicitly (e.g. “go to prod”): merge `develop` → `main` and push. Agents must not push feature work straight to `main`.
 
 **Apex DNS (`bestie.mx`) must hit Railway.** If `www.bestie.mx` works but `bestie.mx/buscar` returns 404, apex DNS is still pointed at a registrar redirect or old host—not the Railway service. Fix:

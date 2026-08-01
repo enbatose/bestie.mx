@@ -1,28 +1,43 @@
 import posthog from "posthog-js";
 
-/** Ingestion host (US Cloud). Only used when a project token is set. */
+/** Ingestion host (US Cloud). Only used when analytics is enabled. */
 const DEFAULT_HOST = "https://us.i.posthog.com";
 
 /**
- * PostHog is production-only. Dev / local builds leave
- * `VITE_POSTHOG_PROJECT_TOKEN` unset so no events are sent.
+ * Hostnames allowed to run PostHog. Everything else (dev.bestie.mx, localhost,
+ * Railway previews) stays silent even if a project token was baked into the build.
+ */
+const PRODUCTION_ANALYTICS_HOSTS = new Set(["bestie.mx", "www.bestie.mx"]);
+
+/**
+ * Build-time token. Prefer leaving this unset on Dev / local.
+ * Runtime host allowlist is the hard stop if it leaks into a non-prod build.
  */
 const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN?.trim() || "";
 const host = import.meta.env.VITE_POSTHOG_HOST?.trim() || DEFAULT_HOST;
 
-/** True when a project token is configured for this build. */
+/** True only on real production hosts (bestie.mx / www). */
+export function isProductionAnalyticsHost(): boolean {
+  if (typeof window === "undefined") return false;
+  return PRODUCTION_ANALYTICS_HOSTS.has(window.location.hostname.toLowerCase());
+}
+
+/**
+ * True when PostHog may capture. Requires both a build token and a production host.
+ * Dev / local never pass this, regardless of env vars.
+ */
 export function isPostHogConfigured(): boolean {
-  return Boolean(token);
+  return Boolean(token) && isProductionAnalyticsHost();
 }
 
 let initialized = false;
 
 /**
  * Initialize PostHog once. Safe to call repeatedly.
- * Autocapture stays on; SPA pageviews are captured manually via PostHogPageViews.
+ * No-ops outside production hosts so events, replays, heatmaps, and flags stay off.
  */
 export function initPostHog(): typeof posthog | null {
-  if (!token) return null;
+  if (!isPostHogConfigured()) return null;
   if (initialized) return posthog;
 
   posthog.init(token, {

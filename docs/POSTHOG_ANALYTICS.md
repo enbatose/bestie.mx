@@ -9,11 +9,15 @@ Product analytics for usage behavior. Client SDK: `posthog-js` + `@posthog/react
 | `VITE_POSTHOG_PROJECT_TOKEN` | Project token (`phc_…`) — public, browser-safe |
 | `VITE_POSTHOG_HOST` | Ingestion host (US: `https://us.i.posthog.com`) |
 
-Set these on the **production** Railway service only (Vite inlines `VITE_*` at build time). Leave them unset on Dev (`dev.bestie.mx`) and local so no events are sent.
+Set these on the **production** Railway service (`bestie-prod`) only. Vite inlines `VITE_*` at build time — **never** set them on `bestie-dev`, local `.env`, or preview deploys.
+
+### Production-only hard gate
+
+Even if a token is accidentally baked into a non-prod build, the client **refuses to init or capture** unless the page hostname is exactly `bestie.mx` or `www.bestie.mx`. That blocks `dev.bestie.mx`, `localhost`, and Railway preview URLs for events, session replay, heatmaps, web vitals, and error autocapture.
+
+PostHog project `recording_domains` is a second line of defense for replays only (`https://bestie.mx`, `https://www.bestie.mx`).
 
 Organization: **Bestie MX** (`019f71ea-041f-0000-e8d7-cf0412e4fc75`) · Project: **Bestie production** (ID `517444`) · Region: US Cloud · Timezone: `America/Mexico_City`.
-
-Recording domains allowlist: `https://bestie.mx`, `https://www.bestie.mx`.
 
 > If you add another PostHog project later (e.g. staging), do **not** create a second production-named Bestie project — keep one canonical **Bestie production** and name others clearly (e.g. **Bestie staging**).
 
