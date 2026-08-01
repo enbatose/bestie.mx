@@ -514,9 +514,9 @@ function SingleRoomHeader({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-xl font-bold text-body">{listing.title}</h2>
-        {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <h2 className="min-w-0 flex-1 text-xl font-bold text-body">{listing.title}</h2>
+        {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
       <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -544,9 +544,9 @@ function PropertyHeader({
   const firstAvailable = availableRooms[0];
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-xl font-bold text-body">{property.title}</h2>
-        {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <h2 className="min-w-0 flex-1 text-xl font-bold text-body">{property.title}</h2>
+        {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
       <p className="text-2xl font-bold text-body">
         {money.format(minRent)} - {money.format(maxRent)} / mes
@@ -650,12 +650,12 @@ export function PostExperienceMockupsPage() {
   const [expandedRoom, setExpandedRoom] = useState<Room | null>(null);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
 
-  const copyShareUrl = useCallback(async (path: string, label: string) => {
+  const copyShareUrl = useCallback(async (path: string, _label: string) => {
     try {
       await copyToClipboard(absoluteAppUrl(path));
-      setShareMsg(`${label} copiado al portapapeles.`);
+      setShareMsg("Enlace del anuncio copiado.");
     } catch {
-      setShareMsg("No se pudo copiar automáticamente. Copia la URL desde la barra del navegador.");
+      setShareMsg("No se pudo copiar. Copia la URL del navegador.");
     }
   }, []);
 

@@ -11,8 +11,8 @@ type Props = {
 export function ListingSection({ title, subtitle, children, action, titleMuted = false }: Props) {
   return (
     <section className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h2
             className={titleMuted ? "text-sm font-semibold text-muted" : "text-sm font-semibold text-body"}
           >
@@ -20,7 +20,7 @@ export function ListingSection({ title, subtitle, children, action, titleMuted =
           </h2>
           {subtitle ? <p className="mt-0.5 text-xs text-muted">{subtitle}</p> : null}
         </div>
-        {action}
+        {action ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{action}</div> : null}
       </div>
       <div className="mt-3">{children}</div>
     </section>

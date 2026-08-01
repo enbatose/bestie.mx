@@ -389,13 +389,13 @@ export function ListingPage() {
     return [{ id: listing.id, label: listing.title }];
   }, [apiOn, propertyPack, listing]);
 
-  const copyShareUrl = useCallback(async (path: string, label: string) => {
+  const copyShareUrl = useCallback(async (path: string, _label: string) => {
     try {
       await copyToClipboard(absoluteAppUrl(path));
-      setShareMsg(`${label} copiado al portapapeles.`);
+      setShareMsg("Enlace del anuncio copiado.");
       if (id) track("listing_share_copied", { listing_id: id });
     } catch {
-      setShareMsg("No se pudo copiar automáticamente. Copia la URL desde la barra del navegador.");
+      setShareMsg("No se pudo copiar. Copia la URL del navegador.");
     }
   }, [id]);
 

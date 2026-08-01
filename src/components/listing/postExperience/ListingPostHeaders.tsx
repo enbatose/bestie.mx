@@ -46,9 +46,9 @@ export function SingleRoomHeader({
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-xl font-bold text-body">{title ?? listing.title}</h2>
-        {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <h2 className="min-w-0 flex-1 text-xl font-bold text-body">{title ?? listing.title}</h2>
+        {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
       <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -86,9 +86,9 @@ export function PropertyHeader({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-xl font-bold text-body">{property.title}</h2>
-        {shareActions ? <div className="shrink-0">{shareActions}</div> : null}
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <h2 className="min-w-0 flex-1 text-xl font-bold text-body">{property.title}</h2>
+        {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
       <p className="text-2xl font-bold text-body">
         {rents.length > 1

@@ -22,18 +22,22 @@ export function ListingShareActions({
   onSharePath,
 }: Props) {
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex w-full max-w-full flex-col items-end gap-1">
       <button
         type="button"
         onClick={onShareListing}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
         aria-label="Compartir anuncio"
       >
-        <Share2 className="size-3.5" aria-hidden />
-        Compartir
+        <Share2 className="size-3.5 shrink-0" aria-hidden />
+        <span className="truncate">Compartir</span>
       </button>
       {shareMsg ? (
-        <p className="max-w-[12rem] text-right text-[11px] text-muted" role="status" aria-live="polite">
+        <p
+          className="w-full max-w-full text-right text-[11px] leading-snug break-words text-muted"
+          role="status"
+          aria-live="polite"
+        >
           {shareMsg}
         </p>
       ) : null}
