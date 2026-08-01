@@ -11,17 +11,73 @@ Product analytics for usage behavior. Client SDK: `posthog-js` + `@posthog/react
 
 Set these on the **production** Railway service only (Vite inlines `VITE_*` at build time). Leave them unset on Dev (`dev.bestie.mx`) and local so no events are sent.
 
-Organization: `019f71ea-041f-0000-e8d7-cf0412e4fc75` · Project ID: `517444` · Region: US Cloud.
+Organization: **Bestie MX** (`019f71ea-041f-0000-e8d7-cf0412e4fc75`) · Project: **Bestie production** (ID `517444`) · Region: US Cloud · Timezone: `America/Mexico_City`.
 
-## Session replay
+Recording domains allowlist: `https://bestie.mx`, `https://www.bestie.mx`.
 
-Enabled in PostHog project settings (`session_recording_opt_in`). Client masks all inputs; mark sensitive DOM with `ph-no-capture` if it must never appear in a recording.
+> If you add another PostHog project later (e.g. staging), do **not** create a second production-named Bestie project — keep one canonical **Bestie production** and name others clearly (e.g. **Bestie staging**).
+
+## Session replay & privacy
+
+Enabled in project settings (`session_recording_opt_in`, min duration 2s). Client masks all inputs. Mark sensitive DOM with `ph-no-capture` so it never appears in a recording:
+
+- Chat message bodies (`ChatMessageBody`)
+- Message attachment thumbs / lightbox
+- Listing contact message composer
+- Contact / support form fields
+- Notification copy (header menu + notifications page)
+- Admin user email / phone last-4 and support thread headers
 
 - Watch: https://us.posthog.com/project/517444/replay/home
 - Settings: https://us.posthog.com/project/517444/settings/project-replay
 - Billing / usage: https://us.posthog.com/organization/billing
 
-Free tier (as of 2026): **5,000 web recordings / month**, resets monthly with the billing period. Overages start ~$0.005/recording unless a billing limit is set. Set a spend cap under Organization → Billing so capture stops instead of charging unexpectedly.
+Free tier (as of 2026): **5,000 web recordings / month**, resets monthly with the billing period. Overages start ~$0.005/recording unless a billing limit is set. **Set a spend cap** under Organization → Billing (MCP cannot set billing limits) so capture stops instead of charging unexpectedly — $0 or a low per-product cap is recommended for the pilot.
+
+### Friction playlists
+
+Pinned filter playlists for review:
+
+- [Friction — publish failed](https://us.posthog.com/project/517444/replay/playlists/hrz0C2dE)
+- [Friction — auth before message](https://us.posthog.com/project/517444/replay/playlists/rfaUkfQc)
+- [Friction — dead clicks](https://us.posthog.com/project/517444/replay/playlists/V905r47Y)
+
+## Enabled product features (no surveys)
+
+Surveys are **not** used — Bestie already has in-app feedback/support.
+
+| Feature | Status |
+| --- | --- |
+| Session replay | On (project + SDK masking) |
+| Heatmaps | On (`heatmaps_opt_in`) |
+| Dead clicks | On (`capture_dead_clicks`) |
+| Error tracking | On (`autocapture_exceptions_opt_in`) |
+| Web Vitals | On (`autocapture_web_vitals_opt_in`) |
+| Cohorts | Publishers / Messagers / Returned 7d |
+| Feature flags | Soft-launch + kill switches (see below) |
+
+### Cohorts
+
+- [Publishers (published once)](https://us.posthog.com/project/517444/cohorts/447843) — `publish_succeeded` in last 90d
+- [Messagers (messaged once)](https://us.posthog.com/project/517444/cohorts/447844) — `listing_message_sent` in last 90d
+- [Returned visitors (7d)](https://us.posthog.com/project/517444/cohorts/447845) — `$pageview` on ≥2 days in last 7d
+
+### Feature flags
+
+Client helper: `isFeatureEnabled(flag, defaultValue?)` in `src/lib/analytics.ts`.
+
+| Key | Purpose | Default rollout |
+| --- | --- | --- |
+| [`soft_launch_new_search_ui`](https://us.posthog.com/project/517444/feature_flags/794079) | Soft-launch experimental search UI | 0% |
+| [`kill_switch_messaging`](https://us.posthog.com/project/517444/feature_flags/794080) | Emergency disable listing messaging when rolled to 100% + gated in UI | 0% |
+| [`kill_switch_publish`](https://us.posthog.com/project/517444/feature_flags/794081) | Emergency disable publish wizard when rolled to 100% + gated in UI | 0% |
+
+Flags are created and ready; wire `isFeatureEnabled('kill_switch_*')` into publish/message entry points only when you want the kill switches live.
+
+### Dashboards
+
+- [Seeker](https://us.posthog.com/project/517444/dashboard/1938827)
+- [Publish](https://us.posthog.com/project/517444/dashboard/1938828)
 
 ## UX event spine (what we track and why)
 
@@ -69,7 +125,7 @@ Plus automatic `$pageview` on every SPA route change.
 ## Code map
 
 - Init: `src/lib/posthog.ts`, `src/main.tsx`
-- Typed `track()`: `src/lib/analytics.ts`
+- Typed `track()` + flags: `src/lib/analytics.ts`
 - Identify + pageviews: `src/components/analytics/PostHogApp.tsx` (in `AppShellLayout`)
 
 ## MCP (agent follow-up)

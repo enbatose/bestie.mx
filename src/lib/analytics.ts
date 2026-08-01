@@ -142,3 +142,18 @@ export function trackPageview(pathname: string, search = ""): void {
     /* ignore */
   }
 }
+
+/**
+ * Client feature-flag helper. Safe when PostHog is unset (returns `defaultValue`).
+ * Kill switches: `kill_switch_messaging`, `kill_switch_publish` (roll to 100% to enable).
+ * Soft launch: `soft_launch_new_search_ui` (kept at 0% until ready).
+ */
+export function isFeatureEnabled(flag: string, defaultValue = false): boolean {
+  if (!isPostHogConfigured()) return defaultValue;
+  try {
+    const value = posthog.isFeatureEnabled(flag);
+    return value == null ? defaultValue : Boolean(value);
+  } catch {
+    return defaultValue;
+  }
+}

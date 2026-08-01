@@ -20,7 +20,7 @@ export function PropertyMessageField({
     .filter((room): room is Room => Boolean(room));
 
   return (
-    <div className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2">
+    <div className="ph-no-capture mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2">
       <textarea
         value={message}
         onChange={(event) => onMessageChange(event.target.value)}

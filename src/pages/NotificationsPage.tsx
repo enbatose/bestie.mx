@@ -58,7 +58,7 @@ export function NotificationsPage() {
                 <Info className="h-4 w-4" aria-hidden />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm leading-snug text-body">{n.text}</span>
+                <span className="ph-no-capture block text-sm leading-snug text-body">{n.text}</span>
                 <span className="mt-1.5 block text-xs text-muted">{n.relativeTime}</span>
               </span>
             </button>

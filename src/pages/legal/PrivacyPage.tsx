@@ -228,9 +228,10 @@ export function PrivacyPage() {
           funcionamiento (por ejemplo, la cookie de sesión y la cookie de estado de inicio de sesión con
           Google/Facebook). También usamos cookies y almacenamiento local de herramientas de analítica
           de producto (PostHog) para entender cómo se usa Bestie (páginas visitadas, embudos de búsqueda
-          y publicación, eventos de interacción y, cuando está habilitado, grabaciones de sesión que
-          reproducen la interacción con la interfaz; los campos de formulario se enmascaran en esas
-          grabaciones), con el fin de mejorar el Servicio. Puedes gestionar o eliminar las cookies desde
+          y publicación, eventos de interacción, métricas de rendimiento de la página, mapas de calor /
+          clics sin respuesta, errores de la interfaz y, cuando está habilitado, grabaciones de sesión que
+          reproducen la interacción con la interfaz; los campos de formulario y el contenido sensible
+          de chat se enmascaran o excluyen en esas grabaciones), con el fin de mejorar el Servicio. Puedes gestionar o eliminar las cookies desde
           la configuración de tu navegador; deshabilitarlas puede afectar el funcionamiento del Servicio.
           Los mapas pueden cargar teselas desde proveedores externos conforme a sus propias políticas.
         </p>
@@ -248,7 +249,7 @@ export function PrivacyPage() {
             "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
             "Proveedor de envío de correos electrónicos transaccionales.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
-            "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, grabaciones de sesión de la interfaz (con campos sensibles enmascarados) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
+            "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
           ]}
         />
         <p>

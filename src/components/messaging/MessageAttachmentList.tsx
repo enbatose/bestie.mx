@@ -15,7 +15,7 @@ export function MessageAttachmentList({ attachments }: { attachments: MessageAtt
 
   return (
     <>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="ph-no-capture mt-2 flex flex-wrap gap-2">
         {attachments.map((a, i) => (
           <button
             key={`${a.url}-${i}`}
@@ -114,7 +114,7 @@ function AttachmentLightbox({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[2100] flex flex-col bg-black/95"
+      className="ph-no-capture fixed inset-0 z-[2100] flex flex-col bg-black/95"
       role="dialog"
       aria-modal="true"
       aria-label="Galería de adjuntos"

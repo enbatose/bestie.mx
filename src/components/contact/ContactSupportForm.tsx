@@ -164,7 +164,7 @@ export function ContactSupportForm({
 
   return (
     <div className={className}>
-      <div className="space-y-3">
+      <div className="ph-no-capture space-y-3">
         <label className="block text-sm font-medium text-body">
           Asunto
           <input

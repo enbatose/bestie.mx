@@ -75,7 +75,7 @@ export function ChatMessageBody({
   if (!body) return null;
   const segments = expandSegments(segmentMarkdownLinks(body));
   return (
-    <p className={`whitespace-pre-wrap ${className}`.trim()}>
+    <p className={`ph-no-capture whitespace-pre-wrap ${className}`.trim()}>
       {segments.map((seg, i) =>
         seg.type === "text" ? (
           <span key={i}>{seg.value}</span>

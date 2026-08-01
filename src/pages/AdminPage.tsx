@@ -244,7 +244,7 @@ export function AdminPage() {
             {users.map((u) => (
               <li key={u.id} className="px-4 py-3 text-sm">
                 <div className="font-medium text-body">{u.displayName}</div>
-                <div className="text-xs text-muted">
+                <div className="ph-no-capture text-xs text-muted">
                   {u.email ?? "sin correo"} · tel …{u.phoneLast4 ?? "—"}
                 </div>
               </li>
@@ -773,7 +773,7 @@ export function AdminPage() {
                     >
                       Volver
                     </button>
-                    <div className="min-w-0 flex-1">
+                    <div className="ph-no-capture min-w-0 flex-1">
                       <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
                         {supportThread?.kind === "feedback" ? "Feedback" : "Soporte"} ·{" "}
                         {supportThread?.customer?.displayName ?? "…"} ·{" "}

@@ -31,9 +31,12 @@ export function initPostHog(): typeof posthog | null {
     person_profiles: "identified_only",
     capture_pageview: false,
     capture_pageleave: true,
+    // Heatmaps, dead clicks, exception autocapture, and web vitals follow
+    // project remote config (heatmaps_opt_in, capture_dead_clicks,
+    // autocapture_exceptions_opt_in, autocapture_web_vitals_opt_in).
     // Session replay is gated by project setting "Record user sessions".
-    // Inputs are masked in replays; add class `ph-no-capture` on any DOM that
-    // must never appear (e.g. chat message bodies, phone numbers).
+    // Inputs are masked; add class `ph-no-capture` on DOM that must never
+    // appear in replays (chat bodies, attachments, notification copy).
     session_recording: {
       maskAllInputs: true,
       maskInputOptions: { password: true },
