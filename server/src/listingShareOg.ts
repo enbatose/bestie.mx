@@ -14,6 +14,7 @@ import {
   resolvePropertyIdFromRouteParam,
   resolveRoomIdFromRouteParam,
 } from "./resolveListingRouteId.js";
+import { coverUploadFilename, shareOgImagePublicPath } from "./shareOgImage.js";
 import type { PropertyListing } from "./types.js";
 
 /** Facebook-oriented limits (WhatsApp truncates earlier; FB is the longer of the two). */
@@ -78,28 +79,23 @@ export function absoluteUploadUrl(base: string, raw: string | undefined | null):
 
 /**
  * Cover for OG: room posts prefer room photos; property posts prefer property/cover photos.
- * Mirrors client `listingGalleryImageUrls` / portada ordering (first URL is cover).
+ * Returns the branded `/api/share-og/…` URL (watermarked) when a cover upload exists.
  */
 export function coverImageForPost(
   base: string,
-  listing: Pick<PropertyListing, "propertyPostMode" | "propertyImageUrls" | "roomImageUrls">,
+  listing: Pick<
+    PropertyListing,
+    "id" | "propertyId" | "propertyPostMode" | "propertyImageUrls" | "roomImageUrls"
+  >,
   mode: "room" | "property",
 ): string | null {
-  const property = listing.propertyImageUrls ?? [];
-  const room = listing.roomImageUrls ?? [];
-  const ordered =
-    mode === "room"
-      ? room.length > 0
-        ? room
-        : property
-      : property.length > 0
-        ? property
-        : room;
-  for (const u of ordered) {
-    const abs = absoluteUploadUrl(base, u);
-    if (abs) return abs;
+  const filename = coverUploadFilename(listing, mode);
+  if (!filename) return null;
+  const origin = base.replace(/\/+$/, "");
+  if (mode === "property") {
+    return `${origin}${shareOgImagePublicPath("propiedad", propertyReferenceCode(listing.propertyId))}`;
   }
-  return null;
+  return `${origin}${shareOgImagePublicPath("anuncio", roomReferenceCode(listing.id))}`;
 }
 
 export function buildRoomShareOg(
@@ -135,7 +131,10 @@ export function buildPropertyShareOg(
   propertyTitle: string,
   place: { neighborhood: string; city: string },
   availableRooms: readonly PropertyListing[],
-  coverFrom: Pick<PropertyListing, "propertyPostMode" | "propertyImageUrls" | "roomImageUrls">,
+  coverFrom: Pick<
+    PropertyListing,
+    "id" | "propertyId" | "propertyPostMode" | "propertyImageUrls" | "roomImageUrls"
+  >,
   propertyId: string,
   summary: string,
   base: string = publicBaseUrl(),
@@ -157,7 +156,11 @@ export function buildPropertyShareOg(
     title,
     description: truncateOgText(parts.join(" · "), OG_DESC_MAX),
     url: `${base}/propiedad/${propertyReferenceCode(propertyId)}`,
-    imageUrl: coverImageForPost(base, coverFrom, "property"),
+    imageUrl: coverImageForPost(
+      base,
+      { ...coverFrom, propertyId, id: coverFrom.id || availableRooms[0]?.id || propertyId },
+      "property",
+    ),
   };
 }
 

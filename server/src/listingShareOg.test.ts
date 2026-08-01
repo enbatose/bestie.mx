@@ -38,8 +38,8 @@ function baseListing(over: Partial<PropertyListing> = {}): PropertyListing {
     propertyStatus: "published",
     propertyPostMode: "room",
     lodgingType: "private_room",
-    roomImageUrls: ["/api/uploads/room-cover.jpg"],
-    propertyImageUrls: ["/api/uploads/prop-cover.jpg"],
+    roomImageUrls: ["/api/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg"],
+    propertyImageUrls: ["/api/uploads/11111111-2222-3333-4444-555555555555.jpg"],
     ...over,
   };
 }
@@ -63,8 +63,10 @@ describe("listingShareOg helpers", () => {
 
   it("coverImageForPost prefers room photos for room mode and property for property mode", () => {
     const l = baseListing();
-    expect(coverImageForPost("https://www.bestie.mx", l, "room")).toContain("room-cover");
-    expect(coverImageForPost("https://www.bestie.mx", l, "property")).toContain("prop-cover");
+    expect(coverImageForPost("https://www.bestie.mx", l, "room")).toContain("/api/share-og/anuncio/");
+    expect(coverImageForPost("https://www.bestie.mx", l, "property")).toContain(
+      "/api/share-og/propiedad/",
+    );
   });
 
   it("buildRoomShareOg includes price, place, and summary", () => {
@@ -75,7 +77,7 @@ describe("listingShareOg helpers", () => {
     expect(meta.description).toContain("Providencia");
     expect(meta.description.length).toBeLessThanOrEqual(OG_DESC_MAX);
     expect(meta.url).toMatch(/\/anuncio\/A/);
-    expect(meta.imageUrl).toContain("room-cover");
+    expect(meta.imageUrl).toContain("/api/share-og/anuncio/");
   });
 
   it("buildPropertyShareOg includes price range and available room count", () => {
@@ -95,7 +97,7 @@ describe("listingShareOg helpers", () => {
     expect(meta.description).toContain("9,000");
     expect(meta.description).toContain("2 cuartos disponibles");
     expect(meta.url).toMatch(/\/propiedad\/P/);
-    expect(meta.imageUrl).toContain("prop-cover");
+    expect(meta.imageUrl).toContain("/api/share-og/propiedad/");
   });
 
   it("injectListingShareOg replaces default OG tags and adds image", () => {

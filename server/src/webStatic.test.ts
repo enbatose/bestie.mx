@@ -146,7 +146,7 @@ describe("SPA static from API process", () => {
     expect(res.text).toContain("Cuarto OG Providencia");
     expect(res.text).toContain("7,200");
     expect(res.text).toContain(`og:url" content="https://dev.bestie.mx/anuncio/${ref}"`);
-    expect(res.text).toContain(`og:image" content="https://dev.bestie.mx${TEST_LISTING_IMAGE_URL}"`);
+    expect(res.text).toContain(`og:image" content="https://dev.bestie.mx/api/share-og/anuncio/${ref}.jpg"`);
     expect(res.text).toContain("twitter:card");
     expect(res.text).not.toContain("Bestie — bestie.mx");
     expect(res.text).not.toContain("https://www.bestie.mx/api/uploads/");
@@ -223,7 +223,7 @@ describe("SPA static from API process", () => {
     expect(res.text).toContain("2 cuartos disponibles");
     expect(res.text).toContain("6,000");
     expect(res.text).toContain("8,000");
-    expect(res.text).toContain(`og:image" content="https://dev.bestie.mx/api/uploads/property-cover.png"`);
+    expect(res.text).toContain(`og:image" content="https://dev.bestie.mx/api/share-og/propiedad/${pref}.jpg"`);
     expect(res.text).toContain(`og:url" content="https://dev.bestie.mx/propiedad/${pref}"`);
   });
 });

@@ -28,6 +28,7 @@ import { backupRouter } from "./backup/backupRouter.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { injectFacebookAppId, injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
 import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
+import { shareOgImageRouter } from "./shareOgImageRouter.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -163,6 +164,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
   const uploadDir = resolveUploadDir(databasePath);
   app.use("/api/uploads", uploadsRouter({ db, uploadDir }));
+  app.use("/api/share-og", shareOgImageRouter({ db, uploadDir }));
 
   app.use("/api/auth", authRouter(db));
   app.use("/api/messages", messagesRouter(db));
