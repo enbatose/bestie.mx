@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page, type TestInfo } from "@playwright/test";
 
 export const PROP_SUMMARY_OK =
   "Descripción de la propiedad lo bastante larga para pruebas E2E de publicación (≥100 caracteres requeridos).";
@@ -7,6 +7,11 @@ export const ROOM_SUMMARY_OK =
 
 export function uniqueEmail(prefix = "e2e"): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
+}
+
+/** True for Playwright projects whose name includes "mobile" (e.g. Mobile Chrome / Pixel 5). */
+export function isMobileProject(testInfo: TestInfo): boolean {
+  return /mobile/i.test(testInfo.project.name);
 }
 
 /** Create an unpublished draft via API (isolated e2e DB only — never publish). */

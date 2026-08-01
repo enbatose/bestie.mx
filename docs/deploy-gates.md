@@ -56,22 +56,24 @@ Runs after unit tests in CI against an **isolated local stack** (`scripts/e2e-se
 - Temporary SQLite DB with demo seed
 - Never uses Dev/Prod databases
 - Drafts created in tests stay unpublished (not in `/api/listings`)
+- **Every default-suite flow runs twice:** Desktop Chrome **and** Mobile Chrome (Pixel 5 — touch, narrow viewport). Bestie’s primary UX is mobile; the mobile project also asserts the search **Listados** drawer open/close.
 
 ### Flows covered
 
 | Spec | Flow |
 | --- | --- |
-| `browse.spec.ts` | Home, `/buscar/gdl`, open a seeded listing detail |
+| `browse.spec.ts` | Home, `/buscar/gdl`, open a seeded listing detail; on mobile, open/close the list drawer |
 | `auth.spec.ts` | Register → verify screen → logout → login |
 | `publisher-draft.spec.ts` | Create **draft** via API, see it in Mis anuncios, assert not public; wizard shell loads |
 | `public-pages.spec.ts` | FAQ, Terms, Privacy |
-| `live-readonly.spec.ts` | Optional read-only against Dev (`npm run test:e2e:live-dev`) — no writes |
+| `live-readonly.spec.ts` | Optional read-only against Dev (`npm run test:e2e:live-dev`) — no writes; also desktop + mobile |
 
 ### Local
 
 ```bash
 npx playwright install chromium
 npm run test:e2e
+npm run test:e2e -- --project="Mobile Chrome"   # mobile only
 npm run test:e2e:ui
 npm run test:e2e:live-dev   # read-only vs https://dev.bestie.mx
 ```

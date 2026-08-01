@@ -4,9 +4,15 @@ const port = Number(process.env.E2E_PORT || 4177);
 const baseURL = process.env.E2E_BASE_URL || `http://127.0.0.1:${port}`;
 const isLive = Boolean(process.env.E2E_LIVE);
 
+/** Shared ignore: live suite only when E2E_LIVE; mutating specs never against live. */
+const projectIgnore = isLive ? [/publisher-draft/, /auth\.spec/] : [/live-readonly/];
+
 /**
  * Local E2E (default): isolated temp DB via `npm run e2e:serve`.
  * Live read-only: E2E_LIVE=1 E2E_BASE_URL=https://dev.bestie.mx (no writes).
+ *
+ * Projects: Desktop Chrome + Mobile Chrome (Pixel 5). Bestie’s primary UX is mobile;
+ * every default-suite flow runs on both viewports.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -28,7 +34,12 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: isLive ? [/publisher-draft/, /auth\.spec/] : [/live-readonly/],
+      testIgnore: projectIgnore,
+    },
+    {
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 5"] },
+      testIgnore: projectIgnore,
     },
   ],
   webServer: isLive

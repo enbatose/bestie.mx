@@ -16,9 +16,9 @@ test.describe("Auth email/password", () => {
     const logout = page.getByRole("button", { name: "Cerrar sesión" });
     if (await logout.isVisible().catch(() => false)) {
       await logout.click();
-      await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
     }
-
+    // Wait for the email login form (not the signed-in "Tu cuenta" shell).
+    await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible({ timeout: 15_000 });
     await page.getByLabel("Correo").fill(email);
     await page.locator('input[autocomplete="current-password"], input[type="password"]').first().fill(password);
     await page.getByRole("button", { name: "Entrar" }).click();

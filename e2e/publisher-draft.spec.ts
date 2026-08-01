@@ -29,8 +29,12 @@ test.describe("Publisher draft (never published)", () => {
   test("publish wizard shell loads without creating a listing", async ({ page }) => {
     await page.goto("/publicar");
     await expect(page).toHaveURL(/publicar/);
-    await expect(
-      page.getByText(/Publicar|tipo de espacio|recámara|propiedad|Continuar|Siguiente/i).first(),
-    ).toBeVisible({ timeout: 20_000 });
+    // Prefer main content over the header nav link (often aria-hidden / overflow-clipped on mobile).
+    await expect(page.getByRole("heading", { name: "Publicar", level: 1 })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/tipo de espacio|recámara|propiedad|Continuar|Siguiente/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });
