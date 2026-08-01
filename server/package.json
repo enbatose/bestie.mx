@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node --input-type=module -e \"import fs from 'node:fs'; import path from 'node:path'; const src='assets'; const dest=path.join('dist','assets'); fs.mkdirSync(dest,{recursive:true}); fs.cpSync(src, dest, {recursive:true});\"",
     "start": "node dist/index.js",
     "backup:cron": "node dist/backupCronEntry.js",
     "test": "vitest run"

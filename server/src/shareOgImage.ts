@@ -14,13 +14,13 @@ import {
 } from "./resolveListingRouteId.js";
 import type { PropertyListing } from "./types.js";
 
-const MAX_SHARE_WIDTH = 1200;
-/** Lockup width as a fraction of the photo — readable on WhatsApp/FB cards. */
-const LOCKUP_WIDTH_RATIO = 0.3;
-const EDGE_PAD_RATIO = 0.028;
-const BADGE_PAD_RATIO = 0.012;
+const MAX_SHARE_EDGE = 1200;
+/** Lockup width as a fraction of the photo — readable in WhatsApp’s small square thumb. */
+const LOCKUP_WIDTH_RATIO = 0.36;
+const EDGE_PAD_RATIO = 0.03;
+const BADGE_PAD_RATIO = 0.014;
 /** Bump when overlay layout changes so clients re-fetch. */
-export const SHARE_OG_IMAGE_VERSION = "v1";
+export const SHARE_OG_IMAGE_VERSION = "v2";
 
 const UPLOAD_PATH_RE =
   /^\/api\/uploads\/([A-Za-z0-9][A-Za-z0-9._-]{0,200}\.(?:jpg|jpeg|png|webp|gif))$/i;
@@ -71,11 +71,15 @@ export function shareOgImagePublicPath(kind: "anuncio" | "propiedad", refCode: s
 function resolveBrandLockupPath(): string | null {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
+    // Copied next to dist during `npm run build` / Docker.
+    path.resolve(here, "assets/brand/logo-lockup-on-dark.svg"),
     path.resolve(here, "../assets/brand/logo-lockup-on-dark.svg"),
-    path.resolve(process.cwd(), "server/assets/brand/logo-lockup-on-dark.svg"),
     path.resolve(process.cwd(), "assets/brand/logo-lockup-on-dark.svg"),
-    path.resolve(process.cwd(), "public/brand/logo-lockup-on-dark.svg"),
+    path.resolve(process.cwd(), "server/assets/brand/logo-lockup-on-dark.svg"),
+    // Vite copies public/brand into dist/brand (sibling of server/ in Docker).
+    path.resolve(process.cwd(), "../dist/brand/logo-lockup-on-dark.svg"),
     path.resolve(process.cwd(), "dist/brand/logo-lockup-on-dark.svg"),
+    path.resolve(process.cwd(), "public/brand/logo-lockup-on-dark.svg"),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -106,29 +110,36 @@ export function readUploadBytes(
 
 /**
  * Composite Bestie lockup (mark + bestie.mx) top-right on a semi-opaque badge.
+ * Output is a square cover crop so WhatsApp’s square thumbnail keeps the badge.
  */
 export async function composeBrandedShareImage(source: Buffer): Promise<Buffer> {
   const lockupPath = resolveBrandLockupPath();
   if (!lockupPath) {
-    // Fallback: return resized JPEG without brand rather than failing the preview.
-    return sharp(source).rotate().resize({ width: MAX_SHARE_WIDTH, withoutEnlargement: true }).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+    console.warn("[share-og] brand lockup SVG not found; serving unbranded cover");
+    return sharp(source)
+      .rotate()
+      .resize(MAX_SHARE_EDGE, MAX_SHARE_EDGE, { fit: "cover", position: "centre" })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
   }
 
-  const base = sharp(source).rotate().resize({ width: MAX_SHARE_WIDTH, withoutEnlargement: true });
-  const { data: photoBuf, info } = await base.toBuffer({ resolveWithObject: true });
+  const { data: photoBuf, info } = await sharp(source)
+    .rotate()
+    .resize(MAX_SHARE_EDGE, MAX_SHARE_EDGE, { fit: "cover", position: "centre" })
+    .toBuffer({ resolveWithObject: true });
   const w = info.width;
-  const pad = Math.max(12, Math.round(w * EDGE_PAD_RATIO));
-  const badgePad = Math.max(6, Math.round(w * BADGE_PAD_RATIO));
-  const lockupW = Math.max(120, Math.round(w * LOCKUP_WIDTH_RATIO));
+  const pad = Math.max(14, Math.round(w * EDGE_PAD_RATIO));
+  const badgePad = Math.max(8, Math.round(w * BADGE_PAD_RATIO));
+  const lockupW = Math.max(160, Math.round(w * LOCKUP_WIDTH_RATIO));
   // Lockup SVG viewBox 251×74
-  const lockupH = Math.max(36, Math.round((lockupW * 74) / 251));
+  const lockupH = Math.max(48, Math.round((lockupW * 74) / 251));
   const badgeW = lockupW + badgePad * 2;
   const badgeH = lockupH + badgePad * 2;
-  const radius = Math.max(8, Math.round(badgeH * 0.22));
+  const radius = Math.max(10, Math.round(badgeH * 0.22));
 
   const badgeSvg = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${badgeW}" height="${badgeH}">
-      <rect width="${badgeW}" height="${badgeH}" rx="${radius}" ry="${radius}" fill="rgba(20,61,48,0.78)"/>
+      <rect width="${badgeW}" height="${badgeH}" rx="${radius}" ry="${radius}" fill="rgba(20,61,48,0.82)"/>
     </svg>`,
   );
   const badgePng = await sharp(badgeSvg).png().toBuffer();

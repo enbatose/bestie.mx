@@ -53,7 +53,7 @@ describe("shareOgImage", () => {
     expect(out.length).toBeGreaterThan(1000);
     const meta = await sharp(out).metadata();
     expect(meta.format).toBe("jpeg");
-    expect(meta.width).toBe(800);
-    expect(meta.height).toBe(600);
+    expect(meta.width).toBe(1200);
+    expect(meta.height).toBe(1200);
   });
 });

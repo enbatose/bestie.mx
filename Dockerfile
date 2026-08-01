@@ -22,6 +22,7 @@ ENV PORT=8080
 COPY --from=build /app/server/node_modules ./node_modules
 COPY --from=build /app/server/package.json ./package.json
 COPY --from=build /app/server/dist ./dist
+COPY --from=build /app/server/assets ./assets
 COPY --from=build /app/dist /app/dist
 EXPOSE 8080
 CMD ["node", "dist/index.js"]
