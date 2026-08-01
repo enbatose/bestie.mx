@@ -31,6 +31,13 @@ export function initPostHog(): typeof posthog | null {
     person_profiles: "identified_only",
     capture_pageview: false,
     capture_pageleave: true,
+    // Session replay is gated by project setting "Record user sessions".
+    // Inputs are masked in replays; add class `ph-no-capture` on any DOM that
+    // must never appear (e.g. chat message bodies, phone numbers).
+    session_recording: {
+      maskAllInputs: true,
+      maskInputOptions: { password: true },
+    },
   });
 
   initialized = true;

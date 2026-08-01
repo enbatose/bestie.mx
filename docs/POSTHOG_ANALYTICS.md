@@ -13,6 +13,16 @@ Set these on the **production** Railway service only (Vite inlines `VITE_*` at b
 
 Organization: `019f71ea-041f-0000-e8d7-cf0412e4fc75` · Project ID: `517444` · Region: US Cloud.
 
+## Session replay
+
+Enabled in PostHog project settings (`session_recording_opt_in`). Client masks all inputs; mark sensitive DOM with `ph-no-capture` if it must never appear in a recording.
+
+- Watch: https://us.posthog.com/project/517444/replay/home
+- Settings: https://us.posthog.com/project/517444/settings/project-replay
+- Billing / usage: https://us.posthog.com/organization/billing
+
+Free tier (as of 2026): **5,000 web recordings / month**, resets monthly with the billing period. Overages start ~$0.005/recording unless a billing limit is set. Set a spend cap under Organization → Billing so capture stops instead of charging unexpectedly.
+
 ## UX event spine (what we track and why)
 
 We track **decisions and outcomes**, not map pans or every filter chip flicker.
