@@ -19,7 +19,13 @@ Redacta un **comentario listo para pegar** en el post de Facebook que el usuario
 
 Si el comentario irá desde la **página oficial de Bestie**, usa el skill `fb-outreach-bestie-page` en su lugar.
 
-## Objetivo del mensaje
+## Antes de redactar (anti-duplicados)
+
+1. Revisa el **historial de esta conversación** (nombres, colonia, precio, landmarks).
+2. Si el post **ya se trabajó**, dilo en una línea y reusa/adapta el texto previo; no inventes uno “nuevo” sin avisar.
+3. Si es **nuevo**, continúa con el flujo normal.
+
+Señales de mismo post: mismo autor + misma zona/precio, o el mismo flyer/fotos aunque el grupo sea distinto.
 
 Invitar al publicador a publicar (o también) en **bestie.mx**, dejando claro:
 
