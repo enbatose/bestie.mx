@@ -665,6 +665,10 @@ export function propertiesRouter(db: DatabaseSync) {
     }
 
     const property = rowToProperty(propRow);
+    if (!owner) {
+      // Never expose publisherId on public reads — it was usable as a forgeable ownership credential.
+      delete (property as { publisherId?: string }).publisherId;
+    }
     const rooms = roomRows.map(rowToRoom);
     const payload: PropertyWithRooms = { property, rooms };
     res.json(payload);

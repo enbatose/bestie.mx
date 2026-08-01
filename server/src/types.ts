@@ -62,7 +62,8 @@ export type ListingTag =
 /** Parent address + contact; Phase B normalized table. */
 export type Property = {
   id: string;
-  publisherId: string;
+  /** Omitted on public GET responses; present for owners / create responses. */
+  publisherId?: string;
   status: ListingStatus;
   /** Strategy: 'room' = single-room post; 'property' = multi-room/property post. */
   postMode?: "room" | "property";

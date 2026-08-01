@@ -1,10 +1,15 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
+import { authSecret } from "./authSecret.js";
 
 export const PUBLISHER_COOKIE = "bestie_pub";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Signed cookie value: `<uuid>.<hmac-sha256-base64url>` */
+const SIGNED_PUB_RE =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]+)$/i;
 
 export function parseCookies(header: string | undefined): Record<string, string> {
   if (!header) return {};
@@ -24,9 +29,34 @@ export function parseCookies(header: string | undefined): Record<string, string>
   return out;
 }
 
+function signPublisherId(publisherId: string): string {
+  const sig = createHmac("sha256", authSecret()).update(`bestie_pub:${publisherId}`).digest("base64url");
+  return `${publisherId}.${sig}`;
+}
+
+function verifySignedPublisherValue(raw: string): string | null {
+  const m = SIGNED_PUB_RE.exec(raw);
+  if (!m) return null;
+  const id = m[1]!;
+  const got = m[2]!;
+  const expected = createHmac("sha256", authSecret()).update(`bestie_pub:${id}`).digest("base64url");
+  const gotBuf = Buffer.from(got);
+  const expBuf = Buffer.from(expected);
+  if (gotBuf.length !== expBuf.length || !timingSafeEqual(gotBuf, expBuf)) return null;
+  return id;
+}
+
+/**
+ * Dual-accept: signed `uuid.sig` (preferred) or legacy bare UUID.
+ * Legacy keeps mid-wizard sessions alive during rollout; public APIs must not leak publisherId.
+ */
 export function readPublisherIdFromRequest(req: Request): string | null {
   const raw = parseCookies(req.headers.cookie)[PUBLISHER_COOKIE];
-  return raw && UUID_RE.test(raw) ? raw : null;
+  if (!raw) return null;
+  const signed = verifySignedPublisherValue(raw);
+  if (signed) return signed;
+  if (UUID_RE.test(raw)) return raw;
+  return null;
 }
 
 /**
@@ -61,8 +91,9 @@ export function resolveSessionCookieAttrs(): {
 
 export function issuePublisherCookie(res: Response, publisherId: string): void {
   const opts = resolveSessionCookieAttrs();
+  const value = signPublisherId(publisherId);
   const parts = [
-    `${PUBLISHER_COOKIE}=${encodeURIComponent(publisherId)}`,
+    `${PUBLISHER_COOKIE}=${encodeURIComponent(value)}`,
     "Path=/",
     "HttpOnly",
     `SameSite=${opts.sameSite}`,
@@ -75,7 +106,14 @@ export function issuePublisherCookie(res: Response, publisherId: string): void {
 
 export function getOrCreatePublisherId(req: Request, res: Response): string {
   const existing = readPublisherIdFromRequest(req);
-  if (existing) return existing;
+  if (existing) {
+    // Transparently upgrade legacy bare-UUID cookies to signed form.
+    const raw = parseCookies(req.headers.cookie)[PUBLISHER_COOKIE];
+    if (raw && UUID_RE.test(raw)) {
+      issuePublisherCookie(res, existing);
+    }
+    return existing;
+  }
   const id = randomUUID();
   issuePublisherCookie(res, id);
   return id;

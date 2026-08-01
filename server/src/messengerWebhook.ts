@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
+import { isProductionRuntime } from "./authSecret.js";
 import { processMessengerUserInput } from "./messengerFlows.js";
 
 export function messengerWebhookVerify(req: Request, res: Response): void {
@@ -16,8 +17,13 @@ export function messengerWebhookVerify(req: Request, res: Response): void {
 }
 
 function verifyMetaSignature(rawBody: Buffer, sigHeader: string | undefined): boolean {
-  const secret = process.env.META_APP_SECRET?.trim();
-  if (!secret || !sigHeader?.startsWith("sha256=")) return !secret;
+  const secret =
+    process.env.META_APP_SECRET?.trim() || process.env.FACEBOOK_APP_SECRET?.trim() || "";
+  if (!secret) {
+    // Fail closed in production; allow local/dev without Meta credentials.
+    return !isProductionRuntime();
+  }
+  if (!sigHeader?.startsWith("sha256=")) return false;
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
   const got = sigHeader.slice("sha256=".length);
   try {
@@ -37,7 +43,7 @@ export function messengerWebhookPost(db: DatabaseSync) {
   return async (req: Request, res: Response): Promise<void> => {
     const raw = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
     const sig = req.get("x-hub-signature-256");
-    if (process.env.META_APP_SECRET?.trim() && !verifyMetaSignature(raw, sig)) {
+    if (!verifyMetaSignature(raw, sig)) {
       res.status(403).json({ error: "bad_signature" });
       return;
     }

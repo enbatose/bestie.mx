@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit & API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      - name: Install root deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Install server deps
+        run: npm ci --no-audit --no-fund --prefix server
+
+      - name: Server unit/API tests (gate)
+        run: npm test --prefix server
+        env:
+          NODE_ENV: test
+          AUTH_JWT_SECRET: ci-test-auth-jwt-secret-32chars-min
+
+      - name: Frontend unit tests (gate)
+        run: npx --yes vitest run --dir src
+        env:
+          NODE_ENV: test

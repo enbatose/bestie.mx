@@ -1,5 +1,6 @@
-import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
+import { authSecret } from "./authSecret.js";
 import { parseCookies, resolveSessionCookieAttrs } from "./session.js";
 
 export const AUTH_COOKIE = "bestie_auth";
@@ -24,21 +25,8 @@ function fromB64url(s: string): Buffer {
   return Buffer.from(norm, "base64");
 }
 
-let fallbackSecret: string | null = null;
-
 function secret(): string {
-  const s = process.env.AUTH_JWT_SECRET?.trim();
-  if (s && s.length >= 16) return s;
-  if (process.env.NODE_ENV === "production") {
-    if (!fallbackSecret) {
-      console.warn(
-        "WARNING: AUTH_JWT_SECRET is missing or too short in production! Generating a temporary in-memory secret. User sessions will expire on every server restart.",
-      );
-      fallbackSecret = randomBytes(32).toString("hex");
-    }
-    return fallbackSecret;
-  }
-  return "dev-insecure-auth-secret-change-me";
+  return authSecret();
 }
 
 export function signAuthToken(userId: string, ttlSec: number): string {

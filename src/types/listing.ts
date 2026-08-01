@@ -64,7 +64,8 @@ export type ListingTag =
 /** Parent address + contact (Phase B). */
 export type Property = {
   id: string;
-  publisherId: string;
+  /** Present for owners / create responses; omitted on public property GET. */
+  publisherId?: string;
   status: ListingStatus;
   /** Strategy: 'room' = single-room post; 'property' = multi-room/property post. */
   postMode?: "room" | "property";

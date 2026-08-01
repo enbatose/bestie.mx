@@ -19,12 +19,8 @@ describe("server imageMime", () => {
     expect(resolveUploadMime("application/octet-stream", jpeg)).toBe("image/jpeg");
   });
 
-  it("rejects HEIC (no server-side convert)", () => {
-    const heic = Buffer.alloc(12);
-    heic.writeUInt32BE(0x18, 0);
-    heic.write("ftyp", 4);
-    heic.write("heic", 8);
-    expect(sniffImageMime(heic)).toBe("image/heic");
-    expect(resolveUploadMime("image/heic", heic)).toBeNull();
+  it("rejects SVG declared MIME without raster magic bytes", () => {
+    const fake = Buffer.from("not-an-image-payload!!");
+    expect(resolveUploadMime("image/svg+xml", fake)).toBeNull();
   });
 });

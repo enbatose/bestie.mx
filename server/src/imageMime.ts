@@ -14,7 +14,7 @@ export const UPLOAD_ALLOWED_MIMES = new Set([
   "image/webp",
   "image/gif",
   "image/avif",
-  "image/svg+xml",
+  // SVG intentionally excluded — same-origin scriptable content (stored XSS).
   "image/bmp",
 ]);
 
@@ -79,6 +79,8 @@ export function resolveUploadMime(declared: string | undefined | null, buffer: B
   if (sniffed && UPLOAD_ALLOWED_MIMES.has(sniffed)) return sniffed;
 
   const normalized = normalizeDeclaredImageMime(declared);
+  // Never accept SVG via declared MIME fallback (no reliable magic-byte sniff).
+  if (normalized === "image/svg+xml") return null;
   if (UPLOAD_ALLOWED_MIMES.has(normalized)) return normalized;
   return null;
 }
@@ -89,7 +91,6 @@ export function extForUploadMime(m: string): string {
   if (m === "image/webp") return ".webp";
   if (m === "image/gif") return ".gif";
   if (m === "image/avif") return ".avif";
-  if (m === "image/svg+xml") return ".svg";
   if (m === "image/bmp") return ".bmp";
   return ".bin";
 }

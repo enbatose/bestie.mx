@@ -54,6 +54,15 @@ export function adminRouter(db: DatabaseSync) {
 
   r.use(requireAdmin);
 
+  r.get("/health", (req: Request, res: Response) => {
+    const diagnostics = req.app.locals.healthDiagnostics;
+    if (typeof diagnostics === "function") {
+      res.json(diagnostics());
+      return;
+    }
+    res.json({ ok: true, service: "bestie-mx-api" });
+  });
+
   r.get("/users", (req: Request, res: Response) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
     const offset = Math.max(0, Number(req.query.offset) || 0);

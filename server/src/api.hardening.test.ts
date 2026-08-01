@@ -10,8 +10,9 @@ import { openDb } from "./db.js";
 import { roomReferenceCode } from "./listingReference.js";
 
 const PROP_SUMMARY_OK =
-  "Descripción de la propiedad lo bastante larga para pruebas API (≥20 caracteres).";
-
+  "Descripción de la propiedad lo bastante larga para pruebas API de publicación (≥100 caracteres requeridos).";
+const ROOM_SUMMARY_OK =
+  "Descripción del cuarto lo bastante larga para pruebas API de publicación (≥100 caracteres requeridos en el anuncio).";
 const TEST_LISTING_IMAGE_URL = "/api/uploads/test-listing-photo.png";
 
 async function patchRoomWithTestPhoto(
@@ -134,7 +135,7 @@ describe("Phase B API hardening", () => {
             roommateGenderPref: "any",
             ageMin: 18,
             ageMax: 99,
-            summary: "Descripción del cuarto.",
+            summary: ROOM_SUMMARY_OK,
             availableFrom: "2026-01-15",
             roomDimension: "medium",
             minimalStayMonths: 1,
@@ -176,7 +177,7 @@ describe("Phase B API hardening", () => {
             roommateGenderPref: "any",
             ageMin: 18,
             ageMax: 99,
-            summary: "Descripción del cuarto.",
+            summary: ROOM_SUMMARY_OK,
             availableFrom: "2026-01-15",
             roomDimension: "medium",
             minimalStayMonths: 1,
@@ -249,7 +250,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 20,
         ageMax: 35,
-        summary: "Descripción mínima del cuarto para la prueba.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -299,7 +300,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Descripción del cuarto en borrador para prueba GET.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -345,7 +346,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Descripción del cuarto para prueba de referencia A550E8400.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -395,7 +396,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Descripción del cuarto para prueba de mis listados vinculados.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -438,7 +439,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Descripción del cuarto para prueba de cookie ajena en mis listados.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -490,7 +491,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Descripción del cuarto para probar razones específicas.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -528,7 +529,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Segundo cuarto para probar estado de la propiedad.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId2 = (r3.body as { id: string }).id;
@@ -570,7 +571,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 40,
-        summary: "Descripción del cuarto para prueba de visitante con cookie propia.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (r2.body as { id: string }).id;
@@ -627,7 +628,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 99,
-        summary: "Suficiente texto para el cuarto en prueba de cascada.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const room1Id = (rRoom1.body as { id: string }).id;
@@ -652,7 +653,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "female",
         ageMin: 20,
         ageMax: 30,
-        summary: "Segundo cuarto agregado después de publicar la propiedad.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const room2Id = (rRoom2.body as { id: string }).id;
@@ -749,7 +750,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 99,
-        summary: "Descripción del cuarto.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
 
@@ -811,7 +812,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 99,
-        summary: "Descripción del cuarto.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomIdForPublish = (rRoom.body as { id: string }).id;
@@ -851,7 +852,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 99,
-        summary: "Descripción del cuarto.",
+        summary: ROOM_SUMMARY_OK,
       })
       .expect(201);
     const roomId = (rRoom.body as { id: string }).id;
@@ -893,7 +894,7 @@ describe("Phase B API hardening", () => {
         roommateGenderPref: "any",
         ageMin: 18,
         ageMax: 99,
-        summary: "Descripción del cuarto lo bastante larga para publicar en modo recámara simple.",
+        summary: ROOM_SUMMARY_OK,
         availableFrom: "2026-01-15",
         roomDimension: "medium",
         minimalStayMonths: 1,

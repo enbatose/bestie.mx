@@ -26,16 +26,45 @@ import {
 } from "./passwordReset.js";
 import { registerGoogleOAuthRoutes } from "./googleOAuth.js";
 import { registerFacebookOAuthRoutes } from "./facebookOAuth.js";
+import { authSecret } from "./authSecret.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 8;
 
-const otpRequestLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
-const otpVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
-const emailVerifyResendLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 3 });
-const forgotPasswordLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 5 });
+function authLimitMax(envKey: string, prodDefault: number): number {
+  const raw = Number(process.env[envKey]);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  // Keep suites fast: unlimited-ish unless a test opts into a low ceiling via env.
+  if (process.env.NODE_ENV === "test" || process.env.VITEST === "true") return 10_000;
+  return prodDefault;
+}
+
+const otpRequestLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: authLimitMax("RATE_LIMIT_OTP_REQUEST_MAX", 5) });
+const otpVerifyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: authLimitMax("RATE_LIMIT_OTP_VERIFY_MAX", 20) });
+const emailVerifyResendLimiter = createSlidingWindowLimiter({
+  windowMs: 60_000,
+  max: authLimitMax("RATE_LIMIT_EMAIL_VERIFY_RESEND_MAX", 3),
+});
+const forgotPasswordLimiter = createSlidingWindowLimiter({
+  windowMs: 60_000,
+  max: authLimitMax("RATE_LIMIT_FORGOT_PASSWORD_MAX", 5),
+});
+const registerLimiter = createSlidingWindowLimiter({
+  windowMs: 60_000,
+  max: authLimitMax("RATE_LIMIT_REGISTER_MAX", 8),
+});
+const loginLimiter = createSlidingWindowLimiter({
+  windowMs: 60_000,
+  max: authLimitMax("RATE_LIMIT_LOGIN_MAX", 20),
+});
+
 function otpPepper(): string {
-  return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
+  return authSecret();
+}
+
+function authRateKey(req: Request, suffix: string): string {
+  const ip = req.ip ?? "unknown";
+  return `${ip}|${suffix}`;
 }
 
 function hashOtp(phone: string, code: string): string {
@@ -103,6 +132,16 @@ export function authRouter(db: DatabaseSync) {
     const emailCanonical = typeof body.email === "string" ? canonicalLookupEmail(body.email) : "";
     const password = typeof body.password === "string" ? body.password : "";
     const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 120) : "";
+    const regLim = registerLimiter(authRateKey(req, emailCanonical || "anon"));
+    if (!regLim.ok) {
+      const retryAfterSec = Math.ceil(regLim.retryAfterMs / 1000);
+      res.status(429).set("Retry-After", String(retryAfterSec)).json({
+        error: "rate_limited",
+        message: "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+        retryAfterSec,
+      });
+      return;
+    }
     if (!emailDisplay.includes("@") || emailDisplay.length > 200) {
       res.status(400).json({ error: "invalid_email" });
       return;
@@ -171,6 +210,16 @@ export function authRouter(db: DatabaseSync) {
     const emailCanonical = rawEmail ? canonicalLookupEmail(rawEmail) : "";
     const emailDisplay = rawEmail ? displayStorageEmail(rawEmail) : "";
     const password = typeof body.password === "string" ? body.password : "";
+    const loginLim = loginLimiter(authRateKey(req, emailCanonical || "anon"));
+    if (!loginLim.ok) {
+      const retryAfterSec = Math.ceil(loginLim.retryAfterMs / 1000);
+      res.status(429).set("Retry-After", String(retryAfterSec)).json({
+        error: "rate_limited",
+        message: "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+        retryAfterSec,
+      });
+      return;
+    }
     /** Match canonical (Gmail aliases) or stored display email; avoids legacy NULL-canonical rows comparing email to the wrong form. */
     const row = db
       .prepare("SELECT id, password_hash FROM users WHERE email_canonical = ? OR email = ?")

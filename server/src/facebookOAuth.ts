@@ -2,6 +2,7 @@ import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { facebookOAuthPasswordPlaceholder } from "./adminAuth.js";
+import { authSecret } from "./authSecret.js";
 import { canonicalLookupEmail, displayStorageEmail } from "./authEmail.js";
 import { issueAuthCookie } from "./jwtSession.js";
 import { parseCookies, readPublisherIdFromRequest, resolveSessionCookieAttrs } from "./session.js";
@@ -39,7 +40,7 @@ function fromB64url(s: string): Buffer {
 }
 
 function oauthPepper(): string {
-  return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
+  return authSecret();
 }
 
 function signOAuthState(payload: OAuthStatePayload): string {

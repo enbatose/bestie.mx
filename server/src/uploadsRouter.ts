@@ -7,7 +7,7 @@ import multer from "multer";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
 
-const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|svg|bmp)$/i;
+const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|bmp)$/i;
 
 export type UploadsRouterOptions = {
   uploadDir: string;
@@ -119,6 +119,10 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
       return;
     }
     const lower = filename.toLowerCase();
+    if (lower.endsWith(".svg")) {
+      res.status(404).end();
+      return;
+    }
     const fallbackType = lower.endsWith(".png")
       ? "image/png"
       : lower.endsWith(".webp")
@@ -127,12 +131,12 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
           ? "image/gif"
           : lower.endsWith(".avif")
             ? "image/avif"
-            : lower.endsWith(".svg")
-              ? "image/svg+xml"
-              : lower.endsWith(".bmp")
-                ? "image/bmp"
-                : "image/jpeg";
+            : lower.endsWith(".bmp")
+              ? "image/bmp"
+              : "image/jpeg";
     if (fs.existsSync(fp)) {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:");
       res.type(fallbackType);
       res.sendFile(fp);
       return;
@@ -145,7 +149,14 @@ export function uploadsRouter(opts: UploadsRouterOptions) {
       res.status(404).end();
       return;
     }
-    res.type(typeof row.mime_type === "string" ? row.mime_type : fallbackType);
+    const mime = typeof row.mime_type === "string" ? row.mime_type : fallbackType;
+    if (mime === "image/svg+xml" || lower.endsWith(".svg")) {
+      res.status(404).end();
+      return;
+    }
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:");
+    res.type(mime);
     res.send(Buffer.from(row.bytes as Uint8Array));
   });
 

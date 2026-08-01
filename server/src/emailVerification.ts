@@ -1,5 +1,6 @@
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { authSecret } from "./authSecret.js";
 import { buildEmailVerificationEmail } from "./emails/emailVerificationEmail.js";
 import { sendTransactionalEmail, smtpConfigured } from "./mailer.js";
 
@@ -7,7 +8,7 @@ export const EMAIL_VERIFICATION_TTL_MS = 10 * 60 * 1000;
 export const EMAIL_VERIFICATION_MAX_ATTEMPTS = 8;
 
 function otpPepper(): string {
-  return process.env.AUTH_JWT_SECRET?.trim() || "dev-insecure-auth-secret-change-me";
+  return authSecret();
 }
 
 export function hashEmailVerificationCode(userId: string, emailCanonical: string, code: string): string {

@@ -3,12 +3,15 @@ import http from "node:http";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { assertAuthSecretConfigured } from "./authSecret.js";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 import { logOutboundMailHintIfDisabled, verifySmtpConnection } from "./mailer.js";
 import { verifyResendInbound } from "./resendWebhook.js";
 import { startSavedSearchPollWorker } from "./savedSearchNotify.js";
 import { startMessageDigestPollWorker } from "./messageDigestNotify.js";
+
+assertAuthSecretConfigured();
 
 /** When `index.html` exists, API + SPA share one origin (see `createApp` `webDistDir`). */
 function resolveWebDistDir(): string | undefined {

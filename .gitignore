@@ -3,8 +3,16 @@ dist
 .DS_Store
 *.local
 .env
-.env.*.local
+.env.*
+!.env.example
+!server/.env.example
+*.pem
+*.key
+credentials.json
+*-credentials.json
+service-account*.json
 server/data/
 npm-debug.log*
 pnpm-debug.log*
 yarn-error.log*
+_tmp_prod_bundle.js

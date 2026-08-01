@@ -1,0 +1,57 @@
+name: Deploy smoke
+
+# Runs after CI succeeds on develop/main. Hits the live Railway origin with
+# read-only / non-persisting probes so broken deploys fail the gate without
+# creating user-visible dummy listings.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Origin to smoke (e.g. https://dev.bestie.mx)"
+        required: true
+        default: "https://dev.bestie.mx"
+
+concurrency:
+  group: smoke-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Post-deploy smoke
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'develop' ||
+        github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve smoke URL
+        id: url
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "base=${{ inputs.base_url }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.workflow_run.head_branch }}" = "main" ]; then
+            echo "base=https://www.bestie.mx" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=https://dev.bestie.mx" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for deploy + run smoke
+        env:
+          SMOKE_BASE_URL: ${{ steps.url.outputs.base }}
+          SMOKE_RETRIES: "18"
+          SMOKE_RETRY_MS: "15000"
+        run: node scripts/smoke-deploy.mjs

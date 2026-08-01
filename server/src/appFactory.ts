@@ -45,9 +45,9 @@ function normalizeCorsOrigins(origins: string[]): string[] {
 export type CreateAppOptions = {
   /** When omitted, uses the same default list as `index.ts`. */
   corsOrigins?: string[];
-  /** Shown in `GET /api/health` (e.g. SQLite file name). */
+  /** Label used in admin health diagnostics (e.g. SQLite file name). */
   databaseLabel?: string;
-  /** Full database path for debugging (safe, no secrets). */
+  /** Full database path for admin diagnostics (safe, no secrets). */
   databasePath?: string;
   /** Instance identifier (helps diagnose multi-instance / non-persistent DB). */
   instanceId?: string;
@@ -75,6 +75,39 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
+
+  app.locals.healthDiagnostics = () => {
+    const smtp = getSmtpDiagnostics();
+    const inbound = getResendInboundDiagnostics();
+    return {
+      ok: true,
+      service: "bestie-mx-api",
+      database: databaseLabel,
+      smtpConfigured: smtpConfigured(),
+      smtp: {
+        mode: getSmtpMode(),
+        configured: smtp.configured,
+        verifyOk: smtp.verifyOk,
+        verifiedAt: smtp.verifiedAt,
+        verifyError: smtp.verifyError,
+        ...(getSmtpMode() === "off" ? { setupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
+      },
+      resendInbound: {
+        webhookConfigured: inbound.webhookConfigured,
+        receivingKeyConfigured: inbound.receivingKeyConfigured,
+        receivingProbeOk: inbound.receivingProbeOk,
+        receivingProbeError: inbound.receivingProbeError,
+        receivingProbedAt: inbound.receivingProbedAt,
+        spfOk: inbound.spfOk,
+        spfTxt: inbound.spfTxt,
+        spfProbedAt: inbound.spfProbedAt,
+        forwardTo: inbound.forwardTo,
+        inboundAddresses: inbound.inboundAddresses,
+      },
+      ...(databasePath ? { databasePath } : {}),
+      ...(instanceId ? { instanceId } : {}),
+    };
+  };
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const host = (req.headers.host ?? "").split(":")[0]?.toLowerCase();
@@ -106,35 +139,10 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   );
 
   app.get("/api/health", (_req: Request, res: Response) => {
-    const smtp = getSmtpDiagnostics();
-    const inbound = getResendInboundDiagnostics();
+    // Public probe only — diagnostics moved to GET /api/admin/health
     res.json({
       ok: true,
       service: "bestie-mx-api",
-      database: databaseLabel,
-      smtpConfigured: smtpConfigured(),
-      smtp: {
-        mode: getSmtpMode(),
-        configured: smtp.configured,
-        verifyOk: smtp.verifyOk,
-        verifiedAt: smtp.verifiedAt,
-        verifyError: smtp.verifyError,
-        ...(getSmtpMode() === "off" ? { setupHint: OUTBOUND_SMTP_SETUP_HINT } : {}),
-      },
-      resendInbound: {
-        webhookConfigured: inbound.webhookConfigured,
-        receivingKeyConfigured: inbound.receivingKeyConfigured,
-        receivingProbeOk: inbound.receivingProbeOk,
-        receivingProbeError: inbound.receivingProbeError,
-        receivingProbedAt: inbound.receivingProbedAt,
-        spfOk: inbound.spfOk,
-        spfTxt: inbound.spfTxt,
-        spfProbedAt: inbound.spfProbedAt,
-        forwardTo: inbound.forwardTo,
-        inboundAddresses: inbound.inboundAddresses,
-      },
-      ...(databasePath ? { databasePath } : {}),
-      ...(instanceId ? { instanceId } : {}),
     });
   });
 
