@@ -11,6 +11,8 @@ Product analytics for usage behavior. Client SDK: `posthog-js` + `@posthog/react
 
 Set these on the **production** Railway service (`bestie-prod`) only. Vite inlines `VITE_*` at build time — **never** set them on `bestie-dev`, local `.env`, or preview deploys.
 
+The root [`Dockerfile`](../Dockerfile) must declare matching `ARG`/`ENV` for each `VITE_*` var (same pattern as `VITE_GOOGLE_MAPS_EMBED_KEY`). Railway only forwards service variables into the Docker build when they are declared as build args — without `VITE_POSTHOG_*` ARGs the Prod SPA ships an empty token, PostHog never inits, and admin Posts stay on **Sin replay**. Redeploy Prod after adding or changing these variables.
+
 ### Production-only hard gate
 
 Even if a token is accidentally baked into a non-prod build, the client **refuses to init or capture** unless the page hostname is exactly `bestie.mx` or `www.bestie.mx`. That blocks `dev.bestie.mx`, `localhost`, and Railway preview URLs for events, session replay, heatmaps, web vitals, and error autocapture.

@@ -8,6 +8,7 @@ import { ensurePhaseCDSchema } from "./phaseCDSchema.js";
 import { ensureMessagingSchema } from "./messagingSchema.js";
 import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
+import { backfillPublishFeedbackFromMessages } from "./adminPosts.js";
 
 const SEED_PUBLISHER_ID = "__seed__";
 
@@ -239,6 +240,12 @@ function migratePropertyAdminTracking(db: DatabaseSync): void {
   }
   if (!tableHasColumn(db, "properties", "feedback_at")) {
     db.exec(`ALTER TABLE properties ADD COLUMN feedback_at TEXT`);
+  }
+  // Grades submitted before admin Posts denormalization only lived in chat messages.
+  try {
+    backfillPublishFeedbackFromMessages(db);
+  } catch (err) {
+    console.warn("[db] publish feedback backfill skipped:", err);
   }
 }
 

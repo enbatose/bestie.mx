@@ -450,14 +450,27 @@ export function messagesRouter(db: DatabaseSync) {
       typeof body.comment === "string"
         ? clampStr(body.comment, FEEDBACK_BODY_MAX_LEN)
         : "";
-    const conversationId = createConversation(db, me, FEEDBACK_BOT_USER_ID, null, subject, "feedback");
+    const conversationId = createConversation(
+      db,
+      me,
+      FEEDBACK_BOT_USER_ID,
+      listingRoomId || null,
+      subject,
+      "feedback",
+    );
     const message = insertMessage(db, conversationId, me, messageBody, []);
     if (source === "publish" && listingRoomId) {
-      attachPublishFeedbackToProperty(db, {
+      const attached = attachPublishFeedbackToProperty(db, {
         listingRoomId,
         rating,
         comment,
       });
+      if (!attached) {
+        console.warn(
+          "[messages] publish feedback conversation created but property attach failed",
+          { conversationId, listingRoomId, rating },
+        );
+      }
     }
     res.status(201).json({
       conversationId,

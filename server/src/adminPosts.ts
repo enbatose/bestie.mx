@@ -329,26 +329,38 @@ export function attachPublishFeedbackToProperty(
     listingRoomId?: string | null;
     rating: number;
     comment: string;
+    /** When true, do not overwrite an existing rating (used by message backfill). */
+    onlyIfEmpty?: boolean;
   },
 ): boolean {
   const roomId = typeof opts.listingRoomId === "string" ? opts.listingRoomId.trim() : "";
   if (!roomId) return false;
+
   const room = db.prepare(`SELECT property_id FROM rooms WHERE id = ?`).get(roomId) as
     | { property_id: string }
     | undefined;
-  if (!room?.property_id) {
-    // Allow short codes in case the client sends A550E8400.
-    const suffix = roomId.replace(/^BES-A-/i, "").replace(/^A/i, "").toUpperCase();
-    if (!/^[A-F0-9]{8}$/.test(suffix)) return false;
-    const rows = db.prepare(`SELECT id, property_id FROM rooms`).all() as {
-      id: string;
-      property_id: string;
-    }[];
-    const match = rows.find((r) => listingReferenceId(r.id) === suffix);
-    if (!match) return false;
-    return writeFeedback(db, match.property_id, opts.rating, opts.comment);
+  if (room?.property_id) {
+    return writeFeedback(db, room.property_id, opts.rating, opts.comment, opts.onlyIfEmpty);
   }
-  return writeFeedback(db, room.property_id, opts.rating, opts.comment);
+
+  // Allow short codes: A550E8400 / BES-A-550E8400 / PBD66DF78 / BES-P-BD66DF78.
+  const propertyCode = roomId.match(/^(?:BES-)?P([A-F0-9]{8})$/i)?.[1]?.toUpperCase();
+  if (propertyCode) {
+    const props = db.prepare(`SELECT id FROM properties`).all() as { id: string }[];
+    const match = props.find((p) => listingReferenceId(p.id) === propertyCode);
+    if (!match) return false;
+    return writeFeedback(db, match.id, opts.rating, opts.comment, opts.onlyIfEmpty);
+  }
+
+  const roomCode = roomId.match(/^(?:BES-)?A([A-F0-9]{8})$/i)?.[1]?.toUpperCase();
+  if (!roomCode) return false;
+  const rows = db.prepare(`SELECT id, property_id FROM rooms`).all() as {
+    id: string;
+    property_id: string;
+  }[];
+  const match = rows.find((r) => listingReferenceId(r.id) === roomCode);
+  if (!match) return false;
+  return writeFeedback(db, match.property_id, opts.rating, opts.comment, opts.onlyIfEmpty);
 }
 
 function writeFeedback(
@@ -356,14 +368,82 @@ function writeFeedback(
   propertyId: string,
   rating: number,
   comment: string,
+  onlyIfEmpty = false,
 ): boolean {
   const now = new Date().toISOString();
-  const r = db
-    .prepare(
-      `UPDATE properties
-       SET feedback_rating = ?, feedback_comment = ?, feedback_at = ?
-       WHERE id = ?`,
-    )
-    .run(rating, comment.trim() || null, now, propertyId);
+  const r = onlyIfEmpty
+    ? db
+        .prepare(
+          `UPDATE properties
+           SET feedback_rating = ?, feedback_comment = ?, feedback_at = ?
+           WHERE id = ? AND feedback_rating IS NULL`,
+        )
+        .run(rating, comment.trim() || null, now, propertyId)
+    : db
+        .prepare(
+          `UPDATE properties
+           SET feedback_rating = ?, feedback_comment = ?, feedback_at = ?
+           WHERE id = ?`,
+        )
+        .run(rating, comment.trim() || null, now, propertyId);
   return r.changes > 0;
+}
+
+const FEEDBACK_RATING_LINE = /^[★☆]{1,5}\s+(\d)\s*\/\s*5\b/m;
+const FEEDBACK_LISTING_LINK =
+  /\/(?:anuncio|propiedad)\/((?:BES-[AP]-)?[AP][A-F0-9]{8})\b/i;
+
+/**
+ * Backfill `properties.feedback_*` from existing publish-feedback chat messages.
+ * Needed for grades submitted before admin Posts denormalization shipped.
+ * Idempotent: only fills rows that still have null feedback_rating.
+ */
+export function backfillPublishFeedbackFromMessages(db: DatabaseSync): number {
+  const rows = db
+    .prepare(
+      `
+      SELECT m.body, m.created_at
+      FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.kind = 'feedback'
+        AND (
+          c.context_title LIKE 'Feedback · Publicaci%'
+          OR m.body LIKE '%Contexto:%'
+        )
+      ORDER BY m.created_at ASC
+    `,
+    )
+    .all() as { body: string; created_at: string }[];
+
+  let attached = 0;
+  for (const row of rows) {
+    const body = typeof row.body === "string" ? row.body : "";
+    const ratingMatch = body.match(FEEDBACK_RATING_LINE);
+    if (!ratingMatch) continue;
+    const rating = Number(ratingMatch[1]);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) continue;
+
+    const linkMatch = body.match(FEEDBACK_LISTING_LINK);
+    if (!linkMatch?.[1]) continue;
+    const listingRef = linkMatch[1];
+
+    let comment = "";
+    const afterRating = body.slice((ratingMatch.index ?? 0) + ratingMatch[0].length);
+    const contextoIdx = afterRating.search(/\n\s*Contexto:\s*/i);
+    if (contextoIdx >= 0) {
+      comment = afterRating.slice(0, contextoIdx).trim();
+    }
+
+    if (
+      attachPublishFeedbackToProperty(db, {
+        listingRoomId: listingRef,
+        rating,
+        comment,
+        onlyIfEmpty: true,
+      })
+    ) {
+      attached += 1;
+    }
+  }
+  return attached;
 }
