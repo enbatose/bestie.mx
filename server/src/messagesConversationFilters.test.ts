@@ -64,11 +64,20 @@ function insertConversation(
   return id;
 }
 
-async function registerUser(app: Application): Promise<{ agent: request.SuperAgentTest; id: string }> {
+async function registerUser(
+  app: Application,
+  displayName: string,
+): Promise<{ agent: request.SuperAgentTest; id: string }> {
   const agent = request.agent(app);
   await agent
     .post("/api/auth/register")
-    .send({ email: `msgfilter-${randomUUID().slice(0, 12)}@test.mx`, password: "longenough1" })
+    .send({
+      email: `msgfilter-${randomUUID().slice(0, 12)}@test.mx`,
+      password: "longenough1",
+      // Stable names: default email-local display names embed UUID hex and make
+      // short q tokens like "A2" false-positive via case-insensitive LIKE.
+      displayName,
+    })
     .expect(201);
   const me = await agent.get("/api/auth/me").expect(200);
   return { agent, id: (me.body as { id: string }).id };
@@ -95,8 +104,8 @@ describe("GET /api/messages/conversations — listing and property filters", () 
     db = openDb(dbPath);
     app = createApp(db, { databaseLabel: "t.db" });
 
-    owner = await registerUser(app);
-    const renter = await registerUser(app);
+    owner = await registerUser(app, "MsgFilter Owner");
+    const renter = await registerUser(app, "MsgFilter Renter");
 
     insertProperty(db, propertyA);
     insertProperty(db, propertyB);
@@ -109,21 +118,21 @@ describe("GET /api/messages/conversations — listing and property filters", () 
       title: "Hilo A1",
       ownerId: owner.id,
       otherId: renter.id,
-      body: "Interesado en A1",
+      body: "Quiero conocer la recamara norte",
     });
     insertConversation(db, {
       roomId: roomA2,
       title: "Hilo A2",
       ownerId: owner.id,
       otherId: renter.id,
-      body: "Interesado en A2",
+      body: "Quiero conocer la recamara sur",
     });
     insertConversation(db, {
       roomId: roomB1,
       title: "Hilo B1",
       ownerId: owner.id,
       otherId: renter.id,
-      body: "Interesado en B1",
+      body: "Quiero conocer la recamara este",
     });
     insertConversation(db, {
       roomId: null,
@@ -173,8 +182,10 @@ describe("GET /api/messages/conversations — listing and property filters", () 
   });
 
   it("combines the property filter with the text search", async () => {
+    // Use a distinctive word (not short hex like "A2") so q cannot collide with
+    // UUID-derived fields under SQLite's case-insensitive LIKE.
     const rows = await conversations(
-      `?property=${encodeURIComponent(propertyA)}&q=${encodeURIComponent("Interesado en A2")}`,
+      `?property=${encodeURIComponent(propertyA)}&q=${encodeURIComponent("recamara sur")}`,
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]!.listingRoomId).toBe(roomA2);
@@ -207,7 +218,7 @@ describe("GET /api/messages/conversations — listing and property filters", () 
   });
 
   it("never leaks another user's conversations through the filters", async () => {
-    const stranger = await registerUser(app);
+    const stranger = await registerUser(app, "MsgFilter Stranger");
     const res = await stranger.agent
       .get(`/api/messages/conversations?property=${encodeURIComponent(propertyA)}`)
       .expect(200);
