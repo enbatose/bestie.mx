@@ -92,7 +92,7 @@ export function PropertyHeader({
       </div>
       <p className="text-2xl font-bold text-body">
         {rents.length > 1
-          ? `${money.format(minRent)} - ${money.format(maxRent)} / mes`
+          ? `${money.format(minRent)} – ${money.format(maxRent)} / mes`
           : `${listingHeroPriceLabel(minRent)}`}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

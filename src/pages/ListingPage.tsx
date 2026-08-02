@@ -193,9 +193,13 @@ export function ListingPage() {
 
   useLayoutEffect(() => {
     const roomId = new URLSearchParams(location.search).get("roomId");
-    if (roomId) return;
+    // Legacy property deep-links used ?roomId= on /anuncio/… — prefer the room URL.
+    if (roomId) {
+      navigate(listingPublicPath(roomId), { replace: true, state: location.state });
+      return;
+    }
     document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [id, location.search]);
+  }, [id, location.search, location.state, navigate]);
 
   const { openLogin } = useAuthModal();
   const apiOn = isListingsApiConfigured();
@@ -308,11 +312,12 @@ export function ListingPage() {
     if (!listing?.id || !id) return;
     const canonical = roomReferenceCode(listing.id);
     if (id === canonical) return;
-    navigate(`${listingPublicPath(listing.id)}${location.search}`, {
+    // Drop legacy ?roomId= when canonicalizing the room slug.
+    navigate(listingPublicPath(listing.id), {
       replace: true,
       state: location.state,
     });
-  }, [id, listing?.id, location.search, location.state, navigate]);
+  }, [id, listing?.id, location.state, navigate]);
 
   useEffect(() => {
     if (!apiOn || !listing?.propertyId) {
@@ -635,6 +640,7 @@ export function ListingPage() {
             listing={listingWithPrivacy}
             propertyPack={propertyPack ?? null}
             isPropertyPost={isPropertyPost}
+            focusedRoomId={isPropertyPost ? listing.id : null}
             galleryUrls={galleryUrls}
             propertySummary={propertySummary}
             isApproximateLocation={isApproximateLocation}

@@ -18,7 +18,7 @@ import {
   Users,
   Warehouse,
 } from "lucide-react";
-import { listingPublicPath } from "@/lib/listingReference";
+import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 import { listingTagLabel } from "@/components/listing/ListingTagChips";
 import {
   filterPropertyScopeTags,
@@ -219,27 +219,26 @@ export function listingCardKeyTags(tags: readonly ListingTag[]): ListingTag[] {
 
 export function listingCardTitle(listing: PropertyListing): string {
   if (listing.propertyPostMode === "property") {
+    // Search collapses property posts to one card titled with the property name.
+    const propertyTitle = listing.propertyTitle?.trim();
+    if (propertyTitle) return propertyTitle;
     const custom = listing.roomCustomName?.trim();
     if (custom) return custom;
     const parts = listing.title.split(" · ");
-    if (parts.length > 1) return parts[parts.length - 1]!.trim();
+    if (parts.length > 1) return parts[0]!.trim();
   }
   return listing.title;
 }
 
 export function listingCardSubtitle(listing: PropertyListing): string {
-  if (listing.propertyPostMode === "property" && listing.propertyTitle?.trim()) {
-    return `${listing.propertyTitle.trim()} · ${listing.neighborhood} · ${listing.city}`;
-  }
   return `${listing.neighborhood} · ${listing.city}`;
 }
 
 export function listingCardHref(listing: PropertyListing): string {
-  const base = listingPublicPath(listing.id);
   if (listing.propertyPostMode === "property") {
-    return `${base}?roomId=${encodeURIComponent(listing.id)}#property-available-rooms`;
+    return propertyPublicPath(listing.propertyId);
   }
-  return base;
+  return listingPublicPath(listing.id);
 }
 
 export function listingCardTagLabel(tag: ListingTag): string {

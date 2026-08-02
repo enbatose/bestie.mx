@@ -288,9 +288,7 @@ export function listAdminPosts(
     const viewPath =
       postMode === "room" && primaryRoomId
         ? `/anuncio/${roomReferenceCode(primaryRoomId)}`
-        : primaryRoomId
-          ? `/anuncio/${roomReferenceCode(primaryRoomId)}`
-          : `/propiedad/${propertyReferenceCode(propertyId)}`;
+        : `/propiedad/${propertyReferenceCode(propertyId)}`;
 
     return {
       propertyId,

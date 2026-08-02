@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
 import { PostExperienceContactSection } from "@/components/listing/postExperience/PostExperienceContactSection";
@@ -20,7 +20,7 @@ import {
 } from "@/lib/listingKeyLabels";
 import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
-import type { Property, PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
+import type { PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
 import { SearchReturnLink } from "@/components/listing/SearchReturnButtons";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 
@@ -48,6 +48,11 @@ type Props = {
   listing: PropertyListing;
   propertyPack: PropertyWithRooms | null;
   isPropertyPost: boolean;
+  /**
+   * When set on a property post, open that room's detail modal.
+   * Room share URLs (`/anuncio/A…`) pass the room id; property hub (`/propiedad/P…`) passes null.
+   */
+  focusedRoomId?: string | null;
   galleryUrls: readonly string[];
   propertySummary: string;
   isApproximateLocation: boolean;
@@ -75,10 +80,6 @@ function publishedRooms(rooms: readonly Room[]): Room[] {
   return sortRooms(rooms.filter((room) => room.status === "published"));
 }
 
-function propertyRoomSharePath(listingRoomId: string, roomId: string): string {
-  return `${listingPublicPath(listingRoomId)}?roomId=${encodeURIComponent(roomId)}#property-available-rooms`;
-}
-
 function ListingTopActions({
   searchRestorePath,
   myListingsRestorePath,
@@ -101,11 +102,7 @@ function ListingTopActions({
       }`}
     >
       {returnLink}
-      {ownerActions ? (
-        <div className={`flex flex-wrap items-center justify-end gap-2 ${returnLink ? "ml-auto" : ""}`}>
-          {ownerActions}
-        </div>
-      ) : null}
+      {ownerActions}
     </div>
   );
 }
@@ -136,6 +133,7 @@ export function PublicPostExperienceListing({
   listing,
   propertyPack,
   isPropertyPost,
+  focusedRoomId = null,
   galleryUrls,
   propertySummary,
   isApproximateLocation,
@@ -149,7 +147,7 @@ export function PublicPostExperienceListing({
   myListingsRestorePath,
 }: Props) {
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [singleMessage, setSingleMessage] = useState(DEFAULT_SINGLE_MESSAGE);
   const [propertyMessage, setPropertyMessage] = useState(DEFAULT_PROPERTY_MESSAGE);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
@@ -161,25 +159,20 @@ export function PublicPostExperienceListing({
   const propertyTags = useMemo(() => mergePropertyScopeTagsFromRooms(allRooms), [allRooms]);
 
   const expandedRoom = useMemo(() => {
-    if (!isPropertyPost) return null;
-    const roomId = searchParams.get("roomId");
-    if (!roomId) return null;
-    return availableRooms.find((entry) => entry.id === roomId) ?? null;
-  }, [availableRooms, isPropertyPost, searchParams]);
+    if (!isPropertyPost || !focusedRoomId) return null;
+    return availableRooms.find((entry) => entry.id === focusedRoomId) ?? null;
+  }, [availableRooms, focusedRoomId, isPropertyPost]);
 
   const openRoom = useCallback(
     (room: Room) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("roomId", room.id);
-          return next;
-        },
-        { replace: true, state: location.state },
-      );
+      navigate(listingPublicPath(room.id), { state: location.state });
     },
-    [location.state, setSearchParams],
+    [location.state, navigate],
   );
+
+  const closeExpandedRoom = useCallback(() => {
+    navigate(propertyPublicPath(share.propertyId), { state: location.state });
+  }, [location.state, navigate, share.propertyId]);
 
   const menCount = property?.occupiedByMenCount ?? 0;
   const womenCount = property?.occupiedByWomenCount ?? 0;
@@ -196,18 +189,6 @@ export function PublicPostExperienceListing({
     />
   );
 
-  const closeExpandedRoom = useCallback(() => {
-    if (!searchParams.get("roomId")) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("roomId");
-        return next;
-      },
-      { replace: true, state: location.state },
-    );
-  }, [location.state, searchParams, setSearchParams]);
-
   const contactFromExpandedRoom = useCallback(
     (room: Room) => {
       setSelectedRoomIds((prev) => (prev.includes(room.id) ? prev : [...prev, room.id]));
@@ -220,12 +201,9 @@ export function PublicPostExperienceListing({
   );
 
   useLayoutEffect(() => {
-    if (!isPropertyPost) return;
-    const roomId = searchParams.get("roomId");
-    if (!roomId) return;
-
+    if (!isPropertyPost || !focusedRoomId) return;
     document.getElementById("property-available-rooms")?.scrollIntoView({ behavior: "auto", block: "start" });
-  }, [isPropertyPost, searchParams]);
+  }, [focusedRoomId, isPropertyPost]);
 
   const scrollToPropertyPostTop = useCallback(() => {
     document.getElementById("property-post-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -239,8 +217,9 @@ export function PublicPostExperienceListing({
 
   const currentRoomOccupied =
     isPropertyPost &&
+    focusedRoomId &&
     propertyPack &&
-    !isRoomAvailableForRent(propertyPack.rooms.find((room) => room.id === listing.id) ?? {});
+    !isRoomAvailableForRent(propertyPack.rooms.find((room) => room.id === focusedRoomId) ?? {});
 
   if (currentRoomOccupied) {
     return (
@@ -354,7 +333,7 @@ export function PublicPostExperienceListing({
                 shareMsg={share.shareMsg}
                 onShareListing={() =>
                   share.onSharePath(
-                    propertyRoomSharePath(listing.id, expandedRoom.id),
+                    listingPublicPath(expandedRoom.id),
                     `Link de ${expandedRoom.customName || expandedRoom.title}`,
                   )
                 }

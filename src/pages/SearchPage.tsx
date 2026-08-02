@@ -13,6 +13,7 @@ import { SearchTopBar, type SearchTopBarHandle } from "@/components/search/Searc
 import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
+import { collapseSearchListings } from "@/lib/collapseSearchListings";
 import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
 import {
   filterListings,
@@ -215,6 +216,9 @@ export function SearchPage() {
     if (!apiOn) return filterListings(SEED_LISTINGS, normalizedFilters);
     return apiListings ?? [];
   }, [apiOn, apiListings, normalizedFilters]);
+
+  /** One card/pin per property-mode post; room-mode stays one per room. */
+  const searchListings = useMemo(() => collapseSearchListings(filtered), [filtered]);
 
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -449,16 +453,16 @@ export function SearchPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!filtered.length) {
+    if (!searchListings.length) {
       if (apiOn && apiBusy) return;
       setSelectedId(null);
       return;
     }
     setSelectedId((cur) => {
-      if (cur && filtered.some((l) => l.id === cur)) return cur;
+      if (cur && searchListings.some((l) => l.id === cur)) return cur;
       return null;
     });
-  }, [apiBusy, apiOn, filtered]);
+  }, [apiBusy, apiOn, searchListings]);
 
   const neighborhoodSelectionKey = useMemo(
     () => searchLocation.neighborhoods.map((pin) => pin.name).join("|"),
@@ -637,18 +641,18 @@ export function SearchPage() {
       <span className="text-error">{apiErr}</span>
     ) : (
       <>
-        {filtered.length}
-        {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
+        {searchListings.length}
+        {!apiOn ? `/${collapseSearchListings(SEED_LISTINGS).length}` : ""}
       </>
     );
   const mobileDrawerListings = useMemo(() => {
-    if (searchLocation.neighborhoods.length < 2) return filtered;
-    return filtered.filter((listing) =>
+    if (searchLocation.neighborhoods.length < 2) return searchListings;
+    return searchListings.filter((listing) =>
       searchLocation.neighborhoods.some((pin) =>
         mobileListingMatchesSelectedNeighborhood(listing, pin.name),
       ),
     );
-  }, [filtered, searchLocation.neighborhoods]);
+  }, [searchListings, searchLocation.neighborhoods]);
   const mobileResultsCountLabel =
     apiOn && apiBusy ? (
       apiListings === undefined ? "Cargando…" : "Actualizando…"
@@ -676,7 +680,7 @@ export function SearchPage() {
       <SearchTopBar
         ref={searchTopBarRef}
         filters={normalizedFilters}
-        listings={filtered}
+        listings={searchListings}
         onChange={applyFilters}
         onOpenAdvanced={() => setAdvancedOpen(true)}
         onClearFilters={clearFilters}
@@ -721,7 +725,7 @@ export function SearchPage() {
               <PropertyMap
                 embed
                 className="h-full"
-                listings={filtered}
+                listings={searchListings}
                 selectedId={selectedId}
                 onSelect={(id) => selectListing(id, "map")}
                 searchReturn={searchReturn}
@@ -771,7 +775,7 @@ export function SearchPage() {
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
             <SearchResultsList
               dense
-              listings={filtered}
+              listings={searchListings}
               selectedId={selectedId}
               onSelect={(id) => selectListing(id, "list")}
               searchReturn={searchReturn}

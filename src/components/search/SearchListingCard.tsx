@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { listingCardQuickAttributes } from "@/components/search/searchQuickAttributes";
 import { quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { listingCardSubtitle, listingCardTitle } from "@/lib/listingKeyLabels";
+import { formatSearchListingRent } from "@/lib/collapseSearchListings";
 import { listingCoverImageUrl } from "@/lib/listingImageUrls";
 import type { PropertyListing } from "@/types/listing";
 
@@ -27,14 +28,19 @@ type Props = {
 };
 
 function popupCtaLabel(listing: PropertyListing): string {
+  if (listing.propertyPostMode === "property") return "Ver propiedad";
   if (listing.lodgingType === "private_room" || listing.lodgingType === "shared_room") {
     return "Ver cuarto";
   }
   return "Ver anuncio";
 }
 
+function rentLabel(listing: PropertyListing): string {
+  return formatSearchListingRent(listing, money);
+}
+
 function popupAriaLabel(listing: PropertyListing, title: string): string {
-  return `${popupCtaLabel(listing)}: ${title}, ${money.format(listing.rentMxn)} al mes en ${listing.neighborhood}`;
+  return `${popupCtaLabel(listing)}: ${title}, ${rentLabel(listing)} al mes en ${listing.neighborhood}`;
 }
 
 function ListingCardThumb({ listing, className }: { listing: PropertyListing; className: string }) {
@@ -101,7 +107,7 @@ function SearchListingPopupCard({
             <h2 className="line-clamp-2 text-xs font-semibold leading-snug text-primary">{title}</h2>
             <p className="mt-0.5 truncate text-[11px] text-muted">{listing.neighborhood}</p>
             <p className="mt-1 text-sm font-bold leading-none text-body">
-              {money.format(listing.rentMxn)}
+              {rentLabel(listing)}
               <span className="ml-0.5 text-[10px] font-normal text-muted">/ mes</span>
             </p>
             {pills.length ? (
@@ -161,7 +167,7 @@ function SearchListingMobileDrawerCard({
       <div className="mt-2 flex items-center gap-2.5">
         <ListingCardThumb listing={listing} className="size-14 shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold leading-none text-body">{money.format(listing.rentMxn)}</p>
+          <p className="text-sm font-bold leading-none text-body">{rentLabel(listing)}</p>
           <p className="mt-1 truncate text-xs text-muted">{subtitle}</p>
         </div>
       </div>
@@ -220,7 +226,7 @@ function SearchListingSidebarCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h2 className="min-w-0 text-sm font-semibold leading-snug text-primary sm:text-base">{title}</h2>
-            <p className="shrink-0 text-xs font-semibold text-body sm:text-sm">{money.format(listing.rentMxn)}</p>
+            <p className="shrink-0 text-xs font-semibold text-body sm:text-sm">{rentLabel(listing)}</p>
           </div>
           <p className="mt-0.5 text-xs text-muted sm:text-sm">{subtitle}</p>
           <p className="mt-2 line-clamp-2 text-xs text-muted sm:text-sm">{listing.summary}</p>

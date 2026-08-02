@@ -240,21 +240,30 @@ export function messagesRouter(db: DatabaseSync) {
     const params: string[] = [me, me, me];
     for (const token of tokens) {
       const like = `%${token.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+      // Title / counterpart / message body always participate.
+      // GUID / property_id substring matches only for longer tokens — short scraps
+      // like "A2" or "en" otherwise false-positive against UUID hex (broke CI AND search).
       const parts = [
         `c.context_title LIKE ? ESCAPE '\\'`,
         `other.display_name LIKE ? ESCAPE '\\'`,
-        `IFNULL(c.listing_room_id, '') LIKE ? ESCAPE '\\'`,
-        `EXISTS (
-             SELECT 1 FROM rooms filtered_room
-             WHERE filtered_room.id = c.listing_room_id
-               AND filtered_room.property_id LIKE ? ESCAPE '\\'
-           )`,
         `EXISTS (
              SELECT 1 FROM messages searched
              WHERE searched.conversation_id = c.id AND searched.body LIKE ? ESCAPE '\\'
            )`,
       ];
-      params.push(like, like, like, like, like);
+      params.push(like, like, like);
+
+      if (token.length >= 8) {
+        parts.push(
+          `IFNULL(c.listing_room_id, '') LIKE ? ESCAPE '\\'`,
+          `EXISTS (
+             SELECT 1 FROM rooms filtered_room
+             WHERE filtered_room.id = c.listing_room_id
+               AND filtered_room.property_id LIKE ? ESCAPE '\\'
+           )`,
+        );
+        params.push(like, like);
+      }
 
       const roomRefSuffix = parseRoomReferenceSuffix(token);
       if (roomRefSuffix) {

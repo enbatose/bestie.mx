@@ -170,6 +170,11 @@ export type PropertyListing = {
   lat: number;
   lng: number;
   rentMxn: number;
+  /**
+   * When set (search collapse of a property-mode post), card shows
+   * `rentMxn`–`rentMxnMax` instead of a single price.
+   */
+  rentMxnMax?: number;
   /** From API; defaults to 0 in local seed. */
   depositMxn?: number;
   /** From parent property join; seed may omit. */

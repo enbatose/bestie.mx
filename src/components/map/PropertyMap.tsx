@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, type MutableRefObject, type Re
 import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { listingCardHref } from "@/lib/listingKeyLabels";
-import { listingPublicPath } from "@/lib/listingReference";
 import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
 import { MapListingPopupOverlay } from "@/components/map/MapListingPopupOverlay";
 import { MapSelectionSync } from "@/components/map/MapSelectionSync";
@@ -381,7 +380,7 @@ export function PropertyMap({
                 <SearchListingCard
                   listing={l}
                   variant="popup"
-                  to={searchReturn ? listingCardHref(l) : listingPublicPath(l.id)}
+                  to={listingCardHref(l)}
                   state={searchReturn ? listingNavigationState(searchReturn) : undefined}
                 />
               </Popup>

@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { useMap } from "react-leaflet";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { listingCardHref } from "@/lib/listingKeyLabels";
-import { listingPublicPath } from "@/lib/listingReference";
 import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
 import { listingMapPosition } from "@/map/listingMapPosition";
 import type { PropertyListing } from "@/types/listing";
@@ -86,7 +85,7 @@ export function MapListingPopupOverlay({
         <SearchListingCard
           listing={listing}
           variant="popup"
-          to={searchReturn ? listingCardHref(listing) : listingPublicPath(listing.id)}
+          to={listingCardHref(listing)}
           state={searchReturn ? listingNavigationState(searchReturn) : undefined}
           onClose={onClose}
         />

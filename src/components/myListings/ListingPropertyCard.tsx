@@ -106,21 +106,14 @@ export function ListingPropertyCard({
   const availableCount = list.filter(isAvailable).length;
   const propRef = propertyReferenceCode(propertyId);
 
-  // For a property post, "Ver" opens the property overview. Anchor it to an
-  // available room so the public page doesn't short-circuit to the
-  // "recámara ocupada" notice when the first room happens to be occupied.
-  const propertyEntry = list.find(isAvailable) ?? first;
-
+  // For a property post, "Ver" opens the property hub URL (`/propiedad/P…`).
   const editPath = `/publicar?edit=${encodeURIComponent(propertyId)}`;
   // Property posts share/open via `/propiedad/…` so social scrapers get property-level OG
   // (cover, price range, room count). Room posts use `/anuncio/…`.
   const publicPath = isProperty
     ? propertyPublicPath(propertyId)
     : listingPublicPath(first.id);
-  // "Ver" for property posts still lands on a published room so the SPA shows the hub.
-  const viewPath = isProperty
-    ? listingPublicPath(propertyEntry.id)
-    : listingPublicPath(first.id);
+  const viewPath = publicPath;
   const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
   const canShare = propSt === "published";
   const canArchive = propSt === "draft" || propSt === "published" || propSt === "paused";
@@ -372,7 +365,7 @@ export function ListingPropertyCard({
             const thumb = l.roomImageUrls?.[0];
             const label = roomTitle(l);
             const busy = rowBusy(l);
-            const roomPath = `${listingPublicPath(l.id)}?roomId=${encodeURIComponent(l.id)}`;
+            const roomPath = listingPublicPath(l.id);
             const roomActions: CardActionItem[] = [
               {
                 key: "view",
@@ -397,9 +390,7 @@ export function ListingPropertyCard({
                     {
                       key: "share",
                       label: "Compartir",
-                      // Promote the property post (range + cover), not a room deep link.
-                      onClick: () =>
-                        void share(propertyPublicPath(propertyId), head.propertyTitle ?? head.title),
+                      onClick: () => void share(roomPath, label),
                       icon: <Share2 className="size-3.5 shrink-0" aria-hidden />,
                     } satisfies CardActionItem,
                   ]
