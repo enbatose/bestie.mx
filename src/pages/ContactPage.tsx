@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ContactSupportForm } from "@/components/contact/ContactSupportForm";
+import { usePageSeo } from "@/hooks/usePageSeo";
 
 export function ContactPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [shouldResume] = useState(() => searchParams.get("resume") === "1");
+
+  usePageSeo({
+    title: "Contacto | Bestie MX — roomie Guadalajara",
+    description:
+      "Contacto Bestie MX — ayuda para buscar roomie en Guadalajara, publicar un cuarto compartido o resolver dudas de tu cuenta.",
+    canonicalPath: "/contacto",
+  });
 
   useEffect(() => {
     if (!shouldResume) return;

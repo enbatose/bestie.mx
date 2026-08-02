@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Search, X } from "lucide-react";
+import { usePageSeo } from "@/hooks/usePageSeo";
 import { FAQ_ITEMS, filterFaqItems, type FaqItem } from "@/lib/faqContent";
+import { faqPageJsonLd } from "@/lib/seo";
 
 function FaqAnswer({ item }: { item: FaqItem }): ReactNode {
   if (item.id === "reportar") {
@@ -32,6 +34,21 @@ function FaqAnswer({ item }: { item: FaqItem }): ReactNode {
       </>
     );
   }
+  if (item.id === "roomie-gdl") {
+    return (
+      <>
+        Sí. El lanzamiento está enfocado en Guadalajara y el área metropolitana. Entra a{" "}
+        <Link
+          to="/buscar/gdl"
+          className="font-medium text-primary underline-offset-2 hover:underline"
+        >
+          Buscar roomie en GDL
+        </Link>
+        , elige colonias en el mapa y filtra cuartos compartidos o rentas compartidas según lo que
+        necesites.
+      </>
+    );
+  }
   return item.answer;
 }
 
@@ -40,11 +57,19 @@ export function FaqPage() {
   const visible = useMemo(() => filterFaqItems(FAQ_ITEMS, query), [query]);
   const trimmed = query.trim();
 
+  usePageSeo({
+    title: "FAQ: roomie Guadalajara, cuartos compartidos y Bestie MX",
+    description:
+      "Preguntas frecuentes sobre buscar roomie en Guadalajara, publicar cuartos compartidos, comparto depa GDL y cómo funciona Bestie MX.",
+    canonicalPath: "/faq",
+    jsonLd: [faqPageJsonLd(FAQ_ITEMS.map((i) => ({ question: i.question, answer: i.answer })))],
+  });
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold text-primary">Preguntas frecuentes</h1>
       <p className="mt-2 text-sm text-muted">
-        Respuestas cortas sobre cómo funciona Bestie mientras el producto evoluciona.
+        Respuestas cortas sobre roomie en Guadalajara, cuartos compartidos y cómo funciona Bestie MX.
       </p>
 
       <div className="relative mt-6">
@@ -60,7 +85,7 @@ export function FaqPage() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar (ej. costo, mapa, privacidad…)"
+          placeholder="Buscar (ej. roomie GDL, costo, mapa…)"
           autoComplete="off"
           className="w-full rounded-xl border border-border bg-surface py-3 pl-10 pr-10 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
         />
@@ -108,6 +133,10 @@ export function FaqPage() {
       ) : null}
 
       <p className="mt-10 text-sm text-muted">
+        <Link to="/nosotros" className="font-semibold text-primary underline-offset-2 hover:underline">
+          Sobre Bestie MX
+        </Link>
+        {" · "}
         <Link to="/" className="font-semibold text-primary underline-offset-2 hover:underline">
           Inicio
         </Link>

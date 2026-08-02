@@ -29,6 +29,11 @@ describe("filterFaqItems", () => {
     );
   });
 
+  it("matches Guadalajara roommate intent keywords", () => {
+    const hits = filterFaqItems(FAQ_ITEMS, "roomie gdl");
+    expect(hits.map((h) => h.id)).toContain("roomie-gdl");
+  });
+
   it("returns empty when nothing matches", () => {
     expect(filterFaqItems(FAQ_ITEMS, "xyzzy-no-match")).toEqual([]);
   });

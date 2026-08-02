@@ -42,6 +42,8 @@ import { SavedSearchesReturnLink } from "@/components/savedSearches/SavedSearche
 import { authMe, type AuthMe } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { usePageSeo } from "@/hooks/usePageSeo";
+import { DEFAULT_SEO } from "@/lib/seo";
 import {
   buildSavedSearchUrl,
   enableSavedSearchNotify,
@@ -98,6 +100,19 @@ export function SearchPage() {
     () => parseSearchLocation(searchParams, routeCityCode),
     [routeCityCode, searchParams],
   );
+
+  usePageSeo({
+    title:
+      metro.code === "gdl"
+        ? "Roomie GDL | Cuartos en Guadalajara y comparto depa — Bestie MX"
+        : `Roomie ${metro.label} | Cuartos compartidos — Bestie MX`,
+    description:
+      metro.code === "gdl"
+        ? "Roomie Guadalajara y roomie GDL: explora cuartos compartidos, comparto depa y rentas compartidas en el mapa de Bestie MX. Filtra por zona, precio y preferencias."
+        : DEFAULT_SEO.description,
+    canonicalPath: `/buscar/${metro.code}`,
+  });
+
   const filterQueryKey = useMemo(() => filtersToParams(normalizedFilters).toString(), [normalizedFilters]);
   const mapFallbackLocationRef = useRef<SearchLocationState>(searchLocation);
   const mapSectionRef = useRef<HTMLDivElement>(null);

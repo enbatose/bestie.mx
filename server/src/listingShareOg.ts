@@ -4,6 +4,13 @@
  * listing-specific tags in the HTML served for `/anuncio/…` and `/propiedad/…`.
  */
 import type { DatabaseSync } from "node:sqlite";
+import {
+  upsertCanonical,
+  upsertJsonLd,
+  upsertMetaByName,
+  upsertMetaByProperty,
+  upsertTitle,
+} from "./htmlMeta.js";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import {
   propertyReferenceCode,
@@ -26,15 +33,9 @@ export type ListingShareOgMeta = {
   description: string;
   url: string;
   imageUrl: string | null;
+  /** Optional Offer / RealEstateListing JSON-LD for crawlers. */
+  jsonLd?: unknown;
 };
-
-function escapeHtmlAttr(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 /** Trim at a word boundary when possible so previews don't cut mid-word. */
 export function truncateOgText(text: string, max: number): string {
@@ -119,11 +120,39 @@ export function buildRoomShareOg(
   const summary = (listing.summary ?? "").trim();
   if (summary) parts.push(summary);
 
+  const url = `${base}/anuncio/${roomReferenceCode(listing.id)}`;
+  const description = truncateOgText(parts.join(" · "), OG_DESC_MAX);
+  const imageUrl = coverImageForPost(base, listing, "room");
   return {
     title,
-    description: truncateOgText(parts.join(" · "), OG_DESC_MAX),
-    url: `${base}/anuncio/${roomReferenceCode(listing.id)}`,
-    imageUrl: coverImageForPost(base, listing, "room"),
+    description,
+    url,
+    imageUrl,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "RealEstateListing",
+      name: title,
+      description,
+      url,
+      ...(imageUrl ? { image: imageUrl } : {}),
+      ...(Number.isFinite(listing.rentMxn) && listing.rentMxn > 0
+        ? {
+            offers: {
+              "@type": "Offer",
+              price: listing.rentMxn,
+              priceCurrency: "MXN",
+              availability: "https://schema.org/InStock",
+            },
+          }
+        : {}),
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: listing.city || "Guadalajara",
+        addressRegion: "Jalisco",
+        addressCountry: "MX",
+        ...(listing.neighborhood ? { addressNeighborhood: listing.neighborhood } : {}),
+      },
+    },
   };
 }
 
@@ -152,15 +181,45 @@ export function buildPropertyShareOg(
   const sum = summary.trim();
   if (sum) parts.push(sum);
 
+  const url = `${base}/propiedad/${propertyReferenceCode(propertyId)}`;
+  const description = truncateOgText(parts.join(" · "), OG_DESC_MAX);
+  const imageUrl = coverImageForPost(
+    base,
+    { ...coverFrom, propertyId, id: coverFrom.id || availableRooms[0]?.id || propertyId },
+    "property",
+  );
+  const minRent = rents.length ? Math.min(...rents) : null;
   return {
     title,
-    description: truncateOgText(parts.join(" · "), OG_DESC_MAX),
-    url: `${base}/propiedad/${propertyReferenceCode(propertyId)}`,
-    imageUrl: coverImageForPost(
-      base,
-      { ...coverFrom, propertyId, id: coverFrom.id || availableRooms[0]?.id || propertyId },
-      "property",
-    ),
+    description,
+    url,
+    imageUrl,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "RealEstateListing",
+      name: title,
+      description,
+      url,
+      ...(imageUrl ? { image: imageUrl } : {}),
+      ...(minRent != null
+        ? {
+            offers: {
+              "@type": "AggregateOffer",
+              lowPrice: Math.min(...rents),
+              highPrice: Math.max(...rents),
+              priceCurrency: "MXN",
+              offerCount: n,
+            },
+          }
+        : {}),
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: place.city || "Guadalajara",
+        addressRegion: "Jalisco",
+        addressCountry: "MX",
+        ...(place.neighborhood ? { addressNeighborhood: place.neighborhood } : {}),
+      },
+    },
   };
 }
 
@@ -279,30 +338,6 @@ export function resolveListingShareOg(
   return null;
 }
 
-function upsertMetaByProperty(html: string, property: string, content: string): string {
-  const re = new RegExp(
-    `<meta\\s+property=["']${property}["']\\s+content=["'][^"']*["']\\s*/?>`,
-    "i",
-  );
-  const tag = `<meta property="${property}" content="${escapeHtmlAttr(content)}" />`;
-  if (re.test(html)) return html.replace(re, tag);
-  return html.replace(/<\/head>/i, `    ${tag}\n  </head>`);
-}
-
-function upsertMetaByName(html: string, name: string, content: string): string {
-  const re = new RegExp(`<meta\\s+name=["']${name}["']\\s+content=["'][^"']*["']\\s*/?>`, "i");
-  const tag = `<meta name="${name}" content="${escapeHtmlAttr(content)}" />`;
-  if (re.test(html)) return html.replace(re, tag);
-  return html.replace(/<\/head>/i, `    ${tag}\n  </head>`);
-}
-
-function upsertTitle(html: string, title: string): string {
-  const re = /<title>[^<]*<\/title>/i;
-  const tag = `<title>${escapeHtmlAttr(title)}</title>`;
-  if (re.test(html)) return html.replace(re, tag);
-  return html.replace(/<\/head>/i, `    ${tag}\n  </head>`);
-}
-
 /** Public Facebook App ID from env (safe to expose in page meta). */
 export function facebookAppIdFromEnv(): string | null {
   const id = process.env.FACEBOOK_APP_ID?.trim();
@@ -320,6 +355,7 @@ export function injectListingShareOg(html: string, meta: ListingShareOgMeta): st
   let out = html;
   out = upsertTitle(out, meta.title);
   out = upsertMetaByName(out, "description", meta.description);
+  out = upsertCanonical(out, meta.url);
   out = upsertMetaByProperty(out, "og:title", meta.title);
   out = upsertMetaByProperty(out, "og:description", meta.description);
   out = upsertMetaByProperty(out, "og:url", meta.url);
@@ -334,6 +370,9 @@ export function injectListingShareOg(html: string, meta: ListingShareOgMeta): st
   out = upsertMetaByName(out, "twitter:description", meta.description);
   if (meta.imageUrl) {
     out = upsertMetaByName(out, "twitter:image", meta.imageUrl);
+  }
+  if (meta.jsonLd != null) {
+    out = upsertJsonLd(out, "listing", meta.jsonLd);
   }
   out = injectFacebookAppId(out);
   return out;

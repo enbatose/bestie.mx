@@ -12,52 +12,89 @@
     <meta charset="UTF-8" />
     <meta name="facebook-domain-verification" content="sm7615x5w0pzfqjub3m99lg542ba2y" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href="https://www.bestie.mx/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#143D30" />
     <meta
       name="description"
-      content="Bestie — comparte depa en México. Busca y publica cuartos con mapa, filtros y confianza."
+      content="Busca roomie en Guadalajara (GDL): cuartos compartidos, comparto depa y rentas compartidas con mapa y filtros. Publica tu cuarto en Bestie MX."
+    />
+    <meta
+      name="keywords"
+      content="roomie guadalajara, roomie gdl, roomi gdl, cuartos guadalajara, cuarto compartido guadalajara, comparto depa guadalajara, rentas compartidas gdl, bestie mx"
     />
     <meta name="author" content="ENRIQUE BATANI OSEGUERA" />
     <meta name="publisher" content="ENRIQUE BATANI OSEGUERA" />
     <meta property="og:site_name" content="Bestie" />
-    <meta property="og:title" content="Bestie — bestie.mx" />
+    <meta
+      property="og:title"
+      content="Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX"
+    />
     <meta
       property="og:description"
-      content="Bestie es una plataforma para encontrar roomies y rentas compartidas en México. Operado por ENRIQUE BATANI OSEGUERA."
+      content="Busca roomie en Guadalajara (GDL): cuartos compartidos, comparto depa y rentas compartidas con mapa y filtros. Publica tu cuarto en Bestie MX."
     />
     <meta property="og:url" content="https://www.bestie.mx" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_MX" />
     <meta property="og:image" content="https://www.bestie.mx/brand/og-default.jpg" />
     <meta property="og:image:secure_url" content="https://www.bestie.mx/brand/og-default.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Bestie — roomies y rentas compartidas en México" />
+    <meta
+      property="og:image:alt"
+      content="Roomie Guadalajara — cuartos compartidos y comparto depa en Bestie MX"
+    />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Bestie — bestie.mx" />
+    <meta
+      name="twitter:title"
+      content="Roomie Guadalajara | Cuartos compartidos GDL — Bestie MX"
+    />
     <meta
       name="twitter:description"
-      content="Bestie es una plataforma para encontrar roomies y rentas compartidas en México. Operado por ENRIQUE BATANI OSEGUERA."
+      content="Busca roomie en Guadalajara (GDL): cuartos compartidos, comparto depa y rentas compartidas con mapa y filtros."
     />
     <meta name="twitter:image" content="https://www.bestie.mx/brand/og-default.jpg" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Bestie",
-        "legalName": "ENRIQUE BATANI OSEGUERA",
-        "url": "https://www.bestie.mx",
-        "email": "contacto@bestie.mx",
-        "founder": { "@type": "Person", "name": "ENRIQUE BATANI OSEGUERA" },
-        "address": {
-          "@type": "PostalAddress",
-          "streetAddress": "Calle Herodoto 55, Vallarta San Jorge",
-          "postalCode": "44690",
-          "addressLocality": "Guadalajara",
-          "addressRegion": "Jalisco",
-          "addressCountry": "MX"
-        }
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.bestie.mx/#organization",
+            "name": "Bestie MX",
+            "alternateName": ["Bestie", "bestie.mx"],
+            "legalName": "ENRIQUE BATANI OSEGUERA",
+            "url": "https://www.bestie.mx",
+            "email": "contacto@bestie.mx",
+            "logo": "https://www.bestie.mx/brand/logo-mark.svg",
+            "founder": { "@type": "Person", "name": "ENRIQUE BATANI OSEGUERA" },
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Calle Herodoto 55, Vallarta San Jorge",
+              "postalCode": "44690",
+              "addressLocality": "Guadalajara",
+              "addressRegion": "Jalisco",
+              "addressCountry": "MX"
+            },
+            "areaServed": {
+              "@type": "City",
+              "name": "Guadalajara",
+              "containedInPlace": { "@type": "State", "name": "Jalisco" }
+            },
+            "description": "Plataforma para buscar roomie en Guadalajara: cuartos compartidos, comparto depa y rentas compartidas."
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.bestie.mx/#website",
+            "name": "Bestie MX",
+            "alternateName": ["Bestie", "bestie.mx"],
+            "url": "https://www.bestie.mx",
+            "inLanguage": "es-MX",
+            "publisher": { "@id": "https://www.bestie.mx/#organization" }
+          }
+        ]
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -66,20 +103,31 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>Bestie — bestie.mx</title>
+    <title>Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX</title>
   </head>
   <body class="min-h-screen bg-bg-light text-body antialiased">
     <div id="root"></div>
     <noscript>
       <div style="max-width: 40rem; margin: 0 auto; padding: 2rem 1rem; font-family: sans-serif;">
-        <h1>Bestie</h1>
+        <h1>Roomie Guadalajara — Bestie MX</h1>
         <p>
-          Bestie es una plataforma para encontrar roomies y rentas compartidas en México, con
-          búsqueda por mapa, filtros y contacto directo.
+          Bestie MX (bestie.mx) es la plataforma para encontrar roomie en Guadalajara (GDL): cuartos
+          compartidos, comparto depa y rentas compartidas, con búsqueda por mapa, filtros y contacto
+          directo.
+        </p>
+        <p>
+          También puedes buscar variaciones como roomi GDL, cuartos Guadalajara o cuarto compartido
+          Guadalajara.
+        </p>
+        <p>
+          <a href="/buscar/gdl">Buscar roomie en Guadalajara</a> ·
+          <a href="/nosotros">Sobre Bestie MX</a> ·
+          <a href="/faq">Preguntas frecuentes</a>
         </p>
         <p>
           Operado por <strong>ENRIQUE BATANI OSEGUERA</strong> (marca Bestie, bestie.mx, en trámite de
-          registro ante el IMPI). Contacto: <a href="mailto:contacto@bestie.mx">contacto@bestie.mx</a>.
+          registro ante el IMPI). Contacto:
+          <a href="mailto:contacto@bestie.mx">contacto@bestie.mx</a>.
         </p>
         <p>
           <a href="/legal/terminos">Términos y Condiciones</a> ·

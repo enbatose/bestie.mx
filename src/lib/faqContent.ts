@@ -15,11 +15,12 @@ export type FaqItem = {
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     id: "que-es",
-    question: "¿Qué es Bestie?",
+    question: "¿Qué es Bestie MX?",
     answer:
-      "Un marketplace para encontrar roomies y rentas compartidas en ciudades de México, con foco en confianza y flujos sencillos (mapa, filtros y mensajes en la app).",
+      "Bestie MX (bestie.mx) es un marketplace para buscar roomie en Guadalajara (GDL) y publicar cuartos compartidos o un comparto depa, con mapa, filtros y mensajes en la app.",
     synonyms: [
       "que es",
+      "bestie mx",
       "plataforma",
       "marketplace",
       "app",
@@ -29,16 +30,41 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
       "companero",
       "renta compartida",
       "cuarto compartido",
+      "comparto depa",
       "como funciona",
       "servicio",
       "producto",
+      "guadalajara",
+      "gdl",
+    ],
+  },
+  {
+    id: "roomie-gdl",
+    question: "¿Puedo buscar roomie en Guadalajara / GDL?",
+    answer:
+      "Sí. El lanzamiento está enfocado en Guadalajara y el área metropolitana. Entra a Buscar (roomie GDL), elige colonias en el mapa y filtra cuartos compartidos o rentas compartidas según lo que necesites.",
+    synonyms: [
+      "roomie guadalajara",
+      "roomie gdl",
+      "roomi gdl",
+      "roomi",
+      "guadalajara",
+      "gdl",
+      "zapopan",
+      "tlaquepaque",
+      "buscar roomie",
+      "encontrar roomie",
+      "cuartos guadalajara",
+      "cuarto compartido guadalajara",
+      "comparto depa guadalajara",
+      "rentas compartidas",
     ],
   },
   {
     id: "como-buscar",
     question: "¿Cómo busco un cuarto o roomie?",
     answer:
-      "Entra a Buscar, elige ciudad o colonia en el mapa, aplica filtros (género, edad, baño, estacionamiento, etc.) y abre los anuncios que te interesen para contactar al anunciante.",
+      "Entra a Buscar, elige ciudad o colonia en el mapa de Guadalajara, aplica filtros (género, edad, baño, estacionamiento, etc.) y abre los anuncios que te interesen para contactar al anunciante.",
     synonyms: [
       "buscar",
       "busqueda",
@@ -52,11 +78,13 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
       "encontrar",
       "como funciona",
       "pasos",
+      "cuartos",
+      "cuarto",
     ],
   },
   {
     id: "como-publicar",
-    question: "¿Cómo publico un anuncio?",
+    question: "¿Cómo publico un anuncio de cuarto o comparto depa?",
     answer:
       "Ve a Publicar, completa los datos del cuarto o de la propiedad con varias recámaras, sube fotos y publica. Puedes pausar o editar tus anuncios desde Mis anuncios.",
     synonyms: [
@@ -72,11 +100,13 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
       "propietario",
       "dueno",
       "como funciona",
+      "comparto depa",
+      "tengo un cuarto",
     ],
   },
   {
     id: "comision",
-    question: "¿Cobra comisión Bestie?",
+    question: "¿Cobra comisión Bestie MX?",
     answer:
       "En esta etapa el uso es gratuito para buscadores y anunciantes; cualquier cambio se publicará con anticipación en esta página y en avisos legales.",
     synonyms: [

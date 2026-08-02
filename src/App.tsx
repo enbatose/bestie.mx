@@ -13,6 +13,7 @@ import { ListingPage } from "@/pages/ListingPage";
 import { MessagesPage } from "@/pages/MessagesPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
+import { NosotrosPage } from "@/pages/NosotrosPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { PostExperienceMockupsPage } from "@/pages/PostExperienceMockupsPage";
 import { MyListingsProposalMockupsPage } from "@/pages/MyListingsProposalMockupsPage";
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
       { path: "notifications", element: <NotificationsPage /> },
       { path: "notificaciones", element: <Navigate to="/notifications" replace /> },
       { path: "faq", element: <FaqPage /> },
+      { path: "nosotros", element: <NosotrosPage /> },
       { path: "legal", element: <LegalPage /> },
       { path: "legal/terminos", element: <TermsPage /> },
       { path: "legal/privacidad", element: <PrivacyPage /> },

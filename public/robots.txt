@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# App / account surfaces — low value for search indexes
+Disallow: /entrar
+Disallow: /registro
+Disallow: /recuperar-contrasena
+Disallow: /verificar-correo
+Disallow: /despues-de-entrar
+Disallow: /mis-anuncios
+Disallow: /mis-busquedas
+Disallow: /mensajes
+Disallow: /perfil
+Disallow: /notifications
+Disallow: /notificaciones
+Disallow: /admin
+Disallow: /publicar
+Disallow: /mockups/
+
+Sitemap: https://www.bestie.mx/sitemap.xml

@@ -28,7 +28,9 @@ import { backupRouter } from "./backup/backupRouter.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { injectFacebookAppId, injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
 import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
+import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
+import { buildSitemapXml } from "./sitemap.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -197,6 +199,21 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
         return indexHtmlCache;
       };
 
+      // Dynamic sitemap (listings + marketing URLs) — before static so it wins over a file in dist.
+      app.get("/sitemap.xml", (req: Request, res: Response) => {
+        try {
+          const xml = buildSitemapXml(db, sharePreviewBaseUrl(req));
+          res
+            .status(200)
+            .type("application/xml")
+            .set("Cache-Control", "public, max-age=300")
+            .send(xml);
+        } catch (err) {
+          console.error("[sitemap]", err);
+          res.status(500).type("text/plain").send("sitemap_error");
+        }
+      });
+
       app.use(express.static(absDist, { index: false }));
       app.use((req: Request, res: Response, next: NextFunction) => {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -214,6 +231,20 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
         if (og) {
           try {
             const html = injectListingShareOg(readIndexHtml(), og);
+            res.status(200).type("html").send(html);
+            return;
+          } catch (err) {
+            next(err);
+            return;
+          }
+        }
+
+        // Marketing / city routes: keyword-focused title/description/canonical for crawlers.
+        const routeSeo = resolveRouteSeo(req.path);
+        if (routeSeo) {
+          try {
+            let html = injectRouteSeo(readIndexHtml(), routeSeo, sharePreviewBaseUrl(req));
+            html = injectFacebookAppId(html);
             res.status(200).type("html").send(html);
             return;
           } catch (err) {

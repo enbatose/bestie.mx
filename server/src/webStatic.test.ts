@@ -82,6 +82,23 @@ describe("SPA static from API process", () => {
     expect(res.text).toContain("User-agent");
   });
 
+  it("GET /sitemap.xml returns dynamic xml with marketing URLs", async () => {
+    const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
+    const res = await request(app).get("/sitemap.xml").set("Host", "www.bestie.mx").expect(200);
+    expect(res.headers["content-type"]).toMatch(/xml/);
+    expect(res.text).toContain("https://www.bestie.mx/buscar/gdl");
+    expect(res.text).toContain("https://www.bestie.mx/nosotros");
+  });
+
+  it("GET /buscar/gdl injects city SEO title for crawlers", async () => {
+    const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
+    const res = await request(app).get("/buscar/gdl").set("Host", "www.bestie.mx").expect(200);
+    expect(res.text).toMatch(/Roomie GDL/i);
+    expect(res.text).toContain("cuartos compartidos");
+    expect(res.text).toContain('rel="canonical" href="https://www.bestie.mx/buscar/gdl"');
+    expect(res.text).not.toContain("Bestie — bestie.mx");
+  });
+
   it("GET /anuncio/:ref injects listing Open Graph meta for social scrapers", async () => {
     const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
     const agent = request.agent(app);

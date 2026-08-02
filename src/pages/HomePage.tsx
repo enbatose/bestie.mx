@@ -16,6 +16,8 @@ import {
   type SearchNeighborhoodPin,
 } from "@/lib/searchLocation";
 import { track } from "@/lib/analytics";
+import { usePageSeo } from "@/hooks/usePageSeo";
+import { DEFAULT_SEO } from "@/lib/seo";
 
 const PROXIMAS_CITIES = [
   "Puerto Vallarta",
@@ -95,6 +97,12 @@ export function HomePage() {
   const locationMenuId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const blurCloseTimerRef = useRef<number | null>(null);
+
+  usePageSeo({
+    title: DEFAULT_SEO.title,
+    description: DEFAULT_SEO.description,
+    canonicalPath: "/",
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<SearchNeighborhoodPin[]>([]);
@@ -251,7 +259,7 @@ export function HomePage() {
             <HeroAnimatedLockup />
 
             <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-primary-fg/70">
-              Roomies en México
+              Roomie en Guadalajara
             </p>
 
             <h1 className="mt-3 text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
@@ -259,8 +267,8 @@ export function HomePage() {
             </h1>
 
             <p className="mt-4 max-w-xl text-balance text-base leading-7 text-primary-fg/90 sm:text-lg">
-              Encuentra roomies de forma rápida y segura. Priorizamos la ubicación sin sacrificar
-              los filtros que de verdad te importan.
+              Encuentra cuartos compartidos y roomie GDL de forma rápida y segura. Priorizamos la
+              ubicación sin sacrificar los filtros que de verdad te importan.
             </p>
           </div>
 
@@ -437,7 +445,8 @@ export function HomePage() {
                 </li>
               </ul>
               <p className="mt-4 max-w-sm text-balance text-sm text-muted">
-                Toca la ciudad para ir al mapa y a la lista con filtros para esa zona.
+                Roomie Guadalajara, cuartos compartidos y comparto depa: toca la ciudad para ir al
+                mapa y a la lista con filtros para esa zona.
               </p>
             </div>
 
@@ -458,6 +467,27 @@ export function HomePage() {
               </ul>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Intent SEO — one job: clarify Guadalajara roommate search */}
+      <section className="border-t border-border bg-bg-light px-4 py-12 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-lg font-semibold text-body sm:text-xl">
+            Busca roomie en Guadalajara
+          </h2>
+          <p className="mt-3 text-balance text-sm leading-relaxed text-muted sm:text-base">
+            Bestie MX reúne anuncios de cuarto compartido, roomie GDL y comparto depa en Guadalajara
+            — también si llegaste buscando roomi GDL o cuartos Guadalajara. Explora el mapa, filtra y
+            contacta sin perderte entre posts sueltos.
+          </p>
+          <Link
+            to="/buscar/gdl"
+            onClick={() => track("home_cta_clicked", { cta: "seo_gdl_search" })}
+            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full border border-primary/25 bg-surface px-6 text-sm font-semibold text-primary transition hover:border-primary/50"
+          >
+            Ver cuartos en GDL
+          </Link>
         </div>
       </section>
 
