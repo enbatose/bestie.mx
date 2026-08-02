@@ -118,6 +118,9 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     ageMin: Number(row.age_min),
     ageMax: Number(row.age_max),
     summary: String(row.summary),
+    ...(row.property_summary != null && String(row.property_summary).trim()
+      ? { propertySummary: String(row.property_summary).trim() }
+      : {}),
     contactWhatsApp: "",
     status: listingStatusFromRow(row.status),
     ...(row.created_at ? { createdAt: String(row.created_at) } : {}),
@@ -182,6 +185,7 @@ SELECT
   r.age_min AS age_min,
   r.age_max AS age_max,
   r.summary AS summary,
+  p.summary AS property_summary,
   r.lodging_type AS lodging_type,
   r.available_from AS available_from,
   r.minimal_stay_months AS minimal_stay_months,

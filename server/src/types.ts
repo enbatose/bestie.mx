@@ -165,6 +165,8 @@ export type PropertyListing = {
   ageMin: number;
   ageMax: number;
   summary: string;
+  /** Parent property description; used for property-mode search card blurbs. */
+  propertySummary?: string;
   contactWhatsApp: string;
   /** Room lifecycle (PATCH targets the room). */
   status: ListingStatus;

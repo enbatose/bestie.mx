@@ -190,6 +190,11 @@ export type PropertyListing = {
   contactWhatsApp: string;
   /** Defaults to `published` when omitted (local seed data). */
   status?: ListingStatus;
+  /**
+   * Parent property description (from `properties.summary`). Prefer this on
+   * collapsed property-mode search cards over the per-room `summary`.
+   */
+  propertySummary?: string;
   propertyImageUrls?: string[];
   roomImageUrls?: string[];
   /** Only returned for `/api/my-listings` when the viewer owns the listing (cookie or linked account). */

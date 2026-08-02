@@ -33,8 +33,15 @@ function room(partial: Partial<PropertyListing> & Pick<PropertyListing, "id" | "
 describe("collapseSearchListings", () => {
   it("collapses property-mode siblings into one card with a rent range", () => {
     const rows = collapseSearchListings([
-      room({ id: "r1", propertyId: "prp__1", rentMxn: 7500, title: "Casa Demo · Hab 1" }),
-      room({ id: "r2", propertyId: "prp__1", rentMxn: 5000, title: "Casa Demo · Hab 2" }),
+      room({ id: "r1", propertyId: "prp__1", rentMxn: 7500, title: "Casa Demo · Hab 1", summary: "Recámara 1 detalle" }),
+      room({
+        id: "r2",
+        propertyId: "prp__1",
+        rentMxn: 5000,
+        title: "Casa Demo · Hab 2",
+        summary: "Recámara amplia con clóset",
+        propertySummary: "Casa amplia con áreas comunes.",
+      }),
       room({
         id: "r3",
         propertyId: "prp__2",
@@ -53,6 +60,7 @@ describe("collapseSearchListings", () => {
     expect(rows[0]!.title).toBe("Casa Demo");
     expect(rows[0]!.roomImageUrls).toEqual([]);
     expect(rows[0]!.propertyImageUrls).toEqual(["/cover.jpg"]);
+    expect(rows[0]!.summary).toBe("Casa amplia con áreas comunes.");
     expect(rows[1]!.id).toBe("r3");
     expect(rows[1]!.rentMxnMax).toBeUndefined();
   });

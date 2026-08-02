@@ -66,7 +66,8 @@ function collapsePropertyGroup(group: PropertyListing[]): PropertyListing {
     tags: [...tagSet] as PropertyListing["tags"],
     // Prefer property cover; drop room-only photos so the card thumb is the property.
     roomImageUrls: [],
-    summary: head.summary,
+    // Card blurb is the property description, not a single room's summary.
+    summary: head.propertySummary?.trim() || head.summary,
   };
 }
 
