@@ -2,6 +2,10 @@
 # Uploads default to /data/uploads/ next to the DB (or set UPLOAD_DIR). See README → "Production — SQLite + image uploads".
 #
 # Build + start are defined in `./Dockerfile` (Railway prefers Dockerfile over Railpack when both exist).
+#
+# This file is for the web API services (`bestie-prod`, `bestie-dev`) only.
+# Cron service `bestie-backup` must use `/railway.backup.toml` in Railway service settings
+# (Config as Code path) — otherwise this startCommand/healthcheck override the backup job.
 
 [deploy]
 # Overrides any stale “Custom start command” in the Railway UI (config-as-code wins on deploy).

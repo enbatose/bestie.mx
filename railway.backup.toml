@@ -1,0 +1,14 @@
+# Config-as-code for the `bestie-backup` cron service only.
+# Point the service’s “Config as Code” path to `/railway.backup.toml`
+# so root `railway.toml` (web start + /health) does not override this job.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# WORKDIR in the image is /app/server — same as bestie-prod.
+startCommand = "node dist/backupCronEntry.js"
+# Cron runs, then exits. No HTTP server / healthcheck.
+restartPolicyType = "NEVER"
+cronSchedule = "0 5,6 * * *"

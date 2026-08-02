@@ -16,6 +16,8 @@ Nothing in B/C is wired as an app environment database — redundancy only.
 
 Railway cron is **UTC-only**. Mexico City no longer observes DST (permanent **UTC−6**), so midnight CDMX is **06:00 UTC**. Service `bestie-backup` runs at `0 5,6 * * *` UTC and **only proceeds** when the clock in `America/Mexico_City` is in the **00:00–00:59** hour (the extra UTC hour is a safety net if DST rules ever change).
 
+Service settings must use config file **`/railway.backup.toml`** (start `node dist/backupCronEntry.js`, no `/health`). Do **not** leave the default `/railway.toml` — that file starts the web API and will crash the cron (missing `AUTH_JWT_SECRET`) and fail the HTTP healthcheck.
+
 Flow each night:
 
 1. Cron triggers `POST https://www.bestie.mx/api/internal/backup/run` (Bearer `BACKUP_JOB_SECRET`).
