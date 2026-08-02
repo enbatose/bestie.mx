@@ -270,6 +270,10 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     const r = await agent.get("/api/admin/users").expect(200);
     expect(Array.isArray(r.body.users)).toBe(true);
     expect(r.body.total).toBeGreaterThanOrEqual(1);
+    const boss = (r.body.users as Array<Record<string, unknown>>).find((u) => u.email === bossEmail);
+    expect(boss).toBeTruthy();
+    expect(boss!.emailVerified).toBe(false);
+    expect(boss!.accountStatus).toBe("pending_validation");
   });
 
   it("non-admin cannot access admin API", async () => {

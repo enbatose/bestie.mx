@@ -448,6 +448,9 @@ export type AdminUserRow = {
   phoneLast4: string | null;
   displayName: string;
   createdAt: string;
+  /** True when `email_verified_at` is set (OTP or trusted OAuth). */
+  emailVerified: boolean;
+  accountStatus: "active" | "pending_validation";
 };
 
 export async function adminListUsers(

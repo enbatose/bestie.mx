@@ -15,6 +15,7 @@ import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
 import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
 import { listAdminPosts } from "./adminPosts.js";
+import { isUserEmailVerified, userAccountStatus } from "./emailVerification.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -68,19 +69,28 @@ export function adminRouter(db: DatabaseSync) {
     const offset = Math.max(0, Number(req.query.offset) || 0);
     const rows = db
       .prepare(
-        `SELECT id, email, phone_e164, display_name, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        `SELECT id, email, phone_e164, display_name, created_at, email_verified_at
+         FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       )
       .all(limit, offset) as Record<string, unknown>[];
-    const redacted = rows.map((u) => ({
-      id: u.id,
-      email: u.email,
-      phoneLast4:
-        typeof u.phone_e164 === "string" && u.phone_e164.length >= 4
-          ? u.phone_e164.slice(-4)
-          : null,
-      displayName: u.display_name,
-      createdAt: u.created_at,
-    }));
+    const redacted = rows.map((u) => {
+      const email = typeof u.email === "string" ? u.email : null;
+      const emailVerifiedAt =
+        typeof u.email_verified_at === "string" ? u.email_verified_at : null;
+      const emailVerified = isUserEmailVerified(emailVerifiedAt);
+      return {
+        id: u.id,
+        email,
+        phoneLast4:
+          typeof u.phone_e164 === "string" && u.phone_e164.length >= 4
+            ? u.phone_e164.slice(-4)
+            : null,
+        displayName: u.display_name,
+        createdAt: u.created_at,
+        emailVerified,
+        accountStatus: userAccountStatus(email, emailVerifiedAt),
+      };
+    });
     const total = (db.prepare(`SELECT COUNT(*) as c FROM users`).get() as { c: number }).c;
     res.json({ users: redacted, total, limit, offset });
   });
