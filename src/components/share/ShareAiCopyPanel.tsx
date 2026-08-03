@@ -247,7 +247,7 @@ export function ShareAiCopyPanel({
               <button
                 type="button"
                 onClick={() => openExternal("facebook")}
-                className="order-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1877F2] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110 sm:order-1"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1877F2] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110"
               >
                 <FacebookGlyph className="size-3.5" />
                 Facebook
@@ -255,7 +255,7 @@ export function ShareAiCopyPanel({
               <button
                 type="button"
                 onClick={() => openExternal("instagram")}
-                className="order-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110 sm:order-2"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110"
               >
                 <InstagramGlyph className="size-3.5" />
                 Instagram
@@ -263,7 +263,7 @@ export function ShareAiCopyPanel({
               <button
                 type="button"
                 onClick={() => openExternal("whatsapp")}
-                className="order-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#25D366] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110 sm:order-3"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#25D366] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110"
               >
                 <WhatsAppGlyph className="size-3.5" />
                 WhatsApp
@@ -271,7 +271,7 @@ export function ShareAiCopyPanel({
               <button
                 type="button"
                 onClick={() => void onSystemShare()}
-                className="order-4 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-body transition hover:bg-surface-elevated sm:order-4"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
               >
                 <Share2 className="size-3.5" />
                 Más
