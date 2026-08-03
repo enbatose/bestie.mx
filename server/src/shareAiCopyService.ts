@@ -3,7 +3,12 @@ import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js"
 import { publicBaseUrl } from "./publicBaseUrl.js";
 import { SHARE_AI_TEXT_MAX } from "./shareAiCopyLimits.js";
 import { clampShareAiText, generateShareAiText } from "./shareAiCopyGemini.js";
-import { buildTemplateShareCopy, type ShareAiListingFacts, type ShareAiScope } from "./shareAiCopyPrompt.js";
+import {
+  buildTemplateShareCopy,
+  shareCopyBodyLooksTruncated,
+  type ShareAiListingFacts,
+  type ShareAiScope,
+} from "./shareAiCopyPrompt.js";
 
 type PropRow = {
   id: string;
@@ -194,25 +199,20 @@ export async function getOrCreateShareAiCopy(
     if (!facts) return null;
     const existing = (prop.share_ai_text ?? "").trim();
     const userEdited = Boolean(prop.share_ai_text_user_edited);
-    if (existing && !force) {
+    const clampedExisting = existing ? clampShareAiText(existing, facts.permalink) : "";
+    // Auto-regen machine copy that was hard-truncated mid-CTA (legacy soft target was too high).
+    const shouldReuse =
+      Boolean(clampedExisting) &&
+      !force &&
+      (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
+    if (shouldReuse) {
       return {
         scope: "property",
         propertyId,
         roomId: null,
-        text: clampShareAiText(existing, facts.permalink),
+        text: clampedExisting,
         permalink: facts.permalink,
         userEdited,
-        source: "stored",
-      };
-    }
-    if (existing && userEdited && !force) {
-      return {
-        scope: "property",
-        propertyId,
-        roomId: null,
-        text: clampShareAiText(existing, facts.permalink),
-        permalink: facts.permalink,
-        userEdited: true,
         source: "stored",
       };
     }
@@ -237,12 +237,17 @@ export async function getOrCreateShareAiCopy(
   if (!facts) return null;
   const existing = (room.share_ai_text ?? "").trim();
   const userEdited = Boolean(room.share_ai_text_user_edited);
-  if (existing && !force) {
+  const clampedExisting = existing ? clampShareAiText(existing, facts.permalink) : "";
+  const shouldReuse =
+    Boolean(clampedExisting) &&
+    !force &&
+    (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
+  if (shouldReuse) {
     return {
       scope: "room",
       propertyId: room.property_id,
       roomId,
-      text: clampShareAiText(existing, facts.permalink),
+      text: clampedExisting,
       permalink: facts.permalink,
       userEdited,
       source: "stored",
