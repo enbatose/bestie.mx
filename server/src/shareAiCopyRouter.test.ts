@@ -89,12 +89,15 @@ describe("shareAiCopyRouter", () => {
     const res = await request(app)
       .post("/api/share-copy/generate")
       .set("Cookie", authCookie())
+      .set("Host", "dev.bestie.mx")
       .send({ scope: "property", propertyId })
       .expect(200);
     expect(res.body.scope).toBe("property");
     expect(res.body.source).toBe("template");
     expect(res.body.text).toContain("Revisa mi propiedad");
     expect(res.body.text).toContain("/propiedad/");
+    expect(res.body.permalink).toMatch(/^https:\/\/dev\.bestie\.mx\/propiedad\//);
+    expect(res.body.text).toContain("https://dev.bestie.mx/propiedad/");
     expect(String(res.body.text).length).toBeLessThanOrEqual(700);
   });
 

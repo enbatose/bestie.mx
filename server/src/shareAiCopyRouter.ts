@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession } from "./propertyRequestAccess.js";
+import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { resolvePropertyIdFromRouteParam, resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
@@ -49,8 +50,9 @@ export function shareAiCopyRouter(db: DatabaseSync) {
       return;
     }
     const force = Boolean(req.body?.force);
+    const baseUrl = sharePreviewBaseUrl(req);
     try {
-      const result = await getOrCreateShareAiCopy(db, { scope, propertyId, roomId, force });
+      const result = await getOrCreateShareAiCopy(db, { scope, propertyId, roomId, force, baseUrl });
       if (!result) {
         res.status(404).json({ error: "not_found" });
         return;
@@ -91,7 +93,13 @@ export function shareAiCopyRouter(db: DatabaseSync) {
       res.status(403).json({ error: "forbidden" });
       return;
     }
-    const result = saveShareAiCopy(db, { scope, propertyId, roomId, text });
+    const result = saveShareAiCopy(db, {
+      scope,
+      propertyId,
+      roomId,
+      text,
+      baseUrl: sharePreviewBaseUrl(req),
+    });
     if (!result) {
       res.status(404).json({ error: "not_found" });
       return;

@@ -4,9 +4,11 @@ import {
   buildShareAiUserPrompt,
   buildTemplateShareCopy,
   finalizeShareCopy,
+  shareCopyBodyLooksTruncated,
+  shrinkBodyToFit,
   type ShareAiListingFacts,
 } from "./shareAiCopyPrompt.js";
-import { SHARE_AI_TEXT_MAX } from "./shareAiCopyLimits.js";
+import { SHARE_AI_BODY_TARGET, SHARE_AI_TEXT_MAX } from "./shareAiCopyLimits.js";
 
 const roomFacts: ShareAiListingFacts = {
   scope: "room",
@@ -94,10 +96,40 @@ describe("shareAiCopyPrompt", () => {
     expect(out.trimEnd().endsWith(roomFacts.permalink)).toBe(true);
   });
 
+  it("shrinkBodyToFit drops bullets before mid-sentence ellipsis", () => {
+    const body = [
+      "Busco roomie en Americana. Renta 3500.",
+      "",
+      "• Baño privado",
+      "• Lavadora",
+      "• Secadora",
+      "• Terraza",
+      "• Estacionamiento",
+      "• Aire acondicionado",
+      "• LGBT friendly",
+      "",
+      "Si te interesa conocer el espacio y convivir, revisa los detalles en Bestie:",
+    ].join("\n");
+    const maxBody = 280;
+    const out = shrinkBodyToFit(body, maxBody);
+    expect(out.length).toBeLessThanOrEqual(maxBody);
+    expect(out).not.toMatch(/revisa los…$/);
+    expect(out).toContain("Busco roomie");
+  });
+
+  it("detects truncated body ending in ellipsis", () => {
+    const bad = `Texto largo…\n\n${roomFacts.permalink}`;
+    expect(shareCopyBodyLooksTruncated(bad, roomFacts.permalink)).toBe(true);
+    const good = `Texto completo.\n\n${roomFacts.permalink}`;
+    expect(shareCopyBodyLooksTruncated(good, roomFacts.permalink)).toBe(false);
+  });
+
   it("user prompt includes structured facts and system prompt is first-person", () => {
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("primera persona");
+    expect(SHARE_AI_SYSTEM_PROMPT).toContain(String(SHARE_AI_BODY_TARGET));
     const user = buildShareAiUserPrompt(roomFacts);
     expect(user).toContain("Providencia");
     expect(user).toContain(roomFacts.permalink);
+    expect(user).toContain("maxBodyChars");
   });
 });

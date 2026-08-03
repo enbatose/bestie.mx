@@ -3,7 +3,9 @@ export function publicBaseUrl(): string {
   const raw =
     process.env.PUBLIC_BASE_URL?.trim() ||
     process.env.SITE_URL?.trim() ||
-    process.env.WEB_ORIGIN?.trim();
+    process.env.WEB_ORIGIN?.trim() ||
+    // Railway Dev/Prod already set this for OAuth redirects; honor it for share/email links too.
+    process.env.PUBLIC_WEB_ORIGIN?.trim();
   return (raw || "https://www.bestie.mx").replace(/\/+$/, "");
 }
 

@@ -3,7 +3,12 @@ import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js"
 import { publicBaseUrl } from "./publicBaseUrl.js";
 import { SHARE_AI_TEXT_MAX } from "./shareAiCopyLimits.js";
 import { clampShareAiText, generateShareAiText } from "./shareAiCopyGemini.js";
-import { buildTemplateShareCopy, type ShareAiListingFacts, type ShareAiScope } from "./shareAiCopyPrompt.js";
+import {
+  buildTemplateShareCopy,
+  shareCopyBodyLooksTruncated,
+  type ShareAiListingFacts,
+  type ShareAiScope,
+} from "./shareAiCopyPrompt.js";
 
 type PropRow = {
   id: string;
@@ -83,14 +88,18 @@ function isAvailableRoom(r: RoomRow): boolean {
   return r.status === "published" && (r.occupancy_status ?? "available") !== "occupied";
 }
 
-export function buildPropertyFacts(db: DatabaseSync, propertyId: string): ShareAiListingFacts | null {
+export function buildPropertyFacts(
+  db: DatabaseSync,
+  propertyId: string,
+  baseUrl: string = publicBaseUrl(),
+): ShareAiListingFacts | null {
   const prop = loadProperty(db, propertyId);
   if (!prop) return null;
   const rooms = loadRoomsForProperty(db, propertyId).filter(isAvailableRoom);
   const rents = rooms.map((r) => r.rent_mxn).filter((n) => Number.isFinite(n) && n > 0);
   const tagSet = new Set<string>();
   for (const r of rooms) for (const t of parseTags(r.tags_json)) tagSet.add(t);
-  const base = publicBaseUrl().replace(/\/+$/, "");
+  const base = baseUrl.replace(/\/+$/, "");
   return {
     scope: "property",
     title: prop.title,
@@ -118,13 +127,17 @@ export function buildPropertyFacts(db: DatabaseSync, propertyId: string): ShareA
   };
 }
 
-export function buildRoomFacts(db: DatabaseSync, roomId: string): ShareAiListingFacts | null {
+export function buildRoomFacts(
+  db: DatabaseSync,
+  roomId: string,
+  baseUrl: string = publicBaseUrl(),
+): ShareAiListingFacts | null {
   const room = loadRoom(db, roomId);
   if (!room) return null;
   const prop = loadProperty(db, room.property_id);
   if (!prop) return null;
   const tags = parseTags(room.tags_json);
-  const base = publicBaseUrl().replace(/\/+$/, "");
+  const base = baseUrl.replace(/\/+$/, "");
   return {
     scope: "room",
     title: room.title || prop.title,
@@ -171,37 +184,35 @@ export async function getOrCreateShareAiCopy(
     propertyId?: string | null;
     roomId?: string | null;
     force?: boolean;
+    /** Request-host origin when available (Dev vs Prod permalinks). */
+    baseUrl?: string;
   },
 ): Promise<ShareAiStored | null> {
   const force = Boolean(opts.force);
+  const baseUrl = opts.baseUrl ?? publicBaseUrl();
   if (opts.scope === "property") {
     const propertyId = opts.propertyId?.trim() || null;
     if (!propertyId) return null;
     const prop = loadProperty(db, propertyId);
     if (!prop) return null;
-    const facts = buildPropertyFacts(db, propertyId);
+    const facts = buildPropertyFacts(db, propertyId, baseUrl);
     if (!facts) return null;
     const existing = (prop.share_ai_text ?? "").trim();
     const userEdited = Boolean(prop.share_ai_text_user_edited);
-    if (existing && !force) {
+    const clampedExisting = existing ? clampShareAiText(existing, facts.permalink) : "";
+    // Auto-regen machine copy that was hard-truncated mid-CTA (legacy soft target was too high).
+    const shouldReuse =
+      Boolean(clampedExisting) &&
+      !force &&
+      (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
+    if (shouldReuse) {
       return {
         scope: "property",
         propertyId,
         roomId: null,
-        text: clampShareAiText(existing, facts.permalink),
+        text: clampedExisting,
         permalink: facts.permalink,
         userEdited,
-        source: "stored",
-      };
-    }
-    if (existing && userEdited && !force) {
-      return {
-        scope: "property",
-        propertyId,
-        roomId: null,
-        text: clampShareAiText(existing, facts.permalink),
-        permalink: facts.permalink,
-        userEdited: true,
         source: "stored",
       };
     }
@@ -222,16 +233,21 @@ export async function getOrCreateShareAiCopy(
   if (!roomId) return null;
   const room = loadRoom(db, roomId);
   if (!room) return null;
-  const facts = buildRoomFacts(db, roomId);
+  const facts = buildRoomFacts(db, roomId, baseUrl);
   if (!facts) return null;
   const existing = (room.share_ai_text ?? "").trim();
   const userEdited = Boolean(room.share_ai_text_user_edited);
-  if (existing && !force) {
+  const clampedExisting = existing ? clampShareAiText(existing, facts.permalink) : "";
+  const shouldReuse =
+    Boolean(clampedExisting) &&
+    !force &&
+    (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
+  if (shouldReuse) {
     return {
       scope: "room",
       propertyId: room.property_id,
       roomId,
-      text: clampShareAiText(existing, facts.permalink),
+      text: clampedExisting,
       permalink: facts.permalink,
       userEdited,
       source: "stored",
@@ -257,12 +273,14 @@ export function saveShareAiCopy(
     propertyId?: string | null;
     roomId?: string | null;
     text: string;
+    baseUrl?: string;
   },
 ): ShareAiStored | null {
+  const baseUrl = opts.baseUrl ?? publicBaseUrl();
   if (opts.scope === "property") {
     const propertyId = opts.propertyId?.trim() || null;
     if (!propertyId) return null;
-    const facts = buildPropertyFacts(db, propertyId);
+    const facts = buildPropertyFacts(db, propertyId, baseUrl);
     if (!facts) return null;
     const text = clampShareAiText(opts.text, facts.permalink).slice(0, SHARE_AI_TEXT_MAX);
     persistPropertyShareText(db, propertyId, text, true);
@@ -280,7 +298,7 @@ export function saveShareAiCopy(
   if (!roomId) return null;
   const room = loadRoom(db, roomId);
   if (!room) return null;
-  const facts = buildRoomFacts(db, roomId);
+  const facts = buildRoomFacts(db, roomId, baseUrl);
   if (!facts) return null;
   const text = clampShareAiText(opts.text, facts.permalink).slice(0, SHARE_AI_TEXT_MAX);
   persistRoomShareText(db, roomId, text, true);
