@@ -6,6 +6,7 @@ import {
   type ShareAiCopyResult,
   type ShareAiScope,
 } from "@/lib/shareAiCopyApi";
+import { toWhatsAppSafeShareText } from "@/lib/shareAiWhatsAppText";
 import { track } from "@/lib/analytics";
 
 type Props = {
@@ -134,15 +135,16 @@ export function ShareAiCopyPanel({
       listing_id: roomId ?? propertyId ?? "",
     });
     if (kind === "whatsapp") {
-      // Prefill via URL; also copy so Desktop/Web users can paste if the client mangles text.
+      // Clipboard keeps colorful emojis; URL prefill uses BMP-safe remap (no extra LLM).
       void copyText(text).then((ok) => {
         if (ok) {
           setCopied(true);
           window.setTimeout(() => setCopied(false), 2000);
         }
       });
+      const waText = toWhatsAppSafeShareText(text);
       window.open(
-        `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        `https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`,
         "_blank",
         "noopener,noreferrer",
       );
@@ -244,16 +246,8 @@ export function ShareAiCopyPanel({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button
                 type="button"
-                onClick={() => openExternal("whatsapp")}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#25D366] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110"
-              >
-                <WhatsAppGlyph className="size-3.5" />
-                WhatsApp
-              </button>
-              <button
-                type="button"
                 onClick={() => openExternal("facebook")}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1877F2] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110"
+                className="order-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#1877F2] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110 sm:order-1"
               >
                 <FacebookGlyph className="size-3.5" />
                 Facebook
@@ -261,23 +255,31 @@ export function ShareAiCopyPanel({
               <button
                 type="button"
                 onClick={() => openExternal("instagram")}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110"
+                className="order-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#8134af] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110 sm:order-2"
               >
                 <InstagramGlyph className="size-3.5" />
                 Instagram
               </button>
               <button
                 type="button"
+                onClick={() => openExternal("whatsapp")}
+                className="order-3 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#25D366] px-3 py-2.5 text-xs font-semibold text-white transition hover:brightness-110 sm:order-3"
+              >
+                <WhatsAppGlyph className="size-3.5" />
+                WhatsApp
+              </button>
+              <button
+                type="button"
                 onClick={() => void onSystemShare()}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-body transition hover:bg-surface-elevated"
+                className="order-4 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-body transition hover:bg-surface-elevated sm:order-4"
               >
                 <Share2 className="size-3.5" />
                 Más
               </button>
             </div>
             <p className="mt-2 text-[11px] leading-snug text-muted">
-              Tip: WhatsApp lleva el mensaje prellenado (y también lo copiamos por si hace falta
-              pegar). En Facebook e Instagram, pega el texto del Paso 1.
+              Tip: en Facebook e Instagram, pega el texto del Paso 1 (emojis a color). WhatsApp lleva
+              una versión compatible prellenada y también copiamos el texto completo.
             </p>
           </div>
         </>

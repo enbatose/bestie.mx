@@ -13,6 +13,7 @@ import {
   shareCopyBodyLooksTruncated,
   shareCopyNeedsEmojiFormat,
   shrinkBodyToFit,
+  toWhatsAppSafeShareText,
   type ShareAiListingFacts,
 } from "./shareAiCopyPrompt.js";
 import { SHARE_AI_BODY_TARGET, SHARE_AI_TEXT_MAX } from "./shareAiCopyLimits.js";
@@ -81,13 +82,16 @@ const propertyFacts: ShareAiListingFacts = {
 };
 
 describe("shareAiCopyPrompt", () => {
-  it("builds template room copy under the hard cap with emoji permalink last", () => {
+  it("builds template room copy under the hard cap with colorful emoji permalink", () => {
     const text = buildTemplateShareCopy(roomFacts);
     expect(text.length).toBeLessThanOrEqual(SHARE_AI_TEXT_MAX);
     expect(text.startsWith("Revisa mi cuarto")).toBe(true);
     expect(text).toContain(formatTagBullet("wifi"));
     expect(text).toContain(formatTagBullet("baño-privado"));
+    expect(hasAstralPlaneChar(text)).toBe(true);
     expect(text.trimEnd().endsWith(formatPermalinkLine(roomFacts.permalink))).toBe(true);
+    expect(SHARE_AI_LINK_EMOJI).toBe("\u{1F517}");
+    expect(SHARE_AI_HOME_EMOJI).toBe("\u{1F3E0}");
   });
 
   it("builds template property copy under the hard cap", () => {
@@ -109,13 +113,13 @@ describe("shareAiCopyPrompt", () => {
     const body = [
       "Busco roomie en Americana. Renta 3500.",
       "",
-      "♨ Baño privado",
-      "✅ Lavadora",
-      "☁ Secadora",
-      "☘ Terraza",
-      "▶ Estacionamiento",
-      "❄ Aire acondicionado",
-      "♥ LGBT friendly",
+      "\u{1F6BF} Baño privado",
+      "\u{1FAE7} Lavadora",
+      "\u{1F32C}\u{FE0F} Secadora",
+      "\u{1F33F} Terraza",
+      "\u{1F697} Estacionamiento",
+      "\u{2744}\u{FE0F} Aire acondicionado",
+      "\u{1F3F3}\u{FE0F}\u{200D}\u{1F308} LGBT friendly",
       "",
       "Si te interesa conocer el espacio y convivir, revisa los detalles en Bestie:",
     ].join("\n");
@@ -133,30 +137,32 @@ describe("shareAiCopyPrompt", () => {
     expect(shareCopyBodyLooksTruncated(good, roomFacts.permalink)).toBe(false);
   });
 
-  it("detects classic or astral emoji format that needs refresh", () => {
+  it("detects classic or BMP-legacy format that needs refresh", () => {
     const classic = `Hola\n\n• Internet\n\n${roomFacts.permalink}`;
     expect(shareCopyNeedsEmojiFormat(classic, roomFacts.permalink)).toBe(true);
-    const astral = `Hola 🏠\n\n👀 Vigilancia\n\n🔗 ${roomFacts.permalink}`;
-    expect(shareCopyNeedsEmojiFormat(astral, roomFacts.permalink)).toBe(true);
-    const modern = `Hola ${SHARE_AI_HOME_EMOJI}\n\n⚡ Internet\n\n${formatPermalinkLine(roomFacts.permalink)}`;
+    const bmpLegacy = `Hola \u{2605}\n\n\u{26A1} Internet\n\n\u{27A1} ${roomFacts.permalink}`;
+    expect(shareCopyNeedsEmojiFormat(bmpLegacy, roomFacts.permalink)).toBe(true);
+    const modern = `Hola ${SHARE_AI_HOME_EMOJI}\n\n${formatTagBullet("wifi")}\n\n${formatPermalinkLine(roomFacts.permalink)}`;
     expect(shareCopyNeedsEmojiFormat(modern, roomFacts.permalink)).toBe(false);
   });
 
-  it("share symbols stay in the BMP for WhatsApp URL share", () => {
-    expect(hasAstralPlaneChar(SHARE_AI_LINK_EMOJI)).toBe(false);
-    expect(hasAstralPlaneChar(SHARE_AI_HOME_EMOJI)).toBe(false);
-    for (const tag of [
-      "wifi",
-      "vigilancia",
-      "cocina-equipada",
-      "lavadora",
-      "secadora",
-      "seguridad-acceso",
-      "lgbt-friendly",
-    ]) {
-      expect(hasAstralPlaneChar(formatTagBullet(tag))).toBe(false);
-    }
-    expect(hasAstralPlaneChar(buildTemplateShareCopy(roomFacts))).toBe(false);
+  it("maps colorful copy to BMP-safe text for WhatsApp URL without a second LLM", () => {
+    const colorful = [
+      `Hola ${SHARE_AI_HOME_EMOJI}`,
+      "",
+      formatTagBullet("vigilancia"),
+      formatTagBullet("cocina-equipada"),
+      formatTagBullet("lavadora"),
+      "",
+      formatPermalinkLine(roomFacts.permalink),
+    ].join("\n");
+    expect(hasAstralPlaneChar(colorful)).toBe(true);
+    const safe = toWhatsAppSafeShareText(colorful);
+    expect(hasAstralPlaneChar(safe)).toBe(false);
+    expect(safe).toContain("\u{27A1} https://www.bestie.mx/anuncio/A12345678");
+    expect(safe).toContain("\u{25C9} Vigilancia");
+    expect(safe).toContain("\u{2615} Cocina equipada");
+    expect(safe).not.toContain(SHARE_AI_LINK_EMOJI);
   });
 
   it("user prompt includes structured facts and system prompt is first-person", () => {
