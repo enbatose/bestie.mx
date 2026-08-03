@@ -1,4 +1,4 @@
-/** Sliding-window rate limiter (in-memory). */
+/** Sliding-window rate limiter (in-memory). Not shared across process replicas. */
 
 export type RateLimitResult = { ok: true } | { ok: false; retryAfterMs: number };
 

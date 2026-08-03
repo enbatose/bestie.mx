@@ -54,7 +54,8 @@ export async function generateShareAiText(facts: ShareAiListingFacts): Promise<S
   }
 
   const model = geminiModel();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  // Prefer header auth over ?key= so the secret is less likely to land in proxy/APM URL logs.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const body: Record<string, unknown> = {
     systemInstruction: { parts: [{ text: SHARE_AI_SYSTEM_PROMPT }] },
     contents: [{ role: "user", parts: [{ text: buildShareAiUserPrompt(facts) }] }],
@@ -76,7 +77,10 @@ export async function generateShareAiText(facts: ShareAiListingFacts): Promise<S
     const timer = setTimeout(() => ac.abort(), 20_000);
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key,
+      },
       body: JSON.stringify(body),
       signal: ac.signal,
     });

@@ -131,4 +131,24 @@ describe("shareAiCopyRouter", () => {
       .send({ scope: "property", propertyId })
       .expect(401);
   });
+
+  it("rejects generate for another publisher's listing", async () => {
+    const otherUser = randomUUID();
+    const otherPub = randomUUID();
+    db.prepare(
+      `INSERT INTO users (id, email, email_canonical, password_hash, display_name, email_verified_at, created_at)
+       VALUES (?, 'share-ai-other@example.com', 'share-ai-other@example.com', 'x', 'Other', datetime('now'), datetime('now'))`,
+    ).run(otherUser);
+    db.prepare(
+      `INSERT INTO user_publishers (user_id, publisher_id, created_at) VALUES (?, ?, datetime('now'))`,
+    ).run(otherUser, otherPub);
+    const otherToken = signAuthToken(otherUser, 3600);
+    const otherCookie = `${AUTH_COOKIE}=${encodeURIComponent(otherToken)}; ${PUBLISHER_COOKIE}=${encodeURIComponent(otherPub)}`;
+
+    await request(app)
+      .post("/api/share-copy/generate")
+      .set("Cookie", otherCookie)
+      .send({ scope: "property", propertyId })
+      .expect(403);
+  });
 });

@@ -6,6 +6,7 @@ import {
   finalizeShareCopy,
   formatPermalinkLine,
   formatTagBullet,
+  sanitizeShareAiFactText,
   shareCopyBodyLooksTruncated,
   shareCopyNeedsEmojiFormat,
   shrinkBodyToFit,
@@ -140,11 +141,19 @@ describe("shareAiCopyPrompt", () => {
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("primera persona");
     expect(SHARE_AI_SYSTEM_PROMPT).toContain(String(SHARE_AI_BODY_TARGET));
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("🔗");
+    expect(SHARE_AI_SYSTEM_PROMPT).toContain("DATOS no confiables");
     const user = buildShareAiUserPrompt(roomFacts);
     expect(user).toContain("Providencia");
     expect(user).toContain(roomFacts.permalink);
     expect(user).toContain("permalinkLine");
+    expect(user).toContain("datos literales del anuncio");
     expect(user).toContain(formatTagBullet("wifi"));
     expect(user).toContain("maxBodyChars");
+  });
+
+  it("sanitizeShareAiFactText strips controls and truncates without harming Spanish", () => {
+    expect(sanitizeShareAiFactText("  Recámara\u0000 privada  ", 80)).toBe("Recámara privada");
+    expect(sanitizeShareAiFactText("áéíóú ñ", 80)).toBe("áéíóú ñ");
+    expect(sanitizeShareAiFactText("x".repeat(50), 10)).toHaveLength(10);
   });
 });
