@@ -297,6 +297,28 @@ function migrateRoomViewsCount(db: DatabaseSync): void {
   }
 }
 
+/** Publisher-facing AI share captions (not OG / listing summary). */
+function migrateShareAiText(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "share_ai_text")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN share_ai_text TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "share_ai_text_updated_at")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN share_ai_text_updated_at TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "share_ai_text_user_edited")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN share_ai_text_user_edited INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!tableHasColumn(db, "rooms", "share_ai_text")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN share_ai_text TEXT`);
+  }
+  if (!tableHasColumn(db, "rooms", "share_ai_text_updated_at")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN share_ai_text_updated_at TEXT`);
+  }
+  if (!tableHasColumn(db, "rooms", "share_ai_text_user_edited")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN share_ai_text_user_edited INTEGER NOT NULL DEFAULT 0`);
+  }
+}
+
 function ensureUploadBlobSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS upload_blobs (
@@ -378,6 +400,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migrateRoomTimestamps(db);
   migrateRoomOccupancyFields(db);
   migrateRoomViewsCount(db);
+  migrateShareAiText(db);
   ensureUploadBlobSchema(db);
 }
 

@@ -22,7 +22,7 @@ import {
   listingThumbSrc,
 } from "@/components/myListings/listingFormat";
 import { PublisherMetricChips } from "@/components/myListings/PublisherMetricChips";
-import { shareListingLink } from "@/components/myListings/shareListing";
+import { ShareAiCopyModal } from "@/components/share/ShareAiCopyModal";
 import {
   listingPublicPath,
   propertyPublicPath,
@@ -61,8 +61,6 @@ export type ListingPropertyCardProps = {
   /** Restore an archived room to published (property-room rows only). */
   onRestoreRoom: (l: PropertyListing) => void;
   onArchiveRoom: (l: PropertyListing) => void;
-  onShared: (mode: "shared" | "copied") => void;
-  onShareFailed: () => void;
   defaultRoomsOpen?: boolean;
 };
 
@@ -90,8 +88,6 @@ export function ListingPropertyCard({
   onRoomOccupancy,
   onRestoreRoom,
   onArchiveRoom,
-  onShared,
-  onShareFailed,
   defaultRoomsOpen = false,
 }: ListingPropertyCardProps) {
   const location = useLocation();
@@ -101,6 +97,12 @@ export function ListingPropertyCard({
   const isProperty = head.propertyPostMode === "property";
   const tone: CardTone = isProperty ? "property" : "room";
   const [roomsOpen, setRoomsOpen] = useState(defaultRoomsOpen);
+  const [shareOpen, setShareOpen] = useState<{
+    scope: "property" | "room";
+    propertyId: string | null;
+    roomId: string | null;
+    title: string;
+  } | null>(null);
 
   const first = list[0]!;
   const availableCount = list.filter(isAvailable).length;
@@ -126,10 +128,18 @@ export function ListingPropertyCard({
   const summedViews = list.reduce((n, l) => n + (l.viewsCount ?? 0), 0);
   const summedInquiries = list.reduce((n, l) => n + (l.inquiryCount ?? 0), 0);
 
-  async function share(path: string, title: string) {
-    const result = await shareListingLink(path, title);
-    if (result === "shared" || result === "copied") onShared(result);
-    else if (result === "failed") onShareFailed();
+  function openShare(opts: {
+    scope: "property" | "room";
+    propertyId?: string | null;
+    roomId?: string | null;
+    title: string;
+  }) {
+    setShareOpen({
+      scope: opts.scope,
+      propertyId: opts.propertyId ?? null,
+      roomId: opts.roomId ?? null,
+      title: opts.title,
+    });
   }
 
   const cardActions: CardActionItem[] = [
@@ -156,7 +166,13 @@ export function ListingPropertyCard({
           {
             key: "share",
             label: "Compartir",
-            onClick: () => void share(publicPath, head.propertyTitle ?? head.title),
+            onClick: () =>
+              void openShare({
+                scope: isProperty ? "property" : "room",
+                propertyId: isProperty ? propertyId : null,
+                roomId: isProperty ? null : first.id,
+                title: head.propertyTitle ?? head.title,
+              }),
             icon: <Share2 className="size-4 shrink-0" aria-hidden />,
           } satisfies CardActionItem,
         ]
@@ -390,7 +406,12 @@ export function ListingPropertyCard({
                     {
                       key: "share",
                       label: "Compartir",
-                      onClick: () => void share(roomPath, label),
+                      onClick: () =>
+                        void openShare({
+                          scope: "room",
+                          roomId: l.id,
+                          title: label,
+                        }),
                       icon: <Share2 className="size-3.5 shrink-0" aria-hidden />,
                     } satisfies CardActionItem,
                   ]
@@ -478,6 +499,15 @@ export function ListingPropertyCard({
           })}
         </ul>
       ) : null}
+
+      <ShareAiCopyModal
+        open={Boolean(shareOpen)}
+        onClose={() => setShareOpen(null)}
+        scope={shareOpen?.scope ?? "room"}
+        propertyId={shareOpen?.propertyId}
+        roomId={shareOpen?.roomId}
+        title={shareOpen?.title}
+      />
     </section>
   );
 }

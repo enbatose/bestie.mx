@@ -735,17 +735,6 @@ export function MyListingsPage() {
               onRoomOccupancy={handleRoomOccupancy}
               onRestoreRoom={(l) => void setRoomStatus(l, "published")}
               onArchiveRoom={(l) => setPendingConfirm({ kind: "archive-room", id: l.id })}
-              onShared={(mode) =>
-                setFlash({
-                  text:
-                    mode === "shared"
-                      ? "Enlace listo para compartir."
-                      : "Enlace del anuncio copiado.",
-                })
-              }
-              onShareFailed={() =>
-                setFlash({ text: "No se pudo copiar el enlace. Intenta de nuevo." })
-              }
             />
           );
         })}

@@ -30,6 +30,7 @@ import { injectFacebookAppId, injectListingShareOg, resolveListingShareOg } from
 import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
+import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
 import { buildSitemapXml } from "./sitemap.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
@@ -171,6 +172,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   });
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
+  app.use("/api/share-copy", shareAiCopyRouter(db));
 
   const uploadDir = resolveUploadDir(databasePath);
   app.use("/api/uploads", uploadsRouter({ db, uploadDir }));
