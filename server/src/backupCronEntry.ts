@@ -8,6 +8,10 @@ async function alert(reason: string, detail?: string): Promise<void> {
     subject: "[Bestie] Falló el respaldo diario de producción",
     text: `reason=${reason}\n${detail ?? ""}`,
     html: `<p><code>reason=${reason}</code></p><pre>${(detail ?? "").slice(0, 2000)}</pre>`,
+    tags: [
+      { name: "category", value: "backup_alert" },
+      { name: "product", value: "bestie" },
+    ],
   });
 }
 

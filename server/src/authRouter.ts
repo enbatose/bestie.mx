@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { sendWhatsAppOtpTemplate } from "./whatsappMeta.js";
+import { recordWhatsAppOtpSend } from "./usageAnalytics.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.js";
 import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash, isGoogleOAuthPasswordHash, isFacebookOAuthPasswordHash } from "./adminAuth.js";
@@ -706,7 +707,15 @@ export function authRouter(db: DatabaseSync) {
     ).run(id, phone, codeHash, Date.now() + OTP_TTL_MS, Date.now());
 
     void (async () => {
+      const metaConfigured = Boolean(
+        process.env.META_ACCESS_TOKEN?.trim() && process.env.META_WHATSAPP_PHONE_NUMBER_ID?.trim(),
+      );
+      if (!metaConfigured) {
+        recordWhatsAppOtpSend("skipped");
+        return;
+      }
       const sent = await sendWhatsAppOtpTemplate(phone.replace("+", ""), code);
+      recordWhatsAppOtpSend(sent.ok ? "ok" : "fail");
       if (!sent.ok && process.env.NODE_ENV === "production") {
         console.warn(`[whatsapp] send failed: ${sent.error}`);
       }

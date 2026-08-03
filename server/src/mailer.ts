@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
+import { recordEmailSent } from "./usageAnalytics.js";
 
 export type SmtpDiagnostics = {
   configured: boolean;
@@ -402,6 +403,7 @@ async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts):
   if (data?.id) {
     console.log(`[email] Resend sent id=${data.id}`);
   }
+  recordEmailSent({ tags: opts.tags, channel: "resend" });
   return true;
 }
 
@@ -435,6 +437,7 @@ export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): 
       ...(replyTo ? { replyTo } : {}),
       ...(opts.headers ? { headers: opts.headers } : {}),
     });
+    recordEmailSent({ tags: opts.tags, channel: "smtp" });
     return true;
   } catch (e) {
     console.error(`[email] send failed: ${sanitizeSmtpError(e)}`);

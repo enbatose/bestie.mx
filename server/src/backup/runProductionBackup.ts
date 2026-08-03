@@ -40,6 +40,10 @@ export async function sendBackupFailureAlert(reason: string, detail?: string): P
     html: `<p>El respaldo nocturno de Bestie (prod) falló.</p><p><code>reason=${reason}</code></p>${
       detail ? `<pre>${detail.slice(0, 2000).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] ?? c))}</pre>` : ""
     }`,
+    tags: [
+      { name: "category", value: "backup_alert" },
+      { name: "product", value: "bestie" },
+    ],
   });
 }
 

@@ -9,6 +9,7 @@ import {
   type ShareAiListingFacts,
   type ShareAiScope,
 } from "./shareAiCopyPrompt.js";
+import { recordGeminiTokens, recordShareAiGenerate } from "./usageAnalytics.js";
 
 type PropRow = {
   id: string;
@@ -206,6 +207,7 @@ export async function getOrCreateShareAiCopy(
       !force &&
       (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
     if (shouldReuse) {
+      recordShareAiGenerate("stored", "property");
       return {
         scope: "property",
         propertyId,
@@ -217,6 +219,10 @@ export async function getOrCreateShareAiCopy(
       };
     }
     const gen = await generateShareAiText(facts);
+    recordShareAiGenerate(gen.source, "property");
+    if (gen.source === "gemini") {
+      recordGeminiTokens(gen.promptTokens ?? 0, gen.outputTokens ?? 0, gen.model ?? "gemini");
+    }
     persistPropertyShareText(db, propertyId, gen.text, false);
     return {
       scope: "property",
@@ -243,6 +249,7 @@ export async function getOrCreateShareAiCopy(
     !force &&
     (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
   if (shouldReuse) {
+    recordShareAiGenerate("stored", "room");
     return {
       scope: "room",
       propertyId: room.property_id,
@@ -254,6 +261,10 @@ export async function getOrCreateShareAiCopy(
     };
   }
   const gen = await generateShareAiText(facts);
+  recordShareAiGenerate(gen.source, "room");
+  if (gen.source === "gemini") {
+    recordGeminiTokens(gen.promptTokens ?? 0, gen.outputTokens ?? 0, gen.model ?? "gemini");
+  }
   persistRoomShareText(db, roomId, gen.text, false);
   return {
     scope: "room",

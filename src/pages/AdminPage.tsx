@@ -11,8 +11,10 @@ import {
   adminReplySupportThread,
   adminStreetViewAnalytics,
   adminImageUploadAnalytics,
+  adminUsageAnalytics,
   type AdminStreetViewAnalytics,
   type AdminImageUploadAnalytics,
+  type AdminUsageAnalytics,
   type AdminSupportConversationRow,
   type AdminSupportThread,
   type AdminUserRow,
@@ -53,6 +55,43 @@ function formatUsd(n: number): string {
   return n.toLocaleString("es-MX", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 }
 
+function formatCategoryLabel(key: string): string {
+  const map: Record<string, string> = {
+    email_verification: "Verificación de email",
+    password_reset: "Reset de contraseña",
+    saved_search: "Búsqueda guardada",
+    message_digest: "Digest de mensajes",
+    backup_alert: "Alerta de respaldo",
+    inbound_forward_alert: "Alerta reenvío inbound",
+    uncategorized: "Sin categoría",
+    contacto_forward: "Contacto (reenviado)",
+    inbound_other: "Inbound (otros)",
+    ok: "Enviado OK",
+    fail: "Falló",
+    skipped: "Omitido (Meta off)",
+    gemini: "Gemini",
+    template: "Plantilla (fallback)",
+    stored: "Caché / ya guardado",
+  };
+  return map[key] ?? key;
+}
+
+function QuotaBar({ value, limit, warnAt = 80 }: { value: number; limit: number; warnAt?: number }) {
+  const pct = limit > 0 ? Math.min(100, (value / limit) * 100) : 0;
+  const warn = pct >= warnAt;
+  return (
+    <div
+      className="mt-2 h-2 overflow-hidden rounded-full bg-surface-elevated"
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div className={`h-full rounded-full ${warn ? "bg-warning" : "bg-secondary"}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 export function AdminPage() {
   const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte">("users");
   const [err, setErr] = useState<string | null>(null);
@@ -79,6 +118,7 @@ export function AdminPage() {
   const monthChoices = useMemo(() => monthOptions(12), []);
   const [streetViewMonth, setStreetViewMonth] = useState(() => monthChoices[0] ?? new Date().toISOString().slice(0, 7));
   const [streetView, setStreetView] = useState<AdminStreetViewAnalytics | null>(null);
+  const [usage, setUsage] = useState<AdminUsageAnalytics | null>(null);
   const [imageUploads, setImageUploads] = useState<AdminImageUploadAnalytics | null>(null);
   const [imageFailuresOnly, setImageFailuresOnly] = useState(true);
   const [propId, setPropId] = useState("");
@@ -103,6 +143,10 @@ export function AdminPage() {
 
   const loadStreetView = useCallback(async (month: string) => {
     setStreetView(await adminStreetViewAnalytics(month));
+  }, []);
+
+  const loadUsage = useCallback(async (month: string) => {
+    setUsage(await adminUsageAnalytics(month));
   }, []);
 
   const loadImageUploads = useCallback(async (failuresOnly: boolean) => {
@@ -161,13 +205,14 @@ export function AdminPage() {
         await loadCities();
         await loadSummary();
         await loadStreetView(streetViewMonth);
+        await loadUsage(streetViewMonth);
         await loadImageUploads(imageFailuresOnly);
         setErr(null);
       } catch (x) {
         setErr(x instanceof Error ? x.message : "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).");
       }
     })();
-  }, [loadUsers, loadCities, loadSummary, loadStreetView, loadImageUploads, streetViewMonth, imageFailuresOnly]);
+  }, [loadUsers, loadCities, loadSummary, loadStreetView, loadUsage, loadImageUploads, streetViewMonth, imageFailuresOnly]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setSupportDebouncedSearch(supportSearchInput.trim()), 300);
@@ -431,6 +476,163 @@ export function AdminPage() {
               </div>
             ) : (
               <p className="mt-4 text-muted">Cargando Street View…</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-body">Resend — cupo de email</h2>
+                <p className="mt-1 text-xs text-muted">
+                  Envíos + inbound cuentan al cupo free (100/día, 3,000/mes). Mismo mes UTC que Street View.
+                </p>
+              </div>
+            </div>
+            {usage ? (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-body">
+                      Mes: <strong>{usage.resend.quotaUnits.toLocaleString("es-MX")}</strong> /{" "}
+                      {usage.resend.monthlyLimit.toLocaleString("es-MX")} (enviados{" "}
+                      {usage.resend.sent.toLocaleString("es-MX")} + recibidos{" "}
+                      {usage.resend.received.toLocaleString("es-MX")})
+                    </p>
+                    <p className="text-xs text-muted">
+                      {usage.monthStart} — {usage.monthEnd}
+                    </p>
+                  </div>
+                  <QuotaBar value={usage.resend.quotaUnits} limit={usage.resend.monthlyLimit} />
+                </div>
+                <div>
+                  <p className="text-body">
+                    Hoy: <strong>{usage.resend.today.quotaUnits.toLocaleString("es-MX")}</strong> /{" "}
+                    {usage.resend.dailyLimit.toLocaleString("es-MX")}
+                  </p>
+                  <QuotaBar value={usage.resend.today.quotaUnits} limit={usage.resend.dailyLimit} warnAt={70} />
+                </div>
+                {Object.keys(usage.resend.byCategory).length > 0 ? (
+                  <ul className="space-y-1 text-xs text-muted">
+                    {Object.entries(usage.resend.byCategory)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([k, v]) => (
+                        <li key={k}>
+                          {formatCategoryLabel(k)}: {v.toLocaleString("es-MX")}
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted">Sin envíos registrados este mes (el conteo arranca con este deploy).</p>
+                )}
+                <p className="border-t border-border pt-4 text-xs text-muted">
+                  Verificado {usage.resend.pricing.lastVerified}.{" "}
+                  <a
+                    href={usage.resend.pricing.sourceUrl}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Cuotas Resend
+                  </a>
+                  . {usage.resend.pricing.note}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-muted">Cargando Resend…</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+            <div>
+              <h2 className="font-semibold text-body">Gemini — textos para compartir</h2>
+              <p className="mt-1 text-xs text-muted">
+                Generaciones de copy de anuncio (Google AI). Cache hits no llaman al API.
+              </p>
+            </div>
+            {usage ? (
+              <div className="mt-4 space-y-3">
+                <ul className="grid gap-2 sm:grid-cols-3 text-body">
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Llamadas Gemini: <strong>{usage.gemini.calls.toLocaleString("es-MX")}</strong>
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Tokens: <strong>{usage.gemini.promptTokens.toLocaleString("es-MX")}</strong> in /{" "}
+                    <strong>{usage.gemini.outputTokens.toLocaleString("es-MX")}</strong> out
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Costo est.: <strong>{formatUsd(usage.gemini.estimatedUsd)}</strong>
+                  </li>
+                </ul>
+                <ul className="space-y-1 text-xs text-muted">
+                  <li>
+                    {formatCategoryLabel("template")}: {usage.gemini.templateFallback.toLocaleString("es-MX")}
+                  </li>
+                  <li>
+                    {formatCategoryLabel("stored")}: {usage.gemini.storedCacheHits.toLocaleString("es-MX")}
+                  </li>
+                </ul>
+                <p className="border-t border-border pt-4 text-xs text-muted">
+                  Verificado {usage.gemini.pricing.lastVerified}.{" "}
+                  <a
+                    href={usage.gemini.pricing.sourceUrl}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Gemini pricing
+                  </a>{" "}
+                  (${usage.gemini.pricing.inputUsdPer1M}/1M in · ${usage.gemini.pricing.outputUsdPer1M}/1M out).{" "}
+                  {usage.gemini.pricing.note}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-muted">Cargando Gemini…</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+            <div>
+              <h2 className="font-semibold text-body">WhatsApp OTP + almacenamiento</h2>
+              <p className="mt-1 text-xs text-muted">Meta Cloud API (OTP) y fotos en SQLite (`upload_blobs`).</p>
+            </div>
+            {usage ? (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-body">
+                    Retos OTP creados (mes):{" "}
+                    <strong>{usage.whatsappOtp.challengesCreated.toLocaleString("es-MX")}</strong>
+                  </p>
+                  {usage.whatsappOtp.trackedSends > 0 ? (
+                    <ul className="mt-2 space-y-1 text-xs text-muted">
+                      {Object.entries(usage.whatsappOtp.byResult).map(([k, v]) => (
+                        <li key={k}>
+                          {formatCategoryLabel(k)}: {v.toLocaleString("es-MX")}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted">{usage.whatsappOtp.note}</p>
+                  )}
+                </div>
+                <div className="border-t border-border pt-4">
+                  <p className="text-body">
+                    Blobs de fotos: <strong>{usage.storage.blobCount.toLocaleString("es-MX")}</strong> ·{" "}
+                    <strong>{usage.storage.totalBytesLabel}</strong>
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Tamaño en Railway volume / DB. No incluye bucket de respaldos S3.
+                  </p>
+                </div>
+                {usage.notes.length > 0 ? (
+                  <ul className="border-t border-border pt-4 space-y-1 text-xs text-muted">
+                    {usage.notes.map((n) => (
+                      <li key={n}>• {n}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-4 text-muted">Cargando…</p>
             )}
           </div>
 

@@ -619,6 +619,62 @@ export async function adminStreetViewAnalytics(
   return (await res.json()) as AdminStreetViewAnalytics;
 }
 
+export type AdminUsageAnalytics = {
+  month: string;
+  monthStart: string;
+  monthEnd: string;
+  resend: {
+    sent: number;
+    received: number;
+    quotaUnits: number;
+    dailyLimit: number;
+    monthlyLimit: number;
+    today: { sent: number; received: number; quotaUnits: number };
+    byCategory: Record<string, number>;
+    byChannel: Record<string, number>;
+    receivedByKind: Record<string, number>;
+    pricing: { sourceUrl: string; lastVerified: string; note: string };
+  };
+  gemini: {
+    calls: number;
+    templateFallback: number;
+    storedCacheHits: number;
+    promptTokens: number;
+    outputTokens: number;
+    estimatedUsd: number;
+    byModel: { promptTokens: Record<string, number>; outputTokens: Record<string, number> };
+    pricing: {
+      sourceUrl: string;
+      lastVerified: string;
+      inputUsdPer1M: number;
+      outputUsdPer1M: number;
+      note: string;
+    };
+  };
+  whatsappOtp: {
+    trackedSends: number;
+    byResult: Record<string, number>;
+    challengesCreated: number;
+    note: string;
+  };
+  storage: { blobCount: number; totalBytes: number; totalBytesLabel: string };
+  notes: string[];
+};
+
+export async function adminUsageAnalytics(
+  month?: string,
+  signal?: AbortSignal,
+): Promise<AdminUsageAnalytics> {
+  const base = apiBase();
+  const q = month ? `?month=${encodeURIComponent(month)}` : "";
+  const res = await networkFetch(`${base}/api/admin/analytics/usage${q}`, {
+    credentials: cred,
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_usage_${res.status}`);
+  return (await res.json()) as AdminUsageAnalytics;
+}
+
 export type AdminImageUploadAnalytics = {
   windowHours: number;
   summary: {

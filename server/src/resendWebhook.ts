@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { Resend } from "resend";
 import { cleanEnv, sendTransactionalEmail } from "./mailer.js";
+import { recordEmailReceived } from "./usageAnalytics.js";
 
 /** Only published / forwarded inbound address on bestie.mx. */
 export const CONTACT_INBOUND_ADDRESS = "contacto@bestie.mx";
@@ -284,6 +285,10 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
     if (subject) parts.push(`subject=${subject.slice(0, 80)}`);
     if (domain) parts.push(`domain=${domain}`);
     console.log(`[resend] ${parts.join(" ")}`);
+
+    if (event.type === "email.received") {
+      recordEmailReceived(shouldForwardInbound(to) ? "contacto_forward" : "inbound_other");
+    }
 
     if (event.type === "email.received" && emailId && shouldForwardInbound(to)) {
       try {
