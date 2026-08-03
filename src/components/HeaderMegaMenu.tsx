@@ -11,6 +11,7 @@ import {
   Shield,
   Star,
   User,
+  X,
 } from "lucide-react";
 import { SavedSearchIcon } from "@/components/icons/SavedSearchIcon";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -227,9 +228,19 @@ function LoggedInIconActions({
             role="menu"
           >
             <div className="flex max-h-[min(70dvh,28rem)] flex-col md:max-h-none">
-              <p className="shrink-0 border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted dark:border-slate-600">
-                Notificaciones
-              </p>
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3 dark:border-slate-600">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Notificaciones
+                </p>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-elevated hover:text-body focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-label="Cerrar"
+                >
+                  <X className="size-4" aria-hidden strokeWidth={2.5} />
+                </button>
+              </div>
               <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 md:max-h-80">
                 {notifications.slice(0, 5).map((n) => (
                   <li key={n.id}>
