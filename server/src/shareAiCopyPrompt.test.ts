@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  SHARE_AI_HOME_EMOJI,
+  SHARE_AI_LINK_EMOJI,
   SHARE_AI_SYSTEM_PROMPT,
   buildShareAiUserPrompt,
   buildTemplateShareCopy,
   finalizeShareCopy,
   formatPermalinkLine,
   formatTagBullet,
+  hasAstralPlaneChar,
   sanitizeShareAiFactText,
   shareCopyBodyLooksTruncated,
   shareCopyNeedsEmojiFormat,
