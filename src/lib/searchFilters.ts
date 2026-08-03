@@ -311,7 +311,7 @@ export const TAG_LABELS: Record<ListingTag, string> = {
   profesionistas: "Profesionistas",
   estudiantes: "Estudiantes",
   "residentes-medicos": "Residentes Médicos",
-  "nomadas-digitales": "Nómadas Digitales",
+  "nomadas-digitales": "Nómada Dig.",
   "individuos-solo": "Individuos (Solo)",
   parejas: "Parejas",
   "familiar-ninos": "Familiar con niños",

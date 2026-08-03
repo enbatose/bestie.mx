@@ -54,7 +54,7 @@ const TAG_LABELS: Record<string, string> = {
   profesionistas: "Profesionistas",
   estudiantes: "Estudiantes",
   "residentes-medicos": "Residentes médicos",
-  "nomadas-digitales": "Nómadas digitales",
+  "nomadas-digitales": "Nómada Dig.",
   "individuos-solo": "Individual",
   parejas: "Parejas",
   "familiar-ninos": "Familiar / niños",
