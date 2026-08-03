@@ -109,13 +109,13 @@ describe("shareAiCopyPrompt", () => {
     const body = [
       "Busco roomie en Americana. Renta 3500.",
       "",
-      "🚿 Baño privado",
-      "🫧 Lavadora",
-      "🌬️ Secadora",
-      "🌿 Terraza",
-      "🚗 Estacionamiento",
-      "❄️ Aire acondicionado",
-      "🏳️‍🌈 LGBT friendly",
+      "♨ Baño privado",
+      "✅ Lavadora",
+      "☁ Secadora",
+      "☘ Terraza",
+      "▶ Estacionamiento",
+      "❄ Aire acondicionado",
+      "♥ LGBT friendly",
       "",
       "Si te interesa conocer el espacio y convivir, revisa los detalles en Bestie:",
     ].join("\n");
@@ -133,17 +133,36 @@ describe("shareAiCopyPrompt", () => {
     expect(shareCopyBodyLooksTruncated(good, roomFacts.permalink)).toBe(false);
   });
 
-  it("detects classic bullet format that needs emoji refresh", () => {
+  it("detects classic or astral emoji format that needs refresh", () => {
     const classic = `Hola\n\n• Internet\n\n${roomFacts.permalink}`;
     expect(shareCopyNeedsEmojiFormat(classic, roomFacts.permalink)).toBe(true);
-    const modern = `Hola\n\n📶 Internet\n\n${formatPermalinkLine(roomFacts.permalink)}`;
+    const astral = `Hola 🏠\n\n👀 Vigilancia\n\n🔗 ${roomFacts.permalink}`;
+    expect(shareCopyNeedsEmojiFormat(astral, roomFacts.permalink)).toBe(true);
+    const modern = `Hola ${SHARE_AI_HOME_EMOJI}\n\n⚡ Internet\n\n${formatPermalinkLine(roomFacts.permalink)}`;
     expect(shareCopyNeedsEmojiFormat(modern, roomFacts.permalink)).toBe(false);
+  });
+
+  it("share symbols stay in the BMP for WhatsApp URL share", () => {
+    expect(hasAstralPlaneChar(SHARE_AI_LINK_EMOJI)).toBe(false);
+    expect(hasAstralPlaneChar(SHARE_AI_HOME_EMOJI)).toBe(false);
+    for (const tag of [
+      "wifi",
+      "vigilancia",
+      "cocina-equipada",
+      "lavadora",
+      "secadora",
+      "seguridad-acceso",
+      "lgbt-friendly",
+    ]) {
+      expect(hasAstralPlaneChar(formatTagBullet(tag))).toBe(false);
+    }
+    expect(hasAstralPlaneChar(buildTemplateShareCopy(roomFacts))).toBe(false);
   });
 
   it("user prompt includes structured facts and system prompt is first-person", () => {
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("primera persona");
     expect(SHARE_AI_SYSTEM_PROMPT).toContain(String(SHARE_AI_BODY_TARGET));
-    expect(SHARE_AI_SYSTEM_PROMPT).toContain("🔗");
+    expect(SHARE_AI_SYSTEM_PROMPT).toContain(SHARE_AI_LINK_EMOJI);
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("DATOS no confiables");
     const user = buildShareAiUserPrompt(roomFacts);
     expect(user).toContain("Providencia");

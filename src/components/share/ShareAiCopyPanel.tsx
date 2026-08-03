@@ -126,7 +126,7 @@ export function ShareAiCopyPanel({
     }
   }
 
-  function openExternal(kind: "facebook" | "whatsapp" | "instagram") {
+  async function openExternal(kind: "facebook" | "whatsapp" | "instagram") {
     const permalink = payload?.permalink ?? "";
     track("listing_share_ai_channel", {
       scope,
@@ -134,7 +134,18 @@ export function ShareAiCopyPanel({
       listing_id: roomId ?? propertyId ?? "",
     });
     if (kind === "whatsapp") {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+      // Prefill via URL; also copy so Desktop/Web users can paste if the client mangles text.
+      void copyText(text).then((ok) => {
+        if (ok) {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 2000);
+        }
+      });
+      window.open(
+        `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
     if (kind === "facebook") {
@@ -265,8 +276,8 @@ export function ShareAiCopyPanel({
               </button>
             </div>
             <p className="mt-2 text-[11px] leading-snug text-muted">
-              Tip: en Facebook e Instagram, pega el texto que copiaste. WhatsApp suele llevar el mensaje
-              listo.
+              Tip: WhatsApp lleva el mensaje prellenado (y también lo copiamos por si hace falta
+              pegar). En Facebook e Instagram, pega el texto del Paso 1.
             </p>
           </div>
         </>
