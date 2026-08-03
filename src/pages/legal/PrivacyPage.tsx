@@ -85,7 +85,9 @@ export function PrivacyPage() {
               Feedback de Bestie desde el chat directo, el menú Feedback, el mapa de búsqueda o las
               invitaciones a calificar el producto, y los archivos que adjuntes, por ejemplo capturas
               de pantalla), calificaciones (por ejemplo de 1 a 5 estrellas) y comentarios opcionales
-              asociados a ese feedback, y tus interacciones en la Plataforma.
+              asociados a ese feedback, textos sugeridos para compartir tu anuncio (generados con
+              ayuda de IA a partir de datos estructurados del anuncio y editables por ti) y tus
+              interacciones en la Plataforma.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
@@ -199,6 +201,7 @@ export function PrivacyPage() {
           items={[
             "Crear, autenticar y administrar tu cuenta.",
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
+            "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
             "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña, notificaciones del servicio).",
             "Enviarte correos de aviso cuando tengas mensajes nuevos en Bestie (como máximo uno cada 3 horas; el correo no incluye el contenido de los mensajes). Si en ese periodo también se crearon notificaciones en la app, podemos resumirlas en el mismo correo.",
@@ -250,6 +253,7 @@ export function PrivacyPage() {
             "Proveedor de envío de correos electrónicos transaccionales.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
+            "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para generar, a tu solicitud o al publicar, un texto sugerido de compartir basado en los datos estructurados de tu anuncio (por ejemplo, zona, renta, tipo de espacio y etiquetas). Ese texto no sustituye la descripción pública del anuncio ni se usa como vista previa Open Graph; puedes editarlo antes de compartirlo.",
           ]}
         />
         <p>

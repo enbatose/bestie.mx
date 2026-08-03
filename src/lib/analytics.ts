@@ -53,6 +53,17 @@ export type AnalyticsProps = {
     from_search: boolean;
   };
   listing_share_copied: { listing_id: string };
+  listing_share_ai_ready: {
+    scope: "property" | "room";
+    source: "stored" | "gemini" | "template";
+    listing_id: string;
+  };
+  listing_share_ai_copied: { scope: "property" | "room"; listing_id: string };
+  listing_share_ai_channel: {
+    scope: "property" | "room";
+    channel: "whatsapp" | "facebook" | "instagram" | "system";
+    listing_id: string;
+  };
   listing_contact_clicked: { listing_id: string };
   listing_message_sent: { listing_id: string; has_body: boolean };
   listing_auth_required: { listing_id: string; reason: "message" };

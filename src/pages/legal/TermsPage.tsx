@@ -90,6 +90,7 @@ export function TermsPage() {
         <LegalList
           items={[
             "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida.",
+            "Generar (con ayuda de inteligencia artificial) un texto sugerido para que compartas tu anuncio en redes o mensajería; puedes revisarlo y editarlo antes de enviarlo. Ese texto no forma parte de la ficha pública del anuncio ni de su vista previa al compartir el enlace.",
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
             "Contactar a otros usuarios mediante el chat directo en Bestie u otros canales habilitados.",
@@ -206,8 +207,9 @@ export function TermsPage() {
         <p>
           El Servicio se apoya en proveedores externos, por ejemplo: proveedores de inicio de sesión
           (Google, Facebook/Meta), mapas y teselas de terceros (por ejemplo, OpenStreetMap),
-          envío de correos electrónicos, infraestructura de alojamiento y
-          analítica de producto (PostHog). El uso de estas funciones puede estar sujeto a los términos
+          envío de correos electrónicos, infraestructura de alojamiento,
+          analítica de producto (PostHog) y modelos de inteligencia artificial (Google Gemini) para
+          sugerir textos de compartir de anuncios. El uso de estas funciones puede estar sujeto a los términos
           y políticas de dichos terceros. Bestie no es responsable por los servicios, la disponibilidad
           ni las prácticas de esos terceros.
         </p>

@@ -43,6 +43,7 @@ import {
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
+import { ShareAiCopyPanel } from "@/components/share/ShareAiCopyPanel";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
   LISTING_TAG_SLUG_SET,
@@ -800,6 +801,10 @@ export function PublishWizardPage() {
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
   const [publishSuccessPath, setPublishSuccessPath] = useState<string | null>(null);
+  const [publishSuccessPropertyId, setPublishSuccessPropertyId] = useState<string | null>(null);
+  const [publishSuccessShareScope, setPublishSuccessShareScope] = useState<"property" | "room">(
+    "room",
+  );
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
@@ -2496,10 +2501,15 @@ export function PublishWizardPage() {
 
         setEditingLiveProperty(null);
         clearLiveEditSession();
+        const successPropertyId = serverSyncRef.current.propertyId;
+        const shareScope =
+          draftRef.current.postMode === "property" && successPropertyId ? "property" : "room";
         setServerSync({ propertyId: null, roomIds: [] });
         serverSyncRef.current = { propertyId: null, roomIds: [] };
         setPublishSuccessPath(sharePath);
         setPublishSuccessRoomId(returnId);
+        setPublishSuccessPropertyId(successPropertyId);
+        setPublishSuccessShareScope(shareScope);
         return;
       }
       if (result.kind === "error") {
@@ -2691,7 +2701,7 @@ export function PublishWizardPage() {
         : "Listo. Tu recámara ya está publicada";
 
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-lg px-4 py-10 text-center sm:px-6 sm:py-16">
         <div
           className="mx-auto inline-flex rounded-full bg-secondary/15 p-4 text-primary dark:bg-secondary/20"
           aria-hidden
@@ -2701,8 +2711,19 @@ export function PublishWizardPage() {
 
         <h1 className="mt-8 text-2xl font-bold text-body">{successTitle}</h1>
         <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-muted">
-          Tu anuncio ya está visible para la comunidad. Te notificaremos en cuanto alguien se interese en tu espacio.
+          Tu anuncio ya está visible para la comunidad. Comparte el mensaje optimizado para llegar más
+          rápido a roomies en WhatsApp, Facebook e Instagram.
         </p>
+
+        <div className="mx-auto mt-6 max-w-md text-left">
+          <ShareAiCopyPanel
+            scope={publishSuccessShareScope}
+            propertyId={
+              publishSuccessShareScope === "property" ? publishSuccessPropertyId : null
+            }
+            roomId={publishSuccessShareScope === "room" ? publishSuccessRoomId : null}
+          />
+        </div>
 
         <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-bg-light p-4 text-left">
           <ul className="space-y-3 text-sm leading-relaxed text-muted">
