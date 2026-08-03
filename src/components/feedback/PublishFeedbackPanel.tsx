@@ -48,11 +48,11 @@ function StarPicker({
             onFocus={() => setHover(n)}
             onBlur={() => setHover(0)}
             onClick={() => onChange(n)}
-            className="rounded-full p-1 transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 disabled:opacity-50"
+            className="rounded-full p-1 transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:opacity-50"
           >
             <Star
               className={`size-8 sm:size-9 ${
-                filled ? "fill-secondary text-secondary" : "fill-transparent text-border"
+                filled ? "fill-amber-400 text-amber-400" : "fill-transparent text-border"
               }`}
               strokeWidth={1.6}
               aria-hidden
@@ -127,12 +127,12 @@ export function PublishFeedbackPanel({
 
   return (
     <div
-      className={`rounded-2xl border border-secondary/30 bg-secondary/5 text-left p-4 sm:p-5 ${className}`}
+      className={`rounded-2xl border border-amber-500/30 bg-amber-500/5 text-left p-4 sm:p-5 ${className}`}
       aria-labelledby={titleId}
     >
       <div className="flex items-start gap-2">
         <span
-          className="mt-0.5 inline-flex rounded-full bg-secondary/20 p-1.5 text-primary"
+          className="mt-0.5 inline-flex rounded-full bg-amber-500/15 p-1.5 text-amber-700"
           aria-hidden
         >
           <MessageCircleHeart className="size-4" />
@@ -148,7 +148,7 @@ export function PublishFeedbackPanel({
       </div>
 
       {sent ? (
-        <p className="mt-4 text-center text-sm font-semibold text-primary" role="status">
+        <p className="mt-4 text-center text-sm font-semibold text-amber-800" role="status">
           ¡Gracias!
         </p>
       ) : (
@@ -164,7 +164,7 @@ export function PublishFeedbackPanel({
               rows={3}
               disabled={sending}
               placeholder="Cuéntanos qué funcionó bien o qué mejorarías…"
-              className="min-h-[5rem] w-full resize-y rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
+              className="min-h-[5rem] w-full resize-y rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none ring-amber-500/40 focus:ring-2 disabled:opacity-60"
             />
           </label>
           {err ? (
@@ -176,7 +176,7 @@ export function PublishFeedbackPanel({
             type="button"
             onClick={() => void submit()}
             disabled={sending || rating < 1}
-            className="w-full rounded-full bg-secondary py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-full bg-amber-600 py-3 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? "Enviando…" : "Enviar feedback"}
           </button>
