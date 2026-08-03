@@ -46,28 +46,29 @@ describe("usageAnalytics", () => {
     bindUsageAnalyticsDb(db);
   });
 
-  it("rolls up Resend quota units without double-counting channel dims", () => {
+  it("rolls up Resend quota units without double-counting channel dims", async () => {
     recordEmailSent({ tags: [{ name: "category", value: "email_verification" }], channel: "resend" });
     recordEmailSent({ tags: [{ name: "category", value: "saved_search" }], channel: "resend" });
     recordEmailReceived("contacto_forward");
 
     const month = new Date().toISOString().slice(0, 7);
-    const body = buildUsageAnalyticsResponse(db, month);
+    const body = await buildUsageAnalyticsResponse(db, month);
     expect(body).not.toBeNull();
     expect(body!.resend.sent).toBe(2);
     expect(body!.resend.received).toBe(1);
     expect(body!.resend.quotaUnits).toBe(3);
     expect(body!.resend.byCategory.email_verification).toBe(1);
     expect(body!.resend.byChannel.resend).toBe(2);
+    expect(body!.posthog.configured).toBe(false);
   });
 
-  it("estimates Gemini USD from token counters", () => {
+  it("estimates Gemini USD from token counters", async () => {
     recordShareAiGenerate("gemini", "property");
     recordShareAiGenerate("stored", "property");
     recordGeminiTokens(1_000_000, 1_000_000, "gemini-3.1-flash-lite");
 
     const month = new Date().toISOString().slice(0, 7);
-    const body = buildUsageAnalyticsResponse(db, month)!;
+    const body = (await buildUsageAnalyticsResponse(db, month))!;
     expect(body.gemini.calls).toBe(1);
     expect(body.gemini.storedCacheHits).toBe(1);
     expect(body.gemini.promptTokens).toBe(1_000_000);
@@ -76,7 +77,7 @@ describe("usageAnalytics", () => {
     expect(body.gemini.estimatedUsd).toBeCloseTo(1.75, 5);
   });
 
-  it("tracks WhatsApp OTP results and storage snapshot", () => {
+  it("tracks WhatsApp OTP results and storage snapshot", async () => {
     recordWhatsAppOtpSend("ok");
     recordWhatsAppOtpSend("skipped");
     db.prepare(
@@ -84,7 +85,7 @@ describe("usageAnalytics", () => {
     ).run("a.jpg", "image/jpeg", Buffer.from("hello"), new Date().toISOString());
 
     const month = new Date().toISOString().slice(0, 7);
-    const body = buildUsageAnalyticsResponse(db, month)!;
+    const body = (await buildUsageAnalyticsResponse(db, month))!;
     expect(body.whatsappOtp.trackedSends).toBe(2);
     expect(body.whatsappOtp.byResult.ok).toBe(1);
     expect(body.storage.blobCount).toBe(1);

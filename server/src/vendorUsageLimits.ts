@@ -20,3 +20,24 @@ export function estimateGeminiUsd(promptTokens: number, outputTokens: number): n
   const output = Math.max(0, outputTokens) / 1_000_000 * GEMINI_FLASH_LITE_OUTPUT_USD_PER_1M;
   return input + output;
 }
+
+/** PostHog Cloud free tier (resets monthly with billing period). */
+export const POSTHOG_PROJECT_ID = "517444";
+export const POSTHOG_QUERY_HOST = "https://us.posthog.com";
+export const POSTHOG_RECORDINGS_FREE_MONTHLY = 5000;
+export const POSTHOG_EVENTS_FREE_MONTHLY = 1_000_000;
+/** First paid tier after free allotment (web recordings). */
+export const POSTHOG_RECORDINGS_USD_EACH = 0.005;
+/** First paid tier after free allotment (product analytics events). */
+export const POSTHOG_EVENTS_USD_PER_EVENT = 0.00005;
+export const POSTHOG_PRICING_SOURCE = "https://posthog.com/pricing";
+export const POSTHOG_BILLING_URL = "https://us.posthog.com/organization/billing";
+export const POSTHOG_PRICING_LAST_VERIFIED = "2026-08-02";
+
+export function estimatePostHogRecordingsOverageUsd(recordings: number): number {
+  return Math.max(0, recordings - POSTHOG_RECORDINGS_FREE_MONTHLY) * POSTHOG_RECORDINGS_USD_EACH;
+}
+
+export function estimatePostHogEventsOverageUsd(events: number): number {
+  return Math.max(0, events - POSTHOG_EVENTS_FREE_MONTHLY) * POSTHOG_EVENTS_USD_PER_EVENT;
+}

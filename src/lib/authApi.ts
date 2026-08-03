@@ -651,6 +651,37 @@ export type AdminUsageAnalytics = {
       note: string;
     };
   };
+  posthog: {
+    configured: boolean;
+    available: boolean;
+    error: string | null;
+    month: string;
+    monthStart: string;
+    monthEnd: string;
+    recordings: {
+      total: number;
+      freeTierLimit: number;
+      billableOverage: number;
+      estimatedOverageUsd: number;
+    };
+    events: {
+      total: number;
+      freeTierLimit: number;
+      billableOverage: number;
+      estimatedOverageUsd: number;
+      uniquePersons: number;
+    };
+    exceptions: { total: number };
+    pricing: {
+      sourceUrl: string;
+      billingUrl: string;
+      lastVerified: string;
+      recordingsUsdEach: number;
+      eventsUsdEach: number;
+      note: string;
+    };
+    links: { replayHome: string; billing: string };
+  };
   whatsappOtp: {
     trackedSends: number;
     byResult: Record<string, number>;
