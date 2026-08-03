@@ -8,6 +8,9 @@ Product analytics for usage behavior. Client SDK: `posthog-js` + `@posthog/react
 | --- | --- |
 | `VITE_POSTHOG_PROJECT_TOKEN` | Project token (`phc_…`) — public, browser-safe |
 | `VITE_POSTHOG_HOST` | Ingestion host (US: `https://us.i.posthog.com`) |
+| `POSTHOG_PERSONAL_API_KEY` | Personal API key (`phx_…`) on the **API** Railway service (Dev + Prod) — powers Admin → Métricas live usage (recordings / events). Needs **query** scope. Create at https://us.posthog.com/settings/user-api-keys |
+| `POSTHOG_PROJECT_ID` | Optional override (default `517444`) |
+| `POSTHOG_API_HOST` | Optional override (default `https://us.posthog.com`) |
 
 Set these on the **production** Railway service (`bestie-prod`) only. Vite inlines `VITE_*` at build time — **never** set them on `bestie-dev`, local `.env`, or preview deploys.
 

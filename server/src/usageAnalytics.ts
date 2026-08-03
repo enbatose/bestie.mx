@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { fetchPostHogUsage } from "./posthogUsage.js";
 import { incrementAnalyticsDaily, parseMonthParam } from "./streetViewAnalytics.js";
 import {
   estimateGeminiUsd,
@@ -201,7 +202,7 @@ function whatsappOtpFromChallenges(
   }
 }
 
-export function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: unknown) {
+export async function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: unknown) {
   const parsed = parseMonthParam(monthParam);
   if (!parsed) return null;
   const { month, monthStart, monthEnd } = parsed;
@@ -233,6 +234,8 @@ export function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: unknow
   const whatsappByResult = sumMetricByDimension(db, WHATSAPP_OTP_METRIC, monthStart, monthEnd);
   const whatsappTracked = Object.values(whatsappByResult).reduce((a, b) => a + b, 0);
   const whatsappChallenges = whatsappOtpFromChallenges(db, monthStart, monthEnd);
+
+  const posthog = await fetchPostHogUsage(month, monthStart, monthEnd);
 
   return {
     month,
@@ -277,6 +280,7 @@ export function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: unknow
         note: "Share-copy generations only. Token totals from Gemini usageMetadata when present. Estimate uses Flash-Lite paid rates — reconcile with Google AI / GCP billing.",
       },
     },
+    posthog,
     whatsappOtp: {
       trackedSends: whatsappTracked,
       byResult: whatsappByResult,
@@ -286,7 +290,7 @@ export function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: unknow
     storage: uploadStorageSnapshot(db),
     notes: [
       "Street View Maps cost is on the card above.",
-      "PostHog session replay / product analytics billed in PostHog — not counted here.",
+      "PostHog numbers are live from the Query API when POSTHOG_PERSONAL_API_KEY is set on the API service.",
       "Railway volume + backup bucket size are ops-side; upload_blobs is the app photo store in SQLite.",
     ],
   };

@@ -592,6 +592,106 @@ export function AdminPage() {
 
           <div className="rounded-xl border border-border bg-surface p-4 text-sm">
             <div>
+              <h2 className="font-semibold text-body">PostHog — analytics y session replay</h2>
+              <p className="mt-1 text-xs text-muted">
+                Solo Prod captura (bestie.mx). Free tier: 5,000 recordings + 1M eventos/mes.
+              </p>
+            </div>
+            {usage ? (
+              <div className="mt-4 space-y-4">
+                {!usage.posthog.configured ? (
+                  <p className="text-sm text-muted">
+                    Configura <code className="rounded bg-bg-light px-1.5 py-0.5">POSTHOG_PERSONAL_API_KEY</code>{" "}
+                    en el servicio API (Railway) con scope de query. Crea la key en{" "}
+                    <a
+                      href="https://us.posthog.com/settings/user-api-keys"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Personal API keys
+                    </a>
+                    .
+                  </p>
+                ) : !usage.posthog.available ? (
+                  <p className="text-sm text-error">
+                    No se pudo consultar PostHog{usage.posthog.error ? `: ${usage.posthog.error}` : "."}
+                  </p>
+                ) : (
+                  <>
+                    <div>
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-body">
+                          Recordings:{" "}
+                          <strong>{usage.posthog.recordings.total.toLocaleString("es-MX")}</strong> /{" "}
+                          {usage.posthog.recordings.freeTierLimit.toLocaleString("es-MX")}
+                        </p>
+                        <p className="text-xs text-muted">
+                          Excedente est.: {formatUsd(usage.posthog.recordings.estimatedOverageUsd)}
+                        </p>
+                      </div>
+                      <QuotaBar
+                        value={usage.posthog.recordings.total}
+                        limit={usage.posthog.recordings.freeTierLimit}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-body">
+                          Eventos: <strong>{usage.posthog.events.total.toLocaleString("es-MX")}</strong> /{" "}
+                          {usage.posthog.events.freeTierLimit.toLocaleString("es-MX")}
+                        </p>
+                        <p className="text-xs text-muted">
+                          Personas únicas: {usage.posthog.events.uniquePersons.toLocaleString("es-MX")} ·
+                          Excepciones: {usage.posthog.exceptions.total.toLocaleString("es-MX")}
+                        </p>
+                      </div>
+                      <QuotaBar
+                        value={usage.posthog.events.total}
+                        limit={usage.posthog.events.freeTierLimit}
+                        warnAt={90}
+                      />
+                    </div>
+                  </>
+                )}
+                <p className="border-t border-border pt-4 text-xs text-muted">
+                  Verificado {usage.posthog.pricing.lastVerified}.{" "}
+                  <a
+                    href={usage.posthog.links.billing}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Billing
+                  </a>
+                  {" · "}
+                  <a
+                    href={usage.posthog.links.replayHome}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Replay
+                  </a>
+                  {" · "}
+                  <a
+                    href={usage.posthog.pricing.sourceUrl}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Pricing
+                  </a>
+                  . {usage.posthog.pricing.note}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-muted">Cargando PostHog…</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+            <div>
               <h2 className="font-semibold text-body">WhatsApp OTP + almacenamiento</h2>
               <p className="mt-1 text-xs text-muted">Meta Cloud API (OTP) y fotos en SQLite (`upload_blobs`).</p>
             </div>

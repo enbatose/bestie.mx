@@ -182,8 +182,8 @@ export function adminRouter(db: DatabaseSync) {
     res.json(body);
   });
 
-  r.get("/analytics/usage", (req: Request, res: Response) => {
-    const body = buildUsageAnalyticsResponse(db, req.query.month);
+  r.get("/analytics/usage", async (req: Request, res: Response) => {
+    const body = await buildUsageAnalyticsResponse(db, req.query.month);
     if (!body) {
       res.status(400).json({ error: "invalid_month" });
       return;
