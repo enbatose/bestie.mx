@@ -6,6 +6,7 @@ import { clampShareAiText, generateShareAiText } from "./shareAiCopyGemini.js";
 import {
   buildTemplateShareCopy,
   shareCopyBodyLooksTruncated,
+  shareCopyNeedsEmojiFormat,
   type ShareAiListingFacts,
   type ShareAiScope,
 } from "./shareAiCopyPrompt.js";
@@ -201,11 +202,13 @@ export async function getOrCreateShareAiCopy(
     const existing = (prop.share_ai_text ?? "").trim();
     const userEdited = Boolean(prop.share_ai_text_user_edited);
     const clampedExisting = existing ? clampShareAiText(existing, facts.permalink) : "";
-    // Auto-regen machine copy that was hard-truncated mid-CTA (legacy soft target was too high).
+    // Auto-regen machine copy that was truncated or still uses classic • bullets.
     const shouldReuse =
       Boolean(clampedExisting) &&
       !force &&
-      (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
+      (userEdited ||
+        (!shareCopyBodyLooksTruncated(clampedExisting, facts.permalink) &&
+          !shareCopyNeedsEmojiFormat(existing || clampedExisting, facts.permalink)));
     if (shouldReuse) {
       recordShareAiGenerate("stored", "property");
       return {
@@ -247,7 +250,9 @@ export async function getOrCreateShareAiCopy(
   const shouldReuse =
     Boolean(clampedExisting) &&
     !force &&
-    (userEdited || !shareCopyBodyLooksTruncated(clampedExisting, facts.permalink));
+    (userEdited ||
+      (!shareCopyBodyLooksTruncated(clampedExisting, facts.permalink) &&
+        !shareCopyNeedsEmojiFormat(existing || clampedExisting, facts.permalink)));
   if (shouldReuse) {
     recordShareAiGenerate("stored", "room");
     return {

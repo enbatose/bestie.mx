@@ -4,7 +4,10 @@ import {
   buildShareAiUserPrompt,
   buildTemplateShareCopy,
   finalizeShareCopy,
+  formatPermalinkLine,
+  formatTagBullet,
   shareCopyBodyLooksTruncated,
+  shareCopyNeedsEmojiFormat,
   shrinkBodyToFit,
   type ShareAiListingFacts,
 } from "./shareAiCopyPrompt.js";
@@ -74,11 +77,13 @@ const propertyFacts: ShareAiListingFacts = {
 };
 
 describe("shareAiCopyPrompt", () => {
-  it("builds template room copy under the hard cap with permalink last", () => {
+  it("builds template room copy under the hard cap with emoji permalink last", () => {
     const text = buildTemplateShareCopy(roomFacts);
     expect(text.length).toBeLessThanOrEqual(SHARE_AI_TEXT_MAX);
     expect(text.startsWith("Revisa mi cuarto")).toBe(true);
-    expect(text.trimEnd().endsWith(roomFacts.permalink)).toBe(true);
+    expect(text).toContain(formatTagBullet("wifi"));
+    expect(text).toContain(formatTagBullet("baño-privado"));
+    expect(text.trimEnd().endsWith(formatPermalinkLine(roomFacts.permalink))).toBe(true);
   });
 
   it("builds template property copy under the hard cap", () => {
@@ -86,27 +91,27 @@ describe("shareAiCopyPrompt", () => {
     expect(text.length).toBeLessThanOrEqual(SHARE_AI_TEXT_MAX);
     expect(text.startsWith("Revisa mi propiedad")).toBe(true);
     expect(text).toContain("2 cuartos");
-    expect(text.trimEnd().endsWith(propertyFacts.permalink)).toBe(true);
+    expect(text.trimEnd().endsWith(formatPermalinkLine(propertyFacts.permalink))).toBe(true);
   });
 
-  it("finalizeShareCopy truncates and keeps permalink", () => {
+  it("finalizeShareCopy truncates and keeps emoji permalink", () => {
     const long = `${"hola ".repeat(200)}\n${roomFacts.permalink}`;
     const out = finalizeShareCopy(long, roomFacts.permalink);
     expect(out.length).toBeLessThanOrEqual(SHARE_AI_TEXT_MAX);
-    expect(out.trimEnd().endsWith(roomFacts.permalink)).toBe(true);
+    expect(out.trimEnd().endsWith(formatPermalinkLine(roomFacts.permalink))).toBe(true);
   });
 
-  it("shrinkBodyToFit drops bullets before mid-sentence ellipsis", () => {
+  it("shrinkBodyToFit drops emoji bullets before mid-sentence ellipsis", () => {
     const body = [
       "Busco roomie en Americana. Renta 3500.",
       "",
-      "• Baño privado",
-      "• Lavadora",
-      "• Secadora",
-      "• Terraza",
-      "• Estacionamiento",
-      "• Aire acondicionado",
-      "• LGBT friendly",
+      "🚿 Baño privado",
+      "🫧 Lavadora",
+      "🌬️ Secadora",
+      "🌿 Terraza",
+      "🚗 Estacionamiento",
+      "❄️ Aire acondicionado",
+      "🏳️‍🌈 LGBT friendly",
       "",
       "Si te interesa conocer el espacio y convivir, revisa los detalles en Bestie:",
     ].join("\n");
@@ -118,18 +123,28 @@ describe("shareAiCopyPrompt", () => {
   });
 
   it("detects truncated body ending in ellipsis", () => {
-    const bad = `Texto largo…\n\n${roomFacts.permalink}`;
+    const bad = `Texto largo…\n\n${formatPermalinkLine(roomFacts.permalink)}`;
     expect(shareCopyBodyLooksTruncated(bad, roomFacts.permalink)).toBe(true);
-    const good = `Texto completo.\n\n${roomFacts.permalink}`;
+    const good = `Texto completo.\n\n${formatPermalinkLine(roomFacts.permalink)}`;
     expect(shareCopyBodyLooksTruncated(good, roomFacts.permalink)).toBe(false);
+  });
+
+  it("detects classic bullet format that needs emoji refresh", () => {
+    const classic = `Hola\n\n• Internet\n\n${roomFacts.permalink}`;
+    expect(shareCopyNeedsEmojiFormat(classic, roomFacts.permalink)).toBe(true);
+    const modern = `Hola\n\n📶 Internet\n\n${formatPermalinkLine(roomFacts.permalink)}`;
+    expect(shareCopyNeedsEmojiFormat(modern, roomFacts.permalink)).toBe(false);
   });
 
   it("user prompt includes structured facts and system prompt is first-person", () => {
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("primera persona");
     expect(SHARE_AI_SYSTEM_PROMPT).toContain(String(SHARE_AI_BODY_TARGET));
+    expect(SHARE_AI_SYSTEM_PROMPT).toContain("🔗");
     const user = buildShareAiUserPrompt(roomFacts);
     expect(user).toContain("Providencia");
     expect(user).toContain(roomFacts.permalink);
+    expect(user).toContain("permalinkLine");
+    expect(user).toContain(formatTagBullet("wifi"));
     expect(user).toContain("maxBodyChars");
   });
 });

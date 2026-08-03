@@ -33,6 +33,11 @@ export type ShareAiListingFacts = {
   permalink: string;
 };
 
+/** Prefix on the final permalink line in share copy. */
+export const SHARE_AI_LINK_EMOJI = "🔗";
+
+const DEFAULT_BULLET_EMOJI = "✅";
+
 const TAG_LABELS: Record<string, string> = {
   wifi: "Internet",
   agua: "Agua",
@@ -68,8 +73,65 @@ const TAG_LABELS: Record<string, string> = {
   "cerca-transporte": "Cerca de transporte",
 };
 
-function tagLabels(tags: readonly string[]): string[] {
-  return tags.map((t) => TAG_LABELS[t] ?? t).filter(Boolean);
+const TAG_EMOJIS: Record<string, string> = {
+  wifi: "📶",
+  agua: "💧",
+  luz: "💡",
+  gas: "🔥",
+  mascotas: "🐾",
+  estacionamiento: "🚗",
+  muebles: "🛋️",
+  "baño-privado": "🚿",
+  fumar: "🚬",
+  ventilador: "🌀",
+  closet: "👕",
+  fiestas: "🎉",
+  "aire-acondicionado": "❄️",
+  "seguridad-acceso": "🔐",
+  vigilancia: "👀",
+  lavanderia: "🧺",
+  lavadora: "🫧",
+  secadora: "🌬️",
+  "cocina-equipada": "🍳",
+  terraza: "🌿",
+  "lgbt-friendly": "🏳️‍🌈",
+  profesionistas: "💼",
+  estudiantes: "📚",
+  "residentes-medicos": "🩺",
+  "nomadas-digitales": "💻",
+  "individuos-solo": "🧍",
+  parejas: "💑",
+  "familiar-ninos": "👨‍👩‍👧",
+  "servicios-incluidos": "🧾",
+  "cerradura-cuarto": "🔒",
+  "agua-caliente": "♨️",
+  "cerca-transporte": "🚌",
+};
+
+function tagLabel(tag: string): string {
+  return TAG_LABELS[tag] ?? tag;
+}
+
+function tagEmoji(tag: string): string {
+  return TAG_EMOJIS[tag] ?? DEFAULT_BULLET_EMOJI;
+}
+
+/** `📶 Internet` — ready to paste as a bullet line. */
+export function formatTagBullet(tag: string): string {
+  return `${tagEmoji(tag)} ${tagLabel(tag)}`;
+}
+
+function tagBulletLines(tags: readonly string[], limit = SHARE_AI_MAX_BULLETS): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const t of tags) {
+    const line = formatTagBullet(t);
+    if (seen.has(line)) continue;
+    seen.add(line);
+    out.push(line);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 function lodgingLabel(v: string | null): string | null {
@@ -86,13 +148,48 @@ function genderPrefLabel(v: string | null): string | null {
   return null;
 }
 
+function genderPrefBullet(v: string | null): string | null {
+  const label = genderPrefLabel(v);
+  return label ? `👤 ${label}` : null;
+}
+
 function formatRent(n: number): string {
   return `$${Math.round(n).toLocaleString("es-MX")} MXN/mes`;
 }
 
+export function formatPermalinkLine(permalink: string): string {
+  return `${SHARE_AI_LINK_EMOJI} ${permalink.trim()}`;
+}
+
 export function maxBodyCharsForPermalink(permalink: string): number {
-  const suffix = `\n\n${permalink.trim()}`;
+  const suffix = `\n\n${formatPermalinkLine(permalink)}`;
   return Math.max(120, SHARE_AI_TEXT_MAX - suffix.length);
+}
+
+function isPermalinkLine(line: string, permalink?: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (permalink && (t === permalink.trim() || t === formatPermalinkLine(permalink))) return true;
+  return /^(?:🔗\s*)?https?:\/\/(?:www\.|dev\.)?bestie\.mx\/(?:anuncio|propiedad)\//i.test(t);
+}
+
+/** Strip trailing Bestie permalink lines (with or without 🔗). */
+export function stripTrailingPermalinkLines(text: string, permalink?: string): string {
+  const lines = text.replace(/\r\n/g, "\n").trim().split("\n");
+  while (lines.length && isPermalinkLine(lines[lines.length - 1]!, permalink)) {
+    lines.pop();
+  }
+  while (lines.length && lines[lines.length - 1]!.trim() === "") lines.pop();
+  return lines.join("\n").trim();
+}
+
+/** Amenity / preference bullet line (emoji or classic •/-). */
+export function isShareBulletLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (/^[•\-–*]\s+\S/.test(t)) return true;
+  // Emoji (incl. ZWJ sequences like 🏳️‍🌈) then a space then label.
+  return /^\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*\s+\S/u.test(t);
 }
 
 /** Deterministic fallback when Gemini is unavailable. */
@@ -123,14 +220,14 @@ export function buildTemplateShareCopy(facts: ShareAiListingFacts): string {
       `Estoy buscando roomie para ${lodging.toLowerCase()}${rent ? ` · ${rent}` : ""}. Buena vibra y ubicación en GDL.`,
     );
   }
-  const tags = tagLabels(facts.tags).slice(0, SHARE_AI_MAX_BULLETS);
-  if (tags.length) {
+  const bullets = tagBulletLines(facts.tags, SHARE_AI_MAX_BULLETS);
+  if (bullets.length) {
     lines.push("");
-    for (const t of tags) lines.push(`• ${t}`);
+    lines.push(...bullets);
   }
-  const gender = genderPrefLabel(facts.roommateGenderPref);
-  if (gender && tags.length < SHARE_AI_MAX_BULLETS) {
-    lines.push(`• ${gender}`);
+  const gender = genderPrefBullet(facts.roommateGenderPref);
+  if (gender && bullets.length < SHARE_AI_MAX_BULLETS) {
+    lines.push(gender);
   }
   lines.push("");
   lines.push("Fotos, mapa y detalles en Bestie:");
@@ -146,11 +243,11 @@ Voz: primera persona del publicador ("Revisa mi cuarto…", "Publico mi propieda
 Reglas estrictas:
 - Usa SOLO hechos del JSON de entrada. No inventes amenidades, distancias, precios ni "vibes" no respaldadas.
 - No menciones Street View, IA, ni que el texto fue generado.
-- No uses hashtags ni emojis excepto como máximo un 🏠 en la primera línea.
+- No uses hashtags.
+- Emojis permitidos: un 🏠 opcional en la primera línea; en viñetas usa el emoji que ya viene en cada tag del JSON (ej. "📶 Internet"); en la última línea el permalink con 🔗 al inicio. No uses viñetas con "•" ni "-" .
 - Longitud (CRÍTICO): el cuerpo SIN el permalink debe quedar en ~${SHARE_AI_BODY_TARGET} caracteres o menos, y NUNCA superar maxBodyChars del JSON. El mensaje final con permalink ≤ ${SHARE_AI_TEXT_MAX}. Prefiere corto y completo; un mensaje truncado a mitad de frase es un fallo.
-- Estructura: gancho corto → 2–3 frases con zona/renta/tipo (sin rellenar) → como máximo ${SHARE_AI_MAX_BULLETS} viñetas (•) con tags reales → CTA breve fijo: "Fotos y detalles en Bestie:" → permalink exactamente como viene en el JSON.
+- Estructura: gancho corto → 2–3 frases con zona/renta/tipo (sin rellenar) → como máximo ${SHARE_AI_MAX_BULLETS} viñetas con emoji (copia tags del JSON tal cual) → CTA breve fijo: "Fotos y detalles en Bestie:" → última línea exactamente: "${SHARE_AI_LINK_EMOJI} " + permalink del JSON.
 - Si hay muchos tags, elige los ${SHARE_AI_MAX_BULLETS} más útiles; no listes todos.
-- El permalink DEBE ser la última línea, sin modificarlo.
 - Responde SOLO con el texto del mensaje, sin comillas ni markdown.`;
 
 export function buildShareAiUserPrompt(facts: ShareAiListingFacts): string {
@@ -167,56 +264,52 @@ export function buildShareAiUserPrompt(facts: ShareAiListingFacts): string {
     rentMinMxn: facts.rentMinMxn,
     rentMaxMxn: facts.rentMaxMxn,
     availableRoomCount: facts.availableRoomCount,
-    tags: tagLabels(facts.tags).slice(0, 10),
-    roommateGenderPref: genderPrefLabel(facts.roommateGenderPref),
+    /** Already formatted as "emoji + label" — paste these lines as bullets. */
+    tags: tagBulletLines(facts.tags, 10),
+    roommateGenderPref: genderPrefBullet(facts.roommateGenderPref),
     ageRange:
       facts.ageMin != null && facts.ageMax != null ? `${facts.ageMin}–${facts.ageMax}` : null,
     rooms: facts.rooms.slice(0, 6).map((r) => ({
       title: r.title,
       rentMxn: r.rentMxn,
       lodgingType: lodgingLabel(r.lodgingType),
-      tags: tagLabels(r.tags).slice(0, 8),
+      tags: tagBulletLines(r.tags, 8),
       summary: r.summary.slice(0, 100),
     })),
     permalink: facts.permalink,
+    permalinkLine: formatPermalinkLine(facts.permalink),
     maxCharsTotal: SHARE_AI_TEXT_MAX,
     maxBodyChars,
     bodyTargetChars: SHARE_AI_BODY_TARGET,
     maxBullets: SHARE_AI_MAX_BULLETS,
   };
-  return `Genera el mensaje de compartir con estos hechos (JSON). Respeta maxBodyChars antes del permalink:\n${JSON.stringify(payload)}`;
+  return `Genera el mensaje de compartir con estos hechos (JSON). Usa tags con su emoji; última línea = permalinkLine. Respeta maxBodyChars antes del permalink:\n${JSON.stringify(payload)}`;
 }
 
 /** True when a prior clamp left an ellipsis mid-thought (bad UX for share copy). */
 export function shareCopyBodyLooksTruncated(text: string, permalink: string): boolean {
-  const link = permalink.trim();
-  let body = text.replace(/\r\n/g, "\n").trim();
-  if (link) {
-    const lines = body.split("\n");
-    while (lines.length && /bestie\.mx\/(anuncio|propiedad)\//i.test(lines[lines.length - 1]!.trim())) {
-      lines.pop();
-    }
-    while (lines.length && lines[lines.length - 1]!.trim() === "") lines.pop();
-    body = lines.join("\n").trim();
-  }
+  const body = stripTrailingPermalinkLines(text, permalink);
   return /…\s*$/.test(body) || /\.\.\.\s*$/.test(body);
 }
 
-/** Ensure permalink is last line and total length ≤ SHARE_AI_TEXT_MAX. */
+/** Classic • bullets or missing 🔗 on the link → refresh machine-generated copy. */
+export function shareCopyNeedsEmojiFormat(text: string, permalink: string): boolean {
+  const body = stripTrailingPermalinkLines(text, permalink);
+  if (/(^|\n)\s*•\s/.test(body)) return true;
+  const trimmed = text.replace(/\r\n/g, "\n").trim();
+  const last = trimmed.split("\n").pop()?.trim() ?? "";
+  return !isPermalinkLine(last, permalink) || !last.startsWith(SHARE_AI_LINK_EMOJI);
+}
+
+/** Ensure permalink is last line (with 🔗) and total length ≤ SHARE_AI_TEXT_MAX. */
 export function finalizeShareCopy(raw: string, permalink: string): string {
   let text = raw.replace(/\r\n/g, "\n").trim();
   text = text.replace(/^```[\s\S]*?\n/, "").replace(/\n```$/, "").trim();
   const link = permalink.trim();
   if (!link) return text.slice(0, SHARE_AI_TEXT_MAX);
 
-  // Strip trailing permalink variants then re-append canonical.
-  const lines = text.split("\n");
-  while (lines.length && /bestie\.mx\/(anuncio|propiedad)\//i.test(lines[lines.length - 1]!.trim())) {
-    lines.pop();
-  }
-  while (lines.length && lines[lines.length - 1]!.trim() === "") lines.pop();
-  let body = lines.join("\n").trim();
-  const suffix = `\n\n${link}`;
+  let body = stripTrailingPermalinkLines(text, link);
+  const suffix = `\n\n${formatPermalinkLine(link)}`;
   const maxBody = SHARE_AI_TEXT_MAX - suffix.length;
   if (body.length > maxBody) {
     body = shrinkBodyToFit(body, maxBody);
@@ -235,7 +328,7 @@ export function shrinkBodyToFit(body: string, maxBody: number): string {
   while (lines.join("\n").length > maxBody) {
     let bulletIdx = -1;
     for (let i = lines.length - 1; i >= 0; i--) {
-      if (/^\s*[•\-–*]\s/.test(lines[i]!)) {
+      if (isShareBulletLine(lines[i]!)) {
         bulletIdx = i;
         break;
       }
