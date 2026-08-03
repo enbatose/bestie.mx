@@ -27,17 +27,27 @@ type GeminiGenerateResponse = {
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string }> };
   }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
   error?: { message?: string };
+};
+
+export type ShareAiGenerateResult = {
+  text: string;
+  source: "gemini" | "template";
+  model?: string;
+  promptTokens?: number;
+  outputTokens?: number;
 };
 
 /**
  * Generate share copy via Gemini. Falls back to a deterministic template on any failure.
  * Never invents beyond structured facts (template/prompt constrained).
  */
-export async function generateShareAiText(facts: ShareAiListingFacts): Promise<{
-  text: string;
-  source: "gemini" | "template";
-}> {
+export async function generateShareAiText(facts: ShareAiListingFacts): Promise<ShareAiGenerateResult> {
   const key = geminiApiKey();
   if (!key) {
     return { text: buildTemplateShareCopy(facts), source: "template" };
@@ -80,7 +90,15 @@ export async function generateShareAiText(facts: ShareAiListingFacts): Promise<{
     if (!raw.trim()) {
       return { text: buildTemplateShareCopy(facts), source: "template" };
     }
-    return { text: finalizeShareCopy(raw, facts.permalink), source: "gemini" };
+    const promptTokens = Number(json.usageMetadata?.promptTokenCount) || 0;
+    const outputTokens = Number(json.usageMetadata?.candidatesTokenCount) || 0;
+    return {
+      text: finalizeShareCopy(raw, facts.permalink),
+      source: "gemini",
+      model,
+      promptTokens,
+      outputTokens,
+    };
   } catch (err) {
     console.warn("[share-ai] gemini error", err instanceof Error ? err.message : err);
     return { text: buildTemplateShareCopy(facts), source: "template" };

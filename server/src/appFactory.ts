@@ -32,6 +32,7 @@ import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
 import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
 import { buildSitemapXml } from "./sitemap.js";
+import { bindUsageAnalyticsDb } from "./usageAnalytics.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -63,6 +64,7 @@ export type CreateAppOptions = {
 };
 
 export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): express.Application {
+  bindUsageAnalyticsDb(db);
   const databaseLabel = opts.databaseLabel ?? "in-process";
   const databasePath = opts.databasePath;
   const instanceId = opts.instanceId;

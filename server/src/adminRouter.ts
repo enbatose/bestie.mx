@@ -14,6 +14,7 @@ import { clampMessageAttachments, clampStr, type MessageAttachment } from "./val
 import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
 import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
+import { buildUsageAnalyticsResponse } from "./usageAnalytics.js";
 import { listAdminPosts } from "./adminPosts.js";
 import { isUserEmailVerified, userAccountStatus } from "./emailVerification.js";
 
@@ -174,6 +175,15 @@ export function adminRouter(db: DatabaseSync) {
 
   r.get("/analytics/street-view", (req: Request, res: Response) => {
     const body = buildStreetViewAnalyticsResponse(db, req.query.month);
+    if (!body) {
+      res.status(400).json({ error: "invalid_month" });
+      return;
+    }
+    res.json(body);
+  });
+
+  r.get("/analytics/usage", (req: Request, res: Response) => {
+    const body = buildUsageAnalyticsResponse(db, req.query.month);
     if (!body) {
       res.status(400).json({ error: "invalid_month" });
       return;
