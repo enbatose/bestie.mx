@@ -1,7 +1,7 @@
 # Bestie — product v1 (authoritative summary)
 
 **Brand & domain:** Bestie · **bestie.mx** · **contacto@bestie.mx**  
-**Mark:** ™ while IMPI pending; ® after registration.
+**Mark:** ™ while IMPI pending (exp. 3678152, clase 35); never ® until IMPI grants registration.
 
 ## Vision
 
