@@ -65,9 +65,10 @@ export function TermsPage() {
         <p>
           La marca <strong>Bestie</strong> y el dominio <strong>{LEGAL_OPERATOR.domain}</strong> se
           encuentran en trámite de registro ante el Instituto Mexicano de la Propiedad Industrial
-          (IMPI), expediente <strong>3678152</strong> (clase 35). El uso de la marca durante su
-          trámite se realiza de conformidad con la legislación aplicable. No se emplea el símbolo ®
-          mientras el registro no haya sido concedido.
+          (IMPI), bajo los expedientes <strong>3678152</strong> y <strong>3679467</strong> (clase 35),{" "}
+          <strong>3679461</strong> (clase 36) y <strong>3679472</strong> (clase 42). El uso de la marca
+          durante su trámite se realiza de conformidad con la legislación aplicable. No se emplea el
+          símbolo ® mientras el registro no haya sido concedido.
         </p>
       </LegalSection>
 
@@ -198,9 +199,9 @@ export function TermsPage() {
           personal del Servicio conforme a estos Términos.
         </p>
         <p>
-          La marca <strong>“Bestie”</strong> se encuentra en trámite de registro ante el IMPI
-          (expediente <strong>3678152</strong>, clase 35). Queda prohibido usar la marca, el nombre o
-          los signos distintivos de Bestie sin autorización previa y por escrito del Titular.
+          La marca <strong>“Bestie”</strong> se encuentra en trámite de registro ante el IMPI en las
+          clases 35, 36 y 42. Queda prohibido usar la marca, el nombre o los signos distintivos de
+          Bestie sin autorización previa y por escrito del Titular.
         </p>
       </LegalSection>
 

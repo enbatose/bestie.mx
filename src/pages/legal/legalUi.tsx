@@ -7,7 +7,7 @@ import {
 } from "@/lib/myListingsReturn";
 
 /** Effective / last-updated date shared across every legal document. */
-export const LEGAL_LAST_UPDATED = "4 de agosto de 2026";
+export const LEGAL_LAST_UPDATED = "5 de agosto de 2026";
 
 /** Legal identity of the operator, reused verbatim across documents. */
 export const LEGAL_OPERATOR = {
@@ -156,7 +156,8 @@ export function LegalOperatorReference() {
         <div>
           <dt className="inline font-semibold text-primary">Marca comercial: </dt>
           <dd className="inline">
-            Bestie (bestie.mx), en trámite de registro ante el IMPI (expediente 3678152, clase 35)
+            Bestie (bestie.mx), en trámite de registro ante el IMPI (expedientes 3678152 y 3679467 en
+            clase 35, 3679461 en clase 36 y 3679472 en clase 42)
           </dd>
         </div>
         <div>
