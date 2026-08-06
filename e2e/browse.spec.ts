@@ -44,9 +44,11 @@ test.describe("Browse & search", () => {
     const body = (await listings.json()) as { id?: string; title?: string }[];
     expect(body.length).toBeGreaterThan(0);
     const roomId = body[0]!.id!;
+    // ListingPage replace-navigates raw ids to the public A… reference slug.
+    const publicSlug = `A${roomId.replace(/^prp__/, "").replace(/-/g, "").toUpperCase().slice(0, 8)}`;
 
     await page.goto(`/anuncio/${encodeURIComponent(roomId)}`);
-    await expect(page).toHaveURL(new RegExp(`/anuncio/${roomId}`));
+    await expect(page).toHaveURL(new RegExp(`/anuncio/${publicSlug}$`));
     await expect(page.locator("#root")).toBeVisible();
     await expect(page.getByText(/no encontrado|not found|404/i)).toHaveCount(0);
     await expect(page.locator("#root")).toContainText(/.{10,}/, { timeout: 20_000 });
