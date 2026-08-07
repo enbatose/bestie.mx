@@ -108,17 +108,19 @@ export function GuadalajaraLandingPage() {
               Bestie MX · Guadalajara
             </p>
 
-            <h1 className="mt-3 text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
-              Roomie en <span className="text-secondary">Guadalajara</span>
-            </h1>
+            <div className="mt-3 flex w-full max-w-full flex-col items-stretch sm:inline-flex sm:w-fit">
+              <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight sm:whitespace-nowrap sm:text-4xl md:text-5xl">
+                Roomie en <span className="text-secondary">Guadalajara</span>
+              </h1>
 
-            <p className="mt-4 max-w-xl text-balance text-base leading-7 text-primary-fg/90 sm:text-lg">
-              Cuartos compartidos, comparto depa y roomie GDL con mapa, filtros y contacto directo.
-              Empieza por colonia o abre el mapa de la ZMG.
-            </p>
+              <p className="mt-4 w-0 min-w-full text-balance text-base leading-7 text-primary-fg/90 sm:text-lg">
+                Cuartos compartidos, comparto depa y roomie GDL con mapa, filtros y contacto directo.
+                Empieza por colonia o abre el mapa de la ZMG.
+              </p>
+
+              <HomeLocationSearch metro={GDL} className="mt-8 !max-w-none" />
+            </div>
           </div>
-
-          <HomeLocationSearch metro={GDL} className="mt-8" />
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <Link
