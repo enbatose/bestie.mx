@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true">
+  <!-- La Minerva (Guadalajara)  lime line-art, banner-matched -->
+  <g stroke="#84CC16" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Outer fountain ring -->
+    <ellipse cx="100" cy="220" rx="88" ry="14" />
+    <path d="M18 214 C18 204 50 198 100 198 C150 198 182 204 182 214" />
+
+    <!-- Inner basin -->
+    <ellipse cx="100" cy="198" rx="58" ry="10" />
+    <path d="M48 192 C48 184 70 180 100 180 C130 180 152 184 152 192" />
+
+    <!-- Pedestal plinth -->
+    <path d="M72 180 V168 H128 V180" />
+    <path d="M78 168 V128 H122 V168" />
+    <!-- Pedestal panel -->
+    <rect x="86" y="138" width="28" height="22" rx="2" />
+    <path d="M90 149 H110" />
+
+    <!-- Capital -->
+    <path d="M74 128 H126" />
+    <path d="M78 128 L82 118 H118 L122 128" />
+    <ellipse cx="100" cy="118" rx="22" ry="5" />
+
+    <!-- Statue body -->
+    <path d="M100 118 V108" />
+    <!-- Legs / robe -->
+    <path d="M88 108 C90 96 94 88 100 86 C106 88 110 96 112 108" />
+    <path d="M92 108 L90 118 M108 108 L110 118" />
+    <!-- Torso -->
+    <path d="M94 86 C94 76 97 70 100 70 C103 70 106 76 106 86" />
+    <!-- Arms -->
+    <path d="M94 78 L78 72" />
+    <path d="M106 78 L118 70" />
+
+    <!-- Shield (left of figure) -->
+    <path d="M78 72 C70 74 66 82 68 92 C70 100 76 104 82 100 L78 72" />
+    <path d="M72 82 L76 90" />
+
+    <!-- Spear (right, upright) -->
+    <path d="M118 70 V28" />
+    <path d="M114 34 L118 28 L122 34" />
+    <path d="M118 70 L124 108" />
+
+    <!-- Head + helmet -->
+    <circle cx="100" cy="60" r="8" />
+    <path d="M92 56 C92 48 96 44 100 44 C104 44 108 48 108 56" />
+    <!-- Helmet crest -->
+    <path d="M100 44 C100 36 106 30 112 28" />
+    <path d="M100 44 C104 38 110 34 116 34" />
+  </g>
+</svg>

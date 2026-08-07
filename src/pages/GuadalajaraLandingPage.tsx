@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, MapPinned, TrendingUp, Users } from "lucide-react";
 import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
+import { GdlLandmarkSilhouettes } from "@/components/home/GdlLandmarkSilhouettes";
 import { HomeLocationSearch } from "@/components/home/HomeLocationSearch";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { usePageSeo } from "@/hooks/usePageSeo";
@@ -33,7 +34,7 @@ const GDL_FACTS: ReadonlyArray<{
   {
     icon: TrendingUp,
     title: "Mercado activo",
-    body: "Publicar con fotos claras, renta y reglas de convivencia acelera el match frente a posts sueltos en grupos.",
+    body: "Fotos claras, renta y reglas de convivencia en el anuncio aceleran el match frente a posts sueltos.",
   },
   {
     icon: Building2,
@@ -88,7 +89,7 @@ export function GuadalajaraLandingPage() {
 
   return (
     <>
-      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-16 pt-12 text-primary-fg sm:px-6 sm:pb-20 sm:pt-16">
+      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-28 pt-12 text-primary-fg sm:px-6 sm:pb-32 sm:pt-16">
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <img
             src="/brand/facebook/cover-1640x624.png"
@@ -99,6 +100,8 @@ export function GuadalajaraLandingPage() {
           <div className="home-hero-orb absolute -left-20 -top-16 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" />
           <div className="home-hero-orb home-hero-orb--delay absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/25 blur-3xl" />
         </div>
+
+        <GdlLandmarkSilhouettes />
 
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center text-center">
           <div className="home-hero-rise flex w-full max-w-[42rem] flex-col items-center">
@@ -171,7 +174,33 @@ export function GuadalajaraLandingPage() {
         </div>
       </section>
 
-      <section className="bg-surface px-4 py-14 sm:px-6 sm:py-16">
+      <section className="border-b border-border bg-surface px-4 py-12 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Dato curioso · GDL</p>
+          <h2 className="mt-3 text-balance text-lg font-semibold tracking-tight text-body sm:text-xl">
+            Buscar roomie en Guadalajara hoy = revisar{" "}
+            <span className="text-primary">+50 grupos</span> de Facebook
+          </h2>
+          <p className="mt-3 text-balance text-sm leading-relaxed text-muted sm:text-base">
+            En el ecosistema de rentas de la ZMG aparecen más de 160 grupos de vivienda… y más de 50
+            están específicos de roomies y cuartos. Cada uno con reglas, spam y posts distintos:
+            encontrar el match exacto se vuelve un laberinto.
+          </p>
+          <p className="mt-3 text-balance text-sm leading-relaxed text-body sm:text-base">
+            Por eso existe Bestie: mapa, filtros y anuncios claros en un solo sitio — sin cazar entre
+            50+ feeds.
+          </p>
+          <Link
+            to={mapHref}
+            onClick={() => track("home_cta_clicked", { cta: "map_gdl_dato" })}
+            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg transition hover:brightness-110"
+          >
+            Ver el mapa de GDL
+          </Link>
+        </div>
+      </section>
+
+      <section className="bg-bg-light px-4 py-14 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -197,7 +226,7 @@ export function GuadalajaraLandingPage() {
               Cargando anuncios…
             </p>
           ) : listings.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-border bg-bg-light px-5 py-8 text-center">
+            <div className="mt-8 rounded-2xl border border-border bg-surface px-5 py-8 text-center">
               <p className="text-sm text-muted">
                 Aún no hay anuncios para mostrar aquí. Explora el mapa o publica el primero.
               </p>
