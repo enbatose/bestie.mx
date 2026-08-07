@@ -89,14 +89,14 @@ export function GuadalajaraLandingPage() {
 
   return (
     <>
-      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-28 pt-12 text-primary-fg sm:px-6 sm:pb-32 sm:pt-16">
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
+      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-32 pt-12 text-primary-fg sm:px-6 sm:pb-36 sm:pt-16">
+        <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
           <img
             src="/brand/facebook/cover-1640x624.png"
             alt=""
-            className="h-full w-full object-cover opacity-[0.22]"
+            className="h-full w-full object-cover opacity-[0.18]"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/80 via-primary/90 to-primary" />
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/75 via-primary/88 to-primary" />
           <div className="home-hero-orb absolute -left-20 -top-16 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" />
           <div className="home-hero-orb home-hero-orb--delay absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/25 blur-3xl" />
         </div>
@@ -178,17 +178,16 @@ export function GuadalajaraLandingPage() {
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Dato curioso · GDL</p>
           <h2 className="mt-3 text-balance text-lg font-semibold tracking-tight text-body sm:text-xl">
-            Buscar roomie en Guadalajara hoy = revisar{" "}
-            <span className="text-primary">+50 grupos</span> de Facebook
+            En Guadalajara, roomie todavía se busca en Facebook
           </h2>
           <p className="mt-3 text-balance text-sm leading-relaxed text-muted sm:text-base">
-            En el ecosistema de rentas de la ZMG aparecen más de 160 grupos de vivienda… y más de 50
-            están específicos de roomies y cuartos. Cada uno con reglas, spam y posts distintos:
-            encontrar el match exacto se vuelve un laberinto.
+            La mayoría de la gente publica y busca cuarto compartido en grupos. El detalle: no hay un
+            solo lugar. En rentas de la ZMG aparecen más de 160 grupos de vivienda, y más de 50 son
+            específicos de roomies y cuartos — cada uno con sus reglas, su spam y su timeline.
           </p>
           <p className="mt-3 text-balance text-sm leading-relaxed text-body sm:text-base">
-            Por eso existe Bestie: mapa, filtros y anuncios claros en un solo sitio — sin cazar entre
-            50+ feeds.
+            Encontrar el match exacto se vuelve un laberinto. Bestie junta eso en un mapa: filtros,
+            anuncios claros y contacto directo, sin cazar entre 50+ feeds.
           </p>
           <Link
             to={mapHref}
