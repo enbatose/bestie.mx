@@ -60,8 +60,6 @@ function mergeNeighborhood(
 
 type Props = {
   metro: MetroCity;
-  /** Analytics source for search submit. */
-  trackSource?: "home" | "city_landing";
   className?: string;
 };
 
@@ -69,7 +67,7 @@ type Props = {
  * Hero location search used on city landing pages (GDL chip prefilled).
  * Country home no longer shows this — users pick a city first.
  */
-export function HomeLocationSearch({ metro, trackSource = "city_landing", className = "" }: Props) {
+export function HomeLocationSearch({ metro, className = "" }: Props) {
   const navigate = useNavigate();
   const locationMenuId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
