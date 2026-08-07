@@ -22,7 +22,9 @@ export type AnalyticsProps = {
   user_logged_out: Record<string, never>;
 
   home_search_submitted: { neighborhood_count: number };
-  home_cta_clicked: { cta: "publish" | "faq" | "search_empty" };
+  home_cta_clicked: {
+    cta: "publish" | "faq" | "search_empty" | "city_guadalajara" | "map_gdl" | "seo_gdl_search";
+  };
 
   search_results_loaded: {
     result_count: number;

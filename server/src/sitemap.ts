@@ -12,6 +12,7 @@ export type SitemapUrl = {
 const STATIC_PATHS: readonly { path: string; changefreq: SitemapUrl["changefreq"]; priority: number }[] =
   [
     { path: "/", changefreq: "daily", priority: 1 },
+    { path: "/guadalajara", changefreq: "daily", priority: 0.98 },
     { path: "/buscar/gdl", changefreq: "daily", priority: 0.95 },
     { path: "/nosotros", changefreq: "monthly", priority: 0.8 },
     { path: "/faq", changefreq: "monthly", priority: 0.75 },

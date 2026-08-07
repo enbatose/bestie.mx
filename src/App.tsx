@@ -6,6 +6,7 @@ import { AdminPage } from "@/pages/AdminPage";
 import { ContactPage } from "@/pages/ContactPage";
 import { FaqPage } from "@/pages/FaqPage";
 import { HomePage } from "@/pages/HomePage";
+import { GuadalajaraLandingPage } from "@/pages/GuadalajaraLandingPage";
 import { LegalPage } from "@/pages/LegalPage";
 import { TermsPage } from "@/pages/legal/TermsPage";
 import { PrivacyPage } from "@/pages/legal/PrivacyPage";
@@ -34,6 +35,8 @@ const router = createBrowserRouter([
     element: <AppShellLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "guadalajara", element: <GuadalajaraLandingPage /> },
+      { path: "gdl", element: <Navigate to="/guadalajara" replace /> },
       { path: "buscar", element: <SearchPage /> },
       { path: "buscar/:cityCode", element: <SearchPage /> },
       { path: "anuncio/:id", element: <ListingPage /> },

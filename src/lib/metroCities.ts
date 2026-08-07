@@ -36,7 +36,7 @@ export const METRO_CITIES: readonly MetroCity[] = [
   {
     code: "cmx",
     label: "Ciudad de México",
-    abbr: "CMX",
+    abbr: "CDMX",
     metroName: "ZMMV",
     enabled: false,
     defaultCenter: [19.4326, -99.1332],

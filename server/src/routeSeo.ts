@@ -20,7 +20,10 @@ export type RouteSeoMeta = {
 };
 
 const HOME_DESC =
-  "Busca roomie en Guadalajara (GDL): cuartos compartidos, comparto depa y rentas compartidas con mapa y filtros. Publica tu cuarto en Bestie MX.";
+  "Bestie MX: marketplace de roomies y cuartos compartidos en México. Empieza por Guadalajara (GDL); más ciudades pronto.";
+
+const GDL_LANDING_DESC =
+  "Roomie Guadalajara y roomie GDL: hechos locales, anuncios activos y mapa con filtros para cuartos compartidos y comparto depa en la ZMG.";
 
 const FAQ_DESC =
   "Preguntas frecuentes sobre buscar roomie en Guadalajara, publicar cuartos compartidos, comparto depa GDL y cómo funciona Bestie MX.";
@@ -39,9 +42,25 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
   {
     match: /^\/$/,
     seo: {
-      title: "Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX",
+      title: "Bestie MX | Roomies y cuartos compartidos en México",
       description: HOME_DESC,
       canonicalPath: "/",
+    },
+  },
+  {
+    match: /^\/guadalajara\/?$/i,
+    seo: {
+      title: "Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX",
+      description: GDL_LANDING_DESC,
+      canonicalPath: "/guadalajara",
+    },
+  },
+  {
+    match: /^\/gdl\/?$/i,
+    seo: {
+      title: "Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX",
+      description: GDL_LANDING_DESC,
+      canonicalPath: "/guadalajara",
     },
   },
   {

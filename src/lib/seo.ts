@@ -7,12 +7,12 @@ export const SITE_ORIGIN = "https://www.bestie.mx";
 export const BRAND_NAME = "Bestie MX";
 export const BRAND_SHORT = "Bestie";
 
-/** Primary intent keywords (Guadalajara launch). Brand is secondary. */
+/** Primary intent keywords — country hub. City pages carry GDL-specific copy. */
 export const PRIMARY_SEO_DESCRIPTION =
-  "Busca roomie en Guadalajara (GDL): cuartos compartidos, comparto depa y rentas compartidas con mapa y filtros. Publica tu cuarto en Bestie MX.";
+  "Bestie MX: marketplace de roomies y cuartos compartidos en México. Empieza por Guadalajara (GDL); más ciudades pronto.";
 
 export const DEFAULT_SEO = {
-  title: "Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX",
+  title: "Bestie MX | Roomies y cuartos compartidos en México",
   description: PRIMARY_SEO_DESCRIPTION,
   canonicalPath: "/",
 } as const;
