@@ -76,7 +76,7 @@ export function HomePage() {
 
           <div className="home-hero-rise home-hero-rise--delay mt-10 w-full max-w-lg">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-fg/65">
-              ¿En qué ciudad buscas?
+              ¿En qué ciudad buscas o publicas?
             </p>
             <ul className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
               {launchCities.map((city) => (
