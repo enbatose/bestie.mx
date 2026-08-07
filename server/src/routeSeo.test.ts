@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 
 describe("routeSeo", () => {
-  it("resolves Guadalajara search and home intent titles", () => {
+  it("resolves México hub, Guadalajara landing, and GDL search titles", () => {
+    expect(resolveRouteSeo("/")?.title).toMatch(/México/i);
+    expect(resolveRouteSeo("/")?.description).toMatch(/marketplace de roomies/i);
+    expect(resolveRouteSeo("/guadalajara")?.description).toMatch(/roomie Guadalajara/i);
     expect(resolveRouteSeo("/buscar/gdl")?.title).toMatch(/Roomie GDL/i);
-    expect(resolveRouteSeo("/")?.description).toMatch(/roomie en Guadalajara/i);
     expect(resolveRouteSeo("/nosotros")?.canonicalPath).toBe("/nosotros");
   });
 
