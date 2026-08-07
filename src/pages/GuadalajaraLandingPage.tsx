@@ -6,6 +6,7 @@ import { HomeLocationSearch } from "@/components/home/HomeLocationSearch";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { usePageSeo } from "@/hooks/usePageSeo";
 import { track } from "@/lib/analytics";
+import { collapseSearchListings } from "@/lib/collapseSearchListings";
 import { fetchListingsFromApi, isListingsApiConfigured } from "@/lib/listingsApi";
 import { listingCardHref } from "@/lib/listingKeyLabels";
 import { findMetroCity } from "@/lib/metroCities";
@@ -72,8 +73,9 @@ export function GuadalajaraLandingPage() {
     const ac = new AbortController();
     fetchListingsFromApi(new URLSearchParams(), ac.signal)
       .then((rows) => {
-        const gdl = rows.filter(isGuadalajaraListing).slice(0, 8);
-        setListings(gdl.length ? gdl : rows.slice(0, 8));
+        // Match search: one card per property-mode post; room-mode stays one per room.
+        const gdl = collapseSearchListings(rows.filter(isGuadalajaraListing)).slice(0, 8);
+        setListings(gdl.length ? gdl : collapseSearchListings(rows).slice(0, 8));
       })
       .catch(() => setListings([]))
       .finally(() => {
