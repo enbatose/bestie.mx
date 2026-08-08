@@ -89,7 +89,7 @@ export function GuadalajaraLandingPage() {
 
   return (
     <>
-      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-32 pt-12 text-primary-fg sm:px-6 sm:pb-36 sm:pt-16">
+      <section className="home-hero relative overflow-hidden bg-primary px-4 pb-16 pt-12 text-primary-fg sm:px-6 sm:pb-20 sm:pt-16 md:pb-36">
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
           <img
             src="/brand/facebook/cover-1640x624.png"

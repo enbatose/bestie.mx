@@ -1,11 +1,11 @@
 /**
  * Decorative GDL landmarks (Catedral + La Minerva) for the city landing hero.
- * Lime line-art PNGs — same family as the Facebook launch banner.
+ * Lime line-art — desktop/tablet only; on mobile the detail becomes noise under CTAs.
  */
 export function GdlLandmarkSilhouettes({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex h-44 items-end justify-between sm:h-56 md:h-64 lg:h-72 ${className}`}
+      className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1] hidden items-end justify-between md:flex md:h-56 lg:h-64 xl:h-72 ${className}`}
       aria-hidden
     >
       <img
@@ -14,7 +14,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="h-[92%] w-auto max-w-[48%] -translate-x-[12%] object-contain object-left-bottom opacity-70 sm:-translate-x-[4%] sm:max-w-[42%] sm:opacity-75 md:max-w-[38%] lg:translate-x-0 lg:max-w-[34%]"
+        className="h-[92%] w-auto max-w-[40%] object-contain object-left-bottom opacity-60 lg:max-w-[36%] lg:opacity-70 xl:max-w-[32%]"
       />
       <img
         src="/brand/gdl/minerva-silhouette-v3.png"
@@ -22,7 +22,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="h-full w-auto max-w-[44%] translate-x-[10%] object-contain object-right-bottom opacity-70 sm:translate-x-[4%] sm:max-w-[38%] sm:opacity-75 md:max-w-[32%] lg:translate-x-0 lg:max-w-[28%]"
+        className="h-full w-auto max-w-[34%] object-contain object-right-bottom opacity-60 lg:max-w-[30%] lg:opacity-70 xl:max-w-[26%]"
       />
     </div>
   );
