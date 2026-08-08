@@ -144,8 +144,19 @@ export function identifyUser(
     const props: Record<string, unknown> = {};
     if (properties?.email) props.email = properties.email;
     if (properties?.name) props.name = properties.name;
-    if (properties?.is_admin != null) props.is_admin = properties.is_admin;
+    if (properties?.is_admin != null) {
+      props.is_admin = properties.is_admin;
+      // Marks admins for Internal/Test cohort + linked replay flag exclusion.
+      props.$internal_or_test_user = properties.is_admin;
+    }
     posthog.identify(userId, Object.keys(props).length ? props : undefined);
+    if (properties?.is_admin) {
+      try {
+        posthog.stopSessionRecording();
+      } catch {
+        /* ignore */
+      }
+    }
   } catch {
     /* ignore */
   }

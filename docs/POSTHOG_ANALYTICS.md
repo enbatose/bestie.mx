@@ -43,6 +43,22 @@ Enabled in project settings (`session_recording_opt_in`, min duration 2s). Clien
 
 Free tier (as of 2026): **5,000 web recordings / month**, resets monthly with the billing period. Overages start ~$0.005/recording unless a billing limit is set. **Set a spend cap** under Organization → Billing (MCP cannot set billing limits) so capture stops instead of charging unexpectedly — $0 or a low per-product cap is recommended for the pilot.
 
+### Replay budget controls (current)
+
+| Control | Value | Why |
+| --- | --- | --- |
+| Sample rate | **25%** of eligible sessions | Cuts volume while keeping a usable sample |
+| Minimum duration | **5s** | Drops bounce / accidental opens |
+| Linked flag | [`session_replay_allow`](https://us.posthog.com/project/517444/feature_flags/807600) | **Admins = 0%** (no replay after identify) |
+| Console logs in replay | Off | Smaller payloads |
+| Test-account filter | Default on for new insights | Hides Internal/Test + `is_admin` from charts |
+
+**Admin exclusion:** when `authMe().isAdmin` is true, the client sets `is_admin` + `$internal_or_test_user` and calls `stopSessionRecording()`. Combined with the linked flag, your admin sessions should not count toward replay budget after login.
+
+**Events vs recordings:** product events (funnels) are separate from replay. Keep the custom taxonomy; don’t turn off event capture for seeker/publish spine. If event volume grows, prefer sampling **replay** first, not dropping funnel events.
+
+Optional next levers (if $5 still feels tight): event-triggered recording (only after `publish_failed` / `listing_auth_required`), lower sample to 10%, or turn off heatmaps.
+
 ### Friction playlists
 
 Pinned filter playlists for review:
