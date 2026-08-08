@@ -1,4 +1,12 @@
-import { MapContainer, Marker, TileLayer, Circle, useMap } from "react-leaflet";
+import {
+  AttributionControl,
+  MapContainer,
+  Marker,
+  TileLayer,
+  Circle,
+  useMap,
+  ZoomControl,
+} from "react-leaflet";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -58,6 +66,10 @@ export const WIZARD_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M
  */
 export const PREVIEW_APPROXIMATE_RADIUS_M = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M;
 
+const MAP_MAX_ZOOM = 18;
+const PIN_EDGE_PADDING_PX = 40;
+const CIRCLE_EDGE_PADDING_PX = 12;
+
 function latLngFromClient(
   map: L.Map,
   clientX: number,
@@ -65,6 +77,155 @@ function latLngFromClient(
 ): L.LatLng {
   const rect = map.getContainer().getBoundingClientRect();
   return map.containerPointToLatLng(L.point(clientX - rect.left, clientY - rect.top));
+}
+
+function circleLatLngBounds(center: L.LatLngExpression, radiusMeters: number): L.LatLngBounds {
+  return L.circle(center, { radius: radiusMeters }).getBounds();
+}
+
+/** Highest zoom where the full privacy circle still fits in the map viewport. */
+function maxZoomForCircleInView(
+  map: L.Map,
+  center: L.LatLngExpression,
+  radiusMeters: number,
+  paddingPx: number,
+): number {
+  const size = map.getSize();
+  const availW = size.x - 2 * paddingPx;
+  const availH = size.y - 2 * paddingPx;
+  if (availW <= 8 || availH <= 8) return map.getMinZoom();
+
+  const bounds = circleLatLngBounds(center, radiusMeters);
+  const minZ = map.getMinZoom();
+  for (let z = MAP_MAX_ZOOM; z >= minZ; z -= 1) {
+    const nw = map.project(bounds.getNorthWest(), z);
+    const se = map.project(bounds.getSouthEast(), z);
+    const w = Math.abs(se.x - nw.x);
+    const h = Math.abs(se.y - nw.y);
+    if (w <= availW && h <= availH) return z;
+  }
+  return minZ;
+}
+
+function paddedMapBounds(map: L.Map, paddingPx: number): L.LatLngBounds {
+  const size = map.getSize();
+  const sw = map.containerPointToLatLng(L.point(paddingPx, size.y - paddingPx));
+  const ne = map.containerPointToLatLng(L.point(size.x - paddingPx, paddingPx));
+  return L.latLngBounds(sw, ne);
+}
+
+function clampCircleFullyVisible(
+  map: L.Map,
+  center: L.LatLngExpression,
+  radiusMeters: number,
+  paddingPx: number,
+): void {
+  const circleBounds = circleLatLngBounds(center, radiusMeters);
+  const view = paddedMapBounds(map, paddingPx);
+  if (view.contains(circleBounds)) return;
+
+  let dLat = 0;
+  let dLng = 0;
+  if (circleBounds.getSouth() < view.getSouth()) {
+    dLat += circleBounds.getSouth() - view.getSouth();
+  }
+  if (circleBounds.getNorth() > view.getNorth()) {
+    dLat += circleBounds.getNorth() - view.getNorth();
+  }
+  if (circleBounds.getWest() < view.getWest()) {
+    dLng += circleBounds.getWest() - view.getWest();
+  }
+  if (circleBounds.getEast() > view.getEast()) {
+    dLng += circleBounds.getEast() - view.getEast();
+  }
+  if (dLat === 0 && dLng === 0) return;
+  const c = map.getCenter();
+  map.setView([c.lat + dLat, c.lng + dLng], map.getZoom(), { animate: false });
+}
+
+function clampPinVisible(map: L.Map, position: L.LatLngExpression, paddingPx: number): void {
+  const point = map.latLngToContainerPoint(position);
+  const size = map.getSize();
+  // Default marker tip is at latlng; the icon extends upward.
+  const padTop = paddingPx + 24;
+  const padBottom = Math.max(16, paddingPx - 8);
+  const padX = paddingPx;
+  let dx = 0;
+  let dy = 0;
+  if (point.x < padX) dx = padX - point.x;
+  else if (point.x > size.x - padX) dx = size.x - padX - point.x;
+  if (point.y < padTop) dy = padTop - point.y;
+  else if (point.y > size.y - padBottom) dy = size.y - padBottom - point.y;
+  if (dx !== 0 || dy !== 0) {
+    map.panBy([dx, dy], { animate: false });
+  }
+}
+
+/**
+ * Keeps the location pin (or full privacy circle — Option A) inside the visible map.
+ * Caps max zoom when a circle is shown so the whole perimeter always fits.
+ */
+function KeepLocationInView({
+  position,
+  radiusMeters,
+  suppressClampRef,
+}: {
+  position: [number, number];
+  /** When set, the entire circle must stay in view. */
+  radiusMeters: number | null;
+  suppressClampRef: React.MutableRefObject<boolean>;
+}) {
+  const map = useMap();
+  const clampingRef = useRef(false);
+
+  const apply = useCallback(() => {
+    if (clampingRef.current || suppressClampRef.current) return;
+    const size = map.getSize();
+    if (size.x < 8 || size.y < 8) return;
+
+    clampingRef.current = true;
+    try {
+      if (radiusMeters != null && radiusMeters > 0) {
+        const padding = CIRCLE_EDGE_PADDING_PX;
+        const maxZ = maxZoomForCircleInView(map, position, radiusMeters, padding);
+        if (map.getMaxZoom() !== maxZ) {
+          map.setMaxZoom(maxZ);
+        }
+        if (map.getZoom() > maxZ) {
+          map.setZoom(maxZ, { animate: false });
+        }
+        clampCircleFullyVisible(map, position, radiusMeters, padding);
+      } else {
+        if (map.getMaxZoom() !== MAP_MAX_ZOOM) {
+          map.setMaxZoom(MAP_MAX_ZOOM);
+        }
+        clampPinVisible(map, position, PIN_EDGE_PADDING_PX);
+      }
+    } catch {
+      /* map tearing down */
+    } finally {
+      clampingRef.current = false;
+    }
+  }, [map, position, radiusMeters, suppressClampRef]);
+
+  useEffect(() => {
+    // `drag` = hard edge while panning (does not fire during flyTo).
+    // `moveend`/`zoomend` = settle after fly, zoom, or programmatic moves.
+    // Max zoom is capped so the circle cannot be zoomed past fitting the viewport.
+    apply();
+    map.on("drag", apply);
+    map.on("moveend", apply);
+    map.on("zoomend", apply);
+    map.on("resize", apply);
+    return () => {
+      map.off("drag", apply);
+      map.off("moveend", apply);
+      map.off("zoomend", apply);
+      map.off("resize", apply);
+    };
+  }, [map, apply]);
+
+  return null;
 }
 
 function MapViewSync({
@@ -92,10 +253,11 @@ function MapViewSync({
     }
 
     try {
+      const targetZoom = Math.min(zoom, map.getMaxZoom());
       if (isInitial) {
-        map.setView(position, zoom, { animate: false });
+        map.setView(position, targetZoom, { animate: false });
       } else {
-        map.flyTo(position, zoom, { duration: 0.75 });
+        map.flyTo(position, targetZoom, { duration: 0.75 });
       }
     } catch {
       /* map tearing down */
@@ -111,11 +273,13 @@ function DraggablePrivacyCircle({
   radiusMeters,
   onDragMove,
   onDragEnd,
+  suppressClampRef,
 }: {
   center: [number, number];
   radiusMeters: number;
   onDragMove: (lat: number, lng: number) => void;
   onDragEnd: (lat: number, lng: number) => void;
+  suppressClampRef: React.MutableRefObject<boolean>;
 }) {
   const map = useMap();
   const circleRef = useRef<L.Circle | null>(null);
@@ -143,6 +307,7 @@ function DraggablePrivacyCircle({
       if (!dragRef.current) return;
       const ll = circle.getLatLng();
       dragRef.current = null;
+      suppressClampRef.current = false;
       map.dragging.enable();
       map.getContainer().style.cursor = "";
       onDragEnd(ll.lat, ll.lng);
@@ -151,6 +316,7 @@ function DraggablePrivacyCircle({
     const startDrag = (pointer: L.LatLng, ev: Event) => {
       L.DomEvent.stopPropagation(ev);
       L.DomEvent.preventDefault(ev);
+      suppressClampRef.current = true;
       map.dragging.disable();
       map.getContainer().style.cursor = "grabbing";
       dragRef.current = {
@@ -208,11 +374,12 @@ function DraggablePrivacyCircle({
       }
       if (dragRef.current) {
         dragRef.current = null;
+        suppressClampRef.current = false;
         map.dragging.enable();
         map.getContainer().style.cursor = "";
       }
     };
-  }, [map, onDragEnd, onDragMove]);
+  }, [map, onDragEnd, onDragMove, suppressClampRef]);
 
   return (
     <Circle
@@ -243,10 +410,13 @@ export function WizardLocationMap({
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
   const skipFlyRef = useRef(false);
+  /** Skip view clamping while the user drags the pin/circle (re-clamp on drag end). */
+  const suppressClampRef = useRef(false);
   /** Pin only when exact location mode, or when preview forces a pin over the circle. */
   const showMarker = forceDraggablePin || !showApproximateRadius;
   const circleDraggable = Boolean(showApproximateRadius && radiusEditable && !forceDraggablePin);
   const circleRadius = clampApproximateRadiusMeters(approximateRadiusMeters);
+  const anchorRadiusMeters = showApproximateRadius ? circleRadius : null;
 
   useEffect(() => {
     setLocalPosition(position);
@@ -258,6 +428,7 @@ export function WizardLocationMap({
       setLocalPosition([lat, lng]);
       setLocalLocationSelected(true);
       skipFlyRef.current = true;
+      suppressClampRef.current = false;
       onPositionChange(lat, lng);
     },
     [onPositionChange],
@@ -282,6 +453,7 @@ export function WizardLocationMap({
     () => ({
       dragstart: () => {
         markerWasDraggedRef.current = true;
+        suppressClampRef.current = true;
       },
       dragend: (e: L.LeafletEvent) => {
         markerWasDraggedRef.current = false;
@@ -308,21 +480,32 @@ export function WizardLocationMap({
       <MapContainer
         center={center}
         zoom={13}
-        className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm"
+        maxZoom={MAP_MAX_ZOOM}
+        className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]"
         style={{ height: mapHeightStyle }}
         scrollWheelZoom
+        zoomControl={false}
+        attributionControl={false}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <AttributionControl position="bottomleft" prefix={false} />
+        <ZoomControl position="bottomright" />
         <MapViewSync position={localPosition} zoom={13} skipFlyRef={skipFlyRef} />
+        <KeepLocationInView
+          position={localPosition}
+          radiusMeters={anchorRadiusMeters}
+          suppressClampRef={suppressClampRef}
+        />
         {showApproximateRadius && circleDraggable ? (
           <DraggablePrivacyCircle
             center={localPosition}
             radiusMeters={circleRadius}
             onDragMove={onCircleDragMove}
             onDragEnd={commitPosition}
+            suppressClampRef={suppressClampRef}
           />
         ) : null}
         {showApproximateRadius && !circleDraggable ? (
