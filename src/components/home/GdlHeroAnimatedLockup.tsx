@@ -72,19 +72,12 @@ export function GdlHeroAnimatedLockup({ className = "" }: { className?: string }
             <span className="absolute inset-0 grid place-items-center [backface-visibility:hidden]">
               <HeroMarkOnly />
             </span>
-            {/* Minerva: same visual footprint as the mark, max ~30% larger — not the full card */}
+            {/* Minerva: simplified solid mark, brand lime, centered on the same spot as the people mark */}
             <span
-              className="absolute inset-0 grid place-items-center [backface-visibility:hidden]"
+              className="absolute inset-0 grid place-items-center text-secondary [backface-visibility:hidden]"
               style={{ transform: "rotateY(180deg)" }}
             >
-              <img
-                src="/brand/gdl/minerva-silhouette-v4.png"
-                alt=""
-                width={120}
-                height={160}
-                decoding="async"
-                className="h-[74%] w-auto max-w-full object-contain object-bottom"
-              />
+              <MinervaSimpleMark className="h-[74%] w-auto" />
             </span>
           </span>
         </span>
@@ -180,6 +173,38 @@ function HeroMarkOnly() {
             </g>
           </g>
         </g>
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * Simplified La Minerva mark for the mobile flip — a few solid brand-lime
+ * shapes (not fine linework) so it reads clearly at mark size.
+ */
+function MinervaSimpleMark({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden
+    >
+      <g fill="currentColor">
+        {/* Spear */}
+        <path d="M19.3 0 23 6.4 20.9 6.4 20.9 34 17.7 34 17.7 6.4 15.6 6.4Z" />
+        {/* Head + helmet crest */}
+        <circle cx="20" cy="11" r="4.2" />
+        <path d="M15.8 7.4C16.6 4 18.2 2 20 2C21.8 2 23.4 4 24.2 7.4 22.6 6.2 21.2 5.6 20 5.6 18.8 5.6 17.4 6.2 15.8 7.4Z" />
+        {/* Robe / body, tapering to the pedestal */}
+        <path d="M14 15.5 26 15.5 29.5 44 10.5 44Z" />
+        {/* Shield, low by her side */}
+        <circle cx="9.5" cy="35" r="5.5" />
+        {/* Pedestal */}
+        <rect x="7" y="44" width="26" height="12" />
+        {/* Fountain base ring */}
+        <rect x="2" y="58" width="36" height="5" rx="2.5" />
       </g>
     </svg>
   );
