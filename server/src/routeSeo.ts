@@ -80,9 +80,9 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
     seo: {
       title: "Buscar roomie Guadalajara | Cuartos compartidos GDL — Bestie MX",
       description: GDL_SEARCH_DESC,
+      // Keep the default share card: bare /buscar is city-agnostic once more
+      // metros ship. Minerva belongs only on GDL-scoped paths below.
       canonicalPath: "/buscar/gdl",
-      ogImagePath: GDL_OG_IMAGE,
-      ogImageAlt: GDL_OG_IMAGE_ALT,
     },
   },
   {

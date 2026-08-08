@@ -41,6 +41,13 @@ describe("routeSeo", () => {
     expect(gdl).toMatch(/og:image:alt" content="[^"]*Minerva/);
     expect(gdl).not.toContain("og-default.jpg");
 
+    const buscarGdl = injectRouteSeo(shell, resolveRouteSeo("/buscar/gdl")!, "https://www.bestie.mx");
+    expect(buscarGdl).toContain('property="og:image" content="https://www.bestie.mx/brand/og-gdl.jpg"');
+
+    // Bare /buscar stays on the default card so future cities don't inherit Minerva.
+    const buscar = injectRouteSeo(shell, resolveRouteSeo("/buscar")!, "https://www.bestie.mx");
+    expect(buscar).toContain('property="og:image" content="https://www.bestie.mx/brand/og-default.jpg"');
+
     const faq = injectRouteSeo(shell, resolveRouteSeo("/faq")!, "https://www.bestie.mx");
     expect(faq).toContain('property="og:image" content="https://www.bestie.mx/brand/og-default.jpg"');
   });
