@@ -17,7 +17,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         className="h-[92%] w-auto max-w-[48%] -translate-x-[12%] object-contain object-left-bottom opacity-70 sm:-translate-x-[4%] sm:max-w-[42%] sm:opacity-75 md:max-w-[38%] lg:translate-x-0 lg:max-w-[34%]"
       />
       <img
-        src="/brand/gdl/minerva-silhouette-v2.png"
+        src="/brand/gdl/minerva-silhouette-v3.png"
         alt=""
         width={320}
         height={320}
