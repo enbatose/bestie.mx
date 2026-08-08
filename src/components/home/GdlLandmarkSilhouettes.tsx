@@ -9,7 +9,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
       aria-hidden
     >
       <img
-        src="/brand/gdl/minerva-silhouette-v3.png"
+        src="/brand/gdl/minerva-silhouette-v4.png"
         alt=""
         width={320}
         height={320}

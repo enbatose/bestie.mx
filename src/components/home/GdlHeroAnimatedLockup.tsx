@@ -69,20 +69,21 @@ export function GdlHeroAnimatedLockup({ className = "" }: { className?: string }
               transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
             }}
           >
-            <span className="absolute inset-0 grid place-items-center bg-primary [backface-visibility:hidden]">
+            <span className="absolute inset-0 grid place-items-center [backface-visibility:hidden]">
               <HeroMarkOnly />
             </span>
+            {/* Minerva: same visual footprint as the mark, max ~30% larger — not the full card */}
             <span
-              className="absolute inset-0 grid place-items-center bg-primary [backface-visibility:hidden]"
+              className="absolute inset-0 grid place-items-center [backface-visibility:hidden]"
               style={{ transform: "rotateY(180deg)" }}
             >
               <img
-                src="/brand/gdl/minerva-silhouette-v3.png"
+                src="/brand/gdl/minerva-silhouette-v4.png"
                 alt=""
                 width={120}
                 height={160}
                 decoding="async"
-                className="h-[95%] w-auto max-w-full object-contain object-bottom"
+                className="h-[74%] w-auto max-w-full object-contain object-bottom"
               />
             </span>
           </span>
