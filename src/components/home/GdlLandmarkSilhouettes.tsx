@@ -17,12 +17,12 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         className="absolute bottom-0 left-[6%] h-52 w-auto max-w-[34%] object-contain object-left-bottom opacity-65 lg:left-[8%] lg:h-60 lg:max-w-[30%] lg:opacity-70 xl:left-[10%] xl:h-72 xl:max-w-[26%]"
       />
       <img
-        src="/brand/gdl/cathedral-silhouette-v2.png"
+        src="/brand/gdl/cathedral-silhouette-v3.png"
         alt=""
         width={320}
         height={320}
         decoding="async"
-        className="absolute right-0 top-0 h-48 w-auto max-w-[38%] object-contain object-right-top opacity-65 lg:h-56 lg:max-w-[34%] lg:opacity-70 xl:h-64 xl:max-w-[30%]"
+        className="absolute right-[6%] top-0 h-48 w-auto max-w-[38%] object-contain object-right-top opacity-65 lg:right-[8%] lg:h-56 lg:max-w-[34%] lg:opacity-70 xl:right-[10%] xl:h-64 xl:max-w-[30%]"
       />
     </div>
   );
