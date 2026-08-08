@@ -91,12 +91,6 @@ export function GuadalajaraLandingPage() {
     <>
       <section className="home-hero relative overflow-hidden bg-primary px-4 pb-16 pt-12 text-primary-fg sm:px-6 sm:pb-20 sm:pt-16 md:pb-36">
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
-          <img
-            src="/brand/facebook/cover-1640x624.png"
-            alt=""
-            className="h-full w-full object-cover opacity-[0.18]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/75 via-primary/88 to-primary" />
           <div className="home-hero-orb absolute -left-20 -top-16 h-72 w-72 rounded-full bg-secondary/30 blur-3xl" />
           <div className="home-hero-orb home-hero-orb--delay absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/25 blur-3xl" />
         </div>
