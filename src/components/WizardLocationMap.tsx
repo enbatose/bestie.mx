@@ -107,13 +107,6 @@ function maxZoomForCircleInView(
   return minZ;
 }
 
-function paddedMapBounds(map: L.Map, paddingPx: number): L.LatLngBounds {
-  const size = map.getSize();
-  const sw = map.containerPointToLatLng(L.point(paddingPx, size.y - paddingPx));
-  const ne = map.containerPointToLatLng(L.point(size.x - paddingPx, paddingPx));
-  return L.latLngBounds(sw, ne);
-}
-
 function clampCircleFullyVisible(
   map: L.Map,
   center: L.LatLngExpression,
@@ -121,44 +114,35 @@ function clampCircleFullyVisible(
   paddingPx: number,
 ): void {
   const circleBounds = circleLatLngBounds(center, radiusMeters);
-  const view = paddedMapBounds(map, paddingPx);
-  if (view.contains(circleBounds)) return;
+  const size = map.getSize();
+  const nw = map.latLngToContainerPoint(circleBounds.getNorthWest());
+  const se = map.latLngToContainerPoint(circleBounds.getSouthEast());
 
-  let dLat = 0;
-  let dLng = 0;
-  if (circleBounds.getSouth() < view.getSouth()) {
-    dLat += circleBounds.getSouth() - view.getSouth();
+  // panBy offset moves the map center in screen space: positive x → center moves right
+  // (pin/circle edges appear to move left). dx/dy = how far the out-of-bounds edge
+  // sticks out, with the same sign.
+  let dx = 0;
+  let dy = 0;
+  if (nw.x < paddingPx) dx += nw.x - paddingPx;
+  if (se.x > size.x - paddingPx) dx += se.x - (size.x - paddingPx);
+  if (nw.y < paddingPx) dy += nw.y - paddingPx;
+  if (se.y > size.y - paddingPx) dy += se.y - (size.y - paddingPx);
+
+  if (dx !== 0 || dy !== 0) {
+    map.panBy([dx, dy], { animate: false });
   }
-  if (circleBounds.getNorth() > view.getNorth()) {
-    dLat += circleBounds.getNorth() - view.getNorth();
-  }
-  if (circleBounds.getWest() < view.getWest()) {
-    dLng += circleBounds.getWest() - view.getWest();
-  }
-  if (circleBounds.getEast() > view.getEast()) {
-    dLng += circleBounds.getEast() - view.getEast();
-  }
-  if (dLat === 0 && dLng === 0) return;
-  const c = map.getCenter();
-  map.setView([c.lat + dLat, c.lng + dLng], map.getZoom(), { animate: false });
 }
 
 function clampPinVisible(map: L.Map, position: L.LatLngExpression, paddingPx: number): void {
-  const point = map.latLngToContainerPoint(position);
-  const size = map.getSize();
   // Default marker tip is at latlng; the icon extends upward.
   const padTop = paddingPx + 24;
   const padBottom = Math.max(16, paddingPx - 8);
   const padX = paddingPx;
-  let dx = 0;
-  let dy = 0;
-  if (point.x < padX) dx = padX - point.x;
-  else if (point.x > size.x - padX) dx = size.x - padX - point.x;
-  if (point.y < padTop) dy = padTop - point.y;
-  else if (point.y > size.y - padBottom) dy = size.y - padBottom - point.y;
-  if (dx !== 0 || dy !== 0) {
-    map.panBy([dx, dy], { animate: false });
-  }
+  map.panInside(L.latLng(position), {
+    paddingTopLeft: [padX, padTop],
+    paddingBottomRight: [padX, padBottom],
+    animate: false,
+  });
 }
 
 /**
