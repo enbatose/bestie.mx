@@ -79,8 +79,14 @@ function latLngFromClient(
   return map.containerPointToLatLng(L.point(clientX - rect.left, clientY - rect.top));
 }
 
+/**
+ * Geographic bounds of a meter-radius disk.
+ * Do NOT use `L.circle(...).getBounds()` here — that API requires the circle to be
+ * on a map (`_map` / `_point`) and throws otherwise (which previously no-op'd clamp).
+ */
 function circleLatLngBounds(center: L.LatLngExpression, radiusMeters: number): L.LatLngBounds {
-  return L.circle(center, { radius: radiusMeters }).getBounds();
+  // toBounds(size) builds a box whose edges are size/2 meters from the point.
+  return L.latLng(center).toBounds(radiusMeters * 2);
 }
 
 /** Highest zoom where the full privacy circle still fits in the map viewport. */
@@ -219,8 +225,8 @@ function KeepLocationInView({
         }
         clampPinVisible(map, position, PIN_EDGE_PADDING_PX);
       }
-    } catch {
-      /* map tearing down */
+    } catch (err) {
+      console.error("[WizardLocationMap] keep-in-view clamp failed", err);
     } finally {
       clampingRef.current = false;
     }
