@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, MapPinned, TrendingUp, Users } from "lucide-react";
-import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
+import { GdlHeroAnimatedLockup } from "@/components/home/GdlHeroAnimatedLockup";
 import { GdlLandmarkSilhouettes } from "@/components/home/GdlLandmarkSilhouettes";
 import { HomeLocationSearch } from "@/components/home/HomeLocationSearch";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
@@ -105,7 +105,7 @@ export function GuadalajaraLandingPage() {
 
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center text-center">
           <div className="home-hero-rise flex w-full max-w-[42rem] flex-col items-center">
-            <HeroAnimatedLockup />
+            <GdlHeroAnimatedLockup />
 
             <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-primary-fg/70">
               Bestie MX · Guadalajara
