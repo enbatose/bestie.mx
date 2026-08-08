@@ -1,11 +1,11 @@
 /**
- * Decorative GDL landmarks (Catedral + La Minerva) for the city landing hero.
- * Lime line-art — desktop/tablet only; on mobile the detail becomes noise under CTAs.
+ * Decorative GDL landmarks for the city landing hero (tablet/desktop).
+ * Catedral bottom-left, La Minerva top-right — lime on forest green.
  */
 export function GdlLandmarkSilhouettes({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1] hidden items-end justify-between md:flex md:h-56 lg:h-64 xl:h-72 ${className}`}
+      className={`pointer-events-none absolute inset-0 z-[1] hidden md:block ${className}`}
       aria-hidden
     >
       <img
@@ -14,7 +14,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="h-[92%] w-auto max-w-[40%] object-contain object-left-bottom opacity-60 lg:max-w-[36%] lg:opacity-70 xl:max-w-[32%]"
+        className="absolute bottom-0 left-0 h-52 w-auto max-w-[38%] object-contain object-left-bottom opacity-65 lg:h-60 lg:max-w-[34%] lg:opacity-70 xl:h-72 xl:max-w-[30%]"
       />
       <img
         src="/brand/gdl/minerva-silhouette-v3.png"
@@ -22,7 +22,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="h-full w-auto max-w-[34%] object-contain object-right-bottom opacity-60 lg:max-w-[30%] lg:opacity-70 xl:max-w-[26%]"
+        className="absolute right-0 top-0 h-48 w-auto max-w-[28%] object-contain object-right-top opacity-65 lg:h-56 lg:max-w-[24%] lg:opacity-70 xl:h-64 xl:max-w-[22%]"
       />
     </div>
   );
