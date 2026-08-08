@@ -28,7 +28,7 @@ Organization: **Bestie MX** (`019f71ea-041f-0000-e8d7-cf0412e4fc75`) · Project:
 
 ## Session replay & privacy
 
-Enabled in project settings (`session_recording_opt_in`, min duration 2s). Client masks all inputs. Mark sensitive DOM with `ph-no-capture` so it never appears in a recording:
+Enabled in project settings (`session_recording_opt_in`). Client masks all inputs. Mark sensitive DOM with `ph-no-capture` so it never appears in a recording:
 
 - Chat message bodies (`ChatMessageBody`)
 - Message attachment thumbs / lightbox
@@ -45,19 +45,28 @@ Free tier (as of 2026): **5,000 web recordings / month**, resets monthly with th
 
 ### Replay budget controls (current)
 
-| Control | Value | Why |
-| --- | --- | --- |
-| Sample rate | **25%** of eligible sessions | Cuts volume while keeping a usable sample |
-| Minimum duration | **5s** | Drops bounce / accidental opens |
-| Linked flag | [`session_replay_allow`](https://us.posthog.com/project/517444/feature_flags/807600) | **Admins = 0%** (no replay after identify) |
-| Console logs in replay | Off | Smaller payloads |
-| Test-account filter | Default on for new insights | Hides Internal/Test + `is_admin` from charts |
+PostHog **trigger groups** (V2) apply different sample rates by URL. Recording starts when a group matches; it then continues for the rest of that session (with a short pre-trigger buffer).
 
-**Admin exclusion:** when `authMe().isAdmin` is true, the client sets `is_admin` + `$internal_or_test_user` and calls `stopSessionRecording()`. Combined with the linked flag, your admin sessions should not count toward replay budget after login.
+| Trigger group | URL | Sample | Min duration |
+| --- | --- | --- | --- |
+| Publish / post creation | `/publicar` | **75%** | 5s |
+| Search / seeker | `/buscar` | **25%** | 5s |
+
+Both groups also require feature flag [`session_replay_allow`](https://us.posthog.com/project/517444/feature_flags/807600) (`matchType: all`). Legacy fallback sample remains 25% for older SDKs. Console logs in replay are off. Test-account filter defaults on for new insights.
+
+Settings UI: https://us.posthog.com/project/517444/settings/project-replay
+
+**Admin exclusion (how it works):**
+
+1. On identify, Bestie sets person props `is_admin` + `$internal_or_test_user` when `authMe().isAdmin` is true, and calls `posthog.stopSessionRecording()`.
+2. Flag `session_replay_allow`: admins → **0%** / off; everyone else → **100%**. Both trigger groups require this flag, so admin sessions never pass the group gate after identify.
+3. Insights default to excluding the [Internal / Test users](https://us.posthog.com/project/517444/cohorts/422255) cohort (includes `is_admin`).
+
+Caveat: a short anonymous recording can still start **before** login if you hit `/publicar` or `/buscar` while logged out; once you identify as admin, recording stops and further ingest is blocked by the flag.
 
 **Events vs recordings:** product events (funnels) are separate from replay. Keep the custom taxonomy; don’t turn off event capture for seeker/publish spine. If event volume grows, prefer sampling **replay** first, not dropping funnel events.
 
-Optional next levers (if $5 still feels tight): event-triggered recording (only after `publish_failed` / `listing_auth_required`), lower sample to 10%, or turn off heatmaps.
+Optional next levers (if spend still feels tight): event-triggered recording (only after `publish_failed` / `listing_auth_required`), lower search sample further, or turn off heatmaps.
 
 ### Friction playlists
 
