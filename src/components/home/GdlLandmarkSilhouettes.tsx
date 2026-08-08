@@ -1,8 +1,13 @@
 /**
  * Decorative GDL landmarks for the city landing hero (tablet/desktop).
- * La Minerva bottom-left, Catedral top-right — lime on forest green.
+ * La Minerva bottom-left, Catedral top-right — each centered in the gutter
+ * between the viewport edge and the central text column (max-w-[42rem]).
  */
 export function GdlLandmarkSilhouettes({ className = "" }: { className?: string }) {
+  // Midpoint of the side gutter: (100% - content) / 4
+  const gutterMid =
+    "calc((100% - min(42rem, 100%)) / 4)";
+
   return (
     <div
       className={`pointer-events-none absolute inset-0 z-[1] hidden md:block ${className}`}
@@ -14,7 +19,8 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="absolute bottom-0 left-[6%] h-52 w-auto max-w-[34%] object-contain object-left-bottom opacity-65 lg:left-[8%] lg:h-60 lg:max-w-[30%] lg:opacity-70 xl:left-[10%] xl:h-72 xl:max-w-[26%]"
+        style={{ left: gutterMid }}
+        className="absolute bottom-0 h-44 w-auto max-w-[min(28%,11rem)] -translate-x-1/2 object-contain object-bottom opacity-65 lg:h-56 lg:max-w-[min(26%,13rem)] lg:opacity-70 xl:h-64 xl:max-w-[min(24%,15rem)]"
       />
       <img
         src="/brand/gdl/cathedral-silhouette-v3.png"
@@ -22,7 +28,8 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="absolute right-[6%] top-0 h-48 w-auto max-w-[38%] object-contain object-right-top opacity-65 lg:right-[8%] lg:h-56 lg:max-w-[34%] lg:opacity-70 xl:right-[10%] xl:h-64 xl:max-w-[30%]"
+        style={{ right: gutterMid }}
+        className="absolute top-0 h-40 w-auto max-w-[min(30%,12rem)] translate-x-1/2 object-contain object-top opacity-65 lg:h-52 lg:max-w-[min(28%,14rem)] lg:opacity-70 xl:h-60 xl:max-w-[min(26%,16rem)]"
       />
     </div>
   );
