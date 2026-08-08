@@ -14,7 +14,7 @@ export function GdlLandmarkSilhouettes({ className = "" }: { className?: string 
         width={320}
         height={320}
         decoding="async"
-        className="absolute bottom-0 left-0 h-52 w-auto max-w-[34%] object-contain object-left-bottom opacity-65 lg:h-60 lg:max-w-[30%] lg:opacity-70 xl:h-72 xl:max-w-[26%]"
+        className="absolute bottom-0 left-[6%] h-52 w-auto max-w-[34%] object-contain object-left-bottom opacity-65 lg:left-[8%] lg:h-60 lg:max-w-[30%] lg:opacity-70 xl:left-[10%] xl:h-72 xl:max-w-[26%]"
       />
       <img
         src="/brand/gdl/cathedral-silhouette-v2.png"
