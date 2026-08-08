@@ -107,30 +107,64 @@ function maxZoomForCircleInView(
   return minZ;
 }
 
+/** Pixel inset so panInside keeps the full circle (not just the center) on screen. */
+function circlePanPaddingPx(
+  map: L.Map,
+  center: L.LatLngExpression,
+  radiusMeters: number,
+  edgePaddingPx: number,
+): { padX: number; padY: number } {
+  const bounds = circleLatLngBounds(center, radiusMeters);
+  const nw = map.latLngToContainerPoint(bounds.getNorthWest());
+  const se = map.latLngToContainerPoint(bounds.getSouthEast());
+  return {
+    padX: Math.abs(se.x - nw.x) / 2 + edgePaddingPx,
+    padY: Math.abs(se.y - nw.y) / 2 + edgePaddingPx,
+  };
+}
+
 function clampCircleFullyVisible(
   map: L.Map,
   center: L.LatLngExpression,
   radiusMeters: number,
   paddingPx: number,
 ): void {
-  const circleBounds = circleLatLngBounds(center, radiusMeters);
+  const { padX, padY } = circlePanPaddingPx(map, center, radiusMeters, paddingPx);
   const size = map.getSize();
-  const nw = map.latLngToContainerPoint(circleBounds.getNorthWest());
-  const se = map.latLngToContainerPoint(circleBounds.getSouthEast());
-
-  // panBy offset moves the map center in screen space: positive x → center moves right
-  // (pin/circle edges appear to move left). dx/dy = how far the out-of-bounds edge
-  // sticks out, with the same sign.
-  let dx = 0;
-  let dy = 0;
-  if (nw.x < paddingPx) dx += nw.x - paddingPx;
-  if (se.x > size.x - paddingPx) dx += se.x - (size.x - paddingPx);
-  if (nw.y < paddingPx) dy += nw.y - paddingPx;
-  if (se.y > size.y - paddingPx) dy += se.y - (size.y - paddingPx);
-
-  if (dx !== 0 || dy !== 0) {
-    map.panBy([dx, dy], { animate: false });
+  // Circle larger than the view: center it (max zoom should normally prevent this).
+  if (padX * 2 >= size.x - 2 || padY * 2 >= size.y - 2) {
+    map.panTo(L.latLng(center), { animate: false });
+    return;
   }
+  // Same API as the pin clamp — padding equals circle radius in screen px.
+  map.panInside(L.latLng(center), {
+    paddingTopLeft: [padX, padY],
+    paddingBottomRight: [padX, padY],
+    animate: false,
+  });
+}
+
+/** Keep a dragged circle center far enough from the edges that the disk stays in view. */
+function clampLatLngToKeepCircleInView(
+  map: L.Map,
+  center: L.LatLngExpression,
+  radiusMeters: number,
+  paddingPx: number,
+): L.LatLng {
+  const { padX, padY } = circlePanPaddingPx(map, center, radiusMeters, paddingPx);
+  const size = map.getSize();
+  const minX = padX;
+  const maxX = size.x - padX;
+  const minY = padY;
+  const maxY = size.y - padY;
+  if (maxX <= minX || maxY <= minY) {
+    return map.getCenter();
+  }
+  const pt = map.latLngToContainerPoint(center);
+  const x = Math.min(maxX, Math.max(minX, pt.x));
+  const y = Math.min(maxY, Math.max(minY, pt.y));
+  if (x === pt.x && y === pt.y) return L.latLng(center);
+  return map.containerPointToLatLng(L.point(x, y));
 }
 
 function clampPinVisible(map: L.Map, position: L.LatLngExpression, paddingPx: number): void {
@@ -279,9 +313,16 @@ function DraggablePrivacyCircle({
     const applyDelta = (pointer: L.LatLng) => {
       const drag = dragRef.current;
       if (!drag) return null;
-      const next = L.latLng(
+      const raw = L.latLng(
         drag.originCenter.lat + (pointer.lat - drag.originPointer.lat),
         drag.originCenter.lng + (pointer.lng - drag.originPointer.lng),
+      );
+      // Stop the disk at the map edge so the full radius stays visible (Option A).
+      const next = clampLatLngToKeepCircleInView(
+        map,
+        raw,
+        radiusMeters,
+        CIRCLE_EDGE_PADDING_PX,
       );
       circle.setLatLng(next);
       return next;
@@ -363,7 +404,7 @@ function DraggablePrivacyCircle({
         map.getContainer().style.cursor = "";
       }
     };
-  }, [map, onDragEnd, onDragMove, suppressClampRef]);
+  }, [map, onDragEnd, onDragMove, radiusMeters, suppressClampRef]);
 
   return (
     <Circle
