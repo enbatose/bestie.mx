@@ -15,9 +15,17 @@ export type RouteSeoMeta = {
   title: string;
   description: string;
   canonicalPath: string;
+  /** Absolute path to a 1200x630 JPEG; falls back to the shell's og-default.jpg. */
+  ogImagePath?: string;
+  ogImageAlt?: string;
   jsonLd?: unknown;
   jsonLdId?: string;
 };
+
+const GDL_OG_IMAGE = "/brand/og-gdl.jpg";
+
+const GDL_OG_IMAGE_ALT =
+  "Roomie en Guadalajara — Bestie MX, con la silueta de La Minerva";
 
 const HOME_DESC =
   "Bestie MX: marketplace de roomies y cuartos compartidos en México. Empieza por Guadalajara (GDL); más ciudades pronto.";
@@ -53,6 +61,8 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
       title: "Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX",
       description: GDL_LANDING_DESC,
       canonicalPath: "/guadalajara",
+      ogImagePath: GDL_OG_IMAGE,
+      ogImageAlt: GDL_OG_IMAGE_ALT,
     },
   },
   {
@@ -61,6 +71,8 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
       title: "Roomie Guadalajara | Cuartos compartidos y comparto depa GDL — Bestie MX",
       description: GDL_LANDING_DESC,
       canonicalPath: "/guadalajara",
+      ogImagePath: GDL_OG_IMAGE,
+      ogImageAlt: GDL_OG_IMAGE_ALT,
     },
   },
   {
@@ -69,6 +81,8 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
       title: "Buscar roomie Guadalajara | Cuartos compartidos GDL — Bestie MX",
       description: GDL_SEARCH_DESC,
       canonicalPath: "/buscar/gdl",
+      ogImagePath: GDL_OG_IMAGE,
+      ogImageAlt: GDL_OG_IMAGE_ALT,
     },
   },
   {
@@ -77,6 +91,8 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
       title: "Roomie GDL | Cuartos en Guadalajara y comparto depa — Bestie MX",
       description: GDL_SEARCH_DESC,
       canonicalPath: "/buscar/gdl",
+      ogImagePath: GDL_OG_IMAGE,
+      ogImageAlt: GDL_OG_IMAGE_ALT,
     },
   },
   {
@@ -155,6 +171,15 @@ export function injectRouteSeo(
   out = upsertMetaByProperty(out, "og:site_name", "Bestie");
   out = upsertMetaByName(out, "twitter:title", seo.title);
   out = upsertMetaByName(out, "twitter:description", seo.description);
+  if (seo.ogImagePath) {
+    const imageUrl = `${origin}${seo.ogImagePath}`;
+    out = upsertMetaByProperty(out, "og:image", imageUrl);
+    out = upsertMetaByProperty(out, "og:image:secure_url", imageUrl);
+    out = upsertMetaByName(out, "twitter:image", imageUrl);
+    if (seo.ogImageAlt) {
+      out = upsertMetaByProperty(out, "og:image:alt", seo.ogImageAlt);
+    }
+  }
   if (seo.jsonLd != null) {
     out = upsertJsonLd(out, seo.jsonLdId ?? "route", seo.jsonLd);
   }

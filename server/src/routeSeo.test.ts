@@ -22,4 +22,26 @@ describe("routeSeo", () => {
     expect(out).toContain(seo.description);
     expect(out).toContain('rel="canonical" href="https://www.bestie.mx/faq"');
   });
+
+  it("swaps the share image for Guadalajara routes and leaves other routes on the default", () => {
+    const shell = `<!doctype html><html><head>
+<title>Old</title>
+<meta property="og:image" content="https://www.bestie.mx/brand/og-default.jpg" />
+<meta property="og:image:secure_url" content="https://www.bestie.mx/brand/og-default.jpg" />
+<meta property="og:image:alt" content="Old alt" />
+<meta name="twitter:image" content="https://www.bestie.mx/brand/og-default.jpg" />
+</head><body></body></html>`;
+
+    const gdl = injectRouteSeo(shell, resolveRouteSeo("/gdl")!, "https://www.bestie.mx");
+    expect(gdl).toContain('property="og:image" content="https://www.bestie.mx/brand/og-gdl.jpg"');
+    expect(gdl).toContain(
+      'property="og:image:secure_url" content="https://www.bestie.mx/brand/og-gdl.jpg"',
+    );
+    expect(gdl).toContain('name="twitter:image" content="https://www.bestie.mx/brand/og-gdl.jpg"');
+    expect(gdl).toMatch(/og:image:alt" content="[^"]*Minerva/);
+    expect(gdl).not.toContain("og-default.jpg");
+
+    const faq = injectRouteSeo(shell, resolveRouteSeo("/faq")!, "https://www.bestie.mx");
+    expect(faq).toContain('property="og:image" content="https://www.bestie.mx/brand/og-default.jpg"');
+  });
 });
