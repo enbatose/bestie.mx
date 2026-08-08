@@ -84,7 +84,7 @@ export function GdlHeroAnimatedLockup({ className = "" }: { className?: string }
                 height={108}
                 decoding="async"
                 className="h-[86%] w-auto max-w-full object-contain object-center"
-                style={{ transform: "translate(-4%, 4%)" }}
+                style={{ transform: "translate(-4%, -9%)" }}
               />
             </span>
           </span>
