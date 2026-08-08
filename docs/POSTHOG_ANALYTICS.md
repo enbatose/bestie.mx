@@ -50,9 +50,9 @@ PostHog **trigger groups** (V2) apply different sample rates by URL. Recording s
 | Trigger group | URL | Sample | Min duration |
 | --- | --- | --- | --- |
 | Publish / post creation | `/publicar` | **75%** | 5s |
-| Search / seeker | `/buscar` | **25%** | 5s |
+| Search map + saved searches | `/buscar` (map search) and `/mis-busquedas` | **25%** | 5s |
 
-Both groups also require feature flag [`session_replay_allow`](https://us.posthog.com/project/517444/feature_flags/807600) (`matchType: all`). Legacy fallback sample remains 25% for older SDKs. Console logs in replay are off. Test-account filter defaults on for new insights.
+Both groups also require feature flag [`session_replay_allow`](https://us.posthog.com/project/517444/feature_flags/807600) (`matchType: all`). Seeker sampling is limited to the **map search** surface (`/buscar`, `/buscar/:city`) plus **Mis búsquedas** (`/mis-busquedas`); home/city landings alone do not start a recording. Legacy fallback sample remains 25% for older SDKs. Console logs in replay are off. Test-account filter defaults on for new insights.
 
 Settings UI: https://us.posthog.com/project/517444/settings/project-replay
 
