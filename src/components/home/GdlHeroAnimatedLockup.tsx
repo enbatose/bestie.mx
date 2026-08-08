@@ -55,11 +55,11 @@ export function GdlHeroAnimatedLockup({ className = "" }: { className?: string }
       {/* Mobile: mark flips to Minerva; wordmark stays */}
       <a
         href="/"
-        className={`inline-flex shrink-0 items-center justify-center overflow-visible md:hidden ${className}`.trim()}
+        className={`inline-flex shrink-0 items-center justify-center gap-2 overflow-visible md:hidden ${className}`.trim()}
         aria-label="Bestie — inicio"
       >
         <span
-          className="relative -mr-1 h-[3.3rem] w-[2.85rem] shrink-0 [perspective:900px]"
+          className="relative h-[3.3rem] w-[3.15rem] shrink-0 [perspective:900px]"
           style={{ transitionDuration: `${FLIP_MS}ms` }}
         >
           <span
@@ -83,8 +83,8 @@ export function GdlHeroAnimatedLockup({ className = "" }: { className?: string }
                 width={80}
                 height={108}
                 decoding="async"
-                className="h-[88%] w-auto max-w-full object-contain object-center"
-                style={{ transform: "translate(22%, 6%)" }}
+                className="h-[86%] w-auto max-w-full object-contain object-center"
+                style={{ transform: "translate(-4%, 4%)" }}
               />
             </span>
           </span>
