@@ -7,8 +7,9 @@ import { isPostHogConfigured, posthog } from "@/lib/posthog";
  * not every UI micro-interaction. Prefer properties that power funnels/cohorts.
  *
  * Funnel spine:
- *   home_search_submitted → search_results_loaded → search_listing_selected
- *   → listing_viewed → listing_message_sent
+ *   landing_viewed (home `/` or city `/guadalajara`) → search_results_loaded
+ *   → search_listing_selected → listing_viewed → listing_message_sent
+ *   City search box still fires home_search_submitted before results.
  *   OR home_cta_clicked(publish) → publish_mode_selected → publish_step_completed
  *   → publish_succeeded
  * Auth gates: *_auth_prompted / publish_auth_required / listing_auth_required
@@ -16,14 +17,29 @@ import { isPostHogConfigured, posthog } from "@/lib/posthog";
 
 export type AnalyticsAuthMethod = "email" | "google" | "facebook";
 
+export type AnalyticsLandingSurface = "home" | "city";
+
 export type AnalyticsProps = {
   user_signed_up: { method: AnalyticsAuthMethod };
   user_logged_in: { method: AnalyticsAuthMethod };
   user_logged_out: Record<string, never>;
 
-  home_search_submitted: { neighborhood_count: number };
+  /** Hub (`/`) or city landing (`/guadalajara`, future cities). */
+  landing_viewed: {
+    surface: AnalyticsLandingSurface;
+    path: string;
+    city_code?: string;
+  };
+  home_search_submitted: { neighborhood_count: number; city_code: string };
   home_cta_clicked: {
-    cta: "publish" | "faq" | "search_empty" | "city_guadalajara" | "map_gdl" | "seo_gdl_search";
+    cta:
+      | "publish"
+      | "faq"
+      | "search_empty"
+      | "city_guadalajara"
+      | "map_gdl"
+      | "map_gdl_dato"
+      | "seo_gdl_search";
   };
 
   search_results_loaded: {
@@ -39,7 +55,7 @@ export type AnalyticsProps = {
   search_neighborhood_selected: { city_code: string; neighborhood: string };
   search_listing_selected: {
     listing_id: string;
-    source: "map" | "list" | "mobile";
+    source: "map" | "list" | "mobile" | "city_landing";
     city_code: string;
   };
   search_save_clicked: { authenticated: boolean };

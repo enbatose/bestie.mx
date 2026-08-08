@@ -101,17 +101,21 @@ We track **decisions and outcomes**, not map pans or every filter chip flicker.
 ### Seeker funnel
 | Event | Why |
 | --- | --- |
-| `home_search_submitted` | Top-of-funnel intent from home |
+| `landing_viewed` | Hub `/` or city landing (e.g. `/guadalajara`); `surface` + optional `city_code` |
+| `home_search_submitted` | City-landing search box intent (`city_code`) |
+| `home_cta_clicked` | Map / publish / FAQ / city chips (`map_gdl`, `city_guadalajara`, …) |
 | `search_results_loaded` | Supply density + filter effectiveness |
 | `search_filters_changed` / `cleared` | How seekers refine |
 | `search_city_selected` / `neighborhood_selected` | Geo demand |
-| `search_listing_selected` | Map vs list vs mobile engagement |
+| `search_listing_selected` | Map / list / mobile / city-landing cards |
 | `listing_viewed` | Detail attention |
 | `listing_contact_clicked` / `listing_message_sent` | Core conversion |
 | `listing_auth_required` | Friction before contact |
 | `search_save_clicked` / `search_saved` | Retention intent |
 | `search_follow_clicked` / `search_follow_enabled` | Alert activation |
 | `search_auth_prompted` | Auth wall on save/follow |
+
+City landings are first-class entry points alongside the hub. The seeker funnel starts at `landing_viewed` so `/` and `/guadalajara` both count.
 
 ### Publisher funnel
 | Event | Why |

@@ -63,6 +63,14 @@ export function GuadalajaraLandingPage() {
     canonicalPath: "/guadalajara",
   });
 
+  useEffect(() => {
+    track("landing_viewed", {
+      surface: "city",
+      path: "/guadalajara",
+      city_code: "gdl",
+    });
+  }, []);
+
   const [listings, setListings] = useState<PropertyListing[]>([]);
   const [loadingListings, setLoadingListings] = useState(true);
 
@@ -249,7 +257,8 @@ export function GuadalajaraLandingPage() {
                     onClick={() =>
                       track("search_listing_selected", {
                         listing_id: listing.id,
-                        source: "list",
+                        source: "city_landing",
+                        city_code: "gdl",
                       })
                     }
                   />

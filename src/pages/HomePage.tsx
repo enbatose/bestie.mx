@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MapPinned, SlidersHorizontal, UsersRound, type LucideIcon } from "lucide-react";
 import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
@@ -43,6 +44,10 @@ export function HomePage() {
     description: DEFAULT_SEO.description,
     canonicalPath: "/",
   });
+
+  useEffect(() => {
+    track("landing_viewed", { surface: "home", path: "/" });
+  }, []);
 
   const launchCities = METRO_CITIES.filter((c) => c.enabled);
   const soonMetros = METRO_CITIES.filter((c) => !c.enabled);

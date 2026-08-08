@@ -140,9 +140,12 @@ export function HomeLocationSearch({ metro, className = "" }: Props) {
     const neighborhoods = pending
       ? mergeNeighborhood(selectedNeighborhoods, pending)
       : selectedNeighborhoods;
-    track("home_search_submitted", { neighborhood_count: neighborhoods.length });
+    track("home_search_submitted", {
+      neighborhood_count: neighborhoods.length,
+      city_code: metro.code,
+    });
     goToSearch(neighborhoods);
-  }, [goToSearch, resolvePendingPin, selectedNeighborhoods]);
+  }, [goToSearch, metro.code, resolvePendingPin, selectedNeighborhoods]);
 
   useEffect(() => {
     const query = searchQuery.trim();
