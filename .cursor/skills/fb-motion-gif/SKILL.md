@@ -16,7 +16,8 @@ Guidance for **short looping motion** on the Bestie MX Page and Meta ads. Prefer
 
 **Primary use case:** graphic motion = **text + brand art + few decorations** (not UGC). Design **end frame first**, then animate.
 
-**Brand URL lockup:** for `bestie.mx` colors + lime i-dot HTML/CSS, use [`.cursor/skills/bestie-url-lockup/SKILL.md`](../bestie-url-lockup/SKILL.md).
+**Brand URL lockup:** for `bestie.mx` colors + lime i-dot HTML/CSS, use [`.cursor/skills/bestie-url-lockup/SKILL.md`](../bestie-url-lockup/SKILL.md).  
+**Mark high-five:** for people silhouette + arm raise + clap timing, use [`.cursor/skills/bestie-mark-highfive/SKILL.md`](../bestie-mark-highfive/SKILL.md).
 
 **Quality bar:** ship only when a self-score hits **≥ 95 / 100** (rubric below). Reference: `public/brand/facebook/post-gdl-publishers-hi5.mp4` (v5) + static `post-gdl-publishers-1080.png`.
 
@@ -171,7 +172,7 @@ XF between beats: 0.30s each  (2 XFs only — no CTA beat)
 
 (~333ms trimmed from each prior slide hold; XF unchanged.)
 
-Promise high-five must match `HeroAnimatedLockup` timing (people in → arms raise ~0.55s → clap ~1.2s), but **arms are nested inside each person** so they fade/slide in attached (never full-opacity arms before bodies). Drive via `__seek` (not CSS `animation`) so frame capture is deterministic.
+Promise high-five: see **`bestie-mark-highfive`** skill (timing + SVG pivots + nest arms for capture).
 
 Seeker: same 3-beat timing; swap copy for demand; keep end hold longest.
 
