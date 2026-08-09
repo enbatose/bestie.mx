@@ -171,7 +171,7 @@ XF between beats: 0.30s each  (2 XFs only — no CTA beat)
 
 (~333ms trimmed from each prior slide hold; XF unchanged.)
 
-Promise high-five must match `HeroAnimatedLockup` / `index.css`: people in → arms raise (~0.55s delay) → clap grow (~1.2s). Drive via `__seek` (not CSS `animation`) so frame capture is deterministic.
+Promise high-five must match `HeroAnimatedLockup` timing (people in → arms raise ~0.55s → clap ~1.2s), but **arms are nested inside each person** so they fade/slide in attached (never full-opacity arms before bodies). Drive via `__seek` (not CSS `animation`) so frame capture is deterministic.
 
 Seeker: same 3-beat timing; swap copy for demand; keep end hold longest.
 
