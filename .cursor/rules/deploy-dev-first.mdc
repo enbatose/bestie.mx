@@ -42,6 +42,20 @@ If the user did **not** use that kind of language, **do not** push/merge to `mai
 - Committing or pushing feature work straight to `main`
 - Merging `develop` → `main` “to finish the task”
 - Treating `main` as the default deploy target for agent work
+- Changing **Prod** Railway (or other host) config during Dev work — see below
+
+## Prod config during Dev work
+
+Do **not** change production infrastructure while only shipping code to Dev. Env var / secret / service / domain changes on **Prod** often **redeploy Prod** and bypass the Dev gate.
+
+| Phase | Allowed |
+| --- | --- |
+| Working on **`develop` / Dev** | Set or change vars on **bestie-dev** (Dev) only. Document any Prod vars the promote will need (name + value) in the reply — do **not** apply them on Prod yet. |
+| User said **go to prod** (or equivalent) | Apply pending Prod config (e.g. `railway variables … --service bestie-prod`), then merge/push `main` (or right after, if the build needs the var). |
+
+Examples that count as Prod config: `VITE_*` / API secrets on **bestie-prod**, scaling, domains, volumes, linking services in the production environment.
+
+If a Prod-only var is required for the feature to work after promote, prepare it in the Dev turn and apply it **only** in the promote step.
 
 ## After a mistaken Prod push
 
