@@ -127,28 +127,41 @@ Use **one primary move per beat**. Ease out / ease-in-out; avoid linear snaps th
 
 ### Storytelling spine (text + décor loops)
 
-Map story to **beats**, not to camera shots:
+Map story to **beats**, not to camera shots. Prefer **one claim per slide**.
 
 ```
-Beat A — Hook (0.0–1.0s)
-  Question or claim appears with motion.
-  Optional: badge already visible or fading with it.
-  Viewer knows: publisher XOR seeker.
+Beat A — Hook (~1.2–1.4s hold after appear)
+  Question or claim + optional badge. Segment clear.
+  Early brand via color system (forest/lime), not a slow logo bumper.
 
-Beat B — Place + promise (1.0–2.5s)
-  Support line OR full poster art (GDL + gratis).
-  Decorations settle under the message.
-  Frame must work if paused here.
+Beat B — Promise (~1.0–1.3s)
+  ONE short line (≤ ~8 words). Décor may fade under (never before text is readable).
+  Do NOT dump the full static poster mid-loop (too much text at once).
 
-Beat C — Ask (2.5–3.5s)  [optional if CTA is on poster]
-  CTA pill emphasis (Publica gratis / Buscar).
+Beat C — CTA peak (~1.2–1.4s hold)
+  Action pill + tiny qualifier. Longest readable pause before the end.
+  Hook moves fast; CTA holds longer.
 
-Beat D — Brand seal (3.5–4.5s+)
-  High-five mark + bestie.mx + “Tu roomie, tu bestie.”
-  Hold 0.5–1.0s so the mark registers, then loop.
+Beat D — End seal / takeaway (~1.0–1.5s hold)  [peak–end memory]
+  High-five mark + the ONE leave-behind message + bestie.mx.
+  Publisher leave-behind: “Publica … gratis” + bestie.mx (not only the seeker tagline).
+  Seeker leave-behind: “Encuentra …” / roomie hook + bestie.mx.
+  Tagline “Tu roomie, tu bestie.” is optional secondary — never replace the action takeaway.
 ```
 
-**Story test:** mute the video, watch once at phone size. Can you answer in order: *who is this for → what’s the offer → whose brand?* If any answer needs the caption, strengthen that beat on-art.
+**Transitions:** crossfade / dissolve **~0.3–0.4 s** between beats (Feed). Avoid >0.6 s soft dissolves that feel sluggish. Target ~**0.3–0.5 cuts/sec** for graphic Feed loops (new beat ~every 2–3 s).
+
+**Timing research cheat sheet**
+
+| Concept | Practice |
+| --- | --- |
+| Transition length | ~0.3–0.4 s ease for graphic loops |
+| Text per slide | 1 headline; ≤1 support line; ≤ ~8–12 words total on that beat |
+| CTA hold | Longer than hook motion; give time to read the ask |
+| Final slide | 1.0–1.5 s+; logo/mark + clear takeaway + URL; no competing animations |
+| Leave-behind | Peak–end: last frame = brand + primary action/offer the brain stores |
+
+**Story test:** mute the video, watch once at phone size. Can you answer in order: *who is this for → what’s the offer → what should I do / whose brand?* If any answer needs the caption, strengthen that beat on-art.
 
 ### Caption pairing (same as static, stricter with motion)
 
