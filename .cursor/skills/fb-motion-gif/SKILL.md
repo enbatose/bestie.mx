@@ -16,6 +16,8 @@ Guidance for **short looping motion** on the Bestie MX Page and Meta ads. Prefer
 
 **Primary use case:** graphic motion = **text + brand art + few decorations** (not UGC). Design **end frame first**, then animate.
 
+**Brand URL lockup:** for `bestie.mx` colors + lime i-dot HTML/CSS, use [`.cursor/skills/bestie-url-lockup/SKILL.md`](../bestie-url-lockup/SKILL.md).
+
 **Quality bar:** ship only when a self-score hits **≥ 95 / 100** (rubric below). Reference: `public/brand/facebook/post-gdl-publishers-hi5.mp4` (v5) + static `post-gdl-publishers-1080.png`.
 
 ## Default decision
@@ -103,7 +105,7 @@ Copy e.g. NUEVO EN GUADALAJARA
 | End URL | **~48–52px** lime **dominant** | Primary end eye-catch after mark |
 | End takeaway | **~34–38px** | slogan `Tu roomie, tu bestie.` (lime on `tu bestie.`) |
 | End proof | **~18–22px** soft white | `Hecha en GDL - En Minutos - Sin Grupos` |
-| Brand footer (Hook only) | mark **~64px** + text **~36px** | lowercase; white `bestie` + white `.` + lime `mx`; lime **i-dot** = dotless `ı` + tittle at `bottom:0.64em` / `0.17em` with `line-height:1` on brand lockup |
+| Brand footer (Hook only) | mark **~64px** + text **~36px** | See **`bestie-url-lockup`** skill: white `bestie` + white `.` + lime `mx` + lime i-dot |
 | Promise brand | same text lockup, **inherits ~56px** | `Publícalo gratis en bestie.mx` (keep large type; lime i-dot) |
 | End URL | text **~54px** | Same color split + lime i-dot |
 
