@@ -123,7 +123,7 @@ Centered lockup in the bottom safe band (skill padding `140px` bottom / `72px` s
 | Minerva v4 (landing PNG, brighter) | Local décor under badge |
 | `bestie.mx` | Brand URL (no mark) |
 | `Tu roomie, tu bestie.` | Brand slogan |
-| `Hecha en GDL · Sin grupos de FB · Crea tu post en minutos` | Proof / benefit line |
+| `Hecha en GDL - En Minutos - Sin Grupos` | Proof / benefit line |
 
 Publisher leave-behind = **brand + local + slogan**, not a duplicate CTA pill.
 
