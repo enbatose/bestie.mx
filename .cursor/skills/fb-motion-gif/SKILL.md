@@ -35,7 +35,7 @@ Meta: subtle motion; avoid flash/pixel mush; video more reliable than GIF on mob
 | Item | **95-bar default** | Notes |
 | --- | --- | --- |
 | Aspect (Feed) | **1:1** `1080×1080` | Optional extra: **4:5** `1080×1350` for max mobile Feed |
-| Length | **~6.0 s** (band 5.5–6.2) | Full spine in one loop |
+| Length | **~5.0 s** (band 4.8–5.5) | Full spine in one loop |
 | Frame rate | **15 fps** | Graphic text cards |
 | XF between beats | **0.30 s** ease-in-out | Never &gt; 0.45 s; never &lt; 0.25 s |
 | End hold | **≥ 1.5 s** (target **~1.75 s**) | Longest or tied-longest beat |
@@ -52,7 +52,7 @@ Before shipping, score each row 0–10 and average ×10. **Do not ship below 95.
 
 | # | Criterion (×10) | 95-pass standard |
 | --- | --- | --- |
-| 1 | Overall length | 5.5–6.2 s loop; not 15s+ |
+| 1 | Overall length | 4.8–5.5 s loop; not 15s+ |
 | 2 | Slide lengths | End ≥1.5s; CTA ≥1.1s; XF 0.30s; end longest/tied |
 | 3 | Time use | &lt;~16% runtime in XF; no blank open |
 | 4 | Elements | ≤6 objects/frame; décor only on Promise; mark on End |
@@ -152,22 +152,24 @@ All slides share the same content band:
 ## Story spine + timing
 
 ```
-Beat A Hook     ~1.5s hold    Segment question + bottom brand footer
+Beat A Hook     ~1.0s hold    Segment question + bottom brand footer
 Beat B Promise  ~1.5s hold    Offer line + Bestie mark décor + footer
-Beat C End      ~2.4s hold    Badge + mark seal + slogan + Minerva + proof
+Beat C End      ~1.9s hold    Badge + mark seal + slogan + Minerva + proof
 XF between beats: 0.30s each  (2 XFs only — no CTA beat)
 ```
 
-### Canonical publisher timeline (~6.0 s) — copy this (v8)
+### Canonical publisher timeline (~5.0 s) — copy this (v9)
 
 ```
-0.00–1.35  Hook     ¿Tienes un cuarto libre? + footer mark/bestie.mx
-1.35–1.65  XF 0.30s
-1.65–3.45  Promise  Publícalo gratis en Bestie.mx + landing high-five mark anim (no footer)
-3.45–3.75  XF 0.30s
-3.75–6.00  End      NUEVO EN GUADALAJARA → Minerva (brighter) → bestie.mx (no mark)
+0.00–1.02  Hook     ¿Tienes un cuarto libre? + footer mark/bestie.mx
+1.02–1.32  XF 0.30s
+1.32–2.78  Promise  Publícalo gratis en Bestie.mx + landing high-five mark anim (no footer)
+2.78–3.08  XF 0.30s
+3.08–5.00  End      NUEVO EN GUADALAJARA → Minerva (brighter) → bestie.mx (no mark)
                     → Tu roomie, tu bestie. → Hecha en GDL - En Minutos - Sin Grupos
 ```
+
+(~333ms trimmed from each prior slide hold; XF unchanged.)
 
 Promise high-five must match `HeroAnimatedLockup` / `index.css`: people in → arms raise (~0.55s delay) → clap grow (~1.2s). Drive via `__seek` (not CSS `animation`) so frame capture is deterministic.
 
@@ -207,7 +209,7 @@ Seeker URL: `https://www.bestie.mx` or city landing.
 ```
 95-bar motion:
 - [ ] Self-score ≥95 using rubric (no row <8)
-- [ ] ~6.0s @ 15fps; XF 0.30s; End hold longest (≥2.0s in 3-beat spine)
+- [ ] ~5.0s @ 15fps; XF 0.30s; End hold longest (≥1.9s in 3-beat spine)
 - [ ] Hook opens with question + footer (no blank; badge not required on Hook)
 - [ ] One claim per beat; no poster dump mid-loop; **no CTA pill beat**
 - [ ] Hook + Promise: bottom mark + bestie.mx footer inside padding
