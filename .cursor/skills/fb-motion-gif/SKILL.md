@@ -120,9 +120,9 @@ Publisher leave-behind = **offer + domain**, not seeker tagline alone.
 ### Décor
 
 - Only on **Promise**
-- Prefer **La Minerva** (`public/brand/gdl/minerva-silhouette.svg`) for GDL publisher loops; cathedral is alternate only
-- Inline SVG (never broken `<img>`)
-- Lime line-art; opacity **~0.55–0.60**
+- Prefer **La Minerva landing desktop asset** (`public/brand/gdl/minerva-silhouette-v4.png` — same as `GdlLandmarkSilhouettes`) for GDL publisher loops; SVG `minerva-silhouette.svg` is legacy/simple; cathedral is alternate only
+- Use that PNG via `<img>` (file-local or absolute brand path); for other décor, inline SVG if `<img>` breaks
+- Lime line-art; opacity **~0.55–0.70** (landing uses ~0.65–0.70)
 - Directly under promise text (not a distant footer)
 
 ### Layout grid
@@ -150,7 +150,7 @@ XF between beats: 0.30s each
 ```
 0.00–1.15  Hook     white+lime badge + ¿Tienes un cuarto libre?
 1.15–1.45  XF 0.30s
-1.45–2.45  Promise  Publícalo gratis en Bestie + Minerva under text
+1.45–2.45  Promise  Publícalo gratis en Bestie + Minerva v4 (landing desktop PNG) under text
 2.45–2.75  XF 0.30s
 2.75–3.95  CTA      Publica gratis + sin grupos · en minutos  (no URL)
 3.95–4.25  XF 0.30s
@@ -223,8 +223,9 @@ Seeker URL: `https://www.bestie.mx` or city landing.
 | Motion publisher (95-bar ref) | `public/brand/facebook/post-gdl-publishers-hi5.mp4` |
 | Static seeker | `public/brand/facebook/post-gdl-launch-1080.png` |
 | Mark | `public/brand/logo-mark.svg` |
-| Décor (preferred GDL) | `public/brand/gdl/minerva-silhouette.svg` |
-| Décor (alt) | `public/brand/gdl/cathedral-silhouette.svg` |
+| Décor (preferred GDL — landing desktop) | `public/brand/gdl/minerva-silhouette-v4.png` |
+| Décor (legacy SVG) | `public/brand/gdl/minerva-silhouette.svg` |
+| Décor (alt) | `public/brand/gdl/cathedral-silhouette.svg` / `cathedral-silhouette-v3.png` |
 
 ## Sources
 
