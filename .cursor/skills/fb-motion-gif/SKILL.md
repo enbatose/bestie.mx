@@ -103,9 +103,9 @@ Copy e.g. NUEVO EN GUADALAJARA
 | End URL | **~48–52px** lime **dominant** | Primary end eye-catch after mark |
 | End takeaway | **~34–38px** | slogan `Tu roomie, tu bestie.` (lime on `tu bestie.`) |
 | End proof | **~18–22px** soft white | `Hecha en GDL · Sin grupos de FB · en minutos` |
-| Brand footer (Hook only) | mark **~64px** + official on-dark **wordmark SVG** (~42px) | Bottom-centered; never fake `bestie`/`.mx` with flat text colors |
-| Promise brand | official wordmark SVG (~52px) after `en` | Lowercase lockup; white `bestie` + lime i-dot + white period + lime `mx` |
-| End URL | official wordmark SVG (~56px) | Same color treatment as landing / screenshot |
+| Brand footer (Hook only) | mark **~64px** + text **~36px** | `bestie` + `.` white, `mx` lime; lowercase |
+| Promise brand | same text lockup, **inherits ~56px** | `Publícalo gratis en bestie.mx` (lowercase; do not shrink with SVG wordmark) |
+| End URL | text **~54px** | Same color split; previous large size |
 
 ### Persistent brand footer (Hook only)
 
