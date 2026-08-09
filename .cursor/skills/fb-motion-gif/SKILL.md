@@ -102,7 +102,7 @@ Copy e.g. NUEVO EN GUADALAJARA
 | Promise | **~54–58px** (~85–90% of Hook) | white; lime on `gratis` (+ optional `.mx`) |
 | End URL | **~48–52px** lime **dominant** | Primary end eye-catch after mark |
 | End takeaway | **~34–38px** | slogan `Tu roomie, tu bestie.` (lime on `tu bestie.`) |
-| End proof | **~18–22px** soft white | `Hecha en GDL · Sin grupos de FB · en minutos` |
+| End proof | **~18–22px** soft white | `Hecha en GDL - En Minutos - Sin Grupos` |
 | Brand footer (Hook only) | mark **~64px** + text **~36px** | `bestie` + `.` white, `mx` lime; lowercase |
 | Promise brand | same text lockup, **inherits ~56px** | `Publícalo gratis en bestie.mx` (lowercase; do not shrink with SVG wordmark) |
 | End URL | text **~54px** | Same color split; previous large size |
@@ -164,7 +164,7 @@ XF between beats: 0.30s each  (2 XFs only — no CTA beat)
 1.65–3.45  Promise  Publícalo gratis en Bestie.mx + landing high-five mark anim (no footer)
 3.45–3.75  XF 0.30s
 3.75–6.00  End      NUEVO EN GUADALAJARA → Minerva (brighter) → bestie.mx (no mark)
-                    → Tu roomie, tu bestie. → Hecha en GDL · Sin grupos de FB · Crea tu post en minutos
+                    → Tu roomie, tu bestie. → Hecha en GDL - En Minutos - Sin Grupos
 ```
 
 Promise high-five must match `HeroAnimatedLockup` / `index.css`: people in → arms raise (~0.55s delay) → clap grow (~1.2s). Drive via `__seek` (not CSS `animation`) so frame capture is deterministic.
