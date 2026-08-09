@@ -4,13 +4,15 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 # Railway service variables must be declared as ARG/ENV before `npm run build` so Vite bakes VITE_* into the SPA bundle.
-# Without these ARGs, Prod ships an empty PostHog token → no events, no session replay, admin "Sin replay".
+# Without these ARGs, Prod ships empty PostHog / Meta Pixel IDs → no analytics or ads events.
 ARG VITE_GOOGLE_MAPS_EMBED_KEY
 ENV VITE_GOOGLE_MAPS_EMBED_KEY=$VITE_GOOGLE_MAPS_EMBED_KEY
 ARG VITE_POSTHOG_PROJECT_TOKEN
 ENV VITE_POSTHOG_PROJECT_TOKEN=$VITE_POSTHOG_PROJECT_TOKEN
 ARG VITE_POSTHOG_HOST
 ENV VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST
+ARG VITE_META_PIXEL_ID
+ENV VITE_META_PIXEL_ID=$VITE_META_PIXEL_ID
 COPY package.json package-lock.json ./
 COPY server/package.json server/package-lock.json ./server/
 RUN npm ci
