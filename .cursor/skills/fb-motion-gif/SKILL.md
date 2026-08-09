@@ -105,22 +105,23 @@ Copy e.g. NUEVO EN GUADALAJARA
 | End proof | **~18–22px** soft white | `Hecha en GDL · Sin grupos de FB · en minutos` |
 | Brand footer (Hook + Promise) | mark **~64px** + word **~36px** | Bottom-centered inside **140px** bottom pad |
 
-### Persistent brand footer (Hook + Promise only)
+### Persistent brand footer (Hook only)
 
 Centered lockup in the bottom safe band (skill padding `140px` bottom / `72px` sides):
 
 - High-five **mark** + `bestie` (white) + `.mx` (lime)
-- Same footer on Hook and Promise; **not** on End (End uses the large seal stack)
+- **Promise:** no footer — center claim + **animated** landing high-five mark only
+- **End:** no mark; `bestie.mx` word only after Minerva
 
 ### End seal stack (no separate CTA beat)
 
 | On-screen | Job |
 | --- | --- |
 | Badge `NUEVO EN GUADALAJARA` | Place / news |
-| Mark + `bestie.mx` | Brand seal |
+| Minerva v4 (landing PNG, brighter) | Local décor under badge |
+| `bestie.mx` | Brand URL (no mark) |
 | `Tu roomie, tu bestie.` | Brand slogan |
-| Minerva v4 (landing PNG) | Local décor |
-| `Hecha en GDL · Sin grupos de FB · en minutos` | Proof / benefit line |
+| `Hecha en GDL · Sin grupos de FB · Crea tu post en minutos` | Proof / benefit line |
 
 Publisher leave-behind = **brand + local + slogan**, not a duplicate CTA pill.
 
@@ -153,16 +154,18 @@ Beat C End      ~2.4s hold    Badge + mark seal + slogan + Minerva + proof
 XF between beats: 0.30s each  (2 XFs only — no CTA beat)
 ```
 
-### Canonical publisher timeline (~6.0 s) — copy this (v7)
+### Canonical publisher timeline (~6.0 s) — copy this (v8)
 
 ```
-0.00–1.50  Hook     ¿Tienes un cuarto libre? + footer mark/bestie.mx
-1.50–1.80  XF 0.30s
-1.80–3.30  Promise  Publícalo gratis en Bestie.mx + Bestie mark décor + footer
-3.30–3.60  XF 0.30s
-3.60–6.00  End      NUEVO EN GUADALAJARA + mark + bestie.mx + Tu roomie, tu bestie.
-                    + Minerva v4 + Hecha en GDL · Sin grupos de FB · en minutos
+0.00–1.35  Hook     ¿Tienes un cuarto libre? + footer mark/bestie.mx
+1.35–1.65  XF 0.30s
+1.65–3.45  Promise  Publícalo gratis en Bestie.mx + landing high-five mark anim (no footer)
+3.45–3.75  XF 0.30s
+3.75–6.00  End      NUEVO EN GUADALAJARA → Minerva (brighter) → bestie.mx (no mark)
+                    → Tu roomie, tu bestie. → Hecha en GDL · Sin grupos de FB · Crea tu post en minutos
 ```
+
+Promise high-five must match `HeroAnimatedLockup` / `index.css`: people in → arms raise (~0.55s delay) → clap grow (~1.2s). Drive via `__seek` (not CSS `animation`) so frame capture is deterministic.
 
 Seeker: same 3-beat timing; swap copy for demand; keep end hold longest.
 
