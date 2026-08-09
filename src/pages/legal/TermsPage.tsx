@@ -210,7 +210,8 @@ export function TermsPage() {
           El Servicio se apoya en proveedores externos, por ejemplo: proveedores de inicio de sesión
           (Google, Facebook/Meta), mapas y teselas de terceros (por ejemplo, OpenStreetMap),
           envío de correos electrónicos, infraestructura de alojamiento,
-          analítica de producto (PostHog) y modelos de inteligencia artificial (Google Gemini) para
+          analítica de producto (PostHog), medición de anuncios (píxel de Meta / Facebook e Instagram Ads)
+          y modelos de inteligencia artificial (Google Gemini) para
           sugerir textos de compartir de anuncios. El uso de estas funciones puede estar sujeto a los términos
           y políticas de dichos terceros. Bestie no es responsable por los servicios, la disponibilidad
           ni las prácticas de esos terceros.

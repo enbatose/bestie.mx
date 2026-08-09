@@ -234,7 +234,11 @@ export function PrivacyPage() {
           y publicación, eventos de interacción, métricas de rendimiento de la página, mapas de calor /
           clics sin respuesta, errores de la interfaz y, cuando está habilitado, grabaciones de sesión que
           reproducen la interacción con la interfaz; los campos de formulario y el contenido sensible
-          de chat se enmascaran o excluyen en esas grabaciones), con el fin de mejorar el Servicio. Puedes gestionar o eliminar las cookies desde
+          de chat se enmascaran o excluyen en esas grabaciones), con el fin de mejorar el Servicio.
+          Además, cuando visitas el sitio en producción, podemos cargar el píxel de medición de Meta
+          (Facebook/Instagram Ads) para medir visitas y conversiones relacionadas con anuncios
+          (por ejemplo, páginas vistas, registro y publicación de anuncios), optimizar campañas y
+          limitar la repetición de anuncios. Puedes gestionar o eliminar las cookies desde
           la configuración de tu navegador; deshabilitarlas puede afectar el funcionamiento del Servicio.
           Los mapas pueden cargar teselas desde proveedores externos conforme a sus propias políticas.
         </p>
@@ -253,6 +257,7 @@ export function PrivacyPage() {
             "Proveedor de envío de correos electrónicos transaccionales.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
+            "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",
             "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para generar, a tu solicitud o al publicar, un texto sugerido de compartir basado en los datos estructurados de tu anuncio (por ejemplo, zona, renta, tipo de espacio y etiquetas). Ese texto no sustituye la descripción pública del anuncio ni se usa como vista previa Open Graph; puedes editarlo antes de compartirlo.",
           ]}
         />

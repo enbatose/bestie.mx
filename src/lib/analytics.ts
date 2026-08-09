@@ -1,4 +1,5 @@
 import { isPostHogConfigured, posthog } from "@/lib/posthog";
+import { trackMetaEvent } from "@/lib/metaPixel";
 
 /**
  * Bestie product analytics taxonomy (PostHog).
@@ -123,11 +124,30 @@ export function track<E extends AnalyticsEvent>(
   event: E,
   properties: AnalyticsProps[E],
 ): void {
-  if (!isPostHogConfigured()) return;
+  if (isPostHogConfigured()) {
+    try {
+      posthog.capture(event, properties as Record<string, unknown>);
+    } catch {
+      /* never break UX for analytics */
+    }
+  }
+  // Mirror high-value conversions to Meta Pixel for ad optimization.
   try {
-    posthog.capture(event, properties as Record<string, unknown>);
+    if (event === "user_signed_up") {
+      const p = properties as AnalyticsProps["user_signed_up"];
+      trackMetaEvent("CompleteRegistration", { content_name: p.method });
+    } else if (event === "publish_succeeded") {
+      const p = properties as AnalyticsProps["publish_succeeded"];
+      trackMetaEvent("SubmitApplication", {
+        content_name: p.mode,
+        status: p.editing_live ? "edit" : "new",
+      });
+    } else if (event === "publish_mode_selected") {
+      const p = properties as AnalyticsProps["publish_mode_selected"];
+      trackMetaEvent("Lead", { content_name: `publish_${p.mode}` });
+    }
   } catch {
-    /* never break UX for analytics */
+    /* ignore */
   }
 }
 

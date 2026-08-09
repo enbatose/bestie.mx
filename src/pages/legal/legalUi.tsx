@@ -7,7 +7,7 @@ import {
 } from "@/lib/myListingsReturn";
 
 /** Effective / last-updated date shared across every legal document. */
-export const LEGAL_LAST_UPDATED = "5 de agosto de 2026";
+export const LEGAL_LAST_UPDATED = "9 de agosto de 2026";
 
 /** Legal identity of the operator, reused verbatim across documents. */
 export const LEGAL_OPERATOR = {

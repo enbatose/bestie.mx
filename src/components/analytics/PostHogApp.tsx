@@ -8,10 +8,12 @@ import {
   trackPageview,
 } from "@/lib/analytics";
 import { initPostHog, isPostHogConfigured, posthog } from "@/lib/posthog";
+import { initMetaPixel, trackMetaPageview } from "@/lib/metaPixel";
 import { consumeOAuthMethod } from "@/components/GoogleSignInButton";
 import type { AuthMe } from "@/lib/authApi";
 
 initPostHog();
+initMetaPixel();
 
 /** Wraps the tree with PostHog when configured; otherwise a transparent passthrough. */
 export function PostHogApp({ children }: { children: ReactNode }) {
@@ -19,12 +21,13 @@ export function PostHogApp({ children }: { children: ReactNode }) {
   return <PostHogProvider client={posthog}>{children}</PostHogProvider>;
 }
 
-/** Captures SPA `$pageview` on every react-router navigation. */
+/** Captures SPA pageviews (PostHog + Meta Pixel) on every react-router navigation. */
 export function PostHogPageViews() {
   const location = useLocation();
 
   useEffect(() => {
     trackPageview(location.pathname, location.search);
+    trackMetaPageview();
   }, [location.pathname, location.search]);
 
   return null;
