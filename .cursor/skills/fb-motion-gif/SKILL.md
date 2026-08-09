@@ -99,32 +99,40 @@ Copy e.g. NUEVO EN GUADALAJARA
 | Element | Size guide | Color |
 | --- | --- | --- |
 | Hook | **~68–72px** bold white | `#FFFFFF` + light shadow |
-| Promise | **~58–62px** (~88–95% of Hook) | white; lime on 1 keyword |
-| CTA pill text | **~44–48px** | fill `#84CC16`, type `#143D30` |
-| CTA sub-line | **~26–30px** white | New benefit — not GDL / not another “gratis” |
-| End URL | **~52–56px** lime **dominant** | Primary end eye-catch after mark; owns the domain |
-| End takeaway | **~36–40px** | white + lime keyword |
-| End proof | **~20–22px** soft white | `Hecha en GDL` (keep short; don’t restack “Siempre gratis”) |
+| Promise | **~54–58px** (~85–90% of Hook) | white; lime on `gratis` (+ optional `.mx`) |
+| End URL | **~48–52px** lime **dominant** | Primary end eye-catch after mark |
+| End takeaway | **~34–38px** | slogan `Tu roomie, tu bestie.` (lime on `tu bestie.`) |
+| End proof | **~18–22px** soft white | `Hecha en GDL · Sin grupos de FB · en minutos` |
+| Brand footer (Hook + Promise) | mark **~64px** + word **~36px** | Bottom-centered inside **140px** bottom pad |
 
-### CTA vs End (must differ)
+### Persistent brand footer (Hook + Promise only)
 
-| Beat | Job | On-screen |
-| --- | --- | --- |
-| **CTA** | Ask | Lime pill `Publica gratis` + **additive** qualifier (e.g. `sin grupos · en minutos`) — **no** URL whisper |
-| **End** | Seal memory | High-five mark → **`bestie.mx` large** → `Tu cuarto, gratis` → small local proof |
+Centered lockup in the bottom safe band (skill padding `140px` bottom / `72px` sides):
 
-Publisher leave-behind = **offer + domain**, not seeker tagline alone.
+- High-five **mark** + `bestie` (white) + `.mx` (lime)
+- Same footer on Hook and Promise; **not** on End (End uses the large seal stack)
 
-**Gratis budget:** allow *gratis* on Promise (offer) + CTA pill (action verb) + End takeaway (memory). Do **not** also say *sin costo* / *Siempre gratis* / GDL on CTA — that was a soft-spot fail (redundant, no new value).
+### End seal stack (no separate CTA beat)
+
+| On-screen | Job |
+| --- | --- |
+| Badge `NUEVO EN GUADALAJARA` | Place / news |
+| Mark + `bestie.mx` | Brand seal |
+| `Tu roomie, tu bestie.` | Brand slogan |
+| Minerva v4 (landing PNG) | Local décor |
+| `Hecha en GDL · Sin grupos de FB · en minutos` | Proof / benefit line |
+
+Publisher leave-behind = **brand + local + slogan**, not a duplicate CTA pill.
+
+**Gratis budget:** *gratis* lives on Promise only in this spine (`Publícalo gratis en Bestie.mx`).
 
 ### Décor
 
-- Only on **Promise**
-- Prefer **La Minerva landing desktop asset** (`public/brand/gdl/minerva-silhouette-v4.png` — same as `GdlLandmarkSilhouettes`) for GDL publisher loops; SVG `minerva-silhouette.svg` is legacy/simple; cathedral is alternate only
-- **Do not** threshold-recolor or 1px multi drop-shadow thicken — that destroys the thin AA strokes that make the landing Minerva look clean
-- Render original PNG large (~400–420px), opacity **~0.85–0.90** (landing uses 0.65–0.70 in the gutter; centered Promise can sit a bit higher), `object-fit: contain`
-- Capture at **deviceScaleFactor 2** then lanczos-downscale to 1080 so hairlines stay defined
-- Directly under promise text (not a distant footer)
+- **Promise:** Bestie mark (high-five) under offer line — not Minerva
+- **End:** La Minerva landing desktop asset (`minerva-silhouette-v4.png`)
+- **Do not** threshold-recolor or 1px multi drop-shadow thicken Minerva
+- Capture at **deviceScaleFactor 2** then lanczos-downscale to 1080
+- Directly in the content stack (not a distant orphan footer)
 
 ### Layout grid
 
@@ -139,34 +147,32 @@ All slides share the same content band:
 ## Story spine + timing
 
 ```
-Beat A Hook     ~1.0–1.2s hold   Segment question + badge
-Beat B Promise  ~1.0s hold       One short offer line + décor
-Beat C CTA      ~1.1–1.2s hold   Action pill (not URL-hero)
-Beat D End      ~1.5–1.75s hold  Mark + bestie.mx + short takeaway
-XF between beats: 0.30s each
+Beat A Hook     ~1.5s hold    Segment question + bottom brand footer
+Beat B Promise  ~1.5s hold    Offer line + Bestie mark décor + footer
+Beat C End      ~2.4s hold    Badge + mark seal + slogan + Minerva + proof
+XF between beats: 0.30s each  (2 XFs only — no CTA beat)
 ```
 
-### Canonical publisher timeline (~6.0 s) — copy this (v6)
+### Canonical publisher timeline (~6.0 s) — copy this (v7)
 
 ```
-0.00–1.15  Hook     white+lime badge + ¿Tienes un cuarto libre?
-1.15–1.45  XF 0.30s
-1.45–2.45  Promise  Publícalo gratis en Bestie + Minerva v4 (landing desktop PNG) under text
-2.45–2.75  XF 0.30s
-2.75–3.95  CTA      Publica gratis + sin grupos · en minutos  (no URL)
-3.95–4.25  XF 0.30s
-4.25–6.00  End      high-five + bestie.mx (dominant) + Tu cuarto, gratis + Hecha en GDL
+0.00–1.50  Hook     ¿Tienes un cuarto libre? + footer mark/bestie.mx
+1.50–1.80  XF 0.30s
+1.80–3.30  Promise  Publícalo gratis en Bestie.mx + Bestie mark décor + footer
+3.30–3.60  XF 0.30s
+3.60–6.00  End      NUEVO EN GUADALAJARA + mark + bestie.mx + Tu roomie, tu bestie.
+                    + Minerva v4 + Hecha en GDL · Sin grupos de FB · en minutos
 ```
 
-Seeker: same timing; swap copy for demand; keep CTA≠End and end hold.
+Seeker: same 3-beat timing; swap copy for demand; keep end hold longest.
 
-**Mute story test:** *for whom → offer → what to do / whose brand?* Must pass on held frames (ignore mid-XF).
+**Mute story test:** *for whom → offer → whose brand / where?* Must pass on held frames (ignore mid-XF).
 
 ### Caption pairing
 
 | Surface | Job |
 | --- | --- |
-| Motion | Hook → Promise → CTA → End seal |
+| Motion | Hook → Promise → End seal |
 | Caption | Short empathy + one URL |
 | Ad campaigns | Publisher ≠ seeker creatives |
 
@@ -180,10 +186,11 @@ Seeker URL: `https://www.bestie.mx` or city landing.
 | Element | Motion |
 | --- | --- |
 | Hook | Fade + rise 8–14px / scale 0.97→1 |
-| Promise | Fade + slight rise |
-| CTA | Scale 0.9→1 ease-out once |
-| Décor | Opacity with Promise only |
-| Mark | Scale 0.88→1.05→1.0; 2–3 sparks then settle |
+| Promise | Fade + slight rise; Bestie mark décor scale-in |
+| Brand footer | Opacity with Hook/Promise layers |
+| End badge | Fade + slight rise |
+| End mark | Scale 0.88→1.05→1.0; 2–3 sparks then settle |
+| Minerva | Opacity with End |
 | Scene change | Crossfade **0.30 s** |
 
 ---
@@ -193,16 +200,15 @@ Seeker URL: `https://www.bestie.mx` or city landing.
 ```
 95-bar motion:
 - [ ] Self-score ≥95 using rubric (no row <8)
-- [ ] ~6.0s @ 15fps; XF 0.30s; End hold ≥1.5s (target 1.75s)
-- [ ] No blank open (badge strong on frame 0)
-- [ ] One claim per beat; no poster dump mid-loop
-- [ ] Badge = white fill + lime border + dark text
-- [ ] Promise type ~88–95% of Hook; décor stacked under text
-- [ ] CTA = action pill + additive qualifier (not GDL / not sin costo); no URL whisper
-- [ ] End = mark + dominant bestie.mx + short takeaway; End owns the domain
-- [ ] Gratis not stacked beyond Promise + CTA pill + End takeaway
-- [ ] Promise décor = Minerva (GDL) stacked under text
-- [ ] Shared layout grid / margins
+- [ ] ~6.0s @ 15fps; XF 0.30s; End hold longest (≥2.0s in 3-beat spine)
+- [ ] Hook opens with question + footer (no blank; badge not required on Hook)
+- [ ] One claim per beat; no poster dump mid-loop; **no CTA pill beat**
+- [ ] Hook + Promise: bottom mark + bestie.mx footer inside padding
+- [ ] Promise: Bestie mark décor + Publícalo gratis en Bestie.mx
+- [ ] End: badge + mark + bestie.mx + Tu roomie, tu bestie. + Minerva + proof line
+- [ ] Badge = white fill + lime border + dark text (on End)
+- [ ] Minerva = original landing v4 PNG (no stroke fattening)
+- [ ] Shared layout grid / margins (120 / 72 / 140)
 - [ ] Mute story test on HELD frames
 - [ ] Spanish via HTML entities if needed (no mojibake)
 - [ ] MP4 primary (+ GIF optional); center-safe; segment campaigns separate
