@@ -75,6 +75,7 @@ Before shipping, score each row 0–10 and average ×10. **Do not ship below 95.
 | End hold &lt; 1.0s | **≥ 1.5 s** (target 1.75s) |
 | End = only “Tu roomie, tu bestie.” | End = **mark + `bestie.mx` dominant + short offer line** |
 | CTA pill repeated as End | CTA = action pill; End = brand URL + short takeaway |
+| CTA qualifier restates GDL / sin costo / URL | Qualifier = new benefit (`sin grupos · en minutos`); domain only on End |
 | Lime stroke badge on forest | **White fill + lime 3px border + `#143D30` text** |
 | Promise type ≪ Hook | Promise **~88–95%** of Hook size; attach décor below |
 | Décor orphaned at bottom | Flex stack: text then décor (gap ~20px), opacity ~0.55–0.60 |
@@ -100,23 +101,26 @@ Copy e.g. NUEVO EN GUADALAJARA
 | Hook | **~68–72px** bold white | `#FFFFFF` + light shadow |
 | Promise | **~58–62px** (~88–95% of Hook) | white; lime on 1 keyword |
 | CTA pill text | **~44–48px** | fill `#84CC16`, type `#143D30` |
-| CTA whisper URL | **~22–24px** lime | Brand continuity, not the hero |
-| End URL | **~52–56px** lime **dominant** | Primary end eye-catch after mark |
+| CTA sub-line | **~26–30px** white | New benefit — not GDL / not another “gratis” |
+| End URL | **~52–56px** lime **dominant** | Primary end eye-catch after mark; owns the domain |
 | End takeaway | **~36–40px** | white + lime keyword |
-| End proof | **~20–22px** soft white | `Hecha en GDL · Siempre gratis` |
+| End proof | **~20–22px** soft white | `Hecha en GDL` (keep short; don’t restack “Siempre gratis”) |
 
 ### CTA vs End (must differ)
 
 | Beat | Job | On-screen |
 | --- | --- | --- |
-| **CTA** | Ask | Lime pill `Publica gratis` + short qualifier + whisper `bestie.mx` |
-| **End** | Seal memory | High-five mark → **`bestie.mx` large** → short line e.g. `Tu cuarto, gratis` → small proof |
+| **CTA** | Ask | Lime pill `Publica gratis` + **additive** qualifier (e.g. `sin grupos · en minutos`) — **no** URL whisper |
+| **End** | Seal memory | High-five mark → **`bestie.mx` large** → `Tu cuarto, gratis` → small local proof |
 
 Publisher leave-behind = **offer + domain**, not seeker tagline alone.
+
+**Gratis budget:** allow *gratis* on Promise (offer) + CTA pill (action verb) + End takeaway (memory). Do **not** also say *sin costo* / *Siempre gratis* / GDL on CTA — that was a soft-spot fail (redundant, no new value).
 
 ### Décor
 
 - Only on **Promise**
+- Prefer **La Minerva** (`public/brand/gdl/minerva-silhouette.svg`) for GDL publisher loops; cathedral is alternate only
 - Inline SVG (never broken `<img>`)
 - Lime line-art; opacity **~0.55–0.60**
 - Directly under promise text (not a distant footer)
@@ -141,16 +145,16 @@ Beat D End      ~1.5–1.75s hold  Mark + bestie.mx + short takeaway
 XF between beats: 0.30s each
 ```
 
-### Canonical publisher timeline (~6.0 s) — copy this
+### Canonical publisher timeline (~6.0 s) — copy this (v6)
 
 ```
 0.00–1.15  Hook     white+lime badge + ¿Tienes un cuarto libre?
 1.15–1.45  XF 0.30s
-1.45–2.45  Promise  Publícalo gratis en Bestie + cathedral under text
+1.45–2.45  Promise  Publícalo gratis en Bestie + Minerva under text
 2.45–2.75  XF 0.30s
-2.75–3.95  CTA      Publica gratis + qualifier + whisper bestie.mx
+2.75–3.95  CTA      Publica gratis + sin grupos · en minutos  (no URL)
 3.95–4.25  XF 0.30s
-4.25–6.00  End      high-five + bestie.mx (dominant) + Tu cuarto, gratis
+4.25–6.00  End      high-five + bestie.mx (dominant) + Tu cuarto, gratis + Hecha en GDL
 ```
 
 Seeker: same timing; swap copy for demand; keep CTA≠End and end hold.
@@ -193,8 +197,10 @@ Seeker URL: `https://www.bestie.mx` or city landing.
 - [ ] One claim per beat; no poster dump mid-loop
 - [ ] Badge = white fill + lime border + dark text
 - [ ] Promise type ~88–95% of Hook; décor stacked under text
-- [ ] CTA = action pill; End = mark + dominant bestie.mx + short takeaway
-- [ ] CTA whisper URL OK; End URL is the brand hero
+- [ ] CTA = action pill + additive qualifier (not GDL / not sin costo); no URL whisper
+- [ ] End = mark + dominant bestie.mx + short takeaway; End owns the domain
+- [ ] Gratis not stacked beyond Promise + CTA pill + End takeaway
+- [ ] Promise décor = Minerva (GDL) stacked under text
 - [ ] Shared layout grid / margins
 - [ ] Mute story test on HELD frames
 - [ ] Spanish via HTML entities if needed (no mojibake)
@@ -217,7 +223,8 @@ Seeker URL: `https://www.bestie.mx` or city landing.
 | Motion publisher (95-bar ref) | `public/brand/facebook/post-gdl-publishers-hi5.mp4` |
 | Static seeker | `public/brand/facebook/post-gdl-launch-1080.png` |
 | Mark | `public/brand/logo-mark.svg` |
-| Décor | `public/brand/gdl/*.svg` |
+| Décor (preferred GDL) | `public/brand/gdl/minerva-silhouette.svg` |
+| Décor (alt) | `public/brand/gdl/cathedral-silhouette.svg` |
 
 ## Sources
 
