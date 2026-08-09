@@ -115,7 +115,7 @@ Copy e.g. NUEVO EN GUADALAJARA
 Centered lockup in the bottom safe band (skill padding `140px` bottom / `72px` sides):
 
 - High-five **mark** + `bestie` (white) + `.mx` (lime)
-- **Promise:** no footer — center claim + **animated** landing high-five mark only
+- **Promise:** no footer — center claim + **animated** high-five mark (**colorful** variant: lime right person; clap white/lime/white — see `bestie-mark-highfive`)
 - **End:** no mark; `bestie.mx` word only after Minerva
 
 ### End seal stack (no separate CTA beat)

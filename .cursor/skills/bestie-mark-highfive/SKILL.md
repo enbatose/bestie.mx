@@ -2,32 +2,66 @@
 name: bestie-mark-highfive
 description: >-
   Recreates the Bestie brand-mark high-five animation (two people silhouettes,
-  arms raise, lime clap sparks). Use when animating the Bestie mark, high-five
-  logo, people lockup, clap sparks, HeroAnimatedLockup motion, Facebook Promise
-  slide mark décor, or seek-driven frame capture of the mark SVG.
+  arms raise, clap sparks) in classic or colorful variants. Use when animating
+  the Bestie mark, high-five logo, people lockup, clap sparks, HeroAnimatedLockup
+  motion, Facebook Promise slide mark décor, or seek-driven frame capture of the
+  mark SVG. Ask which color variant if the user does not specify.
 ---
 
 # Bestie mark high-five animation
 
-Canonical sequence for the **two-people brand mark**: bodies settle → arms raise → lime clap grows.
+Canonical sequence for the **two-people brand mark**: bodies settle → arms raise → clap grows.
 
-**Product (CSS):** `src/components/HeroAnimatedLockup.tsx`, `GdlHeroAnimatedLockup.tsx` + `src/index.css` (`.home-logo-*`).  
-**Raster / Facebook motion:** seek-driven twin of the same timing (see below) — reference `public/brand/facebook/post-gdl-publishers-hi5.mp4`.
+**Always confirm the color variant** if the user did not name one: **classic** (default on product) or **colorful** (Promise slide in publisher motion).
 
-Related: [`bestie-url-lockup`](../bestie-url-lockup/SKILL.md) for `bestie.mx` text; [`fb-motion-gif`](../fb-motion-gif/SKILL.md) for Feed specs.
+**Product (CSS):** `src/components/HeroAnimatedLockup.tsx`, `GdlHeroAnimatedLockup.tsx` + `src/index.css` (`.home-logo-*`) — **classic**.  
+**Raster / Facebook motion Promise:** seek-driven — current ship uses **colorful**; reference `public/brand/facebook/post-gdl-publishers-hi5.mp4`.
 
-## Colors
+Related: [`bestie-url-lockup`](../bestie-url-lockup/SKILL.md); [`fb-motion-gif`](../fb-motion-gif/SKILL.md).
+
+## Color variants
+
+Stroke weight is always `2.5` in mark viewBox space. Forest stage bg: `#143D30`.
+
+### Classic (original / product default)
 
 | Element | Color |
 | --- | --- |
-| People (heads, bodies, legs, arms) | `#FFFFFF` stroke |
-| Clap sparks (3 short rays) | `#84CC16` stroke |
-| Stroke weight | `2.5` in mark viewBox space |
-| Typical stage bg | `#143D30` (forest) |
+| Left person (head, body, legs, high-five arm) | `#FFFFFF` |
+| Right person (head, body, legs, high-five arm) | `#FFFFFF` |
+| Clap sparks (all 3 rays) | `#84CC16` |
+
+Use when the user says **classic**, **original**, **all white**, **product**, or **site lockup**.
+
+### Colorful (split people + tri-color clap)
+
+| Element | Color |
+| --- | --- |
+| Left person (incl. high-five arm) | `#FFFFFF` |
+| Right person (incl. high-five arm) | `#84CC16` |
+| Clap left ray `M30 6L33 1` | `#FFFFFF` |
+| Clap middle ray `M37 6V0` | `#84CC16` |
+| Clap right ray `M44 6L41 1` | `#FFFFFF` |
+
+Use when the user says **colorful**, **lime right**, **split colors**, or asks for the **Promise slide** mark look.
+
+Clap markup for colorful (per-path strokes; do not set one stroke on the parent `<g>`):
+
+```svg
+<g transform="translate(-37 -3)" stroke-width="2.5" stroke-linecap="round">
+  <path d="M30 6L33 1" stroke="#FFFFFF"/>
+  <path d="M37 6V0" stroke="#84CC16"/>
+  <path d="M44 6L41 1" stroke="#FFFFFF"/>
+</g>
+```
+
+Classic clap keeps a single parent `stroke="#84CC16"` on that group.
+
+Static Hook **footer** mark already uses left white / right lime with **all-lime** clap — that is not the colorful animated clap; don’t confuse the two.
 
 ## Beat timeline (local ms from mark start)
 
-Total settle ≈ **1.55 s** (`HIGH_FIVE_DONE_MS = 1550`).
+Same for both variants. Total settle ≈ **1.55 s** (`HIGH_FIVE_DONE_MS = 1550`).
 
 | t (ms) | Beat | Motion |
 | --- | --- | --- |
@@ -55,7 +89,7 @@ Arm keyframe shape (left; right mirrors signs):
 
 ## SVG structure
 
-ViewBox `0 0 74 74`. Inner content scaled with:
+ViewBox `0 0 74 74`. Inner content:
 
 ```svg
 <g transform="matrix(0.65 0 0 0.65 13 18)">
@@ -65,14 +99,12 @@ ViewBox `0 0 74 74`. Inner content scaled with:
 
 ### Layers
 
-1. **Left person** — head circle, torso U-path, outer arm stub, two legs.  
-2. **Right person** — mirrored.  
-3. **High-five arms** — one path each; **pivot at shoulder**.  
-4. **Clap** — three lime rays above the meet point.
+1. **Left person** — head, torso, outer stub, legs (+ nested arm for capture).  
+2. **Right person** — mirrored (+ nested arm).  
+3. **High-five arms** — pivot at shoulder.  
+4. **Clap** — three rays (colors per variant).
 
 ### Shoulder pivots (required)
-
-Arms rotate around the shoulder, not the path midpoint:
 
 ```svg
 <!-- Left arm -->
@@ -90,28 +122,29 @@ Arms rotate around the shoulder, not the path midpoint:
 </g>
 ```
 
-Clap group pivots at `(37, 3)` the same way (translate → rotate/scale origin → untranslate).
+Clap pivots at `(37, 3)` the same way.
 
-Copy exact person path `d` attributes from `HeroAnimatedLockup.tsx` / `GdlHeroAnimatedLockup.tsx` — do not redraw freehand.
+Copy exact person path `d` from `HeroAnimatedLockup.tsx` / `GdlHeroAnimatedLockup.tsx`.
 
 ## Implementation A — product CSS (live site)
 
-Classes in `src/index.css`:
+**Classic only** today (both people white; clap all lime). Classes in `src/index.css`:
 
 | Class | Role |
 | --- | --- |
 | `.home-logo-person--left` / `--right` | Person fade + slide |
-| `.home-logo-arm--left` / `--right` | Arm raise (`animation-fill-mode: both`) |
-| `.home-logo-clap` | Lime sparks grow |
-| `.home-logo-wordmark` | Optional wordmark fade (lockup only) |
+| `.home-logo-arm--left` / `--right` | Arm raise (`both` fill) |
+| `.home-logo-clap` | Sparks grow |
+| `.home-logo-wordmark` | Optional wordmark fade |
 
-Prefer reusing `HeroAnimatedLockup` / `HeroMarkOnly` instead of duplicating SVG.
+Prefer reusing `HeroAnimatedLockup` / `HeroMarkOnly`.  
+`prefers-reduced-motion: reduce` → settled mark, no motion.
 
-`prefers-reduced-motion: reduce` → kill animations; show final settled mark.
+To ship **colorful** on the site later: set right-person + right-arm strokes to `#84CC16` and split clap path strokes as above — keep the same keyframes.
 
 ## Implementation B — seek-driven (frame capture / Facebook)
 
-CSS `animation` is **non-deterministic** under Playwright screenshot loops. Drive transforms from `__seek(ms)`:
+Drive from `__seek(ms)` (CSS animation clocks are non-deterministic under Playwright):
 
 ```js
 function setHi5(localMs) {
@@ -123,42 +156,43 @@ function setHi5(localMs) {
 
 ### Hard rule: arms stay attached
 
-Arms must **fade/slide with their body**. Otherwise full-opacity arms show before silhouettes.
-
-**Do this for capture builds:** nest each arm group **inside** its person `<g id="pLeft|pRight">` so `opacity` / `translateX` on the person applies to the arm.
+For capture builds, nest each arm **inside** its person `<g>` so opacity/translate apply together.
 
 ```svg
 <g id="pLeft">
   <!-- head, body, legs -->
   <g transform="translate(24 27)">…armLeft…</g>
 </g>
+<g id="pRight">
+  <!-- … -->
+  <g transform="translate(50 27)">…armRight…</g>
+</g>
 ```
-
-Product CSS can keep arms in a sibling `.home-logo-highfive` group (arms use `both` fill at down pose while people fade). For **raster motion**, always nest.
 
 ## Size / placement (1080² Promise slide)
 
 | Item | Guide |
 | --- | --- |
 | Mark box | ~280×280px |
-| Stroke | white on forest; clap lime |
 | Stack | Offer line above mark; gap ~20–28px |
 | Start | Local `t=0` when Promise layer is active |
+| Current Promise ship | **Colorful** variant |
 
 ## QA checklist
 
-- [ ] Bodies appear before/with arms (no floating arm-only frame)
-- [ ] Arms start **down**, then raise (not already up on first visible frame)
-- [ ] Clap is lime `#84CC16`, grows after arms nearly meet (~1.2s)
-- [ ] Sequence completes by ~1.55s
-- [ ] Reduced-motion / end state: arms up + clap visible (product)
-- [ ] Capture path: `__seek` only — no reliance on CSS animation clocks
+- [ ] Correct **variant** (classic vs colorful) per request
+- [ ] Bodies appear with arms (no floating arm-only frame)
+- [ ] Arms start **down**, then raise
+- [ ] Classic: clap all lime · Colorful: clap white / lime / white
+- [ ] Colorful: right silhouette + its arm are lime
+- [ ] Sequence done by ~1.55s
+- [ ] Capture path: `__seek` only
 
 ## Source map
 
 | Need | Where |
 | --- | --- |
-| Full lockup (mark + wordmark) | `src/components/HeroAnimatedLockup.tsx` |
+| Full lockup (classic) | `src/components/HeroAnimatedLockup.tsx` |
 | Mark-only + GDL flip | `src/components/home/GdlHeroAnimatedLockup.tsx` |
 | Keyframes / timing | `src/index.css` (`.home-logo-*`) |
 | FB motion reference | `public/brand/facebook/post-gdl-publishers-hi5.mp4` |
