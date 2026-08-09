@@ -124,10 +124,10 @@ Spanish unless user asks otherwise. Use HTML entities in render HTML (`&#191;` `
 | Beat | On-screen |
 | --- | --- |
 | Hook | `¿Tienes un cuarto libre?` + footer mark + `bestie.mx` |
-| Promise | `Publícalo gratis en bestie.mx` + **colorful** hi5 mark under text |
-| End | Badge `NUEVO EN {CITY}` → landmark → `bestie.mx` → `Tu roomie, tu bestie.` → proof |
+| Promise | `Publícalo ya gratis en bestie.mx` (`ya gratis` lime) + **colorful** hi5 |
+| End | Badge `NUEVO EN {CITY}` → landmark → `bestie.mx` → `Tu roomie, tu bestie.` → `En minutos · Sin grupos` |
 
-- **Gratis** only on Promise (don’t restack “gratis / sin costo” on End).  
+- **Gratis / ya** live on Promise only (don’t restack on End). Badge owns city; proof stays short.  
 - Caption URL → `/publicar`.
 
 ### Seeker (demand) — same spine, swap claims
@@ -147,7 +147,7 @@ Spanish unless user asks otherwise. Use HTML entities in render HTML (`&#191;` `
 | Line | Notes |
 | --- | --- |
 | Slogan | `Tu roomie, tu bestie.` — lime on `tu bestie.` |
-| Proof | Local + speed + channel, e.g. `Hecha en GDL - En Minutos - Sin Grupos` — soft white ~20px |
+| Proof | Speed + channel, short — e.g. `En minutos · Sin grupos` (city already on badge). Soft white ~20px |
 
 ---
 
