@@ -170,18 +170,18 @@ Brand tagline may appear **small** or only on static posters — it must **not**
 
 ---
 
-## Canonical publisher timeline (~5.6 s)
+## Canonical publisher timeline (~6.0 s)
 
-Use this unless the user specifies otherwise:
+Reference export: `post-gdl-publishers-hi5.mp4` (v5 / ~95-target).
 
 ```
-0.00–1.30  Hook     badge + ¿Tienes un cuarto libre?  (appear ~0–0.45, then hold)
-1.30–1.65  XF 0.35s
-1.65–2.85  Promise  Publícalo gratis en Bestie (+ cathedral décor)
-2.85–3.20  XF 0.35s
-3.20–4.40  CTA      Publica gratis (+ short qualifier); hold
-4.40–4.75  XF 0.35s
-4.75–5.60  End      high-five + Publica tu cuarto gratis + bestie.mx; hold ≥1s
+0.00–1.15  Hook     white+lime badge + ¿Tienes un cuarto libre?
+1.15–1.45  XF 0.30s
+1.45–2.45  Promise  Publícalo gratis en Bestie + cathedral under text
+2.45–2.75  XF 0.30s
+2.75–3.95  CTA      Publica gratis + qualifier + whisper bestie.mx
+3.95–4.25  XF 0.30s
+4.25–6.00  End      high-five + bestie.mx (dominant) + Tu cuarto, gratis (~1.75s hold)
 ```
 
 Seeker loops: same spine; swap hook/promise/CTA/end lines for demand; keep timing.
