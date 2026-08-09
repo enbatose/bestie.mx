@@ -121,8 +121,9 @@ Publisher leave-behind = **offer + domain**, not seeker tagline alone.
 
 - Only on **Promise**
 - Prefer **La Minerva landing desktop asset** (`public/brand/gdl/minerva-silhouette-v4.png` — same as `GdlLandmarkSilhouettes`) for GDL publisher loops; SVG `minerva-silhouette.svg` is legacy/simple; cathedral is alternate only
-- On forest `#143D30`, the raw PNG reads too dim: **recolor strokes to opaque `#84CC16`**, render ~full opacity, ~340–360px, and thicken with 1px lime drop-shadows (anti-aliased hairlines otherwise vanish)
-- Use that PNG via `<img>` (file-local or absolute brand path); for other décor, inline SVG if `<img>` breaks
+- **Do not** threshold-recolor or 1px multi drop-shadow thicken — that destroys the thin AA strokes that make the landing Minerva look clean
+- Render original PNG large (~400–420px), opacity **~0.85–0.90** (landing uses 0.65–0.70 in the gutter; centered Promise can sit a bit higher), `object-fit: contain`
+- Capture at **deviceScaleFactor 2** then lanczos-downscale to 1080 so hairlines stay defined
 - Directly under promise text (not a distant footer)
 
 ### Layout grid
