@@ -4,16 +4,19 @@ description: >-
   Best practices for GIF-like motion creatives on Facebook/Instagram (Page posts
   and Meta ads): format choice (MP4 vs GIF), size/duration specs, sequencing,
   hooks, sound-off design, text+image+decoration graphic loops, storytelling
-  beats, and Bestie brand motion patterns. Use when creating, reviewing, or
-  optimizing Facebook GIFs, short loops, motion banners, kinetic text posts,
-  animated brand cards, or Feed/Reels video creatives for Bestie.
+  beats, transition timing, end-card takeaways, and Bestie brand motion
+  patterns. Use when creating, reviewing, auditing, or optimizing Facebook GIFs,
+  short loops, motion banners, kinetic text posts, animated brand cards, or
+  Feed/Reels video creatives for Bestie.
 ---
 
 # Facebook motion creatives (GIF-like) — Bestie
 
 Guidance for **short looping motion** used on the Bestie MX Page and in Meta ads (publisher or seeker). Prefer **video that feels like a GIF** over a literal `.gif` file.
 
-**Primary Bestie use case:** graphic motion built from **text + brand art + a few decorations** (GDL silhouettes, badge, CTA pill, high-five mark) — not UGC camera video. Design the **still frame first**, then animate.
+**Primary Bestie use case:** graphic motion built from **text + brand art + a few decorations** (GDL silhouettes, badge, CTA pill, high-five mark) — not UGC camera video. Design the **still / end frame first**, then animate.
+
+**Canonical publisher example:** `public/brand/facebook/post-gdl-publishers-hi5.mp4` (paired static: `post-gdl-publishers-1080.png`).
 
 ## Default decision
 
@@ -34,215 +37,212 @@ Hard Meta caps (video/GIF as video ad) are huge (~4 GB). Optimize for **mobile F
 | Aspect (Feed) | **1:1** `1080×1080` | Safe cross-placement; matches existing Bestie FB posts |
 | Aspect (Feed mobile max) | **4:5** `1080×1350` | More vertical real estate if Feed-only |
 | Aspect (Reels/Stories) | **9:16** `1080×1920` | Native; keep UI safe zones clear |
-| Length (loop / GIF-like) | **3–6 s** | Full message in one loop; avoid 15s+ “fake GIF” |
-| Length (story DR video) | **6–15 s** | Hook → proof → CTA; not required for brand loops |
-| Frame rate | **12–24 fps** | 12 fps fine for graphic loops; 24 if camera/UGC |
+| Length (loop / GIF-like) | **~5–6 s** (ok band **3–6 s**) | Full story in one loop; avoid 15s+ “fake GIF” |
+| Frame rate | **12–15 fps** graphic / **24** if UGC | 15 fps is a good Feed default for text cards |
 | Codec | **H.264** MP4, yuv420p, `+faststart` | Sharp on mobile; smaller than GIF |
 | GIF export (if needed) | ≤ **720²**, palette-optimized, **&lt; ~5 MB** | Prefer MP4 companion at 1080 |
-| Loop | Seamless or intentional end-hold | End on brand beat, then loop or freeze 0.5–1 s |
+| Loop | End-hold then restart | Hold final takeaway **≥1.0 s** before loop |
 
 Keep critical content in the **center ~80%** of the frame (edges crop when Meta adapts placements; Reels/Stories UI covers top/bottom).
 
 ---
 
+## Learned anti-patterns (do not repeat)
+
+These failed in Bestie’s publisher motion iterations — treat as hard rules:
+
+| Anti-pattern | Why it fails | Do instead |
+| --- | --- | --- |
+| Blank / near-empty open | No scroll-stop in first ~500 ms | Badge or hook already moving/visible by frame 1 |
+| Long support line **then** full static poster mid-loop | Same text twice; cognitive overload | One claim per beat; never restack the whole poster as a middle “slide” |
+| Crossfades **&gt; ~0.6 s** | Feels sluggish on Feed | **~0.35 s** ease-in-out between beats |
+| End card = only “Tu roomie, tu bestie.” | Peak–end memory stores identity, not the ask | End = **action takeaway** + mark + `bestie.mx` |
+| Seeker tagline on publisher end | Wrong segment leave-behind | Publisher: “Publica … gratis”; seeker: find/roomie ask |
+| Décor / broken assets stealing focus | Eye leaves the claim | Inline SVG décor; opacity ~40–60%; only on Promise beat |
+| UTF-8 mojibake in Spanish (`PublÃcalo`) | Looks unprofessional | Prefer HTML entities (`&#191;`, `&#237;`, `&#183;`) in render HTML if the toolchain mangles UTF-8 |
+
+---
+
 ## Use case: text + image + few decorations
 
-This is Bestie’s default motion type (GDL launch cards). Treat it as **message-first motion graphics**, not a mini film.
+Treat as **message-first motion graphics**, not a mini film.
 
 ### What to create (element budget)
 
-Build from a capped inventory. More elements ≠ better story — they compete for the thumb.
-
 | Role | Count | Bestie examples | Motion job |
 | --- | --- | --- | --- |
-| **Hook text** | 1 | `¿Tienes un cuarto libre?` / `¿Buscas roomie…?` | Appear in first **0.5–1 s** (snap/fade+rise). Largest type. |
-| **Support text** | 0–1 | One line; lime on **1–2 keywords** only (`gratis`, city) | Follow hook by ~0.3–0.6 s. Never a paragraph. |
-| **Badge / proof chip** | 0–1 | `NUEVO EN GUADALAJARA` | Soft fade or pill draw; optional early. |
-| **Wordmark / URL** | 0–1 early *or* end | `bestie.mx` | Prefer **end card** over long intro bumper. |
-| **CTA pill** | 0–1 | `Publica gratis` | Mid/late beat; scale-in once. |
-| **Hero decoration** | 1–2 max | Cathedral + Arcos line silhouettes | Ambient: slow fade/parallax; never steal from headline. |
-| **Brand close** | 1 | High-five **logo mark** + tagline | Final beat; settle on a designed **still**. |
-| **Micro accents** | 0–3 | Lime sparks at high-five, soft gradient orb | Only on the close; no continuous sparkle spam. |
+| **Hook text** | 1 | `¿Tienes un cuarto libre?` / `¿Buscas roomie…?` | Appear in first **0.5–1 s** (fade+rise). Largest type. |
+| **Promise text** | 0–1 | `Publícalo gratis en Bestie` (≤ ~8 words) | Own beat; lime on **1–2** keywords |
+| **Badge / proof chip** | 0–1 | `NUEVO EN GUADALAJARA` | With hook only |
+| **CTA pill** | 0–1 | `Publica gratis` | Own beat; **longest hold before end** |
+| **Hero decoration** | 0–1 (max 2) | Cathedral / Arcos line-art | Only under Promise; never on Hook or End |
+| **Brand close** | 1 | High-five mark + takeaway + `bestie.mx` | Final beat; designed still |
+| **Micro accents** | 0–3 | Lime sparks on high-five | End only |
 
-**Hard cap:** ≤ **6 simultaneous “attention objects”** on any single frame (headline counts as 1). If paused mid-loop, the frame must still read as a clean poster.
+**Hard cap:** ≤ **6** attention objects per frame. Paused mid-loop must still read as a clean card.
 
-### Still frame first (required)
+### Still / end frame first (required)
 
-1. Design / approve the **final readable poster** (or end card) as a static composition.
-2. Animate **toward** that still — do not invent motion and hope a good frame appears.
-3. Every loop should **start or end** on a frame that works as a thumbnail if autoplay fails.
+1. Lock the **end takeaway frame** (mark + leave-behind + URL) and optionally the static poster for organic posts.
+2. Animate **toward** those stills — do not invent motion and hope a good frame appears.
+3. Loop must **start readable** and **end memorable** if autoplay fails or the thumb leaves early.
 
-### Visual hierarchy (what the eye should hit)
+### Visual hierarchy
 
-Order of attention in graphic Feed motion:
+1. Motion / contrast (~first 500 ms)  
+2. Hook text (segment)  
+3. One promise cue (`gratis` / GDL / Bestie)  
+4. CTA  
+5. Brand seal + leave-behind  
+6. Décor last (and only on Promise)
 
-1. Motion or contrast change (orienting response, first ~500 ms)
-2. Hook text (segment question / claim)
-3. One proof cue (GDL / gratis / nuevo)
-4. CTA or brand close
-5. Decorations last (local flavor, not the story)
+Early brand cue = **forest + lime** (and optional badge), not a slow logo bumper. Logo/mark resolves on the **end** (and may appear lightly on the static poster used outside the loop).
 
-Put the primary hook in the **upper-middle** of the square (scroll eye-line). Keep logos/CTAs from fighting the headline on the same beat.
-
-### Text rules (on-art)
-
-Meta no longer hard-rejects “too much text,” but **minimal overlay still performs better**. Put detail in the **caption field**, not on the art.
+### Text rules (per slide)
 
 | Rule | Guidance |
 | --- | --- |
-| Hook length | ~**5–8 words** (one breath) |
-| Support line | ≤ **12–14 words**; prefer shorter |
+| One claim per beat | Do not combine hook + promise + CTA on one motion slide |
+| Hook | ~**5–8 words** |
+| Promise | ≤ **~8 words** (prefer shorter than a caption sentence) |
+| CTA slide | Pill ≤ **3 words** + optional tiny qualifier line |
+| End takeaway | ≤ **~6 words** action line + `bestie.mx` (+ optional small proof line) |
 | Keyword highlight | Lime on **1–2 words** max per line |
-| Lines on screen at once | Prefer **1**, max **2** (+ small badge) |
-| Size | Arm’s-length mobile: headline dominant; no fine print as the message |
-| Sound-off | The art **is** the caption — assume mute |
+| On-screen at once | Prefer **1** line; max **2** (+ small badge on Hook only) |
+| Caption field | Holds empathy / context — **not** duplicated on-art |
 
-Do **not** animate letter-by-letter for the full hook if it delays readability past ~1 s. Prefer whole-line fade/slide.
-
-### Decoration (GDL / brand)
-
-Decorations **support place and brand**; they are not plot.
+### Decorations
 
 | Do | Don’t |
 | --- | --- |
-| Thin lime line-art landmarks, low opacity (~40–60%) | Dense city collages, photo backgrounds fighting text |
-| Reveal silhouettes **after** or **with** the value frame | Animate decorations before the hook is readable |
-| One motion language (fade / soft rise) for all décor | Each landmark bouncing differently |
-| Hold décor steady under text | Parallax so strong text feels unstable |
+| Thin lime line-art; ~40–60% opacity | Photo collages; competing with headline |
+| Show with/after Promise text is readable | Before hook is readable |
+| One motion language (fade) | Bounce each landmark differently |
+| Inline SVG when rendering HTML frames | Broken `<img>` boxes mid-video |
 
-### Motion vocabulary (allowed moves)
-
-Use **one primary move per beat**. Ease out / ease-in-out; avoid linear snaps that feel unfinished.
+### Motion vocabulary
 
 | Element | Preferred motion |
 | --- | --- |
-| Hook text | Fade + slight rise (8–16 px) or soft scale 0.96→1 |
-| Support / badge | Fade only or fade + slight rise |
-| CTA pill | Scale 0.9→1 with ease-out (one punch) |
-| Silhouettes | Opacity 0→target; optional tiny horizontal drift |
-| High-five mark | Scale punch 0.75→1.05→1.0; optional 2–3 spark dots |
-| Scene change | Crossfade 0.3–0.5 s — not a wipe circus |
+| Hook | Fade + rise 8–16 px or scale 0.96→1 |
+| Promise / badge | Fade + slight rise |
+| CTA pill | Scale 0.9→1 ease-out (one punch) |
+| Silhouettes | Opacity only |
+| High-five mark | Scale 0.85→1.06→1.0; 2–3 sparks |
+| Scene change | Crossfade **~0.35 s** |
 
-**Scene change cadence:** new readable beat about every **1.0–1.5 s** inside a 3–6 s loop (graphic loops can hold longer than UGC cuts). Avoid holding a near-blank frame.
+---
 
-### Storytelling spine (text + décor loops)
+## Four concepts to get right
 
-Map story to **beats**, not to camera shots. Prefer **one claim per slide**.
+### 1) Transition timing
+
+- Between beats: **~0.30–0.40 s** ease-in-out (Feed graphic default **0.35 s**).
+- Avoid dissolves **&gt; 0.6 s** (sluggish) and instant hard cuts between dense text cards (jarring).
+- Cadence: new readable beat about every **~1.2–1.5 s** of *hold* (plus XF) → overall ~**0.3–0.5** scene changes/sec for graphic Feed loops.
+- Hook motion can be fast; **CTA and End holds are longer** than hook entrance.
+
+### 2) Amount of text per slide
+
+- **Slide = one idea.** If you need more words, add a beat — don’t enlarge the paragraph.
+- Never use the full multi-line static poster as a mid-loop slide (restacks hook+promise+CTA+footer).
+- Static PNG is for the **Page photo / thumbnail**; motion is a **stripped beat sequence**.
+
+### 3) Final slide (end card)
+
+- Hold **≥ 1.0–1.5 s** (peak–end / recency: last seconds disproportionately shape memory).
+- Contents: **high-five mark** + **one leave-behind line** + **`bestie.mx`** + optional small proof (`Hecha en GDL · Siempre gratis`).
+- No competing animations while the takeaway is on screen (sparks settle quickly).
+- Keep mark + text in center safe zone.
+
+### 4) Most important leave-behind
+
+Ask: *What should someone remember if they only recall the last frame?*
+
+| Segment | Leave-behind (end line) | Not the leave-behind |
+| --- | --- | --- |
+| **Publisher** | `Publica tu cuarto gratis` + `bestie.mx` | Only “Tu roomie, tu bestie.” |
+| **Seeker** | Find/roomie ask or “sin costo” + `bestie.mx` | Publisher “Publica…” CTA |
+
+Brand tagline may appear **small** or only on static posters — it must **not** replace the action/offer on the end card.
+
+**Mute story test (required):** at phone size, answer in order: *for whom → what’s the offer → what do I do / whose brand?* If any answer needs the caption, fix the beats.
+
+---
+
+## Canonical publisher timeline (~5.6 s)
+
+Use this unless the user specifies otherwise:
 
 ```
-Beat A — Hook (~1.2–1.4s hold after appear)
-  Question or claim + optional badge. Segment clear.
-  Early brand via color system (forest/lime), not a slow logo bumper.
-
-Beat B — Promise (~1.0–1.3s)
-  ONE short line (≤ ~8 words). Décor may fade under (never before text is readable).
-  Do NOT dump the full static poster mid-loop (too much text at once).
-
-Beat C — CTA peak (~1.2–1.4s hold)
-  Action pill + tiny qualifier. Longest readable pause before the end.
-  Hook moves fast; CTA holds longer.
-
-Beat D — End seal / takeaway (~1.0–1.5s hold)  [peak–end memory]
-  High-five mark + the ONE leave-behind message + bestie.mx.
-  Publisher leave-behind: “Publica … gratis” + bestie.mx (not only the seeker tagline).
-  Seeker leave-behind: “Encuentra …” / roomie hook + bestie.mx.
-  Tagline “Tu roomie, tu bestie.” is optional secondary — never replace the action takeaway.
+0.00–1.30  Hook     badge + ¿Tienes un cuarto libre?  (appear ~0–0.45, then hold)
+1.30–1.65  XF 0.35s
+1.65–2.85  Promise  Publícalo gratis en Bestie (+ cathedral décor)
+2.85–3.20  XF 0.35s
+3.20–4.40  CTA      Publica gratis (+ short qualifier); hold
+4.40–4.75  XF 0.35s
+4.75–5.60  End      high-five + Publica tu cuarto gratis + bestie.mx; hold ≥1s
 ```
 
-**Transitions:** crossfade / dissolve **~0.3–0.4 s** between beats (Feed). Avoid >0.6 s soft dissolves that feel sluggish. Target ~**0.3–0.5 cuts/sec** for graphic Feed loops (new beat ~every 2–3 s).
+Seeker loops: same spine; swap hook/promise/CTA/end lines for demand; keep timing.
 
-**Timing research cheat sheet**
-
-| Concept | Practice |
-| --- | --- |
-| Transition length | ~0.3–0.4 s ease for graphic loops |
-| Text per slide | 1 headline; ≤1 support line; ≤ ~8–12 words total on that beat |
-| CTA hold | Longer than hook motion; give time to read the ask |
-| Final slide | 1.0–1.5 s+; logo/mark + clear takeaway + URL; no competing animations |
-| Leave-behind | Peak–end: last frame = brand + primary action/offer the brain stores |
-
-**Story test:** mute the video, watch once at phone size. Can you answer in order: *who is this for → what’s the offer → what should I do / whose brand?* If any answer needs the caption, strengthen that beat on-art.
-
-### Caption pairing (same as static, stricter with motion)
+### Caption pairing
 
 | Surface | Job |
 | --- | --- |
-| Motion | Stop scroll + segment + one promise + brand seal |
-| Caption | Empathy / context + **one** URL (mobile-short) |
-| Ad CTA button | Match segment; separate supply vs demand campaigns |
+| Motion | Hook → promise → CTA → leave-behind |
+| Caption | Short empathy + **one** URL |
+| Ad CTA | Match segment; separate supply vs demand campaigns |
 
 Publisher URL: `https://www.bestie.mx/publicar`  
 Seeker URL: `https://www.bestie.mx` or city landing.
 
-Do not paste the full on-art paragraph into the caption.
-
 ---
 
-## What to focus on (priority order)
+## Do / Don’t
 
-1. **First 1–3 seconds (hook)** — motion + segment question/claim; no slow logo intro.
-2. **One job per loop** — publisher *or* seeker.
-3. **Readable without sound** — text on frame is mandatory for graphic loops.
-4. **Element budget** — few decorations; hierarchy over clutter.
-5. **Brand close** — Bestie high-five mark as designed still.
-6. **Local GDL cue** — silhouettes as support, not the hook.
-7. **Caption pairing** — motion ≠ caption dump.
+**Do:** still/end first; ease-out landings; `#143D30` / `#84CC16` / white; MP4 primary; end on high-five + action takeaway.
 
-## Sequencing (quick reference)
+**Don’t:** flash; pixel mush GIF; audio-only punchlines; mix segments; décor-before-hook; poster dump mid-loop; seeker tagline as publisher leave-behind; Reels unsafe zones; letterbox square→9:16.
 
-```
-0.0–0.8s   Hook text + light motion (+ optional badge)
-0.8–2.5s   Value / poster + GDL décor settle
-2.5–3.5s   CTA punch (if not already on poster)
-3.5–4.5s   High-five mark + bestie.mx + tagline; hold; loop
-```
-
-### Do
-
-- Still frame first; ease-out landings; high contrast (`#143D30` / `#84CC16` / white).
-- End on the **logo mark**, not a random last frame.
-- Ship **MP4** primary for Meta.
-
-### Don’t
-
-- Flash / strobe; pixel mush GIF; audio-dependent punchlines.
-- More than one CTA idea; mixing segments; décor-before-hook.
-- Critical text in Reels/Stories top/bottom UI bands.
-- Letterboxing a square into 9:16 for Reels.
-
-## Asset locations (Bestie repo)
+## Asset locations
 
 | Asset | Path |
 | --- | --- |
 | Static publisher GDL | `public/brand/facebook/post-gdl-publishers-1080.png` |
-| Motion publisher (GIF + MP4) | `public/brand/facebook/post-gdl-publishers-hi5.gif` / `.mp4` |
+| Motion publisher | `public/brand/facebook/post-gdl-publishers-hi5.mp4` (+ `.gif`) |
 | Static seeker launch | `public/brand/facebook/post-gdl-launch-1080.png` |
-| Logo mark (source) | `public/brand/logo-mark.svg` |
+| Logo mark | `public/brand/logo-mark.svg` |
+| GDL décor sources | `public/brand/gdl/*.svg` |
 
-Save new motion under `public/brand/facebook/` as `post-{city}-{segment}-{note}.{mp4|gif}`, commit on **`develop`**, lead the reply with **MP4**.
+Save as `post-{city}-{segment}-{note}.{mp4|gif}` under `public/brand/facebook/`, commit on **`develop`**, lead replies with **MP4**.
 
 ## Production checklist
 
 ```
-Graphic motion (text + art + décor):
-- [ ] Still/poster designed before animating
-- [ ] Segment clear in first 1s (publisher XOR seeker)
-- [ ] Hook ≤ ~8 words; ≤1 support line; caption holds the rest
-- [ ] ≤6 attention objects per frame; décor doesn’t outrank text
-- [ ] Motion starts in first ~0.5s (not a static open)
-- [ ] Beats: Hook → Promise/Place → CTA? → Brand seal
-- [ ] Mute story test passes on phone-sized preview
-- [ ] MP4 H.264 primary; GIF only if requested
-- [ ] Feed 1:1 or 4:5 ≥1080; loop 3–6s; center-safe content
-- [ ] Closes on Bestie high-five mark + hold
+Graphic motion audit:
+- [ ] No blank open; motion/contrast in first ~0.5s
+- [ ] Segment XOR clear in first 1s
+- [ ] One claim per slide; hook ≤8 words; promise ≤~8 words
+- [ ] No full static poster as a mid-loop slide
+- [ ] XF between beats ~0.35s (not >0.6s)
+- [ ] CTA hold longer than hook entrance
+- [ ] End hold ≥1.0s; high-five + action takeaway + bestie.mx
+- [ ] Leave-behind matches segment (publisher ≠ seeker tagline-only)
+- [ ] Décor only on Promise; ≤6 objects/frame
+- [ ] Mute phone story test passes
+- [ ] Spanish glyphs correct (no mojibake)
+- [ ] MP4 H.264 primary; Feed 1:1 or 4:5; loop 3–6s
 - [ ] Caption short + one URL; campaigns not mixed by segment
 ```
 
 ## Sources (verify if Meta UI changes)
 
 - [Use a GIF in your video ad (Meta Business Help)](https://www.facebook.com/business/help/1006874066021923) — GIF as video; subtle motion; video more reliable on mobile.
-- Industry Feed norms (2025–2026): hook in first seconds; design for mute; 1:1 / 4:5 Feed; 9:16 Reels; H.264 MP4; minimal on-image text outperforms dense overlays; center safe zones.
-- Motion-graphics practice: message hierarchy (hook → core → proof → CTA); still frame first; restrained easing; logo end card as brand seal.
+- Feed norms: hook early; design for mute; 1:1 / 4:5 Feed; 9:16 Reels; H.264; minimal on-image text; center safe zones.
+- Pacing: graphic Feed ~0.3–0.5 scene changes/sec; CTA/end holds longer than hook motion.
+- Peak–end / recency: last ~1–1.5s+ of a short loop disproportionately shape the stored impression — put brand + primary ask there.
+- Motion graphics: one message per beat; still frame first; restrained easing.
 
 ## Related skills
 
