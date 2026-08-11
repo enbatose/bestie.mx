@@ -32,7 +32,10 @@ These events are enabled on the Bestie webhook as of 2026-07-04.
 | `domain.updated` | Domain | Logs | Track tracking/DNS setting changes |
 | `domain.deleted` | Domain | Logs | Alert if domain removed accidentally |
 
-Handler behavior today: verify Svix signature → log event → for `email.received` to `contacto@bestie.mx`, call `resend.emails.receiving.forward()` → `200 OK`.  
+Handler behavior today: verify Svix signature → log event → for `email.received` to `contacto@bestie.mx`, **compose a new message** (subject prefixed `[Externo: <real sender>]` + a red "⚠️ Mensaje EXTERNO" banner naming the original sender/subject, body = original content) and send it via `sendTransactionalEmail()` → `200 OK`.
+
+This intentionally does **not** use Resend's raw `emails.receiving.forward()` helper anymore. That raw forward relays the original message essentially unchanged but with the visible `From` rewritten to `Bestie Contacto <contacto@bestie.mx>` — which hides the real external sender and made a "Meta account suspension" phishing email (actually from a random `.edu.ng` address) look like a legitimate Bestie-internal message. The composed forward always exposes the true original sender before you even open it.
+
 Planned: persist bounces/suppressions and auto-disable `email_notify` on saved searches.
 
 ## Inbound mail — `contacto@bestie.mx` only
@@ -42,7 +45,12 @@ Resend receives any `@bestie.mx` address once domain **receiving** is enabled an
 - MX `@` → `inbound-smtp.us-east-1.amazonaws.com` (priority 10) — added via `scripts/cloudflare-setup.mjs`
 - Resend domain `bestie.mx`: receiving **enabled**
 - Forward target env: `RESEND_CONTACT_FORWARD_TO` (default `batani.enrique@gmail.com`)
-- Forward from env: `RESEND_CONTACT_FORWARD_FROM` (default `Bestie Contacto <contacto@bestie.mx>`)
+- Forward from: the composed forward always sends via `sendTransactionalEmail()`'s normal sender
+  (`Bestie MX <no-reply@bestie.mx>` / `EMAIL_FROM`) — never `contacto@bestie.mx` — so the visible
+  From can't be mistaken for the original external sender. `resolveContactForwardFrom()` in
+  `resendWebhook.ts` is now dead/legacy (kept only so old tests / the manual reforward script still
+  compile); `scripts/resend-reforward-inbound.mjs` defaults `RESEND_CONTACT_FORWARD_FROM` to
+  `Bestie <no-reply@bestie.mx>` for the same reason.
 - Receiving API key env: `RESEND_RECEIVING_API_KEY` (**full_access** — **required on Railway**)
   - Do **not** use sending-only `RESEND_API_KEY` for inbound; the webhook ignores it for receiving/forward
   - Local fallback: `RESEND_ADMIN_API_KEY` (full_access) is accepted for receiving only when `RESEND_RECEIVING_API_KEY` is unset
@@ -94,7 +102,7 @@ node --env-file=server/.env scripts/resend-reforward-inbound.mjs --meta-only
 node --env-file=server/.env scripts/resend-reforward-inbound.mjs
 ```
 
-Uses the Resend Node SDK `emails.receiving.forward` helper (there is no REST `POST /emails/receiving/:id/forward`).
+Fetches the original body via `GET /emails/receiving/:id`, then composes and sends a new message with `emails.send` (same "show the real sender" behavior as the live webhook path — see above). Does not use the raw `emails.receiving.forward` helper.
 
 ---
 

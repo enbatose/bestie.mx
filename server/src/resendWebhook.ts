@@ -57,6 +57,11 @@ export function resolveContactForwardTo(): string {
   return cleanEnv(process.env.RESEND_CONTACT_FORWARD_TO) || DEFAULT_CONTACT_FORWARD_TO;
 }
 
+/**
+ * Legacy default for `scripts/resend-reforward-inbound.mjs` only. The live webhook path no longer
+ * sends "as" contacto@bestie.mx for forwards — composed forwards use the normal no-reply@bestie.mx
+ * sender so the visible From never disguises an external message as coming from Bestie itself.
+ */
 export function resolveContactForwardFrom(): string {
   return (
     cleanEnv(process.env.RESEND_CONTACT_FORWARD_FROM) ||
@@ -223,19 +228,91 @@ async function alertForwardFailure(emailId: string, reason: string): Promise<voi
   }
 }
 
-async function forwardContactEmail(client: Resend, emailId: string): Promise<void> {
-  const { data, error } = await client.emails.receiving.forward({
-    emailId,
-    from: resolveContactForwardFrom(),
+/** Escape untrusted (attacker-controlled) text before embedding it in the forwarded HTML banner. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Best-effort fetch of the received email's HTML/text body (from/subject already come from the webhook event). */
+async function fetchReceivedEmailBody(
+  apiKey: string,
+  emailId: string,
+): Promise<{ html: string | null; text: string | null; from?: string; subject?: string }> {
+  try {
+    const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+    });
+    const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!res.ok || !body) {
+      console.warn(`[resend] fetch received body failed email_id=${emailId} status=${res.status}`);
+      return { html: null, text: null };
+    }
+    return {
+      html: typeof body.html === "string" ? body.html : null,
+      text: typeof body.text === "string" ? body.text : null,
+      from: typeof body.from === "string" ? body.from : undefined,
+      subject: typeof body.subject === "string" ? body.subject : undefined,
+    };
+  } catch (e) {
+    console.warn(
+      `[resend] fetch received body error email_id=${emailId}: ${e instanceof Error ? e.message : String(e)}`.slice(
+        0,
+        200,
+      ),
+    );
+    return { html: null, text: null };
+  }
+}
+
+/**
+ * Forward inbound contacto@ mail as a NEW composed message (not Resend's raw `receiving.forward`),
+ * so the real external sender is always visible — never disguised as coming from bestie.mx itself.
+ * This is what would have made the "Meta suspension" phishing obvious immediately: the subject and
+ * body clearly show the attacker's real address instead of showing `Bestie Contacto <contacto@bestie.mx>`.
+ */
+async function forwardContactEmail(
+  apiKey: string,
+  emailId: string,
+  eventFrom: string | undefined,
+  eventSubject: string | undefined,
+): Promise<void> {
+  const body = await fetchReceivedEmailBody(apiKey, emailId);
+  const fromDisplay = (eventFrom ?? body.from ?? "").trim() || "(remitente desconocido)";
+  const subjectDisplay =
+    (eventSubject ?? body.subject ?? "").replace(/[\r\n]+/g, " ").trim().slice(0, 150) || "(sin asunto)";
+
+  const bannerHtml =
+    `<div style="font-family:Arial,sans-serif;border:2px solid #d93025;background:#fff3f2;` +
+    `padding:12px 16px;margin-bottom:16px;border-radius:6px;color:#1c1e21;font-size:14px;line-height:1.5">` +
+    `<strong>⚠️ Mensaje EXTERNO recibido en contacto@bestie.mx</strong><br/>` +
+    `No fue enviado por Bestie ni por Meta — llegó de una dirección externa y se reenvía automáticamente.<br/>` +
+    `<strong>Remitente original:</strong> ${escapeHtml(fromDisplay)}<br/>` +
+    `<strong>Asunto original:</strong> ${escapeHtml(subjectDisplay)}</div>`;
+  const bannerText =
+    `⚠️ MENSAJE EXTERNO recibido en contacto@bestie.mx — no fue enviado por Bestie ni por Meta.\n` +
+    `Remitente original: ${fromDisplay}\n` +
+    `Asunto original: ${subjectDisplay}\n${"-".repeat(48)}\n\n`;
+
+  const fallbackNote = "(no se pudo cargar el contenido del mensaje; revisa resend.com/emails)";
+  const ok = await sendTransactionalEmail({
     to: resolveContactForwardTo(),
+    subject: `[Externo: ${fromDisplay}] ${subjectDisplay}`.slice(0, 250),
+    html: `${bannerHtml}${body.html ?? `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(body.text ?? fallbackNote)}</pre>`}`,
+    text: `${bannerText}${body.text ?? fallbackNote}`,
+    tags: [{ name: "category", value: "inbound_forward" }],
   });
 
-  if (error) {
-    throw new Error(error.message);
+  if (!ok) {
+    throw new Error("send_failed");
   }
 
   console.log(
-    `[resend] forwarded inbound email_id=${emailId} to=${resolveContactForwardTo()} forward_id=${data?.id ?? "unknown"}`,
+    `[resend] forwarded inbound email_id=${emailId} to=${resolveContactForwardTo()} from=${fromDisplay}`,
   );
 }
 
@@ -292,7 +369,9 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
 
     if (event.type === "email.received" && emailId && shouldForwardInbound(to)) {
       try {
-        await forwardContactEmail(client, emailId);
+        const apiKey = getResendReceivingApiKey();
+        if (!apiKey) throw new Error("receiving_key_missing");
+        await forwardContactEmail(apiKey, emailId, from, subject);
       } catch (forwardErr) {
         const msg = forwardErr instanceof Error ? forwardErr.message : String(forwardErr);
         console.warn(`[resend] forward failed email_id=${emailId}: ${msg.slice(0, 200)}`);
