@@ -107,9 +107,6 @@ Solo entrega variante **más corta** o **más larga** si el usuario lo pide.
 
 ## Salida
 
-Entrega:
+Responde **solo** con el comentario listo para pegar (versión media). Sin prefijos (“Nuevo”, “Comentario:”), sin variantes, sin notas, sin markdown alrededor del texto.
 
-1. **Comentario listo para pegar** — versión **media** (un solo bloque).
-2. Una línea de nota: qué detalle del post usaste (+ “nuevo” / “ya trabajado” si aplica).
-
-No abras con meta-comentarios largos; el texto pegable va primero.
+Si el post **ya se trabajó** en el chat, una sola línea antes del texto: `Ya trabajado — reusando.` y luego el comentario pegable.

@@ -93,9 +93,6 @@ Solo entrega variante más corta o más larga si el usuario lo pide.
 
 ## Salida
 
-Entrega:
+Responde **solo** con el comentario listo para pegar (versión media). Sin prefijos, sin variantes, sin notas, sin markdown alrededor del texto.
 
-1. **Comentario listo para pegar** — versión **media** (un solo bloque).
-2. Una línea: detalle del post usado + recordatorio de publicar **como Página Bestie**.
-
-El texto pegable va primero.
+Si el post **ya se trabajó**, una sola línea antes: `Ya trabajado — reusando.` y luego el comentario.
