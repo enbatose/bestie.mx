@@ -34,6 +34,12 @@ export const POSTHOG_PRICING_SOURCE = "https://posthog.com/pricing";
 export const POSTHOG_BILLING_URL = "https://us.posthog.com/organization/billing";
 export const POSTHOG_PRICING_LAST_VERIFIED = "2026-08-02";
 
+export function posthogReplayUrl(sessionId: string | null | undefined): string | null {
+  const id = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!id) return null;
+  return `https://us.posthog.com/project/${POSTHOG_PROJECT_ID}/replay/${encodeURIComponent(id)}`;
+}
+
 export function estimatePostHogRecordingsOverageUsd(recordings: number): number {
   return Math.max(0, recordings - POSTHOG_RECORDINGS_FREE_MONTHLY) * POSTHOG_RECORDINGS_USD_EACH;
 }

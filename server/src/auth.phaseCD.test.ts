@@ -267,13 +267,24 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
   it("admin can list users", async () => {
     const agent = request.agent(app);
     await agent.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" }).expect(201);
-    const r = await agent.get("/api/admin/users").expect(200);
-    expect(Array.isArray(r.body.users)).toBe(true);
-    expect(r.body.total).toBeGreaterThanOrEqual(1);
-    const boss = (r.body.users as Array<Record<string, unknown>>).find((u) => u.email === bossEmail);
+    const real = await agent.get("/api/admin/users").expect(200);
+    expect(Array.isArray(real.body.users)).toBe(true);
+    expect(real.body.segment).toBe("real");
+    expect(real.body.counts).toEqual(
+      expect.objectContaining({ real: expect.any(Number), pending: expect.any(Number), staff: expect.any(Number), all: expect.any(Number) }),
+    );
+
+    const staff = await agent.get("/api/admin/users?segment=staff").expect(200);
+    const boss = (staff.body.users as Array<Record<string, unknown>>).find((u) => u.email === bossEmail);
     expect(boss).toBeTruthy();
+    expect(boss!.role).toBe("admin");
     expect(boss!.emailVerified).toBe(false);
     expect(boss!.accountStatus).toBe("pending_validation");
+
+    const pending = await agent.get("/api/admin/users?segment=pending").expect(200);
+    expect((pending.body.users as Array<Record<string, unknown>>).some((u) => u.email === bossEmail)).toBe(
+      false,
+    );
   });
 
   it("non-admin cannot access admin API", async () => {

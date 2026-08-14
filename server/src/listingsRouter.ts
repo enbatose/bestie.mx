@@ -8,6 +8,7 @@ import { filterListings, parseFilters } from "./searchFilters.js";
 import { canWritePropertyByRequest, isAdminRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
+import { scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import {
   CITY_MAX_LEN,
   clampAge,
@@ -386,6 +387,13 @@ export function listingsRouter(db: DatabaseSync) {
       db.exec("ROLLBACK;");
       res.status(409).json({ error: "conflict" });
       return;
+    }
+
+    if (status === "published") {
+      db.prepare(
+        `UPDATE properties SET published_at = ? WHERE id = ? AND (published_at IS NULL OR trim(published_at) = '')`,
+      ).run(createdAt, propertyId);
+      scheduleNotifyOpsNewPostPublished(db, propertyId);
     }
 
     const created = db

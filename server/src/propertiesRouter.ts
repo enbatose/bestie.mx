@@ -50,6 +50,7 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "./types.js";
+import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 
 function isListingStatus(s: string): s is ListingStatus {
   return s === "draft" || s === "published" || s === "paused" || s === "archived";
@@ -1370,6 +1371,11 @@ export function propertiesRouter(db: DatabaseSync) {
         : prop.published_at != null && String(prop.published_at).trim()
           ? String(prop.published_at)
           : null;
+    const firstPublish = isFirstPropertyPublish(
+      curStatus,
+      prop.published_at != null && String(prop.published_at).trim() ? String(prop.published_at) : null,
+      nextStatus,
+    );
 
     db.prepare(
       `UPDATE properties SET
@@ -1457,6 +1463,7 @@ export function propertiesRouter(db: DatabaseSync) {
         });
       }
     }
+    if (firstPublish) scheduleNotifyOpsNewPostPublished(db, propertyId);
 
     res.json(rowToProperty(updated));
   });

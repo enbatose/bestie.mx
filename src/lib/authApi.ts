@@ -442,6 +442,10 @@ export async function fetchFeaturedCities(signal?: AbortSignal): Promise<string[
   }
 }
 
+export const ADMIN_USER_SEGMENTS = ["real", "pending", "staff", "all"] as const;
+export type AdminUserSegment = (typeof ADMIN_USER_SEGMENTS)[number];
+export type AdminUserRole = "user" | "admin" | "system";
+
 export type AdminUserRow = {
   id: string;
   email: string | null;
@@ -451,19 +455,33 @@ export type AdminUserRow = {
   /** True when `email_verified_at` is set (OTP or trusted OAuth). */
   emailVerified: boolean;
   accountStatus: "active" | "pending_validation";
+  role: AdminUserRole;
+};
+
+export type AdminUserCounts = {
+  real: number;
+  pending: number;
+  staff: number;
+  all: number;
 };
 
 export async function adminListUsers(
-  opts: { limit?: number; offset?: number } = {},
+  opts: { limit?: number; offset?: number; segment?: AdminUserSegment } = {},
   signal?: AbortSignal,
-): Promise<{ users: AdminUserRow[]; total: number }> {
+): Promise<{ users: AdminUserRow[]; total: number; counts: AdminUserCounts; segment: AdminUserSegment }> {
   const base = apiBase();
   const q = new URLSearchParams();
   if (opts.limit != null) q.set("limit", String(opts.limit));
   if (opts.offset != null) q.set("offset", String(opts.offset));
+  if (opts.segment) q.set("segment", opts.segment);
   const res = await networkFetch(`${base}/api/admin/users?${q}`, { credentials: cred, signal });
   if (!res.ok) throw new Error(`admin_users_${res.status}`);
-  return (await res.json()) as { users: AdminUserRow[]; total: number };
+  return (await res.json()) as {
+    users: AdminUserRow[];
+    total: number;
+    counts: AdminUserCounts;
+    segment: AdminUserSegment;
+  };
 }
 
 export async function adminPatchPropertyStatus(

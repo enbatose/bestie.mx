@@ -16,7 +16,8 @@ import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
 import { buildUsageAnalyticsResponse } from "./usageAnalytics.js";
 import { listAdminPosts } from "./adminPosts.js";
-import { isUserEmailVerified, userAccountStatus } from "./emailVerification.js";
+import { listAdminUsers } from "./adminUsers.js";
+import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -66,34 +67,13 @@ export function adminRouter(db: DatabaseSync) {
   });
 
   r.get("/users", (req: Request, res: Response) => {
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-    const offset = Math.max(0, Number(req.query.offset) || 0);
-    const rows = db
-      .prepare(
-        `SELECT id, email, phone_e164, display_name, created_at, email_verified_at
-         FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      )
-      .all(limit, offset) as Record<string, unknown>[];
-    const redacted = rows.map((u) => {
-      const email = typeof u.email === "string" ? u.email : null;
-      const emailVerifiedAt =
-        typeof u.email_verified_at === "string" ? u.email_verified_at : null;
-      const emailVerified = isUserEmailVerified(emailVerifiedAt);
-      return {
-        id: u.id,
-        email,
-        phoneLast4:
-          typeof u.phone_e164 === "string" && u.phone_e164.length >= 4
-            ? u.phone_e164.slice(-4)
-            : null,
-        displayName: u.display_name,
-        createdAt: u.created_at,
-        emailVerified,
-        accountStatus: userAccountStatus(email, emailVerifiedAt),
-      };
-    });
-    const total = (db.prepare(`SELECT COUNT(*) as c FROM users`).get() as { c: number }).c;
-    res.json({ users: redacted, total, limit, offset });
+    res.json(
+      listAdminUsers(db, {
+        segment: req.query.segment,
+        limit: req.query.limit,
+        offset: req.query.offset,
+      }),
+    );
   });
 
   r.patch("/properties/:id/status", jsonMw(), (req: Request, res: Response) => {
@@ -115,6 +95,7 @@ export function adminRouter(db: DatabaseSync) {
       res.status(404).json({ error: "not_found" });
       return;
     }
+    const firstPublish = isFirstPropertyPublish(cur.status, cur.published_at, st);
     if (st === "published" && (cur.published_at == null || String(cur.published_at).trim() === "")) {
       db.prepare(`UPDATE properties SET status = ?, published_at = ? WHERE id = ?`).run(
         st,
@@ -128,6 +109,7 @@ export function adminRouter(db: DatabaseSync) {
       st,
       propertyId,
     );
+    if (firstPublish) scheduleNotifyOpsNewPostPublished(db, propertyId);
     res.json({ ok: true, propertyId, status: st });
   });
 

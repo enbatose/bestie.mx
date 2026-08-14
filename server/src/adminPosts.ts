@@ -4,6 +4,7 @@ import {
   propertyReferenceCode,
   roomReferenceCode,
 } from "./listingReference.js";
+import { posthogReplayUrl } from "./vendorUsageLimits.js";
 
 /** Short Spanish labels for publish-wizard steps (aligned with client WIZARD_STEP_TITLES order). */
 export const ADMIN_WIZARD_STEP_LABELS = [
@@ -17,9 +18,6 @@ export const ADMIN_WIZARD_STEP_LABELS = [
 ] as const;
 
 export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;
-
-const POSTHOG_PROJECT_ID = "517444";
-const POSTHOG_REPLAY_BASE = `https://us.posthog.com/project/${POSTHOG_PROJECT_ID}/replay`;
 
 export type AdminPostStatus = "draft" | "published" | "paused" | "archived";
 
@@ -66,12 +64,6 @@ function wizardStepLabel(step: number | null): string | null {
   const i = Math.floor(step);
   if (i < 0 || i >= ADMIN_WIZARD_STEP_LABELS.length) return `Paso ${i + 1}`;
   return ADMIN_WIZARD_STEP_LABELS[i]!;
-}
-
-function posthogReplayUrl(sessionId: string | null | undefined): string | null {
-  const id = typeof sessionId === "string" ? sessionId.trim() : "";
-  if (!id) return null;
-  return `${POSTHOG_REPLAY_BASE}/${encodeURIComponent(id)}`;
 }
 
 function escapeLike(token: string): string {

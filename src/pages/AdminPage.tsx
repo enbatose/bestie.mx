@@ -5,7 +5,6 @@ import {
   adminFetchSupportThread,
   adminGetFeaturedCities,
   adminListSupportConversations,
-  adminListUsers,
   adminPatchPropertyStatus,
   adminPutFeaturedCities,
   adminReplySupportThread,
@@ -17,7 +16,6 @@ import {
   type AdminUsageAnalytics,
   type AdminSupportConversationRow,
   type AdminSupportThread,
-  type AdminUserRow,
 } from "@/lib/authApi";
 import { apiBase } from "@/lib/apiBase";
 import {
@@ -33,6 +31,7 @@ import { ChatMessageBody } from "@/components/messaging/ChatMessageBody";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
 import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
+import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 
 function monthOptions(count = 12): string[] {
   const out: string[] = [];
@@ -62,6 +61,7 @@ function formatCategoryLabel(key: string): string {
     saved_search: "Búsqueda guardada",
     message_digest: "Digest de mensajes",
     backup_alert: "Alerta de respaldo",
+    new_post_alert: "Alerta de anuncio nuevo",
     inbound_forward_alert: "Alerta reenvío inbound",
     uncategorized: "Sin categoría",
     contacto_forward: "Contacto (reenviado)",
@@ -95,8 +95,6 @@ function QuotaBar({ value, limit, warnAt = 80 }: { value: number; limit: number;
 export function AdminPage() {
   const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte">("users");
   const [err, setErr] = useState<string | null>(null);
-  const [users, setUsers] = useState<AdminUserRow[]>([]);
-  const [totalUsers, setTotalUsers] = useState(0);
   const [citiesText, setCitiesText] = useState("");
   const [supportRows, setSupportRows] = useState<AdminSupportConversationRow[]>([]);
   const [supportActiveId, setSupportActiveId] = useState<string | null>(null);
@@ -125,12 +123,6 @@ export function AdminPage() {
   const [propStatus, setPropStatus] = useState<"draft" | "published" | "paused" | "archived">("paused");
   const [propOk, setPropOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const loadUsers = useCallback(async () => {
-    const r = await adminListUsers({ limit: 50 });
-    setUsers(r.users);
-    setTotalUsers(r.total);
-  }, []);
 
   const loadCities = useCallback(async () => {
     const c = await adminGetFeaturedCities();
@@ -201,7 +193,6 @@ export function AdminPage() {
   useEffect(() => {
     void (async () => {
       try {
-        await loadUsers();
         await loadCities();
         await loadSummary();
         await loadStreetView(streetViewMonth);
@@ -212,7 +203,7 @@ export function AdminPage() {
         setErr(x instanceof Error ? x.message : "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).");
       }
     })();
-  }, [loadUsers, loadCities, loadSummary, loadStreetView, loadUsage, loadImageUploads, streetViewMonth, imageFailuresOnly]);
+  }, [loadCities, loadSummary, loadStreetView, loadUsage, loadImageUploads, streetViewMonth, imageFailuresOnly]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setSupportDebouncedSearch(supportSearchInput.trim()), 300);
@@ -287,42 +278,7 @@ export function AdminPage() {
         ))}
       </div>
 
-      {tab === "users" ? (
-        <div className="mt-6">
-          <p className="text-sm text-muted">Total: {totalUsers}</p>
-          <ul className="mt-3 divide-y divide-border rounded-xl border border-border bg-surface">
-            {users.map((u) => {
-              const pending = u.accountStatus === "pending_validation";
-              const hasEmail = Boolean(u.email?.trim());
-              return (
-                <li key={u.id} className="px-4 py-3 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="font-medium text-body">{u.displayName}</div>
-                    {hasEmail ? (
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                          pending
-                            ? "bg-amber-500/15 text-amber-800 dark:text-amber-300"
-                            : "bg-primary/10 text-primary"
-                        }`}
-                      >
-                        {pending ? "Pendiente" : "Verificado"}
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full bg-bg-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted ring-1 ring-border">
-                        Sin correo
-                      </span>
-                    )}
-                  </div>
-                  <div className="ph-no-capture text-xs text-muted">
-                    {u.email ?? "sin correo"} · tel …{u.phoneLast4 ?? "—"}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
+      {tab === "users" ? <AdminUsersPanel onError={clearErr} /> : null}
 
       {tab === "cities" ? (
         <div className="mt-6 space-y-3">

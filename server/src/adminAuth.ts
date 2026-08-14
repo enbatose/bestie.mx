@@ -49,10 +49,12 @@ export function parseAdminEmails(): Set<string> {
   return set;
 }
 
+export function isAdminEmail(email: string | null | undefined): boolean {
+  const em = email?.trim().toLowerCase();
+  return Boolean(em && parseAdminEmails().has(em));
+}
+
 export function isAdminUser(db: DatabaseSync, userId: string): boolean {
-  const emails = parseAdminEmails();
-  if (emails.size === 0) return false;
   const row = db.prepare("SELECT email FROM users WHERE id = ?").get(userId) as { email: string | null } | undefined;
-  const em = row?.email?.trim().toLowerCase();
-  return Boolean(em && emails.has(em));
+  return isAdminEmail(row?.email);
 }
