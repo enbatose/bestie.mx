@@ -151,6 +151,8 @@ export type PublishBundlePayload = {
     streetViewPov?: StreetViewPov | null;
     occupiedByWomenCount?: number | null;
     occupiedByMenCount?: number | null;
+    /** PostHog session id for admin replay links. */
+    posthogSessionId?: string | null;
   };
   rooms: Array<{
     id?: string;

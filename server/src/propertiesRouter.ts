@@ -497,12 +497,13 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_street_view_pov" });
       return;
     }
+    const posthogSessionPub = optPosthogSessionId((p as { posthogSessionId?: unknown }).posthogSessionId) ?? null;
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
         bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
-        occupied_by_women, occupied_by_men, street_view_pov_json, created_at, published_at
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        occupied_by_women, occupied_by_men, street_view_pov_json, created_at, published_at, posthog_session_id
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
@@ -546,6 +547,7 @@ export function propertiesRouter(db: DatabaseSync) {
         streetViewPovJsonPub,
         createdAt,
         createdAt,
+        posthogSessionPub,
       );
 
       let order = 0;
@@ -626,6 +628,8 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_body" });
       return;
     }
+
+    scheduleNotifyOpsNewPostPublished(db, propertyId);
 
     const rows = db
       .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE p.id = ? ORDER BY r.sort_order ASC, r.id ASC`)

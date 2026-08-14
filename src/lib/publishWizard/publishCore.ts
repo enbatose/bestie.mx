@@ -644,6 +644,7 @@ export async function publishDraftFromWizard(opts: {
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
+        ...(getPosthogSessionId() ? { posthogSessionId: getPosthogSessionId() } : {}),
       },
       rooms: draft.rooms.map((r, i) => {
         const fields = roomApiFieldsFromDraft(draft, r, i);
