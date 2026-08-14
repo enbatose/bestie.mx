@@ -32,7 +32,7 @@ Invitar al publicador a publicar (o también) en **bestie.mx**, dejando claro:
 1. Quién escribe: **“soy parte del equipo de Bestie.mx”** (o variación cercana: “ando con el equipo de Bestie.mx”). No digas “dueño”, “fundador”, “creé” ni “proyecto mío”.
 2. Qué es: plataforma **nueva**, **local de Guadalajara** (roomies / renta de cuartos).
 3. Precio: **sin costo y siempre lo será** (énfasis claro, sin letra chica).
-4. CTA: enlace para crear el anuncio → `https://www.bestie.mx`
+4. CTA: enlace corto → `https://bestie.mx/gdl` (redirect; no uses `www.bestie.mx` en outreach manual)
 
 ## Lectura del screenshot
 
@@ -62,13 +62,13 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 1. Saludo + detalle personal del post (zona, amueblado, tipo, etc.) — 1 frase genuina.
 2. Presentación breve: “soy parte del equipo de Bestie.mx…”.
 3. Propuesta en tono de tip / ayuda, no de venta: publicar sin costo **siempre**.
-4. Enlace: `https://www.bestie.mx`
+4. Enlace: `https://bestie.mx/gdl`
 5. Cierre humano (opcional): “si te late”, “cualquier duda me escribes por aquí”, “éxito con la renta”.
 
 ## Must-include
 
 - [ ] “Parte del equipo de Bestie.mx” (o equivalente suave).
-- [ ] bestie.mx nombrado + URL `https://www.bestie.mx`
+- [ ] bestie.mx nombrado + URL `https://bestie.mx/gdl`
 - [ ] Nueva + local Guadalajara
 - [ ] Sin costo / gratis **siempre** (o equivalente inequívoco)
 - [ ] Invitación a publicar / crear anuncio
