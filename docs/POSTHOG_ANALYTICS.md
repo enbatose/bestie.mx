@@ -49,20 +49,21 @@ PostHog **trigger groups** (V2) apply different sample rates by URL. Recording s
 
 | Trigger group | URL | Sample | Min duration |
 | --- | --- | --- | --- |
-| Publish / post creation | `/publicar` | **75%** | 5s |
-| Search map + saved searches | `/buscar` (map search) and `/mis-busquedas` | **25%** | 5s |
+| Publish / post creation | `/publicar` | **100%** | 5s |
+| Search map + saved searches | `/buscar` (map search) and `/mis-busquedas` | **75%** | 5s |
 
-Both groups also require feature flag [`session_replay_allow`](https://us.posthog.com/project/517444/feature_flags/807600) (`matchType: all`). Seeker sampling is limited to the **map search** surface (`/buscar`, `/buscar/:city`) plus **Mis búsquedas** (`/mis-busquedas`); home/city landings alone do not start a recording. Legacy fallback sample remains 25% for older SDKs. Console logs in replay are off. Test-account filter defaults on for new insights.
+Trigger groups are **URL-only** (no linked feature flag). Seeker sampling is limited to the **map search** surface (`/buscar`, `/buscar/:city`) plus **Mis búsquedas** (`/mis-busquedas`); home/city landings alone do not start a recording. Legacy fallback sample remains 25% for older SDKs. Console logs in replay are off. Test-account filter defaults on for new insights.
 
 Settings UI: https://us.posthog.com/project/517444/settings/project-replay
 
 **Admin exclusion (how it works):**
 
-1. On identify, Bestie sets person props `is_admin` + `$internal_or_test_user` when `authMe().isAdmin` is true, and calls `posthog.stopSessionRecording()`.
-2. Flag `session_replay_allow`: admins → **0%** / off; everyone else → **100%**. Both trigger groups require this flag, so admin sessions never pass the group gate after identify.
-3. Insights default to excluding the [Internal / Test users](https://us.posthog.com/project/517444/cohorts/422255) cohort (includes `is_admin`).
+Replay start is **not** gated by a feature flag. The only people we stop recording are Bestie admins (`authMe().isAdmin === true`). Anonymous visitors and logged-in non-admins are never blocked.
 
-Caveat: a short anonymous recording can still start **before** login if you hit `/publicar` or `/buscar` while logged out; once you identify as admin, recording stops and further ingest is blocked by the flag.
+1. On identify, Bestie sets person props `is_admin` + `$internal_or_test_user` from `authMe().isAdmin`. If `is_admin` is true, the client calls `posthog.stopSessionRecording()`.
+2. Insights default to excluding the [Internal / Test users](https://us.posthog.com/project/517444/cohorts/422255) cohort (includes `is_admin`). That filter is for charts, not for starting recordings.
+
+Caveat: a short anonymous recording can still start **before** login if an admin hits `/publicar` or `/buscar` while logged out; once they identify as admin, recording stops. Non-admin publishers who start logged out on `/publicar` are recorded normally.
 
 **Events vs recordings:** product events (funnels) are separate from replay. Keep the custom taxonomy; don’t turn off event capture for seeker/publish spine. If event volume grows, prefer sampling **replay** first, not dropping funnel events.
 
