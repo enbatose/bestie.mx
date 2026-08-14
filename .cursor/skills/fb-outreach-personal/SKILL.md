@@ -65,13 +65,25 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 - No prometer leads, tráfico ni resultados garantizados.
 - No sonar a bot ni plantilla obvia: variar apertura según el post; evitar frases calcadas (“plataforma nueva y local… para publicar cuartos y roomies”) en cada comentario.
 
-## Estructura sugerida
+## Longitud (default: media)
 
-1. Saludo + detalle personal del post (zona, amueblado, tipo, etc.) — 1 frase genuina.
-2. Presentación breve: “soy parte del equipo de Bestie…”.
-3. Propuesta en tono de tip / ayuda, no de venta: publicar sin costo **siempre**.
-4. Enlace: `https://bestie.mx/gdl` (único URL del comentario)
-5. Cierre humano (opcional): “si te late”, “cualquier duda me escribes por aquí”, “éxito con la renta”.
+Entrega **una sola versión media** por defecto (~3 frases, ~280–420 caracteres). Ni el párrafo largo ni el “corta” de 1–2 líneas.
+
+Plantilla media (adaptar el gancho al post):
+
+> Hola [Nombre]! [1 detalle concreto del post]. Soy parte del equipo de Bestie — plataforma nueva y local de Guadalajara para publicar cuartos y roomies, gratis siempre: https://bestie.mx/gdl Si te late, aquí andamos.
+
+Ejemplo (Oscar / CUCS):
+
+> Hola Oscar! Se ve muy bien la habitación cerca de CUCS y los hospitales. Soy parte del equipo de Bestie — plataforma nueva y local de Guadalajara para publicar cuartos y roomies, gratis siempre: https://bestie.mx/gdl Si te late, aquí andamos.
+
+Solo entrega variante **más corta** o **más larga** si el usuario lo pide.
+
+## Estructura sugerida (versión media)
+
+1. Saludo + 1 detalle concreto del post (zona / amenidad).
+2. Presentación + propuesta en una frase: equipo de Bestie + nueva + local GDL + gratis siempre + `https://bestie.mx/gdl`.
+3. Cierre corto: “Si te late, aquí andamos” / “¡Éxito con la renta!”
 
 ## Must-include
 
@@ -80,11 +92,13 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 - [ ] Nueva + local Guadalajara
 - [ ] Sin costo / gratis **siempre** (o equivalente inequívoco)
 - [ ] Invitación a publicar / crear anuncio
+- [ ] Longitud **media** (no el párrafo largo ni el ultra-corto)
 
 ## Must-avoid
 
 - Escribir `Bestie.mx` / `bestie.mx` / `www.bestie.mx` en el texto (segundo link automático en FB).
 - Más de un URL en el comentario.
+- Entregar por defecto dos variantes (larga + corta).
 - “Soy el dueño”, “soy el propietario”, “creé Bestie”, “es mía”, “fundador”, “estoy armando Bestie” u otras frases de autoría/propiedad.
 - Hablar en “nosotros la empresa” / voz corporativa de página (sí puedes decir “el equipo”).
 - Pedir likes, follows o unirse a la página como CTA principal.
@@ -95,8 +109,7 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 
 Entrega:
 
-1. **Comentario listo para pegar** (un solo bloque de texto).
-2. **Variante corta** (1–2 oraciones + link) por si el grupo es estricto con promos.
-3. Una línea de nota: qué detalle del post usaste (para que el usuario valide).
+1. **Comentario listo para pegar** — versión **media** (un solo bloque).
+2. Una línea de nota: qué detalle del post usaste (+ “nuevo” / “ya trabajado” si aplica).
 
 No abras con meta-comentarios largos; el texto pegable va primero.

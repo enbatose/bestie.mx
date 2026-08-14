@@ -56,13 +56,21 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 - No prometer leads ni resultados garantizados.
 - Variar la apertura según el post; evitar plantilla idéntica en cada comentario.
 
-## Estructura sugerida
+## Longitud (default: media)
 
-1. Saludo + referencia concreta al anuncio (zona / tipo).
-2. Presentación breve: Bestie — plataforma local de Guadalajara para publicar cuartos/roomies.
-3. Valor: publicar es **gratis y siempre lo será**.
-4. Enlace: `https://bestie.mx/gdl` (único URL del comentario)
-5. Cierre suave opcional (“si te sirve” / “aquí estamos”).
+Entrega **una sola versión media** por defecto (~3 frases). Ni párrafo largo ni ultra-corto.
+
+Plantilla media (adaptar el gancho):
+
+> Hola! [1 detalle del post]. En Bestie — plataforma nueva y local de Guadalajara — puedes publicar cuartos y roomies gratis siempre: https://bestie.mx/gdl Si te sirve, aquí estamos.
+
+Solo entrega variante más corta o más larga si el usuario lo pide.
+
+## Estructura sugerida (versión media)
+
+1. Saludo + referencia concreta al anuncio.
+2. Bestie + local GDL + gratis siempre + `https://bestie.mx/gdl` (una frase).
+3. Cierre corto.
 
 ## Must-include
 
@@ -71,11 +79,13 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 - [ ] Local Guadalajara (+ “nueva” o “recién lanzada” si encaja natural)
 - [ ] Sin costo / gratis **siempre**
 - [ ] Invitación clara a publicar / crear anuncio
+- [ ] Longitud **media**
 
 ## Must-avoid
 
 - Escribir `Bestie.mx` / `bestie.mx` / `www.bestie.mx` en el texto (segundo link automático en FB).
 - Más de un URL en el comentario.
+- Entregar por defecto dos variantes (larga + corta).
 - Voz de “soy parte del equipo” / nombre personal (reservado a cuenta personal).
 - CTA principal = like / follow de la Page (el CTA es publicar en el sitio).
 - Copy largo de marketing, bullets o tono de anuncio pagado.
@@ -85,8 +95,7 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 
 Entrega:
 
-1. **Comentario listo para pegar** (un solo bloque).
-2. **Variante corta** (1–2 oraciones + link) para grupos estrictos.
-3. Una línea: detalle del post usado + recordatorio de publicar **como Página Bestie**.
+1. **Comentario listo para pegar** — versión **media** (un solo bloque).
+2. Una línea: detalle del post usado + recordatorio de publicar **como Página Bestie**.
 
 El texto pegable va primero.
