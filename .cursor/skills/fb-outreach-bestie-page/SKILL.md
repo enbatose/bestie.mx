@@ -21,12 +21,18 @@ Si el comentario irá desde una **cuenta personal** (lanzamiento / confianza), u
 
 ## Objetivo del mensaje
 
-Invitar al publicador a publicar en **bestie.mx**, dejando claro:
+Invitar al publicador a publicar en **Bestie**, dejando claro:
 
 1. Quién escribe: **Bestie** (plataforma), no un perfil anónimo.
 2. Qué es: marketplace de roomies / cuartos, **local en Guadalajara**, plataforma reciente.
 3. Precio: **sin costo y siempre lo será**.
-4. CTA: enlace corto → `https://bestie.mx/gdl` (redirect; no uses `www.bestie.mx` en outreach manual)
+4. CTA: **un solo enlace** → `https://bestie.mx/gdl`
+
+### Enlace único (crítico)
+
+- En el texto del comentario escribe **Bestie** (sin `.mx`).
+- **Nunca** escribas `Bestie.mx`, `bestie.mx` ni `www.bestie.mx` en prosa: Facebook los convierte en un segundo link.
+- El **único** URL en el comentario es `https://bestie.mx/gdl`.
 
 ## Lectura del screenshot
 
@@ -55,19 +61,21 @@ Usa **un detalle concreto** del post. No inventes datos ausentes en el screensho
 1. Saludo + referencia concreta al anuncio (zona / tipo).
 2. Presentación breve: Bestie — plataforma local de Guadalajara para publicar cuartos/roomies.
 3. Valor: publicar es **gratis y siempre lo será**.
-4. Enlace: `https://bestie.mx/gdl`
+4. Enlace: `https://bestie.mx/gdl` (único URL del comentario)
 5. Cierre suave opcional (“si te sirve” / “aquí estamos”).
 
 ## Must-include
 
-- [ ] Identidad de marca Bestie (no “parte del equipo” en primera persona)
-- [ ] URL `https://bestie.mx/gdl`
+- [ ] Identidad de marca **Bestie** (sin `.mx` en prosa; no “parte del equipo” en primera persona)
+- [ ] Un solo URL: `https://bestie.mx/gdl`
 - [ ] Local Guadalajara (+ “nueva” o “recién lanzada” si encaja natural)
 - [ ] Sin costo / gratis **siempre**
 - [ ] Invitación clara a publicar / crear anuncio
 
 ## Must-avoid
 
+- Escribir `Bestie.mx` / `bestie.mx` / `www.bestie.mx` en el texto (segundo link automático en FB).
+- Más de un URL en el comentario.
 - Voz de “soy parte del equipo” / nombre personal (reservado a cuenta personal).
 - CTA principal = like / follow de la Page (el CTA es publicar en el sitio).
 - Copy largo de marketing, bullets o tono de anuncio pagado.

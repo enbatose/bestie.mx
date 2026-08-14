@@ -27,12 +27,20 @@ Si el comentario irá desde la **página oficial de Bestie**, usa el skill `fb-o
 
 Señales de mismo post: mismo autor + misma zona/precio, o el mismo flyer/fotos aunque el grupo sea distinto.
 
-Invitar al publicador a publicar (o también) en **bestie.mx**, dejando claro:
+## Objetivo del mensaje
 
-1. Quién escribe: **“soy parte del equipo de Bestie.mx”** (o variación cercana: “ando con el equipo de Bestie.mx”). No digas “dueño”, “fundador”, “creé” ni “proyecto mío”.
+Invitar al publicador a publicar (o también) en **Bestie**, dejando claro:
+
+1. Quién escribe: **“soy parte del equipo de Bestie”** (o variación cercana: “ando con el equipo de Bestie”). No digas “dueño”, “fundador”, “creé” ni “proyecto mío”.
 2. Qué es: plataforma **nueva**, **local de Guadalajara** (roomies / renta de cuartos).
 3. Precio: **sin costo y siempre lo será** (énfasis claro, sin letra chica).
-4. CTA: enlace corto → `https://bestie.mx/gdl` (redirect; no uses `www.bestie.mx` en outreach manual)
+4. CTA: **un solo enlace** → `https://bestie.mx/gdl`
+
+### Enlace único (crítico)
+
+- En el texto del comentario escribe **Bestie** (sin `.mx`).
+- **Nunca** escribas `Bestie.mx`, `bestie.mx` ni `www.bestie.mx` en prosa: Facebook los convierte en un segundo link.
+- El **único** URL en el comentario es `https://bestie.mx/gdl`.
 
 ## Lectura del screenshot
 
@@ -60,21 +68,23 @@ Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene
 ## Estructura sugerida
 
 1. Saludo + detalle personal del post (zona, amueblado, tipo, etc.) — 1 frase genuina.
-2. Presentación breve: “soy parte del equipo de Bestie.mx…”.
+2. Presentación breve: “soy parte del equipo de Bestie…”.
 3. Propuesta en tono de tip / ayuda, no de venta: publicar sin costo **siempre**.
-4. Enlace: `https://bestie.mx/gdl`
+4. Enlace: `https://bestie.mx/gdl` (único URL del comentario)
 5. Cierre humano (opcional): “si te late”, “cualquier duda me escribes por aquí”, “éxito con la renta”.
 
 ## Must-include
 
-- [ ] “Parte del equipo de Bestie.mx” (o equivalente suave).
-- [ ] bestie.mx nombrado + URL `https://bestie.mx/gdl`
+- [ ] “Parte del equipo de Bestie” (marca sin `.mx`)
+- [ ] Un solo URL: `https://bestie.mx/gdl`
 - [ ] Nueva + local Guadalajara
 - [ ] Sin costo / gratis **siempre** (o equivalente inequívoco)
 - [ ] Invitación a publicar / crear anuncio
 
 ## Must-avoid
 
+- Escribir `Bestie.mx` / `bestie.mx` / `www.bestie.mx` en el texto (segundo link automático en FB).
+- Más de un URL en el comentario.
 - “Soy el dueño”, “soy el propietario”, “creé Bestie”, “es mía”, “fundador”, “estoy armando Bestie” u otras frases de autoría/propiedad.
 - Hablar en “nosotros la empresa” / voz corporativa de página (sí puedes decir “el equipo”).
 - Pedir likes, follows o unirse a la página como CTA principal.
