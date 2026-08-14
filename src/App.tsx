@@ -21,6 +21,7 @@ import { MyListingsProposalMockupsPage } from "@/pages/MyListingsProposalMockups
 import { PropertyPage } from "@/pages/PropertyPage";
 import { PublishPreviewPage } from "@/pages/PublishPreviewPage";
 import { PublishWizardPage } from "@/pages/PublishWizardPage";
+import { AssistedDraftClaimPage } from "@/pages/AssistedDraftClaimPage";
 import { EmailVerifyPage } from "@/pages/EmailVerifyPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/RegisterPage";
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: "propiedad/:id", element: <PropertyPage /> },
       { path: "publicar", element: <PublishWizardPage /> },
       { path: "publicar/vista-previa", element: <PublishPreviewPage /> },
+      { path: "borrador/:token", element: <AssistedDraftClaimPage /> },
       { path: "mockups/post-proposals", element: <PostExperienceMockupsPage /> },
       { path: "mockups/mis-anuncios-proposal", element: <MyListingsProposalMockupsPage /> },
       {

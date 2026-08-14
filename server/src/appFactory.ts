@@ -31,6 +31,7 @@ import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
 import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
+import { assistedDraftRouter } from "./assistedDraftRouter.js";
 import { buildSitemapXml } from "./sitemap.js";
 import { bindUsageAnalyticsDb } from "./usageAnalytics.js";
 import { installVanityRedirects } from "./vanityRedirects.js";
@@ -176,6 +177,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
   app.use("/api/share-copy", shareAiCopyRouter(db));
+  app.use("/api/assisted-draft", assistedDraftRouter(db, resolveUploadDir(databasePath)));
 
   const uploadDir = resolveUploadDir(databasePath);
   app.use("/api/uploads", uploadsRouter({ db, uploadDir }));

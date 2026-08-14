@@ -173,6 +173,16 @@ export function TermsPage() {
           Bestie puede moderar, editar, rechazar, ocultar o eliminar contenido que, a su juicio,
           incumpla estos Términos o la ley, sin que ello genere responsabilidad para el Titular.
         </p>
+        <p>
+          <strong>Borradores asistidos.</strong> Como parte de sus actividades de crecimiento, Bestie
+          puede crear borradores de anuncios a partir de publicaciones compartidas en grupos de Facebook
+          asociados o de información proporcionada públicamente por el propietario. Estos borradores{" "}
+          <strong>nunca se publican sin el consentimiento expreso del propietario</strong>: el propietario
+          recibe un enlace de reclamación, revisa el contenido, lo edita si lo desea y, al publicarlo,
+          crea su cuenta en Bestie, asumiendo desde ese momento la plena responsabilidad sobre el anuncio.
+          La información del borrador es orientativa y puede estar incompleta; el propietario es
+          responsable de verificar y completar los datos antes de publicar.
+        </p>
       </LegalSection>
 
       <LegalSection id="rol" index={8} title="Rol de Bestie e intermediación">

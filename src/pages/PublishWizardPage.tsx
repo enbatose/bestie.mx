@@ -603,7 +603,7 @@ function mergedRoomTagsForPayload(d: Draft, roomIndex: number): ListingTag[] {
   return out;
 }
 
-function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; serverSync: ServerSync } {
+export function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Draft; serverSync: ServerSync } {
   const p = bundle.property;
   const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
   const city = pickCity(p.city);

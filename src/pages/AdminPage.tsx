@@ -32,6 +32,7 @@ import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentL
 import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
+import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
 
 function monthOptions(count = 12): string[] {
   const out: string[] = [];
@@ -93,7 +94,7 @@ function QuotaBar({ value, limit, warnAt = 80 }: { value: number; limit: number;
 }
 
 export function AdminPage() {
-  const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte">("users");
+  const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte" | "outreach">("users");
   const [err, setErr] = useState<string | null>(null);
   const [citiesText, setCitiesText] = useState("");
   const [supportRows, setSupportRows] = useState<AdminSupportConversationRow[]>([]);
@@ -256,7 +257,7 @@ export function AdminPage() {
       ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2 text-sm font-medium">
-        {(["users", "cities", "analytics", "property", "soporte"] as const).map((t) => (
+        {(["users", "cities", "analytics", "property", "soporte", "outreach"] as const).map((t) => (
           <button
             key={t}
             type="button"
@@ -273,7 +274,9 @@ export function AdminPage() {
                   ? "Métricas"
                   : t === "property"
                     ? "Posts"
-                    : "Soporte"}
+                    : t === "outreach"
+                      ? "Outreach"
+                      : "Soporte"}
           </button>
         ))}
       </div>
@@ -1175,6 +1178,12 @@ export function AdminPage() {
               </>
             )}
           </section>
+        </div>
+      ) : null}
+
+      {tab === "outreach" ? (
+        <div className="mt-6">
+          <AdminAssistedDraftPanel />
         </div>
       ) : null}
 
