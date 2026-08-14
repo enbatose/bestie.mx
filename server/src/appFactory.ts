@@ -33,6 +33,7 @@ import { shareOgImageRouter } from "./shareOgImageRouter.js";
 import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
 import { buildSitemapXml } from "./sitemap.js";
 import { bindUsageAnalyticsDb } from "./usageAnalytics.js";
+import { installVanityRedirects } from "./vanityRedirects.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -189,6 +190,9 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/analytics", analyticsRouter(db));
   app.use("/api/compliance", complianceRouter());
   app.use("/api/internal/backup", backupRouter(db, databasePath));
+
+  // Clean same-domain short links for social/offline outreach (see vanityRedirects.ts).
+  installVanityRedirects(app, sharePreviewBaseUrl);
 
   const spaDist = opts.webDistDir?.trim();
   if (spaDist) {
