@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
-import { BedDouble, Calendar, Home, MapPin, Users, VenusAndMars } from "lucide-react";
+import { BedDouble, Home, Users, VenusAndMars } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatRoomAvailableFrom, listingHeroPriceLabel } from "@/lib/listingTags";
+import { listingHeroPriceLabel } from "@/lib/listingTags";
 import { genderPrefLabel, propertyKindLabel } from "@/lib/listingKeyLabels";
 import type { Property, PropertyListing, Room } from "@/types/listing";
 
@@ -31,6 +31,12 @@ function HeaderInfoItem({
   );
 }
 
+function HeaderLocationLine({ neighborhood, city }: { neighborhood: string; city: string }) {
+  const line = [neighborhood.trim(), city.trim()].filter(Boolean).join(" · ");
+  if (!line) return null;
+  return <p className="text-sm text-muted">{line}</p>;
+}
+
 export function SingleRoomHeader({
   listing,
   menCount,
@@ -50,21 +56,11 @@ export function SingleRoomHeader({
         <h2 className="min-w-0 flex-1 text-xl font-bold text-body">{title ?? listing.title}</h2>
         {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
+      <HeaderLocationLine neighborhood={listing.neighborhood} city={listing.city} />
       <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
-        <HeaderInfoItem
-          icon={VenusAndMars}
-          label="Preferencia de género"
-          value={genderPrefLabel(listing.roommateGenderPref)}
-        />
-        <HeaderInfoItem
-          icon={Calendar}
-          label="Disponible desde"
-          value={formatRoomAvailableFrom(listing.availableFrom ?? "")}
-        />
         <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
-        <HeaderInfoItem icon={MapPin} label="Colonia" value={listing.neighborhood} />
       </div>
     </div>
   );
@@ -90,6 +86,7 @@ export function PropertyHeader({
         <h2 className="min-w-0 flex-1 text-xl font-bold text-body">{property.title}</h2>
         {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
+      <HeaderLocationLine neighborhood={property.neighborhood} city={property.city} />
       <p className="text-2xl font-bold text-body">
         {rents.length > 1
           ? `${money.format(minRent)} – ${money.format(maxRent)} / mes`
@@ -107,13 +104,7 @@ export function PropertyHeader({
           label="Preferencia de género"
           value={firstAvailable ? genderPrefLabel(firstAvailable.roommateGenderPref) : "Hombre o Mujer"}
         />
-        <HeaderInfoItem
-          icon={Calendar}
-          label="Disponible desde"
-          value={firstAvailable ? formatRoomAvailableFrom(firstAvailable.availableFrom ?? "") : "—"}
-        />
         <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(property.propertyKind)} />
-        <HeaderInfoItem icon={MapPin} label="Colonia" value={property.neighborhood} />
       </div>
     </div>
   );

@@ -129,7 +129,6 @@ export function PublicListingContent({
 
         <ListingSection title="La convivencia" subtitle="Quién vive en la propiedad y cómo está distribuida.">
           <ListingPropertySummaryGrid
-            neighborhood={listing.neighborhood}
             propertyKind={propertyKind}
             propertyBedroomsTotal={propertyBedroomsTotal}
             occupiedByWomenCount={occupiedByWomenCount}
@@ -156,7 +155,6 @@ export function PublicListingContent({
 
       <ListingSection title="Resumen de la propiedad">
         <ListingPropertySummaryGrid
-          neighborhood={listing.neighborhood}
           propertyKind={propertyKind}
           propertyBedroomsTotal={propertyBedroomsTotal}
           occupiedByWomenCount={occupiedByWomenCount}

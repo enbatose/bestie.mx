@@ -28,6 +28,11 @@ import {
   effectiveWizardPropertyBathrooms,
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
+import {
+  derivedPropertyOccupantCounts,
+  syncPropertyRoomSlotsToTotal,
+} from "@/lib/publishWizard/propertyRoomSlots";
+import { newRoomDraftId } from "@/lib/roomDisplay";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
@@ -49,12 +54,14 @@ import {
   roomsAvailableFromIdealTags,
 } from "@/lib/publishWizard/wizardTags";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
-import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
+import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "@/types/listing";
 import type { ListingTagGroup } from "@/lib/listingTags";
 import type { LiveEditScope } from "@/components/publish/PublishWizardReviewStep";
 
 const ROOM_PLAZAS_MAX = 12;
 const ROOM_STAY_MAX = 36;
+const PROPERTY_BEDROOMS_MAX = 20;
+const PROPERTY_OCCUPANTS_MAX = 50;
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -229,6 +236,75 @@ function cloneRoomDraft(room: RoomDraft): RoomDraft {
   return { ...room, tags: [...room.tags] };
 }
 
+function createPreviewDefaultRoom(d: Draft): RoomDraft {
+  const base = d.rooms[0];
+  if (base) {
+    return {
+      ...cloneRoomDraft(base),
+      id: newRoomDraftId(),
+      customName: "",
+      occupancyStatus: "available",
+      occupantGender: "any",
+      occupantAge: 25,
+      occupantWomenCount: 0,
+      occupantMenCount: 0,
+      title: "",
+      rentMxn: 0,
+      depositMxn: 0,
+      summary: "",
+      photos: [],
+    };
+  }
+  return {
+    id: newRoomDraftId(),
+    customName: "",
+    occupancyStatus: "available",
+    occupantGender: "any",
+    occupantAge: 25,
+    occupantWomenCount: 0,
+    occupantMenCount: 0,
+    title: "",
+    rentMxn: 0,
+    depositMxn: 0,
+    roomsAvailable: 1,
+    summary: "",
+    tags: [],
+    roommateGenderPref: "any",
+    ageMin: 22,
+    ageMax: 45,
+    lodgingType: "private_room",
+    availableFrom: new Date().toISOString().slice(0, 10),
+    minimalStayMonths: 1,
+    roomDimension: "medium",
+    avalRequired: false,
+    rentIncludesUtilities: false,
+    photos: [],
+  };
+}
+
+type PropertyFactsDraft = {
+  propertyKind: PropertyKind;
+  propertyBedroomsTotal: number;
+  occupiedByWomenCount: number;
+  occupiedByMenCount: number;
+};
+
+function propertyFactsFromDraft(d: Draft): PropertyFactsDraft {
+  const occupants =
+    d.postMode === "property"
+      ? derivedPropertyOccupantCounts(d)
+      : {
+          occupiedByWomenCount: d.occupiedByWomenCount ?? 0,
+          occupiedByMenCount: d.occupiedByMenCount ?? 0,
+        };
+  return {
+    propertyKind: d.propertyKind,
+    propertyBedroomsTotal: d.propertyKind === "loft" ? 1 : d.propertyBedroomsTotal,
+    occupiedByWomenCount: occupants.occupiedByWomenCount,
+    occupiedByMenCount: occupants.occupiedByMenCount,
+  };
+}
+
 
 export function EditableListingPreview({
   draft,
@@ -273,6 +349,7 @@ export function EditableListingPreview({
   const [editingRoomTags, setEditingRoomTags] = useState(false);
   const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos);
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
+  const [editingPropertyFacts, setEditingPropertyFacts] = useState(false);
 
   const setPhotosEditing = (next: boolean) => {
     setEditingPhotos(next);
@@ -291,6 +368,9 @@ export function EditableListingPreview({
   const [roomSummaryDraft, setRoomSummaryDraft] = useState(room?.summary ?? "");
   const [roomTagsDraft, setRoomTagsDraft] = useState<ListingTag[]>([]);
   const [roomDetailsDraft, setRoomDetailsDraft] = useState<RoomDraft | null>(null);
+  const [propertyFactsDraft, setPropertyFactsDraft] = useState<PropertyFactsDraft>(() =>
+    propertyFactsFromDraft(draft),
+  );
 
   const galleryUrls = useMemo(() => {
     if (isPropertyScope) {
@@ -476,8 +556,57 @@ export function EditableListingPreview({
     setRoomDetailsDraft(null);
   };
 
+  const openPropertyFactsEdit = () => {
+    setPropertyFactsDraft(propertyFactsFromDraft(draft));
+    setEditingPropertyFacts(true);
+  };
+
+  const savePropertyFacts = () => {
+    const nextKind = propertyFactsDraft.propertyKind;
+    const nextBedrooms =
+      nextKind === "loft"
+        ? 1
+        : Math.min(
+            PROPERTY_BEDROOMS_MAX,
+            Math.max(1, Math.floor(propertyFactsDraft.propertyBedroomsTotal) || 1),
+          );
+    const nextWomen = Math.min(
+      PROPERTY_OCCUPANTS_MAX,
+      Math.max(0, Math.floor(propertyFactsDraft.occupiedByWomenCount) || 0),
+    );
+    const nextMen = Math.min(
+      PROPERTY_OCCUPANTS_MAX,
+      Math.max(0, Math.floor(propertyFactsDraft.occupiedByMenCount) || 0),
+    );
+    onDraftChange((d) => {
+      let next: Draft = {
+        ...d,
+        propertyKind: nextKind,
+        propertyBedroomsTotal: nextBedrooms,
+      };
+      if (next.postMode === "room") {
+        next = {
+          ...next,
+          occupiedByWomenCount: nextWomen,
+          occupiedByMenCount: nextMen,
+        };
+      } else {
+        next = syncPropertyRoomSlotsToTotal(next, () => createPreviewDefaultRoom(d));
+      }
+      return next;
+    });
+    setEditingPropertyFacts(false);
+  };
+
   const detailsRoom = roomDetailsDraft ?? room;
   const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
+  const occupantCounts =
+    draft.postMode === "property"
+      ? derivedPropertyOccupantCounts(draft)
+      : {
+          occupiedByWomenCount: draft.occupiedByWomenCount ?? 0,
+          occupiedByMenCount: draft.occupiedByMenCount ?? 0,
+        };
 
   // Título del anuncio (propertyTitle) for both post modes. Room title is an
   // internal default ("Recámara 1") on single-room posts and must not masquerade
@@ -864,14 +993,117 @@ export function EditableListingPreview({
       ) : null}
 
       {showPropertyBlocks ? (
-        <PreviewSection title="Resumen de la propiedad">
-          <ListingPropertySummaryGrid
-            neighborhood={neighborhoodLabel}
-            propertyKind={draft.propertyKind}
-            propertyBedroomsTotal={draft.propertyBedroomsTotal}
-            occupiedByWomenCount={draft.occupiedByWomenCount}
-            occupiedByMenCount={draft.occupiedByMenCount}
-          />
+        <PreviewSection
+          title="Resumen de la propiedad"
+          onEdit={editingPropertyFacts ? undefined : openPropertyFactsEdit}
+          editLabel="Editar resumen"
+        >
+          {editingPropertyFacts ? (
+            <InlineFieldEditor
+              label="Tipo de vivienda, recámaras y quién vive aquí"
+              onSave={savePropertyFacts}
+              onCancel={() => setEditingPropertyFacts(false)}
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-body">
+                  Tipo de vivienda
+                  <select
+                    value={propertyFactsDraft.propertyKind}
+                    onChange={(e) => {
+                      const kind = e.target.value as PropertyKind;
+                      setPropertyFactsDraft((f) => ({
+                        ...f,
+                        propertyKind: kind,
+                        propertyBedroomsTotal: kind === "loft" ? 1 : f.propertyBedroomsTotal,
+                      }));
+                    }}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  >
+                    <option value="house">Casa</option>
+                    <option value="apartment">Departamento</option>
+                    <option value="loft">Loft</option>
+                  </select>
+                </label>
+                <div className="block text-sm font-medium text-body">
+                  <span className="block">Recámaras en la propiedad</span>
+                  <WizardNumberStepper
+                    value={
+                      propertyFactsDraft.propertyKind === "loft"
+                        ? 1
+                        : Math.min(
+                            PROPERTY_BEDROOMS_MAX,
+                            Math.max(1, propertyFactsDraft.propertyBedroomsTotal),
+                          )
+                    }
+                    min={1}
+                    max={PROPERTY_BEDROOMS_MAX}
+                    disabled={propertyFactsDraft.propertyKind === "loft"}
+                    onChange={(n) =>
+                      setPropertyFactsDraft((f) => ({ ...f, propertyBedroomsTotal: n }))
+                    }
+                    decrementLabel="Menos recámaras"
+                    incrementLabel="Más recámaras"
+                  />
+                  {propertyFactsDraft.propertyKind === "loft" ? (
+                    <span className="mt-1 block text-xs text-muted">
+                      Un loft cuenta como 1 recámara.
+                    </span>
+                  ) : (
+                    <span className="mt-1 block text-xs text-muted">
+                      Incluye recámaras habitadas + disponibles
+                    </span>
+                  )}
+                </div>
+                {draft.postMode === "room" ? (
+                  <>
+                    <div className="block text-sm font-medium text-body">
+                      <span className="block">Besties actuales · mujeres</span>
+                      <WizardNumberStepper
+                        value={Math.min(
+                          PROPERTY_OCCUPANTS_MAX,
+                          Math.max(0, propertyFactsDraft.occupiedByWomenCount),
+                        )}
+                        min={0}
+                        max={PROPERTY_OCCUPANTS_MAX}
+                        onChange={(n) =>
+                          setPropertyFactsDraft((f) => ({ ...f, occupiedByWomenCount: n }))
+                        }
+                        decrementLabel="Menos mujeres"
+                        incrementLabel="Más mujeres"
+                      />
+                    </div>
+                    <div className="block text-sm font-medium text-body">
+                      <span className="block">Besties actuales · hombres</span>
+                      <WizardNumberStepper
+                        value={Math.min(
+                          PROPERTY_OCCUPANTS_MAX,
+                          Math.max(0, propertyFactsDraft.occupiedByMenCount),
+                        )}
+                        min={0}
+                        max={PROPERTY_OCCUPANTS_MAX}
+                        onChange={(n) =>
+                          setPropertyFactsDraft((f) => ({ ...f, occupiedByMenCount: n }))
+                        }
+                        decrementLabel="Menos hombres"
+                        incrementLabel="Más hombres"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted sm:col-span-2">
+                    Besties actuales se calculan a partir de las recámaras ocupadas.
+                  </p>
+                )}
+              </div>
+            </InlineFieldEditor>
+          ) : (
+            <ListingPropertySummaryGrid
+              propertyKind={draft.propertyKind}
+              propertyBedroomsTotal={draft.propertyBedroomsTotal}
+              occupiedByWomenCount={occupantCounts.occupiedByWomenCount}
+              occupiedByMenCount={occupantCounts.occupiedByMenCount}
+            />
+          )}
         </PreviewSection>
       ) : null}
 

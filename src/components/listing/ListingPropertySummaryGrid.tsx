@@ -6,7 +6,6 @@ import {
   Calendar,
   Clock,
   DollarSign,
-  MapPin,
   Maximize2,
   User,
   UserRound,
@@ -62,7 +61,7 @@ function PropertyRoommatesStat({
   menCount: number;
 }) {
   return (
-    <div className="col-span-2 flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5 md:col-span-3">
+    <div className="col-span-2 flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
       <Users className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
       <div>
         <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">
@@ -84,13 +83,11 @@ function PropertyRoommatesStat({
 }
 
 export function ListingPropertySummaryGrid({
-  neighborhood,
   propertyKind,
   propertyBedroomsTotal,
   occupiedByWomenCount,
   occupiedByMenCount,
 }: {
-  neighborhood: string;
   propertyKind: PropertyKind;
   propertyBedroomsTotal: number;
   occupiedByWomenCount?: number | null;
@@ -100,8 +97,7 @@ export function ListingPropertySummaryGrid({
   const menCount = occupiedByMenCount ?? 0;
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-      <ListingDetailStat icon={MapPin} label="Colonia" value={neighborhood} />
+    <div className="grid grid-cols-2 gap-4">
       <ListingDetailStat
         icon={Building2}
         label="Tipo de vivienda"
