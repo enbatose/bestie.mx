@@ -63,7 +63,19 @@ type GeminiResponse = {
   candidates?: Array<{
     content?: { parts?: Array<{ text?: string }> };
   }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
   error?: { message?: string };
+};
+
+export type AssistedDraftGeminiResult = {
+  extraction: AssistedDraftExtraction;
+  promptTokens: number;
+  outputTokens: number;
+  model: string;
 };
 
 const EXTRACTION_SYSTEM_PROMPT = `Eres un asistente de extracción de datos para anuncios de renta de cuartos en México.
@@ -198,10 +210,12 @@ export type ExtractionInput = {
 
 export async function extractListingDataWithGemini(
   input: ExtractionInput,
-): Promise<AssistedDraftExtraction> {
+): Promise<AssistedDraftGeminiResult> {
   const key = geminiApiKey();
+  const model = geminiModel();
+  const noToken: AssistedDraftGeminiResult = { extraction: {}, promptTokens: 0, outputTokens: 0, model };
   if (!key) {
-    return { rawText: "GEMINI_API_KEY not configured" };
+    return { extraction: { rawText: "GEMINI_API_KEY not configured" }, promptTokens: 0, outputTokens: 0, model };
   }
 
   const parts: GeminiPart[] = [];
@@ -228,10 +242,9 @@ export async function extractListingDataWithGemini(
   }
 
   if (parts.length === 0) {
-    return {};
+    return noToken;
   }
 
-  const model = geminiModel();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
   const body = {
@@ -258,11 +271,14 @@ export async function extractListingDataWithGemini(
     const json = (await res.json()) as GeminiResponse;
     if (!res.ok) {
       console.warn("[assisted-draft-ai] gemini http", res.status, json.error?.message ?? "");
-      return {};
+      return noToken;
     }
 
+    const promptTokens = Number(json.usageMetadata?.promptTokenCount) || 0;
+    const outputTokens = Number(json.usageMetadata?.candidatesTokenCount) || 0;
+
     const rawText = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    if (!rawText.trim()) return {};
+    if (!rawText.trim()) return noToken;
 
     let parsed: RawGeminiExtraction;
     try {
@@ -270,7 +286,7 @@ export async function extractListingDataWithGemini(
       parsed = JSON.parse(cleaned) as RawGeminiExtraction;
     } catch {
       console.warn("[assisted-draft-ai] failed to parse JSON response");
-      return { rawText };
+      return { extraction: { rawText }, promptTokens, outputTokens, model };
     }
 
     const confidenceMap: Record<string, number> = {};
@@ -326,26 +342,31 @@ export async function extractListingDataWithGemini(
     }
 
     return {
-      propertyTitle: extractString(parsed.propertyTitle),
-      neighborhood: extractString(parsed.neighborhood),
-      propertyKind: extractEnum(parsed.propertyKind, ["house", "apartment", "loft"] as const),
-      lodgingType: extractEnum(parsed.lodgingType, ["private_room", "shared_room"] as const),
-      rentMxn: extractInt(parsed.rentMxn),
-      depositMxn: extractInt(parsed.depositMxn),
-      roommateGenderPref: extractEnum(parsed.roommateGenderPref, ["any", "female", "male"] as const),
-      ageMin: extractInt(parsed.ageMin),
-      ageMax: extractInt(parsed.ageMax),
-      availableFrom: extractString(parsed.availableFrom),
-      minimalStayMonths: extractInt(parsed.minimalStayMonths),
-      roomDimension: extractEnum(parsed.roomDimension, ["small", "medium", "large"] as const),
-      tags: uniqueTags.length > 0 ? uniqueTags : undefined,
-      roomSummary,
-      location,
-      confidence: confidenceMap,
-      rawText,
+      extraction: {
+        propertyTitle: extractString(parsed.propertyTitle),
+        neighborhood: extractString(parsed.neighborhood),
+        propertyKind: extractEnum(parsed.propertyKind, ["house", "apartment", "loft"] as const),
+        lodgingType: extractEnum(parsed.lodgingType, ["private_room", "shared_room"] as const),
+        rentMxn: extractInt(parsed.rentMxn),
+        depositMxn: extractInt(parsed.depositMxn),
+        roommateGenderPref: extractEnum(parsed.roommateGenderPref, ["any", "female", "male"] as const),
+        ageMin: extractInt(parsed.ageMin),
+        ageMax: extractInt(parsed.ageMax),
+        availableFrom: extractString(parsed.availableFrom),
+        minimalStayMonths: extractInt(parsed.minimalStayMonths),
+        roomDimension: extractEnum(parsed.roomDimension, ["small", "medium", "large"] as const),
+        tags: uniqueTags.length > 0 ? uniqueTags : undefined,
+        roomSummary,
+        location,
+        confidence: confidenceMap,
+        rawText,
+      },
+      promptTokens,
+      outputTokens,
+      model,
     };
   } catch (err) {
     console.warn("[assisted-draft-ai] error", err instanceof Error ? err.message : err);
-    return {};
+    return noToken;
   }
 }

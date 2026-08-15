@@ -7,6 +7,7 @@ import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
 import { issuePublisherCookie } from "./session.js";
 import { extractListingDataWithGemini, type ExtractionInput, type AssistedDraftExtraction } from "./assistedDraftGemini.js";
+import { recordAssistedDraftGenerate } from "./usageAnalytics.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { isListingTag } from "./listingTags.js";
@@ -130,7 +131,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
             city: typeof body.city === "string" ? body.city : "Guadalajara",
           };
           const result = await extractListingDataWithGemini(input);
-          res.json({ ok: true, extraction: result });
+          recordAssistedDraftGenerate(result.promptTokens, result.outputTokens, result.model);
+          res.json({ ok: true, extraction: result.extraction });
         } catch (err) {
           console.error("[assisted-draft] extract error", err);
           res.status(500).json({ error: "extraction_failed" });

@@ -550,6 +550,121 @@ export function AdminPage() {
             )}
           </div>
 
+          {/* ── Gemini: AI Post Generation ── */}
+          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+            <div>
+              <h2 className="font-semibold text-body">Gemini — generación de anuncios</h2>
+              <p className="mt-1 text-xs text-muted">
+                Costo del flujo AI de creación de post (admin outreach). Un "llamada" = una extracción Gemini.
+              </p>
+            </div>
+            {usage ? (
+              <div className="mt-4 space-y-4">
+                {/* KPI grid */}
+                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-body">
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Generaciones:{" "}
+                    <strong>{(usage.assistedDraft?.calls ?? 0).toLocaleString("es-MX")}</strong>
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Tokens:{" "}
+                    <strong>{(usage.assistedDraft?.promptTokens ?? 0).toLocaleString("es-MX")}</strong> in /{" "}
+                    <strong>{(usage.assistedDraft?.outputTokens ?? 0).toLocaleString("es-MX")}</strong> out
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Costo mensual:{" "}
+                    <strong>{formatUsd(usage.assistedDraft?.estimatedUsd ?? 0)}</strong>
+                  </li>
+                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    Costo promedio / generación:{" "}
+                    <strong>{formatUsd(usage.assistedDraft?.avgUsdPerCall ?? 0)}</strong>
+                  </li>
+                </ul>
+
+                {/* Daily sparkline */}
+                {(usage.assistedDraft?.dailyCalls?.length ?? 0) > 0 ? (
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-muted">Generaciones por día este mes</p>
+                    {(() => {
+                      const series = usage.assistedDraft.dailyCalls;
+                      const maxVal = Math.max(...series.map((d) => d.value), 1);
+                      const barW = 10;
+                      const gap = 3;
+                      const chartH = 40;
+                      const w = series.length * (barW + gap) - gap;
+                      return (
+                        <svg
+                          viewBox={`0 0 ${w} ${chartH + 14}`}
+                          className="w-full overflow-visible"
+                          aria-label="Generaciones diarias"
+                        >
+                          {series.map((d, i) => {
+                            const barH = Math.max(2, (d.value / maxVal) * chartH);
+                            const x = i * (barW + gap);
+                            const y = chartH - barH;
+                            return (
+                              <g key={d.day}>
+                                <rect
+                                  x={x}
+                                  y={y}
+                                  width={barW}
+                                  height={barH}
+                                  rx={2}
+                                  className="fill-primary/60"
+                                />
+                                <title>{`${d.day}: ${d.value}`}</title>
+                                <text
+                                  x={x + barW / 2}
+                                  y={chartH + 10}
+                                  textAnchor="middle"
+                                  fontSize={6}
+                                  className="fill-muted"
+                                >
+                                  {d.day.slice(8)}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Sin datos en este mes. Se empieza a registrar cuando el admin usa "Outreach AI".
+                  </p>
+                )}
+
+                {/* Model breakdown */}
+                {Object.keys(usage.assistedDraft?.byModel ?? {}).length > 0 ? (
+                  <ul className="space-y-1 text-xs text-muted">
+                    {Object.entries(usage.assistedDraft.byModel).map(([model, count]) => (
+                      <li key={model}>
+                        {model}: {(count as number).toLocaleString("es-MX")} llamadas
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <p className="border-t border-border pt-3 text-xs text-muted">
+                  Verificado {usage.assistedDraft?.pricing?.lastVerified ?? "—"}.{" "}
+                  <a
+                    href={usage.assistedDraft?.pricing?.sourceUrl}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Gemini pricing
+                  </a>{" "}
+                  (${usage.assistedDraft?.pricing?.inputUsdPer1M}/1M in · $
+                  {usage.assistedDraft?.pricing?.outputUsdPer1M}/1M out). Estimado — reconciliar con Google AI / GCP billing.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-muted">Cargando…</p>
+            )}
+          </div>
+
           <div className="rounded-xl border border-border bg-surface p-4 text-sm">
             <div>
               <h2 className="font-semibold text-body">PostHog — analytics y session replay</h2>

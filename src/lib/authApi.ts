@@ -708,6 +708,22 @@ export type AdminUsageAnalytics = {
   };
   storage: { blobCount: number; totalBytes: number; totalBytesLabel: string };
   notes: string[];
+  assistedDraft: {
+    calls: number;
+    promptTokens: number;
+    outputTokens: number;
+    estimatedUsd: number;
+    avgUsdPerCall: number;
+    byModel: Record<string, number>;
+    dailyCalls: { day: string; value: number }[];
+    pricing: {
+      sourceUrl: string;
+      lastVerified: string;
+      inputUsdPer1M: number;
+      outputUsdPer1M: number;
+      note: string;
+    };
+  };
 };
 
 export async function adminUsageAnalytics(

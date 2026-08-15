@@ -19,6 +19,9 @@ export const SHARE_AI_METRIC = "share_ai_generate";
 export const GEMINI_PROMPT_TOKENS_METRIC = "gemini_prompt_tokens";
 export const GEMINI_OUTPUT_TOKENS_METRIC = "gemini_output_tokens";
 export const WHATSAPP_OTP_METRIC = "whatsapp_otp_send";
+export const ASSISTED_DRAFT_METRIC = "assisted_draft_generate";
+export const ASSISTED_DRAFT_PROMPT_TOKENS_METRIC = "assisted_draft_prompt_tokens";
+export const ASSISTED_DRAFT_OUTPUT_TOKENS_METRIC = "assisted_draft_output_tokens";
 
 let usageDb: DatabaseSync | null = null;
 
@@ -81,6 +84,23 @@ export function recordWhatsAppOtpSend(result: "ok" | "fail" | "skipped"): void {
   incrementAnalyticsDaily(usageDb, todayUtc(), WHATSAPP_OTP_METRIC, result);
 }
 
+export function recordAssistedDraftGenerate(
+  promptTokens: number,
+  outputTokens: number,
+  model: string,
+): void {
+  if (!usageDb) return;
+  const day = todayUtc();
+  const dim = model.slice(0, 64) || "unknown";
+  incrementAnalyticsDaily(usageDb, day, ASSISTED_DRAFT_METRIC, dim);
+  if (promptTokens > 0) {
+    incrementAnalyticsDaily(usageDb, day, ASSISTED_DRAFT_PROMPT_TOKENS_METRIC, dim, Math.floor(promptTokens));
+  }
+  if (outputTokens > 0) {
+    incrementAnalyticsDaily(usageDb, day, ASSISTED_DRAFT_OUTPUT_TOKENS_METRIC, dim, Math.floor(outputTokens));
+  }
+}
+
 function sumMetricByDimension(
   db: DatabaseSync,
   metric: string,
@@ -119,6 +139,21 @@ function sumMetricDay(db: DatabaseSync, metric: string, day: string): number {
     )
     .get(metric, day) as { total: number };
   return row.total;
+}
+
+function dailySeriesForMetric(
+  db: DatabaseSync,
+  metric: string,
+  monthStart: string,
+  monthEnd: string,
+): { day: string; value: number }[] {
+  return db
+    .prepare(
+      `SELECT day, SUM(value) AS value FROM analytics_daily
+       WHERE metric = ? AND day >= ? AND day <= ?
+       GROUP BY day ORDER BY day`,
+    )
+    .all(metric, monthStart, monthEnd) as { day: string; value: number }[];
 }
 
 function categoryBreakdown(byDimension: Record<string, number>): Record<string, number> {
@@ -235,6 +270,15 @@ export async function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: 
   const whatsappTracked = Object.values(whatsappByResult).reduce((a, b) => a + b, 0);
   const whatsappChallenges = whatsappOtpFromChallenges(db, monthStart, monthEnd);
 
+  // Assisted-draft (AI post generation) metrics
+  const draftCallsTotal = sumMetricTotal(db, ASSISTED_DRAFT_METRIC, monthStart, monthEnd);
+  const draftPromptTokens = sumMetricTotal(db, ASSISTED_DRAFT_PROMPT_TOKENS_METRIC, monthStart, monthEnd);
+  const draftOutputTokens = sumMetricTotal(db, ASSISTED_DRAFT_OUTPUT_TOKENS_METRIC, monthStart, monthEnd);
+  const draftEstimatedUsd = estimateGeminiUsd(draftPromptTokens, draftOutputTokens);
+  const draftAvgUsdPerCall = draftCallsTotal > 0 ? draftEstimatedUsd / draftCallsTotal : 0;
+  const draftDailyCalls = dailySeriesForMetric(db, ASSISTED_DRAFT_METRIC, monthStart, monthEnd);
+  const draftByModel = sumMetricByDimension(db, ASSISTED_DRAFT_METRIC, monthStart, monthEnd);
+
   const posthog = await fetchPostHogUsage(month, monthStart, monthEnd);
 
   return {
@@ -278,6 +322,22 @@ export async function buildUsageAnalyticsResponse(db: DatabaseSync, monthParam: 
         inputUsdPer1M: GEMINI_FLASH_LITE_INPUT_USD_PER_1M,
         outputUsdPer1M: GEMINI_FLASH_LITE_OUTPUT_USD_PER_1M,
         note: "Share-copy generations only. Token totals from Gemini usageMetadata when present. Estimate uses Flash-Lite paid rates — reconcile with Google AI / GCP billing.",
+      },
+    },
+    assistedDraft: {
+      calls: draftCallsTotal,
+      promptTokens: draftPromptTokens,
+      outputTokens: draftOutputTokens,
+      estimatedUsd: draftEstimatedUsd,
+      avgUsdPerCall: draftAvgUsdPerCall,
+      byModel: draftByModel,
+      dailyCalls: draftDailyCalls,
+      pricing: {
+        sourceUrl: GEMINI_PRICING_SOURCE,
+        lastVerified: GEMINI_PRICING_LAST_VERIFIED,
+        inputUsdPer1M: GEMINI_FLASH_LITE_INPUT_USD_PER_1M,
+        outputUsdPer1M: GEMINI_FLASH_LITE_OUTPUT_USD_PER_1M,
+        note: "Llamadas al extract endpoint del flujo AI de creación de anuncios. Tokens desde usageMetadata. Estimado con tarifas Flash-Lite — reconciliar con Google AI / GCP billing.",
       },
     },
     posthog,
