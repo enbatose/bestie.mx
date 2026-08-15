@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  listingPublicPath,
   listingReferenceId,
   parsePropertyReferenceSuffix,
   parsePublishSuccessSearch,
   parseRoomReferenceSuffix,
   propertyMatchesEditParam,
+  propertyPublicPath,
   propertyReferenceCode,
   publishWizardEditPath,
   publishWizardSuccessPath,
@@ -70,5 +72,23 @@ describe("listingReference (client)", () => {
         roomId: "   ",
       }),
     ).toBe("/publicar/listo?propiedad=P550E8400");
+  });
+
+  it("does not double-prefix an already-short room code", () => {
+    const roomUuid = "313d1c64-e29b-41d4-a716-446655440000";
+    expect(roomReferenceCode(roomUuid)).toBe("A313D1C64");
+    expect(roomReferenceCode("A313D1C64")).toBe("A313D1C64");
+    expect(roomReferenceCode("BES-A-313D1C64")).toBe("A313D1C64");
+    expect(listingPublicPath(roomUuid)).toBe("/anuncio/A313D1C64");
+    expect(listingPublicPath("A313D1C64")).toBe("/anuncio/A313D1C64");
+    expect(propertyReferenceCode("P550E8400")).toBe("P550E8400");
+    expect(propertyPublicPath("P550E8400")).toBe("/propiedad/P550E8400");
+  });
+
+  it("keeps AA when the room UUID itself starts with A", () => {
+    const roomUuid = "a313d1c6-e29b-41d4-a716-446655440000";
+    expect(roomReferenceCode(roomUuid)).toBe("AA313D1C6");
+    expect(roomReferenceCode("AA313D1C6")).toBe("AA313D1C6");
+    expect(listingPublicPath("AA313D1C6")).toBe("/anuncio/AA313D1C6");
   });
 });

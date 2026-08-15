@@ -14,11 +14,18 @@ export function listingReferenceId(rawId: string): string {
 }
 
 export function propertyReferenceCode(propertyId: string): string {
-  return `P${listingReferenceId(propertyId)}`;
+  const t = propertyId.trim();
+  const parsed = parsePropertyReferenceSuffix(t);
+  if (parsed) return `P${parsed}`;
+  return `P${listingReferenceId(t)}`;
 }
 
+/** Public room slug (`A550E8400`). Idempotent: `A` is hex, so re-encoding `A313D1C64` used to become `AA313D1C6`. */
 export function roomReferenceCode(roomId: string): string {
-  return `A${listingReferenceId(roomId)}`;
+  const t = roomId.trim();
+  const parsed = parseRoomReferenceSuffix(t);
+  if (parsed) return `A${parsed}`;
+  return `A${listingReferenceId(t)}`;
 }
 
 export function parseRoomReferenceSuffix(param: string): string | null {
@@ -35,16 +42,12 @@ export function parsePropertyReferenceSuffix(param: string): string | null {
 
 /** Short code for wizard URLs (`P550E8400`). Accepts a UUID or an already-short code. */
 export function wizardPropertyEditCode(propertyId: string): string {
-  const t = propertyId.trim();
-  if (parsePropertyReferenceSuffix(t)) return t.toUpperCase().replace(/^BES-P-/i, "P");
-  return propertyReferenceCode(t);
+  return propertyReferenceCode(propertyId);
 }
 
 /** Short code for wizard room query (`A550E8400`). */
 export function wizardRoomEditCode(roomId: string): string {
-  const t = roomId.trim();
-  if (parseRoomReferenceSuffix(t)) return t.toUpperCase().replace(/^BES-A-/i, "A");
-  return roomReferenceCode(t);
+  return roomReferenceCode(roomId);
 }
 
 export function propertyMatchesEditParam(propertyId: string, editParam: string): boolean {

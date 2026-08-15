@@ -13,11 +13,18 @@ export function listingReferenceId(rawId: string): string {
 }
 
 export function propertyReferenceCode(propertyId: string): string {
-  return `P${listingReferenceId(propertyId)}`;
+  const t = propertyId.trim();
+  const parsed = parsePropertyReferenceSuffix(t);
+  if (parsed) return `P${parsed}`;
+  return `P${listingReferenceId(t)}`;
 }
 
+/** Public room slug (`A550E8400`). Idempotent: `A` is hex, so re-encoding `A313D1C64` used to become `AA313D1C6`. */
 export function roomReferenceCode(roomId: string): string {
-  return `A${listingReferenceId(roomId)}`;
+  const t = roomId.trim();
+  const parsed = parseRoomReferenceSuffix(t);
+  if (parsed) return `A${parsed}`;
+  return `A${listingReferenceId(t)}`;
 }
 
 export function parseRoomReferenceSuffix(param: string): string | null {

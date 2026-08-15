@@ -28,4 +28,17 @@ describe("listingReference", () => {
     expect(parseRoomReferenceSuffix("BES-A-550E8400")).toBe("550E8400");
     expect(parsePropertyReferenceSuffix("BES-P-550E8400")).toBe("550E8400");
   });
+
+  it("does not double-prefix an already-short room code", () => {
+    const uuid = "313d1c64-e29b-41d4-a716-446655440000";
+    expect(roomReferenceCode(uuid)).toBe("A313D1C64");
+    expect(roomReferenceCode("A313D1C64")).toBe("A313D1C64");
+    expect(roomReferenceCode("BES-A-313D1C64")).toBe("A313D1C64");
+  });
+
+  it("keeps AA when the room UUID itself starts with A", () => {
+    const uuid = "a313d1c6-e29b-41d4-a716-446655440000";
+    expect(roomReferenceCode(uuid)).toBe("AA313D1C6");
+    expect(roomReferenceCode("AA313D1C6")).toBe("AA313D1C6");
+  });
 });
