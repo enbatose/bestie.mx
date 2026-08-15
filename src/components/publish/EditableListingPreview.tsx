@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Camera, Pencil } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bath, Camera, CarFront, Check, Pencil, X } from "lucide-react";
+import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
@@ -29,9 +30,7 @@ import {
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
-  genderPrefLabel,
   roomDimensionWizardLabel,
-  yesNo,
 } from "@/lib/listingKeyLabels";
 import {
   PROPERTY_SUMMARY_MAX,
@@ -141,11 +140,13 @@ function RoomPreviewCard({
   index,
   draft,
   onEdit,
+  onRename,
 }: {
   room: RoomDraft;
   index: number;
   draft: Draft;
   onEdit: () => void;
+  onRename: (name: string) => void;
 }) {
   const available = isRoomAvailableForRent(room);
   const name = roomDisplayName(room, index);
@@ -156,20 +157,95 @@ function RoomPreviewCard({
   const issues = collectRoomFieldIssues(draft, room, index);
   const rentMissing = available && isListingRentMissing(room.rentMxn);
 
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const openNameEdit = () => {
+    setNameDraft(room.customName?.trim() || room.title?.trim() || "");
+    setEditingName(true);
+  };
+
+  const commitName = () => {
+    onRename(nameDraft.trim());
+    setEditingName(false);
+  };
+
+  const cancelNameEdit = () => setEditingName(false);
+
+  // Gender pref quick-attribute
+  const genderPref = room.roommateGenderPref;
+  const GenderIcon = genderPref === "female" ? HighHeelIcon : genderPref === "male" ? MustacheIcon : GenderMixedIcon;
+  const genderIconId = genderPref === "female" ? "gender-female" : genderPref === "male" ? "gender-male" : "gender-mixed";
+  const genderTooltip = genderPref === "female" ? "Solo Mujeres" : genderPref === "male" ? "Solo Hombres" : "Sin preferencia";
+  const hasPrivateBath = room.tags.includes("baño-privado");
+  const hasParking = room.tags.includes("estacionamiento");
+
+  const tooltipClass =
+    "pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block";
+
   return (
     <article className="rounded-xl border border-border bg-bg-light p-4">
       <div className="flex gap-3">
         <div className="min-w-0 flex-1">
+          {/* Room name row — pencil opens inline rename */}
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <p className="text-sm font-semibold text-body">{name}</p>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
-              }`}
-            >
-              {occupancyStatusLabel(available ? "available" : "occupied")}
-            </span>
+            {editingName ? (
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <input
+                  ref={nameInputRef}
+                  autoFocus
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitName(); }
+                    if (e.key === "Escape") cancelNameEdit();
+                  }}
+                  className="min-w-0 flex-1 rounded-lg border border-primary/60 bg-surface px-2 py-1 text-sm font-semibold text-body focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                />
+                <button
+                  type="button"
+                  onClick={commitName}
+                  className="shrink-0 rounded-full bg-primary p-1.5 text-primary-fg transition hover:brightness-110"
+                  title="Guardar nombre"
+                >
+                  <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelNameEdit}
+                  className="shrink-0 rounded-full border border-border p-1.5 text-muted transition hover:bg-surface-elevated"
+                  title="Cancelar"
+                >
+                  <X className="size-3.5" strokeWidth={2.5} aria-hidden />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={openNameEdit}
+                className="group/name inline-flex max-w-[75%] items-center gap-1 text-left text-sm font-semibold text-body transition hover:text-primary"
+                title="Cambiar nombre de la recámara"
+              >
+                <span className="truncate">{name}</span>
+                <Pencil
+                  className="size-3.5 shrink-0 text-muted opacity-0 transition group-hover/name:opacity-100"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+              </button>
+            )}
+            {!editingName ? (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
+                }`}
+              >
+                {occupancyStatusLabel(available ? "available" : "occupied")}
+              </span>
+            ) : null}
           </div>
+
           {available ? (
             <>
               {rentMissing ? (
@@ -179,19 +255,37 @@ function RoomPreviewCard({
                   {money.format(room.rentMxn)} / mes · {roomDimensionWizardLabel(room.roomDimension)}
                 </p>
               )}
-              <div className="mt-3 flex flex-wrap gap-2">
+
+              {/* Attribute row: text pill for date, icon pills for toggleable features */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
                   Disponible {formatRoomAvailableFrom(room.availableFrom ?? "")}
                 </span>
-                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
-                  Preferencia de género: {genderPrefLabel(room.roommateGenderPref)}
+                {/* Gender preference — always shown as icon */}
+                <span className="group/icon relative inline-flex">
+                  <span className="inline-flex size-7 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
+                    <GenderIcon className={quickAttributeGenderIconClass(genderIconId, true)} aria-hidden />
+                  </span>
+                  <span className={tooltipClass}>{genderTooltip}</span>
                 </span>
-                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
-                  Baño privado: {yesNo(room.tags.includes("baño-privado"))}
-                </span>
-                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
-                  Estacionamiento privado: {yesNo(room.tags.includes("estacionamiento"))}
-                </span>
+                {/* Private bathroom — only when enabled */}
+                {hasPrivateBath ? (
+                  <span className="group/icon relative inline-flex">
+                    <span className="inline-flex size-7 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
+                      <Bath className="size-[15px]" aria-hidden />
+                    </span>
+                    <span className={tooltipClass}>Baño privado</span>
+                  </span>
+                ) : null}
+                {/* Private parking — only when enabled */}
+                {hasParking ? (
+                  <span className="group/icon relative inline-flex">
+                    <span className="inline-flex size-7 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
+                      <CarFront className="size-[15px]" aria-hidden />
+                    </span>
+                    <span className={tooltipClass}>Cochera incluida</span>
+                  </span>
+                ) : null}
               </div>
             </>
           ) : (
@@ -210,7 +304,9 @@ function RoomPreviewCard({
             Editar esta recámara
           </button>
         </div>
-        <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-xl bg-surface ring-1 ring-border sm:w-28">
+
+        {/* Cover photo — self-start prevents flex-stretch distortion; portrait ratio */}
+        <div className="relative aspect-[4/5] w-20 shrink-0 self-start overflow-hidden rounded-xl bg-surface ring-1 ring-border sm:w-24">
           {coverUrl ? (
             <img
               src={apiAbsoluteUrl(coverUrl)}
@@ -1483,6 +1579,12 @@ export function EditableListingPreview({
                         index={idx}
                         draft={draft}
                         onEdit={() => openRoomModal(idx)}
+                        onRename={(customName) =>
+                          onDraftChange((d) => ({
+                            ...d,
+                            rooms: d.rooms.map((room, i) => (i === idx ? { ...room, customName } : room)),
+                          }))
+                        }
                       />
                     ) : null,
                   )}
@@ -1503,6 +1605,12 @@ export function EditableListingPreview({
                         index={idx}
                         draft={draft}
                         onEdit={() => openRoomModal(idx)}
+                        onRename={(customName) =>
+                          onDraftChange((d) => ({
+                            ...d,
+                            rooms: d.rooms.map((room, i) => (i === idx ? { ...room, customName } : room)),
+                          }))
+                        }
                       />
                     ) : null,
                   )}
