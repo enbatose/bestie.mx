@@ -241,6 +241,8 @@ export function roomBathroomPreviewLabel(tags: readonly ListingTag[]): string {
 
 /** Etiqueta del campo en wizard y preview (no confundir con el valor seleccionado). */
 export const ROOMMATE_GENDER_PREF_FIELD_LABEL = "Preferencia de Género";
+/** Compact form label so the required mark fits on one line in 3-column grids. */
+export const ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT = "Pref. de Género";
 
 export function roommateGenderPrefLabel(pref: RoommateGenderPref): string {
   if (pref === "female") return "Solo Mujeres";

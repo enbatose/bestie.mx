@@ -75,7 +75,7 @@ import {
   PROPERTY_PERMITIDO_TAG_SLUGS,
   PROPERTY_SCOPE_TAG_SET,
   PROPERTY_SCOPE_TAG_SLUGS,
-  ROOMMATE_GENDER_PREF_FIELD_LABEL,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   ROOM_TAG_GROUPS,
   isListingRentMissing,
 } from "@/lib/listingTags";
@@ -2473,7 +2473,7 @@ export function PublishWizardPage() {
                   <div className="grid items-start gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
                       <WizardPairedFieldLabel>
-                        {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                        {ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT}
                         <span className="text-error"> *</span>
                       </WizardPairedFieldLabel>
                       <select

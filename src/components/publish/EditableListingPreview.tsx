@@ -41,7 +41,7 @@ import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
   ROOM_TAG_GROUPS,
-  ROOMMATE_GENDER_PREF_FIELD_LABEL,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   filterPropertyScopeTags,
   filterRoomScopeTags,
   isListingRentMissing,
@@ -1314,7 +1314,7 @@ export function EditableListingPreview({
                 />
               </div>
               <label className="block text-sm font-medium text-body">
-                <WizardPairedFieldLabel>{ROOMMATE_GENDER_PREF_FIELD_LABEL}</WizardPairedFieldLabel>
+                <WizardPairedFieldLabel>{ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT}</WizardPairedFieldLabel>
                 <select
                   value={detailsRoom.roommateGenderPref}
                   onChange={(e) =>

@@ -13,7 +13,7 @@ import { RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
 import {
   ROOM_TAG_GROUPS,
-  ROOMMATE_GENDER_PREF_FIELD_LABEL,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   isRoomIdealParaTag,
 } from "@/lib/listingTags";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
@@ -363,7 +363,7 @@ export function RoomActivationModal({
             <div className="grid items-start gap-3 sm:grid-cols-3">
               <label className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>
-                  {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                  {ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT}
                   <span className="text-error"> *</span>
                 </WizardPairedFieldLabel>
                 <select

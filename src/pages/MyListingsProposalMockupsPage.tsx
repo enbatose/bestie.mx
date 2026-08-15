@@ -24,7 +24,7 @@ import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import {
   LISTING_TAG_LABEL_OVERRIDES,
   ROOM_TAG_GROUPS,
-  ROOMMATE_GENDER_PREF_FIELD_LABEL,
+  ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   isRoomIdealParaTag,
 } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
@@ -755,7 +755,7 @@ function RoomActivationModal({
             <div className="grid items-start gap-3 sm:grid-cols-3">
               <label className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>
-                  {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                  {ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT}
                   <span className="text-error"> *</span>
                 </WizardPairedFieldLabel>
                 <select
