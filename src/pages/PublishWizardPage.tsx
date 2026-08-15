@@ -2786,7 +2786,10 @@ export function PublishWizardPage() {
       return;
     }
 
-    const blocked = getPublishBlockedReason(draftRef.current);
+    // When saving a single room of an already-published property, skip the cross-room
+    // validation so that incomplete sibling rooms don't block saving this room's edits.
+    const skipRoomValidation = Boolean(editingLiveProperty) && liveEditScope === "room";
+    const blocked = getPublishBlockedReason(draftRef.current, { skipRoomValidation });
     if (blocked) {
       setPublishErr(blocked);
       track("publish_failed", {
@@ -2852,6 +2855,7 @@ export function PublishWizardPage() {
         isLoggedIn: true,
         profilePhoneE164: me?.phoneE164,
         wizardStep: step,
+        skipRoomValidation: Boolean(editingLiveProperty) && liveEditScope === "room",
       });
       if (result.kind === "published") {
         track("publish_succeeded", {

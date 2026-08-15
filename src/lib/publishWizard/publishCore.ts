@@ -384,15 +384,20 @@ export function validateRoomsForSubmit(d: Draft): string | null {
   return formatRoomsValidationMessage(d);
 }
 
-export function getPublishBlockedReason(draft: Draft): string | null {
+export function getPublishBlockedReason(
+  draft: Draft,
+  opts?: { skipRoomValidation?: boolean },
+): string | null {
   const locationErr = locationStepInvalidReason(draft);
   if (locationErr) return `Paso · Ubicación: ${locationErr}`;
 
   const generalErr = propertyGeneralStepInvalidReason(draft);
   if (generalErr) return `Paso · Datos generales: ${generalErr}`;
 
-  const roomsErr = validateRoomsForSubmit(draft);
-  if (roomsErr) return `Paso · Recámaras: ${roomsErr}`;
+  if (!opts?.skipRoomValidation) {
+    const roomsErr = validateRoomsForSubmit(draft);
+    if (roomsErr) return `Paso · Recámaras: ${roomsErr}`;
+  }
 
   const photosErr = publishPhotosInvalidReason(draft);
   if (photosErr) return `Paso · Fotos: ${photosErr}`;
@@ -607,6 +612,8 @@ export async function publishDraftFromWizard(opts: {
   isLoggedIn: boolean;
   profilePhoneE164?: string | null;
   wizardStep?: number;
+  /** Skip per-room field validation (e.g. live-editing one specific room of an already-published property). */
+  skipRoomValidation?: boolean;
 }): Promise<PublishDraftResult> {
   let { draft } = opts;
   const { editingLiveProperty, apiOn, isLoggedIn, profilePhoneE164 } = opts;
@@ -618,7 +625,7 @@ export async function publishDraftFromWizard(opts: {
         : publishWizardLastStepIndex(draft.postMode),
   };
 
-  const blocked = getPublishBlockedReason(draft);
+  const blocked = getPublishBlockedReason(draft, { skipRoomValidation: opts.skipRoomValidation });
   if (blocked) return { kind: "error", message: blocked, draft };
 
   const anchor = CITY_ANCHOR[draft.city];
