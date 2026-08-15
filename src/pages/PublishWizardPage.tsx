@@ -3183,7 +3183,7 @@ export function PublishWizardPage() {
         </div>
       ) : null}
 
-      <div className={`mt-4 rounded-2xl border p-4 shadow-sm sm:p-6 ${assistedDraftToken ? "border-amber-200 bg-amber-50/50" : "border-border bg-surface"}`}>
+      <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             {/* Clickable step progress bar */}
