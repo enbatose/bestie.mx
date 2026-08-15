@@ -1208,7 +1208,13 @@ export function PublishWizardPage() {
     serverSyncRef.current = cached.serverSync;
     setEditingLiveProperty({ status: cached.status });
     setEditPostModeLock(cached.draft.postMode);
-    setLiveEditScope(cached.scope);
+    // When arriving via the property card edit URL (no &room= param), always use
+    // "property" scope even if the cached session recorded "room" from a prior
+    // room-row edit of the same property (prevents the room modal from auto-opening
+    // and from showing another room's validation errors).
+    const effectiveScope =
+      !editListingId && nextDraft.postMode === "property" ? "property" : cached.scope;
+    setLiveEditScope(effectiveScope);
     setLiveEditReturnListingId(cached.returnListingId);
     setPreviewRoomIndex(
       Math.min(cached.previewRoomIndex, Math.max(0, nextDraft.rooms.length - 1)),

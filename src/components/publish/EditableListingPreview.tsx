@@ -648,7 +648,15 @@ export function EditableListingPreview({
             : "Guardar recámara"
         }
         submitInFlight={isRoomOfProperty || publishAfterRoomFix ? submitInFlight : null}
-        publishBlockedReason={isRoomOfProperty ? publishBlockedReason : null}
+        publishBlockedReason={
+          // Only pass non-room blockers (location, photos, general) to the room modal.
+          // Room-level issues are handled inside the modal by RoomLocalIssuesCallout;
+          // the global publishBlockedReason concatenates ALL rooms' issues and would
+          // misleadingly show another room's errors inside the wrong room's modal.
+          isRoomOfProperty && !publishBlockedReason?.startsWith("Paso · Recámaras:")
+            ? publishBlockedReason
+            : null
+        }
         actionErr={isRoomOfProperty ? actionErr : null}
         initialEditingPhotos={initialEditingPhotos && editingRoomModalIndex === roomIndex}
         onSave={(updated) => {
