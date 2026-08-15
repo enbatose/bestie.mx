@@ -20,6 +20,7 @@ import { PostExperienceMockupsPage } from "@/pages/PostExperienceMockupsPage";
 import { MyListingsProposalMockupsPage } from "@/pages/MyListingsProposalMockupsPage";
 import { PropertyPage } from "@/pages/PropertyPage";
 import { PublishPreviewPage } from "@/pages/PublishPreviewPage";
+import { PublishSuccessPage } from "@/pages/PublishSuccessPage";
 import { PublishWizardPage } from "@/pages/PublishWizardPage";
 import { AssistedDraftClaimPage } from "@/pages/AssistedDraftClaimPage";
 import { EmailVerifyPage } from "@/pages/EmailVerifyPage";
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: "anuncio/:id", element: <ListingPage /> },
       { path: "propiedad/:id", element: <PropertyPage /> },
       { path: "publicar", element: <PublishWizardPage /> },
+      { path: "publicar/listo", element: <PublishSuccessPage /> },
       { path: "publicar/vista-previa", element: <PublishPreviewPage /> },
       { path: "borrador/:token", element: <AssistedDraftClaimPage /> },
       { path: "mockups/post-proposals", element: <PostExperienceMockupsPage /> },

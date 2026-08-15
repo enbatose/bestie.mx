@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   listingReferenceId,
   parsePropertyReferenceSuffix,
+  parsePublishSuccessSearch,
   parseRoomReferenceSuffix,
   propertyMatchesEditParam,
   propertyReferenceCode,
   publishWizardEditPath,
+  publishWizardSuccessPath,
   roomMatchesEditParam,
   roomReferenceCode,
   wizardPropertyEditCode,
@@ -34,5 +36,31 @@ describe("listingReference (client)", () => {
     expect(publishWizardEditPath(`prp__${uuid}`, uuid)).toBe(
       "/publicar?edit=P550E8400&room=A550E8400",
     );
+  });
+
+  it("builds a reload-safe publish success URL", () => {
+    expect(publishWizardSuccessPath({ scope: "room", roomId: uuid })).toBe(
+      "/publicar/listo?anuncio=A550E8400",
+    );
+    expect(
+      publishWizardSuccessPath({
+        scope: "property",
+        propertyId: `prp__${uuid}`,
+        roomId: uuid,
+      }),
+    ).toBe("/publicar/listo?propiedad=P550E8400&anuncio=A550E8400");
+    expect(parsePublishSuccessSearch(new URLSearchParams("anuncio=A550E8400"))).toEqual({
+      scope: "room",
+      propertyId: null,
+      roomId: "A550E8400",
+    });
+    expect(
+      parsePublishSuccessSearch(new URLSearchParams("propiedad=P550E8400&anuncio=A550E8400")),
+    ).toEqual({
+      scope: "property",
+      propertyId: "P550E8400",
+      roomId: "A550E8400",
+    });
+    expect(parsePublishSuccessSearch(new URLSearchParams("edit=P550E8400"))).toBeNull();
   });
 });

@@ -73,6 +73,47 @@ export function publishWizardEditPath(propertyId: string, roomId?: string | null
   return `/publicar?${params.toString()}`;
 }
 
+/** First-time publish confirmation — separate from `/publicar?edit=` so reload does not reopen the editor. */
+export const PUBLISH_SUCCESS_PATH = "/publicar/listo";
+
+export type PublishSuccessTarget = {
+  scope: "property" | "room";
+  propertyId: string | null;
+  roomId: string | null;
+};
+
+/** `/publicar/listo?anuncio=A…` or `/publicar/listo?propiedad=P…` (optional `&anuncio=`). */
+export function publishWizardSuccessPath(input: {
+  scope: "property" | "room";
+  propertyId?: string | null;
+  roomId?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (input.scope === "property" && input.propertyId) {
+    params.set("propiedad", wizardPropertyEditCode(input.propertyId));
+  }
+  if (input.roomId) {
+    params.set("anuncio", wizardRoomEditCode(input.roomId));
+  }
+  const qs = params.toString();
+  return qs ? `${PUBLISH_SUCCESS_PATH}?${qs}` : PUBLISH_SUCCESS_PATH;
+}
+
+export function parsePublishSuccessSearch(params: URLSearchParams): PublishSuccessTarget | null {
+  const propertyRaw = params.get("propiedad")?.trim() || "";
+  const roomRaw = params.get("anuncio")?.trim() || "";
+  const propertyId = parsePropertyReferenceSuffix(propertyRaw)
+    ? wizardPropertyEditCode(propertyRaw)
+    : null;
+  const roomId = parseRoomReferenceSuffix(roomRaw) ? wizardRoomEditCode(roomRaw) : null;
+  if (!propertyId && !roomId) return null;
+  return {
+    scope: propertyId ? "property" : "room",
+    propertyId,
+    roomId,
+  };
+}
+
 export function isListingReferenceCode(param: string): boolean {
   const t = param.trim();
   return (

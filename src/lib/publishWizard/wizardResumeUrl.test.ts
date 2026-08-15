@@ -13,6 +13,7 @@ describe("wizardResumeUrl", () => {
     );
     expect(publicarNavPath("/buscar", "?edit=P550E8400")).toBe("/publicar");
     expect(publicarNavPath("/publicar", "")).toBe("/publicar");
+    expect(publicarNavPath("/publicar/listo", "?anuncio=A550E8400")).toBe("/publicar");
   });
 
   it("reads 1-based paso and 0-based publishStep", () => {

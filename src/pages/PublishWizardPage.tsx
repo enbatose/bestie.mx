@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
+import { CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { usePageSeo } from "@/hooks/usePageSeo";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import {
@@ -32,7 +31,7 @@ import {
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
-import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, roomMatchesEditParam } from "@/lib/listingReference";
+import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import {
   applyWizardResumeSearchParams,
@@ -58,7 +57,6 @@ import {
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
-import { ShareAiCopyPanel } from "@/components/share/ShareAiCopyPanel";
 import { publishAssistedDraftClaim, activateAssistedDraftClaim, fetchAssistedDraftClaim } from "@/lib/assistedDraftApi";
 import { claimInfoToBundle } from "@/lib/assistedDraftClaim";
 import {
@@ -834,7 +832,6 @@ export function PublishWizardPage() {
   const myListingsReturnRef = useRef(myListingsReturn);
   myListingsReturnRef.current = myListingsReturn;
   const { openAuthModal } = useAuthModal();
-  const { openFeedback } = useFeedbackModal();
   const { me } = useAppShellOutlet();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
@@ -876,12 +873,6 @@ export function PublishWizardPage() {
     () => assistedBoot?.session?.serverSync ?? resumeBoot?.serverSync ?? { propertyId: null, roomIds: [] },
   );
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
-  const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
-  const [publishSuccessPath, setPublishSuccessPath] = useState<string | null>(null);
-  const [publishSuccessPropertyId, setPublishSuccessPropertyId] = useState<string | null>(null);
-  const [publishSuccessShareScope, setPublishSuccessShareScope] = useState<"property" | "room">(
-    "room",
-  );
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
   const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(
     () => assistedBoot?.token ?? null,
@@ -2689,29 +2680,6 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
-  /** Success replaces the wizard in-place (no route change), so scroll must reset. */
-  useLayoutEffect(() => {
-    if (!publishSuccessRoomId) return;
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [publishSuccessRoomId]);
-
-  /** Soft-prompt feedback shortly after a successful publish. */
-  useEffect(() => {
-    if (!publishSuccessRoomId) return;
-    const title =
-      (draft.postMode === "property" ? draft.propertyTitle : draft.rooms[0]?.title)?.trim() ||
-      "Anuncio publicado";
-    const timer = window.setTimeout(() => {
-      openFeedback({
-        source: "publish",
-        publishedRoomId: publishSuccessRoomId,
-        publishedTitle: title,
-      });
-    }, 2500);
-    return () => window.clearTimeout(timer);
-  }, [publishSuccessRoomId, openFeedback, draft.postMode, draft.propertyTitle, draft.rooms]);
-
   const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 
   async function submitPublish() {
@@ -2890,10 +2858,22 @@ export function PublishWizardPage() {
           draftRef.current.postMode === "property" && successPropertyId ? "property" : "room";
         setServerSync({ propertyId: null, roomIds: [] });
         serverSyncRef.current = { propertyId: null, roomIds: [] };
-        setPublishSuccessPath(sharePath);
-        setPublishSuccessRoomId(returnId);
-        setPublishSuccessPropertyId(successPropertyId);
-        setPublishSuccessShareScope(shareScope);
+        const publishedTitle =
+          (draftRef.current.postMode === "property"
+            ? draftRef.current.propertyTitle
+            : draftRef.current.rooms[0]?.title
+          )?.trim() || "Anuncio publicado";
+        navigate(
+          publishWizardSuccessPath({
+            scope: shareScope,
+            propertyId: successPropertyId,
+            roomId: returnId,
+          }),
+          {
+            replace: true,
+            state: withMyListingsReturn({ publishedTitle }, myListingsReturnRef.current),
+          },
+        );
         return;
       }
       if (result.kind === "error") {
@@ -3127,78 +3107,6 @@ export function PublishWizardPage() {
               scope: liveEditScope ?? "room",
             }}
           />
-        </div>
-      </div>
-    );
-  }
-
-  if (publishSuccessRoomId) {
-    const successTitle =
-      draft.postMode === "property"
-        ? "Listo. Tu propiedad ya está publicada"
-        : "Listo. Tu recámara ya está publicada";
-
-    return (
-      <div className="mx-auto max-w-lg px-4 pb-10 pt-4 text-center sm:px-6 sm:pb-12 sm:pt-5">
-        <div
-          className="mx-auto inline-flex rounded-full bg-secondary/15 p-4 text-primary dark:bg-secondary/20"
-          aria-hidden
-        >
-          <CheckCircle2 className="size-10" strokeWidth={2} />
-        </div>
-
-        <h1 className="mt-5 text-2xl font-bold text-body">{successTitle}</h1>
-        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-muted">
-          Tu anuncio ya está visible para la comunidad. Comparte el mensaje optimizado para llegar más
-          rápido a roomies en WhatsApp, Facebook e Instagram.
-        </p>
-
-        <div className="mx-auto mt-6 max-w-md text-left">
-          <ShareAiCopyPanel
-            scope={publishSuccessShareScope}
-            propertyId={
-              publishSuccessShareScope === "property" ? publishSuccessPropertyId : null
-            }
-            roomId={publishSuccessShareScope === "room" ? publishSuccessRoomId : null}
-          />
-        </div>
-
-        <div className="mx-auto mt-6 max-w-md rounded-xl border border-border bg-bg-light p-4 text-left">
-          <ul className="space-y-3 text-sm leading-relaxed text-muted">
-            <li>
-              <strong className="font-semibold text-body">Recibe mensajes:</strong> Atiende a
-              los interesados directamente desde tu bandeja de entrada.
-            </li>
-            <li>
-              <strong className="font-semibold text-body">Control total:</strong> Modifica
-              precios, fotos o pausa el anuncio desde Mis anuncios.
-            </li>
-          </ul>
-        </div>
-
-        <div className="mt-10 flex flex-col items-center gap-3">
-          <Link
-            to={publishSuccessPath ?? listingPublicPath(publishSuccessRoomId)}
-            state={myListingsReturn ? { myListingsReturn } : undefined}
-            className="inline-flex w-full max-w-xs items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-          >
-            Ver mi anuncio
-          </Link>
-          {myListingsRestorePath ? (
-            <Link
-              to={myListingsRestorePath}
-              className="text-sm font-medium text-muted transition hover:text-body"
-            >
-              Ir a Mis anuncios
-            </Link>
-          ) : (
-            <Link
-              to="/"
-              className="text-sm font-medium text-muted transition hover:text-body"
-            >
-              Ir al inicio
-            </Link>
-          )}
         </div>
       </div>
     );
