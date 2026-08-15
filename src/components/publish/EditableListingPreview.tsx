@@ -1025,7 +1025,14 @@ export function EditableListingPreview({
                   </select>
                 </label>
                 <div className="block text-sm font-medium text-body">
-                  <span className="block">Recámaras en la propiedad</span>
+                  <span className="block">
+                    Recámaras en la propiedad
+                    {propertyFactsDraft.propertyKind !== "loft" ? (
+                      <span className="ml-1 text-xs font-normal text-muted">
+                        (habitadas + disponibles)
+                      </span>
+                    ) : null}
+                  </span>
                   <WizardNumberStepper
                     value={
                       propertyFactsDraft.propertyKind === "loft"
@@ -1048,16 +1055,15 @@ export function EditableListingPreview({
                     <span className="mt-1 block text-xs text-muted">
                       Un loft cuenta como 1 recámara.
                     </span>
-                  ) : (
-                    <span className="mt-1 block text-xs text-muted">
-                      Incluye recámaras habitadas + disponibles
-                    </span>
-                  )}
+                  ) : null}
                 </div>
                 {draft.postMode === "room" ? (
                   <>
                     <div className="block text-sm font-medium text-body">
                       <span className="block">Besties actuales · mujeres</span>
+                      <span className="block text-xs font-normal text-muted">
+                        Personas que viven actualmente en la propiedad
+                      </span>
                       <WizardNumberStepper
                         value={Math.min(
                           PROPERTY_OCCUPANTS_MAX,
@@ -1074,6 +1080,9 @@ export function EditableListingPreview({
                     </div>
                     <div className="block text-sm font-medium text-body">
                       <span className="block">Besties actuales · hombres</span>
+                      <span className="block text-xs font-normal text-muted">
+                        Personas que viven actualmente en la propiedad
+                      </span>
                       <WizardNumberStepper
                         value={Math.min(
                           PROPERTY_OCCUPANTS_MAX,
@@ -1107,23 +1116,17 @@ export function EditableListingPreview({
         </PreviewSection>
       ) : null}
 
-      {showPropertyBlocks ? (
+      {showPropertyBlocks && draft.postMode === "property" ? (
         <PreviewSection
-          title={draft.postMode === "room" ? "Ubicación" : "Sobre la propiedad"}
+          title="Sobre la propiedad"
           onEdit={
-            draft.postMode === "room"
-              ? undefined
-              : () => {
-                  setPropertySummaryDraft(draft.propertySummary);
-                  setEditingProperty(true);
-                }
+            () => {
+              setPropertySummaryDraft(draft.propertySummary);
+              setEditingProperty(true);
+            }
           }
         >
-          {draft.postMode === "room" ? (
-            <p className="text-sm text-muted">
-              {neighborhoodLabel} · {listing.city}. El mapa está al final de la vista previa.
-            </p>
-          ) : editingProperty ? (
+          {editingProperty ? (
             <InlineFieldEditor
               label="Descripción de la propiedad y áreas comunes"
               onSave={savePropertySummary}
@@ -1205,9 +1208,19 @@ export function EditableListingPreview({
                   }
                   className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                 >
-                  <option value="small">Pequeño / individual</option>
-                  <option value="medium">Mediano / matrimonial</option>
-                  <option value="large">Grande</option>
+                  {draft.postMode === "room" ? (
+                    <>
+                      <option value="small">Individual (Cabe cama individual + buró)</option>
+                      <option value="medium">Matrimonial (Cabe cama matrimonial + escritorio)</option>
+                      <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="small">Pequeño (individual)</option>
+                      <option value="medium">Mediano (matrimonial)</option>
+                      <option value="large">Grande (Queen/King)</option>
+                    </>
+                  )}
                 </select>
               </label>
               {draft.postMode === "property" ? (
@@ -1377,6 +1390,23 @@ export function EditableListingPreview({
           streetViewPov={draft.streetViewPov}
           canEdit={canEditLocation}
           onSaveCoordinates={saveMapCoordinates}
+          onStreetViewPovChange={(pov) =>
+            onDraftChange((d) => ({ ...d, streetViewPov: pov }))
+          }
+          onToggleStreetView={(enabled) =>
+            onDraftChange((d) => ({
+              ...d,
+              useCustomMapPin: enabled,
+              streetViewPov: enabled ? d.streetViewPov : undefined,
+            }))
+          }
+          onSwitchToPrecise={() =>
+            onDraftChange((d) => ({
+              ...d,
+              isApproximateLocation: false,
+              useCustomMapPin: true,
+            }))
+          }
         />
       </PreviewSection>
     </div>

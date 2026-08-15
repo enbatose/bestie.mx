@@ -67,6 +67,9 @@ function PropertyRoommatesStat({
         <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">
           Besties actuales
         </p>
+        <p className="text-[11px] text-muted leading-snug">
+          Personas que viven actualmente en la propiedad
+        </p>
         <p className="mt-2 flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
             <UserRound className="size-3.5 text-primary/70" aria-hidden />

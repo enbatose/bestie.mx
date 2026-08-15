@@ -3183,12 +3183,48 @@ export function PublishWizardPage() {
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <div className={`mt-4 rounded-2xl border p-4 shadow-sm sm:p-6 ${assistedDraftToken ? "border-amber-200 bg-amber-50/50" : "border-border bg-surface"}`}>
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Paso {safeStep + 1} de {steps.length}
-            </p>
+          <div className="min-w-0 flex-1">
+            {/* Clickable step progress bar */}
+            <nav aria-label="Progreso del anuncio" className="flex items-center gap-1">
+              {steps.map((s, i) => {
+                const isPast = i < safeStep;
+                const isCurrent = i === safeStep;
+                return (
+                  <div key={i} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={!isPast}
+                      onClick={
+                        isPast
+                          ? () => {
+                              setPublishErr(null);
+                              setStep(i);
+                            }
+                          : undefined
+                      }
+                      title={isPast ? `Volver a "${s.title}"` : s.title}
+                      aria-current={isCurrent ? "step" : undefined}
+                      className={`inline-flex size-6 items-center justify-center rounded-full text-[11px] font-bold leading-none transition ${
+                        isCurrent
+                          ? "bg-primary text-primary-fg ring-2 ring-primary/30 ring-offset-1"
+                          : isPast
+                            ? "cursor-pointer bg-primary/20 text-primary hover:bg-primary/40"
+                            : "cursor-default bg-muted/20 text-muted"
+                      }`}
+                    >
+                      {isPast ? <CheckCircle2 className="size-3.5" aria-hidden /> : i + 1}
+                    </button>
+                    {i < steps.length - 1 ? (
+                      <div
+                        className={`h-px w-3 rounded-full ${i < safeStep ? "bg-primary/30" : "bg-muted/20"}`}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </nav>
             <h2 className="mt-2 text-lg font-semibold text-body">{current.title}</h2>
           </div>
           {me?.isAdmin ? (
@@ -3204,29 +3240,12 @@ export function PublishWizardPage() {
           ) : null}
         </div>
         <div className="mt-4 space-y-4">
-          {isPublishStep && assistedDraftToken ? (
-            <div className="rounded-xl border border-secondary/40 bg-secondary/5 px-4 py-3">
-              <p className="text-sm font-semibold text-body">Borrador creado por Bestie</p>
-              <p className="mt-0.5 text-xs text-muted">
-                Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el anuncio
-                quedará bajo tu nombre.
-              </p>
-              {isListingRentMissing(
-                draft.rooms[Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))]
-                  ?.rentMxn,
-              ) ? (
-                <p className="mt-2 text-xs font-semibold text-error">
-                  Falta el precio de renta. Agrégalo en «Editar encabezado» — no se puede publicar en 0
-                  MXN / mes.
-                </p>
-              ) : null}
-            </div>
-          ) : null}
           {isPublishStep ? (
             <PublishWizardReviewStep
               draft={draft}
               roomIndex={Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))}
               onRoomIndexChange={setPreviewRoomIndex}
+              isAssistedDraft={Boolean(assistedDraftToken)}
               onDraftChange={(updater) => {
               setDraft((d) => {
                 const next = syncDraftPhotoFields(updater(d));

@@ -37,6 +37,8 @@ type Props = {
   initialEditingPhotos?: boolean;
   onEditingPhotosChange?: (editing: boolean) => void;
   onPhotoPickerOpen?: () => void;
+  /** True when the draft was created by the AI assistant, not manually. */
+  isAssistedDraft?: boolean;
 };
 
 export function PublishWizardReviewStep({
@@ -55,6 +57,7 @@ export function PublishWizardReviewStep({
   initialEditingPhotos = false,
   onEditingPhotosChange,
   onPhotoPickerOpen,
+  isAssistedDraft = false,
 }: Props) {
   const isLiveEdit = liveEdit != null;
   const editScope = liveEdit?.scope ?? null;
@@ -128,8 +131,23 @@ export function PublishWizardReviewStep({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm">
+      <div className={`rounded-xl border shadow-sm ${isAssistedDraft && !isLiveEdit ? "border-amber-200 bg-amber-50/80 px-4 py-3" : "border-border bg-bg-light p-4 px-5"}`}>
         <h3 className="text-[15px] font-bold text-primary">{heading}</h3>
+        {isAssistedDraft && !isLiveEdit ? (
+          <div className="mt-2 border-t border-amber-200 pt-2">
+            <p className="text-xs font-semibold text-amber-800">Borrador creado por Bestie</p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el
+              anuncio quedará bajo tu nombre.
+            </p>
+            {rentMissing ? (
+              <p className="mt-1.5 text-xs font-semibold text-error">
+                Falta el precio de renta. Agrégalo en «Editar encabezado» — no se puede publicar
+                en 0 MXN / mes.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {editScope === "room" && activeRoom ? (
           <div className="mt-3 rounded-xl border border-primary/25 bg-primary px-4 py-3 text-primary-fg shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-fg/80">

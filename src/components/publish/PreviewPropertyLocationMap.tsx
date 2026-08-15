@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Maximize2, Pencil, X } from "lucide-react";
+import { Eye, EyeOff, MapPin, Maximize2, Pencil, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
+import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
@@ -21,6 +22,12 @@ type Props = {
   /** Location belongs to the property; room-scoped editing views show it read-only. */
   canEdit?: boolean;
   onSaveCoordinates: (lat: number, lng: number) => void;
+  /** Called when the user edits the Street View POV from the preview step. */
+  onStreetViewPovChange?: (pov: StreetViewPov) => void;
+  /** Called to enable (true) or disable (false) the Street View pane. */
+  onToggleStreetView?: (enabled: boolean) => void;
+  /** Called when the user opts to switch from approximate to precise location. */
+  onSwitchToPrecise?: () => void;
 };
 
 function LocationEditActions({
@@ -64,9 +71,13 @@ export function PreviewPropertyLocationMap({
   streetViewPov: streetViewPovProp,
   canEdit = true,
   onSaveCoordinates,
+  onStreetViewPovChange,
+  onToggleStreetView,
+  onSwitchToPrecise,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
+  const [editingStreetView, setEditingStreetView] = useState(false);
   const [draftPosition, setDraftPosition] = useState<[number, number]>([listing.lat, listing.lng]);
   const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
   const privacyRadiusM = resolveApproximateRadiusMeters(listing.approximateRadiusMeters);
@@ -158,6 +169,18 @@ export function PreviewPropertyLocationMap({
         readOnlyMap(heightClass)
       )}
 
+      {/* Ampliar mapa — top-left to stay clear of zoom controls */}
+      {!editingLocation ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+        >
+          <Maximize2 className="size-3.5" aria-hidden />
+          Ampliar mapa
+        </button>
+      ) : null}
+
       {canEdit ? (
         <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1.5">
           {editingLocation ? (
@@ -174,35 +197,119 @@ export function PreviewPropertyLocationMap({
           )}
         </div>
       ) : null}
-
-      {!editingLocation ? (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
-        >
-          <Maximize2 className="size-3.5" aria-hidden />
-          Ampliar mapa
-        </button>
-      ) : null}
     </div>
   );
 
   return (
     <>
+      {/* Approximate-location callout */}
+      {hideExactAddress && canEdit && onSwitchToPrecise ? (
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+          <MapPin className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+          <div className="min-w-0">
+            <p className="text-xs leading-snug text-amber-800">
+              Cambia tu ubicación de un aproximado a la ubicación precisa, esto te permitirá
+              agregar la vista de calle.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                onSwitchToPrecise();
+                setEditingLocation(true);
+              }}
+              className="mt-1.5 text-xs font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900"
+            >
+              Activar ubicación precisa
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className={gridClass}>
         <div className={showStreetView ? "" : "col-span-full"}>{mapPane("h-[260px] md:h-[320px]", 220)}</div>
+
         {showStreetView ? (
-          <GoogleStreetViewPane
-            key={streetViewPovCacheKey(streetViewPov) || `${streetViewLat},${streetViewLng}`}
-            lat={streetViewLat}
-            lng={streetViewLng}
-            streetViewPov={streetViewPov}
-            trackingInterface="listing_preview"
-            propertyId={listing.propertyId}
-            listingId={listing.id}
-            loadEager
-          />
+          <div className="relative">
+            {editingStreetView && onStreetViewPovChange ? (
+              <div className="rounded-xl border border-border overflow-hidden">
+                <StreetViewPovEditor
+                  lat={streetViewLat}
+                  lng={streetViewLng}
+                  pov={streetViewPov}
+                  onPovChange={onStreetViewPovChange}
+                  heightClass="h-[260px] md:h-[320px]"
+                />
+                <div className="flex items-center justify-between gap-2 border-t border-border bg-surface px-3 py-2">
+                  <p className="text-xs text-muted">
+                    Gira la cámara hacia la fachada de tu propiedad.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditingStreetView(false)}
+                    className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg"
+                  >
+                    Listo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <GoogleStreetViewPane
+                  key={streetViewPovCacheKey(streetViewPov) || `${streetViewLat},${streetViewLng}`}
+                  lat={streetViewLat}
+                  lng={streetViewLng}
+                  streetViewPov={streetViewPov}
+                  trackingInterface="listing_preview"
+                  propertyId={listing.propertyId}
+                  listingId={listing.id}
+                  loadEager
+                />
+                {canEdit ? (
+                  <div className="absolute right-2 top-2 flex gap-1.5">
+                    {onStreetViewPovChange ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditingStreetView(true)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+                      >
+                        <Pencil className="size-3.5" aria-hidden />
+                        Ajustar vista
+                      </button>
+                    ) : null}
+                    {onToggleStreetView ? (
+                      <button
+                        type="button"
+                        onClick={() => onToggleStreetView(false)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+                      >
+                        <EyeOff className="size-3.5" aria-hidden />
+                        Quitar vista
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : !hideExactAddress && canEdit && onToggleStreetView ? (
+          /* Precise location but no Street View yet — offer to enable */
+          <div className="flex items-center justify-center rounded-xl border border-dashed border-border bg-bg-light">
+            <div className="p-6 text-center">
+              <Eye className="mx-auto mb-2 size-6 text-muted" aria-hidden />
+              <p className="text-xs text-muted">Sin vista de calle</p>
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleStreetView(true);
+                  setEditingStreetView(true);
+                }}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body shadow-sm transition hover:bg-surface-elevated"
+              >
+                <Eye className="size-3.5" aria-hidden />
+                Agregar vista de calle
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
 
