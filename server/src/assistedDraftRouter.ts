@@ -570,23 +570,29 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           tagsJson = JSON.stringify(tags);
         }
         const lodgingRaw = roomPatch.lodgingType;
-        const lodgingType =
+        const lodgingType: string | null =
           lodgingRaw === "private_room" || lodgingRaw === "shared_room" || lodgingRaw === "whole_home"
             ? lodgingRaw
-            : roomRow.lodging_type;
-        const availableFrom =
+            : roomRow.lodging_type == null
+              ? null
+              : String(roomRow.lodging_type);
+        const availableFrom: string | null =
           asTrimmedString(roomPatch.availableFrom) != null
             ? String(roomPatch.availableFrom).slice(0, 10)
-            : roomRow.available_from;
+            : roomRow.available_from == null
+              ? null
+              : String(roomRow.available_from);
         const minimalStayMonths =
           asFiniteNumber(roomPatch.minimalStayMonths) != null
             ? Math.max(0, Math.min(36, Math.floor(Number(roomPatch.minimalStayMonths))))
             : Number(roomRow.minimal_stay_months ?? 1);
         const dimRaw = roomPatch.roomDimension;
-        const roomDimension =
+        const roomDimension: string | null =
           dimRaw === "small" || dimRaw === "medium" || dimRaw === "large"
             ? dimRaw
-            : roomRow.room_dimension;
+            : roomRow.room_dimension == null
+              ? null
+              : String(roomRow.room_dimension);
         const avalRequired =
           roomPatch.avalRequired === undefined
             ? Number(roomRow.aval_required ?? 0)
