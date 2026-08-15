@@ -1036,6 +1036,7 @@ export function EditableListingPreview({
                     </span>
                   ) : null}
                   <WizardNumberStepper
+                    compact
                     value={
                       propertyFactsDraft.propertyKind === "loft"
                         ? 1
@@ -1067,6 +1068,7 @@ export function EditableListingPreview({
                         Personas que viven actualmente en la propiedad
                       </span>
                       <WizardNumberStepper
+                        compact
                         value={Math.min(
                           PROPERTY_OCCUPANTS_MAX,
                           Math.max(0, propertyFactsDraft.occupiedByWomenCount),
@@ -1086,6 +1088,7 @@ export function EditableListingPreview({
                         Personas que viven actualmente en la propiedad
                       </span>
                       <WizardNumberStepper
+                        compact
                         value={Math.min(
                           PROPERTY_OCCUPANTS_MAX,
                           Math.max(0, propertyFactsDraft.occupiedByMenCount),
@@ -1229,6 +1232,7 @@ export function EditableListingPreview({
                 <div className="block text-sm font-medium text-body">
                   <span className="block">Plazas / espacios</span>
                   <WizardNumberStepper
+                    compact
                     value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, detailsRoom.roomsAvailable))}
                     min={0}
                     max={ROOM_PLAZAS_MAX}
@@ -1254,6 +1258,7 @@ export function EditableListingPreview({
               <div className="block text-sm font-medium text-body">
                 <span className="block">Estancia mín. (meses)</span>
                 <WizardNumberStepper
+                  compact
                   editableCenter
                   maxInputDigits={2}
                   value={Math.min(ROOM_STAY_MAX, Math.max(0, detailsRoom.minimalStayMonths))}
@@ -1285,6 +1290,7 @@ export function EditableListingPreview({
               <div className="block text-sm font-medium text-body">
                 <span className="block">Edad mín.</span>
                 <WizardNumberStepper
+                  compact
                   editableCenter
                   maxInputDigits={2}
                   value={Math.min(99, Math.max(18, detailsRoom.ageMin))}
@@ -1302,6 +1308,7 @@ export function EditableListingPreview({
               <div className="block text-sm font-medium text-body">
                 <span className="block">Edad máx.</span>
                 <WizardNumberStepper
+                  compact
                   editableCenter
                   maxInputDigits={2}
                   value={Math.min(99, Math.max(18, detailsRoom.ageMax))}
