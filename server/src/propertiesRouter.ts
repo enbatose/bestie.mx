@@ -214,6 +214,9 @@ function rowToProperty(row: Record<string, unknown>): Property {
     ...(row.occupied_by_men != null && Number.isFinite(Number(row.occupied_by_men))
       ? { occupiedByMenCount: Math.max(0, Math.floor(Number(row.occupied_by_men))) }
       : {}),
+    ...(row.wizard_step != null && Number.isFinite(Number(row.wizard_step))
+      ? { wizardStep: Math.floor(Number(row.wizard_step)) }
+      : {}),
   };
 }
 

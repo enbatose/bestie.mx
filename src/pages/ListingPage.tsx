@@ -18,7 +18,7 @@ import {
 } from "@/lib/listingsApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
-import { listingPublicPath, roomReferenceCode } from "@/lib/listingReference";
+import { listingPublicPath, publishWizardEditPath, roomReferenceCode } from "@/lib/listingReference";
 import {
   buildMyListingsRestorePath,
   myListingsNavigationState,
@@ -564,7 +564,7 @@ export function ListingPage() {
   const ownerActions =
     listing.viewerIsOwner && listingStatus === "published" ? (
       <Link
-        to={`/publicar?edit=${encodeURIComponent(listing.propertyId)}&room=${encodeURIComponent(listing.id)}`}
+        to={publishWizardEditPath(listing.propertyId, listing.id)}
         state={
           myListingsReturn
             ? myListingsNavigationState(myListingsReturn)

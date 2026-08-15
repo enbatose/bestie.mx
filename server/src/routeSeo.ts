@@ -20,6 +20,8 @@ export type RouteSeoMeta = {
   ogImageAlt?: string;
   jsonLd?: unknown;
   jsonLdId?: string;
+  /** App surfaces (wizard, account) that must not enter the search index. */
+  noindex?: boolean;
 };
 
 const GDL_OG_IMAGE = "/brand/og-gdl.jpg";
@@ -44,6 +46,9 @@ const GDL_SEARCH_DESC =
 
 const CONTACT_DESC =
   "Contacto Bestie MX — ayuda para buscar roomie en Guadalajara, publicar un cuarto compartido o resolver dudas de tu cuenta.";
+
+const PUBLICAR_DESC =
+  "Publica un cuarto compartido o una propiedad en Bestie MX. El asistente de publicación no se indexa; los anuncios públicos viven en /anuncio y /propiedad.";
 
 /** Static marketing / city routes with crawler-visible head tags. */
 export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
@@ -120,6 +125,15 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
     },
   },
   {
+    match: /^\/publicar(?:\/.*)?$/i,
+    seo: {
+      title: "Publicar anuncio | Bestie MX",
+      description: PUBLICAR_DESC,
+      canonicalPath: "/publicar",
+      noindex: true,
+    },
+  },
+  {
     match: /^\/legal\/?$/i,
     seo: {
       title: "Legal | Bestie MX",
@@ -182,6 +196,9 @@ export function injectRouteSeo(
   }
   if (seo.jsonLd != null) {
     out = upsertJsonLd(out, seo.jsonLdId ?? "route", seo.jsonLd);
+  }
+  if (seo.noindex) {
+    out = upsertMetaByName(out, "robots", "noindex, nofollow");
   }
   return out;
 }

@@ -3,6 +3,7 @@ import { CheckCircle2, CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { usePageSeo } from "@/hooks/usePageSeo";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import {
   APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
@@ -26,8 +27,18 @@ import {
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
-import { listingPublicPath, propertyPublicPath } from "@/lib/listingReference";
+import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, roomMatchesEditParam } from "@/lib/listingReference";
 import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
+import {
+  applyWizardResumeSearchParams,
+  hasWizardResumeQuery,
+  readWizardPasoIndex,
+} from "@/lib/publishWizard/wizardResumeUrl";
+import {
+  clearWizardResumeSnapshot,
+  readWizardResumeSnapshot,
+  writeWizardResumeSnapshot,
+} from "@/lib/publishWizard/wizardResumeSession";
 import {
   clearLiveEditSession,
   consumePhotoPickerIntent,
@@ -777,6 +788,29 @@ function loadAssistedClaimBoot(): { token: string; session: ReturnType<typeof re
   return { token, session: readAssistedDraftClaimSession(token) };
 }
 
+function loadWizardResumeBoot(): {
+  draft: Draft;
+  serverSync: PublishWizardServerSync;
+  step: number;
+} | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("borrador")?.trim() || params.get("handoff")?.trim()) return null;
+  if (!hasWizardResumeQuery(params)) return null;
+  const snap = readWizardResumeSnapshot();
+  if (!snap) return null;
+  const edit = params.get("edit")?.trim();
+  if (edit && snap.serverSync.propertyId && !propertyMatchesEditParam(snap.serverSync.propertyId, edit)) {
+    return null;
+  }
+  const urlStep = readWizardPasoIndex(params);
+  return {
+    draft: snap.draft,
+    serverSync: snap.serverSync,
+    step: urlStep ?? snap.step,
+  };
+}
+
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -817,15 +851,24 @@ export function PublishWizardPage() {
   const [liveEditEditingPhotos, setLiveEditEditingPhotos] = useState(false);
   const apiOn = isListingsApiConfigured();
   const [assistedBoot] = useState(loadAssistedClaimBoot);
+  const [resumeBoot] = useState(loadWizardResumeBoot);
   const [step, setStep] = useState(() =>
-    typeof assistedBoot?.session?.step === "number" ? assistedBoot.session.step : 0,
+    typeof assistedBoot?.session?.step === "number"
+      ? assistedBoot.session.step
+      : typeof resumeBoot?.step === "number"
+        ? resumeBoot.step
+        : 0,
   );
   const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(() =>
-    assistedBoot?.session ? normalizePersistedDraft(assistedBoot.session.draft) : defaultDraft(),
+    assistedBoot?.session
+      ? normalizePersistedDraft(assistedBoot.session.draft)
+      : resumeBoot
+        ? normalizePersistedDraft(resumeBoot.draft)
+        : defaultDraft(),
   );
   const [serverSync, setServerSync] = useState<ServerSync>(
-    () => assistedBoot?.session?.serverSync ?? { propertyId: null, roomIds: [] },
+    () => assistedBoot?.session?.serverSync ?? resumeBoot?.serverSync ?? { propertyId: null, roomIds: [] },
   );
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
@@ -845,7 +888,9 @@ export function PublishWizardPage() {
   const [autosaveFlashKey, setAutosaveFlashKey] = useState(0);
   const [showAutosaveRing, setShowAutosaveRing] = useState(false);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
-  const [storageReady, setStorageReady] = useState(() => Boolean(assistedBoot?.session));
+  const [storageReady, setStorageReady] = useState(() =>
+    Boolean(assistedBoot?.session || resumeBoot),
+  );
   /** Single reverse-geocode result for the pin; privacy mode derives a shorter label from `address`, same coordinates. */
   const [mapGeocode, setMapGeocode] = useState<{
     displayFull: string;
@@ -857,6 +902,14 @@ export function PublishWizardPage() {
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
   const neighborhoodAutofillFromPinRef = useRef<{ latKey: string; value: string } | null>(null);
+
+  usePageSeo({
+    title: "Publicar anuncio | Bestie MX",
+    description:
+      "Publica un cuarto compartido o una propiedad en Bestie MX. Los anuncios públicos se comparten desde /anuncio y /propiedad.",
+    canonicalPath: "/publicar",
+    noindex: true,
+  });
 
   const roomLodgingSig = useMemo(
     () => (draft.postMode === "room" ? draft.rooms.map((r) => r.lodgingType).join("|") : ""),
@@ -883,7 +936,12 @@ export function PublishWizardPage() {
     const resumed = normalizePersistedDraft(st.resumeDraft);
     setDraft(resumed);
     markAutosaveBaseline(resumed);
-    if (st.resumeServerSync) setServerSync(st.resumeServerSync);
+    if (st.resumeServerSync) {
+      setServerSync(st.resumeServerSync);
+      if (st.resumeServerSync.propertyId) {
+        hydratedEditPropertyIdRef.current = st.resumeServerSync.propertyId;
+      }
+    }
     if (typeof st.resumeStep === "number" && Number.isFinite(st.resumeStep)) {
       setStep(Math.max(0, st.resumeStep));
     }
@@ -922,6 +980,7 @@ export function PublishWizardPage() {
   storageReadyRef.current = storageReady;
   const prevUserIdRef = useRef<string | null>(undefined);
   const didHydrateLocalForUserRef = useRef<string | null>(null);
+  const hydratedEditPropertyIdRef = useRef<string | null>(null);
 
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runAutosaveRef = useRef<() => Promise<ServerSync | null>>(async () => null);
@@ -949,23 +1008,25 @@ export function PublishWizardPage() {
   useEffect(() => {
     if (me === undefined) return;
     const claimToken = assistedDraftTokenRef.current || searchParams.get("borrador")?.trim();
-    // Assisted-draft / resume-state path: keep the claim draft instead of resetting.
-    if (resumeStateAppliedRef.current || claimToken) {
+    const resumeQuery = hasWizardResumeQuery(searchParams);
+    // Assisted-draft / resume-state / in-progress URL: keep the draft instead of resetting.
+    if (resumeStateAppliedRef.current || claimToken || resumeQuery) {
       const fromResume = resumeStateAppliedRef.current;
       resumeStateAppliedRef.current = false;
       if (me?.id) didHydrateLocalForUserRef.current = me.id;
       if (claimToken) writeAssistedDraftClaimToken(claimToken);
-      if (fromResume) setStorageReady(true);
+      if (fromResume || claimToken || resumeQuery) setStorageReady(true);
       return;
     }
     if (!me) {
       prevUserIdRef.current = null;
       didHydrateLocalForUserRef.current = null;
-      setStorageReady(false);
+      setStorageReady(true);
       setEditingLiveProperty(null);
       setEditPostModeLock(null);
       setLiveEditEditingPhotos(false);
       clearLiveEditSession();
+      clearWizardResumeSnapshot();
       setDraft(defaultDraft());
       setServerSync({ propertyId: null, roomIds: [] });
       setStep(0);
@@ -986,13 +1047,14 @@ export function PublishWizardPage() {
     didHydrateLocalForUserRef.current = uid;
     clearLegacyWizardDraftStorage();
     clearLiveEditSession();
+    clearWizardResumeSnapshot();
     setLiveEditEditingPhotos(false);
     setDraft(defaultDraft());
     setServerSync({ propertyId: null, roomIds: [] });
     setStep(0);
     resetAutosaveUiState();
     setStorageReady(true);
-  }, [me, editPropertyId, handoffToken, assistedDraftToken]);
+  }, [me, editPropertyId, handoffToken, assistedDraftToken, searchParams]);
 
   const claimHydrateLock = useRef(false);
   useEffect(() => {
@@ -1173,8 +1235,20 @@ export function PublishWizardPage() {
   }
 
   useEffect(() => {
-    if (!editPropertyId) return;
+    if (!editPropertyId) {
+      return;
+    }
     if (!apiOn) return;
+
+    if (
+      hydratedEditPropertyIdRef.current &&
+      propertyMatchesEditParam(hydratedEditPropertyIdRef.current, editPropertyId)
+    ) {
+      setEditBundleReady(true);
+      setStorageReady(true);
+      return;
+    }
+
     setEditBundleReady(false);
     let cancelled = false;
     void (async () => {
@@ -1182,11 +1256,12 @@ export function PublishWizardPage() {
         const cached = readLiveEditSession();
         const preferCached =
           Boolean(cached) &&
-          cached!.propertyId === editPropertyId &&
+          propertyMatchesEditParam(cached!.propertyId, editPropertyId) &&
           (cached!.editingPhotos || Date.now() - cached!.updatedAt < 120_000);
         if (preferCached && cached) {
           if (!cancelled) {
             applyLiveEditSession(cached);
+            hydratedEditPropertyIdRef.current = cached.propertyId;
             const sessionUser = await authMe();
             if (sessionUser?.id) didHydrateLocalForUserRef.current = sessionUser.id;
           }
@@ -1203,27 +1278,37 @@ export function PublishWizardPage() {
           const nextDraft = mapped.draft;
           setDraft(nextDraft);
           setServerSync(mapped.serverSync);
+          hydratedEditPropertyIdRef.current = mapped.serverSync.propertyId;
           setEditPostModeLock(mapped.draft.postMode);
           markAutosaveBaseline(nextDraft);
 
           const srvRooms = [...bundle.rooms].sort((a, b) => a.sortOrder - b.sortOrder);
           let previewIdx = 0;
           if (editListingId) {
-            const found = srvRooms.findIndex((r) => r.id === editListingId);
+            const found = srvRooms.findIndex((r) => roomMatchesEditParam(r.id, editListingId));
             if (found >= 0) previewIdx = found;
           }
           setPreviewRoomIndex(previewIdx);
+          const matchedRoom =
+            editListingId ? srvRooms.find((r) => roomMatchesEditParam(r.id, editListingId)) : undefined;
           const returnId =
-            (editListingId && srvRooms.some((r) => r.id === editListingId)
-              ? editListingId
-              : srvRooms[previewIdx]?.id) ?? srvRooms.find((r) => r.status === "published")?.id ?? srvRooms[0]?.id ?? null;
+            matchedRoom?.id ??
+            srvRooms[previewIdx]?.id ??
+            srvRooms.find((r) => r.status === "published")?.id ??
+            srvRooms[0]?.id ??
+            null;
           setLiveEditReturnListingId(returnId);
           const scope: "property" | "room" =
             editListingId || nextDraft.postMode !== "property" ? "room" : "property";
           setLiveEditScope(scope);
 
+          const urlStep = readWizardPasoIndex(searchParams);
           if (ps === "published" || ps === "paused") {
             setStep(publishWizardLastStepIndex(nextDraft.postMode));
+          } else if (urlStep != null) {
+            setStep(urlStep);
+          } else if (typeof bundle.property.wizardStep === "number") {
+            setStep(bundle.property.wizardStep);
           } else {
             setStep(resumeStepForDraft(nextDraft));
           }
@@ -1235,8 +1320,8 @@ export function PublishWizardPage() {
                 : null,
             );
             writeLiveEditSession({
-              propertyId: editPropertyId,
-              roomId: editListingId,
+              propertyId: mapped.serverSync.propertyId ?? editPropertyId,
+              roomId: matchedRoom?.id ?? editListingId,
               scope,
               status: ps,
               draft: nextDraft,
@@ -1269,7 +1354,7 @@ export function PublishWizardPage() {
     return () => {
       cancelled = true;
     };
-  }, [apiOn, editPropertyId, editListingId]);
+  }, [apiOn, editPropertyId, editListingId, searchParams]);
 
   useEffect(() => {
     if (!editingLiveProperty) return;
@@ -1393,7 +1478,7 @@ export function PublishWizardPage() {
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
     if (!isListingsApiConfigured()) return null;
     const claimToken = assistedDraftTokenRef.current;
-    if (!claimToken && (!meRef.current?.id || !storageReadyRef.current)) {
+    if (!claimToken && !storageReadyRef.current) {
       setAutosaveNote("idle");
       return null;
     }
@@ -1475,6 +1560,9 @@ export function PublishWizardPage() {
       lastSavedSignatureRef.current = syncedSig;
       serverSyncRef.current = synced.serverSync;
       setServerSync(synced.serverSync);
+      if (synced.serverSync.propertyId) {
+        hydratedEditPropertyIdRef.current = synced.serverSync.propertyId;
+      }
 
       // Avoid clobbering concurrent edits; only apply server-normalized draft when still in sync.
       if (wizardAutosaveSignature(draftRef.current) === beforeSig && syncedSig !== beforeSig) {
@@ -1524,7 +1612,6 @@ export function PublishWizardPage() {
 
   useEffect(() => {
     if (!apiOn || !storageReady) return;
-    if (!meRef.current?.id && !assistedDraftTokenRef.current) return;
     if (isFreshDefaultDraft(draftRef.current)) return;
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     const delay = assistedDraftTokenRef.current ? 400 : WIZARD_AUTOSAVE_DEBOUNCE_MS;
@@ -1548,6 +1635,61 @@ export function PublishWizardPage() {
       step,
     });
   }, [assistedDraftToken, draft, serverSync, step, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    if (
+      isFreshDefaultDraft(draft) &&
+      step === 0 &&
+      !serverSync.propertyId &&
+      !assistedDraftToken
+    ) {
+      return;
+    }
+    writeWizardResumeSnapshot({
+      draft,
+      serverSync,
+      step,
+      updatedAt: Date.now(),
+    });
+  }, [assistedDraftToken, draft, serverSync, step, storageReady]);
+
+  const wizardHasProgress =
+    !isFreshDefaultDraft(draft) ||
+    step > 0 ||
+    Boolean(serverSync.propertyId) ||
+    Boolean(assistedDraftToken);
+
+  useEffect(() => {
+    if (!storageReady || !wizardHasProgress) return;
+    setSearchParams(
+      (prev) => {
+        const next = applyWizardResumeSearchParams(prev, {
+          propertyId: assistedDraftToken ? null : serverSync.propertyId,
+          stepIndex: step,
+          roomId: editingLiveProperty
+            ? (editListingId || liveEditReturnListingId)
+            : undefined,
+          assistedDraftToken,
+        });
+        return next.toString() === prev.toString() ? prev : next;
+      },
+      {
+        replace: true,
+        state: withMyListingsReturn(null, myListingsReturnRef.current) ?? null,
+      },
+    );
+  }, [
+    assistedDraftToken,
+    editListingId,
+    editingLiveProperty,
+    liveEditReturnListingId,
+    serverSync.propertyId,
+    setSearchParams,
+    step,
+    storageReady,
+    wizardHasProgress,
+  ]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -2484,7 +2626,6 @@ export function PublishWizardPage() {
 
   /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */
   const publishModeParam = searchParams.get("publishMode");
-  const publishStepParam = searchParams.get("publishStep");
 
   useEffect(() => {
     if (publishModeParam !== "room" && publishModeParam !== "property") return;
@@ -2523,11 +2664,10 @@ export function PublishWizardPage() {
   }, [publishModeParam, editPostModeLock]);
 
   useEffect(() => {
-    if (publishStepParam == null || publishStepParam === "") return;
-    const n = Number.parseInt(publishStepParam, 10);
-    if (!Number.isFinite(n) || n < 0) return;
+    const n = readWizardPasoIndex(searchParams);
+    if (n == null) return;
     setStep(Math.min(n, maxStepIndex));
-  }, [publishStepParam, maxStepIndex]);
+  }, [searchParams, maxStepIndex]);
 
   useLayoutEffect(() => {
     if (step !== safeStep) {
@@ -2718,6 +2858,7 @@ export function PublishWizardPage() {
 
         setEditingLiveProperty(null);
         clearLiveEditSession();
+        clearWizardResumeSnapshot();
         const successPropertyId = serverSyncRef.current.propertyId;
         const shareScope =
           draftRef.current.postMode === "property" && successPropertyId ? "property" : "room";
@@ -2844,7 +2985,7 @@ export function PublishWizardPage() {
 
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        {apiOn && (me || assistedDraftToken) && autosaveTimeLabel ? (
+        {apiOn && autosaveTimeLabel ? (
           <WizardAutosaveIndicator
             lastSavedAt={lastAutosavedAt}
             flashKey={autosaveFlashKey}
@@ -3000,7 +3141,7 @@ export function PublishWizardPage() {
   const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
-      {apiOn && (me || assistedDraftToken) && autosaveTimeLabel ? (
+      {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
           flashKey={autosaveFlashKey}

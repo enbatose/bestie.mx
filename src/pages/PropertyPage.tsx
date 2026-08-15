@@ -13,7 +13,7 @@ import {
   isListingsApiConfigured,
 } from "@/lib/listingsApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { listingPublicPath, propertyPublicPath, propertyReferenceCode } from "@/lib/listingReference";
+import { listingPublicPath, propertyPublicPath, propertyReferenceCode, publishWizardEditPath } from "@/lib/listingReference";
 import {
   buildMyListingsRestorePath,
   myListingsNavigationState,
@@ -277,7 +277,7 @@ export function PropertyPage() {
   const ownerActions =
     listing.viewerIsOwner && property.status === "published" ? (
       <Link
-        to={`/publicar?edit=${encodeURIComponent(property.id)}`}
+        to={publishWizardEditPath(property.id)}
         state={
           myListingsReturn
             ? myListingsNavigationState(myListingsReturn)

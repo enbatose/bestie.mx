@@ -51,4 +51,14 @@ describe("routeSeo", () => {
     const faq = injectRouteSeo(shell, resolveRouteSeo("/faq")!, "https://www.bestie.mx");
     expect(faq).toContain('property="og:image" content="https://www.bestie.mx/brand/og-default.jpg"');
   });
+
+  it("marks /publicar as noindex with a canonical that ignores query drafts", () => {
+    const seo = resolveRouteSeo("/publicar")!;
+    expect(seo.canonicalPath).toBe("/publicar");
+    expect(seo.noindex).toBe(true);
+    const shell = `<!doctype html><html><head><title>Old</title></head><body></body></html>`;
+    const out = injectRouteSeo(shell, seo, "https://www.bestie.mx");
+    expect(out).toContain('rel="canonical" href="https://www.bestie.mx/publicar"');
+    expect(out).toContain('name="robots" content="noindex, nofollow"');
+  });
 });

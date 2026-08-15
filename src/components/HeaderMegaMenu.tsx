@@ -23,6 +23,7 @@ import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import type { NotificationItem } from "@/lib/notificationsApi";
 import { UserAvatar } from "@/components/UserAvatar";
+import { publicarNavPath } from "@/lib/publishWizard/wizardResumeUrl";
 
 const HOME_PUBLISH_NUDGE_DELAY_MS = 3_000;
 const HOME_PUBLISH_MOBILE_LABEL_MS = 7_000;
@@ -339,6 +340,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
   const notificationsRef = useRef<HTMLDivElement>(null);
   const hasUnreadMessages = unreadCount > 0;
   const isHome = location.pathname === "/";
+  const publicarHref = publicarNavPath(location.pathname, location.search);
 
   const dismissNav = useCallback(() => {
     setAvatarOpen(false);
@@ -468,7 +470,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <Search className="h-4 w-4 shrink-0" aria-hidden />
         Buscar
       </NavLink>
-      <NavLink to="/publicar" className={desktopNavClass} onClick={dismissNav}>
+      <NavLink to={publicarHref} className={desktopNavClass} onClick={dismissNav}>
         <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
         Publicar
       </NavLink>
@@ -578,7 +580,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <Search className="h-4 w-4 shrink-0" aria-hidden />
         Buscar
       </NavLink>
-      <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>
+      <NavLink to={publicarHref} className={mobileNavClass} onClick={dismissNav}>
         <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
         Publicar
       </NavLink>
@@ -619,7 +621,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
         <Search className="h-4 w-4 shrink-0" aria-hidden />
         Buscar
       </NavLink>
-      <NavLink to="/publicar" className={mobileNavClass} onClick={dismissNav}>
+      <NavLink to={publicarHref} className={mobileNavClass} onClick={dismissNav}>
         <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
         Publicar
       </NavLink>
@@ -672,7 +674,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           Buscar
         </NavLink>
         <span className="relative hidden overflow-visible md:inline-flex">
-          <NavLink to="/publicar" className={(props) => `${primaryNavClass(props)} inline-flex`}>
+          <NavLink to={publicarHref} className={(props) => `${primaryNavClass(props)} inline-flex`}>
             <CirclePlus className="h-4 w-4 shrink-0" aria-hidden />
             Publicar
           </NavLink>
@@ -694,7 +696,7 @@ export function HeaderMegaMenu({ me, unreadCount, onAuthChange, iconGapPx = 0 }:
           <Search className="h-5 w-5 shrink-0" aria-hidden />
         </NavLink>
         <NavLink
-          to="/publicar"
+          to={publicarHref}
           data-header-action="true"
           className={(props) =>
             [

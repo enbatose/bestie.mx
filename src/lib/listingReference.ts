@@ -19,6 +19,58 @@ export function roomReferenceCode(roomId: string): string {
   return `A${listingReferenceId(roomId)}`;
 }
 
+export function parseRoomReferenceSuffix(param: string): string | null {
+  const t = param.trim();
+  const m = t.match(ROOM_REF_PATTERN) ?? t.match(LEGACY_ROOM_REF_PATTERN);
+  return m ? m[1]!.toUpperCase() : null;
+}
+
+export function parsePropertyReferenceSuffix(param: string): string | null {
+  const t = param.trim();
+  const m = t.match(PROPERTY_REF_PATTERN) ?? t.match(LEGACY_PROPERTY_REF_PATTERN);
+  return m ? m[1]!.toUpperCase() : null;
+}
+
+/** Short code for wizard URLs (`P550E8400`). Accepts a UUID or an already-short code. */
+export function wizardPropertyEditCode(propertyId: string): string {
+  const t = propertyId.trim();
+  if (parsePropertyReferenceSuffix(t)) return t.toUpperCase().replace(/^BES-P-/i, "P");
+  return propertyReferenceCode(t);
+}
+
+/** Short code for wizard room query (`A550E8400`). */
+export function wizardRoomEditCode(roomId: string): string {
+  const t = roomId.trim();
+  if (parseRoomReferenceSuffix(t)) return t.toUpperCase().replace(/^BES-A-/i, "A");
+  return roomReferenceCode(t);
+}
+
+export function propertyMatchesEditParam(propertyId: string, editParam: string): boolean {
+  const t = editParam.trim();
+  if (!t || !propertyId) return false;
+  if (t === propertyId) return true;
+  const suffix = parsePropertyReferenceSuffix(t);
+  if (suffix) return listingReferenceId(propertyId) === suffix;
+  return listingReferenceId(t) === listingReferenceId(propertyId);
+}
+
+export function roomMatchesEditParam(roomId: string, roomParam: string): boolean {
+  const t = roomParam.trim();
+  if (!t || !roomId) return false;
+  if (t === roomId) return true;
+  const suffix = parseRoomReferenceSuffix(t);
+  if (suffix) return listingReferenceId(roomId) === suffix;
+  return listingReferenceId(t) === listingReferenceId(roomId);
+}
+
+/** `/publicar?edit=P…` (optional `&room=A…`). */
+export function publishWizardEditPath(propertyId: string, roomId?: string | null): string {
+  const params = new URLSearchParams();
+  params.set("edit", wizardPropertyEditCode(propertyId));
+  if (roomId) params.set("room", wizardRoomEditCode(roomId));
+  return `/publicar?${params.toString()}`;
+}
+
 export function isListingReferenceCode(param: string): boolean {
   const t = param.trim();
   return (

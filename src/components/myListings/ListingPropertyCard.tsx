@@ -27,6 +27,7 @@ import {
   listingPublicPath,
   propertyPublicPath,
   propertyReferenceCode,
+  publishWizardEditPath,
   roomReferenceCode,
 } from "@/lib/listingReference";
 import { messagesInboxPath, messagesInboxSearchQuery } from "@/lib/messagesApi";
@@ -109,7 +110,7 @@ export function ListingPropertyCard({
   const propRef = propertyReferenceCode(propertyId);
 
   // For a property post, "Ver" opens the property hub URL (`/propiedad/P…`).
-  const editPath = `/publicar?edit=${encodeURIComponent(propertyId)}`;
+  const editPath = publishWizardEditPath(propertyId);
   // Property posts share/open via `/propiedad/…` so social scrapers get property-level OG
   // (cover, price range, room count). Room posts use `/anuncio/…`.
   const publicPath = isProperty

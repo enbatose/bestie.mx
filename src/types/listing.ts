@@ -93,6 +93,8 @@ export type Property = {
   /** Reported occupants in existing rooms (wizard). */
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  /** 0-based publish wizard step when the listing is still a draft. */
+  wizardStep?: number | null;
   /** Rooms on the property (populated when loading `PropertyWithRooms`). */
   rooms?: Room[];
 };
