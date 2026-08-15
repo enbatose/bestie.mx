@@ -43,7 +43,14 @@ import {
 } from "@/lib/myListingsReturn";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { ShareAiCopyPanel } from "@/components/share/ShareAiCopyPanel";
-import { publishAssistedDraftClaim } from "@/lib/assistedDraftApi";
+import { publishAssistedDraftClaim, activateAssistedDraftClaim, fetchAssistedDraftClaim } from "@/lib/assistedDraftApi";
+import { claimInfoToBundle } from "@/lib/assistedDraftClaim";
+import {
+  clearAssistedDraftClaimSession,
+  readAssistedDraftClaimSession,
+  writeAssistedDraftClaimSession,
+  writeAssistedDraftClaimToken,
+} from "@/lib/publishWizard/assistedDraftClaimSession";
 import { PublishFeedbackPanel } from "@/components/feedback/PublishFeedbackPanel";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
@@ -81,6 +88,7 @@ import {
   validateWizardStepByTitle,
   wizardContactDigits,
   publishDraftFromWizard,
+  syncAssistedDraftClaimToServer,
   syncDraftToServer,
   PROPERTY_SUMMARY_MIN,
   PROPERTY_SUMMARY_MAX,
@@ -758,6 +766,17 @@ type WizardResumeState = {
   assistedDraftToken?: string;
 };
 
+function readClaimTokenFromWindow(): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("borrador")?.trim() || null;
+}
+
+function loadAssistedClaimBoot(): { token: string; session: ReturnType<typeof readAssistedDraftClaimSession> } | null {
+  const token = readClaimTokenFromWindow();
+  if (!token) return null;
+  return { token, session: readAssistedDraftClaimSession(token) };
+}
+
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -797,10 +816,17 @@ export function PublishWizardPage() {
   const [liveEditScope, setLiveEditScope] = useState<"property" | "room" | null>(null);
   const [liveEditEditingPhotos, setLiveEditEditingPhotos] = useState(false);
   const apiOn = isListingsApiConfigured();
-  const [step, setStep] = useState(0);
+  const [assistedBoot] = useState(loadAssistedClaimBoot);
+  const [step, setStep] = useState(() =>
+    typeof assistedBoot?.session?.step === "number" ? assistedBoot.session.step : 0,
+  );
   const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
-  const [draft, setDraft] = useState<Draft>(() => defaultDraft());
-  const [serverSync, setServerSync] = useState<ServerSync>(() => ({ propertyId: null, roomIds: [] }));
+  const [draft, setDraft] = useState<Draft>(() =>
+    assistedBoot?.session ? normalizePersistedDraft(assistedBoot.session.draft) : defaultDraft(),
+  );
+  const [serverSync, setServerSync] = useState<ServerSync>(
+    () => assistedBoot?.session?.serverSync ?? { propertyId: null, roomIds: [] },
+  );
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [publishSuccessRoomId, setPublishSuccessRoomId] = useState<string | null>(null);
   const [publishSuccessPath, setPublishSuccessPath] = useState<string | null>(null);
@@ -809,7 +835,9 @@ export function PublishWizardPage() {
     "room",
   );
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
-  const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(null);
+  const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(
+    () => assistedBoot?.token ?? null,
+  );
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -817,7 +845,7 @@ export function PublishWizardPage() {
   const [autosaveFlashKey, setAutosaveFlashKey] = useState(0);
   const [showAutosaveRing, setShowAutosaveRing] = useState(false);
   /** Avoid writing default/empty draft to localStorage before per-user hydration (or API bootstrap) finishes. */
-  const [storageReady, setStorageReady] = useState(false);
+  const [storageReady, setStorageReady] = useState(() => Boolean(assistedBoot?.session));
   /** Single reverse-geocode result for the pin; privacy mode derives a shorter label from `address`, same coordinates. */
   const [mapGeocode, setMapGeocode] = useState<{
     displayFull: string;
@@ -861,10 +889,20 @@ export function PublishWizardPage() {
     }
     if (typeof st.assistedDraftToken === "string" && st.assistedDraftToken) {
       setAssistedDraftToken(st.assistedDraftToken);
+      writeAssistedDraftClaimToken(st.assistedDraftToken);
+      writeAssistedDraftClaimSession({
+        token: st.assistedDraftToken,
+        draft: resumed,
+        serverSync: st.resumeServerSync ?? { propertyId: null, roomIds: [] },
+        step: typeof st.resumeStep === "number" ? st.resumeStep : publishWizardLastStepIndex(resumed.postMode),
+      });
     }
     // Signal the auth effect to skip its reset — we already have the correct draft/step.
     resumeStateAppliedRef.current = true;
-    navigate(`${location.pathname}${location.search}`, {
+    const params = new URLSearchParams(location.search);
+    if (st.assistedDraftToken) params.set("borrador", st.assistedDraftToken);
+    const search = params.toString();
+    navigate(`${location.pathname}${search ? `?${search}` : ""}`, {
       replace: true,
       state: withMyListingsReturn(null, myListingsReturn) ?? null,
     });
@@ -910,12 +948,14 @@ export function PublishWizardPage() {
 
   useEffect(() => {
     if (me === undefined) return;
-    // Assisted-draft / resume-state path: the resume effect already set the correct
-    // draft and step. Skip the reset that would otherwise overwrite them.
-    if (resumeStateAppliedRef.current) {
+    const claimToken = assistedDraftTokenRef.current || searchParams.get("borrador")?.trim();
+    // Assisted-draft / resume-state path: keep the claim draft instead of resetting.
+    if (resumeStateAppliedRef.current || claimToken) {
+      const fromResume = resumeStateAppliedRef.current;
       resumeStateAppliedRef.current = false;
       if (me?.id) didHydrateLocalForUserRef.current = me.id;
-      setStorageReady(true);
+      if (claimToken) writeAssistedDraftClaimToken(claimToken);
+      if (fromResume) setStorageReady(true);
       return;
     }
     if (!me) {
@@ -952,7 +992,64 @@ export function PublishWizardPage() {
     setStep(0);
     resetAutosaveUiState();
     setStorageReady(true);
-  }, [me, editPropertyId, handoffToken]);
+  }, [me, editPropertyId, handoffToken, assistedDraftToken]);
+
+  const claimHydrateLock = useRef(false);
+  useEffect(() => {
+    const token =
+      searchParams.get("borrador")?.trim() || assistedDraftToken;
+    if (!token) return;
+    setAssistedDraftToken(token);
+    writeAssistedDraftClaimToken(token);
+    if (claimHydrateLock.current) return;
+    if (assistedBoot?.session || resumeStateAppliedRef.current) {
+      claimHydrateLock.current = true;
+      setStorageReady(true);
+      return;
+    }
+    claimHydrateLock.current = true;
+    const cached = readAssistedDraftClaimSession(token);
+    if (cached) {
+      const nextDraft = normalizePersistedDraft(cached.draft);
+      setDraft(nextDraft);
+      setServerSync(cached.serverSync);
+      if (typeof cached.step === "number") setStep(cached.step);
+      markAutosaveBaseline(nextDraft);
+      setStorageReady(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        try {
+          await activateAssistedDraftClaim(token);
+        } catch {
+          /* already activated */
+        }
+        const info = await fetchAssistedDraftClaim(token);
+        if (cancelled || info.isClaimed) return;
+        const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
+        const nextDraft = mapped.draft;
+        const resumeStep = publishWizardLastStepIndex(nextDraft.postMode);
+        setDraft(nextDraft);
+        setServerSync(mapped.serverSync);
+        setStep(resumeStep);
+        markAutosaveBaseline(nextDraft);
+        writeAssistedDraftClaimSession({
+          token,
+          draft: nextDraft,
+          serverSync: mapped.serverSync,
+          step: resumeStep,
+        });
+        setStorageReady(true);
+      } catch {
+        if (!cancelled) setStorageReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [assistedBoot?.session, assistedDraftToken, searchParams]);
 
   useEffect(() => {
     if (!handoffToken) {
@@ -1295,7 +1392,12 @@ export function PublishWizardPage() {
 
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
     if (!isListingsApiConfigured()) return null;
-    if (!meRef.current?.id || !storageReadyRef.current) {
+    const claimToken = assistedDraftTokenRef.current;
+    if (!claimToken && (!meRef.current?.id || !storageReadyRef.current)) {
+      setAutosaveNote("idle");
+      return null;
+    }
+    if (claimToken && !storageReadyRef.current) {
       setAutosaveNote("idle");
       return null;
     }
@@ -1326,6 +1428,43 @@ export function PublishWizardPage() {
 
     try {
       setAutosaveNote("saving");
+      if (claimToken) {
+        const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, d);
+        if (generation !== autosaveGenerationRef.current) {
+          return serverSyncRef.current;
+        }
+        const syncedSig = wizardAutosaveSignature(syncedDraft);
+        lastSavedSignatureRef.current = syncedSig;
+        if (wizardAutosaveSignature(draftRef.current) === beforeSig && syncedSig !== beforeSig) {
+          setDraft(syncedDraft);
+        }
+        writeAssistedDraftClaimSession({
+          token: claimToken,
+          draft: syncedDraft,
+          serverSync: serverSyncRef.current,
+          step,
+        });
+        setAutosaveNote("saved");
+        setLastAutosavedAt(Date.now());
+        const now = Date.now();
+        const shouldFlash =
+          lastIndicatorFlashAtRef.current === 0 ||
+          now - lastIndicatorFlashAtRef.current >= WIZARD_AUTOSAVE_INDICATOR_MIN_MS;
+        if (shouldFlash) {
+          lastIndicatorFlashAtRef.current = now;
+          setAutosaveFlashKey((k) => k + 1);
+          setShowAutosaveRing(true);
+          if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
+          autosaveRingTimerRef.current = window.setTimeout(() => {
+            setShowAutosaveRing(false);
+            autosaveRingTimerRef.current = null;
+          }, WIZARD_AUTOSAVE_RING_MS);
+        }
+        window.setTimeout(() => {
+          setAutosaveNote((n) => (n === "saved" ? "idle" : n));
+        }, 2000);
+        return serverSyncRef.current.propertyId ? serverSyncRef.current : null;
+      }
       const synced = await syncDraftToServer(d, serverSyncRef.current, meRef.current?.phoneE164, {
         wizardStep: step,
       });
@@ -1385,17 +1524,30 @@ export function PublishWizardPage() {
 
   useEffect(() => {
     if (!apiOn || !storageReady) return;
-    if (!meRef.current?.id) return;
+    if (!meRef.current?.id && !assistedDraftTokenRef.current) return;
     if (isFreshDefaultDraft(draftRef.current)) return;
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    const delay = assistedDraftTokenRef.current ? 400 : WIZARD_AUTOSAVE_DEBOUNCE_MS;
     autosaveTimerRef.current = setTimeout(() => {
       autosaveTimerRef.current = null;
       void runAutosaveRef.current();
-    }, WIZARD_AUTOSAVE_DEBOUNCE_MS);
+    }, delay);
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [draft, apiOn, me?.id, storageReady, step]);
+  }, [draft, apiOn, me?.id, storageReady, step, assistedDraftToken]);
+
+  useEffect(() => {
+    const token = assistedDraftToken;
+    if (!token || !storageReady) return;
+    if (isFreshDefaultDraft(draft)) return;
+    writeAssistedDraftClaimSession({
+      token,
+      draft,
+      serverSync,
+      step,
+    });
+  }, [assistedDraftToken, draft, serverSync, step, storageReady]);
 
   function updateRoom(i: number, patch: Partial<RoomDraft>) {
     setDraft((d) => ({
@@ -2412,26 +2564,26 @@ export function PublishWizardPage() {
         return;
       }
       if (!me) {
-        // Sync latest edits so the server draft is up-to-date before auth redirect
+        // Persist edits with the claim token so refresh / sign-in keep renta and other fields.
         setSubmitInFlight("draft");
         try {
           if (apiOn) {
-            const synced = await syncDraftToServer(
-              draftRef.current,
-              serverSyncRef.current,
-              undefined,
-              { wizardStep: step },
-            );
-            serverSyncRef.current = synced.serverSync;
-            setServerSync(synced.serverSync);
-            setDraft(synced.draft);
-            markAutosaveBaseline(synced.draft, { touchUi: true });
+            const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, draftRef.current);
+            setDraft(syncedDraft);
+            markAutosaveBaseline(syncedDraft, { touchUi: true });
+            writeAssistedDraftClaimSession({
+              token: claimToken,
+              draft: syncedDraft,
+              serverSync: serverSyncRef.current,
+              step,
+            });
           }
         } catch {
-          // Best-effort — proceed to auth even if sync failed
-        } finally {
+          setPublishErr("No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo.");
           setSubmitInFlight(null);
+          return;
         }
+        setSubmitInFlight(null);
         openAuthModal(`/borrador/${claimToken}?publish=1`);
         return;
       }
@@ -2439,14 +2591,12 @@ export function PublishWizardPage() {
       setSubmitInFlight("publish");
       try {
         if (apiOn) {
-          await syncDraftToServer(
-            draftRef.current,
-            serverSyncRef.current,
-            meRef.current?.phoneE164,
-            { wizardStep: step },
-          );
+          const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, draftRef.current);
+          setDraft(syncedDraft);
+          markAutosaveBaseline(syncedDraft, { touchUi: true });
         }
         await publishAssistedDraftClaim(claimToken);
+        clearAssistedDraftClaimSession(claimToken);
         navigate("/mis-anuncios", { replace: true });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "No se pudo publicar.";
@@ -2694,7 +2844,7 @@ export function PublishWizardPage() {
 
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        {apiOn && me && autosaveTimeLabel ? (
+        {apiOn && (me || assistedDraftToken) && autosaveTimeLabel ? (
           <WizardAutosaveIndicator
             lastSavedAt={lastAutosavedAt}
             flashKey={autosaveFlashKey}
@@ -2735,7 +2885,14 @@ export function PublishWizardPage() {
             draft={draft}
             roomIndex={reviewRoomIndex}
             onRoomIndexChange={setPreviewRoomIndex}
-            onDraftChange={(updater) => setDraft((d) => syncDraftPhotoFields(updater(d)))}
+            onDraftChange={(updater) => {
+              setDraft((d) => {
+                const next = syncDraftPhotoFields(updater(d));
+                draftRef.current = next;
+                return next;
+              });
+              void flushWizardAutosave();
+            }}
             apiOn={apiOn}
             profilePhoneE164={me?.phoneE164}
             publishBlockedReason={publishBlockedReason}
@@ -2843,7 +3000,7 @@ export function PublishWizardPage() {
   const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
-      {apiOn && me && autosaveTimeLabel ? (
+      {apiOn && (me || assistedDraftToken) && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
           flashKey={autosaveFlashKey}
@@ -2929,7 +3086,14 @@ export function PublishWizardPage() {
               draft={draft}
               roomIndex={Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))}
               onRoomIndexChange={setPreviewRoomIndex}
-              onDraftChange={(updater) => setDraft((d) => syncDraftPhotoFields(updater(d)))}
+              onDraftChange={(updater) => {
+              setDraft((d) => {
+                const next = syncDraftPhotoFields(updater(d));
+                draftRef.current = next;
+                return next;
+              });
+              void flushWizardAutosave();
+            }}
               apiOn={apiOn}
               profilePhoneE164={me?.phoneE164}
               publishBlockedReason={publishBlockedReason}

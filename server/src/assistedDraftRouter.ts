@@ -9,9 +9,41 @@ import { issuePublisherCookie } from "./session.js";
 import { extractListingDataWithGemini, type ExtractionInput, type AssistedDraftExtraction } from "./assistedDraftGemini.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
+import { isListingTag } from "./listingTags.js";
+import {
+  clampAge,
+  clampApproximateRadiusMeters,
+  clampBathrooms,
+  clampBedroomsTotal,
+  clampDepositMxn,
+  clampListingImageUrls,
+  clampRentMxn,
+  clampStr,
+  NEIGHBORHOOD_MAX_LEN,
+  ROOM_TITLE_MAX_LEN,
+  SUMMARY_MAX_LEN,
+  TITLE_MAX_LEN,
+  validLatLng,
+} from "./validation.js";
 
 const CLAIM_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const CLAIM_SAVE_OCCUPANT_MAX = 50;
+
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return value;
+}
+
+function asTrimmedString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function occupantCountOrNull(value: unknown): number | null {
+  const n = asFiniteNumber(value);
+  if (n == null) return null;
+  return Math.max(0, Math.min(CLAIM_SAVE_OCCUPANT_MAX, Math.floor(n)));
+}
 
 type AssistedDraftClaimRow = {
   token: string;
@@ -357,6 +389,243 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       ).run(Date.now(), token);
 
       res.json({ ok: true, propertyId: row.property_id, publisherId: row.orphan_publisher_id });
+    },
+  );
+
+  // ── Public: persist recipient edits before sign-in / refresh ─────────────
+  r.put(
+    "/claim/:token",
+    express.json({ limit: "1mb" }),
+    (req: Request, res: Response): void => {
+      const token = String(req.params.token ?? "").trim();
+      if (!token) { res.status(400).json({ error: "bad_token" }); return; }
+
+      const row = db.prepare(
+        `SELECT * FROM assisted_draft_claim_tokens WHERE token = ?`
+      ).get(token) as AssistedDraftClaimRow | undefined;
+
+      if (!row) { res.status(404).json({ error: "not_found" }); return; }
+      if (Date.now() > row.expires_at) { res.status(410).json({ error: "expired" }); return; }
+      if (row.claimed_by_user_id != null) {
+        res.status(409).json({ error: "already_claimed" }); return;
+      }
+
+      const prop = db.prepare(
+        `SELECT * FROM properties WHERE id = ?`
+      ).get(row.property_id) as PropertyRow | undefined;
+      if (!prop || Number(prop.assisted_draft) !== 1) {
+        res.status(404).json({ error: "property_not_found" }); return;
+      }
+      if (prop.status !== "draft") {
+        res.status(409).json({ error: "not_draft" }); return;
+      }
+
+      const body = req.body as {
+        property?: Record<string, unknown>;
+        rooms?: Array<Record<string, unknown>>;
+      };
+      const propertyPatch = body.property && typeof body.property === "object" ? body.property : {};
+      const roomsPatch = Array.isArray(body.rooms) ? body.rooms : [];
+
+      const nextTitle =
+        asTrimmedString(propertyPatch.title) != null
+          ? clampStr(String(propertyPatch.title), TITLE_MAX_LEN)
+          : prop.title;
+      const nextNeighborhood =
+        asTrimmedString(propertyPatch.neighborhood) != null
+          ? clampStr(String(propertyPatch.neighborhood), NEIGHBORHOOD_MAX_LEN)
+          : prop.neighborhood;
+      const nextSummary =
+        asTrimmedString(propertyPatch.summary) != null
+          ? clampStr(String(propertyPatch.summary), SUMMARY_MAX_LEN)
+          : prop.summary;
+      const kindRaw = propertyPatch.propertyKind;
+      const nextKind =
+        kindRaw === "house" || kindRaw === "apartment" || kindRaw === "loft"
+          ? kindRaw
+          : prop.property_kind;
+      const nextBedrooms =
+        asFiniteNumber(propertyPatch.bedroomsTotal) != null
+          ? clampBedroomsTotal(Number(propertyPatch.bedroomsTotal))
+          : prop.bedrooms_total;
+      const nextBathrooms =
+        asFiniteNumber(propertyPatch.bathrooms) != null
+          ? clampBathrooms(Number(propertyPatch.bathrooms))
+          : prop.bathrooms;
+      const nextWomen =
+        propertyPatch.occupiedByWomenCount !== undefined
+          ? occupantCountOrNull(propertyPatch.occupiedByWomenCount)
+          : null;
+      const nextMen =
+        propertyPatch.occupiedByMenCount !== undefined
+          ? occupantCountOrNull(propertyPatch.occupiedByMenCount)
+          : null;
+      let nextLat = prop.lat;
+      let nextLng = prop.lng;
+      const lat = asFiniteNumber(propertyPatch.lat);
+      const lng = asFiniteNumber(propertyPatch.lng);
+      if (lat != null && lng != null && validLatLng(lat, lng)) {
+        nextLat = lat;
+        nextLng = lng;
+      }
+      const nextApprox =
+        propertyPatch.isApproximateLocation === undefined
+          ? prop.is_approximate_location
+          : propertyPatch.isApproximateLocation ? 1 : 0;
+      const nextRadius =
+        nextApprox === 0
+          ? null
+          : clampApproximateRadiusMeters(
+              propertyPatch.approximateRadiusMeters !== undefined
+                ? propertyPatch.approximateRadiusMeters
+                : prop.approximate_radius_m,
+            );
+      const nextImagesJson =
+        propertyPatch.imageUrls !== undefined
+          ? JSON.stringify(clampListingImageUrls(propertyPatch.imageUrls))
+          : prop.image_urls_json;
+
+      db.prepare(`
+        UPDATE properties SET
+          title = ?, neighborhood = ?, summary = ?, property_kind = ?,
+          bedrooms_total = ?, bathrooms = ?,
+          occupied_by_women = COALESCE(?, occupied_by_women),
+          occupied_by_men = COALESCE(?, occupied_by_men),
+          lat = ?, lng = ?,
+          is_approximate_location = ?, approximate_radius_m = ?,
+          image_urls_json = ?
+        WHERE id = ?
+      `).run(
+        nextTitle,
+        nextNeighborhood,
+        nextSummary,
+        nextKind,
+        nextBedrooms,
+        nextBathrooms,
+        nextWomen,
+        nextMen,
+        nextLat,
+        nextLng,
+        nextApprox,
+        nextRadius,
+        nextImagesJson,
+        prop.id,
+      );
+
+      const existingRooms = db.prepare(
+        `SELECT id FROM rooms WHERE property_id = ? ORDER BY sort_order`
+      ).all(prop.id) as { id: string }[];
+      const existingIds = new Set(existingRooms.map((room) => room.id));
+      const now = new Date().toISOString();
+
+      for (const roomPatch of roomsPatch) {
+        if (!roomPatch || typeof roomPatch !== "object") continue;
+        const requestedId = asTrimmedString(roomPatch.id);
+        const roomId =
+          requestedId && existingIds.has(requestedId)
+            ? requestedId
+            : existingRooms.length === 1
+              ? existingRooms[0]!.id
+              : null;
+        if (!roomId) continue;
+
+        const roomRow = db.prepare(
+          `SELECT * FROM rooms WHERE id = ? AND property_id = ?`
+        ).get(roomId, prop.id) as Record<string, unknown> | undefined;
+        if (!roomRow) continue;
+
+        const title =
+          asTrimmedString(roomPatch.title) != null
+            ? clampStr(String(roomPatch.title), ROOM_TITLE_MAX_LEN) || String(roomRow.title ?? "")
+            : String(roomRow.title ?? "");
+        const summary =
+          asTrimmedString(roomPatch.summary) != null
+            ? clampStr(String(roomPatch.summary), SUMMARY_MAX_LEN)
+            : String(roomRow.summary ?? "");
+        const rentMxn =
+          asFiniteNumber(roomPatch.rentMxn) != null
+            ? clampRentMxn(Number(roomPatch.rentMxn))
+            : clampRentMxn(Number(roomRow.rent_mxn));
+        const depositMxn =
+          asFiniteNumber(roomPatch.depositMxn) != null
+            ? clampDepositMxn(Number(roomPatch.depositMxn))
+            : clampDepositMxn(Number(roomRow.deposit_mxn ?? 0));
+        const prefRaw = roomPatch.roommateGenderPref;
+        const roommateGenderPref =
+          prefRaw === "any" || prefRaw === "female" || prefRaw === "male"
+            ? prefRaw
+            : String(roomRow.roommate_gender_pref ?? "any");
+        const ageMin =
+          asFiniteNumber(roomPatch.ageMin) != null
+            ? clampAge(Number(roomPatch.ageMin), 18)
+            : clampAge(Number(roomRow.age_min), 18);
+        const ageMaxRaw =
+          asFiniteNumber(roomPatch.ageMax) != null
+            ? clampAge(Number(roomPatch.ageMax), 99)
+            : clampAge(Number(roomRow.age_max), 99);
+        const ageMax = ageMaxRaw < ageMin ? ageMin : ageMaxRaw;
+        let tagsJson = String(roomRow.tags_json ?? "[]");
+        if (Array.isArray(roomPatch.tags)) {
+          const tags = roomPatch.tags.filter((tag): tag is string => typeof tag === "string" && isListingTag(tag));
+          tagsJson = JSON.stringify(tags);
+        }
+        const lodgingRaw = roomPatch.lodgingType;
+        const lodgingType =
+          lodgingRaw === "private_room" || lodgingRaw === "shared_room" || lodgingRaw === "whole_home"
+            ? lodgingRaw
+            : roomRow.lodging_type;
+        const availableFrom =
+          asTrimmedString(roomPatch.availableFrom) != null
+            ? String(roomPatch.availableFrom).slice(0, 10)
+            : roomRow.available_from;
+        const minimalStayMonths =
+          asFiniteNumber(roomPatch.minimalStayMonths) != null
+            ? Math.max(0, Math.min(36, Math.floor(Number(roomPatch.minimalStayMonths))))
+            : Number(roomRow.minimal_stay_months ?? 1);
+        const dimRaw = roomPatch.roomDimension;
+        const roomDimension =
+          dimRaw === "small" || dimRaw === "medium" || dimRaw === "large"
+            ? dimRaw
+            : roomRow.room_dimension;
+        const avalRequired =
+          roomPatch.avalRequired === undefined
+            ? Number(roomRow.aval_required ?? 0)
+            : roomPatch.avalRequired ? 1 : 0;
+        const imageUrlsJson =
+          roomPatch.imageUrls !== undefined
+            ? JSON.stringify(clampListingImageUrls(roomPatch.imageUrls))
+            : String(roomRow.image_urls_json ?? "[]");
+
+        db.prepare(`
+          UPDATE rooms SET
+            title = ?, rent_mxn = ?, deposit_mxn = ?, summary = ?, tags_json = ?,
+            roommate_gender_pref = ?, age_min = ?, age_max = ?, lodging_type = ?,
+            available_from = ?, minimal_stay_months = ?, room_dimension = ?,
+            aval_required = ?, image_urls_json = ?, updated_at = ?
+          WHERE id = ? AND property_id = ?
+        `).run(
+          title,
+          rentMxn,
+          depositMxn,
+          summary,
+          tagsJson,
+          roommateGenderPref,
+          ageMin,
+          ageMax,
+          lodgingType,
+          availableFrom,
+          minimalStayMonths,
+          roomDimension,
+          avalRequired,
+          imageUrlsJson,
+          now,
+          roomId,
+          prop.id,
+        );
+      }
+
+      issuePublisherCookie(res, row.orphan_publisher_id);
+      res.json({ ok: true, propertyId: prop.id });
     },
   );
 

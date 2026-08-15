@@ -21,6 +21,10 @@ import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import { getPosthogSessionId } from "@/lib/posthog";
+import {
+  saveAssistedDraftClaim,
+  type AssistedDraftClaimSaveBody,
+} from "@/lib/assistedDraftApi";
 
 /** Titles used in `PublishWizardPage` steps — keep in sync when renaming steps. */
 export const WIZARD_STEP_TITLES = {
@@ -414,6 +418,63 @@ export type SyncDraftMeta = {
   /** Current 0-based wizard step index. */
   wizardStep?: number;
 };
+
+export function buildAssistedDraftClaimSaveBody(draft: Draft): AssistedDraftClaimSaveBody {
+  const anchor = CITY_ANCHOR[draft.city];
+  const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
+  const { lat, lng } = resolveLatLngForDraft(draft);
+  const occupantTotals =
+    draft.postMode === "property"
+      ? derivedPropertyOccupantCounts(draft)
+      : {
+          occupiedByWomenCount: draft.occupiedByWomenCount,
+          occupiedByMenCount: draft.occupiedByMenCount,
+        };
+  return {
+    property: {
+      title: draft.propertyTitle.trim() || "Sin título",
+      city: draft.city,
+      neighborhood,
+      lat,
+      lng,
+      summary: draft.propertySummary.trim(),
+      propertyKind: draft.propertyKind,
+      bedroomsTotal: draft.propertyBedroomsTotal,
+      bathrooms: effectiveWizardPropertyBathrooms(draft),
+      occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
+      occupiedByMenCount: occupantTotals.occupiedByMenCount,
+      isApproximateLocation: draft.isApproximateLocation,
+      approximateRadiusMeters: draft.isApproximateLocation ? draft.approximateRadiusMeters : null,
+      imageUrls: draftPropertyImageUrlsForSync(draft),
+    },
+    rooms: draft.rooms.map((room, index) => {
+      const fields = roomApiFieldsFromDraft(draft, room, index);
+      return {
+        id: room.id,
+        title: fields.title,
+        rentMxn: fields.rentMxn,
+        depositMxn: fields.depositMxn,
+        summary: fields.summary,
+        tags: fields.tags,
+        roommateGenderPref: fields.roommateGenderPref,
+        ageMin: fields.ageMin,
+        ageMax: fields.ageMax,
+        lodgingType: fields.lodgingType,
+        availableFrom: fields.availableFrom,
+        minimalStayMonths: fields.minimalStayMonths,
+        roomDimension: fields.roomDimension,
+        avalRequired: fields.avalRequired,
+        imageUrls: fields.imageUrls,
+      };
+    }),
+  };
+}
+
+export async function syncAssistedDraftClaimToServer(token: string, draft: Draft): Promise<Draft> {
+  const withUploads = await ensureDraftListingImagesUploadedForApi(draft);
+  await saveAssistedDraftClaim(token, buildAssistedDraftClaimSaveBody(withUploads));
+  return withUploads;
+}
 
 export async function syncDraftToServer(
   draft: Draft,

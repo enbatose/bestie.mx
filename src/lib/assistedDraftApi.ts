@@ -128,6 +128,60 @@ export async function fetchAssistedDraftClaim(token: string): Promise<AssistedDr
   return j as AssistedDraftClaimInfo;
 }
 
+export type AssistedDraftClaimSaveBody = {
+  property?: {
+    title?: string;
+    city?: string;
+    neighborhood?: string;
+    lat?: number;
+    lng?: number;
+    summary?: string;
+    propertyKind?: "house" | "apartment" | "loft";
+    bedroomsTotal?: number;
+    bathrooms?: number;
+    occupiedByWomenCount?: number | null;
+    occupiedByMenCount?: number | null;
+    isApproximateLocation?: boolean;
+    approximateRadiusMeters?: number | null;
+    imageUrls?: string[];
+  };
+  rooms?: Array<{
+    id?: string;
+    title?: string;
+    rentMxn?: number;
+    depositMxn?: number;
+    summary?: string;
+    tags?: string[];
+    roommateGenderPref?: string;
+    ageMin?: number;
+    ageMax?: number;
+    lodgingType?: string;
+    availableFrom?: string;
+    minimalStayMonths?: number;
+    roomDimension?: string;
+    avalRequired?: boolean;
+    imageUrls?: string[];
+  }>;
+};
+
+/** Public: persist recipient edits (rent, title, etc.) before sign-in. */
+export async function saveAssistedDraftClaim(
+  token: string,
+  body: AssistedDraftClaimSaveBody,
+): Promise<{ propertyId: string }> {
+  const base = apiBase();
+  const res = await apiFetch(`${base}/api/assisted-draft/claim/${encodeURIComponent(token)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: cred,
+    body: JSON.stringify(body),
+  });
+  const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string };
+  if (!res.ok) throw new Error(j.error ?? `claim_save_${res.status}`);
+  if (!j.propertyId) throw new Error("claim_save_bad_response");
+  return { propertyId: j.propertyId };
+}
+
 /** Public: activate claim (sets orphan publisher cookie). Returns propertyId. */
 export async function activateAssistedDraftClaim(
   token: string,
