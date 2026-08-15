@@ -1,4 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+
+/** Select/date/text controls that sit beside `WizardNumberStepper` — same height, radius, and label gap. */
+export const WIZARD_FIELD_CONTROL_CLASS =
+  "mt-2 box-border h-11 w-full rounded-xl border border-border bg-surface px-3 py-0 text-sm text-body outline-none ring-accent focus:ring-2";
+
+/** Equal-height label slot so mixed grid fields keep their controls on one baseline. */
+export function WizardPairedFieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex min-h-0 items-end sm:min-h-[2.5rem]">
+      <span className="leading-snug">{children}</span>
+    </span>
+  );
+}
 
 type WizardNumberStepperProps = {
   value: number;
@@ -14,7 +27,7 @@ type WizardNumberStepperProps = {
   step?: number;
   /** Max digits while typing (e.g. 2 for ages 0–99). */
   maxInputDigits?: number;
-  /** Tighter label spacing for side-by-side wizard fields. Control size stays the same. */
+  /** Kept for call-site compatibility; size and label gap match the default control. */
   compact?: boolean;
 };
 
@@ -56,7 +69,7 @@ export function WizardNumberStepper({
   editableCenter = false,
   step = 1,
   maxInputDigits,
-  compact = false,
+  compact: _compact = false,
 }: WizardNumberStepperProps) {
   const allowDecimal = stepDecimalPlaces(step) > 0;
   const [inputStr, setInputStr] = useState(formatStepperValue(value, step));
@@ -142,9 +155,9 @@ export function WizardNumberStepper({
 
   return (
     <div
-      className={`flex h-11 w-full items-center justify-between overflow-hidden rounded-xl border border-border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0 ${
-        compact ? "mt-1" : "mt-2"
-      } ${disabled ? "opacity-70" : ""}`}
+      className={`mt-2 flex h-11 w-full items-center justify-between overflow-hidden rounded-xl border border-border bg-surface shadow-sm focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-0 ${
+        disabled ? "opacity-70" : ""
+      }`}
     >
       <button
         type="button"

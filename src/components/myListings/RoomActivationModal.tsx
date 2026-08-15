@@ -4,7 +4,11 @@ import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
-import { WizardNumberStepper } from "@/components/WizardNumberStepper";
+import {
+  WizardNumberStepper,
+  WizardPairedFieldLabel,
+  WIZARD_FIELD_CONTROL_CLASS,
+} from "@/components/WizardNumberStepper";
 import { RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
 import {
@@ -31,8 +35,7 @@ const ROOM_STAY_MAX = 36;
 const ROOM_SUMMARY_PLACEHOLDER =
   "Describe el tamaño, la iluminación, si tiene clóset, y qué incluye.";
 
-const FIELD_INPUT =
-  "mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2";
+const FIELD_INPUT = WIZARD_FIELD_CONTROL_CLASS;
 
 type Draft = {
   customName: string;
@@ -323,10 +326,12 @@ export function RoomActivationModal({
 
           <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-primary">Disponibilidad</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid items-start gap-3 sm:grid-cols-2">
               <label className="block text-sm font-medium text-body">
-                Disponible desde
-                <span className="text-error"> *</span>
+                <WizardPairedFieldLabel>
+                  Disponible desde
+                  <span className="text-error"> *</span>
+                </WizardPairedFieldLabel>
                 <input
                   type="date"
                   value={draft.availableFrom}
@@ -335,10 +340,10 @@ export function RoomActivationModal({
                 />
               </label>
               <div className="block text-sm font-medium text-body">
-                <span className="block">
+                <WizardPairedFieldLabel>
                   Estancia mín. (meses)
                   <span className="text-error"> *</span>
-                </span>
+                </WizardPairedFieldLabel>
                 <WizardNumberStepper
                   editableCenter
                   maxInputDigits={2}
@@ -355,10 +360,12 @@ export function RoomActivationModal({
 
           <div className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-primary">Perfil buscado</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid items-start gap-3 sm:grid-cols-3">
               <label className="block text-sm font-medium text-body">
-                {ROOMMATE_GENDER_PREF_FIELD_LABEL}
-                <span className="text-error"> *</span>
+                <WizardPairedFieldLabel>
+                  {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                  <span className="text-error"> *</span>
+                </WizardPairedFieldLabel>
                 <select
                   value={draft.roommateGenderPref}
                   onChange={(e) =>
@@ -373,10 +380,10 @@ export function RoomActivationModal({
                 </select>
               </label>
               <div className="block text-sm font-medium text-body">
-                <span className="block">
+                <WizardPairedFieldLabel>
                   Edad mín.
                   <span className="text-error"> *</span>
-                </span>
+                </WizardPairedFieldLabel>
                 <WizardNumberStepper
                   editableCenter
                   maxInputDigits={2}
@@ -389,10 +396,10 @@ export function RoomActivationModal({
                 />
               </div>
               <div className="block text-sm font-medium text-body">
-                <span className="block">
+                <WizardPairedFieldLabel>
                   Edad máx.
                   <span className="text-error"> *</span>
-                </span>
+                </WizardPairedFieldLabel>
                 <WizardNumberStepper
                   editableCenter
                   maxInputDigits={2}

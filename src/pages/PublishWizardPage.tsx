@@ -12,7 +12,11 @@ import {
   clampApproximateRadiusMeters,
 } from "@/lib/approximateLocationRadius";
 import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
-import { WizardNumberStepper } from "@/components/WizardNumberStepper";
+import {
+  WizardNumberStepper,
+  WizardPairedFieldLabel,
+  WIZARD_FIELD_CONTROL_CLASS,
+} from "@/components/WizardNumberStepper";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
@@ -2035,7 +2039,7 @@ export function PublishWizardPage() {
                   onChange={(e) => setDraft((d) => ({ ...d, propertyTitle: e.target.value }))}
                   maxLength={PROPERTY_TITLE_MAX}
                   placeholder="Ej. Casa compartida Chapalita / Depa zona Minerva"
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
                 <FieldCharCount
                   current={draft.propertyTitle.trim().length}
@@ -2054,7 +2058,7 @@ export function PublishWizardPage() {
                   onChange={(e) => setDraft((d) => ({ ...d, neighborhood: e.target.value }))}
                   maxLength={PROPERTY_NEIGHBORHOOD_MAX}
                   placeholder="Ej. Chapultepec, Versalles…"
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
               {draft.postMode === "property" ? (
@@ -2124,7 +2128,7 @@ export function PublishWizardPage() {
                       ...(kind === "loft" ? { propertyBedroomsTotal: 1 } : {}),
                     }));
                   }}
-                  className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 >
                   <option value="house">Casa</option>
                   <option value="apartment">Departamento</option>
@@ -2143,12 +2147,10 @@ export function PublishWizardPage() {
                 className={`grid items-start gap-4 ${showWizardPropertyBathroomsField(draft) ? "sm:grid-cols-2" : ""}`}
               >
                 <div className="block text-sm font-medium text-body">
-                  <span className="flex min-h-0 items-end sm:min-h-[2.75rem]">
-                    <span className="leading-snug">
-                      ¿Cuántas recámaras tiene la propiedad?
-                      <span className="text-error"> *</span>
-                    </span>
-                  </span>
+                  <WizardPairedFieldLabel>
+                    ¿Cuántas recámaras tiene la propiedad?
+                    <span className="text-error"> *</span>
+                  </WizardPairedFieldLabel>
                   <WizardNumberStepper
                     value={
                       draft.propertyKind === "loft"
@@ -2171,12 +2173,10 @@ export function PublishWizardPage() {
                 </div>
                 {showWizardPropertyBathroomsField(draft) ? (
                   <div className="block text-sm font-medium text-body">
-                    <span className="flex min-h-0 items-end sm:min-h-[2.75rem]">
-                      <span className="leading-snug">
-                        {draft.propertyKind === "loft" ? "Baños" : "Baños (total)"}
-                        <span className="text-error"> *</span>
-                      </span>
-                    </span>
+                    <WizardPairedFieldLabel>
+                      {draft.propertyKind === "loft" ? "Baños" : "Baños (total)"}
+                      <span className="text-error"> *</span>
+                    </WizardPairedFieldLabel>
                     <WizardNumberStepper
                       editableCenter
                       step={0.5}
@@ -2282,11 +2282,11 @@ export function PublishWizardPage() {
                         value={room.title}
                         onChange={(e) => updateRoom(i, { title: e.target.value })}
                         placeholder={roomTitlePlaceholder(room)}
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        className={WIZARD_FIELD_CONTROL_CLASS}
                       />
                     </label>
                   ) : null}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-3 grid items-start gap-3 sm:grid-cols-2">
                     <label className="block text-sm font-medium text-body">
                       {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
                       <span className="text-error"> *</span>
@@ -2299,7 +2299,7 @@ export function PublishWizardPage() {
                         onChange={(e) =>
                           updateRoom(i, { lodgingType: e.target.value as LodgingType })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        className={WIZARD_FIELD_CONTROL_CLASS}
                       >
                         {draft.postMode === "room" ? (
                           <>
@@ -2323,7 +2323,7 @@ export function PublishWizardPage() {
                         onChange={(e) =>
                           updateRoom(i, { roomDimension: e.target.value as RoomDimension })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        className={WIZARD_FIELD_CONTROL_CLASS}
                       >
                         {draft.postMode === "room" ? (
                           <>
@@ -2355,7 +2355,7 @@ export function PublishWizardPage() {
                             onChange={(e) =>
                               updateRoom(i, { rentMxn: Math.max(0, Number(e.target.value) || 0) })
                             }
-                            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                            className={WIZARD_FIELD_CONTROL_CLASS}
                           />
                         </label>
                       </div>
@@ -2370,7 +2370,7 @@ export function PublishWizardPage() {
                             updateRoom(i, { depositMxn: Math.max(0, Number(e.target.value) || 0) })
                           }
                           placeholder="0"
-                          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                          className={WIZARD_FIELD_CONTROL_CLASS}
                         />
                       </label>
                       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
@@ -2414,13 +2414,13 @@ export function PublishWizardPage() {
                   <h3 className="text-sm font-bold text-primary">
                     Disponibilidad
                   </h3>
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid items-start gap-3 sm:grid-cols-3">
                     {draft.postMode === "property" ? (
                       <div className="block text-sm font-medium text-body">
-                        <span className="block">
+                        <WizardPairedFieldLabel>
                           Plazas / espacios
                           <span className="text-error"> *</span>
-                        </span>
+                        </WizardPairedFieldLabel>
                         <WizardNumberStepper
                           value={Math.min(ROOM_PLAZAS_MAX, Math.max(1, room.roomsAvailable))}
                           min={1}
@@ -2432,20 +2432,22 @@ export function PublishWizardPage() {
                       </div>
                     ) : null}
                     <label className="block text-sm font-medium text-body">
-                      Disponible desde
-                      <span className="text-error"> *</span>
+                      <WizardPairedFieldLabel>
+                        Disponible desde
+                        <span className="text-error"> *</span>
+                      </WizardPairedFieldLabel>
                       <input
                         type="date"
                         value={room.availableFrom}
                         onChange={(e) => updateRoom(i, { availableFrom: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        className={WIZARD_FIELD_CONTROL_CLASS}
                       />
                     </label>
                     <div className="block text-sm font-medium text-body">
-                      <span className="block">
+                      <WizardPairedFieldLabel>
                         Estancia mín. (meses)
                         <span className="text-error"> *</span>
-                      </span>
+                      </WizardPairedFieldLabel>
                       <WizardNumberStepper
                         editableCenter
                         maxInputDigits={2}
@@ -2467,10 +2469,12 @@ export function PublishWizardPage() {
                   <h3 className="text-sm font-bold text-primary">
                     Perfil buscado
                   </h3>
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid items-start gap-3 sm:grid-cols-3">
                     <label className="block text-sm font-medium text-body">
-                      {ROOMMATE_GENDER_PREF_FIELD_LABEL}
-                      <span className="text-error"> *</span>
+                      <WizardPairedFieldLabel>
+                        {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                        <span className="text-error"> *</span>
+                      </WizardPairedFieldLabel>
                       <select
                         value={room.roommateGenderPref}
                         onChange={(e) =>
@@ -2478,7 +2482,7 @@ export function PublishWizardPage() {
                             roommateGenderPref: e.target.value as RoommateGenderPref,
                           })
                         }
-                        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                        className={WIZARD_FIELD_CONTROL_CLASS}
                       >
                         <option value="any">Sin preferencia</option>
                         <option value="female">Mujeres</option>
@@ -2486,10 +2490,10 @@ export function PublishWizardPage() {
                       </select>
                     </label>
                     <div className="block text-sm font-medium text-body">
-                      <span className="block">
+                      <WizardPairedFieldLabel>
                         Edad mín.
                         <span className="text-error"> *</span>
-                      </span>
+                      </WizardPairedFieldLabel>
                       <WizardNumberStepper
                         editableCenter
                         maxInputDigits={2}
@@ -2507,10 +2511,10 @@ export function PublishWizardPage() {
                       />
                     </div>
                     <div className="block text-sm font-medium text-body">
-                      <span className="block">
+                      <WizardPairedFieldLabel>
                         Edad máx.
                         <span className="text-error"> *</span>
-                      </span>
+                      </WizardPairedFieldLabel>
                       <WizardNumberStepper
                         editableCenter
                         maxInputDigits={2}

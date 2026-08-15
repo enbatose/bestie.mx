@@ -14,7 +14,11 @@ import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
-import { WizardNumberStepper } from "@/components/WizardNumberStepper";
+import {
+  WizardNumberStepper,
+  WizardPairedFieldLabel,
+  WIZARD_FIELD_CONTROL_CLASS,
+} from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
@@ -718,7 +722,7 @@ export function EditableListingPreview({
                   onChange={(e) =>
                     setHeaderDraft((h) => ({ ...h, propertyTitle: e.target.value }))
                   }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
                 <FieldCharCount
                   current={headerDraft.propertyTitle.trim().length}
@@ -734,7 +738,7 @@ export function EditableListingPreview({
                 <input
                   value={headerDraft.roomTitle}
                   onChange={(e) => setHeaderDraft((h) => ({ ...h, roomTitle: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
             ) : (
@@ -748,7 +752,7 @@ export function EditableListingPreview({
                   onChange={(e) =>
                     setHeaderDraft((h) => ({ ...h, propertyTitle: e.target.value }))
                   }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
                 <FieldCharCount
                   current={headerDraft.propertyTitle.trim().length}
@@ -765,7 +769,7 @@ export function EditableListingPreview({
                 <input
                   value={headerDraft.neighborhood}
                   onChange={(e) => setHeaderDraft((h) => ({ ...h, neighborhood: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
             ) : null}
@@ -805,7 +809,7 @@ export function EditableListingPreview({
                         depositMxn: Math.max(0, Number(e.target.value) || 0),
                       }))
                     }
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    className={WIZARD_FIELD_CONTROL_CLASS}
                   />
                 </label>
               </div>
@@ -1059,7 +1063,7 @@ export function EditableListingPreview({
                         propertyBedroomsTotal: kind === "loft" ? 1 : f.propertyBedroomsTotal,
                       }));
                     }}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    className={WIZARD_FIELD_CONTROL_CLASS}
                   >
                     <option value="house">Casa</option>
                     <option value="apartment">Departamento</option>
@@ -1210,9 +1214,11 @@ export function EditableListingPreview({
               setRoomDetailsDraft(null);
             }}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid items-start gap-3 sm:grid-cols-2">
               <label className="block text-sm font-medium text-body">
-                {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
+                <WizardPairedFieldLabel>
+                  {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
+                </WizardPairedFieldLabel>
                 <select
                   value={
                     draft.postMode === "room" && detailsRoom.lodgingType === "whole_home"
@@ -1224,7 +1230,7 @@ export function EditableListingPreview({
                       r ? { ...r, lodgingType: e.target.value as LodgingType } : r,
                     )
                   }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 >
                   {draft.postMode === "room" ? (
                     <>
@@ -1241,7 +1247,7 @@ export function EditableListingPreview({
                 </select>
               </label>
               <label className="block text-sm font-medium text-body">
-                Tamaño de la recámara
+                <WizardPairedFieldLabel>Tamaño de la recámara</WizardPairedFieldLabel>
                 <select
                   value={detailsRoom.roomDimension}
                   onChange={(e) =>
@@ -1249,7 +1255,7 @@ export function EditableListingPreview({
                       r ? { ...r, roomDimension: e.target.value as RoomDimension } : r,
                     )
                   }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 >
                   {draft.postMode === "room" ? (
                     <>
@@ -1268,9 +1274,8 @@ export function EditableListingPreview({
               </label>
               {draft.postMode === "property" ? (
                 <div className="block text-sm font-medium text-body">
-                  <span className="block">Plazas / espacios</span>
+                  <WizardPairedFieldLabel>Plazas / espacios</WizardPairedFieldLabel>
                   <WizardNumberStepper
-                    compact
                     value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, detailsRoom.roomsAvailable))}
                     min={0}
                     max={ROOM_PLAZAS_MAX}
@@ -1283,20 +1288,19 @@ export function EditableListingPreview({
                 </div>
               ) : null}
               <label className="block text-sm font-medium text-body">
-                Disponible desde
+                <WizardPairedFieldLabel>Disponible desde</WizardPairedFieldLabel>
                 <input
                   type="date"
                   value={detailsRoom.availableFrom}
                   onChange={(e) =>
                     setRoomDetailsDraft((r) => (r ? { ...r, availableFrom: e.target.value } : r))
                   }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
               <div className="block text-sm font-medium text-body">
-                <span className="block">Estancia mín. (meses)</span>
+                <WizardPairedFieldLabel>Estancia mín. (meses)</WizardPairedFieldLabel>
                 <WizardNumberStepper
-                  compact
                   editableCenter
                   maxInputDigits={2}
                   value={Math.min(ROOM_STAY_MAX, Math.max(0, detailsRoom.minimalStayMonths))}
@@ -1310,7 +1314,7 @@ export function EditableListingPreview({
                 />
               </div>
               <label className="block text-sm font-medium text-body">
-                {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+                <WizardPairedFieldLabel>{ROOMMATE_GENDER_PREF_FIELD_LABEL}</WizardPairedFieldLabel>
                 <select
                   value={detailsRoom.roommateGenderPref}
                   onChange={(e) =>
@@ -1318,7 +1322,7 @@ export function EditableListingPreview({
                       r ? { ...r, roommateGenderPref: e.target.value as RoommateGenderPref } : r,
                     )
                   }
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  className={WIZARD_FIELD_CONTROL_CLASS}
                 >
                   <option value="any">Sin preferencia</option>
                   <option value="female">Mujeres</option>
@@ -1326,9 +1330,8 @@ export function EditableListingPreview({
                 </select>
               </label>
               <div className="block text-sm font-medium text-body">
-                <span className="block">Edad mín.</span>
+                <WizardPairedFieldLabel>Edad mín.</WizardPairedFieldLabel>
                 <WizardNumberStepper
-                  compact
                   editableCenter
                   maxInputDigits={2}
                   value={Math.min(99, Math.max(18, detailsRoom.ageMin))}
@@ -1344,9 +1347,8 @@ export function EditableListingPreview({
                 />
               </div>
               <div className="block text-sm font-medium text-body">
-                <span className="block">Edad máx.</span>
+                <WizardPairedFieldLabel>Edad máx.</WizardPairedFieldLabel>
                 <WizardNumberStepper
-                  compact
                   editableCenter
                   maxInputDigits={2}
                   value={Math.min(99, Math.max(18, detailsRoom.ageMax))}

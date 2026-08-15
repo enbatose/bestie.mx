@@ -4,7 +4,11 @@ import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
-import { WizardNumberStepper } from "@/components/WizardNumberStepper";
+import {
+  WizardNumberStepper,
+  WizardPairedFieldLabel,
+  WIZARD_FIELD_CONTROL_CLASS,
+} from "@/components/WizardNumberStepper";
 import {
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   ROOM_TAG_GROUPS,
@@ -164,7 +168,7 @@ function RoomTitleInlineEditor({
             }
           }}
           placeholder={`Ej. Cuarto con balcón · ${fallbackTitle}`}
-          className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+          className={WIZARD_FIELD_CONTROL_CLASS}
         />
       </label>
     );
@@ -408,14 +412,14 @@ function AvailableRoomFields({
 }) {
   return (
     <>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid items-start gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-body">
           Tipo de recámara
           <span className="text-error"> *</span>
           <select
             value={room.lodgingType === "whole_home" ? "private_room" : room.lodgingType}
             onChange={(e) => onChange({ lodgingType: e.target.value as LodgingType })}
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+            className={WIZARD_FIELD_CONTROL_CLASS}
           >
             <option value="private_room">Recámara privada</option>
             <option value="shared_room">Recámara compartida</option>
@@ -427,7 +431,7 @@ function AvailableRoomFields({
           <select
             value={room.roomDimension}
             onChange={(e) => onChange({ roomDimension: e.target.value as RoomDimension })}
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+            className={WIZARD_FIELD_CONTROL_CLASS}
           >
             <option value="small">Individual (Cabe cama individual + buró)</option>
             <option value="medium">Matrimonial (Cabe cama matrimonial + escritorio)</option>
@@ -445,7 +449,7 @@ function AvailableRoomFields({
                 step={100}
                 value={room.rentMxn === 0 ? "" : room.rentMxn}
                 onChange={(e) => onChange({ rentMxn: Math.max(0, Number(e.target.value) || 0) })}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+                className={WIZARD_FIELD_CONTROL_CLASS}
               />
             </label>
             <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
@@ -472,7 +476,7 @@ function AvailableRoomFields({
               value={room.depositMxn === 0 ? "" : room.depositMxn}
               onChange={(e) => onChange({ depositMxn: Math.max(0, Number(e.target.value) || 0) })}
               placeholder="0"
-              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className={WIZARD_FIELD_CONTROL_CLASS}
             />
           </label>
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
@@ -494,22 +498,24 @@ function AvailableRoomFields({
 
       <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-primary">Disponibilidad</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-3 sm:grid-cols-2">
           <label className="block text-sm font-medium text-body">
-            Disponible desde
-            <span className="text-error"> *</span>
+            <WizardPairedFieldLabel>
+              Disponible desde
+              <span className="text-error"> *</span>
+            </WizardPairedFieldLabel>
             <input
               type="date"
               value={room.availableFrom}
               onChange={(e) => onChange({ availableFrom: e.target.value })}
-              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className={WIZARD_FIELD_CONTROL_CLASS}
             />
           </label>
           <div className="block text-sm font-medium text-body">
-            <span className="block">
+            <WizardPairedFieldLabel>
               Estancia mín. (meses)
               <span className="text-error"> *</span>
-            </span>
+            </WizardPairedFieldLabel>
             <WizardNumberStepper
               editableCenter
               maxInputDigits={2}
@@ -526,14 +532,16 @@ function AvailableRoomFields({
 
       <div className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-primary">Perfil buscado</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid items-start gap-3 sm:grid-cols-3">
           <label className="block text-sm font-medium text-body">
-            {ROOMMATE_GENDER_PREF_FIELD_LABEL}
-            <span className="text-error"> *</span>
+            <WizardPairedFieldLabel>
+              {ROOMMATE_GENDER_PREF_FIELD_LABEL}
+              <span className="text-error"> *</span>
+            </WizardPairedFieldLabel>
             <select
               value={room.roommateGenderPref}
               onChange={(e) => onChange({ roommateGenderPref: e.target.value as RoommateGenderPref })}
-              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
+              className={WIZARD_FIELD_CONTROL_CLASS}
             >
               <option value="any">Sin preferencia</option>
               <option value="female">Mujeres</option>
@@ -541,10 +549,10 @@ function AvailableRoomFields({
             </select>
           </label>
           <div className="block text-sm font-medium text-body">
-            <span className="block">
+            <WizardPairedFieldLabel>
               Edad mín.
               <span className="text-error"> *</span>
-            </span>
+            </WizardPairedFieldLabel>
             <WizardNumberStepper
               editableCenter
               maxInputDigits={2}
@@ -562,10 +570,10 @@ function AvailableRoomFields({
             />
           </div>
           <div className="block text-sm font-medium text-body">
-            <span className="block">
+            <WizardPairedFieldLabel>
               Edad máx.
               <span className="text-error"> *</span>
-            </span>
+            </WizardPairedFieldLabel>
             <WizardNumberStepper
               editableCenter
               maxInputDigits={2}
