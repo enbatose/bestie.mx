@@ -705,7 +705,7 @@ export function EditableRoomModal({
                       />
                     </InlineFieldEditor>
                   ) : (
-                    <p className="text-sm leading-relaxed text-muted sm:text-base">
+                    <p className="break-words text-sm leading-relaxed text-muted sm:text-base">
                       {localRoom.summary.trim() || (
                         <span className="italic">Sin descripción de la recámara.</span>
                       )}
