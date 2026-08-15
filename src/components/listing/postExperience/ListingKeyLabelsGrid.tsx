@@ -37,7 +37,7 @@ function KeyLabelCard({ item }: { item: KeyLabelItem }) {
   }, [tooltipOpen]);
 
   return (
-    <article className="relative rounded-lg border border-border bg-surface p-2.5">
+    <article className="relative min-w-0 rounded-lg border border-border bg-surface p-2.5">
       <div className="flex items-start gap-2">
         <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="relative min-w-0 flex-1">
@@ -65,7 +65,7 @@ function KeyLabelCard({ item }: { item: KeyLabelItem }) {
             {item.value}
           </p>
           {item.detail ? (
-            <p className="mt-0.5 text-[11px] leading-snug text-muted">{item.detail}</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted hyphens-manual">{item.detail}</p>
           ) : null}
           {tooltipOpen ? (
             <div

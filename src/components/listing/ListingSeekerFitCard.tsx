@@ -143,7 +143,7 @@ export function ListingSeekerFitCard({
     items.push({
       icon: Maximize2,
       label: "Tamaño",
-      value: roomDimensionPreviewLabel(roomDimension, postMode),
+      value: roomDimensionPreviewLabel(roomDimension, "room"),
       detail: roomDimensionHintLabel(roomDimension, "room"),
     });
   }

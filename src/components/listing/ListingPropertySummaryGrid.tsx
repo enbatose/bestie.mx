@@ -46,13 +46,13 @@ type StatProps = {
 
 function ListingDetailStat({ icon: Icon, label, value, detail }: StatProps) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
+    <div className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
       <Icon className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
-      <div>
+      <div className="min-w-0">
         <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">{label}</p>
         <p className="mt-0.5 text-sm font-semibold leading-snug text-body">{value}</p>
         {detail ? (
-          <p className="mt-1 text-[11px] leading-snug text-muted">{detail}</p>
+          <p className="mt-1 text-[11px] leading-snug text-muted hyphens-manual">{detail}</p>
         ) : null}
       </div>
     </div>
@@ -165,7 +165,7 @@ export function ListingRoomDetailsGrid({
     {
       icon: Maximize2,
       label: "Tamaño",
-      value: roomDimensionPreviewLabel(room.roomDimension ?? "medium", postMode),
+      value: roomDimensionPreviewLabel(room.roomDimension ?? "medium", "room"),
       detail: roomDimensionHintLabel(room.roomDimension ?? "medium", "room"),
     },
     { icon: Bath, label: "Baño", value: roomBathroomPreviewLabel(room.tags) },

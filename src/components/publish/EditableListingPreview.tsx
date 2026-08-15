@@ -1257,25 +1257,16 @@ export function EditableListingPreview({
                   }
                   className={WIZARD_FIELD_CONTROL_CLASS}
                 >
-                  {draft.postMode === "room" ? (
-                    <>
-                      <option value="small">Individual (Cabe cama individual + buró)</option>
-                      <option value="medium">Matrimonial (Cabe cama matrimonial + escritorio)</option>
-                      <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="small">Pequeño (individual)</option>
-                      <option value="medium">Mediano (matrimonial)</option>
-                      <option value="large">Grande (Queen/King)</option>
-                    </>
-                  )}
+                  <option value="small">Individual (Cabe cama individual + buró)</option>
+                  <option value="medium">Matrimonial (Cabe cama matrimonial + escritorio)</option>
+                  <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
                 </select>
               </label>
               {draft.postMode === "property" ? (
                 <div className="block text-sm font-medium text-body">
                   <WizardPairedFieldLabel>Plazas / espacios</WizardPairedFieldLabel>
                   <WizardNumberStepper
+                    compact
                     value={Math.min(ROOM_PLAZAS_MAX, Math.max(0, detailsRoom.roomsAvailable))}
                     min={0}
                     max={ROOM_PLAZAS_MAX}

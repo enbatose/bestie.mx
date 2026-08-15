@@ -3251,9 +3251,9 @@ export function PublishWizardPage() {
 
       <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="relative">
-          {/* Centered progress bar */}
+          {/* Centered progress bar — equal columns so 6 steps fit on a phone */}
           <div className="flex flex-col items-center">
-            <nav aria-label="Progreso del anuncio" className="flex items-start justify-center">
+            <nav aria-label="Progreso del anuncio" className="flex w-full max-w-lg items-start">
               {steps.map((s, i) => {
                 const isPast = i < safeStep;
                 const isCurrent = i === safeStep;
@@ -3268,8 +3268,8 @@ export function PublishWizardPage() {
                   return t.split(/\s+/).slice(0, 2).join(" ");
                 })();
                 return (
-                  <div key={i} className="flex items-start">
-                    <div className="flex flex-col items-center">
+                  <div key={i} className="flex min-w-0 flex-1 items-start">
+                    <div className="flex min-w-0 w-full flex-col items-center">
                       <button
                         type="button"
                         disabled={!isPast}
@@ -3294,7 +3294,7 @@ export function PublishWizardPage() {
                         {i + 1}
                       </button>
                       <span
-                        className={`mt-1 max-w-[52px] text-center text-[9px] font-medium leading-tight ${
+                        className={`mt-1 w-full truncate px-0.5 text-center text-[8px] font-medium leading-tight sm:text-[9px] ${
                           isCurrent
                             ? "text-primary"
                             : isPast
@@ -3307,7 +3307,7 @@ export function PublishWizardPage() {
                     </div>
                     {i < steps.length - 1 ? (
                       <div
-                        className={`mt-3 h-px w-5 flex-none ${
+                        className={`mt-3 h-px w-1.5 shrink-0 sm:w-3 ${
                           i < safeStep ? "bg-primary/30" : "bg-muted/20"
                         }`}
                       />
@@ -3319,9 +3319,9 @@ export function PublishWizardPage() {
             <h2 className="mt-3 text-center text-lg font-semibold text-body">{current.title}</h2>
           </div>
 
-          {/* Admin autofill button — anchored top-right */}
+          {/* Admin autofill — below the title on phones so it does not cover step 6 */}
           {me?.isAdmin ? (
-            <div className="absolute right-0 top-0">
+            <div className="mt-3 flex justify-end sm:absolute sm:right-0 sm:top-0 sm:mt-0">
               <button
                 type="button"
                 onClick={() => autofillStep(safeStep)}

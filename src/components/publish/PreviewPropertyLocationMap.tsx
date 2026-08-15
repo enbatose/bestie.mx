@@ -177,7 +177,8 @@ export function PreviewPropertyLocationMap({
           className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
         >
           <Maximize2 className="size-3.5" aria-hidden />
-          Ampliar mapa
+          <span className="sm:hidden">Ampliar</span>
+          <span className="hidden sm:inline">Ampliar mapa</span>
         </button>
       ) : null}
 
@@ -240,7 +241,7 @@ export function PreviewPropertyLocationMap({
                   heightClass="h-[260px] md:h-[320px]"
                 />
                 <div className="flex items-center justify-between gap-2 border-t border-border bg-surface px-3 py-2">
-                  <p className="text-xs text-muted">
+                  <p className="min-w-0 text-xs leading-snug text-muted">
                     Gira la cámara hacia la fachada de tu propiedad.
                   </p>
                   <button
@@ -265,7 +266,7 @@ export function PreviewPropertyLocationMap({
                   loadEager
                 />
                 {canEdit ? (
-                  <div className="absolute right-2 top-2 flex gap-1.5">
+                  <div className="absolute right-2 top-2 flex max-w-[calc(100%-1rem)] flex-wrap justify-end gap-1.5">
                     {onStreetViewPovChange ? (
                       <button
                         type="button"
@@ -273,7 +274,7 @@ export function PreviewPropertyLocationMap({
                         className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
                       >
                         <Pencil className="size-3.5" aria-hidden />
-                        Ajustar vista
+                        Ajustar<span className="hidden sm:inline"> vista</span>
                       </button>
                     ) : null}
                     {onToggleStreetView ? (
@@ -283,7 +284,7 @@ export function PreviewPropertyLocationMap({
                         className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
                       >
                         <EyeOff className="size-3.5" aria-hidden />
-                        Quitar vista
+                        Quitar<span className="hidden sm:inline"> vista</span>
                       </button>
                     ) : null}
                   </div>
