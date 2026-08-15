@@ -342,6 +342,14 @@ type ServerSync = {
   roomIds: string[];
 };
 
+/** Skip empty autosave slots (`""`) so `??` does not hide a real published id. */
+function firstNonEmptyId(...ids: Array<string | null | undefined>): string | null {
+  for (const id of ids) {
+    if (typeof id === "string" && id.trim()) return id.trim();
+  }
+  return null;
+}
+
 const CITIES = ["Guadalajara"] as const;
 
 export type RoomDraft = {
@@ -874,6 +882,8 @@ export function PublishWizardPage() {
   );
   const [previewRoomIndex, setPreviewRoomIndex] = useState(0);
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
+  /** Stops resume URL sync from overwriting `/publicar/listo` after a successful publish. */
+  const leaveWizardForSuccessRef = useRef(false);
   const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(
     () => assistedBoot?.token ?? null,
   );
@@ -1621,6 +1631,7 @@ export function PublishWizardPage() {
   }, [draft, apiOn, me?.id, storageReady, step, assistedDraftToken]);
 
   useEffect(() => {
+    if (leaveWizardForSuccessRef.current) return;
     const token = assistedDraftToken;
     if (!token || !storageReady) return;
     if (isFreshDefaultDraft(draft)) return;
@@ -1633,6 +1644,7 @@ export function PublishWizardPage() {
   }, [assistedDraftToken, draft, serverSync, step, storageReady]);
 
   useEffect(() => {
+    if (leaveWizardForSuccessRef.current) return;
     if (!storageReady) return;
     if (
       isFreshDefaultDraft(draft) &&
@@ -1657,6 +1669,8 @@ export function PublishWizardPage() {
     Boolean(assistedDraftToken);
 
   useEffect(() => {
+    if (leaveWizardForSuccessRef.current) return;
+    if (window.location.pathname !== "/publicar") return;
     if (!storageReady || !wizardHasProgress) return;
     setSearchParams(
       (prev) => {
@@ -2729,9 +2743,31 @@ export function PublishWizardPage() {
           setDraft(syncedDraft);
           markAutosaveBaseline(syncedDraft, { touchUi: true });
         }
-        await publishAssistedDraftClaim(claimToken);
+        const claimed = await publishAssistedDraftClaim(claimToken);
         clearAssistedDraftClaimSession(claimToken);
-        navigate("/mis-anuncios", { replace: true });
+        leaveWizardForSuccessRef.current = true;
+        autosaveGenerationRef.current += 1;
+        const claimedRoomId = firstNonEmptyId(...serverSyncRef.current.roomIds);
+        const claimedTitle =
+          (draftRef.current.postMode === "property"
+            ? draftRef.current.propertyTitle
+            : draftRef.current.rooms[0]?.title
+          )?.trim() || "Anuncio publicado";
+        navigate(
+          publishWizardSuccessPath({
+            scope:
+              draftRef.current.postMode === "property" || !claimedRoomId
+                ? "property"
+                : "room",
+            propertyId: claimed.propertyId,
+            roomId: claimedRoomId,
+          }),
+          {
+            replace: true,
+            flushSync: true,
+            state: withMyListingsReturn({ publishedTitle: claimedTitle }, myListingsReturnRef.current),
+          },
+        );
       } catch (e) {
         const msg = e instanceof Error ? e.message : "No se pudo publicar.";
         setPublishErr(
@@ -2812,7 +2848,6 @@ export function PublishWizardPage() {
         wizardStep: step,
       });
       if (result.kind === "published") {
-        setDraft(result.draft);
         track("publish_succeeded", {
           mode: draftRef.current.postMode,
           editing_live: Boolean(editingLiveProperty),
@@ -2821,12 +2856,17 @@ export function PublishWizardPage() {
           previewRoomIndex,
           Math.max(0, draftRef.current.rooms.length - 1),
         );
-        const returnId =
-          serverSyncRef.current.roomIds[roomIdx] ?? liveEditReturnListingId ?? result.roomId;
+        const returnId = firstNonEmptyId(
+          serverSyncRef.current.roomIds[roomIdx],
+          liveEditReturnListingId,
+          result.roomId,
+        );
         const sharePath =
           draftRef.current.postMode === "property" && serverSyncRef.current.propertyId
             ? propertyPublicPath(serverSyncRef.current.propertyId)
-            : listingPublicPath(returnId);
+            : returnId
+              ? listingPublicPath(returnId)
+              : "/mis-anuncios";
 
         if (editingLiveProperty && myListingsRestorePath) {
           clearLiveEditSession();
@@ -2850,14 +2890,17 @@ export function PublishWizardPage() {
           return;
         }
 
-        setEditingLiveProperty(null);
+        leaveWizardForSuccessRef.current = true;
+        autosaveGenerationRef.current += 1;
         clearLiveEditSession();
         clearWizardResumeSnapshot();
         const successPropertyId = serverSyncRef.current.propertyId;
         const shareScope =
-          draftRef.current.postMode === "property" && successPropertyId ? "property" : "room";
-        setServerSync({ propertyId: null, roomIds: [] });
-        serverSyncRef.current = { propertyId: null, roomIds: [] };
+          draftRef.current.postMode === "property" && successPropertyId
+            ? "property"
+            : returnId
+              ? "room"
+              : "property";
         const publishedTitle =
           (draftRef.current.postMode === "property"
             ? draftRef.current.propertyTitle
@@ -2871,6 +2914,7 @@ export function PublishWizardPage() {
           }),
           {
             replace: true,
+            flushSync: true,
             state: withMyListingsReturn({ publishedTitle }, myListingsReturnRef.current),
           },
         );
@@ -2891,7 +2935,9 @@ export function PublishWizardPage() {
         reason: e instanceof Error ? e.message.slice(0, 120) : "unknown",
       });
     } finally {
-      setSubmitInFlight(null);
+      if (!leaveWizardForSuccessRef.current) {
+        setSubmitInFlight(null);
+      }
     }
   }
 

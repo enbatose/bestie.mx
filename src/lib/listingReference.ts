@@ -89,10 +89,10 @@ export function publishWizardSuccessPath(input: {
   roomId?: string | null;
 }): string {
   const params = new URLSearchParams();
-  if (input.scope === "property" && input.propertyId) {
+  if (input.scope === "property" && input.propertyId?.trim()) {
     params.set("propiedad", wizardPropertyEditCode(input.propertyId));
   }
-  if (input.roomId) {
+  if (input.roomId?.trim()) {
     params.set("anuncio", wizardRoomEditCode(input.roomId));
   }
   const qs = params.toString();

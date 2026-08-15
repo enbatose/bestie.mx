@@ -62,5 +62,13 @@ describe("listingReference (client)", () => {
       roomId: "A550E8400",
     });
     expect(parsePublishSuccessSearch(new URLSearchParams("edit=P550E8400"))).toBeNull();
+    expect(publishWizardSuccessPath({ scope: "room", roomId: "" })).toBe("/publicar/listo");
+    expect(
+      publishWizardSuccessPath({
+        scope: "property",
+        propertyId: `prp__${uuid}`,
+        roomId: "   ",
+      }),
+    ).toBe("/publicar/listo?propiedad=P550E8400");
   });
 });
