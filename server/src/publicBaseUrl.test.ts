@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { publicBaseUrl, sharePreviewBaseUrl } from "./publicBaseUrl.js";
+import { isProductionPublicSite, publicBaseUrl, sharePreviewBaseUrl } from "./publicBaseUrl.js";
 
 describe("publicBaseUrl", () => {
   const keys = ["PUBLIC_BASE_URL", "SITE_URL", "WEB_ORIGIN", "PUBLIC_WEB_ORIGIN"] as const;
@@ -33,6 +33,17 @@ describe("publicBaseUrl", () => {
     process.env.PUBLIC_BASE_URL = "https://www.bestie.mx";
     process.env.PUBLIC_WEB_ORIGIN = "https://dev.bestie.mx";
     expect(publicBaseUrl()).toBe("https://www.bestie.mx");
+  });
+
+  it("treats www and apex as production, not Dev", () => {
+    snapshotEnv();
+    expect(isProductionPublicSite()).toBe(true);
+    process.env.PUBLIC_WEB_ORIGIN = "https://dev.bestie.mx";
+    expect(isProductionPublicSite()).toBe(false);
+    process.env.PUBLIC_WEB_ORIGIN = "https://www.bestie.mx";
+    expect(isProductionPublicSite()).toBe(true);
+    process.env.PUBLIC_WEB_ORIGIN = "https://bestie.mx";
+    expect(isProductionPublicSite()).toBe(true);
   });
 });
 

@@ -3,7 +3,7 @@ import { posthogReplayUrl } from "./vendorUsageLimits.js";
 import { buildNewPostPublishedEmail, NEW_POST_OPS_EMAIL } from "./emails/newPostPublishedEmail.js";
 import { sendTransactionalEmail } from "./mailer.js";
 import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
-import { publicBaseUrl } from "./publicBaseUrl.js";
+import { isProductionPublicSite, publicBaseUrl } from "./publicBaseUrl.js";
 
 export function isFirstPropertyPublish(
   previousStatus: string,
@@ -83,7 +83,16 @@ function loadNotifyPayload(db: DatabaseSync, propertyId: string) {
   };
 }
 
+/** Ops first-publish emails only on Prod — skip Dev / local even if mail is configured. */
+export function shouldNotifyOpsNewPostPublished(): boolean {
+  return isProductionPublicSite();
+}
+
 export async function notifyOpsNewPostPublished(db: DatabaseSync, propertyId: string): Promise<boolean> {
+  if (!shouldNotifyOpsNewPostPublished()) {
+    console.info(`[new-post] notify skipped: not production (${publicBaseUrl()})`);
+    return false;
+  }
   const payload = loadNotifyPayload(db, propertyId);
   if (!payload) {
     console.warn(`[new-post] notify skipped: property not found id=${propertyId}`);

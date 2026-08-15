@@ -1,3 +1,5 @@
+const PRODUCTION_PUBLIC_HOSTS = new Set(["www.bestie.mx", "bestie.mx"]);
+
 /** Canonical public site origin for links in emails (no trailing slash). */
 export function publicBaseUrl(): string {
   const raw =
@@ -7,6 +9,19 @@ export function publicBaseUrl(): string {
     // Railway Dev/Prod already set this for OAuth redirects; honor it for share/email links too.
     process.env.PUBLIC_WEB_ORIGIN?.trim();
   return (raw || "https://www.bestie.mx").replace(/\/+$/, "");
+}
+
+/**
+ * True only on real Prod (`www.bestie.mx` / apex). Railway Dev (`dev.bestie.mx`),
+ * local, and preview origins stay false even when NODE_ENV=production.
+ */
+export function isProductionPublicSite(): boolean {
+  try {
+    const host = new URL(publicBaseUrl()).hostname.toLowerCase();
+    return PRODUCTION_PUBLIC_HOSTS.has(host);
+  } catch {
+    return false;
+  }
 }
 
 /**

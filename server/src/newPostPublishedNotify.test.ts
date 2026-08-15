@@ -1,7 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { isFirstPropertyPublish, notifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import * as mailer from "./mailer.js";
+
+const PUBLIC_URL_KEYS = ["PUBLIC_BASE_URL", "SITE_URL", "WEB_ORIGIN", "PUBLIC_WEB_ORIGIN"] as const;
+const prevPublicUrl: Record<string, string | undefined> = {};
+
+function snapshotPublicUrlEnv() {
+  for (const k of PUBLIC_URL_KEYS) prevPublicUrl[k] = process.env[k];
+  for (const k of PUBLIC_URL_KEYS) delete process.env[k];
+}
+
+function restorePublicUrlEnv() {
+  for (const k of PUBLIC_URL_KEYS) {
+    if (prevPublicUrl[k] === undefined) delete process.env[k];
+    else process.env[k] = prevPublicUrl[k];
+  }
+}
 
 function setupDb(): DatabaseSync {
   const db = new DatabaseSync(":memory:");
@@ -36,7 +51,12 @@ function setupDb(): DatabaseSync {
 }
 
 describe("new post published notify", () => {
+  beforeEach(() => {
+    snapshotPublicUrlEnv();
+  });
+
   afterEach(() => {
+    restorePublicUrlEnv();
     vi.restoreAllMocks();
   });
 
@@ -48,6 +68,7 @@ describe("new post published notify", () => {
   });
 
   it("emails contacto with post and replay URLs", async () => {
+    process.env.PUBLIC_WEB_ORIGIN = "https://www.bestie.mx";
     const send = vi.spyOn(mailer, "sendTransactionalEmail").mockResolvedValue(true);
     const db = setupDb();
     db.prepare(
@@ -69,5 +90,19 @@ describe("new post published notify", () => {
     expect(args.html).toContain("/anuncio/");
     expect(args.html).toContain("sess-xyz");
     expect(args.tags?.some((t) => t.value === "new_post_alert")).toBe(true);
+  });
+
+  it("does not email ops on Dev", async () => {
+    process.env.PUBLIC_WEB_ORIGIN = "https://dev.bestie.mx";
+    const send = vi.spyOn(mailer, "sendTransactionalEmail").mockResolvedValue(true);
+    const db = setupDb();
+    db.prepare(
+      `INSERT INTO properties (id, publisher_id, status, post_mode, title, city, neighborhood, posthog_session_id)
+       VALUES ('prp__aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'pub1', 'published', 'room', 'Cuarto test', 'Guadalajara', 'Americana', 'sess-xyz')`,
+    ).run();
+
+    const ok = await notifyOpsNewPostPublished(db, "prp__aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    expect(ok).toBe(false);
+    expect(send).not.toHaveBeenCalled();
   });
 });
