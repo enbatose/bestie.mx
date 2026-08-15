@@ -286,7 +286,7 @@ function seedPropertyRoom(index: number, available: boolean): RoomDraft {
   if (!available) {
     const femaleOccupant = Math.random() > 0.5;
     return {
-      ...seedRoom(index),
+      ...seedRoom(index, true),
       occupancyStatus: "occupied",
       occupantWomenCount: femaleOccupant ? randInt(1, 2) : 0,
       occupantMenCount: femaleOccupant ? 0 : randInt(1, 2),
@@ -298,7 +298,7 @@ function seedPropertyRoom(index: number, available: boolean): RoomDraft {
     };
   }
   return {
-    ...seedRoom(index),
+    ...seedRoom(index, true),
     occupancyStatus: "available",
     photos: randomSeedPhotos(SEED_ROOM_IMAGES, 1, 3),
   };
@@ -347,7 +347,7 @@ export function seedStepPublish(): Partial<Draft> {
 // Room seed
 // ---------------------------------------------------------------------------
 
-function seedRoom(index: number): RoomDraft {
+function seedRoom(index: number, named = false): RoomDraft {
   const rent = randInt(35, 80) * 100; // 3500–8000 in steps of 100
   const depositMultiplier = pick([1, 1, 2] as const);
   const ageMin = randInt(18, 24);
@@ -356,15 +356,17 @@ function seedRoom(index: number): RoomDraft {
     ...randSubset(ROOM_TAGS_POOL, 2, 4),
     ...randSubset(ROOM_IDEAL_PARA_POOL, 1, 3),
   ] as ListingTag[];
+  const numberedTitle = `Recámara ${index + 1}`;
+  const title = named || index > 0 ? numberedTitle : "";
   return {
     id: newRoomDraftId(),
-    customName: index === 0 ? "" : `Recámara ${index + 1}`,
+    customName: title,
     occupancyStatus: "available" as const,
     occupantGender: pick(GENDER_PREFS),
     occupantAge: randInt(22, 40),
     occupantWomenCount: 0,
     occupantMenCount: 0,
-    title: index === 0 ? "" : `Recámara ${index + 1}`,
+    title,
     rentMxn: rent,
     depositMxn: rent * depositMultiplier,
     roomsAvailable: roomsAvailableFromIdealTags(tags),

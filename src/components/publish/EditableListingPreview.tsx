@@ -57,6 +57,7 @@ import {
   ROOM_SINGLE_FLOW_PHOTO_HINT,
   roomsAvailableFromIdealTags,
 } from "@/lib/publishWizard/wizardTags";
+import { roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "@/types/listing";
 import type { ListingTagGroup } from "@/lib/listingTags";
@@ -942,7 +943,7 @@ export function EditableListingPreview({
                           {!isPropertyScope
                             ? draft.rooms.map((r, idx) => (
                                 <option key={idx} value={`room:${idx + 1}`}>
-                                  Recámara {idx + 1}: {r.title.trim() || "Sin título"}
+                                  {roomPreviewOptionLabel(r, idx)}
                                 </option>
                               ))
                             : null}

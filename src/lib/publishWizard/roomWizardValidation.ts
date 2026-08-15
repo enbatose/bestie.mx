@@ -9,6 +9,8 @@ const ROOM_SUMMARY_MAX = 1500;
 const VALID_ROOM_LODGING_TYPES = ["private_room", "shared_room"] as const;
 const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "female", "male"];
 
+const GENERIC_NUMBERED_ROOM_TITLE = /^(recámara|habitación)\s+\d+$/i;
+
 /** Label shown in accordion headers, validation errors, and photo sections. */
 export function roomWizardLabel(
   d: Draft,
@@ -20,6 +22,22 @@ export function roomWizardLabel(
   if (custom) return custom;
   const n = displayNumber ?? index + 1;
   return d.postMode === "property" ? `Habitación ${n}` : `Recámara ${n}`;
+}
+
+/**
+ * Native <select> option for property review / photo tagging.
+ * Empty first-room titles must not show “Sin título”; numbered defaults must not repeat
+ * as “Recámara 2: Recámara 2”.
+ */
+export function roomPreviewOptionLabel(
+  room: Pick<RoomDraft, "title" | "customName">,
+  index: number,
+): string {
+  const n = index + 1;
+  const prefix = `Recámara ${n}`;
+  const custom = room.customName?.trim() || room.title?.trim();
+  if (!custom || GENERIC_NUMBERED_ROOM_TITLE.test(custom)) return prefix;
+  return `${prefix}: ${custom}`;
 }
 
 /** Human-readable missing/invalid field names for one room row. */

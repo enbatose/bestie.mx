@@ -108,7 +108,7 @@ import {
   ROOM_SUMMARY_MIN,
   ROOM_SUMMARY_MAX,
 } from "@/lib/publishWizard/publishCore";
-import { firstRoomIndexWithIssues } from "@/lib/publishWizard/roomWizardValidation";
+import { firstRoomIndexWithIssues, roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
 import {
   applyPropertyRentRoomCount,
   hydrateRoomOccupantCounts,
@@ -3109,7 +3109,7 @@ export function PublishWizardPage() {
           <p className="mt-2 text-base font-semibold text-body">{draft.propertyTitle.trim()}</p>
         ) : liveEditScope === "room" && draft.rooms[reviewRoomIndex] ? (
           <p className="mt-2 text-base font-semibold text-body">
-            {draft.rooms[reviewRoomIndex]!.title.trim() || "Sin título"}
+            {roomPreviewOptionLabel(draft.rooms[reviewRoomIndex]!, reviewRoomIndex)}
             {draft.propertyTitle.trim() ? (
               <span className="font-normal text-muted"> · {draft.propertyTitle.trim()}</span>
             ) : null}

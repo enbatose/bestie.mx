@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { isListingRentMissing } from "@/lib/listingTags";
+import { roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
@@ -90,7 +91,7 @@ export function PublishWizardReviewStep({
     Boolean(publishBlockedReason) &&
     /Renta \(MXN/.test(publishBlockedReason ?? "") &&
     !publishBlockedReason?.includes(";");
-  const activeRoomTitle = activeRoom?.title.trim() || "Sin título";
+  const activeRoomTitle = activeRoom ? roomPreviewOptionLabel(activeRoom, safeRoomIndex) : `Recámara ${safeRoomIndex + 1}`;
   const activeRoomLabel = `Recámara ${safeRoomIndex + 1}`;
   const propertyLabel = draft.propertyTitle.trim() || draft.neighborhood.trim() || null;
   /** Numbered recámara chrome is for a room inside a property post, not a single-room listing. */
@@ -164,7 +165,12 @@ export function PublishWizardReviewStep({
             </p>
             <p className="mt-1 text-lg font-bold tracking-tight sm:text-xl">
               {activeRoomLabel}
-              <span className="font-semibold text-primary-fg/90"> · {activeRoomTitle}</span>
+              {activeRoomTitle !== activeRoomLabel ? (
+                <span className="font-semibold text-primary-fg/90">
+                  {" "}
+                  · {activeRoomTitle.replace(`${activeRoomLabel}: `, "")}
+                </span>
+              ) : null}
             </p>
             {propertyLabel ? (
               <p className="mt-1 text-sm text-primary-fg/80">En {propertyLabel}</p>
@@ -179,7 +185,7 @@ export function PublishWizardReviewStep({
                 >
                   {draft.rooms.map((r, i) => (
                     <option key={i} value={i} className="text-body">
-                      Recámara {i + 1}: {r.title.trim() || "Sin título"}
+                      {roomPreviewOptionLabel(r, i)}
                     </option>
                   ))}
                 </select>
@@ -209,7 +215,7 @@ export function PublishWizardReviewStep({
           >
             {draft.rooms.map((r, i) => (
               <option key={i} value={i}>
-                Recámara {i + 1}: {r.title.trim() || "Sin título"}
+                {roomPreviewOptionLabel(r, i)}
               </option>
             ))}
           </select>
