@@ -286,7 +286,7 @@ export function PublishWizardReviewStep({
           {isLiveEdit && cancelTo ? (
             <Link
               to={cancelTo}
-              className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+              className="inline-flex w-full items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
             >
               {cancelLabel}
             </Link>
