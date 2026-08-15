@@ -94,6 +94,56 @@ function QuotaBar({ value, limit, warnAt = 80 }: { value: number; limit: number;
   );
 }
 
+function KpiTile({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="min-w-0 break-words rounded-lg border border-border bg-bg-light px-3 py-2">{children}</li>
+  );
+}
+
+function DailySparkline({ series }: { series: { day: string; value: number }[] }) {
+  const maxVal = Math.max(...series.map((d) => d.value), 1);
+  const barW = 10;
+  const gap = 3;
+  const chartH = 40;
+  const w = Math.max(series.length * (barW + gap) - gap, 1);
+  const displayW = Math.max(w, 240);
+  return (
+    <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1">
+      <svg
+        viewBox={`0 0 ${w} ${chartH + 14}`}
+        width={displayW}
+        height={chartH + 14}
+        className="max-w-none"
+        aria-label="Generaciones diarias"
+      >
+        {series.map((d, i) => {
+          const barH = Math.max(2, (d.value / maxVal) * chartH);
+          const x = i * (barW + gap);
+          const y = chartH - barH;
+          return (
+            <g key={d.day}>
+              <rect x={x} y={y} width={barW} height={barH} rx={2} className="fill-primary/60" />
+              <title>{`${d.day}: ${d.value}`}</title>
+              <text x={x + barW / 2} y={chartH + 10} textAnchor="middle" fontSize={6} className="fill-muted">
+                {d.day.slice(8)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function formatImageEventTime(iso: string): string {
+  return new Date(iso).toLocaleString("es-MX", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function AdminPage() {
   const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte" | "outreach">("users");
   const [err, setErr] = useState<string | null>(null);
@@ -237,9 +287,9 @@ export function AdminPage() {
   }, []);
 
   return (
-    <div className={`mx-auto px-4 py-10 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" ? "max-w-7xl" : "max-w-3xl"}`}>
+    <div className={`mx-auto w-full min-w-0 px-4 py-6 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" ? "max-w-7xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
-      <p className="mt-2 text-sm text-muted">
+      <p className="mt-2 break-words text-sm text-muted">
         Solo cuentas cuyo correo está en la lista de administradores del servidor (integrada +{" "}
         <span className="font-mono">ADMIN_EMAILS</span>). No hay impersonación:{" "}
         <a
@@ -257,13 +307,13 @@ export function AdminPage() {
         <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap gap-2 text-sm font-medium">
+      <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-1 text-sm font-medium [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
         {(["users", "cities", "analytics", "property", "soporte", "outreach"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-2 transition ${
+            className={`min-h-11 shrink-0 rounded-full px-4 py-2 transition ${
               tab === t ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
             }`}
           >
@@ -319,8 +369,8 @@ export function AdminPage() {
       ) : null}
 
       {tab === "analytics" ? (
-        <div className="mt-6 space-y-6">
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+        <div className="mt-6 min-w-0 space-y-6">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
             {summary ? (
               <ul className="space-y-2 text-body">
                 <li>
@@ -335,20 +385,20 @@ export function AdminPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="font-semibold text-body">Street View — sesiones facturables</h2>
                 <p className="mt-1 text-xs text-muted">
                   Editor dinámico (bloqueo de ángulo). Corte mensual UTC.
                 </p>
               </div>
-              <label className="text-xs font-medium text-body">
+              <label className="block w-full text-xs font-medium text-body sm:w-auto">
                 Mes
                 <select
                   value={streetViewMonth}
                   onChange={(e) => setStreetViewMonth(e.target.value)}
-                  className="mt-1 block rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm outline-none ring-accent focus:ring-2"
+                  className="mt-1 block min-h-11 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm outline-none ring-accent focus:ring-2 sm:min-h-0 sm:w-auto"
                 >
                   {monthChoices.map((m) => (
                     <option key={m} value={m}>
@@ -362,8 +412,8 @@ export function AdminPage() {
             {streetView ? (
               <div className="mt-4 space-y-4">
                 <div>
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-body">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between">
+                    <p className="min-w-0 break-words text-body">
                       Total: <strong>{streetView.dynamicStreetView.total.toLocaleString("es-MX")}</strong> /{" "}
                       {streetView.dynamicStreetView.freeTierLimit.toLocaleString("es-MX")} gratis
                     </p>
@@ -420,7 +470,7 @@ export function AdminPage() {
                   ) : null}
                 </div>
 
-                <p className="border-t border-border pt-4 text-xs text-muted">
+                <p className="break-words border-t border-border pt-4 text-xs text-muted">
                   Precios verificados {streetView.pricing.lastVerified}. Fuente:{" "}
                   <a
                     href={streetView.pricing.sourceUrl}
@@ -439,7 +489,7 @@ export function AdminPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="font-semibold text-body">Resend — cupo de email</h2>
@@ -451,14 +501,16 @@ export function AdminPage() {
             {usage ? (
               <div className="mt-4 space-y-4">
                 <div>
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-body">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between">
+                    <p className="min-w-0 break-words text-body">
                       Mes: <strong>{usage.resend.quotaUnits.toLocaleString("es-MX")}</strong> /{" "}
-                      {usage.resend.monthlyLimit.toLocaleString("es-MX")} (enviados{" "}
-                      {usage.resend.sent.toLocaleString("es-MX")} + recibidos{" "}
-                      {usage.resend.received.toLocaleString("es-MX")})
+                      {usage.resend.monthlyLimit.toLocaleString("es-MX")}
+                      <span className="mt-1 block text-xs text-muted sm:ml-1 sm:mt-0 sm:inline">
+                        (enviados {usage.resend.sent.toLocaleString("es-MX")} + recibidos{" "}
+                        {usage.resend.received.toLocaleString("es-MX")})
+                      </span>
                     </p>
-                    <p className="text-xs text-muted">
+                    <p className="shrink-0 text-xs text-muted">
                       {usage.monthStart} — {usage.monthEnd}
                     </p>
                   </div>
@@ -484,7 +536,7 @@ export function AdminPage() {
                 ) : (
                   <p className="text-xs text-muted">Sin envíos registrados este mes (el conteo arranca con este deploy).</p>
                 )}
-                <p className="border-t border-border pt-4 text-xs text-muted">
+                <p className="break-words border-t border-border pt-4 text-xs text-muted">
                   Verificado {usage.resend.pricing.lastVerified}.{" "}
                   <a
                     href={usage.resend.pricing.sourceUrl}
@@ -502,7 +554,7 @@ export function AdminPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
             <div>
               <h2 className="font-semibold text-body">Gemini — textos para compartir</h2>
               <p className="mt-1 text-xs text-muted">
@@ -511,17 +563,23 @@ export function AdminPage() {
             </div>
             {usage ? (
               <div className="mt-4 space-y-3">
-                <ul className="grid gap-2 sm:grid-cols-3 text-body">
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                <ul className="grid grid-cols-1 gap-2 text-body sm:grid-cols-3">
+                  <KpiTile>
                     Llamadas Gemini: <strong>{usage.gemini.calls.toLocaleString("es-MX")}</strong>
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
-                    Tokens: <strong>{usage.gemini.promptTokens.toLocaleString("es-MX")}</strong> in /{" "}
-                    <strong>{usage.gemini.outputTokens.toLocaleString("es-MX")}</strong> out
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                  </KpiTile>
+                  <KpiTile>
+                    Tokens:{" "}
+                    <span className="inline-block">
+                      <strong>{usage.gemini.promptTokens.toLocaleString("es-MX")}</strong> in
+                    </span>{" "}
+                    /{" "}
+                    <span className="inline-block">
+                      <strong>{usage.gemini.outputTokens.toLocaleString("es-MX")}</strong> out
+                    </span>
+                  </KpiTile>
+                  <KpiTile>
                     Costo est.: <strong>{formatUsd(usage.gemini.estimatedUsd)}</strong>
-                  </li>
+                  </KpiTile>
                 </ul>
                 <ul className="space-y-1 text-xs text-muted">
                   <li>
@@ -531,7 +589,7 @@ export function AdminPage() {
                     {formatCategoryLabel("stored")}: {usage.gemini.storedCacheHits.toLocaleString("es-MX")}
                   </li>
                 </ul>
-                <p className="border-t border-border pt-4 text-xs text-muted">
+                <p className="break-words border-t border-border pt-4 text-xs text-muted">
                   Verificado {usage.gemini.pricing.lastVerified}.{" "}
                   <a
                     href={usage.gemini.pricing.sourceUrl}
@@ -551,7 +609,7 @@ export function AdminPage() {
           </div>
 
           {/* ── Gemini: AI Post Generation ── */}
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
             <div>
               <h2 className="font-semibold text-body">Gemini — generación de anuncios</h2>
               <p className="mt-1 text-xs text-muted">
@@ -561,73 +619,36 @@ export function AdminPage() {
             {usage ? (
               <div className="mt-4 space-y-4">
                 {/* KPI grid */}
-                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 text-body">
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                <ul className="grid grid-cols-1 gap-2 text-body sm:grid-cols-2 lg:grid-cols-4">
+                  <KpiTile>
                     Generaciones:{" "}
                     <strong>{(usage.assistedDraft?.calls ?? 0).toLocaleString("es-MX")}</strong>
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                  </KpiTile>
+                  <KpiTile>
                     Tokens:{" "}
-                    <strong>{(usage.assistedDraft?.promptTokens ?? 0).toLocaleString("es-MX")}</strong> in /{" "}
-                    <strong>{(usage.assistedDraft?.outputTokens ?? 0).toLocaleString("es-MX")}</strong> out
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                    <span className="inline-block">
+                      <strong>{(usage.assistedDraft?.promptTokens ?? 0).toLocaleString("es-MX")}</strong> in
+                    </span>{" "}
+                    /{" "}
+                    <span className="inline-block">
+                      <strong>{(usage.assistedDraft?.outputTokens ?? 0).toLocaleString("es-MX")}</strong> out
+                    </span>
+                  </KpiTile>
+                  <KpiTile>
                     Costo mensual:{" "}
                     <strong>{formatUsd(usage.assistedDraft?.estimatedUsd ?? 0)}</strong>
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                  </KpiTile>
+                  <KpiTile>
                     Costo promedio / generación:{" "}
                     <strong>{formatUsd(usage.assistedDraft?.avgUsdPerCall ?? 0)}</strong>
-                  </li>
+                  </KpiTile>
                 </ul>
 
                 {/* Daily sparkline */}
                 {(usage.assistedDraft?.dailyCalls?.length ?? 0) > 0 ? (
                   <div>
                     <p className="mb-2 text-xs font-medium text-muted">Generaciones por día este mes</p>
-                    {(() => {
-                      const series = usage.assistedDraft.dailyCalls;
-                      const maxVal = Math.max(...series.map((d) => d.value), 1);
-                      const barW = 10;
-                      const gap = 3;
-                      const chartH = 40;
-                      const w = series.length * (barW + gap) - gap;
-                      return (
-                        <svg
-                          viewBox={`0 0 ${w} ${chartH + 14}`}
-                          className="w-full overflow-visible"
-                          aria-label="Generaciones diarias"
-                        >
-                          {series.map((d, i) => {
-                            const barH = Math.max(2, (d.value / maxVal) * chartH);
-                            const x = i * (barW + gap);
-                            const y = chartH - barH;
-                            return (
-                              <g key={d.day}>
-                                <rect
-                                  x={x}
-                                  y={y}
-                                  width={barW}
-                                  height={barH}
-                                  rx={2}
-                                  className="fill-primary/60"
-                                />
-                                <title>{`${d.day}: ${d.value}`}</title>
-                                <text
-                                  x={x + barW / 2}
-                                  y={chartH + 10}
-                                  textAnchor="middle"
-                                  fontSize={6}
-                                  className="fill-muted"
-                                >
-                                  {d.day.slice(8)}
-                                </text>
-                              </g>
-                            );
-                          })}
-                        </svg>
-                      );
-                    })()}
+                    <DailySparkline series={usage.assistedDraft?.dailyCalls ?? []} />
                   </div>
                 ) : (
                   <p className="text-xs text-muted">
@@ -639,14 +660,14 @@ export function AdminPage() {
                 {Object.keys(usage.assistedDraft?.byModel ?? {}).length > 0 ? (
                   <ul className="space-y-1 text-xs text-muted">
                     {Object.entries(usage.assistedDraft.byModel).map(([model, count]) => (
-                      <li key={model}>
+                      <li key={model} className="break-all">
                         {model}: {(count as number).toLocaleString("es-MX")} llamadas
                       </li>
                     ))}
                   </ul>
                 ) : null}
 
-                <p className="border-t border-border pt-3 text-xs text-muted">
+                <p className="break-words border-t border-border pt-3 text-xs text-muted">
                   Verificado {usage.assistedDraft?.pricing?.lastVerified ?? "—"}.{" "}
                   <a
                     href={usage.assistedDraft?.pricing?.sourceUrl}
@@ -665,7 +686,7 @@ export function AdminPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
             <div>
               <h2 className="font-semibold text-body">PostHog — analytics y session replay</h2>
               <p className="mt-1 text-xs text-muted">
@@ -675,8 +696,9 @@ export function AdminPage() {
             {usage ? (
               <div className="mt-4 space-y-4">
                 {!usage.posthog.configured ? (
-                  <p className="text-sm text-muted">
-                    Configura <code className="rounded bg-bg-light px-1.5 py-0.5">POSTHOG_PERSONAL_API_KEY</code>{" "}
+                  <p className="break-words text-sm text-muted">
+                    Configura{" "}
+                    <code className="break-all rounded bg-bg-light px-1.5 py-0.5">POSTHOG_PERSONAL_API_KEY</code>{" "}
                     en el servicio API (Railway) con scope de query. Crea la key en{" "}
                     <a
                       href="https://us.posthog.com/settings/user-api-keys"
@@ -689,14 +711,14 @@ export function AdminPage() {
                     .
                   </p>
                 ) : !usage.posthog.available ? (
-                  <p className="text-sm text-error">
+                  <p className="break-words text-sm text-error">
                     No se pudo consultar PostHog{usage.posthog.error ? `: ${usage.posthog.error}` : "."}
                   </p>
                 ) : (
                   <>
                     <div>
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-body">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between">
+                        <p className="min-w-0 break-words text-body">
                           Recordings:{" "}
                           <strong>{usage.posthog.recordings.total.toLocaleString("es-MX")}</strong> /{" "}
                           {usage.posthog.recordings.freeTierLimit.toLocaleString("es-MX")}
@@ -711,14 +733,17 @@ export function AdminPage() {
                       />
                     </div>
                     <div>
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-body">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between">
+                        <p className="min-w-0 break-words text-body">
                           Eventos: <strong>{usage.posthog.events.total.toLocaleString("es-MX")}</strong> /{" "}
                           {usage.posthog.events.freeTierLimit.toLocaleString("es-MX")}
                         </p>
                         <p className="text-xs text-muted">
-                          Personas únicas: {usage.posthog.events.uniquePersons.toLocaleString("es-MX")} ·
-                          Excepciones: {usage.posthog.exceptions.total.toLocaleString("es-MX")}
+                          Personas únicas: {usage.posthog.events.uniquePersons.toLocaleString("es-MX")}
+                          <span className="mt-0.5 block sm:mt-0 sm:inline">
+                            {" "}
+                            · Excepciones: {usage.posthog.exceptions.total.toLocaleString("es-MX")}
+                          </span>
                         </p>
                       </div>
                       <QuotaBar
@@ -729,7 +754,7 @@ export function AdminPage() {
                     </div>
                   </>
                 )}
-                <p className="border-t border-border pt-4 text-xs text-muted">
+                <p className="break-words border-t border-border pt-4 text-xs text-muted">
                   Verificado {usage.posthog.pricing.lastVerified}.{" "}
                   <a
                     href={usage.posthog.links.billing}
@@ -765,7 +790,7 @@ export function AdminPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
             <div>
               <h2 className="font-semibold text-body">WhatsApp OTP + almacenamiento</h2>
               <p className="mt-1 text-xs text-muted">Meta Cloud API (OTP) y fotos en SQLite (`upload_blobs`).</p>
@@ -799,9 +824,11 @@ export function AdminPage() {
                   </p>
                 </div>
                 {usage.notes.length > 0 ? (
-                  <ul className="border-t border-border pt-4 space-y-1 text-xs text-muted">
+                  <ul className="space-y-1 border-t border-border pt-4 text-xs text-muted">
                     {usage.notes.map((n) => (
-                      <li key={n}>• {n}</li>
+                      <li key={n} className="break-words">
+                        • {n}
+                      </li>
                     ))}
                   </ul>
                 ) : null}
@@ -811,16 +838,16 @@ export function AdminPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 text-sm">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
+          <div className="min-w-0 rounded-xl border border-border bg-surface p-3 text-sm sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="font-semibold text-body">Subida de fotos — auditoría</h2>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 break-words text-xs text-muted">
                   Eventos `image_pipeline` de las últimas {imageUploads?.windowHours ?? 48} h (convert / upload /
                   persist). Sin nombres de archivo completos.
                 </p>
               </div>
-              <label className="inline-flex items-center gap-2 text-xs font-medium text-body">
+              <label className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-body">
                 <input
                   type="checkbox"
                   checked={imageFailuresOnly}
@@ -833,23 +860,23 @@ export function AdminPage() {
 
             {imageUploads ? (
               <div className="mt-4 space-y-4">
-                <ul className="grid gap-2 sm:grid-cols-3 text-body">
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                <ul className="grid grid-cols-1 gap-2 text-body sm:grid-cols-3">
+                  <KpiTile>
                     Ventana: <strong>{imageUploads.summary.ok}</strong> ok /{" "}
                     <strong className="text-error">{imageUploads.summary.fail}</strong> fail
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                  </KpiTile>
+                  <KpiTile>
                     Hoy: <strong>{imageUploads.today.ok}</strong> ok /{" "}
                     <strong className="text-error">{imageUploads.today.fail}</strong> fail
-                  </li>
-                  <li className="rounded-lg border border-border bg-bg-light px-3 py-2">
+                  </KpiTile>
+                  <KpiTile>
                     Fail rate móvil:{" "}
                     <strong>
                       {imageUploads.summary.mobileFailRate == null
                         ? "—"
                         : `${Math.round(imageUploads.summary.mobileFailRate * 100)}%`}
                     </strong>
-                  </li>
+                  </KpiTile>
                 </ul>
 
                 {Object.keys(imageUploads.summary.byErrorCode).length > 0 ? (
@@ -860,7 +887,7 @@ export function AdminPage() {
                         .sort((a, b) => b[1] - a[1])
                         .map(([code, n]) => (
                           <li key={code}>
-                            <code className="rounded bg-bg-light px-1.5 py-0.5">{code}</code>: {n}
+                            <code className="break-all rounded bg-bg-light px-1.5 py-0.5">{code}</code>: {n}
                           </li>
                         ))}
                     </ul>
@@ -880,8 +907,59 @@ export function AdminPage() {
                   </div>
                 ) : null}
 
-                <div className="overflow-x-auto border-t border-border pt-4">
-                  <table className="min-w-full text-left text-xs">
+                {imageUploads.events.length === 0 ? (
+                  <p className="border-t border-border pt-4 text-xs text-muted sm:hidden">
+                    Sin eventos en la ventana.
+                  </p>
+                ) : (
+                  <ul className="space-y-2 border-t border-border pt-4 sm:hidden">
+                    {imageUploads.events.map((ev) => (
+                      <li key={ev.id} className="rounded-lg border border-border bg-bg-light p-3 text-xs text-body">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <span className="font-medium">
+                            {formatImageEventTime(ev.createdAt)}
+                            {ev.mobileLike ? (
+                              <span className="ml-1 rounded bg-secondary/20 px-1 text-[10px]">móvil</span>
+                            ) : null}
+                          </span>
+                          <span className={ev.ok ? "text-body" : "font-semibold text-error"}>
+                            {ev.step ?? "—"} · {ev.ok ? "ok" : "fail"}
+                          </span>
+                        </div>
+                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-muted">
+                          <div className="min-w-0">
+                            <dt className="font-semibold text-body">Origen</dt>
+                            <dd className="break-all">{ev.source ?? "—"}</dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="font-semibold text-body">Código</dt>
+                            <dd className="break-all font-mono">{ev.errorCode ?? "—"}</dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="font-semibold text-body">MIME</dt>
+                            <dd className="break-all">
+                              {(ev.sniffedMime || ev.declaredMime || "—").replace("image/", "")}
+                              {ev.nameExt ? ` .${ev.nameExt}` : ""}
+                            </dd>
+                          </div>
+                          <div className="min-w-0">
+                            <dt className="font-semibold text-body">Decode</dt>
+                            <dd className="break-all">{ev.decodePath ?? "—"}</dd>
+                          </div>
+                          <div className="col-span-2 min-w-0">
+                            <dt className="font-semibold text-body">Detalle</dt>
+                            <dd className="break-words">
+                              {ev.error ?? (ev.ms != null ? `${Math.round(ev.ms)} ms` : "—")}
+                            </dd>
+                          </div>
+                        </dl>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="hidden overflow-x-auto border-t border-border pt-4 sm:block">
+                  <table className="min-w-[640px] w-full text-left text-xs">
                     <thead className="text-muted">
                       <tr>
                         <th className="py-1 pr-3 font-semibold">Hora</th>
@@ -903,13 +981,8 @@ export function AdminPage() {
                       ) : (
                         imageUploads.events.map((ev) => (
                           <tr key={ev.id} className="border-t border-border/60 align-top">
-                            <td className="py-1.5 pr-3 whitespace-nowrap">
-                              {new Date(ev.createdAt).toLocaleString("es-MX", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                            <td className="whitespace-nowrap py-1.5 pr-3">
+                              {formatImageEventTime(ev.createdAt)}
                               {ev.mobileLike ? (
                                 <span className="ml-1 rounded bg-secondary/20 px-1 text-[10px]">móvil</span>
                               ) : null}
@@ -927,9 +1000,8 @@ export function AdminPage() {
                               {ev.nameExt ? ` .${ev.nameExt}` : ""}
                             </td>
                             <td className="py-1.5 pr-3">{ev.decodePath ?? "—"}</td>
-                            <td className="py-1.5 pr-3 max-w-[14rem] truncate" title={ev.error ?? undefined}>
-                              {ev.error ??
-                                (ev.ms != null ? `${Math.round(ev.ms)} ms` : "—")}
+                            <td className="max-w-[14rem] truncate py-1.5 pr-3" title={ev.error ?? undefined}>
+                              {ev.error ?? (ev.ms != null ? `${Math.round(ev.ms)} ms` : "—")}
                             </td>
                           </tr>
                         ))
@@ -945,7 +1017,7 @@ export function AdminPage() {
 
           <button
             type="button"
-            className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
+            className="min-h-11 text-sm font-semibold text-primary underline-offset-2 hover:underline"
             onClick={() => {
               void loadSummary().catch(() => null);
               void loadStreetView(streetViewMonth).catch(() => null);
