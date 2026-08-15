@@ -32,6 +32,8 @@ type Props = {
   submitInFlight: "publish" | "draft" | null;
   onSaveDraft: () => void;
   onPublish: () => void;
+  /** Shown after a successful explicit “Guardar como borrador”. */
+  draftSaved?: boolean;
   /** Owner editing an already-published or paused listing (not the first-time wizard). */
   liveEdit?: LiveEditContext | null;
   initialEditingPhotos?: boolean;
@@ -53,6 +55,7 @@ export function PublishWizardReviewStep({
   submitInFlight,
   onSaveDraft,
   onPublish,
+  draftSaved = false,
   liveEdit = null,
   initialEditingPhotos = false,
   onEditingPhotosChange,
@@ -244,11 +247,15 @@ export function PublishWizardReviewStep({
           >
             {actionErr}
           </p>
+        ) : draftSaved ? (
+          <p className="mt-3 text-sm font-medium text-primary" role="status">
+            Borrador guardado. Puedes cerrar esta página y retomarlo con el mismo enlace.
+          </p>
         ) : null}
 
         <div
           className={`flex flex-col gap-2 ${
-            publishBlockedReason || actionErr || rentMissing ? "mt-5" : ""
+            publishBlockedReason || actionErr || rentMissing || draftSaved ? "mt-5" : ""
           }`}
         >
           {apiOn ? (

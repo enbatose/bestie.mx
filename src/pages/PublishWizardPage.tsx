@@ -2912,6 +2912,48 @@ export function PublishWizardPage() {
     setSubmitInFlight("draft");
     setWizardDraftSaveNote("idle");
     try {
+      const claimToken = assistedDraftTokenRef.current;
+      if (claimToken) {
+        const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, draftRef.current);
+        setDraft(syncedDraft);
+        markAutosaveBaseline(syncedDraft, { touchUi: true });
+        writeAssistedDraftClaimSession({
+          token: claimToken,
+          draft: syncedDraft,
+          serverSync: serverSyncRef.current,
+          step,
+        });
+
+        if (!me) {
+          track("publish_auth_required", {
+            intent: "draft",
+            mode: draftRef.current.postMode,
+          });
+          navigate("/entrar", {
+            replace: true,
+            state: {
+              registrationNotice:
+                "Tu anuncio ya está guardado como borrador. Inicia sesión o crea una cuenta para publicarlo y recibirlo en Mis anuncios.",
+              resumeDraft: syncedDraft,
+              resumeServerSync: serverSyncRef.current,
+              resumeStep: step,
+              assistedDraftToken: claimToken,
+            },
+          });
+          return;
+        }
+
+        track("publish_draft_saved", {
+          mode: draftRef.current.postMode,
+          finish: Boolean(opts?.finish),
+        });
+        setWizardDraftSaveNote("saved");
+        window.setTimeout(() => {
+          setWizardDraftSaveNote((n) => (n === "saved" ? "idle" : n));
+        }, 2500);
+        return;
+      }
+
       let resumeDraft = draftRef.current;
       const synced = await syncDraftToServer(
         draftRef.current,
@@ -2964,7 +3006,12 @@ export function PublishWizardPage() {
         setWizardDraftSaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2500);
     } catch (e) {
-      setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador en el servidor.");
+      const raw = e instanceof Error ? e.message : "";
+      setPublishErr(
+        raw.includes("invalid_id") || raw.includes("patch_room_http")
+          ? "No se pudo guardar el borrador. Recarga la página e intenta de nuevo."
+          : raw || "No se pudo guardar el borrador en el servidor.",
+      );
     } finally {
       setSubmitInFlight(null);
     }
@@ -3295,6 +3342,7 @@ export function PublishWizardPage() {
               submitInFlight={submitInFlight}
               onSaveDraft={() => void submitServerDraft()}
               onPublish={() => void submitPublish()}
+              draftSaved={wizardDraftSaveNote === "saved"}
             />
           ) : (
             current.body

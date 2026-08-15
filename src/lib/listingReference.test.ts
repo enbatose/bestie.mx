@@ -17,6 +17,8 @@ describe("listingReference (client)", () => {
   it("parses short codes and matches UUID edit params", () => {
     expect(listingReferenceId(uuid)).toBe("550E8400");
     expect(propertyReferenceCode(`prp__${uuid}`)).toBe("P550E8400");
+    expect(propertyReferenceCode(`prp__adraft_${uuid.replace(/-/g, "")}`)).toBe("P550E8400");
+    expect(roomReferenceCode(`adraft_room__${uuid.replace(/-/g, "")}`)).toBe("A550E8400");
     expect(roomReferenceCode(uuid)).toBe("A550E8400");
     expect(parsePropertyReferenceSuffix("P550E8400")).toBe("550E8400");
     expect(parseRoomReferenceSuffix("a550e8400")).toBe("550E8400");

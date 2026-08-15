@@ -6,7 +6,7 @@ import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
-import { resolvePropertyIdFromRouteParam } from "./resolveListingRouteId.js";
+import { resolvePropertyIdFromRouteParam, resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
   parseStreetViewPovJson,
   serializeStreetViewPovJson,
@@ -24,7 +24,6 @@ import {
   clampRoomsAvailable,
   clampStr,
   contactWhatsAppOkForPublish,
-  isSafePropertyId,
   isSafeRoomOrListingId,
   minimalPropertySummaryOk,
   minimalRoomSummaryOk,
@@ -802,8 +801,8 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
-    const propertyId = req.params.id;
-    if (!isSafePropertyId(propertyId)) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!propertyId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
@@ -929,9 +928,9 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
-    const propertyId = req.params.id;
-    const roomId = req.params.roomId;
-    if (!isSafePropertyId(propertyId) || !isSafeRoomOrListingId(roomId)) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
+    const roomId = resolveRoomIdFromRouteParam(db, String(req.params.roomId ?? ""));
+    if (!propertyId || !roomId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
@@ -1092,9 +1091,9 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
-    const propertyId = req.params.id;
-    const roomId = req.params.roomId;
-    if (!isSafePropertyId(propertyId) || !isSafeRoomOrListingId(roomId)) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
+    const roomId = resolveRoomIdFromRouteParam(db, String(req.params.roomId ?? ""));
+    if (!propertyId || !roomId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
@@ -1124,8 +1123,8 @@ export function propertiesRouter(db: DatabaseSync) {
       res.status(401).json({ error: "publisher_session_required" });
       return;
     }
-    const propertyId = req.params.id;
-    if (!isSafePropertyId(propertyId)) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!propertyId) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }

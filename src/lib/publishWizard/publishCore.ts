@@ -547,7 +547,7 @@ export async function syncDraftToServer(
           continue;
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          if (!msg.includes("patch_room_http_404")) throw e;
+          if (!msg.includes("patch_room_http_404") && !msg.includes("patch_room_http_400")) throw e;
           await deleteDraftRoom(propertyId!, knownServerId);
         }
       }

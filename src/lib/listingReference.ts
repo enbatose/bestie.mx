@@ -8,7 +8,9 @@ const LEGACY_PROPERTY_REF_PATTERN = /^BES-P-([A-F0-9]{8})$/i;
 /** Stable 8-char hex slice from property or room ids (incl. `prp__` prefix). */
 export function listingReferenceId(rawId: string): string {
   const normalized = rawId.replace(/^prp__/, "").replace(/-/g, "").toUpperCase();
-  return normalized.slice(0, 8);
+  const hexRuns = normalized.match(/[A-F0-9]{8,}/g);
+  const hex = hexRuns?.[hexRuns.length - 1] ?? normalized;
+  return hex.slice(0, 8);
 }
 
 export function propertyReferenceCode(propertyId: string): string {
