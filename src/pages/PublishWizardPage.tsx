@@ -861,6 +861,8 @@ export function PublishWizardPage() {
     if (typeof st.assistedDraftToken === "string" && st.assistedDraftToken) {
       setAssistedDraftToken(st.assistedDraftToken);
     }
+    // Signal the auth effect to skip its reset — we already have the correct draft/step.
+    resumeStateAppliedRef.current = true;
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
       state: withMyListingsReturn(null, myListingsReturn) ?? null,
@@ -873,6 +875,8 @@ export function PublishWizardPage() {
   serverSyncRef.current = serverSync;
   const assistedDraftTokenRef = useRef(assistedDraftToken);
   assistedDraftTokenRef.current = assistedDraftToken;
+  /** Set when location.state resume is applied; prevents the auth effect from resetting step/draft. */
+  const resumeStateAppliedRef = useRef(false);
   const meRef = useRef(me);
   meRef.current = me;
   const storageReadyRef = useRef(storageReady);
@@ -905,6 +909,14 @@ export function PublishWizardPage() {
 
   useEffect(() => {
     if (me === undefined) return;
+    // Assisted-draft / resume-state path: the resume effect already set the correct
+    // draft and step. Skip the reset that would otherwise overwrite them.
+    if (resumeStateAppliedRef.current) {
+      resumeStateAppliedRef.current = false;
+      if (me?.id) didHydrateLocalForUserRef.current = me.id;
+      setStorageReady(true);
+      return;
+    }
     if (!me) {
       prevUserIdRef.current = null;
       didHydrateLocalForUserRef.current = null;
