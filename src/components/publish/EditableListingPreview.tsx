@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Camera, Pencil } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
@@ -63,7 +63,9 @@ import {
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
+  collectRoomFieldIssueDetails,
   collectRoomFieldIssues,
+  firstRoomIndexWithIssues,
   roomPreviewOptionLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
 import {
@@ -102,6 +104,11 @@ type Props = {
   onRoomIndexChange?: (index: number) => void;
   /** Commit the current draft updater then publish/save live listing. */
   onCommitAndPublish?: (updater: (d: Draft) => Draft) => void;
+  onPublish?: () => void;
+  publishAfterRoomFix?: boolean;
+  onPublishAfterRoomFixChange?: (next: boolean) => void;
+  jumpToRoomIndex?: number | null;
+  onJumpToRoomHandled?: () => void;
   onRoomModalDismiss?: () => void;
   confirmLabel?: string;
   submitInFlight?: "publish" | "draft" | null;
@@ -257,6 +264,11 @@ export function EditableListingPreview({
   onDraftChange,
   onRoomIndexChange,
   onCommitAndPublish,
+  onPublish,
+  publishAfterRoomFix = false,
+  onPublishAfterRoomFixChange,
+  jumpToRoomIndex = null,
+  onJumpToRoomHandled,
   onRoomModalDismiss,
   confirmLabel,
   submitInFlight = null,
@@ -305,6 +317,17 @@ export function EditableListingPreview({
     if (isPropertyPreview && initialEditingPhotos) return roomIndex;
     return null;
   });
+
+  useEffect(() => {
+    if (jumpToRoomIndex == null) return;
+    if (jumpToRoomIndex < 0 || jumpToRoomIndex >= draft.rooms.length) {
+      onJumpToRoomHandled?.();
+      return;
+    }
+    setEditingRoomModalIndex(jumpToRoomIndex);
+    onRoomIndexChange?.(jumpToRoomIndex);
+    onJumpToRoomHandled?.();
+  }, [jumpToRoomIndex, draft.rooms.length, onJumpToRoomHandled, onRoomIndexChange]);
 
   const setPhotosEditing = (next: boolean) => {
     setEditingPhotos(next);
@@ -614,37 +637,59 @@ export function EditableListingPreview({
   const roomModal =
     editingRoomModalIndex !== null && draft.rooms[editingRoomModalIndex] ? (
       <EditableRoomModal
+        key={draft.rooms[editingRoomModalIndex]?.id ?? editingRoomModalIndex}
         room={draft.rooms[editingRoomModalIndex]}
         roomIndex={editingRoomModalIndex}
         draft={draft}
         apiOn={apiOn}
         confirmLabel={
-          isRoomOfProperty
+          isRoomOfProperty || publishAfterRoomFix
             ? (confirmLabel ?? "Guardar cambios")
             : "Guardar recámara"
         }
-        submitInFlight={isRoomOfProperty ? submitInFlight : null}
+        submitInFlight={isRoomOfProperty || publishAfterRoomFix ? submitInFlight : null}
         publishBlockedReason={isRoomOfProperty ? publishBlockedReason : null}
         actionErr={isRoomOfProperty ? actionErr : null}
         initialEditingPhotos={initialEditingPhotos && editingRoomModalIndex === roomIndex}
         onSave={(updated) => {
+          const localIssues = collectRoomFieldIssueDetails(draft, updated);
+          if (localIssues.length) return;
+
+          const applyRoom = (d: Draft): Draft =>
+            syncDraftPhotoArrays({
+              ...d,
+              rooms: d.rooms.map((r, i) => (i === editingRoomModalIndex ? updated : r)),
+              roomImageUrls: d.roomImageUrls.map((row, i) =>
+                i === editingRoomModalIndex ? updated.photos ?? row : row,
+              ),
+            });
+
           if (isRoomOfProperty && onCommitAndPublish) {
-            onCommitAndPublish((d) =>
-              syncDraftPhotoArrays({
-                ...d,
-                rooms: d.rooms.map((r, i) => (i === editingRoomModalIndex ? updated : r)),
-                roomImageUrls: d.roomImageUrls.map((row, i) =>
-                  i === editingRoomModalIndex ? updated.photos ?? row : row,
-                ),
-              }),
-            );
+            onCommitAndPublish(applyRoom);
             return;
           }
+
+          const nextDraft = applyRoom(draft);
           commitRoomAt(editingRoomModalIndex, updated);
+
+          if (publishAfterRoomFix) {
+            const nextIncomplete = firstRoomIndexWithIssues(nextDraft);
+            if (nextIncomplete >= 0) {
+              setEditingRoomModalIndex(nextIncomplete);
+              onRoomIndexChange?.(nextIncomplete);
+              return;
+            }
+            setEditingRoomModalIndex(null);
+            onPublishAfterRoomFixChange?.(false);
+            onPublish?.();
+            return;
+          }
+
           setEditingRoomModalIndex(null);
         }}
         onClose={() => {
           setEditingRoomModalIndex(null);
+          onPublishAfterRoomFixChange?.(false);
           if (isRoomOfProperty) onRoomModalDismiss?.();
         }}
         onPhotoPickerOpen={onPhotoPickerOpen}

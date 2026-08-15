@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { isListingRentMissing } from "@/lib/listingTags";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
-import { roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
+import {
+  firstRoomIndexWithIssues,
+  roomPreviewOptionLabel,
+} from "@/lib/publishWizard/roomWizardValidation";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
+import { RoomSaveIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
 import type { Draft } from "@/pages/PublishWizardPage";
 import type { ListingStatus } from "@/types/listing";
 
@@ -68,6 +73,8 @@ export function PublishWizardReviewStep({
   isAssistedDraft = false,
 }: Props) {
   const navigate = useNavigate();
+  const [jumpToRoomIndex, setJumpToRoomIndex] = useState<number | null>(null);
+  const [publishAfterRoomFix, setPublishAfterRoomFix] = useState(false);
   const isLiveEdit = liveEdit != null;
   const editScope = liveEdit?.scope ?? null;
   const returnListingId = liveEdit?.returnListingId ?? null;
@@ -101,6 +108,23 @@ export function PublishWizardReviewStep({
     Boolean(publishBlockedReason) &&
     /Renta \(MXN/.test(publishBlockedReason ?? "") &&
     !publishBlockedReason?.includes(";");
+  const firstIncompleteRoom = firstRoomIndexWithIssues(draft);
+  const hasRoomFieldIssues = firstIncompleteRoom >= 0;
+  const nonRoomBlock = Boolean(publishBlockedReason) && !hasRoomFieldIssues;
+
+  const openIncompleteRoom = (index: number, thenPublish: boolean) => {
+    setPublishAfterRoomFix(thenPublish);
+    setJumpToRoomIndex(index);
+  };
+
+  const attemptPublish = () => {
+    if (hasRoomFieldIssues) {
+      openIncompleteRoom(firstIncompleteRoom, true);
+      return;
+    }
+    if (publishBlockedReason) return;
+    onPublish();
+  };
 
   const heading =
     editScope === "property"
@@ -208,6 +232,11 @@ export function PublishWizardReviewStep({
         onDraftChange={onDraftChange}
         onRoomIndexChange={onRoomIndexChange}
         onCommitAndPublish={onCommitAndPublish}
+        onPublish={onPublish}
+        publishAfterRoomFix={publishAfterRoomFix}
+        onPublishAfterRoomFixChange={setPublishAfterRoomFix}
+        jumpToRoomIndex={jumpToRoomIndex}
+        onJumpToRoomHandled={() => setJumpToRoomIndex(null)}
         onRoomModalDismiss={
           cancelTo
             ? () => navigate(cancelTo)
@@ -226,7 +255,15 @@ export function PublishWizardReviewStep({
       {isRoomOfProperty ? null : (
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
         {rentMissing ? <MissingRentCallout className="mb-4" /> : null}
-        {publishBlockedReason && !rentOnlyBlock ? (
+        {hasRoomFieldIssues ? (
+          <div className={rentMissing ? "mt-3" : ""}>
+            <RoomSaveIssuesCallout
+              draft={draft}
+              prefix={isLiveEdit ? "Para guardar," : "Para publicar,"}
+              onOpenRoom={(index) => openIncompleteRoom(index, true)}
+            />
+          </div>
+        ) : publishBlockedReason && !rentOnlyBlock ? (
           <p
             className={`rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-medium text-warning-fg ${
               rentMissing ? "mt-3" : ""
@@ -238,7 +275,7 @@ export function PublishWizardReviewStep({
         ) : null}
         {actionErr ? (
           <p
-            className={`text-sm text-error ${publishBlockedReason || rentMissing ? "mt-3" : ""}`}
+            className={`text-sm text-error ${publishBlockedReason || rentMissing || hasRoomFieldIssues ? "mt-3" : ""}`}
             role="alert"
           >
             {actionErr}
@@ -251,18 +288,20 @@ export function PublishWizardReviewStep({
 
         <div
           className={`flex flex-col gap-2 ${
-            publishBlockedReason || actionErr || rentMissing || draftSaved ? "mt-5" : ""
+            publishBlockedReason || actionErr || rentMissing || draftSaved || hasRoomFieldIssues ? "mt-5" : ""
           }`}
         >
           {apiOn ? (
             <button
               type="button"
-              disabled={submitInFlight !== null || Boolean(publishBlockedReason)}
-              title={publishBlockedReason ?? undefined}
-              onClick={onPublish}
+              disabled={submitInFlight !== null || nonRoomBlock}
+              title={nonRoomBlock ? (publishBlockedReason ?? undefined) : undefined}
+              onClick={attemptPublish}
               className="w-full rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
             >
-              {primaryLabel}
+              {hasRoomFieldIssues
+                ? `Completar ${roomPreviewOptionLabel(draft.rooms[firstIncompleteRoom]!, firstIncompleteRoom)}`
+                : primaryLabel}
             </button>
           ) : (
             <span className="text-xs text-muted">

@@ -40,18 +40,38 @@ export function roomPreviewOptionLabel(
   return `${prefix}: ${custom}`;
 }
 
-/** Human-readable missing/invalid field names for one room row. */
-export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number): string[] {
-  const issues: string[] = [];
+export type RoomIssueSection = "occupants" | "header" | "details" | "description" | "tags";
+
+export type RoomFieldIssue = {
+  id: string;
+  section: RoomIssueSection;
+  message: string;
+};
+
+/** Structured missing/invalid fields for one room row. */
+export function collectRoomFieldIssueDetails(
+  d: Draft,
+  room: RoomDraft,
+  _index?: number,
+): RoomFieldIssue[] {
+  const issues: RoomFieldIssue[] = [];
 
   if (d.postMode === "property" && !isRoomAvailableForRent(room)) {
     const women = Math.max(0, Math.floor(room.occupantWomenCount ?? 0));
     const men = Math.max(0, Math.floor(room.occupantMenCount ?? 0));
     if (women + men < 1) {
-      issues.push("Al menos 1 mujer u hombre en la recámara ocupada");
+      issues.push({
+        id: "occupants",
+        section: "occupants",
+        message: "Indica quién ocupa esta recámara (al menos 1 mujer u hombre).",
+      });
     }
     if (women > 12 || men > 12) {
-      issues.push("Máximo 12 personas por género en la recámara");
+      issues.push({
+        id: "occupants-max",
+        section: "occupants",
+        message: "Máximo 12 personas por género en la recámara ocupada.",
+      });
     }
     return issues;
   }
@@ -61,53 +81,111 @@ export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number
       ? VALID_ROOM_LODGING_TYPES.includes(room.lodgingType as (typeof VALID_ROOM_LODGING_TYPES)[number])
       : room.lodgingType === "private_room" || room.lodgingType === "shared_room";
   if (!lodgingOk) {
-    issues.push("Tipo de recámara");
+    issues.push({
+      id: "lodging",
+      section: "details",
+      message: "Elige el tipo de recámara (privada, compartida o vivienda completa).",
+    });
   }
 
   if (!room.roomDimension) {
-    issues.push("Tamaño de la recámara");
+    issues.push({
+      id: "dimension",
+      section: "details",
+      message: "Elige el tamaño de la recámara.",
+    });
   }
 
   if (!Number.isFinite(room.rentMxn) || room.rentMxn <= 0) {
-    issues.push("Renta (MXN / mes)");
+    issues.push({
+      id: "rent",
+      section: "header",
+      message: "Indica la renta mensual en MXN. No se puede guardar en 0.",
+    });
   }
 
   if (Number.isFinite(room.depositMxn) && room.depositMxn < 0) {
-    issues.push("Depósito (MXN)");
+    issues.push({
+      id: "deposit",
+      section: "header",
+      message: "El depósito no puede ser negativo.",
+    });
   }
 
   if (!ISO_DATE.test(room.availableFrom.trim())) {
-    issues.push("Disponible desde");
+    issues.push({
+      id: "availableFrom",
+      section: "details",
+      message: "Indica desde cuándo está disponible la recámara.",
+    });
   }
 
   if (!Number.isFinite(room.minimalStayMonths) || room.minimalStayMonths < 1) {
-    issues.push("Estancia mínima (meses)");
+    issues.push({
+      id: "stay",
+      section: "details",
+      message: "Indica la estancia mínima en meses (al menos 1).",
+    });
   }
 
   if (!VALID_ROOMMATE_GENDER_PREFS.includes(room.roommateGenderPref)) {
-    issues.push("Preferencia de convivencia");
+    issues.push({
+      id: "gender",
+      section: "details",
+      message: "Elige la preferencia de convivencia.",
+    });
   }
 
   if (room.ageMin < 18 || room.ageMax < 18 || room.ageMax > 99) {
-    issues.push("Edad mínima y máxima (18–99)");
+    issues.push({
+      id: "age",
+      section: "details",
+      message: "Revisa el rango de edad (18–99 años).",
+    });
   } else if (room.ageMin > room.ageMax) {
-    issues.push("Edad mínima no mayor que la máxima");
+    issues.push({
+      id: "age-order",
+      section: "details",
+      message: "La edad mínima no puede ser mayor que la máxima.",
+    });
   }
 
   const summaryTrim = room.summary.trim();
   if (!summaryTrim) {
-    issues.push("Detalles de esta recámara");
+    issues.push({
+      id: "summary",
+      section: "description",
+      message: "Falta la descripción de la recámara (mínimo 100 caracteres).",
+    });
   } else if (summaryTrim.length < ROOM_SUMMARY_MIN) {
-    issues.push(`Detalles de esta recámara (mínimo ${ROOM_SUMMARY_MIN} caracteres)`);
+    issues.push({
+      id: "summary-short",
+      section: "description",
+      message: `La descripción debe tener al menos ${ROOM_SUMMARY_MIN} caracteres (ahora tiene ${summaryTrim.length}).`,
+    });
   } else if (summaryTrim.length > ROOM_SUMMARY_MAX) {
-    issues.push(`Detalles de esta recámara (máximo ${ROOM_SUMMARY_MAX} caracteres)`);
+    issues.push({
+      id: "summary-long",
+      section: "description",
+      message: `La descripción no puede pasar de ${ROOM_SUMMARY_MAX} caracteres.`,
+    });
   }
 
   if (!room.tags.some((t) => isRoomIdealParaTag(t))) {
-    issues.push("Ideal para (al menos una opción)");
+    issues.push({
+      id: "idealPara",
+      section: "tags",
+      message:
+        "En etiquetas, elige al menos una opción en «Ideal para» (estudiantes, profesionistas, parejas…).",
+    });
   }
 
   return issues;
+}
+
+/** Human-readable missing/invalid field names for one room row. */
+export function collectRoomFieldIssues(d: Draft, room: RoomDraft, _index: number): string[] {
+  return collectRoomFieldIssueDetails(d, room, _index).map((issue) => issue.message);
 }
 
 export function roomValidationIssuesByIndex(d: Draft): string[][] {
@@ -119,15 +197,25 @@ export function firstRoomIndexWithIssues(d: Draft): number {
   return rows.findIndex((issues) => issues.length > 0);
 }
 
-export function formatRoomsValidationMessage(d: Draft): string | null {
-  const lines: string[] = [];
+export function roomsWithFieldIssues(d: Draft): Array<{
+  index: number;
+  label: string;
+  issues: RoomFieldIssue[];
+}> {
+  const rows: Array<{ index: number; label: string; issues: RoomFieldIssue[] }> = [];
   for (let i = 0; i < d.rooms.length; i++) {
     const room = d.rooms[i]!;
-    const issues = collectRoomFieldIssues(d, room, i);
+    const issues = collectRoomFieldIssueDetails(d, room, i);
     if (!issues.length) continue;
-    lines.push(`${roomWizardLabel(d, room, i)}: ${issues.join("; ")}.`);
+    rows.push({ index: i, label: roomPreviewOptionLabel(room, i), issues });
   }
-  if (!lines.length) return null;
-  if (lines.length === 1) return lines[0]!;
-  return lines.join(" ");
+  return rows;
+}
+
+export function formatRoomsValidationMessage(d: Draft): string | null {
+  const rows = roomsWithFieldIssues(d);
+  if (!rows.length) return null;
+  return rows
+    .map((row) => `${row.label}: ${row.issues.map((issue) => issue.message).join(" ")}`)
+    .join(" ");
 }

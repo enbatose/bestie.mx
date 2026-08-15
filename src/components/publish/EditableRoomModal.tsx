@@ -31,6 +31,8 @@ import {
 import { draftImagesToUrls, preferDraftImages } from "@/lib/publishWizard/draftImages";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
+import { collectRoomFieldIssueDetails, type RoomIssueSection } from "@/lib/publishWizard/roomWizardValidation";
+import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
 import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
@@ -171,6 +173,9 @@ export function EditableRoomModal({
   const [detailsDraft, setDetailsDraft] = useState<RoomDraft | null>(null);
   const [summaryDraft, setSummaryDraft] = useState(room.summary);
   const [tagsDraft, setTagsDraft] = useState<ListingTag[]>(filterRoomScopeTags(room.tags));
+  const [showIssues, setShowIssues] = useState(
+    () => collectRoomFieldIssueDetails(draft, room).length > 0,
+  );
 
   const available = isRoomAvailableForRent(localRoom);
   const rentMissing = available && isListingRentMissing(localRoom.rentMxn);
@@ -180,6 +185,38 @@ export function EditableRoomModal({
     preferDraftImages(localRoom.photos, draft.roomImageUrls[roomIndex]),
   );
   const detailsRoom = detailsDraft ?? localRoom;
+
+  const applyIssueFocus = (sections: readonly RoomIssueSection[]) => {
+    if (sections.includes("header")) {
+      setHeaderDraft({
+        roomTitle: localRoom.customName || localRoom.title,
+        rentMxn: localRoom.rentMxn,
+        depositMxn: localRoom.depositMxn,
+      });
+      setEditingHeader(true);
+    }
+    if (sections.includes("details")) {
+      setDetailsDraft(cloneRoomDraft(localRoom));
+      setEditingDetails(true);
+    }
+    if (sections.includes("description")) {
+      setSummaryDraft(localRoom.summary);
+      setEditingSummary(true);
+    }
+    if (sections.includes("tags")) {
+      setTagsDraft(filterRoomScopeTags(localRoom.tags));
+      setEditingTags(true);
+    }
+  };
+
+  useEffect(() => {
+    const initial = collectRoomFieldIssueDetails(draft, room);
+    if (!initial.length) return;
+    const sections = [...new Set(initial.map((issue) => issue.section))];
+    applyIssueFocus(sections);
+    // Only on mount: highlight whatever is already missing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -200,6 +237,49 @@ export function EditableRoomModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  const flushPendingEdits = (base: RoomDraft): RoomDraft => {
+    let next = base;
+    if (editingHeader) {
+      const nextTitle = headerDraft.roomTitle.trim();
+      next = {
+        ...next,
+        title: nextTitle || next.title,
+        customName: nextTitle,
+        rentMxn: Math.max(0, headerDraft.rentMxn),
+        depositMxn: Math.max(0, headerDraft.depositMxn),
+      };
+    }
+    if (editingDetails && detailsDraft) {
+      next = {
+        ...next,
+        ...detailsDraft,
+        tags: filterRoomScopeTags(detailsDraft.tags),
+      };
+    }
+    if (editingSummary) {
+      next = { ...next, summary: summaryDraft };
+    }
+    if (editingTags) {
+      next = { ...next, tags: filterRoomScopeTags(tagsDraft) };
+    }
+    return next;
+  };
+
+  const localIssues = collectRoomFieldIssueDetails(draft, flushPendingEdits(localRoom));
+
+  const trySave = () => {
+    const next = flushPendingEdits(localRoom);
+    setLocalRoom(next);
+    const issues = collectRoomFieldIssueDetails(draft, next);
+    if (issues.length) {
+      setShowIssues(true);
+      applyIssueFocus([...new Set(issues.map((issue) => issue.section))]);
+      panelRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    onSave(next);
+  };
 
   const openHeaderEdit = () => {
     setHeaderDraft({
@@ -261,7 +341,6 @@ export function EditableRoomModal({
       onClick={onClose}
     >
       <div
-        ref={panelRef}
         className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-border bg-surface shadow-xl sm:max-h-[90vh] sm:rounded-2xl"
         onClick={(event) => event.stopPropagation()}
       >
@@ -278,7 +357,10 @@ export function EditableRoomModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+        <div
+          ref={panelRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+        >
           <div className="space-y-5">
             <header
               className={`rounded-2xl border border-dashed p-4 sm:p-5 ${
@@ -623,33 +705,31 @@ export function EditableRoomModal({
                       />
                     </InlineFieldEditor>
                   ) : (
-                    <>
-                      <p className="text-sm leading-relaxed text-muted sm:text-base">
-                        {localRoom.summary.trim() || (
-                          <span className="italic">Sin descripción de la recámara.</span>
-                        )}
-                      </p>
-                      <ScopeTagsBlock
-                        heading="Etiquetas de la recámara"
-                        tags={roomTagsActive}
-                        editing={editingTags}
-                        onStartEdit={() => {
-                          setTagsDraft(filterRoomScopeTags(localRoom.tags));
-                          setEditingTags(true);
-                        }}
-                        onSave={saveTags}
-                        onCancel={() => setEditingTags(false)}
-                        editGroups={ROOM_TAG_GROUPS}
-                        draftTags={tagsDraft}
-                        onToggle={(tag) =>
-                          setTagsDraft((prev) => {
-                            const active = prev.includes(tag);
-                            return active ? prev.filter((t) => t !== tag) : [...prev, tag];
-                          })
-                        }
-                      />
-                    </>
+                    <p className="text-sm leading-relaxed text-muted sm:text-base">
+                      {localRoom.summary.trim() || (
+                        <span className="italic">Sin descripción de la recámara.</span>
+                      )}
+                    </p>
                   )}
+                  <ScopeTagsBlock
+                    heading="Etiquetas de la recámara"
+                    tags={roomTagsActive}
+                    editing={editingTags}
+                    onStartEdit={() => {
+                      setTagsDraft(filterRoomScopeTags(localRoom.tags));
+                      setEditingTags(true);
+                    }}
+                    onSave={saveTags}
+                    onCancel={() => setEditingTags(false)}
+                    editGroups={ROOM_TAG_GROUPS}
+                    draftTags={tagsDraft}
+                    onToggle={(tag) =>
+                      setTagsDraft((prev) => {
+                        const active = prev.includes(tag);
+                        return active ? prev.filter((t) => t !== tag) : [...prev, tag];
+                      })
+                    }
+                  />
                 </PreviewSection>
               </>
             ) : null}
@@ -657,7 +737,9 @@ export function EditableRoomModal({
         </div>
 
         <div className="shrink-0 space-y-2 border-t border-border bg-surface p-4">
-          {publishBlockedReason ? (
+          {showIssues && localIssues.length ? (
+            <RoomLocalIssuesCallout draft={draft} room={localRoom} />
+          ) : publishBlockedReason ? (
             <p className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-medium text-warning-fg" role="status">
               {publishBlockedReason}
             </p>
@@ -671,7 +753,7 @@ export function EditableRoomModal({
             <button
               type="button"
               disabled={submitInFlight !== null}
-              onClick={() => onSave(localRoom)}
+              onClick={trySave}
               className="min-h-11 w-full rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50 sm:flex-1"
             >
               {submitInFlight === "publish" ? "Guardando…" : confirmLabel}

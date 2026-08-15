@@ -101,6 +101,7 @@ export function TagGroupsEditor({
           tags={group.tags}
           selected={selected}
           dashedInactive
+          required={group.title === "Ideal para"}
           onToggle={(tag) => onToggle(tag)}
         />
       ))}
