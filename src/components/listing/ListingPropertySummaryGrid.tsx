@@ -166,7 +166,7 @@ export function ListingRoomDetailsGrid({
       icon: Maximize2,
       label: "Tamaño",
       value: roomDimensionPreviewLabel(room.roomDimension ?? "medium", postMode),
-      detail: roomDimensionHintLabel(room.roomDimension ?? "medium", postMode),
+      detail: roomDimensionHintLabel(room.roomDimension ?? "medium", "room"),
     },
     { icon: Bath, label: "Baño", value: roomBathroomPreviewLabel(room.tags) },
     {

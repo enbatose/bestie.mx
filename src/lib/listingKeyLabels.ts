@@ -27,6 +27,8 @@ import {
   ROOM_IDEAL_PARA_TAG_SET,
   SOFT_HYPHEN,
   utilitiesBundleSatisfied,
+  roomDimensionHintLabel,
+  roomDimensionPreviewLabel,
 } from "@/lib/listingTags";
 import type { ListingTag, Property, PropertyListing, Room, RoommateGenderPref } from "@/types/listing";
 
@@ -47,6 +49,8 @@ export type KeyLabelItem = {
   icon: LucideIcon;
   title: string;
   value: string;
+  /** Optional helper under the value (e.g. Tamaño LOV description). */
+  detail?: string;
 };
 
 const KEY_LABEL_ESTACIONAMIENTO_INCLUIDO = `Estacionami${SOFT_HYPHEN}ento incluido`;
@@ -77,6 +81,18 @@ export function roomDimensionWizardLabel(
   if (v === "small") return "Individual (Cabe cama individual + buró)";
   if (v === "large") return "Grande (Cabe cama Queen/King + área de estar)";
   return "Matrimonial (Cabe cama matrimonial + escritorio)";
+}
+
+function tamañoKeyLabel(
+  dimension: Room["roomDimension"] | PropertyListing["roomDimension"],
+): KeyLabelItem {
+  const dim = dimension ?? "medium";
+  return {
+    icon: SquareStack,
+    title: "Tamaño",
+    value: roomDimensionPreviewLabel(dim, "room"),
+    detail: roomDimensionHintLabel(dim, "room"),
+  };
 }
 
 export function occupiedRoomOccupantLabel(room: Room): string {
@@ -129,7 +145,7 @@ export function buildSingleRoomKeyLabels(listing: PropertyListing): KeyLabelItem
       title: "Estancia mínima",
       value: minimalStayMonthsLabel(listing.minimalStayMonths ?? 1),
     },
-    { icon: SquareStack, title: "Tamaño", value: roomDimensionWizardLabel(listing.roomDimension) },
+    tamañoKeyLabel(listing.roomDimension),
     { icon: KeyRound, title: "Aval", value: yesNo(Boolean(listing.avalRequired)) },
     { icon: Bed, title: "Tipo de recámara", value: lodgingLabel(listing.lodgingType) },
     { icon: CheckCircle2, title: "Servicios básicos incluidos", value: basicServicesIncludedLabel(listing.tags) },
@@ -154,7 +170,7 @@ export function buildRoomKeyLabels(room: Room): KeyLabelItem[] {
       title: "Estancia mínima",
       value: minimalStayMonthsLabel(room.minimalStayMonths ?? 1),
     },
-    { icon: SquareStack, title: "Tamaño", value: roomDimensionWizardLabel(room.roomDimension) },
+    tamañoKeyLabel(room.roomDimension),
     { icon: KeyRound, title: "Aval", value: yesNo(Boolean(room.avalRequired)) },
     { icon: Bed, title: "Tipo de recámara", value: lodgingLabel(room.lodgingType) },
     { icon: CheckCircle2, title: "Servicios básicos incluidos", value: basicServicesIncludedLabel(room.tags) },

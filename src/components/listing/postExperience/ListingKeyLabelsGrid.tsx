@@ -59,11 +59,14 @@ function KeyLabelCard({ item }: { item: KeyLabelItem }) {
           </div>
           <p
             ref={valueRef}
-            className="truncate text-xs font-medium text-body"
+            className={`text-xs font-medium text-body ${item.detail ? "leading-snug" : "truncate"}`}
             title={isTruncated ? item.value : undefined}
           >
             {item.value}
           </p>
+          {item.detail ? (
+            <p className="mt-0.5 text-[11px] leading-snug text-muted">{item.detail}</p>
+          ) : null}
           {tooltipOpen ? (
             <div
               ref={tooltipRef}
