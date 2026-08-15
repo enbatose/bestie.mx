@@ -1,19 +1,26 @@
 import { useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Camera, Pencil } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
   ListingPropertySummaryGrid,
   ListingRoomDetailsGrid,
 } from "@/components/listing/ListingPropertySummaryGrid";
-import { ListingSection } from "@/components/listing/ListingSection";
-import { ListingTagChips, listingTagLabel } from "@/components/listing/ListingTagChips";
 import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
-import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
+import { EditableRoomModal } from "@/components/publish/EditableRoomModal";
+import {
+  cloneRoomDraft,
+  createPreviewDefaultRoom,
+  InlineFieldEditor,
+  PreviewSection,
+  ROOM_PLAZAS_MAX,
+  ROOM_STAY_MAX,
+  ScopeTagsBlock,
+} from "@/components/publish/editablePreviewShared";
 import {
   WizardNumberStepper,
   WizardPairedFieldLabel,
@@ -22,6 +29,11 @@ import {
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
+  genderPrefLabel,
+  roomDimensionWizardLabel,
+  yesNo,
+} from "@/lib/listingKeyLabels";
+import {
   PROPERTY_SUMMARY_MAX,
   PROPERTY_SUMMARY_MIN,
   PROPERTY_TITLE_MAX,
@@ -29,6 +41,7 @@ import {
   ROOM_SUMMARY_MAX,
   ROOM_SUMMARY_MIN,
   CITY_ANCHOR,
+  draftRoomImageUrls,
   effectiveWizardPropertyBathrooms,
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
@@ -36,7 +49,7 @@ import {
   derivedPropertyOccupantCounts,
   syncPropertyRoomSlotsToTotal,
 } from "@/lib/publishWizard/propertyRoomSlots";
-import { newRoomDraftId } from "@/lib/roomDisplay";
+import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSummary, roomDisplayName } from "@/lib/roomDisplay";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
@@ -44,11 +57,18 @@ import {
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   filterPropertyScopeTags,
   filterRoomScopeTags,
+  formatRoomAvailableFrom,
   isListingRentMissing,
+  listingHeroPriceLabel,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
+  collectRoomFieldIssues,
+  roomPreviewOptionLabel,
+} from "@/lib/publishWizard/roomWizardValidation";
+import {
   draftImagesAppend,
+  draftImagesToUrls,
   draftImagesWithoutUrl,
   preferDraftImages,
   syncDraftPhotoArrays,
@@ -57,14 +77,10 @@ import {
   ROOM_SINGLE_FLOW_PHOTO_HINT,
   roomsAvailableFromIdealTags,
 } from "@/lib/publishWizard/wizardTags";
-import { roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "@/types/listing";
-import type { ListingTagGroup } from "@/lib/listingTags";
 import type { LiveEditScope } from "@/components/publish/PublishWizardReviewStep";
 
-const ROOM_PLAZAS_MAX = 12;
-const ROOM_STAY_MAX = 36;
 const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_OCCUPANTS_MAX = 50;
 
@@ -83,6 +99,14 @@ type Props = {
   editScope?: LiveEditScope | null;
   profilePhoneE164?: string | null;
   onDraftChange: (updater: (d: Draft) => Draft) => void;
+  onRoomIndexChange?: (index: number) => void;
+  /** Commit the current draft updater then publish/save live listing. */
+  onCommitAndPublish?: (updater: (d: Draft) => Draft) => void;
+  onRoomModalDismiss?: () => void;
+  confirmLabel?: string;
+  submitInFlight?: "publish" | "draft" | null;
+  publishBlockedReason?: string | null;
+  actionErr?: string | null;
   /** Re-open photo editor after camera/gallery remount (live edit). */
   initialEditingPhotos?: boolean;
   /** Notify parent when the inline photo editor opens/closes (persist across remounts). */
@@ -93,225 +117,110 @@ type Props = {
   isAssistedDraft?: boolean;
 };
 
-function PreviewSection({
-  title,
-  children,
+function propertyRentRangeLabel(rooms: readonly RoomDraft[]): string | null {
+  const rents = rooms
+    .filter((room) => isRoomAvailableForRent(room))
+    .map((room) => room.rentMxn)
+    .filter((rent) => rent > 0);
+  if (!rents.length) return null;
+  const minRent = Math.min(...rents);
+  const maxRent = Math.max(...rents);
+  if (minRent === maxRent) return listingHeroPriceLabel(minRent);
+  return `${money.format(minRent)} – ${money.format(maxRent)} / mes`;
+}
+
+function RoomPreviewCard({
+  room,
+  index,
+  draft,
   onEdit,
-  editLabel = "Editar",
 }: {
-  title: string;
-  children: React.ReactNode;
-  onEdit?: () => void;
-  editLabel?: string;
+  room: RoomDraft;
+  index: number;
+  draft: Draft;
+  onEdit: () => void;
 }) {
+  const available = isRoomAvailableForRent(room);
+  const name = roomDisplayName(room, index);
+  const coverUrl =
+    draftImagesToUrls(preferDraftImages(room.photos, draft.roomImageUrls[index]))[0] ??
+    draftRoomImageUrls(draft, index)[0] ??
+    null;
+  const issues = collectRoomFieldIssues(draft, room, index);
+  const rentMissing = available && isListingRentMissing(room.rentMxn);
+
   return (
-    <ListingSection
-      title={title}
-      action={
-        onEdit ? (
+    <article className="rounded-xl border border-border bg-bg-light p-4">
+      <div className="flex gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <p className="text-sm font-semibold text-body">{name}</p>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
+              }`}
+            >
+              {occupancyStatusLabel(available ? "available" : "occupied")}
+            </span>
+          </div>
+          {available ? (
+            <>
+              {rentMissing ? (
+                <p className="mt-1 text-sm font-semibold text-error">Falta el precio de renta</p>
+              ) : (
+                <p className="mt-1 text-sm text-muted">
+                  {money.format(room.rentMxn)} / mes · {roomDimensionWizardLabel(room.roomDimension)}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
+                  Disponible {formatRoomAvailableFrom(room.availableFrom ?? "")}
+                </span>
+                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
+                  Preferencia de género: {genderPrefLabel(room.roommateGenderPref)}
+                </span>
+                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
+                  Baño privado: {yesNo(room.tags.includes("baño-privado"))}
+                </span>
+                <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">
+                  Estacionamiento privado: {yesNo(room.tags.includes("estacionamiento"))}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="mt-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+              {occupiedRoomOccupantSummary(room) ?? "Ocupada"}
+            </p>
+          )}
+          {issues.length ? (
+            <p className="mt-2 text-xs font-semibold text-warning-fg">Incompleta</p>
+          ) : null}
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-semibold text-primary transition hover:bg-surface-elevated"
+            className="mt-4 inline-flex w-full min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-95 sm:w-auto"
           >
-            <Pencil className="size-3.5" aria-hidden />
-            {editLabel}
+            Editar esta recámara
           </button>
-        ) : undefined
-      }
-    >
-      {children}
-    </ListingSection>
-  );
-}
-
-function InlineFieldEditor({
-  label,
-  children,
-  onSave,
-  onCancel,
-  saveLabel = "Guardar cambios",
-}: {
-  label: string;
-  children: React.ReactNode;
-  onSave: () => void;
-  onCancel: () => void;
-  saveLabel?: string;
-}) {
-  return (
-    <div className="space-y-3">
-      <p className="text-xs font-medium text-muted">{label}</p>
-      {children}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onSave}
-          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-fg"
-        >
-          {saveLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-body"
-        >
-          Cancelar
-        </button>
+        </div>
+        <div className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-xl bg-surface ring-1 ring-border sm:w-28">
+          {coverUrl ? (
+            <img
+              src={apiAbsoluteUrl(coverUrl)}
+              alt={`Foto de ${name}`}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-bg-light">
+              <Camera className="size-6 text-muted" strokeWidth={1.75} aria-hidden />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </article>
   );
-}
-
-const TAG_CHIP_ACTIVE =
-  "min-w-0 rounded-full px-3 py-2 text-left text-xs font-medium hyphens-manual transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
-
-function TagGroupsEditor({
-  groups,
-  selected,
-  onToggle,
-}: {
-  groups: readonly ListingTagGroup[];
-  selected: readonly ListingTag[];
-  onToggle: (tag: ListingTag) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      {groups.map((group) => (
-        <TagChoiceSection
-          key={group.title}
-          title={group.title}
-          tags={group.tags}
-          selected={selected}
-          dashedInactive
-          onToggle={(tag) => onToggle(tag)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ScopeTagsBlock({
-  heading,
-  tags,
-  editing,
-  onStartEdit,
-  onSave,
-  onCancel,
-  editGroups,
-  draftTags,
-  onToggle,
-  hideEditButton = false,
-  unselectedTags,
-}: {
-  heading: string;
-  tags: readonly ListingTag[];
-  editing: boolean;
-  onStartEdit: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-  editGroups: readonly ListingTagGroup[];
-  draftTags: readonly ListingTag[];
-  onToggle: (tag: ListingTag) => void;
-  /** Hide the inline "Editar etiquetas" button when the parent section already provides an edit trigger. */
-  hideEditButton?: boolean;
-  /** Tags NOT selected — shown dimmed in AI-draft preview so the user knows what's available. */
-  unselectedTags?: readonly ListingTag[];
-}) {
-  return (
-    <div className="mt-4 border-t border-border pt-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{heading}</p>
-        {!editing && !hideEditButton ? (
-          <button
-            type="button"
-            onClick={onStartEdit}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-surface-elevated"
-          >
-            <Pencil className="size-3" aria-hidden />
-            Editar etiquetas
-          </button>
-        ) : null}
-      </div>
-      <div className="mt-2">
-        {editing ? (
-          <InlineFieldEditor label="Selecciona las etiquetas" onSave={onSave} onCancel={onCancel}>
-            <TagGroupsEditor groups={editGroups} selected={draftTags} onToggle={onToggle} />
-          </InlineFieldEditor>
-        ) : (
-          <>
-            <ListingTagChips tags={tags} />
-            {unselectedTags && unselectedTags.length > 0 ? (
-              <div className="mt-3">
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted/50">
-                  No incluidas · edita para agregar
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {unselectedTags.map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted/50"
-                    >
-                      {listingTagLabel(t)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function cloneRoomDraft(room: RoomDraft): RoomDraft {
-  return { ...room, tags: [...room.tags] };
-}
-
-function createPreviewDefaultRoom(d: Draft): RoomDraft {
-  const base = d.rooms[0];
-  if (base) {
-    return {
-      ...cloneRoomDraft(base),
-      id: newRoomDraftId(),
-      customName: "",
-      occupancyStatus: "available",
-      occupantGender: "any",
-      occupantAge: 25,
-      occupantWomenCount: 0,
-      occupantMenCount: 0,
-      title: "",
-      rentMxn: 0,
-      depositMxn: 0,
-      summary: "",
-      photos: [],
-    };
-  }
-  return {
-    id: newRoomDraftId(),
-    customName: "",
-    occupancyStatus: "available",
-    occupantGender: "any",
-    occupantAge: 25,
-    occupantWomenCount: 0,
-    occupantMenCount: 0,
-    title: "",
-    rentMxn: 0,
-    depositMxn: 0,
-    roomsAvailable: 1,
-    summary: "",
-    tags: [],
-    roommateGenderPref: "any",
-    ageMin: 22,
-    ageMax: 45,
-    lodgingType: "private_room",
-    availableFrom: new Date().toISOString().slice(0, 10),
-    minimalStayMonths: 1,
-    roomDimension: "medium",
-    avalRequired: false,
-    rentIncludesUtilities: false,
-    photos: [],
-  };
 }
 
 type PropertyFactsDraft = {
@@ -346,6 +255,13 @@ export function EditableListingPreview({
   editScope = null,
   profilePhoneE164,
   onDraftChange,
+  onRoomIndexChange,
+  onCommitAndPublish,
+  onRoomModalDismiss,
+  confirmLabel,
+  submitInFlight = null,
+  publishBlockedReason = null,
+  actionErr = null,
   initialEditingPhotos = false,
   onEditingPhotosChange,
   onPhotoPickerOpen,
@@ -368,21 +284,27 @@ export function EditableListingPreview({
   const room = draft.rooms[roomIndex];
   const isPropertyScope = editScope === "property";
   const isRoomScope = editScope === "room";
-  /** Wizard review shows everything; scoped live-edit shows only the relevant blocks. */
-  const showPropertyBlocks = !isRoomScope;
-  const showRoomBlocks = !isPropertyScope;
-  /** A room inside a property shares the property's address: edit it from the property screen. */
+  const isPropertyPreview = draft.postMode === "property" && !isRoomScope;
   const isRoomOfProperty = isRoomScope && draft.postMode === "property";
+  /** Property review uses the rooms grid + modal; single-room posts keep inline room blocks. */
+  const showPropertyBlocks = !isRoomScope;
+  const showRoomBlocks = draft.postMode === "room";
   const canEditLocation = !isRoomOfProperty;
+  const headerUsesPropertyFields = isPropertyPreview || isPropertyScope;
 
   const [editingHeader, setEditingHeader] = useState(false);
   const [editingProperty, setEditingProperty] = useState(false);
   const [editingPropertyTags, setEditingPropertyTags] = useState(false);
   const [editingRoom, setEditingRoom] = useState(false);
   const [editingRoomTags, setEditingRoomTags] = useState(false);
-  const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos);
+  const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos && !isPropertyPreview && !isRoomOfProperty);
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
   const [editingPropertyFacts, setEditingPropertyFacts] = useState(false);
+  const [editingRoomModalIndex, setEditingRoomModalIndex] = useState<number | null>(() => {
+    if (isRoomOfProperty) return roomIndex;
+    if (isPropertyPreview && initialEditingPhotos) return roomIndex;
+    return null;
+  });
 
   const setPhotosEditing = (next: boolean) => {
     setEditingPhotos(next);
@@ -406,7 +328,7 @@ export function EditableListingPreview({
   );
 
   const galleryUrls = useMemo(() => {
-    if (isPropertyScope) {
+    if (isPropertyPreview || isPropertyScope) {
       return listingGalleryImageUrls({
         postMode: "property",
         propertyImageUrls: listing.propertyImageUrls,
@@ -426,6 +348,7 @@ export function EditableListingPreview({
       roomImageUrls: listing.roomImageUrls,
     });
   }, [
+    isPropertyPreview,
     isPropertyScope,
     isRoomScope,
     draft.postMode,
@@ -481,7 +404,7 @@ export function EditableListingPreview({
 
   const saveHeader = () => {
     const nextPropertyTitle = headerDraft.propertyTitle.slice(0, PROPERTY_TITLE_MAX);
-    if (isPropertyScope) {
+    if (headerUsesPropertyFields) {
       onDraftChange((d) => ({
         ...d,
         neighborhood: headerDraft.neighborhood,
@@ -665,13 +588,78 @@ export function EditableListingPreview({
       lodgingType: room.lodgingType,
       propertyKind: draft.propertyKind,
     });
-  const rentMissing = !isPropertyScope && isListingRentMissing(room.rentMxn);
+  const rentMissing = showRoomBlocks && isListingRentMissing(room.rentMxn);
+  const propertyRentMissing =
+    isPropertyPreview &&
+    draft.rooms.some((r) => isRoomAvailableForRent(r) && isListingRentMissing(r.rentMxn));
+  const propertyPriceLabel = isPropertyPreview ? propertyRentRangeLabel(draft.rooms) : null;
+  const firstAvailableRoom =
+    draft.rooms.find((r) => isRoomAvailableForRent(r)) ?? room;
+
+  const openRoomModal = (index: number) => {
+    onRoomIndexChange?.(index);
+    setEditingRoomModalIndex(index);
+  };
+
+  const commitRoomAt = (index: number, updated: RoomDraft) => {
+    onDraftChange((d) =>
+      syncDraftPhotoArrays({
+        ...d,
+        rooms: d.rooms.map((r, i) => (i === index ? updated : r)),
+        roomImageUrls: d.roomImageUrls.map((row, i) => (i === index ? updated.photos ?? row : row)),
+      }),
+    );
+  };
+
+  const roomModal =
+    editingRoomModalIndex !== null && draft.rooms[editingRoomModalIndex] ? (
+      <EditableRoomModal
+        room={draft.rooms[editingRoomModalIndex]}
+        roomIndex={editingRoomModalIndex}
+        draft={draft}
+        apiOn={apiOn}
+        confirmLabel={
+          isRoomOfProperty
+            ? (confirmLabel ?? "Guardar cambios")
+            : "Guardar recámara"
+        }
+        submitInFlight={isRoomOfProperty ? submitInFlight : null}
+        publishBlockedReason={isRoomOfProperty ? publishBlockedReason : null}
+        actionErr={isRoomOfProperty ? actionErr : null}
+        initialEditingPhotos={initialEditingPhotos && editingRoomModalIndex === roomIndex}
+        onSave={(updated) => {
+          if (isRoomOfProperty && onCommitAndPublish) {
+            onCommitAndPublish((d) =>
+              syncDraftPhotoArrays({
+                ...d,
+                rooms: d.rooms.map((r, i) => (i === editingRoomModalIndex ? updated : r)),
+                roomImageUrls: d.roomImageUrls.map((row, i) =>
+                  i === editingRoomModalIndex ? updated.photos ?? row : row,
+                ),
+              }),
+            );
+            return;
+          }
+          commitRoomAt(editingRoomModalIndex, updated);
+          setEditingRoomModalIndex(null);
+        }}
+        onClose={() => {
+          setEditingRoomModalIndex(null);
+          if (isRoomOfProperty) onRoomModalDismiss?.();
+        }}
+        onPhotoPickerOpen={onPhotoPickerOpen}
+      />
+    ) : null;
+
+  if (isRoomOfProperty) {
+    return roomModal ?? <p className="text-sm text-muted">No hay recámara seleccionada.</p>;
+  }
 
   return (
     <div className="space-y-6">
       <header
         className={`rounded-2xl border border-dashed p-5 ${
-          rentMissing ? "border-error/60 bg-error/5" : "border-secondary/50 bg-secondary/5"
+          rentMissing || propertyRentMissing ? "border-error/60 bg-error/5" : "border-secondary/50 bg-secondary/5"
         }`}
       >
         <div className="flex items-center justify-between gap-2">
@@ -705,7 +693,7 @@ export function EditableListingPreview({
         {editingHeader ? (
           <InlineFieldEditor
             label={
-              isPropertyScope
+              headerUsesPropertyFields
                 ? "Título y colonia"
                 : draft.postMode === "room"
                   ? "Título, ubicación y precio"
@@ -714,7 +702,7 @@ export function EditableListingPreview({
             onSave={saveHeader}
             onCancel={() => setEditingHeader(false)}
           >
-            {isPropertyScope ? (
+            {headerUsesPropertyFields ? (
               <label className="block text-sm font-medium text-body">
                 Título de la propiedad
                 <input
@@ -774,7 +762,7 @@ export function EditableListingPreview({
                 />
               </label>
             ) : null}
-            {!isPropertyScope ? (
+            {!headerUsesPropertyFields ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
                   Renta (MXN / mes)
@@ -824,10 +812,18 @@ export function EditableListingPreview({
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-primary sm:text-3xl">
               {previewHeaderTitle}
             </h1>
-            {!isPropertyScope && draft.postMode === "property" && listing.title.trim() ? (
+            {!isPropertyPreview && draft.postMode === "property" && listing.title.trim() ? (
               <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
             ) : null}
-            {!isPropertyScope ? (
+            {isPropertyPreview ? (
+              propertyRentMissing ? (
+                <div className="mt-3">
+                  <MissingRentCallout />
+                </div>
+              ) : propertyPriceLabel ? (
+                <p className="mt-2 text-2xl font-bold text-body">{propertyPriceLabel}</p>
+              ) : null
+            ) : !headerUsesPropertyFields ? (
               rentMissing ? (
                 <div className="mt-3">
                   <MissingRentCallout onEdit={editingHeader ? undefined : openHeaderEdit} />
@@ -838,16 +834,16 @@ export function EditableListingPreview({
             ) : null}
             <ListingHeaderBadges
               postMode={draft.postMode}
-              roommateGenderPref={room.roommateGenderPref}
-              availableFrom={isPropertyScope ? undefined : room.availableFrom}
-              occupiedByMenCount={draft.occupiedByMenCount}
-              occupiedByWomenCount={draft.occupiedByWomenCount}
+              roommateGenderPref={firstAvailableRoom.roommateGenderPref}
+              availableFrom={isPropertyPreview || isPropertyScope ? undefined : room.availableFrom}
+              occupiedByMenCount={occupantCounts.occupiedByMenCount}
+              occupiedByWomenCount={occupantCounts.occupiedByWomenCount}
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
               propertyBathrooms={effectiveWizardPropertyBathrooms(draft)}
               propertyKind={draft.propertyKind}
               tags={draft.propertyTags}
             />
-            {!isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
+            {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
           </>
@@ -913,7 +909,7 @@ export function EditableListingPreview({
                                   propertyImageUrls: nextShared,
                                 });
                               }
-                              if (v.startsWith("room:") && !isPropertyScope) {
+                              if (v.startsWith("room:")) {
                                 const idx = Number(v.split(":")[1] ?? "1") - 1;
                                 if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
                                 const row = preferDraftImages(d.rooms[idx]?.photos, d.roomImageUrls[idx]);
@@ -940,7 +936,7 @@ export function EditableListingPreview({
                           <option value="uncat">Sin categorizar</option>
                           <option value="shared">Áreas compartidas</option>
                           <option value="facade">Fachada</option>
-                          {!isPropertyScope
+                          {draft.postMode === "property"
                             ? draft.rooms.map((r, idx) => (
                                 <option key={idx} value={`room:${idx + 1}`}>
                                   {roomPreviewOptionLabel(r, idx)}
@@ -1417,6 +1413,53 @@ export function EditableListingPreview({
       </PreviewSection>
       ) : null}
 
+      {isPropertyPreview ? (
+        <PreviewSection title="Recámaras" subtitle="Toca una recámara para editarla.">
+          <div className="space-y-6">
+            {draft.rooms.some((r) => !isRoomAvailableForRent(r)) ? (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Cuartos ocupados
+                </h3>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {draft.rooms.map((r, idx) =>
+                    !isRoomAvailableForRent(r) ? (
+                      <RoomPreviewCard
+                        key={r.id || idx}
+                        room={r}
+                        index={idx}
+                        draft={draft}
+                        onEdit={() => openRoomModal(idx)}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              </div>
+            ) : null}
+            {draft.rooms.some((r) => isRoomAvailableForRent(r)) ? (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Cuartos disponibles
+                </h3>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {draft.rooms.map((r, idx) =>
+                    isRoomAvailableForRent(r) ? (
+                      <RoomPreviewCard
+                        key={r.id || idx}
+                        room={r}
+                        index={idx}
+                        draft={draft}
+                        onEdit={() => openRoomModal(idx)}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </PreviewSection>
+      ) : null}
+
       <PreviewSection title="Ubicación">
         {isRoomOfProperty ? (
           <p className="mb-3 text-sm text-muted">
@@ -1451,6 +1494,7 @@ export function EditableListingPreview({
           }
         />
       </PreviewSection>
+      {roomModal}
     </div>
   );
 }

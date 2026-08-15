@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { isListingRentMissing } from "@/lib/listingTags";
+import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import { roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
@@ -26,6 +27,8 @@ type Props = {
   roomIndex: number;
   onRoomIndexChange: (index: number) => void;
   onDraftChange: (updater: (d: Draft) => Draft) => void;
+  /** Apply a draft updater synchronously then publish (live-edit room modal). */
+  onCommitAndPublish?: (updater: (d: Draft) => Draft) => void;
   apiOn: boolean;
   profilePhoneE164?: string | null;
   publishBlockedReason: string | null;
@@ -49,6 +52,7 @@ export function PublishWizardReviewStep({
   roomIndex,
   onRoomIndexChange,
   onDraftChange,
+  onCommitAndPublish,
   apiOn,
   profilePhoneE164,
   publishBlockedReason,
@@ -63,6 +67,7 @@ export function PublishWizardReviewStep({
   onPhotoPickerOpen,
   isAssistedDraft = false,
 }: Props) {
+  const navigate = useNavigate();
   const isLiveEdit = liveEdit != null;
   const editScope = liveEdit?.scope ?? null;
   const returnListingId = liveEdit?.returnListingId ?? null;
@@ -85,17 +90,17 @@ export function PublishWizardReviewStep({
 
   const safeRoomIndex = Math.min(roomIndex, Math.max(0, draft.rooms.length - 1));
   const activeRoom = draft.rooms[safeRoomIndex];
-  const rentMissing = isListingRentMissing(activeRoom?.rentMxn);
+  /** Numbered recámara chrome is for a room inside a property post, not a single-room listing. */
+  const isRoomOfProperty = editScope === "room" && draft.postMode === "property";
+  const isPropertyPreview = draft.postMode === "property" && editScope !== "room";
+  const rentMissing = isPropertyPreview
+    ? draft.rooms.some((r) => isRoomAvailableForRent(r) && isListingRentMissing(r.rentMxn))
+    : isListingRentMissing(activeRoom?.rentMxn);
   const rentOnlyBlock =
     rentMissing &&
     Boolean(publishBlockedReason) &&
     /Renta \(MXN/.test(publishBlockedReason ?? "") &&
     !publishBlockedReason?.includes(";");
-  const activeRoomTitle = activeRoom ? roomPreviewOptionLabel(activeRoom, safeRoomIndex) : `Recámara ${safeRoomIndex + 1}`;
-  const activeRoomLabel = `Recámara ${safeRoomIndex + 1}`;
-  const propertyLabel = draft.propertyTitle.trim() || draft.neighborhood.trim() || null;
-  /** Numbered recámara chrome is for a room inside a property post, not a single-room listing. */
-  const isRoomOfProperty = editScope === "room" && draft.postMode === "property";
 
   const heading =
     editScope === "property"
@@ -107,11 +112,10 @@ export function PublishWizardReviewStep({
           : "Revisión final";
 
   const intro =
-    editScope === "property" ? (
+    editScope === "property" || (isPropertyPreview && isLiveEdit) ? (
       <>
-        Edita los datos de la <strong className="font-medium text-body">propiedad</strong> (título, fotos
-        compartidas, amenidades, ubicación). Para cambiar una recámara, vuelve a Mis anuncios y usa Editar en esa
-        recámara.
+        Edita los datos de la <strong className="font-medium text-body">propiedad</strong> y abre cada recámara
+        para cambiar fotos, precio y detalles.
       </>
     ) : isRoomOfProperty ? (
       <>
@@ -125,6 +129,11 @@ export function PublishWizardReviewStep({
         <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
         descripción y más.
       </>
+    ) : isPropertyPreview ? (
+      <>
+        Así se verá tu propiedad publicada. Toca <strong className="font-medium text-body">Editar</strong> en cada
+        sección. Usa <strong className="font-medium text-body">Editar esta recámara</strong> para ajustar cada cuarto.
+      </>
     ) : (
       <>
         Así se verá tu anuncio publicado. Toca <strong className="font-medium text-body">Editar</strong> en cada
@@ -132,11 +141,12 @@ export function PublishWizardReviewStep({
       </>
     );
 
-  const showRoomPicker = draft.rooms.length > 1 && editScope !== "property";
-  const showRoomFocusBanner = isRoomOfProperty || (showRoomPicker && !isLiveEdit);
+  const showRoomPicker = draft.postMode === "room" && draft.rooms.length > 1 && editScope !== "property";
+  const showRoomFocusBanner = showRoomPicker && !isLiveEdit;
 
   return (
     <div className="space-y-6">
+      {isRoomOfProperty ? null : (
       <div className={`rounded-xl border shadow-sm ${isAssistedDraft && !isLiveEdit ? "border-amber-200 bg-amber-50/80 px-4 py-3" : "border-border bg-bg-light p-4 px-5"}`}>
         <h3 className="text-[15px] font-bold text-primary">{heading}</h3>
         {isAssistedDraft && !isLiveEdit ? (
@@ -158,42 +168,7 @@ export function PublishWizardReviewStep({
             ) : null}
           </div>
         ) : null}
-        {isRoomOfProperty && activeRoom ? (
-          <div className="mt-3 rounded-xl border border-primary/25 bg-primary px-4 py-3 text-primary-fg shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-fg/80">
-              Estás editando solo esta recámara
-            </p>
-            <p className="mt-1 text-lg font-bold tracking-tight sm:text-xl">
-              {activeRoomLabel}
-              {activeRoomTitle !== activeRoomLabel ? (
-                <span className="font-semibold text-primary-fg/90">
-                  {" "}
-                  · {activeRoomTitle.replace(`${activeRoomLabel}: `, "")}
-                </span>
-              ) : null}
-            </p>
-            {propertyLabel ? (
-              <p className="mt-1 text-sm text-primary-fg/80">En {propertyLabel}</p>
-            ) : null}
-            {showRoomPicker ? (
-              <label className="mt-3 block text-xs font-semibold text-primary-fg/90">
-                Cambiar de recámara
-                <select
-                  value={safeRoomIndex}
-                  onChange={(e) => onRoomIndexChange(Number(e.target.value))}
-                  className="mt-1.5 w-full rounded-lg border border-primary-fg/25 bg-primary-fg/10 px-3 py-2 text-sm font-medium text-primary-fg outline-none ring-secondary focus:ring-2"
-                >
-                  {draft.rooms.map((r, i) => (
-                    <option key={i} value={i} className="text-body">
-                      {roomPreviewOptionLabel(r, i)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-          </div>
-        ) : null}
-        <p className={`text-sm text-muted ${isRoomOfProperty && activeRoom ? "mt-3" : "mt-2"}`}>{intro}</p>
+        <p className="mt-2 text-sm text-muted">{intro}</p>
         {isLiveEdit && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
@@ -204,6 +179,7 @@ export function PublishWizardReviewStep({
           </Link>
         ) : null}
       </div>
+      )}
 
       {showRoomFocusBanner && !isRoomOfProperty ? (
         <label className="block text-sm font-medium text-body">
@@ -230,12 +206,24 @@ export function PublishWizardReviewStep({
         editScope={editScope}
         profilePhoneE164={profilePhoneE164}
         onDraftChange={onDraftChange}
+        onRoomIndexChange={onRoomIndexChange}
+        onCommitAndPublish={onCommitAndPublish}
+        onRoomModalDismiss={
+          cancelTo
+            ? () => navigate(cancelTo)
+            : undefined
+        }
+        confirmLabel={primaryLabel}
+        submitInFlight={submitInFlight}
+        publishBlockedReason={publishBlockedReason}
+        actionErr={actionErr}
         initialEditingPhotos={initialEditingPhotos}
         onEditingPhotosChange={onEditingPhotosChange}
         onPhotoPickerOpen={onPhotoPickerOpen}
         isAssistedDraft={isAssistedDraft && !isLiveEdit}
       />
 
+      {isRoomOfProperty ? null : (
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
         {rentMissing ? <MissingRentCallout className="mb-4" /> : null}
         {publishBlockedReason && !rentOnlyBlock ? (
@@ -303,6 +291,7 @@ export function PublishWizardReviewStep({
 
         {!isLiveEdit ? <PublishReviewDisclaimer /> : null}
       </section>
+      )}
     </div>
   );
 }

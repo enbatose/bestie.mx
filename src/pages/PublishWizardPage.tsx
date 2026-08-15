@@ -3136,6 +3136,13 @@ export function PublishWizardPage() {
               });
               void flushWizardAutosave();
             }}
+            onCommitAndPublish={(updater) => {
+              const next = syncDraftPhotoFields(updater(draftRef.current));
+              draftRef.current = next;
+              setDraft(next);
+              void flushWizardAutosave();
+              void submitPublish();
+            }}
             apiOn={apiOn}
             profilePhoneE164={me?.phoneE164}
             publishBlockedReason={publishBlockedReason}
