@@ -10,6 +10,7 @@ import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingTagChips, listingTagLabel } from "@/components/listing/ListingTagChips";
 import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
+import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
@@ -34,6 +35,7 @@ import {
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   filterPropertyScopeTags,
   filterRoomScopeTags,
+  isListingRentMissing,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
@@ -489,10 +491,15 @@ export function EditableListingPreview({
       lodgingType: room.lodgingType,
       propertyKind: draft.propertyKind,
     });
+  const rentMissing = !isPropertyScope && isListingRentMissing(room.rentMxn);
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl border border-dashed border-secondary/50 bg-secondary/5 p-5">
+      <header
+        className={`rounded-2xl border border-dashed p-5 ${
+          rentMissing ? "border-error/60 bg-error/5" : "border-secondary/50 bg-secondary/5"
+        }`}
+      >
         <div className="flex items-center justify-between gap-2">
           <span
             className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
@@ -597,6 +604,7 @@ export function EditableListingPreview({
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
                   Renta (MXN / mes)
+                  <span className="text-error"> *</span>
                   <input
                     type="number"
                     min={0}
@@ -608,7 +616,11 @@ export function EditableListingPreview({
                         rentMxn: Math.max(0, Number(e.target.value) || 0),
                       }))
                     }
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                    className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-sm ${
+                      isListingRentMissing(headerDraft.rentMxn)
+                        ? "border border-error ring-1 ring-error/40"
+                        : "border border-border"
+                    }`}
                   />
                 </label>
                 <label className="block text-sm font-medium text-body">
@@ -641,7 +653,15 @@ export function EditableListingPreview({
             {!isPropertyScope && draft.postMode === "property" && listing.title.trim() ? (
               <p className="mt-1 text-sm text-muted">Recámara: {listing.title}</p>
             ) : null}
-            {!isPropertyScope ? <ListingHeroPrice rentMxn={listing.rentMxn} /> : null}
+            {!isPropertyScope ? (
+              rentMissing ? (
+                <div className="mt-3">
+                  <MissingRentCallout onEdit={editingHeader ? undefined : openHeaderEdit} />
+                </div>
+              ) : (
+                <ListingHeroPrice rentMxn={listing.rentMxn} />
+              )
+            ) : null}
             <ListingHeaderBadges
               postMode={draft.postMode}
               roommateGenderPref={room.roommateGenderPref}

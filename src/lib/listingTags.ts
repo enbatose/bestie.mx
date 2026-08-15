@@ -404,6 +404,11 @@ export function listingHeroPriceLabel(rentMxn: number): string {
   return `${rentMxn.toLocaleString("es-MX")} MXN / mes`;
 }
 
+/** True when rent is unset or zero — not a publishable monthly price. */
+export function isListingRentMissing(rentMxn: number | null | undefined): boolean {
+  return !Number.isFinite(rentMxn) || (rentMxn as number) <= 0;
+}
+
 export function isPropertyScopeTag(tag: string): tag is ListingTag {
   return PROPERTY_SCOPE_TAG_SET.has(tag);
 }

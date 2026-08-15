@@ -393,6 +393,17 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         res.status(409).json({ error: "publisher_taken" }); return;
       }
 
+      const rentRows = db.prepare(
+        `SELECT rent_mxn FROM rooms WHERE property_id = ?`
+      ).all(row.property_id) as { rent_mxn: number }[];
+      if (
+        rentRows.length === 0 ||
+        rentRows.some((r) => !Number.isFinite(Number(r.rent_mxn)) || Number(r.rent_mxn) <= 0)
+      ) {
+        res.status(400).json({ error: "rent_required" });
+        return;
+      }
+
       // Link orphan publisher to user if not already linked
       if (!existingLink) {
         db.prepare(

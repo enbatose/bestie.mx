@@ -95,6 +95,8 @@ export function AssistedDraftClaimPage() {
         const msg = e instanceof Error ? e.message : "publish_error";
         if (msg === "already_claimed_by_other") {
           setState({ phase: "already_claimed" });
+        } else if (msg === "rent_required") {
+          navigate(`/borrador/${token}`, { replace: true });
         } else {
           setState({
             phase: "error",
@@ -103,7 +105,7 @@ export function AssistedDraftClaimPage() {
         }
       }
     })();
-  }, [autoPublish, me, token, openAuthModal]);
+  }, [autoPublish, me, token, openAuthModal, navigate]);
 
   // ── Case 2: no ?publish=1 — activate claim, build draft, redirect to wizard Step 6 ──
   useEffect(() => {

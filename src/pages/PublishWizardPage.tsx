@@ -55,6 +55,7 @@ import {
   PROPERTY_SCOPE_TAG_SLUGS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   ROOM_TAG_GROUPS,
+  isListingRentMissing,
 } from "@/lib/listingTags";
 import {
   hydrateDraftImagesFromUrls,
@@ -2448,7 +2449,12 @@ export function PublishWizardPage() {
         await publishAssistedDraftClaim(claimToken);
         navigate("/mis-anuncios", { replace: true });
       } catch (e) {
-        setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
+        const msg = e instanceof Error ? e.message : "No se pudo publicar.";
+        setPublishErr(
+          msg === "rent_required"
+            ? "Falta el precio de renta. Agrégalo en «Editar encabezado» para publicar."
+            : msg,
+        );
         setSubmitInFlight(null);
       }
       return;
@@ -2907,6 +2913,15 @@ export function PublishWizardPage() {
                 Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el anuncio
                 quedará bajo tu nombre.
               </p>
+              {isListingRentMissing(
+                draft.rooms[Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))]
+                  ?.rentMxn,
+              ) ? (
+                <p className="mt-2 text-xs font-semibold text-error">
+                  Falta el precio de renta. Agrégalo en «Editar encabezado» — no se puede publicar en 0
+                  MXN / mes.
+                </p>
+              ) : null}
             </div>
           ) : null}
           {isPublishStep ? (

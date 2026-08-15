@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
+import { isListingRentMissing } from "@/lib/listingTags";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
+import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
 import type { Draft } from "@/pages/PublishWizardPage";
 import type { ListingStatus } from "@/types/listing";
@@ -76,6 +78,12 @@ export function PublishWizardReviewStep({
 
   const safeRoomIndex = Math.min(roomIndex, Math.max(0, draft.rooms.length - 1));
   const activeRoom = draft.rooms[safeRoomIndex];
+  const rentMissing = isListingRentMissing(activeRoom?.rentMxn);
+  const rentOnlyBlock =
+    rentMissing &&
+    Boolean(publishBlockedReason) &&
+    /Renta \(MXN/.test(publishBlockedReason ?? "") &&
+    !publishBlockedReason?.includes(";");
   const activeRoomTitle = activeRoom?.title.trim() || "Sin título";
   const activeRoomLabel = `Recámara ${safeRoomIndex + 1}`;
   const propertyLabel = draft.propertyTitle.trim() || draft.neighborhood.trim() || null;
@@ -195,19 +203,30 @@ export function PublishWizardReviewStep({
       />
 
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        {publishBlockedReason ? (
-          <p className="text-xs text-muted" role="status">
+        {rentMissing ? <MissingRentCallout className="mb-4" /> : null}
+        {publishBlockedReason && !rentOnlyBlock ? (
+          <p
+            className={`rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-medium text-warning-fg ${
+              rentMissing ? "mt-3" : ""
+            }`}
+            role="status"
+          >
             {isLiveEdit ? "Para guardar:" : "Para publicar:"} {publishBlockedReason}
           </p>
         ) : null}
         {actionErr ? (
-          <p className={`text-sm text-error ${publishBlockedReason ? "mt-3" : ""}`} role="alert">
+          <p
+            className={`text-sm text-error ${publishBlockedReason || rentMissing ? "mt-3" : ""}`}
+            role="alert"
+          >
             {actionErr}
           </p>
         ) : null}
 
         <div
-          className={`flex flex-wrap items-center gap-2 ${publishBlockedReason || actionErr ? "mt-5" : ""}`}
+          className={`flex flex-wrap items-center gap-2 ${
+            publishBlockedReason || actionErr || rentMissing ? "mt-5" : ""
+          }`}
         >
           {apiOn && !isLiveEdit ? (
             <button
