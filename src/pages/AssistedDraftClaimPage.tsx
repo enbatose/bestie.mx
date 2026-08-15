@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import type { ListingTag, ListingStatus, PropertyKind, LodgingType, RoommateGenderPref, RoomDimension, PropertyWithRooms } from "@/types/listing";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import {
   activateAssistedDraftClaim,
   fetchAssistedDraftClaim,
   publishAssistedDraftClaim,
+  type AssistedDraftClaimInfo,
 } from "@/lib/assistedDraftApi";
-import { fetchPropertyWithRooms } from "@/lib/listingsApi";
 import { draftFromPropertyBundle } from "@/pages/PublishWizardPage";
 import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 
@@ -17,6 +18,53 @@ type PageState =
   | { phase: "error"; message: string }
   | { phase: "published"; propertyId: string }
   | { phase: "already_claimed" };
+
+/** Convert the lightweight claim-info response to a PropertyWithRooms so draftFromPropertyBundle can consume it. */
+function claimInfoToBundle(info: AssistedDraftClaimInfo): PropertyWithRooms {
+  const p = info.property;
+  return {
+    property: {
+      id: info.propertyId,
+      publisherId: p.publisherId,
+      status: p.status as ListingStatus,
+      postMode: p.postMode as "room" | "property",
+      title: p.title,
+      city: p.city,
+      neighborhood: p.neighborhood,
+      lat: p.lat,
+      lng: p.lng,
+      summary: p.summary,
+      contactWhatsApp: "",
+      propertyKind: (p.propertyKind ?? undefined) as PropertyKind | undefined,
+      bedroomsTotal: p.bedroomsTotal,
+      bathrooms: p.bathrooms,
+      showWhatsApp: p.showWhatsApp,
+      imageUrls: p.imageUrls,
+      isApproximateLocation: p.isApproximateLocation,
+      approximateRadiusMeters: p.approximateRadiusMeters,
+    },
+    rooms: info.rooms.map((r, i) => ({
+      id: r.id,
+      propertyId: info.propertyId,
+      status: "draft" as ListingStatus,
+      title: r.title,
+      rentMxn: r.rentMxn,
+      depositMxn: r.depositMxn,
+      roomsAvailable: 1,
+      tags: (r.tags ?? []) as ListingTag[],
+      roommateGenderPref: (r.roommateGenderPref ?? "any") as RoommateGenderPref,
+      ageMin: r.ageMin,
+      ageMax: r.ageMax,
+      summary: r.summary,
+      lodgingType: (r.lodgingType ?? undefined) as LodgingType | undefined,
+      availableFrom: r.availableFrom ?? undefined,
+      minimalStayMonths: r.minimalStayMonths ?? undefined,
+      roomDimension: (r.roomDimension ?? undefined) as RoomDimension | undefined,
+      sortOrder: i,
+      photos: r.imageUrls,
+    })),
+  };
+}
 
 export function AssistedDraftClaimPage() {
   const { token } = useParams<{ token: string }>();
@@ -57,7 +105,7 @@ export function AssistedDraftClaimPage() {
     })();
   }, [autoPublish, me, token, openAuthModal]);
 
-  // ── Case 2: no ?publish=1 — activate and redirect to wizard Step 6 ───────
+  // ── Case 2: no ?publish=1 — activate claim, build draft, redirect to wizard Step 6 ──
   useEffect(() => {
     if (autoPublish || !token || didActivate.current) return;
     didActivate.current = true;
@@ -68,16 +116,15 @@ export function AssistedDraftClaimPage() {
           setState({ phase: "already_claimed" });
           return;
         }
+        // Set the orphan publisher cookie (suppressed if already activated)
         try {
           await activateAssistedDraftClaim(token);
         } catch {
           // 409 already-activated is harmless
         }
-        const bundle = await fetchPropertyWithRooms(info.propertyId);
-        if (!bundle) {
-          navigate(`/publicar?edit=${encodeURIComponent(info.propertyId)}`, { replace: true });
-          return;
-        }
+        // Build a wizard draft directly from claim data — avoids /api/properties/:id
+        // which rejects assisted-draft property IDs (adraft__ prefix).
+        const bundle = claimInfoToBundle(info);
         const { draft, serverSync } = draftFromPropertyBundle(bundle);
         navigate("/publicar", {
           replace: true,

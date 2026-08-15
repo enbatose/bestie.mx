@@ -159,7 +159,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       }
 
       // Build property fields
-      const propertyId = `adraft__${randomUUID().replace(/-/g, "")}`;
+      const propertyId = `prp__adraft_${randomUUID().replace(/-/g, "")}`;
       const roomId = `adraft_room__${randomUUID().replace(/-/g, "")}`;
       const orphanPublisherId = randomUUID();
       const now = new Date().toISOString();
