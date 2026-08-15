@@ -3,6 +3,7 @@ import { CheckCircle2, CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
 import { seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { usePageSeo } from "@/hooks/usePageSeo";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import {
@@ -66,7 +67,6 @@ import {
   writeAssistedDraftClaimSession,
   writeAssistedDraftClaimToken,
 } from "@/lib/publishWizard/assistedDraftClaimSession";
-import { PublishFeedbackPanel } from "@/components/feedback/PublishFeedbackPanel";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
   LISTING_TAG_SLUG_SET,
@@ -834,6 +834,7 @@ export function PublishWizardPage() {
   const myListingsReturnRef = useRef(myListingsReturn);
   myListingsReturnRef.current = myListingsReturn;
   const { openAuthModal } = useAuthModal();
+  const { openFeedback } = useFeedbackModal();
   const { me } = useAppShellOutlet();
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
@@ -2695,6 +2696,22 @@ export function PublishWizardPage() {
     document.querySelector("main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [publishSuccessRoomId]);
 
+  /** Soft-prompt feedback shortly after a successful publish. */
+  useEffect(() => {
+    if (!publishSuccessRoomId) return;
+    const title =
+      (draft.postMode === "property" ? draft.propertyTitle : draft.rooms[0]?.title)?.trim() ||
+      "Anuncio publicado";
+    const timer = window.setTimeout(() => {
+      openFeedback({
+        source: "publish",
+        publishedRoomId: publishSuccessRoomId,
+        publishedTitle: title,
+      });
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [publishSuccessRoomId, openFeedback, draft.postMode, draft.propertyTitle, draft.rooms]);
+
   const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 
   async function submitPublish() {
@@ -3120,12 +3137,9 @@ export function PublishWizardPage() {
       draft.postMode === "property"
         ? "Listo. Tu propiedad ya está publicada"
         : "Listo. Tu recámara ya está publicada";
-    const feedbackTitle =
-      (draft.postMode === "property" ? draft.propertyTitle : draft.rooms[0]?.title)?.trim() ||
-      "Anuncio publicado";
 
     return (
-      <div className="mx-auto max-w-lg px-4 py-10 text-center sm:px-6 sm:py-16">
+      <div className="mx-auto max-w-lg px-4 pb-10 pt-4 text-center sm:px-6 sm:pb-12 sm:pt-5">
         <div
           className="mx-auto inline-flex rounded-full bg-secondary/15 p-4 text-primary dark:bg-secondary/20"
           aria-hidden
@@ -3133,23 +3147,19 @@ export function PublishWizardPage() {
           <CheckCircle2 className="size-10" strokeWidth={2} />
         </div>
 
-        <h1 className="mt-8 text-2xl font-bold text-body">{successTitle}</h1>
+        <h1 className="mt-5 text-2xl font-bold text-body">{successTitle}</h1>
         <p className="mx-auto mt-2 max-w-md text-base leading-relaxed text-muted">
           Tu anuncio ya está visible para la comunidad. Comparte el mensaje optimizado para llegar más
           rápido a roomies en WhatsApp, Facebook e Instagram.
         </p>
 
-        <div className="mx-auto mt-6 max-w-md space-y-4 text-left">
+        <div className="mx-auto mt-6 max-w-md text-left">
           <ShareAiCopyPanel
             scope={publishSuccessShareScope}
             propertyId={
               publishSuccessShareScope === "property" ? publishSuccessPropertyId : null
             }
             roomId={publishSuccessShareScope === "room" ? publishSuccessRoomId : null}
-          />
-          <PublishFeedbackPanel
-            publishedRoomId={publishSuccessRoomId}
-            publishedTitle={feedbackTitle}
           />
         </div>
 
