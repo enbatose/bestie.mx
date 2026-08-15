@@ -684,7 +684,7 @@ export function EditableListingPreview({
             {variant === "live-edit"
               ? isPropertyScope
                 ? "Editando propiedad"
-                : isRoomScope
+                : isRoomOfProperty
                   ? `Editando · Recámara ${roomIndex + 1}`
                   : "Editando anuncio"
               : "Vista previa · Borrador"}

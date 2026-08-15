@@ -93,11 +93,13 @@ export function PublishWizardReviewStep({
   const activeRoomTitle = activeRoom?.title.trim() || "Sin título";
   const activeRoomLabel = `Recámara ${safeRoomIndex + 1}`;
   const propertyLabel = draft.propertyTitle.trim() || draft.neighborhood.trim() || null;
+  /** Numbered recámara chrome is for a room inside a property post, not a single-room listing. */
+  const isRoomOfProperty = editScope === "room" && draft.postMode === "property";
 
   const heading =
     editScope === "property"
       ? "Editar propiedad"
-      : editScope === "room"
+      : isRoomOfProperty
         ? "Editar recámara"
         : isLiveEdit
           ? "Editar anuncio"
@@ -110,7 +112,7 @@ export function PublishWizardReviewStep({
         compartidas, amenidades, ubicación). Para cambiar una recámara, vuelve a Mis anuncios y usa Editar en esa
         recámara.
       </>
-    ) : editScope === "room" ? (
+    ) : isRoomOfProperty ? (
       <>
         Solo estás cambiando esta recámara. Toca{" "}
         <strong className="font-medium text-body">Editar</strong> en cada bloque para fotos, precio, descripción y
@@ -130,7 +132,7 @@ export function PublishWizardReviewStep({
     );
 
   const showRoomPicker = draft.rooms.length > 1 && editScope !== "property";
-  const showRoomFocusBanner = editScope === "room" || (showRoomPicker && !isLiveEdit);
+  const showRoomFocusBanner = isRoomOfProperty || (showRoomPicker && !isLiveEdit);
 
   return (
     <div className="space-y-6">
@@ -155,7 +157,7 @@ export function PublishWizardReviewStep({
             ) : null}
           </div>
         ) : null}
-        {editScope === "room" && activeRoom ? (
+        {isRoomOfProperty && activeRoom ? (
           <div className="mt-3 rounded-xl border border-primary/25 bg-primary px-4 py-3 text-primary-fg shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-fg/80">
               Estás editando solo esta recámara
@@ -185,7 +187,7 @@ export function PublishWizardReviewStep({
             ) : null}
           </div>
         ) : null}
-        <p className={`text-sm text-muted ${editScope === "room" && activeRoom ? "mt-3" : "mt-2"}`}>{intro}</p>
+        <p className={`text-sm text-muted ${isRoomOfProperty && activeRoom ? "mt-3" : "mt-2"}`}>{intro}</p>
         {isLiveEdit && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
@@ -197,7 +199,7 @@ export function PublishWizardReviewStep({
         ) : null}
       </div>
 
-      {showRoomFocusBanner && editScope !== "room" ? (
+      {showRoomFocusBanner && !isRoomOfProperty ? (
         <label className="block text-sm font-medium text-body">
           Recámara en vista previa
           <select

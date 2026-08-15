@@ -3051,21 +3051,24 @@ export function PublishWizardPage() {
           </div>
         ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-primary">
-          {liveEditScope === "property"
-            ? "Editar propiedad"
-            : liveEditScope === "room"
-              ? `Editar recámara ${reviewRoomIndex + 1}`
-              : "Editar anuncio"}
+          {draft.postMode === "room"
+            ? "Editar anuncio"
+            : liveEditScope === "property"
+              ? "Editar propiedad"
+              : liveEditScope === "room"
+                ? `Editar recámara ${reviewRoomIndex + 1}`
+                : "Editar anuncio"}
         </h1>
-        {liveEditScope === "room" && draft.rooms[reviewRoomIndex] ? (
+        {draft.postMode === "room" && draft.propertyTitle.trim() ? (
+          <p className="mt-2 text-base font-semibold text-body">{draft.propertyTitle.trim()}</p>
+        ) : liveEditScope === "room" && draft.rooms[reviewRoomIndex] ? (
           <p className="mt-2 text-base font-semibold text-body">
             {draft.rooms[reviewRoomIndex]!.title.trim() || "Sin título"}
             {draft.propertyTitle.trim() ? (
               <span className="font-normal text-muted"> · {draft.propertyTitle.trim()}</span>
             ) : null}
           </p>
-        ) : null}
-        {liveEditScope === "property" && draft.propertyTitle.trim() ? (
+        ) : liveEditScope === "property" && draft.propertyTitle.trim() ? (
           <p className="mt-2 text-base font-semibold text-body">{draft.propertyTitle.trim()}</p>
         ) : null}
         {handoffBanner ? (
