@@ -2140,12 +2140,14 @@ export function PublishWizardPage() {
               ) : null}
               {draft.postMode === "room" ? (
               <div
-                className={`grid gap-4 ${showWizardPropertyBathroomsField(draft) ? "sm:grid-cols-2" : ""}`}
+                className={`grid items-start gap-4 ${showWizardPropertyBathroomsField(draft) ? "sm:grid-cols-2" : ""}`}
               >
                 <div className="block text-sm font-medium text-body">
-                  <span className="block">
-                    ¿Cuántas recámaras tiene la propiedad?
-                    <span className="text-error"> *</span>
+                  <span className="flex min-h-0 items-end sm:min-h-[2.75rem]">
+                    <span className="leading-snug">
+                      ¿Cuántas recámaras tiene la propiedad?
+                      <span className="text-error"> *</span>
+                    </span>
                   </span>
                   <WizardNumberStepper
                     value={
@@ -2163,33 +2165,36 @@ export function PublishWizardPage() {
                     decrementLabel="Menos recámaras"
                     incrementLabel="Más recámaras"
                   />
-                  <span className="mt-1 block text-xs text-muted">
+                  <span className="mt-1 block text-xs font-normal text-muted">
                     Incluye recámaras habitadas + disponibles
                   </span>
                 </div>
                 {showWizardPropertyBathroomsField(draft) ? (
-                  <div>
-                    <label className="block text-sm font-medium text-body">
-                      {draft.propertyKind === "loft" ? "Baños" : "Baños (total)"}
-                      <span className="text-error"> *</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={PROPERTY_BATHROOMS_MAX}
-                        step={0.5}
-                        value={draft.propertyBathrooms === 0 ? "" : draft.propertyBathrooms}
-                        onChange={(e) =>
-                          setDraft((d) => ({
-                            ...d,
-                            propertyBathrooms: Math.min(
-                              PROPERTY_BATHROOMS_MAX,
-                              Math.max(0, Math.round(Number(e.target.value) * 2) / 2 || 0),
-                            ),
-                          }))
-                        }
-                        className="mt-2 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                      />
-                    </label>
+                  <div className="block text-sm font-medium text-body">
+                    <span className="flex min-h-0 items-end sm:min-h-[2.75rem]">
+                      <span className="leading-snug">
+                        {draft.propertyKind === "loft" ? "Baños" : "Baños (total)"}
+                        <span className="text-error"> *</span>
+                      </span>
+                    </span>
+                    <WizardNumberStepper
+                      editableCenter
+                      step={0.5}
+                      value={Math.min(
+                        PROPERTY_BATHROOMS_MAX,
+                        Math.max(0, draft.propertyBathrooms),
+                      )}
+                      min={0}
+                      max={PROPERTY_BATHROOMS_MAX}
+                      onChange={(n) =>
+                        setDraft((d) => ({
+                          ...d,
+                          propertyBathrooms: n,
+                        }))
+                      }
+                      decrementLabel="Menos baños"
+                      incrementLabel="Más baños"
+                    />
                   </div>
                 ) : null}
               </div>
