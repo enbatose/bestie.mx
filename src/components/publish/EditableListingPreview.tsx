@@ -1008,7 +1008,7 @@ export function EditableListingPreview({
               onSave={savePropertyFacts}
               onCancel={() => setEditingPropertyFacts(false)}
             >
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
                 <label className="block text-sm font-medium text-body">
                   Tipo de vivienda
                   <select
@@ -1029,14 +1029,12 @@ export function EditableListingPreview({
                   </select>
                 </label>
                 <div className="block text-sm font-medium text-body">
-                  <span className="block">
-                    Recámaras en la propiedad
-                    {propertyFactsDraft.propertyKind !== "loft" ? (
-                      <span className="ml-1 text-xs font-normal text-muted">
-                        (habitadas + disponibles)
-                      </span>
-                    ) : null}
-                  </span>
+                  <span className="block">Recámaras en la propiedad</span>
+                  {propertyFactsDraft.propertyKind !== "loft" ? (
+                    <span className="mb-1 block text-xs font-normal text-muted">
+                      (habitadas + disponibles)
+                    </span>
+                  ) : null}
                   <WizardNumberStepper
                     value={
                       propertyFactsDraft.propertyKind === "loft"
