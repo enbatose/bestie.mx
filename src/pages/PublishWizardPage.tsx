@@ -3184,59 +3184,88 @@ export function PublishWizardPage() {
       ) : null}
 
       <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            {/* Clickable step progress bar */}
-            <nav aria-label="Progreso del anuncio" className="flex items-center gap-1">
+        <div className="relative">
+          {/* Centered progress bar */}
+          <div className="flex flex-col items-center">
+            <nav aria-label="Progreso del anuncio" className="flex items-start justify-center">
               {steps.map((s, i) => {
                 const isPast = i < safeStep;
                 const isCurrent = i === safeStep;
+                const shortLabel = (() => {
+                  const t = s.title;
+                  if (/tipo.*espacio/i.test(t)) return "Tipo";
+                  if (/ubica/i.test(t)) return "Ubicación";
+                  if (/cómo.*espacio/i.test(t)) return "Descripción";
+                  if (/recámara|recamara/i.test(t)) return "Recámaras";
+                  if (/foto/i.test(t)) return "Fotos";
+                  if (/revisar|publicar/i.test(t)) return "Publicar";
+                  return t.split(/\s+/).slice(0, 2).join(" ");
+                })();
                 return (
-                  <div key={i} className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      disabled={!isPast}
-                      onClick={
-                        isPast
-                          ? () => {
-                              setPublishErr(null);
-                              setStep(i);
-                            }
-                          : undefined
-                      }
-                      title={isPast ? `Volver a "${s.title}"` : s.title}
-                      aria-current={isCurrent ? "step" : undefined}
-                      className={`inline-flex size-6 items-center justify-center rounded-full text-[11px] font-bold leading-none transition ${
-                        isCurrent
-                          ? "bg-primary text-primary-fg ring-2 ring-primary/30 ring-offset-1"
-                          : isPast
-                            ? "cursor-pointer bg-primary/20 text-primary hover:bg-primary/40"
-                            : "cursor-default bg-muted/20 text-muted"
-                      }`}
-                    >
-                      {isPast ? <CheckCircle2 className="size-3.5" aria-hidden /> : i + 1}
-                    </button>
+                  <div key={i} className="flex items-start">
+                    <div className="flex flex-col items-center">
+                      <button
+                        type="button"
+                        disabled={!isPast}
+                        onClick={
+                          isPast
+                            ? () => {
+                                setPublishErr(null);
+                                setStep(i);
+                              }
+                            : undefined
+                        }
+                        title={isPast ? `Volver a "${s.title}"` : s.title}
+                        aria-current={isCurrent ? "step" : undefined}
+                        className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none transition ${
+                          isCurrent
+                            ? "bg-primary text-primary-fg ring-2 ring-primary/30 ring-offset-1"
+                            : isPast
+                              ? "cursor-pointer bg-primary/20 text-primary hover:bg-primary/40"
+                              : "cursor-default bg-muted/20 text-muted"
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                      <span
+                        className={`mt-1 max-w-[52px] text-center text-[9px] font-medium leading-tight ${
+                          isCurrent
+                            ? "text-primary"
+                            : isPast
+                              ? "text-primary/60"
+                              : "text-muted/50"
+                        }`}
+                      >
+                        {shortLabel}
+                      </span>
+                    </div>
                     {i < steps.length - 1 ? (
                       <div
-                        className={`h-px w-3 rounded-full ${i < safeStep ? "bg-primary/30" : "bg-muted/20"}`}
+                        className={`mt-3 h-px w-5 flex-none ${
+                          i < safeStep ? "bg-primary/30" : "bg-muted/20"
+                        }`}
                       />
                     ) : null}
                   </div>
                 );
               })}
             </nav>
-            <h2 className="mt-2 text-lg font-semibold text-body">{current.title}</h2>
+            <h2 className="mt-3 text-center text-lg font-semibold text-body">{current.title}</h2>
           </div>
+
+          {/* Admin autofill button — anchored top-right */}
           {me?.isAdmin ? (
-            <button
-              type="button"
-              onClick={() => autofillStep(safeStep)}
-              className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-warning/50 bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning-fg shadow-sm transition hover:bg-warning/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning/50 focus-visible:ring-offset-1"
-              title="Solo visible para administradores"
-            >
-              <Wand2 className="size-3.5" aria-hidden />
-              Autopoblar
-            </button>
+            <div className="absolute right-0 top-0">
+              <button
+                type="button"
+                onClick={() => autofillStep(safeStep)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-warning/50 bg-warning/10 px-3 py-1.5 text-xs font-semibold text-warning-fg shadow-sm transition hover:bg-warning/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning/50 focus-visible:ring-offset-1"
+                title="Solo visible para administradores"
+              >
+                <Wand2 className="size-3.5" aria-hidden />
+                Autopoblar
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="mt-4 space-y-4">
