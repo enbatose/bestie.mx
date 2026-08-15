@@ -197,7 +197,7 @@ export function ListingRoomDetailsGrid({
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
       {stats.map((stat) => (
-        <ListingDetailStat key={stat.label} icon={stat.icon} label={stat.label} value={stat.value} />
+        <ListingDetailStat key={stat.label} {...stat} />
       ))}
     </div>
   );

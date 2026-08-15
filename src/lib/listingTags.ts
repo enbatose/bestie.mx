@@ -202,7 +202,7 @@ export function roomDimensionPreviewLabel(
     const labels: Record<RoomDimension, string> = {
       small: "Individual",
       medium: "Matrimonial",
-      large: "Grande (Queen/King)",
+      large: "Grande",
     };
     return labels[dimension];
   }
