@@ -14,11 +14,14 @@ test.describe("Auth email/password", () => {
 
     await page.goto("/entrar");
     const logout = page.getByRole("button", { name: "Cerrar sesión" });
+    const entrarHeading = page.getByRole("heading", { name: "Entrar" });
+    // Wait past the "Cargando…" shell — a same-tick isVisible() on logout races
+    // authMe() and then never sees the login form (CI flake on Mobile Chrome).
+    await expect(logout.or(entrarHeading)).toBeVisible({ timeout: 15_000 });
     if (await logout.isVisible().catch(() => false)) {
       await logout.click();
     }
-    // Wait for the email login form (not the signed-in "Tu cuenta" shell).
-    await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible({ timeout: 15_000 });
+    await expect(entrarHeading).toBeVisible({ timeout: 15_000 });
     await page.getByLabel("Correo").fill(email);
     await page.locator('input[autocomplete="current-password"], input[type="password"]').first().fill(password);
     await page.getByRole("button", { name: "Entrar" }).click();
