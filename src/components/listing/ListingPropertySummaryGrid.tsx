@@ -23,6 +23,7 @@ import {
   roommateGenderPrefLabel,
   roomAgeRangeLabel,
   roomBathroomPreviewLabel,
+  roomDimensionHintLabel,
   roomDimensionPreviewLabel,
   roomPlazasLabel,
   shouldShowRoomPriceInDetails,
@@ -39,15 +40,20 @@ type StatProps = {
   icon: LucideIcon;
   label: string;
   value: string;
+  /** Optional secondary description shown below the value in smaller muted text. */
+  detail?: string;
 };
 
-function ListingDetailStat({ icon: Icon, label, value }: StatProps) {
+function ListingDetailStat({ icon: Icon, label, value, detail }: StatProps) {
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
       <Icon className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
       <div>
         <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">{label}</p>
         <p className="mt-0.5 text-sm font-semibold leading-snug text-body">{value}</p>
+        {detail ? (
+          <p className="mt-1 text-[11px] leading-snug text-muted">{detail}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -160,6 +166,7 @@ export function ListingRoomDetailsGrid({
       icon: Maximize2,
       label: "Tamaño",
       value: roomDimensionPreviewLabel(room.roomDimension ?? "medium", postMode),
+      detail: roomDimensionHintLabel(room.roomDimension ?? "medium", postMode),
     },
     { icon: Bath, label: "Baño", value: roomBathroomPreviewLabel(room.tags) },
     {

@@ -214,6 +214,27 @@ export function roomDimensionPreviewLabel(
   return labels[dimension];
 }
 
+/** Descripción guía del tamaño (LOV hint) para mostrar debajo del valor principal. */
+export function roomDimensionHintLabel(
+  dimension: RoomDimension,
+  postMode: "room" | "property",
+): string {
+  if (postMode === "room") {
+    const hints: Record<RoomDimension, string> = {
+      small: "Cabe cama individual + buró",
+      medium: "Cabe cama matrimonial + escritorio",
+      large: "Cabe cama Queen/King + área de estar",
+    };
+    return hints[dimension];
+  }
+  const hints: Record<RoomDimension, string> = {
+    small: "Cabe cama individual",
+    medium: "Cabe cama matrimonial",
+    large: "Cabe cama Queen/King",
+  };
+  return hints[dimension];
+}
+
 export function roomBathroomPreviewLabel(tags: readonly ListingTag[]): string {
   return tags.includes("baño-privado") ? "Baño privado" : "Baño compartido";
 }
