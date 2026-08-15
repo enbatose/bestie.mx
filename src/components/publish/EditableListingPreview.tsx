@@ -84,6 +84,8 @@ type Props = {
   onEditingPhotosChange?: (editing: boolean) => void;
   /** Flush live-edit snapshot before OS camera/gallery may kill the tab. */
   onPhotoPickerOpen?: () => void;
+  /** Show unselected tags dimmed so the user can see what the AI skipped (AI draft + preview only). */
+  isAssistedDraft?: boolean;
 };
 
 function PreviewSection({
@@ -194,6 +196,7 @@ function ScopeTagsBlock({
   draftTags,
   onToggle,
   hideEditButton = false,
+  unselectedTags,
 }: {
   heading: string;
   tags: readonly ListingTag[];
@@ -206,6 +209,8 @@ function ScopeTagsBlock({
   onToggle: (tag: ListingTag) => void;
   /** Hide the inline "Editar etiquetas" button when the parent section already provides an edit trigger. */
   hideEditButton?: boolean;
+  /** Tags NOT selected — shown dimmed in AI-draft preview so the user knows what's available. */
+  unselectedTags?: readonly ListingTag[];
 }) {
   return (
     <div className="mt-4 border-t border-border pt-4">
@@ -228,7 +233,26 @@ function ScopeTagsBlock({
             <TagGroupsEditor groups={editGroups} selected={draftTags} onToggle={onToggle} />
           </InlineFieldEditor>
         ) : (
-          <ListingTagChips tags={tags} />
+          <>
+            <ListingTagChips tags={tags} />
+            {unselectedTags && unselectedTags.length > 0 ? (
+              <div className="mt-3">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted/50">
+                  No incluidas · edita para agregar
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {unselectedTags.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted/50"
+                    >
+                      {listingTagLabel(t)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>
@@ -320,6 +344,7 @@ export function EditableListingPreview({
   initialEditingPhotos = false,
   onEditingPhotosChange,
   onPhotoPickerOpen,
+  isAssistedDraft = false,
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
@@ -425,6 +450,18 @@ export function EditableListingPreview({
 
   const propertyTagsActive = filterPropertyScopeTags(draft.propertyTags);
   const roomTagsActive = sortRoomScopeTags(filterRoomScopeTags(room.tags));
+
+  const showUnselected = isAssistedDraft && variant === "preview";
+  const unselectedPropertyTags = showUnselected
+    ? (PROPERTY_TAG_GROUPS.flatMap((g) => g.tags).filter(
+        (t) => !propertyTagsActive.includes(t),
+      ) as ListingTag[])
+    : undefined;
+  const unselectedRoomTags = showUnselected
+    ? (ROOM_TAG_GROUPS.flatMap((g) => g.tags).filter(
+        (t) => !roomTagsActive.includes(t),
+      ) as ListingTag[])
+    : undefined;
 
   const openHeaderEdit = () => {
     setHeaderDraft({
@@ -992,6 +1029,7 @@ export function EditableListingPreview({
             draftTags={propertyTagsDraft}
             onToggle={togglePropertyTagDraft}
             hideEditButton
+            unselectedTags={unselectedPropertyTags}
           />
         </PreviewSection>
       ) : null}
@@ -1378,6 +1416,7 @@ export function EditableListingPreview({
               editGroups={ROOM_TAG_GROUPS}
               draftTags={roomTagsDraft}
               onToggle={toggleRoomTagDraft}
+              unselectedTags={unselectedRoomTags}
             />
           </>
         )}

@@ -218,6 +218,7 @@ export function PublishWizardReviewStep({
         initialEditingPhotos={initialEditingPhotos}
         onEditingPhotosChange={onEditingPhotosChange}
         onPhotoPickerOpen={onPhotoPickerOpen}
+        isAssistedDraft={isAssistedDraft && !isLiveEdit}
       />
 
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
