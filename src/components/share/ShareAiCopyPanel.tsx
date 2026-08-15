@@ -190,7 +190,10 @@ export function ShareAiCopyPanel({
       } ${className}`}
     >
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 inline-flex rounded-full bg-secondary/20 p-1.5 text-primary" aria-hidden>
+        <span
+          className="share-ai-sparkle-badge mt-0.5 inline-flex shrink-0 rounded-full bg-secondary/20 p-1.5 text-primary"
+          aria-hidden
+        >
           <Sparkles className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
