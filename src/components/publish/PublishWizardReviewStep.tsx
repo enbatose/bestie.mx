@@ -140,6 +140,10 @@ export function PublishWizardReviewStep({
               Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el
               anuncio quedará bajo tu nombre.
             </p>
+            <p className="mt-1.5 text-xs text-amber-700">
+              Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
+              recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
+            </p>
             {rentMissing ? (
               <p className="mt-1.5 text-xs font-semibold text-error">
                 Falta el precio de renta. Agrégalo en «Editar encabezado» — no se puede publicar
