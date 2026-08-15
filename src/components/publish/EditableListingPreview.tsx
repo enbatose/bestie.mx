@@ -353,24 +353,30 @@ export function EditableListingPreview({
   };
 
   const saveHeader = () => {
+    const nextPropertyTitle = headerDraft.propertyTitle.slice(0, PROPERTY_TITLE_MAX);
     if (isPropertyScope) {
       onDraftChange((d) => ({
         ...d,
         neighborhood: headerDraft.neighborhood,
-        propertyTitle: headerDraft.propertyTitle.slice(0, PROPERTY_TITLE_MAX),
+        propertyTitle: nextPropertyTitle,
       }));
       setEditingHeader(false);
       return;
     }
     onDraftChange((d) => ({
       ...d,
+      // Single-room posts use Datos Generales → Título del anuncio (propertyTitle).
+      propertyTitle: d.postMode === "room" ? nextPropertyTitle : d.propertyTitle,
       // The colonia belongs to the property, so a room-scoped edit leaves it untouched.
       neighborhood: isRoomOfProperty ? d.neighborhood : headerDraft.neighborhood,
       rooms: d.rooms.map((r, i) =>
         i === roomIndex
           ? {
               ...r,
-              title: headerDraft.roomTitle,
+              title:
+                d.postMode === "room"
+                  ? nextPropertyTitle.trim() || r.title
+                  : headerDraft.roomTitle,
               rentMxn: Math.max(0, headerDraft.rentMxn),
               depositMxn: Math.max(0, headerDraft.depositMxn),
             }
@@ -471,12 +477,10 @@ export function EditableListingPreview({
   const detailsRoom = roomDetailsDraft ?? room;
   const neighborhoodLabel = draft.neighborhood.trim() || listing.neighborhood;
 
-  // Prefer the saved title so live-edit matches Mis Anuncios / the public page.
-  // Fall back to the kind+colonia synthesis only when the draft still has no name.
-  const savedHeaderTitle =
-    draft.postMode === "property"
-      ? draft.propertyTitle.trim()
-      : listing.title.trim();
+  // Título del anuncio (propertyTitle) for both post modes. Room title is an
+  // internal default ("Recámara 1") on single-room posts and must not masquerade
+  // as a user-authored heading — synthesize from kind + colonia instead.
+  const savedHeaderTitle = draft.propertyTitle.trim();
   const previewHeaderTitle =
     savedHeaderTitle ||
     publicListingHeaderTitle({
@@ -519,7 +523,13 @@ export function EditableListingPreview({
 
         {editingHeader ? (
           <InlineFieldEditor
-            label={isPropertyScope ? "Título y colonia" : "Ubicación y precio"}
+            label={
+              isPropertyScope
+                ? "Título y colonia"
+                : draft.postMode === "room"
+                  ? "Título, ubicación y precio"
+                  : "Ubicación y precio"
+            }
             onSave={saveHeader}
             onCancel={() => setEditingHeader(false)}
           >
@@ -551,13 +561,30 @@ export function EditableListingPreview({
                   className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
                 />
               </label>
-            ) : null}
+            ) : (
+              <label className="block text-sm font-medium text-body">
+                Título del anuncio
+                <span className="text-error"> *</span>
+                <input
+                  value={headerDraft.propertyTitle}
+                  maxLength={PROPERTY_TITLE_MAX}
+                  placeholder="Ej. Casa compartida Chapalita / Depa zona Minerva"
+                  onChange={(e) =>
+                    setHeaderDraft((h) => ({ ...h, propertyTitle: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                />
+                <FieldCharCount
+                  current={headerDraft.propertyTitle.trim().length}
+                  min={PROPERTY_TITLE_MIN}
+                  max={PROPERTY_TITLE_MAX}
+                  warnBelowMin
+                  className="mt-1"
+                />
+              </label>
+            )}
             {!isRoomOfProperty ? (
-              <label
-                className={`block text-sm font-medium text-body ${
-                  isPropertyScope || draft.postMode === "property" ? "mt-2" : ""
-                }`}
-              >
+              <label className="mt-2 block text-sm font-medium text-body">
                 Colonia o zona
                 <input
                   value={headerDraft.neighborhood}
