@@ -247,27 +247,17 @@ export function PublishWizardReviewStep({
         ) : null}
 
         <div
-          className={`flex flex-wrap items-center gap-2 ${
+          className={`flex flex-col gap-2 ${
             publishBlockedReason || actionErr || rentMissing ? "mt-5" : ""
           }`}
         >
-          {apiOn && !isLiveEdit ? (
-            <button
-              type="button"
-              disabled={submitInFlight !== null}
-              onClick={onSaveDraft}
-              className="rounded-full border border-secondary/50 bg-secondary/10 px-5 py-2 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/20 disabled:opacity-50"
-            >
-              {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
-            </button>
-          ) : null}
           {apiOn ? (
             <button
               type="button"
               disabled={submitInFlight !== null || Boolean(publishBlockedReason)}
               title={publishBlockedReason ?? undefined}
               onClick={onPublish}
-              className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
+              className="w-full rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
             >
               {primaryLabel}
             </button>
@@ -276,6 +266,16 @@ export function PublishWizardReviewStep({
               Sin API: configura <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code> para publicar.
             </span>
           )}
+          {apiOn && !isLiveEdit ? (
+            <button
+              type="button"
+              disabled={submitInFlight !== null}
+              onClick={onSaveDraft}
+              className="w-full rounded-full border border-secondary/60 bg-white px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/10 disabled:opacity-50"
+            >
+              {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
+            </button>
+          ) : null}
           {isLiveEdit && cancelTo ? (
             <Link
               to={cancelTo}
