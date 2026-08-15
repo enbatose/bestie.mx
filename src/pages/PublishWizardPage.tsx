@@ -43,6 +43,7 @@ import {
 } from "@/lib/myListingsReturn";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { ShareAiCopyPanel } from "@/components/share/ShareAiCopyPanel";
+import { publishAssistedDraftClaim } from "@/lib/assistedDraftApi";
 import { PublishFeedbackPanel } from "@/components/feedback/PublishFeedbackPanel";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
@@ -752,6 +753,8 @@ type WizardResumeState = {
   resumeDraft?: Draft;
   resumeServerSync?: PublishWizardServerSync;
   resumeStep?: number;
+  /** Set when navigating from /borrador/:token — uses claim publish flow. */
+  assistedDraftToken?: string;
 };
 
 export function PublishWizardPage() {
@@ -805,6 +808,7 @@ export function PublishWizardPage() {
     "room",
   );
   const [submitInFlight, setSubmitInFlight] = useState<"publish" | "draft" | null>(null);
+  const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(null);
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -854,6 +858,9 @@ export function PublishWizardPage() {
     if (typeof st.resumeStep === "number" && Number.isFinite(st.resumeStep)) {
       setStep(Math.max(0, st.resumeStep));
     }
+    if (typeof st.assistedDraftToken === "string" && st.assistedDraftToken) {
+      setAssistedDraftToken(st.assistedDraftToken);
+    }
     navigate(`${location.pathname}${location.search}`, {
       replace: true,
       state: withMyListingsReturn(null, myListingsReturn) ?? null,
@@ -864,6 +871,8 @@ export function PublishWizardPage() {
   draftRef.current = draft;
   const serverSyncRef = useRef(serverSync);
   serverSyncRef.current = serverSync;
+  const assistedDraftTokenRef = useRef(assistedDraftToken);
+  assistedDraftTokenRef.current = assistedDraftToken;
   const meRef = useRef(me);
   meRef.current = me;
   const storageReadyRef = useRef(storageReady);
@@ -2376,6 +2385,63 @@ export function PublishWizardPage() {
 
   async function submitPublish() {
     setPublishErr(null);
+
+    // ── Assisted-draft claim flow ─────────────────────────────────────────
+    if (assistedDraftTokenRef.current) {
+      const claimToken = assistedDraftTokenRef.current;
+      if (me === undefined) {
+        setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
+        return;
+      }
+      const blocked = getPublishBlockedReason(draftRef.current);
+      if (blocked) {
+        setPublishErr(blocked);
+        return;
+      }
+      if (!me) {
+        // Sync latest edits so the server draft is up-to-date before auth redirect
+        setSubmitInFlight("draft");
+        try {
+          if (apiOn) {
+            const synced = await syncDraftToServer(
+              draftRef.current,
+              serverSyncRef.current,
+              undefined,
+              { wizardStep: step },
+            );
+            serverSyncRef.current = synced.serverSync;
+            setServerSync(synced.serverSync);
+            setDraft(synced.draft);
+            markAutosaveBaseline(synced.draft, { touchUi: true });
+          }
+        } catch {
+          // Best-effort — proceed to auth even if sync failed
+        } finally {
+          setSubmitInFlight(null);
+        }
+        openAuthModal(`/borrador/${claimToken}?publish=1`);
+        return;
+      }
+      // Authed: sync, then publish via claim endpoint
+      setSubmitInFlight("publish");
+      try {
+        if (apiOn) {
+          await syncDraftToServer(
+            draftRef.current,
+            serverSyncRef.current,
+            meRef.current?.phoneE164,
+            { wizardStep: step },
+          );
+        }
+        await publishAssistedDraftClaim(claimToken);
+        navigate("/mis-anuncios", { replace: true });
+      } catch (e) {
+        setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
+        setSubmitInFlight(null);
+      }
+      return;
+    }
+
     const blocked = getPublishBlockedReason(draftRef.current);
     if (blocked) {
       setPublishErr(blocked);
@@ -2822,6 +2888,15 @@ export function PublishWizardPage() {
           ) : null}
         </div>
         <div className="mt-4 space-y-4">
+          {isPublishStep && assistedDraftToken ? (
+            <div className="rounded-xl border border-secondary/40 bg-secondary/5 px-4 py-3">
+              <p className="text-sm font-semibold text-body">Borrador creado por Bestie</p>
+              <p className="mt-0.5 text-xs text-muted">
+                Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el anuncio
+                quedará bajo tu nombre.
+              </p>
+            </div>
+          ) : null}
           {isPublishStep ? (
             <PublishWizardReviewStep
               draft={draft}
