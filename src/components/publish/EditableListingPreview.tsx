@@ -193,6 +193,7 @@ function ScopeTagsBlock({
   editGroups,
   draftTags,
   onToggle,
+  hideEditButton = false,
 }: {
   heading: string;
   tags: readonly ListingTag[];
@@ -203,12 +204,14 @@ function ScopeTagsBlock({
   editGroups: readonly ListingTagGroup[];
   draftTags: readonly ListingTag[];
   onToggle: (tag: ListingTag) => void;
+  /** Hide the inline "Editar etiquetas" button when the parent section already provides an edit trigger. */
+  hideEditButton?: boolean;
 }) {
   return (
     <div className="mt-4 border-t border-border pt-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">{heading}</p>
-        {!editing ? (
+        {!editing && !hideEditButton ? (
           <button
             type="button"
             onClick={onStartEdit}
@@ -988,6 +991,7 @@ export function EditableListingPreview({
             editGroups={PROPERTY_TAG_GROUPS}
             draftTags={propertyTagsDraft}
             onToggle={togglePropertyTagDraft}
+            hideEditButton
           />
         </PreviewSection>
       ) : null}
