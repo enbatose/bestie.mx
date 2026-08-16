@@ -41,6 +41,7 @@ import {
   ROOM_SUMMARY_MIN,
   CITY_ANCHOR,
   draftRoomImageUrls,
+  draftRoomEditorImages,
   effectiveWizardPropertyBathrooms,
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
@@ -1120,10 +1121,7 @@ export function EditableListingPreview({
             {showRoomBlocks ? (
               <BulkImageUploader
                 title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
-                images={preferDraftImages(
-                  draft.rooms[roomIndex]?.photos,
-                  draft.roomImageUrls[roomIndex],
-                )}
+                images={draftRoomEditorImages(draft, roomIndex)}
                 maxCount={20}
                 apiOn={apiOn}
                 hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}

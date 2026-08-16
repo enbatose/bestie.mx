@@ -12,7 +12,11 @@ import {
 import { LISTING_TAG_SLUG_SET } from "@/lib/listingTags";
 import { ensureDraftListingImagesUploadedForApi } from "@/lib/publishWizard/draftImageUpload";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
-import { draftImagesToUrls, preferDraftImages } from "@/lib/publishWizard/draftImages";
+import {
+  draftImagesToUrls,
+  preferDraftImages,
+  roomModeEditorImages,
+} from "@/lib/publishWizard/draftImages";
 import { listingImageUrlsForApi } from "@/lib/listingImageUrls";
 import { roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { formatRoomsValidationMessage } from "@/lib/publishWizard/roomWizardValidation";
@@ -189,6 +193,17 @@ export function draftCommonAreaPhotos(draft: Draft): DraftImage[] {
 
 export function draftRoomPhotos(draft: Draft, roomIndex: number): DraftImage[] {
   return preferDraftImages(draft.rooms[roomIndex]?.photos, draft.roomImageUrls[roomIndex]);
+}
+
+/** Gallery the room photo editor should show (AI room drafts may only have property photos). */
+export function draftRoomEditorImages(draft: Draft, roomIndex: number, roomPhotos?: DraftImage[]): DraftImage[] {
+  return roomModeEditorImages(
+    draft.postMode,
+    roomPhotos ?? draft.rooms[roomIndex]?.photos,
+    draft.roomImageUrls[roomIndex],
+    draft.commonAreaPhotos,
+    draft.propertyImageUrls,
+  );
 }
 
 export function draftPropertyImageUrls(draft: Draft): string[] {

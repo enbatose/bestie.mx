@@ -131,6 +131,59 @@ export function syncDraftPhotoArrays<
   };
 }
 
+type RoomModePhotoDraft = {
+  postMode?: string;
+  commonAreaPhotos?: DraftImage[];
+  propertyImageUrls?: DraftImage[];
+  roomImageUrls?: DraftImage[][];
+  rooms: Array<{ photos?: DraftImage[] } & Record<string, unknown>>;
+};
+
+/**
+ * AI room drafts historically stored the gallery on the property row while the
+ * room slot stayed `[]`. Preview falls back to property photos; the editor does
+ * not. Copy them onto the room once at hydrate so Editar fotos can see them.
+ * Do not call this on every keystroke — an explicit empty room gallery would
+ * revive stale property photos.
+ */
+export function hydrateRoomModePhotosFromProperty<T extends RoomModePhotoDraft>(d: T): T {
+  if (d.postMode !== "room") return d;
+  const roomPhotos = normalizeDraftImages(d.rooms[0]?.photos);
+  const roomLegacy = normalizeDraftImages(d.roomImageUrls?.[0]);
+  if (roomPhotos.length > 0 || roomLegacy.length > 0) return d;
+  const propertyPhotos = preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls);
+  if (propertyPhotos.length === 0) return d;
+  const rooms = d.rooms.map((room, i) => (i === 0 ? { ...room, photos: propertyPhotos } : room));
+  const roomImageUrls = [...(d.roomImageUrls ?? [])];
+  while (roomImageUrls.length < Math.max(rooms.length, 1)) roomImageUrls.push([]);
+  roomImageUrls[0] = propertyPhotos;
+  return { ...d, rooms, roomImageUrls };
+}
+
+/** Room-mode canonical gallery is the room slot; keep property `imageUrls` as a mirror. */
+export function mirrorRoomModePhotosToProperty<T extends RoomModePhotoDraft>(d: T): T {
+  if (d.postMode !== "room") return d;
+  const roomPhotos = preferDraftImages(d.rooms[0]?.photos, d.roomImageUrls?.[0]);
+  return {
+    ...d,
+    commonAreaPhotos: roomPhotos,
+    propertyImageUrls: roomPhotos,
+  };
+}
+
+/** Photos shown in the room-post editor; falls back to property only when the room slot is empty. */
+export function roomModeEditorImages(
+  postMode: string | undefined,
+  roomPhotos: DraftImage[] | undefined,
+  roomFallback: DraftImage[] | undefined,
+  propertyPhotos: DraftImage[] | undefined,
+  propertyFallback: DraftImage[] | undefined,
+): DraftImage[] {
+  const room = preferDraftImages(roomPhotos, roomFallback);
+  if (room.length > 0 || postMode !== "room") return room;
+  return preferDraftImages(propertyPhotos, propertyFallback);
+}
+
 export function normalizePersistedDraftImages<T extends {
   commonAreaPhotos?: DraftImage[] | string[];
   propertyImageUrls: DraftImage[] | string[];

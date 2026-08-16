@@ -51,7 +51,10 @@ export function claimInfoToBundle(info: AssistedDraftClaimInfo): PropertyWithRoo
       minimalStayMonths: r.minimalStayMonths ?? undefined,
       roomDimension: (r.roomDimension ?? undefined) as RoomDimension | undefined,
       sortOrder: i,
-      photos: r.imageUrls,
+      photos:
+        (r.imageUrls && r.imageUrls.length > 0) || p.postMode !== "room"
+          ? r.imageUrls
+          : p.imageUrls,
     })),
   };
 }

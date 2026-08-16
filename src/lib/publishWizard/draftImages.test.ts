@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  hydrateRoomModePhotosFromProperty,
+  mirrorRoomModePhotosToProperty,
   preferDraftImages,
+  roomModeEditorImages,
   syncDraftPhotoArrays,
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
@@ -78,5 +81,80 @@ describe("syncDraftPhotoArrays", () => {
     });
     expect(synced.rooms[0]!.photos!.map((i) => i.url)).toEqual(["/old.jpg", "/new.jpg"]);
     expect(synced.roomImageUrls[0]!.map((i) => i.url)).toEqual(["/old.jpg", "/new.jpg"]);
+  });
+});
+
+describe("hydrateRoomModePhotosFromProperty", () => {
+  it("copies property photos onto an empty room slot for room-mode drafts", () => {
+    const photos = imgs("/a.jpg", "/b.jpg");
+    const hydrated = hydrateRoomModePhotosFromProperty({
+      postMode: "room",
+      commonAreaPhotos: photos,
+      propertyImageUrls: photos,
+      roomImageUrls: [[]],
+      rooms: [{ photos: [] }],
+    });
+    expect(hydrated.rooms[0]!.photos!.map((i) => i.url)).toEqual(["/a.jpg", "/b.jpg"]);
+    expect(hydrated.roomImageUrls[0]!.map((i) => i.url)).toEqual(["/a.jpg", "/b.jpg"]);
+  });
+
+  it("does not overwrite an existing room gallery", () => {
+    const hydrated = hydrateRoomModePhotosFromProperty({
+      postMode: "room",
+      commonAreaPhotos: imgs("/prop.jpg"),
+      propertyImageUrls: imgs("/prop.jpg"),
+      roomImageUrls: [imgs("/room.jpg")],
+      rooms: [{ photos: imgs("/room.jpg") }],
+    });
+    expect(hydrated.rooms[0]!.photos!.map((i) => i.url)).toEqual(["/room.jpg"]);
+  });
+
+  it("does not overwrite when only the legacy roomImageUrls row has photos", () => {
+    const hydrated = hydrateRoomModePhotosFromProperty({
+      postMode: "room",
+      commonAreaPhotos: imgs("/prop.jpg"),
+      propertyImageUrls: imgs("/prop.jpg"),
+      roomImageUrls: [imgs("/room.jpg")],
+      rooms: [{ photos: [] }],
+    });
+    expect(hydrated.rooms[0]!.photos).toEqual([]);
+    expect(hydrated.roomImageUrls[0]!.map((i) => i.url)).toEqual(["/room.jpg"]);
+  });
+
+  it("does not copy property common-area photos into property-mode rooms", () => {
+    const hydrated = hydrateRoomModePhotosFromProperty({
+      postMode: "property",
+      commonAreaPhotos: imgs("/shared.jpg"),
+      propertyImageUrls: imgs("/shared.jpg"),
+      roomImageUrls: [[]],
+      rooms: [{ photos: [] }],
+    });
+    expect(hydrated.rooms[0]!.photos).toEqual([]);
+  });
+});
+
+describe("mirrorRoomModePhotosToProperty", () => {
+  it("clears property mirrors when the room gallery is emptied", () => {
+    const mirrored = mirrorRoomModePhotosToProperty({
+      postMode: "room",
+      commonAreaPhotos: imgs("/old.jpg"),
+      propertyImageUrls: imgs("/old.jpg"),
+      roomImageUrls: [[]],
+      rooms: [{ photos: [] }],
+    });
+    expect(mirrored.commonAreaPhotos).toEqual([]);
+    expect(mirrored.propertyImageUrls).toEqual([]);
+  });
+});
+
+describe("roomModeEditorImages", () => {
+  it("shows property photos in the room editor when the room slot is empty", () => {
+    expect(
+      roomModeEditorImages("room", [], [], imgs("/ai.jpg"), imgs("/ai.jpg")).map((i) => i.url),
+    ).toEqual(["/ai.jpg"]);
+  });
+
+  it("does not fall back to property photos for property-mode rooms", () => {
+    expect(roomModeEditorImages("property", [], [], imgs("/shared.jpg"), imgs("/shared.jpg"))).toEqual([]);
   });
 });

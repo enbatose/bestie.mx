@@ -28,8 +28,8 @@ import {
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
-import { draftImagesToUrls, preferDraftImages } from "@/lib/publishWizard/draftImages";
-import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
+import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
+import { draftRoomEditorImages, ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import { collectRoomFieldIssueDetails, type RoomIssueSection } from "@/lib/publishWizard/roomWizardValidation";
 import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
@@ -181,9 +181,7 @@ export function EditableRoomModal({
   const rentMissing = available && isListingRentMissing(localRoom.rentMxn);
   const roomLabel = roomDisplayName(localRoom, roomIndex);
   const roomTagsActive = sortRoomScopeTags(filterRoomScopeTags(localRoom.tags));
-  const galleryUrls = draftImagesToUrls(
-    preferDraftImages(localRoom.photos, draft.roomImageUrls[roomIndex]),
-  );
+  const galleryUrls = draftImagesToUrls(draftRoomEditorImages(draft, roomIndex, localRoom.photos));
   const detailsRoom = detailsDraft ?? localRoom;
 
   const applyIssueFocus = (sections: readonly RoomIssueSection[]) => {
@@ -507,7 +505,7 @@ export function EditableRoomModal({
                     >
                       <BulkImageUploader
                         title={`Recámara ${roomIndex + 1}`}
-                        images={preferDraftImages(localRoom.photos, draft.roomImageUrls[roomIndex])}
+                        images={draftRoomEditorImages(draft, roomIndex, localRoom.photos)}
                         maxCount={20}
                         apiOn={apiOn}
                         hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}

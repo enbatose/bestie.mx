@@ -79,6 +79,8 @@ import {
 } from "@/lib/listingTags";
 import {
   hydrateDraftImagesFromUrls,
+  hydrateRoomModePhotosFromProperty,
+  mirrorRoomModePhotosToProperty,
   normalizeDraftImages,
   normalizePersistedDraftImages,
   syncDraftPhotoArrays,
@@ -86,8 +88,7 @@ import {
 } from "@/lib/publishWizard/draftImages";
 import {
   CITY_ANCHOR,
-  draftPropertyImageUrls,
-  draftRoomImageUrls,
+  draftRoomEditorImages,
   effectiveRoomsAvailable,
   effectiveWizardPropertyBathrooms,
   getPublishBlockedReason,
@@ -228,7 +229,8 @@ function WizardAutosaveIndicator({
 }
 
 function syncDraftPhotoFields(d: Draft): Draft {
-  return syncDraftPhotoArrays(d);
+  const synced = syncDraftPhotoArrays(d);
+  return d.postMode === "room" ? mirrorRoomModePhotosToProperty(synced) : synced;
 }
 
 function normalizePersistedDraft(d: Draft): Draft {
@@ -245,7 +247,7 @@ function normalizePersistedDraft(d: Draft): Draft {
       (migrated as { approximateRadiusMeters?: unknown }).approximateRadiusMeters,
     ),
   };
-  return syncDraftPhotoFields(normalizePropertyRoomSlots(base));
+  return syncDraftPhotoFields(hydrateRoomModePhotosFromProperty(normalizePropertyRoomSlots(base)));
 }
 
 function normalizePropertyRoomSlots(d: Draft): Draft {
@@ -2601,7 +2603,7 @@ export function PublishWizardPage() {
                     >
                       <BulkImageUploader
                         title="Fotos de tu espacio"
-                        images={room.photos}
+                        images={draftRoomEditorImages(draft, i)}
                         maxCount={20}
                         apiOn={apiOn}
                         hint={ROOM_SINGLE_FLOW_PHOTO_HINT}

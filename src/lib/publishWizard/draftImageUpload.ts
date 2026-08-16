@@ -3,7 +3,12 @@ import { normalizeListingImageUrlForApi } from "@/lib/listingImageUrls";
 import { uploadListingImage } from "@/lib/listingsApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
-import { preferDraftImages, syncDraftPhotoArrays } from "@/lib/publishWizard/draftImages";
+import {
+  hydrateRoomModePhotosFromProperty,
+  mirrorRoomModePhotosToProperty,
+  preferDraftImages,
+  syncDraftPhotoArrays,
+} from "@/lib/publishWizard/draftImages";
 import { prepareListingImage } from "@/lib/prepareListingImage";
 
 async function uploadDraftImageUrlIfNeeded(url: string): Promise<string> {
@@ -36,7 +41,11 @@ async function ensureDraftImagesUploaded(images: readonly DraftImage[]): Promise
 
 /** Uploads local/seed preview URLs so sync/publish can persist `/api/uploads/...` paths. */
 export async function ensureDraftListingImagesUploadedForApi(draft: Draft): Promise<Draft> {
-  draft = syncDraftPhotoArrays(draft);
+  draft = syncDraftPhotoArrays(
+    draft.postMode === "room"
+      ? mirrorRoomModePhotosToProperty(hydrateRoomModePhotosFromProperty(draft))
+      : draft,
+  );
   const commonAreaPhotos = await ensureDraftImagesUploaded(
     preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls),
   );

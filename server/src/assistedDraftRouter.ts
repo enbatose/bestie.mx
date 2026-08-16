@@ -203,7 +203,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const summary = "";
       const propertyKind = ext.propertyKind ?? null;
 
-      // Assign all images to property for room-mode posts
+      // Room-mode gallery lives on the room; mirror onto the property for API/OG.
       const imageUrlsJson = JSON.stringify(photoUrls);
 
       db.prepare(`
@@ -263,7 +263,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           @roommateGenderPref, @ageMin, @ageMax, @roomSummary, @lodgingType,
           @availableFrom, @minimalStayMonths, @roomDimension,
           0, 0, 0, @depositMxn,
-          '[]', @now, @now
+          @imageUrlsJson, @now, @now
         )
       `).run({
         id: roomId,
@@ -279,6 +279,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         minimalStayMonths,
         roomDimension,
         depositMxn,
+        imageUrlsJson,
         now,
       });
 
@@ -323,6 +324,9 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
     const isClaimed = row.claimed_by_user_id != null;
 
+    const propImages = JSON.parse(prop.image_urls_json || "[]") as string[];
+    const isRoomPost = prop.post_mode === "room";
+
     res.json({
       ok: true,
       isClaimed,
@@ -342,26 +346,31 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         bedroomsTotal: prop.bedrooms_total,
         bathrooms: prop.bathrooms,
         showWhatsApp: prop.show_whatsapp === 1,
-        imageUrls: JSON.parse(prop.image_urls_json || "[]") as string[],
+        imageUrls: propImages,
         isApproximateLocation: prop.is_approximate_location === 1,
         approximateRadiusMeters: prop.approximate_radius_m ?? undefined,
       },
-      rooms: rooms.map((r) => ({
-        id: r.id,
-        title: r.title,
-        rentMxn: r.rent_mxn,
-        depositMxn: r.deposit_mxn,
-        roommateGenderPref: r.roommate_gender_pref,
-        ageMin: r.age_min,
-        ageMax: r.age_max,
-        summary: r.summary,
-        lodgingType: r.lodging_type,
-        availableFrom: r.available_from,
-        minimalStayMonths: r.minimal_stay_months,
-        roomDimension: r.room_dimension,
-        tags: JSON.parse(typeof r.tags_json === "string" ? r.tags_json : "[]") as string[],
-        imageUrls: JSON.parse(typeof r.image_urls_json === "string" ? r.image_urls_json : "[]") as string[],
-      })),
+      rooms: rooms.map((r) => {
+        const roomImages = JSON.parse(
+          typeof r.image_urls_json === "string" ? r.image_urls_json : "[]",
+        ) as string[];
+        return {
+          id: r.id,
+          title: r.title,
+          rentMxn: r.rent_mxn,
+          depositMxn: r.deposit_mxn,
+          roommateGenderPref: r.roommate_gender_pref,
+          ageMin: r.age_min,
+          ageMax: r.age_max,
+          summary: r.summary,
+          lodgingType: r.lodging_type,
+          availableFrom: r.available_from,
+          minimalStayMonths: r.minimal_stay_months,
+          roomDimension: r.room_dimension,
+          tags: JSON.parse(typeof r.tags_json === "string" ? r.tags_json : "[]") as string[],
+          imageUrls: roomImages.length > 0 || !isRoomPost ? roomImages : propImages,
+        };
+      }),
     });
   });
 
