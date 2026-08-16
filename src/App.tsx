@@ -73,7 +73,8 @@ const router = createBrowserRouter([
       { path: "registro", element: <RegisterPage /> },
       { path: "verificar-correo", element: <EmailVerifyPage /> },
       { path: "grupos", element: <Navigate to="/" replace /> },
-      { path: "admin", element: <AdminPage /> },
+      { path: "admin", element: <Navigate to="/admin/usuarios" replace /> },
+      { path: "admin/:section", element: <AdminPage /> },
     ],
   },
 ]);

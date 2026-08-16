@@ -229,6 +229,8 @@ export function listAdminPosts(
     db.prepare(`SELECT COUNT(*) AS c ${fromSql} ${where}`).get(...params) as { c: number }
   ).c;
 
+  // Bind claim expiry with Date.now() interpolation, not "?": a SELECT-list
+  // placeholder is filled before WHERE/LIMIT and emptied the published filter.
   const rows = db
     .prepare(
       `
@@ -269,7 +271,7 @@ export function listAdminPosts(
           SELECT t.token FROM assisted_draft_claim_tokens t
           WHERE t.property_id = p.id
             AND t.claimed_by_user_id IS NULL
-            AND t.expires_at > ?
+            AND t.expires_at > ${Date.now()}
           ORDER BY t.created_at DESC
           LIMIT 1
         ) AS claim_token
@@ -279,7 +281,7 @@ export function listAdminPosts(
       LIMIT ? OFFSET ?
     `,
     )
-    .all(...params, Date.now(), limit, offset) as Record<string, unknown>[];
+    .all(...params, limit, offset) as Record<string, unknown>[];
 
   const posts: AdminPostRow[] = rows.map((row) => {
     const propertyId = String(row.property_id);

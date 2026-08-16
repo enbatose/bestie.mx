@@ -149,5 +149,11 @@ describe("listAdminPosts AI origin", () => {
     expect(iaOnly.posts.map((p) => p.propertyId).sort()).toEqual(
       [PROP_AI, PROP_PUBLISHED_AI].sort(),
     );
+
+    const published = listAdminPosts(db, { status: "published", limit: 25, offset: 0 });
+    expect(published.total).toBe(1);
+    expect(published.posts).toHaveLength(1);
+    expect(published.posts[0]?.propertyId).toBe(PROP_PUBLISHED_AI);
+    expect(published.posts[0]?.assistedDraft).toBe(true);
   });
 });

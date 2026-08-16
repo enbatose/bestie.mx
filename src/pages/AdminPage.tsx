@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink, Navigate, useParams } from "react-router-dom";
 import { publishWizardEditPath } from "@/lib/listingReference";
 import {
   adminAnalyticsSummary,
@@ -34,6 +34,7 @@ import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesA
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
+import { ADMIN_DEFAULT_PATH, ADMIN_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
 
 function monthOptions(count = 12): string[] {
   const out: string[] = [];
@@ -145,7 +146,9 @@ function formatImageEventTime(iso: string): string {
 }
 
 export function AdminPage() {
-  const [tab, setTab] = useState<"users" | "cities" | "analytics" | "property" | "soporte" | "outreach">("users");
+  const { section: sectionSlug } = useParams<{ section: string }>();
+  const parsedSection = parseAdminSectionSlug(sectionSlug);
+  const tab = parsedSection ?? "users";
   const [err, setErr] = useState<string | null>(null);
   const [citiesText, setCitiesText] = useState("");
   const [supportRows, setSupportRows] = useState<AdminSupportConversationRow[]>([]);
@@ -286,6 +289,10 @@ export function AdminPage() {
     setErr(message);
   }, []);
 
+  if (!parsedSection) {
+    return <Navigate to={ADMIN_DEFAULT_PATH} replace />;
+  }
+
   return (
     <div className={`mx-auto w-full min-w-0 px-4 py-6 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" ? "max-w-7xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
@@ -308,27 +315,18 @@ export function AdminPage() {
       ) : null}
 
       <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-1 text-sm font-medium [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-        {(["users", "cities", "analytics", "property", "soporte", "outreach"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`min-h-11 shrink-0 rounded-full px-4 py-2 transition ${
-              tab === t ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
-            }`}
+        {ADMIN_SECTIONS.map((section) => (
+          <NavLink
+            key={section.id}
+            to={`/admin/${section.slug}`}
+            className={({ isActive }) =>
+              `min-h-11 shrink-0 rounded-full px-4 py-2 transition ${
+                isActive ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
+              }`
+            }
           >
-            {t === "users"
-              ? "Usuarios"
-              : t === "cities"
-                ? "Ciudades"
-                : t === "analytics"
-                  ? "Métricas"
-                  : t === "property"
-                    ? "Posts"
-                    : t === "outreach"
-                      ? "Outreach"
-                      : "Soporte"}
-          </button>
+            {section.label}
+          </NavLink>
         ))}
       </div>
 
