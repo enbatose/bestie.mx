@@ -281,20 +281,40 @@ function isNearbyPublishDuplicate(a: ScoredPublishSuggestion, b: ScoredPublishSu
   const sameRoad = Boolean(roadA && roadB && roadA === roadB);
   const sameArea = Boolean(areaA && areaB && areaA === areaB);
   const sameCity = cityA === cityB;
+  const houseA = streetAddressHouseNumber(a.streetAddress);
+  const houseB = streetAddressHouseNumber(b.streetAddress);
+  const sameHouse = Boolean(houseA && houseB && houseA === houseB);
 
+  // Same street + same house number: OSM splits one avenue into many ways.
+  if (sameRoad && sameHouse) return true;
   if (sameRoad && sameArea) return true;
-  if (sameRoad && distance < 450) return true;
+  // Unlabeled segments of the same street in the same municipality.
+  if (sameRoad && sameCity && !areaA && !areaB) return true;
+  if (sameRoad && distance < 1200) return true;
   if (!a.streetAddress && !b.streetAddress && sameArea && sameCity && distance < 600) return true;
   if (sameRoad && sameCity && distance < 800) return true;
   return false;
 }
 
+function isBetterPublishDuplicate(
+  candidate: ScoredPublishSuggestion,
+  current: ScoredPublishSuggestion,
+): boolean {
+  const specDelta = publishSpecificityRank(candidate) - publishSpecificityRank(current);
+  if (specDelta !== 0) return specDelta < 0;
+  const muniDelta = municipalitySortRank(candidate.city) - municipalitySortRank(current.city);
+  if (muniDelta !== 0) return muniDelta < 0;
+  return candidate.score > current.score;
+}
+
 function publishSpecificityRank(item: ScoredPublishSuggestion): number {
-  if (streetAddressHouseNumber(item.streetAddress)) return 0;
-  if (item.kind === "address" && item.neighborhood) return 1;
-  if (item.kind === "address") return 2;
-  if (item.neighborhood) return 3;
-  return 4;
+  const hasHouse = Boolean(streetAddressHouseNumber(item.streetAddress));
+  if (hasHouse && item.neighborhood) return 0;
+  if (hasHouse) return 1;
+  if (item.kind === "address" && item.neighborhood) return 2;
+  if (item.kind === "address") return 3;
+  if (item.neighborhood) return 4;
+  return 5;
 }
 
 export function sortPublishSuggestions(items: ScoredPublishSuggestion[]): ScoredPublishSuggestion[] {
@@ -317,11 +337,7 @@ export function dedupePublishSuggestions(items: ScoredPublishSuggestion[]): Scor
       kept.push(item);
       continue;
     }
-    const betterMuni = municipalitySortRank(item.city) < municipalitySortRank(dupOf.city);
-    const betterSpec =
-      municipalitySortRank(item.city) === municipalitySortRank(dupOf.city) &&
-      publishSpecificityRank(item) < publishSpecificityRank(dupOf);
-    if (betterMuni || betterSpec) {
+    if (isBetterPublishDuplicate(item, dupOf)) {
       kept.splice(kept.indexOf(dupOf), 1, item);
     }
   }

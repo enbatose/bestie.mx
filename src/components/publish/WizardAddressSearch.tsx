@@ -103,8 +103,15 @@ export function WizardAddressSearch({ cityCode, onSelect, className = "" }: Prop
           signal: ac.signal,
         });
         if (!ac.signal.aborted) {
-          setSuggestions(results);
-          setIsOpen(results.length > 0);
+          const seen = new Set<string>();
+          const unique = results.filter((s) => {
+            const key = `${buildPrimaryText(s).trim().toLowerCase()}|${buildSecondaryText(s).trim().toLowerCase()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          setSuggestions(unique);
+          setIsOpen(unique.length > 0);
           setActiveIdx(-1);
         }
       } catch {
@@ -204,7 +211,7 @@ export function WizardAddressSearch({ cityCode, onSelect, className = "" }: Prop
         </span>
         <input
           ref={inputRef}
-          type="search"
+          type="text"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
@@ -220,7 +227,7 @@ export function WizardAddressSearch({ cityCode, onSelect, className = "" }: Prop
           aria-autocomplete="list"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-9 text-sm text-body placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-9 text-sm text-body placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent [&::-webkit-search-cancel-button]:hidden"
         />
         <span className="absolute right-3 flex items-center">
           {isLoading ? (

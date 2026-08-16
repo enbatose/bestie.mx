@@ -244,6 +244,70 @@ describe("publish suggestion ranking and dedupe", () => {
     ]);
   });
 
+  it("collapses Av México 2582 OSM segments into one result", () => {
+    const result = dedupePublishSuggestions([
+      {
+        key: "gdl-a",
+        label: "Avenida México 2582 — GDL",
+        value: "Avenida México 2582 — GDL",
+        kind: "address",
+        cityCode: "gdl",
+        city: "Guadalajara",
+        neighborhood: null,
+        lat: 20.679,
+        lng: -103.3708,
+        zoom: 17,
+        streetAddress: "Avenida México 2582",
+        score: 400,
+      },
+      {
+        key: "gdl-b",
+        label: "Avenida México 2582 — GDL",
+        value: "Avenida México 2582 — GDL",
+        kind: "address",
+        cityCode: "gdl",
+        city: "Guadalajara",
+        neighborhood: null,
+        lat: 20.67936,
+        lng: -103.3767,
+        zoom: 17,
+        streetAddress: "Avenida México 2582",
+        score: 400,
+      },
+      {
+        key: "zap",
+        label: "Avenida México 2582 — GDL",
+        value: "Avenida México 2582 — GDL",
+        kind: "address",
+        cityCode: "gdl",
+        city: "Zapopan",
+        neighborhood: null,
+        lat: 20.67952,
+        lng: -103.39014,
+        zoom: 17,
+        streetAddress: "Avenida México 2582",
+        score: 400,
+      },
+      {
+        key: "bosco",
+        label: "Avenida México 2582, Don Bosco Vallarta — GDL",
+        value: "Avenida México 2582, Don Bosco Vallarta — GDL",
+        kind: "address",
+        cityCode: "gdl",
+        city: "Zapopan",
+        neighborhood: "Don Bosco Vallarta",
+        lat: 20.6789,
+        lng: -103.3951,
+        zoom: 17,
+        streetAddress: "Avenida México 2582",
+        score: 400,
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.neighborhood).toBe("Don Bosco Vallarta");
+    expect(result[0]?.city).toBe("Zapopan");
+  });
+
   it("merges two nearby San Demetrio hits in the same municipality", () => {
     const result = dedupePublishSuggestions([
       {
