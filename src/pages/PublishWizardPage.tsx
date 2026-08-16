@@ -896,6 +896,11 @@ export function PublishWizardPage() {
   /** Last user action that moved the pin: search pick vs map pan. */
   const locationSourceRef = useRef<"search" | "map">("search");
   const [addressFieldText, setAddressFieldText] = useState("");
+  /**
+   * Paid Street View viewer is created only after a pin move in this visit to the
+   * location step (pan or address search). Returning to the step does not remount it.
+   */
+  const [streetViewViewerReady, setStreetViewViewerReady] = useState(false);
 
   usePageSeo({
     title: "Publicar anuncio | Bestie MX",
@@ -1897,6 +1902,7 @@ export function PublishWizardPage() {
                     }}
                     onSelect={({ lat, lng, zoom, neighborhood, label }) => {
                       locationSourceRef.current = "search";
+                      setStreetViewViewerReady(true);
                       setAddressFieldText(label);
                       setMapZoom(zoom);
                       setDraft((d) => {
@@ -1936,6 +1942,7 @@ export function PublishWizardPage() {
                     showAddressFooter={false}
                     onPositionChange={(lat, lng) => {
                       locationSourceRef.current = "map";
+                      setStreetViewViewerReady(true);
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
@@ -2028,6 +2035,13 @@ export function PublishWizardPage() {
 
                 {!draft.isApproximateLocation && draft.useCustomMapPin ? (() => {
                   const { lat, lng } = resolveLatLngForDraft(draft);
+                  if (!streetViewViewerReady) {
+                    return (
+                      <p className="mt-8 text-sm text-muted">
+                        Mueve el pin o busca una dirección para abrir la vista de calle.
+                      </p>
+                    );
+                  }
                   return (
                     <div className="transition-opacity duration-200">
                       <h3 className="mt-8 mb-3 text-lg font-semibold text-body">
@@ -2660,7 +2674,7 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, addressFieldText, mapZoom, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me],
+    [draft, apiOn, mapAddressShown, mapGeocode, addressFieldText, mapZoom, streetViewViewerReady, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
@@ -2670,6 +2684,12 @@ export function PublishWizardPage() {
   const showWizardProgress = safeStep >= WIZARD_FIRST_NUMBERED_STEP;
   const progressSteps = steps.slice(WIZARD_FIRST_NUMBERED_STEP);
   const isLiveListingEdit = Boolean(editingLiveProperty);
+
+  useEffect(() => {
+    if (safeStep !== WIZARD_FIRST_NUMBERED_STEP) {
+      setStreetViewViewerReady(false);
+    }
+  }, [safeStep]);
 
   const autofillStep = useCallback(
     (stepIndex: number) => {
