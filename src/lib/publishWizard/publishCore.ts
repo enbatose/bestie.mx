@@ -45,8 +45,9 @@ const VALID_PROPERTY_KINDS: readonly PropertyKind[] = ["house", "apartment", "lo
 const VALID_ROOM_LODGING_TYPES = ["private_room", "shared_room"] as const;
 const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "female", "male"];
 
+/** Default publish-map center: Fuente de la Minerva (Glorieta Minerva), Guadalajara. */
 export const CITY_ANCHOR = {
-  Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.675_138, lng: -103.347_345 },
+  Guadalajara: { neighborhood: "Zona metropolitana", lat: 20.674_39, lng: -103.387_39, zoom: 16 },
 } as const;
 
 const DRAFT_WA_PLACEHOLDER = "0000000000000";
@@ -327,7 +328,7 @@ export function locationStepInvalidReason(d: Draft): string | null {
     return "Selecciona una ciudad.";
   }
   if (!d.useCustomMapPin) {
-    return "Busca tu dirección o mueve el mapa para indicar la ubicación de tu espacio.";
+    return "Mueve el mapa o busca una dirección para indicar la ubicación de tu espacio.";
   }
   const { lat, lng } = resolveLatLngForDraft(d);
   if (!validLatLng(lat, lng)) {

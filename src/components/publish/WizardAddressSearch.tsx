@@ -237,7 +237,7 @@ export function WizardAddressSearch({ cityCode, onSelect, syncAddress, className
           autoCorrect="off"
           spellCheck={false}
           inputMode="search"
-          placeholder="Busca tu dirección, calle o colonia…"
+          placeholder="Escribe tu dirección o mueve el mapa…"
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}

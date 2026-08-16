@@ -447,8 +447,10 @@ function TapToPlaceHandler({
  * Programmatic flyTo (from address search) does not commit because it doesn't set wasDragRef.
  */
 function CrosshairMapSync({
+  onPanMove,
   onPanCommit,
 }: {
+  onPanMove?: (lat: number, lng: number) => void;
   onPanCommit: (lat: number, lng: number) => void;
 }) {
   const map = useMap();
@@ -457,6 +459,11 @@ function CrosshairMapSync({
   useEffect(() => {
     const handleDragStart = () => {
       wasDragRef.current = true;
+    };
+    const handleMove = () => {
+      if (!wasDragRef.current || !onPanMove) return;
+      const c = map.getCenter();
+      onPanMove(c.lat, c.lng);
     };
     const handleMoveEnd = () => {
       const wasUserDrag = wasDragRef.current;
@@ -467,12 +474,14 @@ function CrosshairMapSync({
       }
     };
     map.on("dragstart", handleDragStart);
+    map.on("move", handleMove);
     map.on("moveend", handleMoveEnd);
     return () => {
       map.off("dragstart", handleDragStart);
+      map.off("move", handleMove);
       map.off("moveend", handleMoveEnd);
     };
-  }, [map, onPanCommit]);
+  }, [map, onPanMove, onPanCommit]);
 
   return null;
 }
@@ -480,7 +489,6 @@ function CrosshairMapSync({
 /**
  * Crosshair pin overlay — a fixed SVG pin centered on the map viewport.
  * The pin's tip is anchored to the map center via translateY(-50%).
- * Lifts with a shadow animation when the map is being panned.
  */
 function CrosshairPin({
   hasLocation,
@@ -557,6 +565,8 @@ export function WizardLocationMap({
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
+  /** Follows the viewport during a user pan so the privacy circle stays centered. */
+  const [displayPosition, setDisplayPosition] = useState(position);
 
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
@@ -564,6 +574,7 @@ export function WizardLocationMap({
   const suppressClampRef = useRef(false);
 
   const isCrosshair = interactionMode === "crosshair";
+  const showCrosshairPin = isCrosshair && !showApproximateRadius;
   const showMarker = !isCrosshair && (forceDraggablePin || !showApproximateRadius);
   const circleDraggable = Boolean(showApproximateRadius && radiusEditable && !forceDraggablePin && !isCrosshair);
   const circleRadius = clampApproximateRadiusMeters(approximateRadiusMeters);
@@ -571,12 +582,14 @@ export function WizardLocationMap({
 
   useEffect(() => {
     setLocalPosition(position);
+    setDisplayPosition(position);
     setLocalLocationSelected(hasDefinedLocation);
   }, [position, hasDefinedLocation]);
 
   const commitPosition = useCallback(
     (lat: number, lng: number) => {
       setLocalPosition([lat, lng]);
+      setDisplayPosition([lat, lng]);
       setLocalLocationSelected(true);
       skipFlyRef.current = true;
       suppressClampRef.current = false;
@@ -588,6 +601,7 @@ export function WizardLocationMap({
   const onCircleDragMove = useCallback((lat: number, lng: number) => {
     skipFlyRef.current = true;
     setLocalPosition([lat, lng]);
+    setDisplayPosition([lat, lng]);
     setLocalLocationSelected(true);
   }, []);
 
@@ -623,6 +637,10 @@ export function WizardLocationMap({
     }),
     [commitMarkerPosition],
   );
+
+  const handlePanMove = useCallback((lat: number, lng: number) => {
+    setDisplayPosition([lat, lng]);
+  }, []);
 
   const handlePanCommit = useCallback(
     (lat: number, lng: number) => {
@@ -669,13 +687,13 @@ export function WizardLocationMap({
 
           {/* Crosshair mode: track pan events */}
           {isCrosshair && (
-            <CrosshairMapSync onPanCommit={handlePanCommit} />
+            <CrosshairMapSync onPanMove={handlePanMove} onPanCommit={handlePanCommit} />
           )}
 
           {/* Privacy circle */}
           {showApproximateRadius && circleDraggable ? (
             <DraggablePrivacyCircle
-              center={localPosition}
+              center={displayPosition}
               radiusMeters={circleRadius}
               onDragMove={onCircleDragMove}
               onDragEnd={commitPosition}
@@ -684,7 +702,7 @@ export function WizardLocationMap({
           ) : null}
           {showApproximateRadius && !circleDraggable ? (
             <Circle
-              center={localPosition}
+              center={displayPosition}
               radius={circleRadius}
               pathOptions={MAP_PRIVACY_CIRCLE_PATH}
               interactive={false}
@@ -705,7 +723,7 @@ export function WizardLocationMap({
         </MapContainer>
 
         {/* Crosshair overlay — rendered outside MapContainer so it's not clipped by Leaflet */}
-        {isCrosshair && <CrosshairPin hasLocation={localLocationSelected} />}
+        {showCrosshairPin ? <CrosshairPin hasLocation={localLocationSelected} /> : null}
       </div>
 
       {embed ? null : (
@@ -713,7 +731,7 @@ export function WizardLocationMap({
           <p className="text-xs text-muted">
             <strong className="font-semibold text-body">Tip</strong>:{" "}
             {isCrosshair
-              ? circleDraggable
+              ? showApproximateRadius
                 ? "Mueve el mapa para colocar el área de privacidad. Ajusta el radio con el control de abajo."
                 : "Mueve el mapa para colocar el marcador en tu dirección exacta."
               : circleDraggable

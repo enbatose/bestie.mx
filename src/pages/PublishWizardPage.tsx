@@ -910,7 +910,7 @@ export function PublishWizardPage() {
     lngKey: string;
   } | null>(null);
   /** Zoom level to use when MapViewSync flies to a new position (updated by address search). */
-  const [mapZoom, setMapZoom] = useState(13);
+  const [mapZoom, setMapZoom] = useState(CITY_ANCHOR.Guadalajara.zoom);
   /** Monotonic id so stale reverse-geocode responses never commit after a newer drag/coords change. */
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
@@ -1498,10 +1498,11 @@ export function PublishWizardPage() {
   ]);
 
   useEffect(() => {
-    if (locationSourceRef.current !== "map") return;
     if (!mapAddressShown) return;
+    // Keep a search-picker label; fill from reverse-geocode after a pan or when the field is still empty (resume).
+    if (locationSourceRef.current === "search" && addressFieldText.trim()) return;
     setAddressFieldText(mapAddressShown);
-  }, [mapAddressShown]);
+  }, [mapAddressShown, addressFieldText]);
 
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
     if (!isListingsApiConfigured()) return null;
@@ -1907,10 +1908,9 @@ export function PublishWizardPage() {
               <div>
                 <p className="text-sm font-medium text-body">
                   Indica dónde se ubica tu espacio.
-                  <span className="text-error"> *</span>
                 </p>
 
-                {/* Address search — primary input method */}
+                {/* Address search — optional; also filled from reverse-geocode after the pin moves */}
                 <div className="mt-3">
                   <WizardAddressSearch
                     cityCode={cityToCode(draft.city)}
@@ -1938,8 +1938,8 @@ export function PublishWizardPage() {
 
                 <p className="mt-2 text-xs text-muted">
                   {draft.isApproximateLocation
-                    ? "Después mueve el mapa para ajustar el área de privacidad."
-                    : "También puedes mover el mapa para afinar la ubicación exacta."}
+                    ? "Mueve el mapa para colocar el área de privacidad. La dirección se completa al mover el mapa."
+                    : "Escribe tu dirección o mueve el mapa. La dirección se completa sola al colocar el pin."}
                 </p>
 
                 {/* Map with crosshair (industry-standard mobile UX) */}
