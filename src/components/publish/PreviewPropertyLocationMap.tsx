@@ -395,7 +395,43 @@ export function PreviewPropertyLocationMap({
       ) : null}
 
       <div className={gridClass}>
-        <div className={showStreetView ? "" : "col-span-full"}>{mapPane("h-[260px] md:h-[320px]", 220)}</div>
+        <div className={showStreetView ? "" : "col-span-full"}>
+          {mapPane("h-[260px] md:h-[320px]", 220)}
+          {hideExactAddress && canEdit && onPrivacyChange ? (
+            <div className="mt-3 rounded-lg border border-border bg-surface px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="preview-privacy-radius" className="text-xs font-semibold text-body">
+                  Radio de privacidad
+                </label>
+                <span className="text-xs font-medium tabular-nums text-primary">{privacyRadiusM} m</span>
+              </div>
+              <input
+                id="preview-privacy-radius"
+                type="range"
+                min={APPROXIMATE_LOCATION_RADIUS_MIN_M}
+                max={APPROXIMATE_LOCATION_RADIUS_MAX_M}
+                step={10}
+                value={privacyRadiusM}
+                onChange={(e) => {
+                  onPrivacyChange({
+                    isApproximateLocation: true,
+                    approximateRadiusMeters: clampApproximateRadiusMeters(Number(e.target.value)),
+                  });
+                  if (!editingLocation) beginLocationEdit({ privacy: true });
+                }}
+                className="mt-2 h-2 w-full cursor-pointer accent-secondary"
+                aria-valuemin={APPROXIMATE_LOCATION_RADIUS_MIN_M}
+                aria-valuemax={APPROXIMATE_LOCATION_RADIUS_MAX_M}
+                aria-valuenow={privacyRadiusM}
+                aria-label="Radio de privacidad en metros"
+              />
+              <div className="mt-1 flex justify-between text-[10px] text-muted">
+                <span>{APPROXIMATE_LOCATION_RADIUS_MIN_M} m</span>
+                <span>{APPROXIMATE_LOCATION_RADIUS_MAX_M} m</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         {showStreetView ? (
           <div className="relative">
@@ -521,45 +557,11 @@ export function PreviewPropertyLocationMap({
             </div>
           </label>
           {hideExactAddress ? (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
-                <div className="flex items-center justify-between gap-3">
-                  <label htmlFor="preview-privacy-radius" className="text-xs font-semibold text-body">
-                    Radio de privacidad
-                  </label>
-                  <span className="text-xs font-medium tabular-nums text-primary">{privacyRadiusM} m</span>
-                </div>
-                <input
-                  id="preview-privacy-radius"
-                  type="range"
-                  min={APPROXIMATE_LOCATION_RADIUS_MIN_M}
-                  max={APPROXIMATE_LOCATION_RADIUS_MAX_M}
-                  step={10}
-                  value={privacyRadiusM}
-                  onChange={(e) => {
-                    onPrivacyChange({
-                      isApproximateLocation: true,
-                      approximateRadiusMeters: clampApproximateRadiusMeters(Number(e.target.value)),
-                    });
-                    if (!editingLocation) beginLocationEdit({ privacy: true });
-                  }}
-                  className="mt-2 h-2 w-full cursor-pointer accent-secondary"
-                  aria-valuemin={APPROXIMATE_LOCATION_RADIUS_MIN_M}
-                  aria-valuemax={APPROXIMATE_LOCATION_RADIUS_MAX_M}
-                  aria-valuenow={privacyRadiusM}
-                  aria-label="Radio de privacidad en metros"
-                />
-                <div className="mt-1 flex justify-between text-[10px] text-muted">
-                  <span>{APPROXIMATE_LOCATION_RADIUS_MIN_M} m</span>
-                  <span>{APPROXIMATE_LOCATION_RADIUS_MAX_M} m</span>
-                </div>
-              </div>
-              <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
-                El mapa de búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro de{" "}
-                {privacyRadiusM} m. Mueve el mapa para ubicar el área y usa el control de radio para
-                ajustar el tamaño del perímetro.
-              </p>
-            </div>
+            <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
+              El mapa de búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro de{" "}
+              {privacyRadiusM} m. Mueve el mapa para ubicar el área y usa el control de radio para
+              ajustar el tamaño del perímetro.
+            </p>
           ) : null}
         </div>
       ) : null}
