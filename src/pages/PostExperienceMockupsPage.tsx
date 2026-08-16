@@ -769,6 +769,9 @@ export function PostExperienceMockupsPage() {
     { icon: Users, title: "Edades", value: `${singleRoomListing.ageMin} - ${singleRoomListing.ageMax}` },
     { icon: Bath, title: "Baño privado", value: yesNo(singleRoomListing.tags.includes("baño-privado")) },
     { icon: Car, title: "Estacionamiento incluido", value: yesNo(singleRoomListing.tags.includes("estacionamiento")) },
+    { icon: PawPrint, title: "Mascotas", value: yesNo(singleRoomListing.tags.includes("mascotas")) },
+    { icon: Users, title: "Fiestas", value: yesNo(singleRoomListing.tags.includes("fiestas")) },
+    { icon: Cigarette, title: "Fumar en áreas comunes", value: yesNo(singleRoomListing.tags.includes("fumar")) },
     { icon: Sparkles, title: "Ideal para", value: "Estudiantes, Individuos (Solo)" },
   ];
 

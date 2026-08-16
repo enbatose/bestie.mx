@@ -43,6 +43,9 @@ export const KEY_LABEL_ROOM_TAG_SLUGS = new Set<ListingTag>([
   "estacionamiento",
   "estudiantes",
   "individuos-solo",
+  "mascotas",
+  "fiestas",
+  "fumar",
 ]);
 
 export type KeyLabelItem = {
@@ -131,6 +134,15 @@ export function basicServicesIncludedLabel(tags: readonly ListingTag[]): string 
   return yesNo(tags.includes("servicios-incluidos") || utilitiesBundleSatisfied(tags));
 }
 
+/** Wizard “Se permite” (mascotas, fiestas, fumar) as Sí/No facts. */
+export function permitidoKeyLabels(tags: readonly ListingTag[]): KeyLabelItem[] {
+  return [
+    { icon: PawPrint, title: "Mascotas", value: yesNo(tags.includes("mascotas")) },
+    { icon: Users, title: "Fiestas", value: yesNo(tags.includes("fiestas")) },
+    { icon: Cigarette, title: "Fumar en áreas comunes", value: yesNo(tags.includes("fumar")) },
+  ];
+}
+
 export function buildSingleRoomKeyLabels(listing: PropertyListing): KeyLabelItem[] {
   return [
     { icon: DollarSign, title: "Depósito", value: money.format(listing.depositMxn ?? 0) },
@@ -152,6 +164,7 @@ export function buildSingleRoomKeyLabels(listing: PropertyListing): KeyLabelItem
     { icon: Users, title: "Edades", value: `${listing.ageMin} - ${listing.ageMax}` },
     { icon: Bath, title: "Baño privado", value: yesNo(listing.tags.includes("baño-privado")) },
     { icon: Car, title: KEY_LABEL_ESTACIONAMIENTO_INCLUIDO, value: yesNo(listing.tags.includes("estacionamiento")) },
+    ...permitidoKeyLabels(listing.tags),
     { icon: Sparkles, title: "Ideal para", value: idealParaKeyLabel(listing.tags) },
   ];
 }
@@ -177,6 +190,7 @@ export function buildRoomKeyLabels(room: Room): KeyLabelItem[] {
     { icon: Users, title: "Edades", value: `${room.ageMin} - ${room.ageMax}` },
     { icon: Bath, title: "Baño privado", value: yesNo(room.tags.includes("baño-privado")) },
     { icon: Car, title: KEY_LABEL_ESTACIONAMIENTO_INCLUIDO, value: yesNo(room.tags.includes("estacionamiento")) },
+    ...permitidoKeyLabels(room.tags),
     { icon: Sparkles, title: "Ideal para", value: idealParaKeyLabel(room.tags) },
   ];
 }
@@ -191,9 +205,7 @@ export function buildPropertyKeyLabels(
       title: "Disponible desde",
       value: availableRooms[0] ? formatRoomAvailableFrom(availableRooms[0].availableFrom ?? "") : "—",
     },
-    { icon: PawPrint, title: "Mascotas", value: yesNo(propertyTags.includes("mascotas")) },
-    { icon: Users, title: "Fiestas", value: yesNo(propertyTags.includes("fiestas")) },
-    { icon: Cigarette, title: "Fumar en áreas comunes", value: yesNo(propertyTags.includes("fumar")) },
+    ...permitidoKeyLabels(propertyTags),
     {
       icon: Warehouse,
       title: "La propiedad cuenta con",
