@@ -73,6 +73,7 @@ export function PropertyRoomDetailModal({
     ageMax: room.ageMax,
     neighborhood: property.neighborhood,
     propertyKind: property.propertyKind,
+    propertyBedroomsTotal: property.bedroomsTotal,
     propertyBathrooms: property.bathrooms,
   };
 

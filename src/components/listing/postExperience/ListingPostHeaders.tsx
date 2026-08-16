@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import {
   listingHeroPriceLabel,
   propertyBathroomsCountLabel,
+  propertyBedroomsCountLabel,
   resolvedPropertyBathroomsCount,
+  resolvedPropertyBedroomsCount,
 } from "@/lib/listingTags";
 import { genderPrefLabel, propertyKindLabel } from "@/lib/listingKeyLabels";
 import type { Property, PropertyListing, Room } from "@/types/listing";
@@ -62,9 +64,17 @@ export function SingleRoomHeader({
       </div>
       <HeaderLocationLine neighborhood={listing.neighborhood} city={listing.city} />
       <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
         <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
+        <HeaderInfoItem
+          icon={BedDouble}
+          label="Recámaras"
+          value={propertyBedroomsCountLabel(
+            resolvedPropertyBedroomsCount(listing.propertyBedroomsTotal),
+            listing.propertyKind,
+          )}
+        />
         <HeaderInfoItem
           icon={Bath}
           label="Baños"

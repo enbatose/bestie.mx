@@ -307,6 +307,22 @@ export function resolvedPropertyBathroomsCount(bathrooms: number | null | undefi
   return 1;
 }
 
+export function propertyBedroomsCountLabel(
+  bedroomsTotal: number,
+  propertyKind?: PropertyKind,
+): string {
+  const beds = propertyKind === "loft" ? 1 : bedroomsTotal;
+  return beds === 1 ? "1 Recámara" : `${beds} Recámaras`;
+}
+
+/** Missing/invalid totals default to 1 (wizard minimum). */
+export function resolvedPropertyBedroomsCount(bedrooms: number | null | undefined): number {
+  if (typeof bedrooms === "number" && Number.isFinite(bedrooms) && bedrooms >= 1) {
+    return Math.floor(bedrooms);
+  }
+  return 1;
+}
+
 export function propertySpacesPreviewLabel(
   bedroomsTotal: number,
   bathrooms: number,
