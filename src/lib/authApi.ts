@@ -528,6 +528,7 @@ export type AdminPostRow = {
   viewPath: string;
   editPath: string;
   primaryRoomId: string | null;
+  assistedDraft: boolean;
 };
 
 export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;

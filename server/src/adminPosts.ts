@@ -46,7 +46,30 @@ export type AdminPostRow = {
   viewPath: string;
   editPath: string;
   primaryRoomId: string | null;
+  /** True when the listing was created by the admin AI-assisted draft flow. */
+  assistedDraft: boolean;
 };
+
+/** 1-based `paso` for the wizard review step (`publishWizardLastStepIndex` + 1). */
+function wizardReviewPaso(postMode: "room" | "property"): number {
+  return postMode === "property" ? 5 : 6;
+}
+
+export function adminPostEditPath(opts: {
+  propertyId: string;
+  postMode: "room" | "property";
+  status: AdminPostStatus;
+  assistedDraft: boolean;
+  claimToken: string | null;
+}): string {
+  if (opts.assistedDraft && opts.status === "draft" && opts.claimToken) {
+    return `/publicar?borrador=${encodeURIComponent(opts.claimToken)}`;
+  }
+  if (opts.assistedDraft && opts.status === "draft") {
+    return `/publicar?edit=${encodeURIComponent(propertyReferenceCode(opts.propertyId))}&paso=${wizardReviewPaso(opts.postMode)}`;
+  }
+  return `/publicar?edit=${encodeURIComponent(opts.propertyId)}`;
+}
 
 export type AdminPostsListResult = {
   posts: AdminPostRow[];
@@ -112,6 +135,12 @@ export function listAdminPosts(
   }
 
   for (const token of tokens) {
+    const lower = token.toLowerCase();
+    if (lower === "ia" || lower === "ai" || lower === "asistido") {
+      conditions.push(`IFNULL(p.assisted_draft, 0) = 1`);
+      continue;
+    }
+
     const like = `%${escapeLike(token)}%`;
     const upper = token.toUpperCase();
     const hexFromShort =
@@ -158,7 +187,6 @@ export function listAdminPosts(
     }
 
     // Logged-in / guest keyword aliases.
-    const lower = token.toLowerCase();
     if (
       lower === "logueado" ||
       lower === "logged" ||
@@ -219,6 +247,7 @@ export function listAdminPosts(
         p.feedback_rating,
         p.feedback_comment,
         p.feedback_at,
+        IFNULL(p.assisted_draft, 0) AS assisted_draft,
         u.id AS user_id,
         u.email AS user_email,
         u.display_name AS user_display_name,
@@ -235,14 +264,22 @@ export function listAdminPosts(
             r.sort_order ASC,
             r.id ASC
           LIMIT 1
-        ) AS primary_room_id
+        ) AS primary_room_id,
+        (
+          SELECT t.token FROM assisted_draft_claim_tokens t
+          WHERE t.property_id = p.id
+            AND t.claimed_by_user_id IS NULL
+            AND t.expires_at > ?
+          ORDER BY t.created_at DESC
+          LIMIT 1
+        ) AS claim_token
       ${fromSql}
       ${where}
       ORDER BY COALESCE(p.created_at, '') DESC, p.id DESC
       LIMIT ? OFFSET ?
     `,
     )
-    .all(...params, limit, offset) as Record<string, unknown>[];
+    .all(...params, Date.now(), limit, offset) as Record<string, unknown>[];
 
   const posts: AdminPostRow[] = rows.map((row) => {
     const propertyId = String(row.property_id);
@@ -281,6 +318,11 @@ export function listAdminPosts(
       postMode === "room" && primaryRoomId
         ? `/anuncio/${roomReferenceCode(primaryRoomId)}`
         : `/propiedad/${propertyReferenceCode(propertyId)}`;
+    const assistedDraft = Number(row.assisted_draft) === 1;
+    const claimToken =
+      row.claim_token != null && String(row.claim_token).trim()
+        ? String(row.claim_token).trim()
+        : null;
 
     return {
       propertyId,
@@ -306,8 +348,15 @@ export function listAdminPosts(
       posthogSessionId: sessionId,
       posthogReplayUrl: posthogReplayUrl(sessionId),
       viewPath,
-      editPath: `/publicar?edit=${encodeURIComponent(propertyId)}`,
+      editPath: adminPostEditPath({
+        propertyId,
+        postMode,
+        status,
+        assistedDraft,
+        claimToken,
+      }),
       primaryRoomId,
+      assistedDraft,
     };
   });
 

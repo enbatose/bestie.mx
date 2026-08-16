@@ -52,6 +52,17 @@ function statusBadgeClass(status: AdminPostStatus): string {
   }
 }
 
+function AiOriginBadge() {
+  return (
+    <span
+      className="inline-flex rounded-full bg-secondary/25 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+      title="Generado con IA"
+    >
+      IA
+    </span>
+  );
+}
+
 type Props = {
   onError: (message: string | null) => void;
 };
@@ -132,7 +143,7 @@ export function AdminPostsPanel({ onError }: Props) {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="ID, título, correo, estado, paso, feedback…"
+            placeholder="ID, título, correo, IA, estado, paso, feedback…"
             className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
           />
         </label>
@@ -225,11 +236,14 @@ export function AdminPostsPanel({ onError }: Props) {
                   <div className="mt-0.5 text-[10px] text-muted">{row.postMode}</div>
                 </td>
                 <td className="px-3 py-2.5">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(row.status)}`}
-                  >
-                    {statusLabel(row.status)}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(row.status)}`}
+                    >
+                      {statusLabel(row.status)}
+                    </span>
+                    {row.assistedDraft ? <AiOriginBadge /> : null}
+                  </div>
                 </td>
                 <td className="max-w-[180px] px-3 py-2.5">
                   <div className="line-clamp-2 font-medium text-body">{row.title || "Sin título"}</div>
@@ -297,7 +311,7 @@ export function AdminPostsPanel({ onError }: Props) {
                       to={row.editPath}
                       className="text-muted underline-offset-2 hover:underline"
                     >
-                      Editor
+                      {row.assistedDraft && row.status === "draft" ? "Vista previa IA" : "Editor"}
                     </Link>
                     {row.posthogReplayUrl ? (
                       <a
@@ -342,11 +356,14 @@ export function AdminPostsPanel({ onError }: Props) {
                 <div className="font-mono text-sm font-semibold text-body">{row.shortId}</div>
                 <div className="mt-1 font-medium text-body">{row.title || "Sin título"}</div>
               </div>
-              <span
-                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(row.status)}`}
-              >
-                {statusLabel(row.status)}
-              </span>
+              <div className="flex flex-wrap items-center gap-1">
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(row.status)}`}
+                >
+                  {statusLabel(row.status)}
+                </span>
+                {row.assistedDraft ? <AiOriginBadge /> : null}
+              </div>
             </div>
             <dl className="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">
               <div>
@@ -391,7 +408,7 @@ export function AdminPostsPanel({ onError }: Props) {
                 to={row.editPath}
                 className="rounded-full border border-border px-3 py-1.5 font-semibold text-body"
               >
-                Editor
+                {row.assistedDraft && row.status === "draft" ? "Vista previa IA" : "Editor"}
               </Link>
               {row.posthogReplayUrl ? (
                 <a
