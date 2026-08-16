@@ -6,6 +6,7 @@ import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import {
   firstRoomIndexWithIssues,
   roomPreviewOptionLabel,
+  roomSaveIssuesPrimaryLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { EditableListingPreview } from "@/components/publish/EditableListingPreview";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
@@ -300,7 +301,7 @@ export function PublishWizardReviewStep({
               className="w-full rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
             >
               {hasRoomFieldIssues
-                ? `Completar ${roomPreviewOptionLabel(draft.rooms[firstIncompleteRoom]!, firstIncompleteRoom)}`
+                ? roomSaveIssuesPrimaryLabel(draft, firstIncompleteRoom)
                 : primaryLabel}
             </button>
           ) : (

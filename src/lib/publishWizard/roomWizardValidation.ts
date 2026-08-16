@@ -11,6 +11,11 @@ const VALID_ROOMMATE_GENDER_PREFS: readonly RoommateGenderPref[] = ["any", "fema
 
 const GENERIC_NUMBERED_ROOM_TITLE = /^(recámara|habitación)\s+\d+$/i;
 
+/** Standalone room listing (not a property with numbered recámaras). */
+export function isStandaloneRoomPost(d: Pick<Draft, "postMode">): boolean {
+  return d.postMode === "room";
+}
+
 /** Label shown in accordion headers, validation errors, and photo sections. */
 export function roomWizardLabel(
   d: Draft,
@@ -215,7 +220,28 @@ export function roomsWithFieldIssues(d: Draft): Array<{
 export function formatRoomsValidationMessage(d: Draft): string | null {
   const rows = roomsWithFieldIssues(d);
   if (!rows.length) return null;
+  // Single-room posts have no room identity to distinguish — list only what to fix.
+  if (isStandaloneRoomPost(d) && rows.length === 1) {
+    return rows[0]!.issues.map((issue) => issue.message).join(" ");
+  }
   return rows
     .map((row) => `${row.label}: ${row.issues.map((issue) => issue.message).join(" ")}`)
     .join(" ");
+}
+
+export function roomSaveIssuesHeading(d: Draft, prefix: string): string {
+  return isStandaloneRoomPost(d)
+    ? `${prefix} falta completar el anuncio.`
+    : `${prefix} falta completar una o más recámaras.`;
+}
+
+export function roomSaveIssuesOpenLabel(d: Draft, roomLabel: string): string {
+  return isStandaloneRoomPost(d) ? "Completar" : `Abrir ${roomLabel} y completar`;
+}
+
+export function roomSaveIssuesPrimaryLabel(d: Draft, roomIndex: number): string {
+  if (isStandaloneRoomPost(d)) return "Completar anuncio";
+  const room = d.rooms[roomIndex];
+  if (!room) return "Completar anuncio";
+  return `Completar ${roomPreviewOptionLabel(room, roomIndex)}`;
 }

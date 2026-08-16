@@ -334,7 +334,7 @@ export function EditableRoomModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Editar ${roomLabel}`}
+      aria-label={draft.postMode === "room" ? "Editar anuncio" : `Editar ${roomLabel}`}
       className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
       onClick={onClose}
     >
@@ -344,7 +344,7 @@ export function EditableRoomModal({
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-            Editando · Recámara {roomIndex + 1}
+            {draft.postMode === "room" ? "Editando anuncio" : `Editando · Recámara ${roomIndex + 1}`}
           </span>
           <button
             type="button"
@@ -504,7 +504,7 @@ export function EditableRoomModal({
                       saveLabel="Listo"
                     >
                       <BulkImageUploader
-                        title={`Recámara ${roomIndex + 1}`}
+                        title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
                         images={draftRoomEditorImages(draft, roomIndex, localRoom.photos)}
                         maxCount={20}
                         apiOn={apiOn}
