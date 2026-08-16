@@ -14,6 +14,8 @@ type Props = {
   }) => void;
   /** When the map pin moves, parent sends the reverse-geocoded address to keep the field in sync. */
   syncAddress?: string | null;
+  /** Typed text (including house number). Parent should not overwrite this from reverse-geocode. */
+  onQueryChange?: (query: string) => void;
   className?: string;
 };
 
@@ -86,7 +88,13 @@ function buildSecondaryText(s: LocationSuggestion): string {
   return parts.join(", ");
 }
 
-export function WizardAddressSearch({ cityCode, onSelect, syncAddress, className = "" }: Props) {
+export function WizardAddressSearch({
+  cityCode,
+  onSelect,
+  syncAddress,
+  onQueryChange,
+  className = "",
+}: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -133,6 +141,7 @@ export function WizardAddressSearch({ cityCode, onSelect, syncAddress, className
 
   const handleChange = (q: string) => {
     setQuery(q);
+    onQueryChange?.(q);
     setActiveIdx(-1);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (q.length < 2) {
@@ -215,6 +224,7 @@ export function WizardAddressSearch({ cityCode, onSelect, syncAddress, className
 
   const handleClear = () => {
     setQuery("");
+    onQueryChange?.("");
     setSuggestions([]);
     setIsOpen(false);
     setIsLoading(false);

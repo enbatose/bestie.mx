@@ -285,7 +285,7 @@ function pickAddrPart(addr: NominatimAddress | undefined, keys: readonly string[
   return "";
 }
 
-/** Colonia / zona from reverse-geocode (same keys as the area segment in `privacyLocationFromNominatim`). */
+/** Colonia / zona from reverse-geocode (same keys as the area segment in `streetNeighborhoodCityFromNominatim`). */
 function neighborhoodFromNominatimAddress(addr: NominatimAddress | undefined): string {
   return pickAddrPart(addr, [
     "neighbourhood",
@@ -299,43 +299,23 @@ function neighborhoodFromNominatimAddress(addr: NominatimAddress | undefined): s
 }
 
 /**
- * Privacy preview from the same Nominatim `address` object as the full line (no extra fetch).
- * Keeps colonia + calle + código postal + ciudad/estado; omits número exterior, interior y POIs tipo negocio.
+ * Reverse-geocode label after a map pan. OSM house numbers are often wrong, so we
+ * keep only calle + colonia + ciudad — never número exterior.
  */
-function privacyLocationFromNominatim(
+function streetNeighborhoodCityFromNominatim(
   addr: NominatimAddress | undefined,
-  fallbackNeighborhood: string,
   fallbackCity: string,
 ): string {
-  const area = pickAddrPart(addr, [
-    "neighbourhood",
-    "suburb",
-    "quarter",
-    "city_block",
-    "district",
-    "city_district",
-    "hamlet",
-  ]);
   const road = pickAddrPart(addr, ["road", "pedestrian", "footway", "residential", "path"]);
-  const postcode = pickAddrPart(addr, ["postcode"]);
+  const area = neighborhoodFromNominatimAddress(addr);
   const city =
     pickAddrPart(addr, ["city", "town", "village", "municipality"]) || fallbackCity.trim();
-  const state = pickAddrPart(addr, ["state", "region"]);
-  const country = pickAddrPart(addr, ["country"]);
 
   const parts: string[] = [];
-  if (area) parts.push(area);
   if (road) parts.push(road);
-  if (postcode) parts.push(postcode);
-  if (city && city !== area && city !== road) parts.push(city);
-  if (state && state !== city) parts.push(state);
-  if (country) parts.push(country);
-
-  if (parts.length > 0) return parts.join(", ");
-
-  const fb = [fallbackNeighborhood.trim(), fallbackCity.trim()].filter(Boolean);
-  const fbPost = postcode ? `${fb.join(", ")}${fb.length ? ", " : ""}${postcode}` : fb.join(", ");
-  return fbPost.trim() || postcode || fallbackCity;
+  if (area && area !== road && area !== city) parts.push(area);
+  if (city && city !== road) parts.push(city);
+  return parts.join(", ") || "Ubicación aproximada";
 }
 
 /** Valid-length placeholder until the user enters a real number; publishing rejects all-zero contacts server-side. */
@@ -1469,8 +1449,6 @@ export function PublishWizardPage() {
 
   const mapAddressShown = useMemo(() => {
     if (!draft.useCustomMapPin) return null;
-    const anchor = CITY_ANCHOR[draft.city];
-    const nbh = draft.neighborhood.trim() || anchor.neighborhood;
     const { lat, lng } = resolveLatLngForDraft(draft);
     const latKey = lat.toFixed(6);
     const lngKey = lng.toFixed(6);
@@ -1482,14 +1460,9 @@ export function PublishWizardPage() {
 
     if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return null;
 
-    if (draft.isApproximateLocation) {
-      return privacyLocationFromNominatim(mapGeocode.address, nbh, draft.city);
-    }
-    return mapGeocode.displayFull;
+    return streetNeighborhoodCityFromNominatim(mapGeocode.address, draft.city);
   }, [
     draft.city,
-    draft.isApproximateLocation,
-    draft.neighborhood,
     draft.useCustomMapPin,
     mapGeocode,
     resolveLatLngForDraft,
@@ -1915,6 +1888,15 @@ export function PublishWizardPage() {
                   <WizardAddressSearch
                     cityCode={cityToCode(draft.city)}
                     syncAddress={addressFieldText}
+                    onQueryChange={(query) => {
+                      if (query.trim()) {
+                        locationSourceRef.current = "search";
+                        setAddressFieldText(query);
+                      } else {
+                        locationSourceRef.current = "map";
+                        setAddressFieldText("");
+                      }
+                    }}
                     onSelect={({ lat, lng, zoom, neighborhood, label }) => {
                       locationSourceRef.current = "search";
                       setAddressFieldText(label);
