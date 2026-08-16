@@ -277,7 +277,7 @@ export function PreviewPropertyLocationMap({
       {canEdit && (editingLocation || hideExactAddress) ? renderAddressSearch() : null}
       <div className="relative">
         {editingLocation || hideExactAddress ? (
-          <div className={heightClass}>{locationEditorMap(editHeight)}</div>
+          locationEditorMap(editHeight)
         ) : (
           readOnlyMap(heightClass)
         )}
@@ -405,7 +405,7 @@ export function PreviewPropertyLocationMap({
 
       <div className={gridClass}>
         <div className={showStreetView ? "" : "col-span-full"}>
-          {mapPane("h-[260px] md:h-[320px]", "100%")}
+          {mapPane("h-[260px] md:h-[320px]", 260)}
           {hideExactAddress && canEdit && onPrivacyChange ? (
             <div className="mt-3 rounded-lg border border-border bg-surface px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">

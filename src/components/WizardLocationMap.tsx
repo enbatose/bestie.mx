@@ -311,6 +311,36 @@ function MapViewSync({
   return null;
 }
 
+/** Leaflet caches pixel bounds at init; reflow tiles after the container gets a real size. */
+function MapResizeInvalidate() {
+  const map = useMap();
+  useEffect(() => {
+    const run = () => {
+      try {
+        map.invalidateSize({ animate: false });
+      } catch {
+        /* mid-teardown */
+      }
+    };
+    run();
+    const t1 = window.setTimeout(run, 50);
+    const t2 = window.setTimeout(run, 300);
+    const el = map.getContainer();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
+      window.requestAnimationFrame(run);
+    }) : null;
+    if (ro && el) ro.observe(el);
+    window.addEventListener("resize", run);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      ro?.disconnect();
+      window.removeEventListener("resize", run);
+    };
+  }, [map]);
+  return null;
+}
+
 /**
  * Crosshair + privacy: zoom out when the disk no longer fits. Does not pan, so the
  * user can still slide the map to place the area.
@@ -716,17 +746,18 @@ export function WizardLocationMap({
   );
 
   const mapHeightStyle = typeof mapHeight === "number" ? `${mapHeight}px` : mapHeight;
+  const fillsParent = mapHeight === "100%" || mapHeight === "100";
 
   return (
-    <div className={embed ? "" : "space-y-2"}>
+    <div className={embed ? (fillsParent ? "h-full w-full" : "") : "space-y-2"}>
       {/* Relative wrapper so the crosshair overlay can be absolutely positioned over the map */}
-      <div className="relative">
+      <div className={fillsParent ? "relative h-full w-full" : "relative"}>
         <MapContainer
           center={center}
           zoom={zoom}
           maxZoom={MAP_MAX_ZOOM}
-          className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]"
-          style={{ height: mapHeightStyle }}
+          className={`z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]${fillsParent ? " h-full" : ""}`}
+          style={{ height: fillsParent ? "100%" : mapHeightStyle }}
           dragging={!viewOnly}
           keyboard={!viewOnly}
           scrollWheelZoom={isCrosshair ? "center" : !viewOnly}
@@ -741,6 +772,7 @@ export function WizardLocationMap({
           />
           <AttributionControl position="bottomleft" prefix={false} />
           <ZoomControl position="bottomright" />
+          <MapResizeInvalidate />
           <MapViewSync position={localPosition} zoom={zoom} skipFlyRef={skipFlyRef} />
 
           {/* Drag mode only: clamp view + tap-to-place */}
