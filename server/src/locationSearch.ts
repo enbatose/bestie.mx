@@ -17,7 +17,7 @@ type NominatimSearchResult = {
   address?: NominatimAddress;
 };
 
-export type LocationSuggestionKind = "city" | "neighborhood";
+export type LocationSuggestionKind = "city" | "neighborhood" | "address";
 
 export type LocationSuggestion = {
   key: string;
@@ -30,6 +30,8 @@ export type LocationSuggestion = {
   lat: number;
   lng: number;
   zoom: number;
+  /** Street address (road + house number) for address-kind results. */
+  streetAddress?: string;
 };
 
 const CURATED_GUADALAJARA_NEIGHBORHOODS: Array<{
@@ -385,12 +387,34 @@ export function buildCuratedNeighborhoodSuggestions(
   }).filter((item) => item.score > 0);
 }
 
+function buildStreetLabel(
+  address: NominatimAddress | undefined,
+  metro: MetroCity,
+): { label: string; streetAddress: string | undefined; neighborhood: string | null } {
+  const houseNumber = address?.house_number?.trim() ?? "";
+  const road =
+    (address?.road ?? address?.pedestrian ?? address?.footway ?? address?.residential ?? "").trim();
+  const streetAddress = [houseNumber, road].filter(Boolean).join(" ") || undefined;
+  const neighborhood = pickNeighborhood(address);
+  const city = pickCity(address, metro.label);
+
+  const parts: string[] = [];
+  if (streetAddress) parts.push(streetAddress);
+  if (neighborhood && neighborhood !== streetAddress) parts.push(neighborhood);
+  else if (!streetAddress && city) parts.push(city);
+
+  const primaryText = parts.join(", ");
+  const label = primaryText ? `${primaryText} — ${metro.abbr}` : metro.abbr;
+  return { label, streetAddress, neighborhood: neighborhood || null };
+}
+
 export async function locationSearchHandler(req: Request, res: Response) {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const cityCode = typeof req.query.city === "string" ? req.query.city.trim() : "";
   const scope = typeof req.query.scope === "string" ? req.query.scope.trim() : "";
   const metro = resolveMetroCity(cityCode || DEFAULT_METRO_CITY.code);
-  const searchNeighborhoods = scope === "neighborhood" || Boolean(cityCode);
+  const isPublishScope = scope === "publish";
+  const searchNeighborhoods = isPublishScope || scope === "neighborhood" || Boolean(cityCode);
 
   if (q.length < 2) {
     res.json([]);
@@ -407,7 +431,7 @@ export async function locationSearchHandler(req: Request, res: Response) {
     url.searchParams.set("q", searchQuery);
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("addressdetails", "1");
-    url.searchParams.set("limit", "8");
+    url.searchParams.set("limit", isPublishScope ? "10" : "8");
     url.searchParams.set("countrycodes", "mx");
     url.searchParams.set(
       "viewbox",
@@ -416,7 +440,7 @@ export async function locationSearchHandler(req: Request, res: Response) {
     url.searchParams.set("bounded", "1");
     const upstream = await fetch(url, {
       headers: {
-        "User-Agent": "bestie.mx-search",
+        "User-Agent": "bestie.mx-publish-wizard",
         "Accept-Language": "es-MX,es;q=0.9,en;q=0.8",
       },
     });
@@ -440,6 +464,55 @@ export async function locationSearchHandler(req: Request, res: Response) {
       }
     }
     const payload = [...payloadById.values()];
+
+    if (isPublishScope) {
+      // Publish scope: return street-level addresses + neighborhoods, each unique by place_id.
+      // No neighborhood deduplication — individual addresses must all appear.
+      const addressSuggestions = payload
+        .map((item) => {
+          const { label, streetAddress, neighborhood } = buildStreetLabel(item.address, metro);
+          const city = pickCity(item.address, metro.label);
+          const hasStreet = Boolean(streetAddress);
+          const kind: LocationSuggestionKind = hasStreet ? "address" : "neighborhood";
+          const zoom = hasStreet ? 17 : metro.neighborhoodZoom;
+          const fallbackName = item.name ?? streetAddress ?? neighborhood ?? city;
+          const score = scoreLocationMatch(
+            q,
+            streetAddress ?? neighborhood ?? city,
+            city,
+            item.display_name ?? "",
+            fallbackName,
+          );
+          return {
+            key: `publish:${item.place_id}`,
+            label,
+            value: label,
+            kind,
+            cityCode: metro.code,
+            city,
+            neighborhood,
+            lat: Number(item.lat),
+            lng: Number(item.lon),
+            zoom,
+            streetAddress,
+            score,
+          };
+        })
+        .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
+
+      const curatedSuggestions = buildCuratedNeighborhoodSuggestions(q, metro).map((s) => ({
+        ...s,
+        streetAddress: undefined,
+      }));
+
+      const combined = [...curatedSuggestions, ...addressSuggestions]
+        .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
+        .slice(0, 8)
+        .map(({ score: _score, ...item }) => item);
+
+      res.json(combined);
+      return;
+    }
 
     const nominatimSuggestions = payload
       .map((item) => {

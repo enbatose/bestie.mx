@@ -5,6 +5,7 @@ import {
   TileLayer,
   Circle,
   useMap,
+  useMapEvents,
   ZoomControl,
 } from "react-leaflet";
 import L from "leaflet";
@@ -42,6 +43,14 @@ type Props = {
   embed?: boolean;
   /** Map height in px or CSS length (default 288). */
   mapHeight?: number | string;
+  /**
+   * "crosshair" — industry standard mobile UX: fixed crosshair at center, user pans
+   * the map to place the pin. Position commits on pan stop.
+   * "drag" — classic draggable pin (default, backward compatible).
+   */
+  interactionMode?: "crosshair" | "drag";
+  /** Zoom level to fly to when position changes (default 13). */
+  zoom?: number;
 };
 
 /** Circle styling for approximate / privacy radius (brand green). */
@@ -85,7 +94,6 @@ function latLngFromClient(
  * on a map (`_map` / `_point`) and throws otherwise (which previously no-op'd clamp).
  */
 function circleLatLngBounds(center: L.LatLngExpression, radiusMeters: number): L.LatLngBounds {
-  // toBounds(size) builds a box whose edges are size/2 meters from the point.
   return L.latLng(center).toBounds(radiusMeters * 2);
 }
 
@@ -137,12 +145,10 @@ function clampCircleFullyVisible(
 ): void {
   const { padX, padY } = circlePanPaddingPx(map, center, radiusMeters, paddingPx);
   const size = map.getSize();
-  // Circle larger than the view: center it (max zoom should normally prevent this).
   if (padX * 2 >= size.x - 2 || padY * 2 >= size.y - 2) {
     map.panTo(L.latLng(center), { animate: false });
     return;
   }
-  // Same API as the pin clamp — padding equals circle radius in screen px.
   map.panInside(L.latLng(center), {
     paddingTopLeft: [padX, padY],
     paddingBottomRight: [padX, padY],
@@ -174,7 +180,6 @@ function clampLatLngToKeepCircleInView(
 }
 
 function clampPinVisible(map: L.Map, position: L.LatLngExpression, paddingPx: number): void {
-  // Default marker tip is at latlng; the icon extends upward.
   const padTop = paddingPx + 24;
   const padBottom = Math.max(16, paddingPx - 8);
   const padX = paddingPx;
@@ -187,7 +192,7 @@ function clampPinVisible(map: L.Map, position: L.LatLngExpression, paddingPx: nu
 
 /**
  * Keeps the location pin (or full privacy circle — Option A) inside the visible map.
- * Caps max zoom when a circle is shown so the whole perimeter always fits.
+ * Only used in drag mode; crosshair mode lets the user pan freely.
  */
 function KeepLocationInView({
   position,
@@ -195,7 +200,6 @@ function KeepLocationInView({
   suppressClampRef,
 }: {
   position: [number, number];
-  /** When set, the entire circle must stay in view. */
   radiusMeters: number | null;
   suppressClampRef: React.MutableRefObject<boolean>;
 }) {
@@ -233,9 +237,6 @@ function KeepLocationInView({
   }, [map, position, radiusMeters, suppressClampRef]);
 
   useEffect(() => {
-    // `drag` = hard edge while panning (does not fire during flyTo).
-    // `moveend`/`zoomend` = settle after fly, zoom, or programmatic moves.
-    // Max zoom is capped so the circle cannot be zoomed past fitting the viewport.
     apply();
     map.on("drag", apply);
     map.on("moveend", apply);
@@ -323,7 +324,6 @@ function DraggablePrivacyCircle({
         drag.originCenter.lat + (pointer.lat - drag.originPointer.lat),
         drag.originCenter.lng + (pointer.lng - drag.originPointer.lng),
       );
-      // Stop the disk at the map edge so the full radius stays visible (Option A).
       const next = clampLatLngToKeepCircleInView(
         map,
         raw,
@@ -423,6 +423,145 @@ function DraggablePrivacyCircle({
   );
 }
 
+/**
+ * Tap-to-place: clicking/tapping anywhere on the map moves the pin there.
+ * Only active in drag mode (in crosshair mode the map is panned instead).
+ */
+function TapToPlaceHandler({
+  onTap,
+}: {
+  onTap: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onTap(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+/**
+ * Crosshair mode sync: tracks user drag and commits map center as position on pan end.
+ * Programmatic flyTo (from address search) does not commit because it doesn't set wasDragRef.
+ */
+function CrosshairMapSync({
+  onPanStart,
+  onPanEnd,
+  onPanCommit,
+}: {
+  onPanStart: () => void;
+  onPanEnd: () => void;
+  onPanCommit: (lat: number, lng: number) => void;
+}) {
+  const map = useMap();
+  const wasDragRef = useRef(false);
+
+  useEffect(() => {
+    const handleDragStart = () => {
+      wasDragRef.current = true;
+    };
+    const handleMoveStart = () => {
+      onPanStart();
+    };
+    const handleMoveEnd = () => {
+      const wasUserDrag = wasDragRef.current;
+      wasDragRef.current = false;
+      onPanEnd();
+      if (wasUserDrag) {
+        const c = map.getCenter();
+        onPanCommit(c.lat, c.lng);
+      }
+    };
+    map.on("dragstart", handleDragStart);
+    map.on("movestart", handleMoveStart);
+    map.on("moveend", handleMoveEnd);
+    return () => {
+      map.off("dragstart", handleDragStart);
+      map.off("movestart", handleMoveStart);
+      map.off("moveend", handleMoveEnd);
+    };
+  }, [map, onPanStart, onPanEnd, onPanCommit]);
+
+  return null;
+}
+
+/**
+ * Crosshair pin overlay — a fixed SVG pin centered on the map viewport.
+ * The pin's tip is anchored to the map center via translateY(-50%).
+ * Lifts with a shadow animation when the map is being panned.
+ */
+function CrosshairPin({
+  isMoving,
+  hasLocation,
+  bounceKey,
+}: {
+  isMoving: boolean;
+  hasLocation: boolean;
+  bounceKey: number;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-[400] flex items-center justify-center"
+      aria-hidden
+    >
+      {/* Wrapper shifts the entire pin group up so the tip (bottom of SVG) sits at the viewport center */}
+      <div style={{ position: "relative", transform: "translateY(-50%) translateY(-24px)" }}>
+        {/* Pulsing ring — only visible before location is set */}
+        {!hasLocation && (
+          <span
+            className="wizard-pin-pulse absolute rounded-full border-2 border-lime-500"
+            style={{
+              width: 48,
+              height: 48,
+              top: "50%",
+              left: "50%",
+            }}
+          />
+        )}
+
+        {/* Ground shadow — shrinks and blurs when pin lifts */}
+        <span
+          style={{
+            position: "absolute",
+            bottom: isMoving ? -16 : -6,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: isMoving ? 10 : 18,
+            height: isMoving ? 4 : 7,
+            borderRadius: "50%",
+            background: "rgba(0,0,0,0.22)",
+            filter: isMoving ? "blur(3px)" : "blur(1px)",
+            transition: "all 0.15s ease",
+          }}
+        />
+
+        {/* Pin SVG */}
+        <svg
+          key={bounceKey}
+          width="36"
+          height="48"
+          viewBox="0 0 36 48"
+          className={bounceKey > 0 ? "wizard-pin-bounce" : ""}
+          style={{
+            filter: `drop-shadow(0 ${isMoving ? "7px 12px" : "2px 4px"} rgba(0,0,0,0.28))`,
+            transform: isMoving ? "translateY(-10px) scale(1.08)" : "translateY(0) scale(1)",
+            transition: "transform 0.15s cubic-bezier(0.34,1.4,0.64,1), filter 0.15s ease",
+            display: "block",
+          }}
+        >
+          <path
+            d="M18 2C10.27 2 4 8.27 4 16c0 11.25 14 30 14 30s14-18.75 14-30C32 8.27 25.73 2 18 2z"
+            fill="#22c55e"
+            stroke="white"
+            strokeWidth="1.5"
+          />
+          <circle cx="18" cy="16" r="6" fill="white" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export function WizardLocationMap({
   center,
   position,
@@ -435,17 +574,23 @@ export function WizardLocationMap({
   forceDraggablePin = false,
   embed = false,
   mapHeight = 288,
+  interactionMode = "drag",
+  zoom = 13,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
+  const [isCrosshairMoving, setIsCrosshairMoving] = useState(false);
+  // Increments each time address search or drag commits a new location (triggers bounce animation).
+  const [pinBounceKey, setPinBounceKey] = useState(0);
+
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
   const skipFlyRef = useRef(false);
-  /** Skip view clamping while the user drags the pin/circle (re-clamp on drag end). */
   const suppressClampRef = useRef(false);
-  /** Pin only when exact location mode, or when preview forces a pin over the circle. */
-  const showMarker = forceDraggablePin || !showApproximateRadius;
-  const circleDraggable = Boolean(showApproximateRadius && radiusEditable && !forceDraggablePin);
+
+  const isCrosshair = interactionMode === "crosshair";
+  const showMarker = !isCrosshair && (forceDraggablePin || !showApproximateRadius);
+  const circleDraggable = Boolean(showApproximateRadius && radiusEditable && !forceDraggablePin && !isCrosshair);
   const circleRadius = clampApproximateRadiusMeters(approximateRadiusMeters);
   const anchorRadiusMeters = showApproximateRadius ? circleRadius : null;
 
@@ -458,6 +603,7 @@ export function WizardLocationMap({
     (lat: number, lng: number) => {
       setLocalPosition([lat, lng]);
       setLocalLocationSelected(true);
+      setPinBounceKey((k) => k + 1);
       skipFlyRef.current = true;
       suppressClampRef.current = false;
       onPositionChange(lat, lng);
@@ -504,68 +650,113 @@ export function WizardLocationMap({
     [commitMarkerPosition],
   );
 
+  const handlePanStart = useCallback(() => setIsCrosshairMoving(true), []);
+  const handlePanEnd = useCallback(() => setIsCrosshairMoving(false), []);
+  const handlePanCommit = useCallback(
+    (lat: number, lng: number) => {
+      commitPosition(lat, lng);
+    },
+    [commitPosition],
+  );
+
   const mapHeightStyle = typeof mapHeight === "number" ? `${mapHeight}px` : mapHeight;
 
   return (
     <div className={embed ? "" : "space-y-2"}>
-      <MapContainer
-        center={center}
-        zoom={13}
-        maxZoom={MAP_MAX_ZOOM}
-        className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]"
-        style={{ height: mapHeightStyle }}
-        scrollWheelZoom
-        zoomControl={false}
-        attributionControl={false}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <AttributionControl position="bottomleft" prefix={false} />
-        <ZoomControl position="bottomright" />
-        <MapViewSync position={localPosition} zoom={13} skipFlyRef={skipFlyRef} />
-        <KeepLocationInView
-          position={localPosition}
-          radiusMeters={anchorRadiusMeters}
-          suppressClampRef={suppressClampRef}
-        />
-        {showApproximateRadius && circleDraggable ? (
-          <DraggablePrivacyCircle
-            center={localPosition}
-            radiusMeters={circleRadius}
-            onDragMove={onCircleDragMove}
-            onDragEnd={commitPosition}
-            suppressClampRef={suppressClampRef}
+      {/* Relative wrapper so the crosshair overlay can be absolutely positioned over the map */}
+      <div className="relative">
+        <MapContainer
+          center={center}
+          zoom={zoom}
+          maxZoom={MAP_MAX_ZOOM}
+          className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]"
+          style={{ height: mapHeightStyle }}
+          scrollWheelZoom
+          zoomControl={false}
+          attributionControl={false}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-        ) : null}
-        {showApproximateRadius && !circleDraggable ? (
-          <Circle
-            center={localPosition}
-            radius={circleRadius}
-            pathOptions={MAP_PRIVACY_CIRCLE_PATH}
-            interactive={false}
+          <AttributionControl position="bottomleft" prefix={false} />
+          <ZoomControl position="bottomright" />
+          <MapViewSync position={localPosition} zoom={zoom} skipFlyRef={skipFlyRef} />
+
+          {/* Drag mode only: clamp view + tap-to-place */}
+          {!isCrosshair && (
+            <>
+              <KeepLocationInView
+                position={localPosition}
+                radiusMeters={anchorRadiusMeters}
+                suppressClampRef={suppressClampRef}
+              />
+              <TapToPlaceHandler onTap={commitPosition} />
+            </>
+          )}
+
+          {/* Crosshair mode: track pan events */}
+          {isCrosshair && (
+            <CrosshairMapSync
+              onPanStart={handlePanStart}
+              onPanEnd={handlePanEnd}
+              onPanCommit={handlePanCommit}
+            />
+          )}
+
+          {/* Privacy circle */}
+          {showApproximateRadius && circleDraggable ? (
+            <DraggablePrivacyCircle
+              center={localPosition}
+              radiusMeters={circleRadius}
+              onDragMove={onCircleDragMove}
+              onDragEnd={commitPosition}
+              suppressClampRef={suppressClampRef}
+            />
+          ) : null}
+          {showApproximateRadius && !circleDraggable ? (
+            <Circle
+              center={localPosition}
+              radius={circleRadius}
+              pathOptions={MAP_PRIVACY_CIRCLE_PATH}
+              interactive={false}
+            />
+          ) : null}
+
+          {/* Draggable marker — drag mode only */}
+          {showMarker ? (
+            <Marker
+              ref={markerRef}
+              position={localPosition}
+              draggable
+              riseOnHover
+              zIndexOffset={1000}
+              eventHandlers={markerEventHandlers}
+            />
+          ) : null}
+        </MapContainer>
+
+        {/* Crosshair overlay — rendered outside MapContainer so it's not clipped by Leaflet */}
+        {isCrosshair && (
+          <CrosshairPin
+            isMoving={isCrosshairMoving}
+            hasLocation={localLocationSelected}
+            bounceKey={pinBounceKey}
           />
-        ) : null}
-        {showMarker ? (
-          <Marker
-            ref={markerRef}
-            position={localPosition}
-            draggable
-            riseOnHover
-            zIndexOffset={1000}
-            eventHandlers={markerEventHandlers}
-          />
-        ) : null}
-      </MapContainer>
+        )}
+      </div>
 
       {embed ? null : (
         <>
           <p className="text-xs text-muted">
             <strong className="font-semibold text-body">Tip</strong>:{" "}
-            {circleDraggable
-              ? "Arrastra el área verde para colocar la ubicación. Usa el control de radio abajo para ajustar el perímetro. Los clics fuera del área no la mueven."
-              : "Los clics en el mapa no mueven el pin."}
+            {isCrosshair
+              ? circleDraggable
+                ? "Mueve el mapa para colocar el área de privacidad. Ajusta el radio con el control de abajo."
+                : "Mueve el mapa para colocar el marcador en tu dirección exacta."
+              : circleDraggable
+                ? "Arrastra el área verde para colocar la ubicación. Usa el control de radio abajo para ajustar el perímetro. Los clics fuera del área no la mueven."
+                : "Toca el mapa para colocar el marcador, o arrástralo para ajustar la posición."}
           </p>
           {localLocationSelected ? (
             <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm font-medium text-primary">

@@ -327,7 +327,7 @@ export function locationStepInvalidReason(d: Draft): string | null {
     return "Selecciona una ciudad.";
   }
   if (!d.useCustomMapPin) {
-    return "Arrastra el marcador en el mapa para indicar la ubicación de tu espacio.";
+    return "Busca tu dirección o mueve el mapa para indicar la ubicación de tu espacio.";
   }
   const { lat, lng } = resolveLatLngForDraft(d);
   if (!validLatLng(lat, lng)) {

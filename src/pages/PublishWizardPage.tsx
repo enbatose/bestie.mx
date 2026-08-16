@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { usePageSeo } from "@/hooks/usePageSeo";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
+import { WizardAddressSearch, cityToCode } from "@/components/publish/WizardAddressSearch";
 import {
   APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
   APPROXIMATE_LOCATION_RADIUS_MAX_M,
@@ -908,6 +909,8 @@ export function PublishWizardPage() {
     latKey: string;
     lngKey: string;
   } | null>(null);
+  /** Zoom level to use when MapViewSync flies to a new position (updated by address search). */
+  const [mapZoom, setMapZoom] = useState(13);
   /** Monotonic id so stale reverse-geocode responses never commit after a newer drag/coords change. */
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
@@ -1894,11 +1897,40 @@ export function PublishWizardPage() {
               </h3>
               <div>
                 <p className="text-sm font-medium text-body">
-                  {draft.isApproximateLocation
-                    ? "Arrastra el área verde para colocar la ubicación."
-                    : "Arrastra el marcador para colocar la ubicación."}
+                  Indica dónde se ubica tu espacio.
                   <span className="text-error"> *</span>
                 </p>
+
+                {/* Address search — primary input method */}
+                <div className="mt-3">
+                  <WizardAddressSearch
+                    cityCode={cityToCode(draft.city)}
+                    onSelect={(lat, lng, zoom, neighborhood) => {
+                      setMapZoom(zoom);
+                      setDraft((d) => {
+                        const cur = d.neighborhood.trim();
+                        const auto = neighborhoodAutofillFromPinRef.current;
+                        const canAutoFill = cur === "" || (auto !== null && cur === auto.value);
+                        return {
+                          ...d,
+                          useCustomMapPin: true,
+                          customLat: lat.toFixed(7),
+                          customLng: lng.toFixed(7),
+                          streetViewPov: undefined,
+                          ...(canAutoFill && neighborhood ? { neighborhood } : {}),
+                        };
+                      });
+                    }}
+                  />
+                </div>
+
+                <p className="mt-2 text-xs text-muted">
+                  {draft.isApproximateLocation
+                    ? "Después mueve el mapa para ajustar el área de privacidad."
+                    : "También puedes mover el mapa para afinar la ubicación exacta."}
+                </p>
+
+                {/* Map with crosshair (industry-standard mobile UX) */}
                 <div className="mt-3">
                   <WizardLocationMap
                     key={draft.city}
@@ -1921,6 +1953,8 @@ export function PublishWizardPage() {
                     showApproximateRadius={draft.isApproximateLocation}
                     approximateRadiusMeters={draft.approximateRadiusMeters}
                     radiusEditable={draft.isApproximateLocation}
+                    interactionMode="crosshair"
+                    zoom={mapZoom}
                   />
                 </div>
 

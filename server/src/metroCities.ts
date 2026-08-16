@@ -23,7 +23,7 @@ export const METRO_CITIES: readonly MetroCity[] = [
     defaultZoom: 13,
     neighborhoodZoom: 14,
     municipalityZoom: 12,
-    viewbox: { left: -103.55, top: 20.83, right: -103.2, bottom: 20.57 },
+    viewbox: { left: -103.58, top: 20.87, right: -103.12, bottom: 20.37 },
     metroAreas: [
       "Guadalajara",
       "Zapopan",
@@ -33,6 +33,8 @@ export const METRO_CITIES: readonly MetroCity[] = [
       "Tlajomulco",
       "Tlajomulco de Zúñiga",
       "El Salto",
+      "Ixtlahuacán de los Membrillos",
+      "Juanacatlán",
     ],
   },
   {

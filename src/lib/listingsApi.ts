@@ -22,7 +22,7 @@ export function isListingsApiConfigured(): boolean {
 
 const cred: RequestCredentials = "include";
 
-export type LocationSuggestionKind = "city" | "neighborhood";
+export type LocationSuggestionKind = "city" | "neighborhood" | "address";
 
 export type LocationSuggestion = {
   key: string;
@@ -35,6 +35,8 @@ export type LocationSuggestion = {
   lat: number;
   lng: number;
   zoom: number;
+  /** Street address (road + house number) for address-kind results. */
+  streetAddress?: string;
 };
 
 export type ListingUnavailableReason =
@@ -68,7 +70,7 @@ export async function fetchListingsFromApi(
 
 export async function fetchLocationSuggestions(
   query: string,
-  options?: { cityCode?: string | null; scope?: "city" | "neighborhood"; signal?: AbortSignal },
+  options?: { cityCode?: string | null; scope?: "city" | "neighborhood" | "publish"; signal?: AbortSignal },
 ): Promise<LocationSuggestion[]> {
   const base = apiBase();
   const params = new URLSearchParams({ q: query });
