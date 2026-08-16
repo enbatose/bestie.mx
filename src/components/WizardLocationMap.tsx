@@ -294,6 +294,48 @@ function MapViewSync({
   return null;
 }
 
+/**
+ * Crosshair + privacy: zoom out when the disk no longer fits. Does not pan, so the
+ * user can still slide the map to place the area.
+ */
+function FitPrivacyCircleMaxZoom({ radiusMeters }: { radiusMeters: number }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const apply = () => {
+      const size = map.getSize();
+      if (size.x < 8 || size.y < 8) return;
+      const center = map.getCenter();
+      const maxZ = maxZoomForCircleInView(
+        map,
+        [center.lat, center.lng],
+        radiusMeters,
+        CIRCLE_EDGE_PADDING_PX,
+      );
+      if (map.getMaxZoom() !== maxZ) {
+        map.setMaxZoom(maxZ);
+      }
+      if (map.getZoom() > maxZ) {
+        map.setZoom(maxZ, { animate: false });
+      }
+    };
+    apply();
+    const raf = requestAnimationFrame(apply);
+    map.on("resize", apply);
+    return () => {
+      cancelAnimationFrame(raf);
+      map.off("resize", apply);
+      try {
+        map.setMaxZoom(MAP_MAX_ZOOM);
+      } catch {
+        /* map tearing down */
+      }
+    };
+  }, [map, radiusMeters]);
+
+  return null;
+}
+
 /** Privacy disk that can be dragged to reposition the true location (no pin). */
 function DraggablePrivacyCircle({
   center,
@@ -695,7 +737,12 @@ export function WizardLocationMap({
 
           {/* Crosshair mode: track pan events */}
           {isCrosshair && (
-            <CrosshairMapSync onPanMove={handlePanMove} onPanCommit={handlePanCommit} />
+            <>
+              <CrosshairMapSync onPanMove={handlePanMove} onPanCommit={handlePanCommit} />
+              {showApproximateRadius ? (
+                <FitPrivacyCircleMaxZoom radiusMeters={circleRadius} />
+              ) : null}
+            </>
           )}
 
           {/* Privacy circle */}
