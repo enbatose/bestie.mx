@@ -174,28 +174,158 @@ function isWithinMetro(address: NominatimAddress | undefined, metro: MetroCity) 
   return candidates.some((value) => areas.has(value));
 }
 
+function isJunkAreaName(value: string) {
+  const n = normalizeLocationText(value);
+  return n.startsWith("municipio de") || n === "region centro" || n.length === 0;
+}
+
 function pickNeighborhood(address: NominatimAddress | undefined) {
   if (!address) return "";
-  return (
-    address.neighbourhood ||
-    address.suburb ||
-    address.quarter ||
-    address.residential ||
-    address.city_district ||
-    address.borough ||
-    ""
-  ).trim();
+  const candidates = [
+    address.neighbourhood,
+    address.suburb,
+    address.quarter,
+    address.village,
+    address.hamlet,
+    address.city_district,
+    address.borough,
+    address.residential,
+  ];
+  for (const value of candidates) {
+    const trimmed = value?.trim() ?? "";
+    if (trimmed && !isJunkAreaName(trimmed)) return trimmed;
+  }
+  return "";
 }
 
 function pickCity(address: NominatimAddress | undefined, fallback: string) {
   if (!address) return fallback;
-  return (
-    address.city ||
-    address.town ||
-    address.municipality ||
-    address.county ||
-    fallback
-  ).trim();
+  const candidates = [address.city, address.town, address.municipality, address.county];
+  for (const value of candidates) {
+    const trimmed = value?.trim() ?? "";
+    if (trimmed && !isJunkAreaName(trimmed)) return trimmed;
+  }
+  return fallback;
+}
+
+/** Guadalajara + Zapopan first; remaining ZMG municipalities follow. */
+const MUNICIPALITY_SORT_RANK: Record<string, number> = {
+  guadalajara: 0,
+  zapopan: 1,
+  tlaquepaque: 2,
+  "san pedro tlaquepaque": 2,
+  tonala: 3,
+  tlajomulco: 4,
+  "tlajomulco de zuniga": 4,
+  "el salto": 5,
+  "ixtlahuacan de los membrillos": 6,
+  juanacatlan: 7,
+};
+
+export function municipalitySortRank(city: string): number {
+  return MUNICIPALITY_SORT_RANK[normalizeLocationText(city)] ?? 20;
+}
+
+const STREET_PREFIX_RE =
+  /^(calle|avenida|av\.?|blvd\.?|boulevard|calzada|circuito|cerrada|privada|andador|camino)\s+/i;
+
+export function normalizeStreetName(value: string): string {
+  let n = normalizeLocationText(value);
+  n = n.replace(STREET_PREFIX_RE, "");
+  n = n.replace(/\s+\d+[a-z]?(?:-\d+[a-z]?)?$/, "");
+  return n.trim();
+}
+
+/**
+ * Mexican queries put the house number after the street ("Av México 2582").
+ * 5-digit tokens are treated as postcodes, not house numbers.
+ */
+export function parseHouseNumberFromQuery(query: string): string | null {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const numbered = trimmed.match(
+    /(?:^|[\s,.#])(?:n(?:um(?:ero)?)?\.?\s*)?(\d{1,4}(?:\s*-\s*[a-z0-9]{1,3})?[a-z]?)\s*$/i,
+  );
+  if (!numbered?.[1]) return null;
+  const raw = numbered[1].replace(/\s+/g, "");
+  if (/^\d{5}$/.test(raw)) return null;
+  return raw.toUpperCase();
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(a));
+}
+
+function streetAddressHouseNumber(streetAddress: string | undefined): string | null {
+  if (!streetAddress) return null;
+  const match = streetAddress.trim().match(/(\d{1,4}(?:-[a-z0-9]{1,3})?[a-z]?)$/i);
+  return match?.[1] ?? null;
+}
+
+type ScoredPublishSuggestion = LocationSuggestion & { score: number };
+
+function isNearbyPublishDuplicate(a: ScoredPublishSuggestion, b: ScoredPublishSuggestion): boolean {
+  const roadA = normalizeStreetName(a.streetAddress ?? a.neighborhood ?? "");
+  const roadB = normalizeStreetName(b.streetAddress ?? b.neighborhood ?? "");
+  const areaA = normalizeLocationText(a.neighborhood ?? "");
+  const areaB = normalizeLocationText(b.neighborhood ?? "");
+  const cityA = normalizeLocationText(a.city);
+  const cityB = normalizeLocationText(b.city);
+  const distance = haversineMeters(a.lat, a.lng, b.lat, b.lng);
+  const sameRoad = Boolean(roadA && roadB && roadA === roadB);
+  const sameArea = Boolean(areaA && areaB && areaA === areaB);
+  const sameCity = cityA === cityB;
+
+  if (sameRoad && sameArea) return true;
+  if (sameRoad && distance < 450) return true;
+  if (!a.streetAddress && !b.streetAddress && sameArea && sameCity && distance < 600) return true;
+  if (sameRoad && sameCity && distance < 800) return true;
+  return false;
+}
+
+function publishSpecificityRank(item: ScoredPublishSuggestion): number {
+  if (streetAddressHouseNumber(item.streetAddress)) return 0;
+  if (item.kind === "address" && item.neighborhood) return 1;
+  if (item.kind === "address") return 2;
+  if (item.neighborhood) return 3;
+  return 4;
+}
+
+export function sortPublishSuggestions(items: ScoredPublishSuggestion[]): ScoredPublishSuggestion[] {
+  return [...items].sort((a, b) => {
+    const muni = municipalitySortRank(a.city) - municipalitySortRank(b.city);
+    if (muni !== 0) return muni;
+    const spec = publishSpecificityRank(a) - publishSpecificityRank(b);
+    if (spec !== 0) return spec;
+    if (b.score !== a.score) return b.score - a.score;
+    return a.label.localeCompare(b.label, "es-MX");
+  });
+}
+
+/** Collapse OSM road-segment duplicates; keep Guadalajara/Zapopan hits first. */
+export function dedupePublishSuggestions(items: ScoredPublishSuggestion[]): ScoredPublishSuggestion[] {
+  const kept: ScoredPublishSuggestion[] = [];
+  for (const item of sortPublishSuggestions(items)) {
+    const dupOf = kept.find((prev) => isNearbyPublishDuplicate(prev, item));
+    if (!dupOf) {
+      kept.push(item);
+      continue;
+    }
+    const betterMuni = municipalitySortRank(item.city) < municipalitySortRank(dupOf.city);
+    const betterSpec =
+      municipalitySortRank(item.city) === municipalitySortRank(dupOf.city) &&
+      publishSpecificityRank(item) < publishSpecificityRank(dupOf);
+    if (betterMuni || betterSpec) {
+      kept.splice(kept.indexOf(dupOf), 1, item);
+    }
+  }
+  return kept;
 }
 
 const LOCATION_STOP_WORDS = new Set([
@@ -387,14 +517,16 @@ export function buildCuratedNeighborhoodSuggestions(
   }).filter((item) => item.score > 0);
 }
 
-function buildStreetLabel(
+export function buildStreetLabel(
   address: NominatimAddress | undefined,
   metro: MetroCity,
+  queryHouseNumber?: string | null,
 ): { label: string; streetAddress: string | undefined; neighborhood: string | null } {
-  const houseNumber = address?.house_number?.trim() ?? "";
-  const road =
-    (address?.road ?? address?.pedestrian ?? address?.footway ?? address?.residential ?? "").trim();
-  const streetAddress = [houseNumber, road].filter(Boolean).join(" ") || undefined;
+  const osmHouse = address?.house_number?.trim() ?? "";
+  const houseNumber = osmHouse || queryHouseNumber?.trim() || "";
+  const road = (address?.road || address?.pedestrian || address?.footway || "").trim();
+  // Mexican convention: street name, then house number ("Avenida México 2582").
+  const streetAddress = [road, houseNumber].filter(Boolean).join(" ") || undefined;
   const neighborhood = pickNeighborhood(address);
   const city = pickCity(address, metro.label);
 
@@ -466,11 +598,17 @@ export async function locationSearchHandler(req: Request, res: Response) {
     const payload = [...payloadById.values()];
 
     if (isPublishScope) {
-      // Publish scope: return street-level addresses + neighborhoods, each unique by place_id.
-      // No neighborhood deduplication — individual addresses must all appear.
+      const queryHouseNumber = parseHouseNumberFromQuery(q);
+      const looksLikeStreetQuery =
+        Boolean(queryHouseNumber) || STREET_PREFIX_RE.test(q.trim());
+
       const addressSuggestions = payload
         .map((item) => {
-          const { label, streetAddress, neighborhood } = buildStreetLabel(item.address, metro);
+          const { label, streetAddress, neighborhood } = buildStreetLabel(
+            item.address,
+            metro,
+            queryHouseNumber,
+          );
           const city = pickCity(item.address, metro.label);
           const hasStreet = Boolean(streetAddress);
           const kind: LocationSuggestionKind = hasStreet ? "address" : "neighborhood";
@@ -500,13 +638,16 @@ export async function locationSearchHandler(req: Request, res: Response) {
         })
         .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
 
-      const curatedSuggestions = buildCuratedNeighborhoodSuggestions(q, metro).map((s) => ({
-        ...s,
-        streetAddress: undefined,
-      }));
+      const curatedSuggestions = looksLikeStreetQuery
+        ? []
+        : buildCuratedNeighborhoodSuggestions(q, metro).map((s) => ({
+            ...s,
+            streetAddress: undefined,
+          }));
 
-      const combined = [...curatedSuggestions, ...addressSuggestions]
-        .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "es-MX"))
+      const combined = sortPublishSuggestions(
+        dedupePublishSuggestions([...curatedSuggestions, ...addressSuggestions]),
+      )
         .slice(0, 8)
         .map(({ score: _score, ...item }) => item);
 
