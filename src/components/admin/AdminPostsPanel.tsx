@@ -61,7 +61,7 @@ export function AdminPostsPanel({ onError }: Props) {
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all">("published");
   const [pageSize, setPageSize] = useState<(typeof ADMIN_POSTS_PAGE_SIZES)[number]>(25);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
