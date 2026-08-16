@@ -2034,7 +2034,6 @@ export function PublishWizardPage() {
                         Vista de la propiedad
                       </h3>
                       <StreetViewPovEditor
-                        key={`${lat.toFixed(6)},${lng.toFixed(6)}`}
                         lat={lat}
                         lng={lng}
                         pov={draft.streetViewPov}
