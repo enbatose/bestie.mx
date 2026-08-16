@@ -487,8 +487,9 @@ function CrosshairMapSync({
 }
 
 /**
- * Crosshair pin overlay — a fixed SVG pin centered on the map viewport.
- * The pin's tip is anchored to the map center via translateY(-50%).
+ * Crosshair pin overlay — tip sits on the map's geographic center (viewport 50%/50%).
+ * Zoom must also target that center (`scrollWheelZoom="center"`, etc.) or the streets
+ * will slide under the pin and it will look like the location jumped.
  */
 function CrosshairPin({
   hasLocation,
@@ -496,26 +497,31 @@ function CrosshairPin({
   hasLocation: boolean;
 }) {
   return (
-    <div
-      className="pointer-events-none absolute inset-0 z-[400] flex items-center justify-center"
-      aria-hidden
-    >
-      <div style={{ position: "relative", transform: "translateY(-50%) translateY(-24px)" }}>
+    <div className="pointer-events-none absolute inset-0 z-[400]" aria-hidden>
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -100%)",
+        }}
+      >
         {!hasLocation && (
           <span
             className="wizard-pin-pulse absolute rounded-full border-2 border-lime-500"
             style={{
               width: 48,
               height: 48,
-              top: "50%",
               left: "50%",
+              top: "30%",
+              transform: "translate(-50%, -50%)",
             }}
           />
         )}
         <span
           style={{
             position: "absolute",
-            bottom: -6,
+            bottom: -5,
             left: "50%",
             transform: "translateX(-50%)",
             width: 18,
@@ -661,7 +667,9 @@ export function WizardLocationMap({
           maxZoom={MAP_MAX_ZOOM}
           className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]"
           style={{ height: mapHeightStyle }}
-          scrollWheelZoom
+          scrollWheelZoom={isCrosshair ? "center" : true}
+          touchZoom={isCrosshair ? "center" : true}
+          doubleClickZoom={isCrosshair ? "center" : true}
           zoomControl={false}
           attributionControl={false}
         >
