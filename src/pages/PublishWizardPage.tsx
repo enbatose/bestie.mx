@@ -285,7 +285,7 @@ function pickAddrPart(addr: NominatimAddress | undefined, keys: readonly string[
   return "";
 }
 
-/** Colonia / zona from reverse-geocode (same keys as the area segment in `streetNeighborhoodCityFromNominatim`). */
+/** Colonia / zona from reverse-geocode — used to autofill the neighborhood field, not the address line. */
 function neighborhoodFromNominatimAddress(addr: NominatimAddress | undefined): string {
   return pickAddrPart(addr, [
     "neighbourhood",
@@ -299,21 +299,19 @@ function neighborhoodFromNominatimAddress(addr: NominatimAddress | undefined): s
 }
 
 /**
- * Reverse-geocode label after a map pan. OSM house numbers are often wrong, so we
- * keep only calle + colonia + ciudad — never número exterior.
+ * Reverse-geocode label after a map pan. OSM house numbers and colonias are often
+ * wrong, so we keep only calle + ciudad.
  */
-function streetNeighborhoodCityFromNominatim(
+function streetCityFromNominatim(
   addr: NominatimAddress | undefined,
   fallbackCity: string,
 ): string {
   const road = pickAddrPart(addr, ["road", "pedestrian", "footway", "residential", "path"]);
-  const area = neighborhoodFromNominatimAddress(addr);
   const city =
     pickAddrPart(addr, ["city", "town", "village", "municipality"]) || fallbackCity.trim();
 
   const parts: string[] = [];
   if (road) parts.push(road);
-  if (area && area !== road && area !== city) parts.push(area);
   if (city && city !== road) parts.push(city);
   return parts.join(", ") || "Ubicación aproximada";
 }
@@ -1460,7 +1458,7 @@ export function PublishWizardPage() {
 
     if (!mapGeocode || mapGeocode.latKey !== latKey || mapGeocode.lngKey !== lngKey) return null;
 
-    return streetNeighborhoodCityFromNominatim(mapGeocode.address, draft.city);
+    return streetCityFromNominatim(mapGeocode.address, draft.city);
   }, [
     draft.city,
     draft.useCustomMapPin,
