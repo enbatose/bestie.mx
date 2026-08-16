@@ -297,6 +297,16 @@ export function propertyBedroomsPreviewLabel(
   return bedroomsTotal === 1 ? "1 recámara" : `${bedroomsTotal} recámaras`;
 }
 
+export function propertyBathroomsCountLabel(bathrooms: number): string {
+  return bathrooms === 1 ? "1 Baño" : `${bathrooms} Baños`;
+}
+
+/** Persist 0; treat missing/invalid as the publish default of 1. */
+export function resolvedPropertyBathroomsCount(bathrooms: number | null | undefined): number {
+  if (typeof bathrooms === "number" && Number.isFinite(bathrooms) && bathrooms >= 0) return bathrooms;
+  return 1;
+}
+
 export function propertySpacesPreviewLabel(
   bedroomsTotal: number,
   bathrooms: number,
@@ -308,8 +318,7 @@ export function propertySpacesPreviewLabel(
       : bedroomsTotal === 1
         ? "1 Recámara"
         : `${bedroomsTotal} Recámaras`;
-  const baths = bathrooms === 1 ? "1 Baño" : `${bathrooms} Baños`;
-  return `${beds} • ${baths}`;
+  return `${beds} • ${propertyBathroomsCountLabel(bathrooms)}`;
 }
 
 export function currentOccupantsPreviewLabel(
@@ -370,8 +379,7 @@ export function previewPropertySpacesBadgeLabel(
 ): string {
   const beds = propertyKind === "loft" ? 1 : bedroomsTotal;
   const bedsLabel = beds === 1 ? "1 Recámara" : `${beds} Recámaras`;
-  const bathsLabel = bathrooms === 1 ? "1 Baño" : `${bathrooms} Baños`;
-  return `${bedsLabel} • ${bathsLabel}`;
+  return `${bedsLabel} • ${propertyBathroomsCountLabel(bathrooms)}`;
 }
 
 export const PREVIEW_PETS_FRIENDLY_BADGE = "Aceptan mascotas";

@@ -29,12 +29,14 @@ import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingShareActions } from "@/components/listing/ListingShareActions";
 import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { PublicListingLocationMap } from "@/components/listing/PublicListingLocationMap";
-import { listingHeroPriceLabel } from "@/lib/listingTags";
 import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
   formatRoomAvailableFrom,
+  listingHeroPriceLabel,
   minimalStayMonthsLabel,
   PROPERTY_AMENITY_TAG_SLUGS,
+  propertyBathroomsCountLabel,
+  resolvedPropertyBathroomsCount,
   ROOM_IDEAL_PARA_TAG_SET,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
@@ -528,6 +530,11 @@ function SingleRoomHeader({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
         <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
+        <HeaderInfoItem
+          icon={Bath}
+          label="Baños"
+          value={propertyBathroomsCountLabel(resolvedPropertyBathroomsCount(listing.propertyBathrooms))}
+        />
       </div>
     </div>
   );

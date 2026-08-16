@@ -1,7 +1,11 @@
 import type { LucideIcon } from "lucide-react";
-import { BedDouble, Home, Users, VenusAndMars } from "lucide-react";
+import { Bath, BedDouble, Home, Users, VenusAndMars } from "lucide-react";
 import type { ReactNode } from "react";
-import { listingHeroPriceLabel } from "@/lib/listingTags";
+import {
+  listingHeroPriceLabel,
+  propertyBathroomsCountLabel,
+  resolvedPropertyBathroomsCount,
+} from "@/lib/listingTags";
 import { genderPrefLabel, propertyKindLabel } from "@/lib/listingKeyLabels";
 import type { Property, PropertyListing, Room } from "@/types/listing";
 
@@ -61,6 +65,11 @@ export function SingleRoomHeader({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
         <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
+        <HeaderInfoItem
+          icon={Bath}
+          label="Baños"
+          value={propertyBathroomsCountLabel(resolvedPropertyBathroomsCount(listing.propertyBathrooms))}
+        />
       </div>
     </div>
   );
