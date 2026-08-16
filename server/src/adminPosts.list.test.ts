@@ -69,7 +69,7 @@ describe("adminPostEditPath", () => {
         assistedDraft: true,
         claimToken: "claimtok123",
       }),
-    ).toBe("/publicar?borrador=claimtok123");
+    ).toBe("/borrador/claimtok123");
   });
 
   it("falls back to the review step when an AI draft has no live claim token", () => {
@@ -139,7 +139,7 @@ describe("listAdminPosts AI origin", () => {
     const aiPublished = all.posts.find((p) => p.propertyId === PROP_PUBLISHED_AI);
 
     expect(aiDraft?.assistedDraft).toBe(true);
-    expect(aiDraft?.editPath).toBe("/publicar?borrador=live-claim-token");
+    expect(aiDraft?.editPath).toBe("/borrador/live-claim-token");
     expect(manual?.assistedDraft).toBe(false);
     expect(manual?.editPath).toBe(`/publicar?edit=${encodeURIComponent(PROP_MANUAL)}`);
     expect(aiPublished?.assistedDraft).toBe(true);

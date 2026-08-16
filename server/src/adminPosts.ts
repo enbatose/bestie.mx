@@ -63,7 +63,7 @@ export function adminPostEditPath(opts: {
   claimToken: string | null;
 }): string {
   if (opts.assistedDraft && opts.status === "draft" && opts.claimToken) {
-    return `/publicar?borrador=${encodeURIComponent(opts.claimToken)}`;
+    return `/borrador/${encodeURIComponent(opts.claimToken)}`;
   }
   if (opts.assistedDraft && opts.status === "draft") {
     return `/publicar?edit=${encodeURIComponent(propertyReferenceCode(opts.propertyId))}&paso=${wizardReviewPaso(opts.postMode)}`;

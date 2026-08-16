@@ -845,13 +845,14 @@ export function PublishWizardPage() {
   const apiOn = isListingsApiConfigured();
   const [assistedBoot] = useState(loadAssistedClaimBoot);
   const [resumeBoot] = useState(loadWizardResumeBoot);
-  const [step, setStep] = useState(() =>
-    typeof assistedBoot?.session?.step === "number"
-      ? assistedBoot.session.step
-      : typeof resumeBoot?.step === "number"
-        ? resumeBoot.step
-        : 0,
-  );
+  const [step, setStep] = useState(() => {
+    if (assistedBoot?.session) {
+      return publishWizardLastStepIndex(assistedBoot.session.draft.postMode);
+    }
+    if (typeof resumeBoot?.step === "number") return resumeBoot.step;
+    if (readClaimTokenFromWindow()) return publishWizardLastStepIndex("room");
+    return 0;
+  });
   const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(() =>
     assistedBoot?.session
@@ -1056,15 +1057,18 @@ export function PublishWizardPage() {
   }, [me, editPropertyId, handoffToken, assistedDraftToken, searchParams]);
 
   const claimHydrateLock = useRef(false);
+  const claimTokenParam = searchParams.get("borrador")?.trim() || "";
   useEffect(() => {
-    const token =
-      searchParams.get("borrador")?.trim() || assistedDraftToken;
+    const token = claimTokenParam || assistedDraftToken;
     if (!token) return;
     setAssistedDraftToken(token);
     writeAssistedDraftClaimToken(token);
     if (claimHydrateLock.current) return;
     if (assistedBoot?.session || resumeStateAppliedRef.current) {
       claimHydrateLock.current = true;
+      if (assistedBoot?.session) {
+        setStep(publishWizardLastStepIndex(assistedBoot.session.draft.postMode));
+      }
       setStorageReady(true);
       return;
     }
@@ -1072,9 +1076,10 @@ export function PublishWizardPage() {
     const cached = readAssistedDraftClaimSession(token);
     if (cached) {
       const nextDraft = normalizePersistedDraft(cached.draft);
+      const resumeStep = publishWizardLastStepIndex(nextDraft.postMode);
       setDraft(nextDraft);
       setServerSync(cached.serverSync);
-      if (typeof cached.step === "number") setStep(cached.step);
+      setStep(resumeStep);
       markAutosaveBaseline(nextDraft);
       setStorageReady(true);
       return;
@@ -1110,7 +1115,7 @@ export function PublishWizardPage() {
     return () => {
       cancelled = true;
     };
-  }, [assistedBoot?.session, assistedDraftToken, searchParams]);
+  }, [assistedBoot?.session, assistedDraftToken, claimTokenParam]);
 
   useEffect(() => {
     if (!handoffToken) {
@@ -1666,11 +1671,13 @@ export function PublishWizardPage() {
     step > 0 ||
     Boolean(serverSync.propertyId) ||
     Boolean(assistedDraftToken);
+  const claimAwaitingPayload = Boolean(assistedDraftToken) && isFreshDefaultDraft(draft);
 
   useEffect(() => {
     if (leaveWizardForSuccessRef.current) return;
     if (window.location.pathname !== "/publicar") return;
     if (!storageReady || !wizardHasProgress) return;
+    if (claimAwaitingPayload) return;
     setSearchParams(
       (prev) => {
         const next = applyWizardResumeSearchParams(prev, {
@@ -1690,6 +1697,7 @@ export function PublishWizardPage() {
     );
   }, [
     assistedDraftToken,
+    claimAwaitingPayload,
     editListingId,
     editingLiveProperty,
     liveEditReturnListingId,
