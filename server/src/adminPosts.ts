@@ -55,6 +55,11 @@ function wizardReviewPaso(postMode: "room" | "property"): number {
   return postMode === "property" ? 5 : 6;
 }
 
+/** Legacy outreach drafts used `adraft_<hex>` (sometimes `prp__adraft_…`). */
+export function isAssistedDraftPropertyId(propertyId: string): boolean {
+  return /(?:^|__)adraft_/i.test(propertyId.trim());
+}
+
 export function adminPostEditPath(opts: {
   propertyId: string;
   postMode: "room" | "property";
@@ -62,13 +67,14 @@ export function adminPostEditPath(opts: {
   assistedDraft: boolean;
   claimToken: string | null;
 }): string {
+  const editCode = propertyReferenceCode(opts.propertyId);
   if (opts.assistedDraft && opts.status === "draft" && opts.claimToken) {
     return `/borrador/${encodeURIComponent(opts.claimToken)}`;
   }
   if (opts.assistedDraft && opts.status === "draft") {
-    return `/publicar?edit=${encodeURIComponent(propertyReferenceCode(opts.propertyId))}&paso=${wizardReviewPaso(opts.postMode)}`;
+    return `/publicar?edit=${encodeURIComponent(editCode)}&paso=${wizardReviewPaso(opts.postMode)}`;
   }
-  return `/publicar?edit=${encodeURIComponent(opts.propertyId)}`;
+  return `/publicar?edit=${encodeURIComponent(editCode)}`;
 }
 
 export type AdminPostsListResult = {
@@ -137,7 +143,12 @@ export function listAdminPosts(
   for (const token of tokens) {
     const lower = token.toLowerCase();
     if (lower === "ia" || lower === "ai" || lower === "asistido") {
-      conditions.push(`IFNULL(p.assisted_draft, 0) = 1`);
+      conditions.push(`(
+        IFNULL(p.assisted_draft, 0) = 1
+        OR p.id LIKE 'adraft_%'
+        OR p.id LIKE 'prp__adraft_%'
+        OR EXISTS (SELECT 1 FROM assisted_draft_claim_tokens t WHERE t.property_id = p.id)
+      )`);
       continue;
     }
 
@@ -274,7 +285,11 @@ export function listAdminPosts(
             AND t.expires_at > ${Date.now()}
           ORDER BY t.created_at DESC
           LIMIT 1
-        ) AS claim_token
+        ) AS claim_token,
+        EXISTS (
+          SELECT 1 FROM assisted_draft_claim_tokens h
+          WHERE h.property_id = p.id
+        ) AS has_claim_history
       ${fromSql}
       ${where}
       ORDER BY COALESCE(p.created_at, '') DESC, p.id DESC
@@ -320,11 +335,14 @@ export function listAdminPosts(
       postMode === "room" && primaryRoomId
         ? `/anuncio/${roomReferenceCode(primaryRoomId)}`
         : `/propiedad/${propertyReferenceCode(propertyId)}`;
-    const assistedDraft = Number(row.assisted_draft) === 1;
     const claimToken =
       row.claim_token != null && String(row.claim_token).trim()
         ? String(row.claim_token).trim()
         : null;
+    const assistedDraft =
+      Number(row.assisted_draft) === 1 ||
+      Number(row.has_claim_history) === 1 ||
+      isAssistedDraftPropertyId(propertyId);
 
     return {
       propertyId,

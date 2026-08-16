@@ -6,7 +6,10 @@ import type { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openDb } from "./db.js";
 import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
-import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
+import {
+  resolveAdminPropertyIdFromParam,
+  resolvePropertyIdFromRouteParam,
+} from "./resolveListingRouteId.js";
 
 describe("resolveAdminPropertyIdFromParam", () => {
   let dir: string;
@@ -54,5 +57,17 @@ describe("resolveAdminPropertyIdFromParam", () => {
   it("returns null for unknown short codes", () => {
     expect(resolveAdminPropertyIdFromParam(db, "ADEADBEEF")).toBeNull();
     expect(resolveAdminPropertyIdFromParam(db, "PDEADBEEF")).toBeNull();
+  });
+
+  it("resolves legacy adraft_ property ids", () => {
+    const legacyId = "adraft_cd7aaefa7ed0433292f3994278053029";
+    db.prepare(
+      `INSERT INTO properties
+         (id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp)
+       VALUES (?, 'pub-legacy', 'draft', 'room', 'Legacy IA', 'Guadalajara', 'Centro', 20.67, -103.35, 'Resumen', '3300000000')`,
+    ).run(legacyId);
+    expect(resolvePropertyIdFromRouteParam(db, legacyId)).toBe(legacyId);
+    expect(resolveAdminPropertyIdFromParam(db, legacyId)).toBe(legacyId);
+    expect(resolvePropertyIdFromRouteParam(db, "adraft_missing99999999")).toBeNull();
   });
 });

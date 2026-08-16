@@ -1351,7 +1351,12 @@ export function PublishWizardPage() {
       } catch (e) {
         if (!cancelled) {
           setEditingLiveProperty(null);
-          setPublishErr(e instanceof Error ? e.message : "No se pudo cargar el borrador.");
+          const raw = e instanceof Error ? e.message : "";
+          setPublishErr(
+            raw.includes("property_http_400") || raw.includes("invalid_id")
+              ? "No se pudo abrir este borrador. Vuelve a Posts y usa Vista previa IA."
+              : raw || "No se pudo cargar el borrador.",
+          );
         }
       } finally {
         if (!cancelled) {

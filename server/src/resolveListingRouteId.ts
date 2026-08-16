@@ -30,9 +30,17 @@ function findPropertyIdByReferenceSuffix(db: DatabaseSync, suffix: string): stri
 /** Map `/propiedad/:id` route param to canonical property id. */
 export function resolvePropertyIdFromRouteParam(db: DatabaseSync, param: string): string | null {
   const trimmed = param.trim();
+  if (!trimmed || trimmed.length > 160) return null;
   const propSuffix = parsePropertyReferenceSuffix(trimmed);
   if (propSuffix) return findPropertyIdByReferenceSuffix(db, propSuffix);
   if (isSafePropertyId(trimmed)) return trimmed;
+  // Legacy AI drafts used `adraft_<hex>` without the `prp__` prefix.
+  if (/^adraft_[a-zA-Z0-9_-]{8,128}$/i.test(trimmed)) {
+    const row = db.prepare("SELECT id FROM properties WHERE id = ?").get(trimmed) as
+      | { id: string }
+      | undefined;
+    return row?.id ?? null;
+  }
   return null;
 }
 

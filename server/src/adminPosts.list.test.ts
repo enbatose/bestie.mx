@@ -93,7 +93,7 @@ describe("adminPostEditPath", () => {
         assistedDraft: true,
         claimToken: "stale",
       }),
-    ).toBe(`/publicar?edit=${encodeURIComponent(PROP_PUBLISHED_AI)}`);
+    ).toBe(`/publicar?edit=${propertyReferenceCode(PROP_PUBLISHED_AI)}`);
     expect(
       adminPostEditPath({
         propertyId: PROP_MANUAL,
@@ -102,7 +102,20 @@ describe("adminPostEditPath", () => {
         assistedDraft: false,
         claimToken: null,
       }),
-    ).toBe(`/publicar?edit=${encodeURIComponent(PROP_MANUAL)}`);
+    ).toBe(`/publicar?edit=${propertyReferenceCode(PROP_MANUAL)}`);
+  });
+
+  it("never puts a raw adraft_ id in ?edit=", () => {
+    const legacyId = "adraft_cd7aaefa7ed0433292f3994278053029";
+    expect(
+      adminPostEditPath({
+        propertyId: legacyId,
+        postMode: "room",
+        status: "draft",
+        assistedDraft: true,
+        claimToken: null,
+      }),
+    ).toBe(`/publicar?edit=${propertyReferenceCode(legacyId)}&paso=6`);
   });
 });
 
@@ -141,9 +154,9 @@ describe("listAdminPosts AI origin", () => {
     expect(aiDraft?.assistedDraft).toBe(true);
     expect(aiDraft?.editPath).toBe("/borrador/live-claim-token");
     expect(manual?.assistedDraft).toBe(false);
-    expect(manual?.editPath).toBe(`/publicar?edit=${encodeURIComponent(PROP_MANUAL)}`);
+    expect(manual?.editPath).toBe(`/publicar?edit=${propertyReferenceCode(PROP_MANUAL)}`);
     expect(aiPublished?.assistedDraft).toBe(true);
-    expect(aiPublished?.editPath).toBe(`/publicar?edit=${encodeURIComponent(PROP_PUBLISHED_AI)}`);
+    expect(aiPublished?.editPath).toBe(`/publicar?edit=${propertyReferenceCode(PROP_PUBLISHED_AI)}`);
 
     const iaOnly = listAdminPosts(db, { q: "ia", status: "all", limit: 25, offset: 0 });
     expect(iaOnly.posts.map((p) => p.propertyId).sort()).toEqual(
@@ -155,5 +168,28 @@ describe("listAdminPosts AI origin", () => {
     expect(published.posts).toHaveLength(1);
     expect(published.posts[0]?.propertyId).toBe(PROP_PUBLISHED_AI);
     expect(published.posts[0]?.assistedDraft).toBe(true);
+  });
+
+  it("treats legacy adraft_ ids as AI even when assisted_draft is 0", () => {
+    const db = setupDb();
+    const now = new Date().toISOString();
+    const legacyId = "adraft_cd7aaefa7ed0433292f3994278053029";
+    db.prepare(
+      `INSERT INTO properties (id, publisher_id, status, post_mode, title, city, neighborhood, created_at, assisted_draft)
+       VALUES (?, 'pub-legacy', 'draft', 'room', 'Legacy IA', 'Guadalajara', 'Centro', ?, 0)`,
+    ).run(legacyId, now);
+    db.prepare(
+      `INSERT INTO rooms (id, property_id, status, sort_order) VALUES (?, ?, 'draft', 0)`,
+    ).run("legacy-room-1", legacyId);
+    db.prepare(
+      `INSERT INTO assisted_draft_claim_tokens (
+        token, property_id, created_by_admin_id, orphan_publisher_id, expires_at, created_at
+      ) VALUES ('legacy-claim', ?, 'admin', 'orphan', ?, ?)`,
+    ).run(legacyId, Date.now() + 86_400_000, Date.now());
+
+    const listed = listAdminPosts(db, { status: "draft", limit: 25, offset: 0 });
+    expect(listed.posts).toHaveLength(1);
+    expect(listed.posts[0]?.assistedDraft).toBe(true);
+    expect(listed.posts[0]?.editPath).toBe("/borrador/legacy-claim");
   });
 });
