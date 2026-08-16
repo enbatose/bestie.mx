@@ -140,8 +140,10 @@ const PROPERTY_NEIGHBORHOOD_MAX = 50;
 const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;
 
-/** Index in `steps` for paso 1 — tipo de espacio (banner de cuenta para invitados). */
+/** Index in `steps` for post-type selection (not counted in the header stepper). */
 const WIZARD_STEP_POST_MODE = 0;
+/** First numbered header step — ubicación, shown as paso 1. */
+const WIZARD_FIRST_NUMBERED_STEP = WIZARD_STEP_POST_MODE + 1;
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
@@ -2042,7 +2044,7 @@ export function PublishWizardPage() {
               </h3>
               {draft.postMode === "property" ? (
                 <p className="text-xs text-muted leading-snug">
-                  Título, ubicación y descripción general de la propiedad. Las recámaras se configuran en el paso 4.
+                  Título, ubicación y descripción general de la propiedad. Las recámaras se configuran en el paso 3.
                 </p>
               ) : null}
               <label className="block text-sm font-medium text-body">
@@ -2090,7 +2092,7 @@ export function PublishWizardPage() {
                       className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
                     />
                     <p className="mt-1 text-xs text-muted">
-                      Solo convivencia y zonas compartidas (cada recámara se describe en el paso 4).
+                      Solo convivencia y zonas compartidas (cada recámara se describe en el paso 3).
                     </p>
                     <FieldCharCount
                       current={draft.propertySummary.trim().length}
@@ -2638,6 +2640,8 @@ export function PublishWizardPage() {
   const safeStep = Math.min(Math.max(0, step), maxStepIndex);
   const current = steps[safeStep]!;
   const isPublishStep = current.title === "Revisar y publicar";
+  const showWizardProgress = safeStep >= WIZARD_FIRST_NUMBERED_STEP;
+  const progressSteps = steps.slice(WIZARD_FIRST_NUMBERED_STEP);
   const isLiveListingEdit = Boolean(editingLiveProperty);
 
   const autofillStep = useCallback(
@@ -3227,77 +3231,87 @@ export function PublishWizardPage() {
 
       <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="relative">
-          {/* Centered progress bar — equal columns so 6 steps fit on a phone */}
+          {/* Progress omits post-type selection; numbered steps start at ubicación. */}
           <div className="flex flex-col items-center">
-            <nav aria-label="Progreso del anuncio" className="flex w-full max-w-lg items-start">
-              {steps.map((s, i) => {
-                const isPast = i < safeStep;
-                const isCurrent = i === safeStep;
-                const shortLabel = (() => {
-                  const t = s.title;
-                  if (/tipo.*espacio/i.test(t)) return "Tipo";
-                  if (/ubica/i.test(t)) return "Ubicación";
-                  if (/cómo.*espacio/i.test(t)) return "Descripción";
-                  if (/recámara|recamara/i.test(t)) return "Recámaras";
-                  if (/foto/i.test(t)) return "Fotos";
-                  if (/revisar|publicar/i.test(t)) return "Publicar";
-                  return t.split(/\s+/).slice(0, 2).join(" ");
-                })();
-                return (
-                  <div key={i} className="flex min-w-0 flex-1 items-start">
-                    <div className="flex min-w-0 w-full flex-col items-center">
-                      <button
-                        type="button"
-                        disabled={!isPast}
-                        onClick={
-                          isPast
-                            ? () => {
-                                setPublishErr(null);
-                                setStep(i);
-                              }
-                            : undefined
-                        }
-                        title={isPast ? `Volver a "${s.title}"` : s.title}
-                        aria-current={isCurrent ? "step" : undefined}
-                        className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none transition ${
-                          isCurrent
-                            ? "bg-primary text-primary-fg ring-2 ring-primary/30 ring-offset-1"
-                            : isPast
-                              ? "cursor-pointer bg-primary/20 text-primary hover:bg-primary/40"
-                              : "cursor-default bg-muted/20 text-muted"
-                        }`}
-                      >
-                        {i + 1}
-                      </button>
-                      <span
-                        className={`mt-1 w-full truncate px-0.5 text-center text-[8px] font-medium leading-tight sm:text-[9px] ${
-                          isCurrent
-                            ? "text-primary"
-                            : isPast
-                              ? "text-primary/60"
-                              : "text-muted/50"
-                        }`}
-                      >
-                        {shortLabel}
-                      </span>
+            {showWizardProgress ? (
+              <nav aria-label="Progreso del anuncio" className="flex w-full max-w-lg items-start">
+                {progressSteps.map((s, progressIdx) => {
+                  const i = progressIdx + WIZARD_FIRST_NUMBERED_STEP;
+                  const isPast = i < safeStep;
+                  const isCurrent = i === safeStep;
+                  const shortLabel = (() => {
+                    const t = s.title;
+                    if (/ubica/i.test(t)) return "Ubicación";
+                    if (/cómo.*espacio/i.test(t)) return "Descripción";
+                    if (/recámara|recamara/i.test(t)) return "Recámaras";
+                    if (/foto/i.test(t)) return "Fotos";
+                    if (/revisar|publicar/i.test(t)) return "Publicar";
+                    return t.split(/\s+/).slice(0, 2).join(" ");
+                  })();
+                  return (
+                    <div key={i} className="flex min-w-0 flex-1 items-start">
+                      <div className="flex min-w-0 w-full flex-col items-center">
+                        <button
+                          type="button"
+                          disabled={!isPast}
+                          onClick={
+                            isPast
+                              ? () => {
+                                  setPublishErr(null);
+                                  setStep(i);
+                                }
+                              : undefined
+                          }
+                          title={isPast ? `Volver a "${s.title}"` : s.title}
+                          aria-current={isCurrent ? "step" : undefined}
+                          className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none transition ${
+                            isCurrent
+                              ? "bg-primary text-primary-fg ring-2 ring-primary/30 ring-offset-1"
+                              : isPast
+                                ? "cursor-pointer bg-primary/20 text-primary hover:bg-primary/40"
+                                : "cursor-default bg-muted/20 text-muted"
+                          }`}
+                        >
+                          {progressIdx + 1}
+                        </button>
+                        <span
+                          className={`mt-1 w-full truncate px-0.5 text-center text-[8px] font-medium leading-tight sm:text-[9px] ${
+                            isCurrent
+                              ? "text-primary"
+                              : isPast
+                                ? "text-primary/60"
+                                : "text-muted/50"
+                          }`}
+                        >
+                          {shortLabel}
+                        </span>
+                      </div>
+                      {progressIdx < progressSteps.length - 1 ? (
+                        <div
+                          className={`mt-3 h-px w-1.5 shrink-0 sm:w-3 ${
+                            i < safeStep ? "bg-primary/30" : "bg-muted/20"
+                          }`}
+                        />
+                      ) : null}
                     </div>
-                    {i < steps.length - 1 ? (
-                      <div
-                        className={`mt-3 h-px w-1.5 shrink-0 sm:w-3 ${
-                          i < safeStep ? "bg-primary/30" : "bg-muted/20"
-                        }`}
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
-            </nav>
-            <h2 className="mt-3 text-center text-lg font-semibold text-body">{current.title}</h2>
+                  );
+                })}
+              </nav>
+            ) : null}
+            <h2
+              className={`${showWizardProgress ? "mt-3 " : ""}text-center text-lg font-semibold text-body`}
+            >
+              {current.title}
+            </h2>
           </div>
 
-          {/* Admin autofill — below the title on phones so it does not cover step 6 */}
+          {/* Admin autofill — below the title on phones; pin to the progress row on larger screens. */}
           {me?.isAdmin ? (
-            <div className="mt-3 flex justify-end sm:absolute sm:right-0 sm:top-0 sm:mt-0">
+            <div
+              className={`mt-3 flex justify-end ${
+                showWizardProgress ? "sm:absolute sm:right-0 sm:top-0 sm:mt-0" : ""
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => autofillStep(safeStep)}

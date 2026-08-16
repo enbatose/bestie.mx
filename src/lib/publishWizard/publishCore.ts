@@ -103,7 +103,8 @@ function validLatLng(lat: number, lng: number): boolean {
 }
 
 function stepPrefix(stepIndex: number, section: string, message: string): string {
-  return `Paso ${stepIndex + 1} · ${section}: ${message}`;
+  // Post-type selection (index 0) is not counted; ubicación is paso 1.
+  return `Paso ${Math.max(1, stepIndex)} · ${section}: ${message}`;
 }
 
 export function wizardContactDigits(contactWhatsApp: string, showPublic: boolean): string {
