@@ -88,6 +88,11 @@ import {
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
 import {
+  streetCityFromNominatim,
+  neighborhoodFromNominatimAddress,
+  type NominatimAddress,
+} from "@/lib/nominatimAddress";
+import {
   CITY_ANCHOR,
   draftRoomEditorImages,
   effectiveRoomsAvailable,
@@ -272,48 +277,6 @@ function isoDateInMexicoCity(date: Date = new Date()): string {
   const day = parts.find((p) => p.type === "day")?.value;
   if (y && m && day) return `${y}-${m}-${day}`;
   return date.toISOString().slice(0, 10);
-}
-
-type NominatimAddress = Record<string, string>;
-
-function pickAddrPart(addr: NominatimAddress | undefined, keys: readonly string[]): string {
-  if (!addr) return "";
-  for (const k of keys) {
-    const v = addr[k]?.trim();
-    if (v) return v;
-  }
-  return "";
-}
-
-/** Colonia / zona from reverse-geocode — used to autofill the neighborhood field, not the address line. */
-function neighborhoodFromNominatimAddress(addr: NominatimAddress | undefined): string {
-  return pickAddrPart(addr, [
-    "neighbourhood",
-    "suburb",
-    "quarter",
-    "city_block",
-    "district",
-    "city_district",
-    "hamlet",
-  ]);
-}
-
-/**
- * Reverse-geocode label after a map pan. OSM house numbers and colonias are often
- * wrong, so we keep only calle + ciudad.
- */
-function streetCityFromNominatim(
-  addr: NominatimAddress | undefined,
-  fallbackCity: string,
-): string {
-  const road = pickAddrPart(addr, ["road", "pedestrian", "footway", "residential", "path"]);
-  const city =
-    pickAddrPart(addr, ["city", "town", "village", "municipality"]) || fallbackCity.trim();
-
-  const parts: string[] = [];
-  if (road) parts.push(road);
-  if (city && city !== road) parts.push(city);
-  return parts.join(", ") || "Ubicación aproximada";
 }
 
 /** Valid-length placeholder until the user enters a real number; publishing rejects all-zero contacts server-side. */

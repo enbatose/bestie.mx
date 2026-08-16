@@ -1,17 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Eye, EyeOff, MapPin, Maximize2, Pencil, X } from "lucide-react";
 import { GoogleStreetViewPane } from "@/components/listing/GoogleStreetViewPane";
 import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
+import { WizardAddressSearch, cityToCode } from "@/components/publish/WizardAddressSearch";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
-import { resolveApproximateRadiusMeters, clampApproximateRadiusMeters, APPROXIMATE_LOCATION_RADIUS_MIN_M, APPROXIMATE_LOCATION_RADIUS_MAX_M } from "@/lib/approximateLocationRadius";
+import {
+  resolveApproximateRadiusMeters,
+  clampApproximateRadiusMeters,
+  APPROXIMATE_LOCATION_RADIUS_MIN_M,
+  APPROXIMATE_LOCATION_RADIUS_MAX_M,
+} from "@/lib/approximateLocationRadius";
+import { CITY_ANCHOR } from "@/lib/publishWizard/publishCore";
+import { streetCityFromNominatim, type NominatimAddress } from "@/lib/nominatimAddress";
 import type { PropertyListing, StreetViewPov } from "@/types/listing";
 
 /** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
 const PREVIEW_LOCATION_MAP_ZOOM = 13;
-/** Radio visual al editar ubicación en vista previa (~5 km). */
-const PREVIEW_EDIT_RADIUS_M = 5000;
 
 type Props = {
   listing: PropertyListing;
@@ -82,6 +89,11 @@ export function PreviewPropertyLocationMap({
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStreetView, setEditingStreetView] = useState(false);
   const [draftPosition, setDraftPosition] = useState<[number, number]>([listing.lat, listing.lng]);
+  const [mapZoom, setMapZoom] = useState(CITY_ANCHOR.Guadalajara.zoom);
+  const [addressFieldText, setAddressFieldText] = useState("");
+  const locationSourceRef = useRef<"search" | "map">("map");
+  const addressFieldTextRef = useRef(addressFieldText);
+  addressFieldTextRef.current = addressFieldText;
   const hideExactAddress = isApproximateLocation || Boolean(listing.isApproximateLocation);
   const privacyRadiusM = resolveApproximateRadiusMeters(listing.approximateRadiusMeters);
   const streetViewPov = streetViewPovProp ?? listing.streetViewPov;
@@ -92,6 +104,7 @@ export function PreviewPropertyLocationMap({
     (): [number, number] => [listing.lat, listing.lng],
     [listing.lat, listing.lng],
   );
+  const cityLabel = listing.city?.trim() || "Guadalajara";
 
   useEffect(() => {
     if (!editingLocation) {
@@ -111,11 +124,55 @@ export function PreviewPropertyLocationMap({
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
+      if (e.key === "Escape") {
+        if (editingLocation) return;
+        setExpanded(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [expanded]);
+  }, [expanded, editingLocation]);
+
+  useEffect(() => {
+    if (!editingLocation) return;
+    const [lat, lng] = draftPosition;
+    const latKey = lat.toFixed(6);
+    const lngKey = lng.toFixed(6);
+    const ac = new AbortController();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+            {
+              signal: ac.signal,
+              headers: { "User-Agent": "bestie.mx-publish-wizard" },
+            },
+          );
+          if (!res.ok) return;
+          const data = (await res.json()) as { address?: NominatimAddress };
+          if (ac.signal.aborted) return;
+          const summary = streetCityFromNominatim(data.address, cityLabel);
+          if (locationSourceRef.current === "search" && addressFieldTextRef.current.trim()) return;
+          setAddressFieldText(summary);
+        } catch {
+          /* abort or network */
+        }
+      })();
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      ac.abort();
+    };
+  }, [editingLocation, draftPosition, cityLabel]);
+
+  const beginLocationEdit = () => {
+    locationSourceRef.current = "map";
+    setAddressFieldText("");
+    setMapZoom(CITY_ANCHOR.Guadalajara.zoom);
+    setDraftPosition([listing.lat, listing.lng]);
+    setEditingLocation(true);
+  };
 
   const saveLocationEdit = () => {
     onSaveCoordinates(draftPosition[0], draftPosition[1]);
@@ -125,6 +182,8 @@ export function PreviewPropertyLocationMap({
 
   const cancelLocationEdit = () => {
     setDraftPosition([listing.lat, listing.lng]);
+    setAddressFieldText("");
+    locationSourceRef.current = "map";
     setEditingLocation(false);
     setExpanded(false);
   };
@@ -132,16 +191,51 @@ export function PreviewPropertyLocationMap({
   const streetViewLat = editingLocation ? draftPosition[0] : listing.lat;
   const streetViewLng = editingLocation ? draftPosition[1] : listing.lng;
 
+  const renderAddressSearch = () => (
+    <div className="mb-3">
+      <WizardAddressSearch
+        cityCode={cityToCode(cityLabel)}
+        syncAddress={addressFieldText}
+        onQueryChange={(query) => {
+          if (query.trim()) {
+            locationSourceRef.current = "search";
+            setAddressFieldText(query);
+          } else {
+            locationSourceRef.current = "map";
+            setAddressFieldText("");
+          }
+        }}
+        onSelect={({ lat, lng, zoom, label }) => {
+          locationSourceRef.current = "search";
+          setAddressFieldText(label);
+          setMapZoom(zoom);
+          setDraftPosition([lat, lng]);
+        }}
+      />
+      <p className="mt-2 text-xs text-muted">
+        {hideExactAddress
+          ? "Mueve el mapa para colocar el área de privacidad. La dirección se completa al mover el mapa."
+          : "Escribe tu dirección o mueve el mapa. La dirección se completa sola al colocar el pin."}
+      </p>
+    </div>
+  );
+
   const editMapProps = {
     center: mapCenter,
     position: draftPosition,
     hasDefinedLocation: true as const,
-    locationLabel: null,
-    onPositionChange: (lat: number, lng: number) => setDraftPosition([lat, lng]),
+    locationLabel: null as string | null,
+    onPositionChange: (lat: number, lng: number) => {
+      locationSourceRef.current = "map";
+      setDraftPosition([lat, lng]);
+    },
     showApproximateRadius: hideExactAddress,
-    approximateRadiusMeters: hideExactAddress ? privacyRadiusM : PREVIEW_EDIT_RADIUS_M,
-    forceDraggablePin: true,
+    approximateRadiusMeters: privacyRadiusM,
+    radiusEditable: hideExactAddress,
     embed: true,
+    showAddressFooter: false,
+    interactionMode: "crosshair" as const,
+    zoom: mapZoom,
   };
 
   const readOnlyMap = (heightClass: string) => (
@@ -160,19 +254,20 @@ export function PreviewPropertyLocationMap({
     />
   );
 
-  const editMap = (mapHeight: number | string) => (
-    <WizardLocationMap {...editMapProps} mapHeight={mapHeight} />
+  const locationEditorMap = (mapHeight: number | string) => (
+    <WizardLocationMap key={cityLabel} {...editMapProps} mapHeight={mapHeight} />
   );
 
   const mapPane = (heightClass: string, editHeight: number | string) => (
-    <div className="relative">
-      {editingLocation ? (
-        <div className={heightClass}>{editMap(editHeight)}</div>
-      ) : (
-        readOnlyMap(heightClass)
-      )}
+    <div>
+      {editingLocation ? renderAddressSearch() : null}
+      <div className="relative">
+        {editingLocation ? (
+          <div className={heightClass}>{locationEditorMap(editHeight)}</div>
+        ) : (
+          readOnlyMap(heightClass)
+        )}
 
-      {/* Ampliar mapa — top-left to stay clear of zoom controls */}
       {!editingLocation ? (
         <button
           type="button"
@@ -192,7 +287,7 @@ export function PreviewPropertyLocationMap({
           ) : (
             <button
               type="button"
-              onClick={() => setEditingLocation(true)}
+              onClick={beginLocationEdit}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
             >
               <Pencil className="size-3.5" aria-hidden />
@@ -202,11 +297,74 @@ export function PreviewPropertyLocationMap({
         </div>
       ) : null}
     </div>
+    </div>
   );
+
+  const expandedDialog =
+    expanded && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mapa ampliado de la propiedad"
+            className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/55 p-4"
+            onClick={() => {
+              if (editingLocation) return;
+              setExpanded(false);
+            }}
+          >
+            <div
+              className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                <p className="text-sm font-semibold text-body">
+                  {editingLocation ? "Editar ubicación de la propiedad" : "Ubicación de la propiedad"}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {editingLocation ? (
+                    <LocationEditActions onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(false)}
+                    className="rounded-full border border-border p-1.5 text-body transition hover:bg-surface-elevated"
+                    aria-label="Cerrar mapa"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </div>
+              </div>
+              <div className="p-3">
+                {editingLocation ? (
+                  <div>
+                    {renderAddressSearch()}
+                    {locationEditorMap("min(70vh, 560px)")}
+                  </div>
+                ) : (
+                  readOnlyMap("h-[min(70vh,560px)] w-full")
+                )}
+              </div>
+              {hideExactAddress ? (
+                <p className="border-t border-border px-4 py-2 text-xs text-muted">
+                  {editingLocation
+                    ? `Mueve el mapa para colocar el área. El perímetro público es de ~${privacyRadiusM} m.`
+                    : `Ubicación aproximada por privacidad (radio ~${privacyRadiusM} m); el pin público no se muestra.`}
+                </p>
+              ) : editingLocation ? (
+                <p className="border-t border-border px-4 py-2 text-xs text-muted">
+                  Mueve el mapa para colocar el pin.
+                  {showStreetView ? " Los cambios se reflejan en ambos mapas." : ""}
+                </p>
+              ) : null}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <>
-      {/* Approximate-location callout */}
       {hideExactAddress && canEdit && onSwitchToPrecise ? (
         <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
           <MapPin className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
@@ -219,7 +377,7 @@ export function PreviewPropertyLocationMap({
               type="button"
               onClick={() => {
                 onSwitchToPrecise();
-                setEditingLocation(true);
+                beginLocationEdit();
               }}
               className="mt-1.5 text-xs font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900"
             >
@@ -296,7 +454,6 @@ export function PreviewPropertyLocationMap({
             )}
           </div>
         ) : !hideExactAddress && canEdit && onToggleStreetView ? (
-          /* Precise location but no Street View yet — offer to enable */
           <div className="flex items-center justify-center rounded-xl border border-dashed border-border bg-bg-light">
             <div className="p-6 text-center">
               <Eye className="mx-auto mb-2 size-6 text-muted" aria-hidden />
@@ -381,58 +538,7 @@ export function PreviewPropertyLocationMap({
         </div>
       ) : null}
 
-      {expanded ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Mapa ampliado de la propiedad"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4"
-          onClick={() => setExpanded(false)}
-        >
-          <div
-            className="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-              <p className="text-sm font-semibold text-body">
-                {editingLocation ? "Editar ubicación de la propiedad" : "Ubicación de la propiedad"}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {editingLocation ? (
-                  <LocationEditActions onSave={saveLocationEdit} onCancel={cancelLocationEdit} />
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => setExpanded(false)}
-                  className="rounded-full border border-border p-1.5 text-body transition hover:bg-surface-elevated"
-                  aria-label="Cerrar mapa"
-                >
-                  <X className="size-4" aria-hidden />
-                </button>
-              </div>
-            </div>
-            <div className="p-3">
-              {editingLocation ? (
-                editMap("min(70vh, 560px)")
-              ) : (
-                readOnlyMap("h-[min(70vh,560px)] w-full")
-              )}
-            </div>
-            {hideExactAddress ? (
-              <p className="border-t border-border px-4 py-2 text-xs text-muted">
-                {editingLocation
-                  ? `Arrastra el pin. El área pública de privacidad es de ~${privacyRadiusM} m.`
-                  : `Ubicación aproximada por privacidad (radio ~${privacyRadiusM} m); el pin público no se muestra.`}
-              </p>
-            ) : editingLocation ? (
-              <p className="border-t border-border px-4 py-2 text-xs text-muted">
-                Arrastra el pin para ajustar la ubicación.
-                {showStreetView ? " Los cambios se reflejan en ambos mapas." : ""}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {expandedDialog}
     </>
   );
 }
