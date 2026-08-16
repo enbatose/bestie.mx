@@ -426,6 +426,14 @@ export function publicListingHeaderBadges(opts: {
       opts.occupiedByWomenCount,
     );
     if (occupants) badges.push({ id: "occupants", label: occupants });
+    badges.push({
+      id: "spaces",
+      label: previewPropertySpacesBadgeLabel(
+        opts.propertyBedroomsTotal ?? 1,
+        opts.propertyBathrooms ?? 1,
+        opts.propertyKind ?? "house",
+      ),
+    });
     badges.push({ id: "sought", label: previewRoommateSoughtBadgeLabel(opts.roommateGenderPref) });
     const available = previewAvailableFromBadgeLabel(opts.availableFrom ?? "");
     if (available) badges.push({ id: "available", label: available });

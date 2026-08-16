@@ -4,9 +4,14 @@ import {
   Bed,
   Building2,
   Calendar,
+  Car,
+  CheckCircle2,
+  Cigarette,
   Clock,
   DollarSign,
+  KeyRound,
   Maximize2,
+  PawPrint,
   User,
   UserRound,
   Users,
@@ -18,7 +23,9 @@ import {
   LODGING_TYPE_LABELS,
   minimalStayMonthsLabel,
   PROPERTY_KIND_LABELS,
+  propertyBathroomsCountLabel,
   propertyBedroomsPreviewLabel,
+  resolvedPropertyBathroomsCount,
   ROOMMATE_GENDER_PREF_FIELD_LABEL,
   roommateGenderPrefLabel,
   roomAgeRangeLabel,
@@ -27,7 +34,9 @@ import {
   roomDimensionPreviewLabel,
   roomPlazasLabel,
   shouldShowRoomPriceInDetails,
+  utilitiesBundleSatisfied,
 } from "@/lib/listingTags";
+import { yesNo } from "@/lib/listingKeyLabels";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -94,11 +103,13 @@ function PropertyRoommatesStat({
 export function ListingPropertySummaryGrid({
   propertyKind,
   propertyBedroomsTotal,
+  propertyBathrooms,
   occupiedByWomenCount,
   occupiedByMenCount,
 }: {
   propertyKind: PropertyKind;
   propertyBedroomsTotal: number;
+  propertyBathrooms?: number;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
 }) {
@@ -117,6 +128,13 @@ export function ListingPropertySummaryGrid({
         label="Recámaras en la propiedad"
         value={propertyBedroomsPreviewLabel(propertyBedroomsTotal, propertyKind)}
       />
+      {propertyBathrooms != null ? (
+        <ListingDetailStat
+          icon={Bath}
+          label="Baños"
+          value={propertyBathroomsCountLabel(resolvedPropertyBathroomsCount(propertyBathrooms))}
+        />
+      ) : null}
       <PropertyRoommatesStat womenCount={womenCount} menCount={menCount} />
     </div>
   );
@@ -134,16 +152,21 @@ export type ListingRoomDetailsInput = {
   roommateGenderPref: RoommateGenderPref;
   ageMin: number;
   ageMax: number;
+  avalRequired?: boolean;
+  rentIncludesUtilities?: boolean;
 };
 
 export function ListingRoomDetailsGrid({
   room,
   postMode,
   roomCount,
+  propertyTags,
 }: {
   room: ListingRoomDetailsInput;
   postMode: "room" | "property";
   roomCount: number;
+  /** Property-scope “Se permite” tags (single-room preview keeps them off the room draft). */
+  propertyTags?: readonly ListingTag[];
 }) {
   const lodgingKey =
     postMode === "room" && room.lodgingType === "whole_home"
@@ -185,7 +208,18 @@ export function ListingRoomDetailsGrid({
     stats.push({ icon: Users, label: "Plazas", value: roomPlazasLabel(room.roomsAvailable) });
   }
 
+  const utilitiesIncluded =
+    Boolean(room.rentIncludesUtilities) ||
+    room.tags.includes("servicios-incluidos") ||
+    utilitiesBundleSatisfied(room.tags);
+
   stats.push(
+    {
+      icon: CheckCircle2,
+      label: "Servicios básicos incluidos",
+      value: yesNo(utilitiesIncluded),
+    },
+    { icon: KeyRound, label: "Aval", value: yesNo(Boolean(room.avalRequired)) },
     {
       icon: UserCircle2,
       label: ROOMMATE_GENDER_PREF_FIELD_LABEL,
@@ -193,6 +227,20 @@ export function ListingRoomDetailsGrid({
     },
     { icon: UserRound, label: "Edades", value: roomAgeRangeLabel(room.ageMin, room.ageMax) },
   );
+
+  if (postMode === "room") {
+    const permitidoSource = propertyTags ?? room.tags;
+    stats.push(
+      { icon: Car, label: "Estacionamiento incluido", value: yesNo(room.tags.includes("estacionamiento")) },
+      { icon: PawPrint, label: "Mascotas", value: yesNo(permitidoSource.includes("mascotas")) },
+      { icon: Users, label: "Fiestas", value: yesNo(permitidoSource.includes("fiestas")) },
+      {
+        icon: Cigarette,
+        label: "Fumar en áreas comunes",
+        value: yesNo(permitidoSource.includes("fumar")),
+      },
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3">

@@ -12,6 +12,7 @@ import {
   filterPropertyScopeTags,
   filterRoomScopeTags,
   sortRoomScopeTags,
+  utilitiesBundleSatisfied,
 } from "@/lib/listingTags";
 import type { PropertyKind, PropertyListing } from "@/types/listing";
 
@@ -44,6 +45,9 @@ const roomDetailsFromListing = (listing: PropertyListing) => ({
   roommateGenderPref: listing.roommateGenderPref,
   ageMin: listing.ageMin,
   ageMax: listing.ageMax,
+  avalRequired: listing.avalRequired,
+  rentIncludesUtilities:
+    listing.tags.includes("servicios-incluidos") || utilitiesBundleSatisfied(listing.tags),
 });
 
 export function PublicListingContent({
@@ -169,7 +173,12 @@ export function PublicListingContent({
       ) : null}
 
       <ListingSection title="Detalles de la recámara">
-        <ListingRoomDetailsGrid room={roomDetailsFromListing(listing)} postMode={postMode} roomCount={roomCount} />
+        <ListingRoomDetailsGrid
+          room={roomDetailsFromListing(listing)}
+          postMode={postMode}
+          roomCount={roomCount}
+          propertyTags={propertyTags}
+        />
       </ListingSection>
 
       <ListingSection title="Descripción de la recámara">

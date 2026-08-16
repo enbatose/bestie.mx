@@ -42,9 +42,9 @@ import {
   CITY_ANCHOR,
   draftRoomImageUrls,
   draftRoomEditorImages,
-  effectiveWizardPropertyBathrooms,
 } from "@/lib/publishWizard/publishCore";
 import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
+import { clampApproximateRadiusMeters } from "@/lib/approximateLocationRadius";
 import {
   derivedPropertyOccupantCounts,
   syncPropertyRoomSlotsToTotal,
@@ -91,6 +91,7 @@ import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGend
 import type { LiveEditScope } from "@/components/publish/PublishWizardReviewStep";
 
 const PROPERTY_BEDROOMS_MAX = 20;
+const PROPERTY_BATHROOMS_MAX = 10;
 const PROPERTY_OCCUPANTS_MAX = 50;
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -337,6 +338,7 @@ function RoomPreviewCard({
 type PropertyFactsDraft = {
   propertyKind: PropertyKind;
   propertyBedroomsTotal: number;
+  propertyBathrooms: number;
   occupiedByWomenCount: number;
   occupiedByMenCount: number;
 };
@@ -349,9 +351,14 @@ function propertyFactsFromDraft(d: Draft): PropertyFactsDraft {
           occupiedByWomenCount: d.occupiedByWomenCount ?? 0,
           occupiedByMenCount: d.occupiedByMenCount ?? 0,
         };
+  const bathrooms =
+    typeof d.propertyBathrooms === "number" && Number.isFinite(d.propertyBathrooms) && d.propertyBathrooms >= 0
+      ? d.propertyBathrooms
+      : 1;
   return {
     propertyKind: d.propertyKind,
     propertyBedroomsTotal: d.propertyKind === "loft" ? 1 : d.propertyBedroomsTotal,
+    propertyBathrooms: bathrooms,
     occupiedByWomenCount: occupants.occupiedByWomenCount,
     occupiedByMenCount: occupants.occupiedByMenCount,
   };
@@ -433,6 +440,7 @@ export function EditableListingPreview({
     roomTitle: room?.title ?? "",
     rentMxn: room?.rentMxn ?? 0,
     depositMxn: room?.depositMxn ?? 0,
+    city: draft.city,
   });
   const [propertySummaryDraft, setPropertySummaryDraft] = useState(draft.propertySummary);
   const [propertyTagsDraft, setPropertyTagsDraft] = useState<ListingTag[]>([...draft.propertyTags]);
@@ -462,6 +470,7 @@ export function EditableListingPreview({
           roomTitle: targetRoom.title,
           rentMxn: targetRoom.rentMxn,
           depositMxn: targetRoom.depositMxn,
+          city: draft.city,
         });
         setEditingHeader(true);
       } else if (section === "details") {
@@ -563,6 +572,7 @@ export function EditableListingPreview({
       roomTitle: room.title,
       rentMxn: room.rentMxn,
       depositMxn: room.depositMxn,
+      city: draft.city,
     });
     setEditingHeader(true);
   };
@@ -574,6 +584,7 @@ export function EditableListingPreview({
         ...d,
         neighborhood: headerDraft.neighborhood,
         propertyTitle: nextPropertyTitle,
+        city: headerDraft.city,
       }));
       setEditingHeader(false);
       return;
@@ -582,6 +593,7 @@ export function EditableListingPreview({
       ...d,
       // Single-room posts use Datos Generales → Título del anuncio (propertyTitle).
       propertyTitle: d.postMode === "room" ? nextPropertyTitle : d.propertyTitle,
+      city: isRoomOfProperty ? d.city : headerDraft.city,
       // The colonia belongs to the property, so a room-scoped edit leaves it untouched.
       neighborhood: isRoomOfProperty ? d.neighborhood : headerDraft.neighborhood,
       rooms: d.rooms.map((r, i) =>
@@ -711,11 +723,16 @@ export function EditableListingPreview({
       PROPERTY_OCCUPANTS_MAX,
       Math.max(0, Math.floor(propertyFactsDraft.occupiedByMenCount) || 0),
     );
+    const nextBathrooms = Math.min(
+      PROPERTY_BATHROOMS_MAX,
+      Math.max(0, Math.round((Number(propertyFactsDraft.propertyBathrooms) || 0) * 2) / 2),
+    );
     onDraftChange((d) => {
       let next: Draft = {
         ...d,
         propertyKind: nextKind,
         propertyBedroomsTotal: nextBedrooms,
+        propertyBathrooms: nextBathrooms,
       };
       if (next.postMode === "room") {
         next = {
@@ -949,6 +966,7 @@ export function EditableListingPreview({
               </label>
             )}
             {!isRoomOfProperty ? (
+              <>
               <label className="mt-2 block text-sm font-medium text-body">
                 Colonia o zona
                 <input
@@ -957,6 +975,26 @@ export function EditableListingPreview({
                   className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
+              <label className="mt-2 block text-sm font-medium text-body">
+                Ciudad
+                <select
+                  value={headerDraft.city}
+                  onChange={(e) =>
+                    setHeaderDraft((h) => ({
+                      ...h,
+                      city: e.target.value as Draft["city"],
+                    }))
+                  }
+                  className={WIZARD_FIELD_CONTROL_CLASS}
+                >
+                  {(Object.keys(CITY_ANCHOR) as Array<keyof typeof CITY_ANCHOR>).map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              </>
             ) : null}
             {!headerUsesPropertyFields ? (
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -1036,7 +1074,7 @@ export function EditableListingPreview({
               occupiedByMenCount={occupantCounts.occupiedByMenCount}
               occupiedByWomenCount={occupantCounts.occupiedByWomenCount}
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
-              propertyBathrooms={effectiveWizardPropertyBathrooms(draft)}
+              propertyBathrooms={draft.propertyBathrooms}
               propertyKind={draft.propertyKind}
               tags={draft.propertyTags}
             />
@@ -1294,6 +1332,27 @@ export function EditableListingPreview({
                   ) : null}
                 </div>
                 {draft.postMode === "room" ? (
+                  <div className="block text-sm font-medium text-body">
+                    <span className="block">{propertyFactsDraft.propertyKind === "loft" ? "Baños" : "Baños (total)"}</span>
+                    <WizardNumberStepper
+                      compact
+                      editableCenter
+                      step={0.5}
+                      value={Math.min(
+                        PROPERTY_BATHROOMS_MAX,
+                        Math.max(0, propertyFactsDraft.propertyBathrooms),
+                      )}
+                      min={0}
+                      max={PROPERTY_BATHROOMS_MAX}
+                      onChange={(n) =>
+                        setPropertyFactsDraft((f) => ({ ...f, propertyBathrooms: n }))
+                      }
+                      decrementLabel="Menos baños"
+                      incrementLabel="Más baños"
+                    />
+                  </div>
+                ) : null}
+                {draft.postMode === "room" ? (
                   <>
                     <div className="block text-sm font-medium text-body">
                       <span className="block">Besties actuales · mujeres</span>
@@ -1347,6 +1406,9 @@ export function EditableListingPreview({
             <ListingPropertySummaryGrid
               propertyKind={draft.propertyKind}
               propertyBedroomsTotal={draft.propertyBedroomsTotal}
+              propertyBathrooms={
+                draft.postMode === "room" ? draft.propertyBathrooms : undefined
+              }
               occupiedByWomenCount={occupantCounts.occupiedByWomenCount}
               occupiedByMenCount={occupantCounts.occupiedByMenCount}
             />
@@ -1551,6 +1613,43 @@ export function EditableListingPreview({
                   incrementLabel="Mayor edad máxima"
                 />
               </div>
+              {draft.postMode === "room" ? (
+                <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
+                    <input
+                      type="checkbox"
+                      checked={detailsRoom.rentIncludesUtilities}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setRoomDetailsDraft((r) => (r ? { ...r, rentIncludesUtilities: checked } : r));
+                      }}
+                      className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-body">Servicios básicos incluidos</span>
+                      <span className="mt-0.5 block text-xs text-muted leading-snug">
+                        Activa esta opción si el precio de renta ya cubre luz, agua, gas e internet (Wi-Fi).
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
+                    <input
+                      type="checkbox"
+                      checked={detailsRoom.avalRequired}
+                      onChange={(e) =>
+                        setRoomDetailsDraft((r) => (r ? { ...r, avalRequired: e.target.checked } : r))
+                      }
+                      className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-body">Se requiere aval</span>
+                      <span className="mt-0.5 block text-xs text-muted leading-snug">
+                        Activa esta opción si para rentar esta recámara es obligatorio presentar aval.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              ) : null}
             </div>
           </InlineFieldEditor>
         ) : (
@@ -1558,6 +1657,7 @@ export function EditableListingPreview({
             room={detailsRoom}
             postMode={draft.postMode}
             roomCount={draft.rooms.length}
+            propertyTags={draft.propertyTags}
           />
         )}
       </PreviewSection>
@@ -1704,6 +1804,17 @@ export function EditableListingPreview({
               ...d,
               isApproximateLocation: false,
               useCustomMapPin: true,
+            }))
+          }
+          onPrivacyChange={({ isApproximateLocation, approximateRadiusMeters }) =>
+            onDraftChange((d) => ({
+              ...d,
+              isApproximateLocation,
+              approximateRadiusMeters: isApproximateLocation
+                ? clampApproximateRadiusMeters(approximateRadiusMeters)
+                : d.approximateRadiusMeters,
+              useCustomMapPin: true,
+              ...(isApproximateLocation ? { streetViewPov: undefined } : {}),
             }))
           }
         />

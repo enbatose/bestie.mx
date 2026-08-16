@@ -5,7 +5,7 @@ import { StreetViewPovEditor } from "@/components/publish/StreetViewPovEditor";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import { WizardLocationMap } from "@/components/WizardLocationMap";
 import { PropertyMap } from "@/components/map/PropertyMap";
-import { resolveApproximateRadiusMeters } from "@/lib/approximateLocationRadius";
+import { resolveApproximateRadiusMeters, clampApproximateRadiusMeters, APPROXIMATE_LOCATION_RADIUS_MIN_M, APPROXIMATE_LOCATION_RADIUS_MAX_M } from "@/lib/approximateLocationRadius";
 import type { PropertyListing, StreetViewPov } from "@/types/listing";
 
 /** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
@@ -28,6 +28,8 @@ type Props = {
   onToggleStreetView?: (enabled: boolean) => void;
   /** Called when the user opts to switch from approximate to precise location. */
   onSwitchToPrecise?: () => void;
+  /** Enable/disable privacy disk and set its radius (meters). */
+  onPrivacyChange?: (next: { isApproximateLocation: boolean; approximateRadiusMeters: number }) => void;
 };
 
 function LocationEditActions({
@@ -74,6 +76,7 @@ export function PreviewPropertyLocationMap({
   onStreetViewPovChange,
   onToggleStreetView,
   onSwitchToPrecise,
+  onPrivacyChange,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
@@ -313,6 +316,70 @@ export function PreviewPropertyLocationMap({
           </div>
         ) : null}
       </div>
+
+      {hideExactAddress ? (
+        <p className="mt-2 text-xs text-muted">
+          Ubicación aproximada por privacidad (radio ~{privacyRadiusM} m); el pin exacto no se muestra.
+        </p>
+      ) : null}
+
+      {canEdit && onPrivacyChange ? (
+        <div className="mt-3 space-y-3">
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3 transition hover:bg-surface-elevated">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-secondary focus:outline-none focus:ring-2 focus:ring-border focus:ring-offset-0"
+              checked={hideExactAddress}
+              onChange={(e) => {
+                const hideExact = e.target.checked;
+                onPrivacyChange({
+                  isApproximateLocation: hideExact,
+                  approximateRadiusMeters: clampApproximateRadiusMeters(privacyRadiusM),
+                });
+                if (hideExact) setEditingStreetView(false);
+              }}
+            />
+            <div>
+              <span className="block text-sm font-semibold text-primary">
+                Ocultar dirección exacta en el anuncio
+              </span>
+              <span className="block text-xs text-muted">
+                El mapa público muestra un perímetro (entre {APPROXIMATE_LOCATION_RADIUS_MIN_M} y{" "}
+                {APPROXIMATE_LOCATION_RADIUS_MAX_M} m) en lugar del pin exacto.
+              </span>
+            </div>
+          </label>
+          {hideExactAddress ? (
+            <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="preview-privacy-radius" className="text-xs font-semibold text-body">
+                  Radio de privacidad
+                </label>
+                <span className="text-xs font-medium tabular-nums text-primary">{privacyRadiusM} m</span>
+              </div>
+              <input
+                id="preview-privacy-radius"
+                type="range"
+                min={APPROXIMATE_LOCATION_RADIUS_MIN_M}
+                max={APPROXIMATE_LOCATION_RADIUS_MAX_M}
+                step={10}
+                value={privacyRadiusM}
+                onChange={(e) =>
+                  onPrivacyChange({
+                    isApproximateLocation: true,
+                    approximateRadiusMeters: clampApproximateRadiusMeters(Number(e.target.value)),
+                  })
+                }
+                className="mt-2 h-2 w-full cursor-pointer accent-secondary"
+                aria-valuemin={APPROXIMATE_LOCATION_RADIUS_MIN_M}
+                aria-valuemax={APPROXIMATE_LOCATION_RADIUS_MAX_M}
+                aria-valuenow={privacyRadiusM}
+                aria-label="Radio de privacidad en metros"
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {expanded ? (
         <div
