@@ -66,7 +66,14 @@ import {
   collectRoomFieldIssueDetails,
   collectRoomFieldIssues,
   firstRoomIndexWithIssues,
+  firstStandaloneRoomFixSection,
+  isStandaloneRoomPost,
+  PUBLISH_PREVIEW_HEADER_ID,
+  PUBLISH_PREVIEW_RENT_INPUT_ID,
+  PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID,
+  PUBLISH_PREVIEW_ROOM_DETAILS_ID,
   roomPreviewOptionLabel,
+  standaloneRoomFixAnchorId,
 } from "@/lib/publishWizard/roomWizardValidation";
 import {
   draftImagesAppend,
@@ -415,17 +422,6 @@ export function EditableListingPreview({
     return null;
   });
 
-  useEffect(() => {
-    if (jumpToRoomIndex == null) return;
-    if (jumpToRoomIndex < 0 || jumpToRoomIndex >= draft.rooms.length) {
-      onJumpToRoomHandled?.();
-      return;
-    }
-    setEditingRoomModalIndex(jumpToRoomIndex);
-    onRoomIndexChange?.(jumpToRoomIndex);
-    onJumpToRoomHandled?.();
-  }, [jumpToRoomIndex, draft.rooms.length, onJumpToRoomHandled, onRoomIndexChange]);
-
   const setPhotosEditing = (next: boolean) => {
     setEditingPhotos(next);
     onEditingPhotosChange?.(next);
@@ -446,6 +442,55 @@ export function EditableListingPreview({
   const [propertyFactsDraft, setPropertyFactsDraft] = useState<PropertyFactsDraft>(() =>
     propertyFactsFromDraft(draft),
   );
+
+  useEffect(() => {
+    if (jumpToRoomIndex == null) return;
+    if (jumpToRoomIndex < 0 || jumpToRoomIndex >= draft.rooms.length) {
+      onJumpToRoomHandled?.();
+      return;
+    }
+    const targetRoom = draft.rooms[jumpToRoomIndex]!;
+    onRoomIndexChange?.(jumpToRoomIndex);
+
+    // Single-room posts edit inline on the preview — no recámara modal.
+    if (isStandaloneRoomPost(draft)) {
+      const section = firstStandaloneRoomFixSection(draft, targetRoom);
+      if (section === "header") {
+        setHeaderDraft({
+          neighborhood: draft.neighborhood,
+          propertyTitle: draft.propertyTitle,
+          roomTitle: targetRoom.title,
+          rentMxn: targetRoom.rentMxn,
+          depositMxn: targetRoom.depositMxn,
+        });
+        setEditingHeader(true);
+      } else if (section === "details") {
+        setRoomDetailsDraft(cloneRoomDraft(targetRoom));
+        setEditingRoomDetails(true);
+      } else if (section === "description") {
+        setRoomSummaryDraft(targetRoom.summary);
+        setEditingRoom(true);
+      } else if (section === "tags") {
+        setRoomTagsDraft(filterRoomScopeTags(targetRoom.tags));
+        setEditingRoomTags(true);
+      }
+      onJumpToRoomHandled?.();
+      const anchorId = standaloneRoomFixAnchorId(section);
+      const focusRent = section === "header";
+      window.setTimeout(() => {
+        document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (focusRent) {
+          document.getElementById(PUBLISH_PREVIEW_RENT_INPUT_ID)?.focus();
+        }
+      }, 50);
+      return;
+    }
+
+    setEditingRoomModalIndex(jumpToRoomIndex);
+    onJumpToRoomHandled?.();
+    // draft is read from the click render; jumpToRoomIndex is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpToRoomIndex, draft.rooms.length, onJumpToRoomHandled, onRoomIndexChange]);
 
   const galleryUrls = useMemo(() => {
     if (isPropertyPreview || isPropertyScope) {
@@ -808,7 +853,8 @@ export function EditableListingPreview({
   return (
     <div className="space-y-6">
       <header
-        className={`rounded-2xl border border-dashed p-5 ${
+        id={PUBLISH_PREVIEW_HEADER_ID}
+        className={`scroll-mt-24 rounded-2xl border border-dashed p-5 ${
           rentMissing || propertyRentMissing ? "border-error/60 bg-error/5" : "border-secondary/50 bg-secondary/5"
         }`}
       >
@@ -918,6 +964,7 @@ export function EditableListingPreview({
                   Renta (MXN / mes)
                   <span className="text-error"> *</span>
                   <input
+                    id={PUBLISH_PREVIEW_RENT_INPUT_ID}
                     type="number"
                     min={0}
                     step={100}
@@ -1348,7 +1395,13 @@ export function EditableListingPreview({
       ) : null}
 
       {showRoomBlocks ? (
-        <PreviewSection title="Detalles de la recámara" onEdit={openRoomDetailsEdit} editLabel="Editar detalles">
+        <PreviewSection
+          id={PUBLISH_PREVIEW_ROOM_DETAILS_ID}
+          className="scroll-mt-24"
+          title="Detalles de la recámara"
+          onEdit={openRoomDetailsEdit}
+          editLabel="Editar detalles"
+        >
         {editingRoomDetails && roomDetailsDraft ? (
           <InlineFieldEditor
             label="Tipo, disponibilidad y perfil buscado"
@@ -1512,6 +1565,8 @@ export function EditableListingPreview({
 
       {showRoomBlocks ? (
       <PreviewSection
+        id={PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID}
+        className="scroll-mt-24"
         title="Descripción de la recámara"
         onEdit={() => {
           setRoomSummaryDraft(room.summary);

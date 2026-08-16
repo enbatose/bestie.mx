@@ -6,11 +6,24 @@ type Props = {
   children: ReactNode;
   action?: ReactNode;
   titleMuted?: boolean;
+  id?: string;
+  className?: string;
 };
 
-export function ListingSection({ title, subtitle, children, action, titleMuted = false }: Props) {
+export function ListingSection({
+  title,
+  subtitle,
+  children,
+  action,
+  titleMuted = false,
+  id,
+  className = "",
+}: Props) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5">
+    <section
+      id={id}
+      className={`rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 ${className}`.trim()}
+    >
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2

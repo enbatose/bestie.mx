@@ -5,6 +5,7 @@ import { isListingRentMissing } from "@/lib/listingTags";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import {
   firstRoomIndexWithIssues,
+  isStandaloneRoomPost,
   roomPreviewOptionLabel,
   roomSaveIssuesPrimaryLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
@@ -114,7 +115,7 @@ export function PublishWizardReviewStep({
   const nonRoomBlock = Boolean(publishBlockedReason) && !hasRoomFieldIssues;
 
   const openIncompleteRoom = (index: number, thenPublish: boolean) => {
-    setPublishAfterRoomFix(thenPublish);
+    setPublishAfterRoomFix(isStandaloneRoomPost(draft) ? false : thenPublish);
     setJumpToRoomIndex(index);
   };
 

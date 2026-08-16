@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import {
+  firstStandaloneRoomFixSection,
   formatRoomsValidationMessage,
+  PUBLISH_PREVIEW_HEADER_ID,
   roomPreviewOptionLabel,
   roomSaveIssuesHeading,
   roomSaveIssuesOpenLabel,
   roomSaveIssuesPrimaryLabel,
+  standaloneRoomFixAnchorId,
 } from "./roomWizardValidation";
 
 function sampleRoom(overrides: Partial<RoomDraft> = {}): RoomDraft {
@@ -118,5 +121,12 @@ describe("single-room missing-field copy", () => {
     );
     expect(roomSaveIssuesOpenLabel(draft, "Recámara 1")).toBe("Abrir Recámara 1 y completar");
     expect(roomSaveIssuesPrimaryLabel(draft, 0)).toBe("Completar Recámara 1");
+  });
+
+  it("points Completar at the rent header on a single-room post missing price", () => {
+    const draft = sampleDraft();
+    const section = firstStandaloneRoomFixSection(draft, draft.rooms[0]!);
+    expect(section).toBe("header");
+    expect(standaloneRoomFixAnchorId(section)).toBe(PUBLISH_PREVIEW_HEADER_ID);
   });
 });

@@ -17,15 +17,21 @@ export function PreviewSection({
   children,
   onEdit,
   editLabel = "Editar",
+  id,
+  className,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   onEdit?: () => void;
   editLabel?: string;
+  id?: string;
+  className?: string;
 }) {
   return (
     <ListingSection
+      id={id}
+      className={className}
       title={title}
       subtitle={subtitle}
       action={

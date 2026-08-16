@@ -245,3 +245,19 @@ export function roomSaveIssuesPrimaryLabel(d: Draft, roomIndex: number): string 
   if (!room) return "Completar anuncio";
   return `Completar ${roomPreviewOptionLabel(room, roomIndex)}`;
 }
+
+export const PUBLISH_PREVIEW_HEADER_ID = "publish-preview-header";
+export const PUBLISH_PREVIEW_ROOM_DETAILS_ID = "publish-preview-room-details";
+export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID = "publish-preview-room-description";
+export const PUBLISH_PREVIEW_RENT_INPUT_ID = "publish-preview-rent";
+
+/** First missing section to open on the inline preview (single-room posts). */
+export function firstStandaloneRoomFixSection(d: Draft, room: RoomDraft): RoomIssueSection {
+  return collectRoomFieldIssueDetails(d, room)[0]?.section ?? "header";
+}
+
+export function standaloneRoomFixAnchorId(section: RoomIssueSection): string {
+  if (section === "details") return PUBLISH_PREVIEW_ROOM_DETAILS_ID;
+  if (section === "description" || section === "tags") return PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID;
+  return PUBLISH_PREVIEW_HEADER_ID;
+}
