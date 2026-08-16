@@ -915,6 +915,9 @@ export function PublishWizardPage() {
   const reverseGeoGenRef = useRef(0);
   /** Tracks autofill from map pin so we can refresh when the pin moves but not overwrite manual edits. */
   const neighborhoodAutofillFromPinRef = useRef<{ latKey: string; value: string } | null>(null);
+  /** Last user action that moved the pin: search pick vs map pan. */
+  const locationSourceRef = useRef<"search" | "map">("search");
+  const [addressFieldText, setAddressFieldText] = useState("");
 
   usePageSeo({
     title: "Publicar anuncio | Bestie MX",
@@ -1494,6 +1497,12 @@ export function PublishWizardPage() {
     draft.customLng,
   ]);
 
+  useEffect(() => {
+    if (locationSourceRef.current !== "map") return;
+    if (!mapAddressShown) return;
+    setAddressFieldText(mapAddressShown);
+  }, [mapAddressShown]);
+
   runAutosaveRef.current = async (): Promise<ServerSync | null> => {
     if (!isListingsApiConfigured()) return null;
     const claimToken = assistedDraftTokenRef.current;
@@ -1905,7 +1914,10 @@ export function PublishWizardPage() {
                 <div className="mt-3">
                   <WizardAddressSearch
                     cityCode={cityToCode(draft.city)}
-                    onSelect={(lat, lng, zoom, neighborhood) => {
+                    syncAddress={addressFieldText}
+                    onSelect={({ lat, lng, zoom, neighborhood, label }) => {
+                      locationSourceRef.current = "search";
+                      setAddressFieldText(label);
                       setMapZoom(zoom);
                       setDraft((d) => {
                         const cur = d.neighborhood.trim();
@@ -1941,7 +1953,9 @@ export function PublishWizardPage() {
                     })()}
                     hasDefinedLocation={draft.useCustomMapPin}
                     locationLabel={mapAddressShown}
+                    showAddressFooter={false}
                     onPositionChange={(lat, lng) => {
+                      locationSourceRef.current = "map";
                       setDraft((d) => ({
                         ...d,
                         useCustomMapPin: true,
@@ -2025,9 +2039,8 @@ export function PublishWizardPage() {
                       </div>
                     </div>
                     <p className="rounded-lg border border-border bg-surface-elevated p-3 text-xs text-muted">
-                      Para proteger tu privacidad, la dirección que aparece arriba está simplificada. Además, el mapa de
-                      búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro de{" "}
-                      {draft.approximateRadiusMeters} m. Arrastra el área verde para ubicarla y usa el control de radio
+                      El mapa de búsqueda mostrará un pin con una ubicación aleatoria dentro del perímetro de{" "}
+                      {draft.approximateRadiusMeters} m. Mueve el mapa para ubicar el área y usa el control de radio
                       para ajustar el tamaño del perímetro.
                     </p>
                   </div>
@@ -2041,6 +2054,7 @@ export function PublishWizardPage() {
                         Vista de la propiedad
                       </h3>
                       <StreetViewPovEditor
+                        key={`${lat.toFixed(6)},${lng.toFixed(6)}`}
                         lat={lat}
                         lng={lng}
                         pov={draft.streetViewPov}
@@ -2667,7 +2681,7 @@ export function PublishWizardPage() {
         body: null,
       },
     ],
-    [draft, apiOn, mapAddressShown, mapGeocode, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me],
+    [draft, apiOn, mapAddressShown, mapGeocode, addressFieldText, mapZoom, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);

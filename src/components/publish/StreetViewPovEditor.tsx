@@ -84,12 +84,10 @@ export function StreetViewPovEditor({
 
           setNoImagery(false);
 
-          const panoLatLng = data.location.latLng;
-          const position = { lat: panoLatLng.lat(), lng: panoLatLng.lng() };
           const defaultHeading = data.tiles?.centerHeading ?? 0;
 
           const panorama = new window.google.maps.StreetViewPanorama(containerRef.current, {
-            position,
+            position: { lat, lng },
             pano: data.location.pano,
             pov: pov
               ? { heading: pov.heading, pitch: pov.pitch }
@@ -103,6 +101,7 @@ export function StreetViewPovEditor({
             motionTracking: false,
             motionTrackingControl: false,
           });
+          panorama.setPosition({ lat, lng });
           panoramaRef.current = panorama;
 
           const syncPov = () => {

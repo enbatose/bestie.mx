@@ -41,6 +41,8 @@ type Props = {
   forceDraggablePin?: boolean;
   /** Hide tip and address footer (embedded preview). */
   embed?: boolean;
+  /** Hide the reverse-geocoded address chip under the map. Tip text still shows unless embed. */
+  showAddressFooter?: boolean;
   /** Map height in px or CSS length (default 288). */
   mapHeight?: number | string;
   /**
@@ -445,12 +447,8 @@ function TapToPlaceHandler({
  * Programmatic flyTo (from address search) does not commit because it doesn't set wasDragRef.
  */
 function CrosshairMapSync({
-  onPanStart,
-  onPanEnd,
   onPanCommit,
 }: {
-  onPanStart: () => void;
-  onPanEnd: () => void;
   onPanCommit: (lat: number, lng: number) => void;
 }) {
   const map = useMap();
@@ -460,27 +458,21 @@ function CrosshairMapSync({
     const handleDragStart = () => {
       wasDragRef.current = true;
     };
-    const handleMoveStart = () => {
-      onPanStart();
-    };
     const handleMoveEnd = () => {
       const wasUserDrag = wasDragRef.current;
       wasDragRef.current = false;
-      onPanEnd();
       if (wasUserDrag) {
         const c = map.getCenter();
         onPanCommit(c.lat, c.lng);
       }
     };
     map.on("dragstart", handleDragStart);
-    map.on("movestart", handleMoveStart);
     map.on("moveend", handleMoveEnd);
     return () => {
       map.off("dragstart", handleDragStart);
-      map.off("movestart", handleMoveStart);
       map.off("moveend", handleMoveEnd);
     };
-  }, [map, onPanStart, onPanEnd, onPanCommit]);
+  }, [map, onPanCommit]);
 
   return null;
 }
@@ -491,22 +483,16 @@ function CrosshairMapSync({
  * Lifts with a shadow animation when the map is being panned.
  */
 function CrosshairPin({
-  isMoving,
   hasLocation,
-  bounceKey,
 }: {
-  isMoving: boolean;
   hasLocation: boolean;
-  bounceKey: number;
 }) {
   return (
     <div
       className="pointer-events-none absolute inset-0 z-[400] flex items-center justify-center"
       aria-hidden
     >
-      {/* Wrapper shifts the entire pin group up so the tip (bottom of SVG) sits at the viewport center */}
       <div style={{ position: "relative", transform: "translateY(-50%) translateY(-24px)" }}>
-        {/* Pulsing ring — only visible before location is set */}
         {!hasLocation && (
           <span
             className="wizard-pin-pulse absolute rounded-full border-2 border-lime-500"
@@ -518,34 +504,25 @@ function CrosshairPin({
             }}
           />
         )}
-
-        {/* Ground shadow — shrinks and blurs when pin lifts */}
         <span
           style={{
             position: "absolute",
-            bottom: isMoving ? -16 : -6,
+            bottom: -6,
             left: "50%",
             transform: "translateX(-50%)",
-            width: isMoving ? 10 : 18,
-            height: isMoving ? 4 : 7,
+            width: 18,
+            height: 7,
             borderRadius: "50%",
             background: "rgba(0,0,0,0.22)",
-            filter: isMoving ? "blur(3px)" : "blur(1px)",
-            transition: "all 0.15s ease",
+            filter: "blur(1px)",
           }}
         />
-
-        {/* Pin SVG */}
         <svg
-          key={bounceKey}
           width="36"
           height="48"
           viewBox="0 0 36 48"
-          className={bounceKey > 0 ? "wizard-pin-bounce" : ""}
           style={{
-            filter: `drop-shadow(0 ${isMoving ? "7px 12px" : "2px 4px"} rgba(0,0,0,0.28))`,
-            transform: isMoving ? "translateY(-10px) scale(1.08)" : "translateY(0) scale(1)",
-            transition: "transform 0.15s cubic-bezier(0.34,1.4,0.64,1), filter 0.15s ease",
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.28))",
             display: "block",
           }}
         >
@@ -573,15 +550,13 @@ export function WizardLocationMap({
   radiusEditable = false,
   forceDraggablePin = false,
   embed = false,
+  showAddressFooter = true,
   mapHeight = 288,
   interactionMode = "drag",
   zoom = 13,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
-  const [isCrosshairMoving, setIsCrosshairMoving] = useState(false);
-  // Increments each time address search or drag commits a new location (triggers bounce animation).
-  const [pinBounceKey, setPinBounceKey] = useState(0);
 
   const markerRef = useRef<L.Marker | null>(null);
   const markerWasDraggedRef = useRef(false);
@@ -603,7 +578,6 @@ export function WizardLocationMap({
     (lat: number, lng: number) => {
       setLocalPosition([lat, lng]);
       setLocalLocationSelected(true);
-      setPinBounceKey((k) => k + 1);
       skipFlyRef.current = true;
       suppressClampRef.current = false;
       onPositionChange(lat, lng);
@@ -650,8 +624,6 @@ export function WizardLocationMap({
     [commitMarkerPosition],
   );
 
-  const handlePanStart = useCallback(() => setIsCrosshairMoving(true), []);
-  const handlePanEnd = useCallback(() => setIsCrosshairMoving(false), []);
   const handlePanCommit = useCallback(
     (lat: number, lng: number) => {
       commitPosition(lat, lng);
@@ -697,11 +669,7 @@ export function WizardLocationMap({
 
           {/* Crosshair mode: track pan events */}
           {isCrosshair && (
-            <CrosshairMapSync
-              onPanStart={handlePanStart}
-              onPanEnd={handlePanEnd}
-              onPanCommit={handlePanCommit}
-            />
+            <CrosshairMapSync onPanCommit={handlePanCommit} />
           )}
 
           {/* Privacy circle */}
@@ -737,13 +705,7 @@ export function WizardLocationMap({
         </MapContainer>
 
         {/* Crosshair overlay — rendered outside MapContainer so it's not clipped by Leaflet */}
-        {isCrosshair && (
-          <CrosshairPin
-            isMoving={isCrosshairMoving}
-            hasLocation={localLocationSelected}
-            bounceKey={pinBounceKey}
-          />
-        )}
+        {isCrosshair && <CrosshairPin hasLocation={localLocationSelected} />}
       </div>
 
       {embed ? null : (
@@ -758,7 +720,7 @@ export function WizardLocationMap({
                 ? "Arrastra el área verde para colocar la ubicación. Usa el control de radio abajo para ajustar el perímetro. Los clics fuera del área no la mueven."
                 : "Toca el mapa para colocar el marcador, o arrástralo para ajustar la posición."}
           </p>
-          {localLocationSelected ? (
+          {showAddressFooter && localLocationSelected ? (
             <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-elevated/60 px-3 py-2 text-sm font-medium text-primary">
               <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

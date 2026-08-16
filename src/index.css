@@ -250,32 +250,12 @@
   }
 }
 
-@keyframes wizard-pin-bounce {
-  0% {
-    transform: translateY(-28px) scale(1);
-  }
-  55% {
-    transform: translateY(3px) scale(1.05);
-  }
-  75% {
-    transform: translateY(-5px) scale(0.97);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
 .wizard-pin-pulse {
   animation: wizard-pin-pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.wizard-pin-bounce {
-  animation: wizard-pin-bounce 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .wizard-pin-pulse,
-  .wizard-pin-bounce {
+  .wizard-pin-pulse {
     animation: none;
   }
 }

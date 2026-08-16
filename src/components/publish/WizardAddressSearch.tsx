@@ -5,7 +5,15 @@ type Props = {
   /** Metro city code (e.g. "gdl") to scope the search. */
   cityCode: string;
   /** Called when the user picks a suggestion. */
-  onSelect: (lat: number, lng: number, zoom: number, neighborhood?: string) => void;
+  onSelect: (hit: {
+    lat: number;
+    lng: number;
+    zoom: number;
+    neighborhood?: string;
+    label: string;
+  }) => void;
+  /** When the map pin moves, parent sends the reverse-geocoded address to keep the field in sync. */
+  syncAddress?: string | null;
   className?: string;
 };
 
@@ -78,7 +86,7 @@ function buildSecondaryText(s: LocationSuggestion): string {
   return parts.join(", ");
 }
 
-export function WizardAddressSearch({ cityCode, onSelect, className = "" }: Props) {
+export function WizardAddressSearch({ cityCode, onSelect, syncAddress, className = "" }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -138,10 +146,17 @@ export function WizardAddressSearch({ cityCode, onSelect, className = "" }: Prop
   };
 
   const handleSelect = (s: LocationSuggestion) => {
-    setQuery(buildPrimaryText(s));
+    const label = buildPrimaryText(s);
+    setQuery(label);
     setIsOpen(false);
     setSuggestions([]);
-    onSelect(s.lat, s.lng, s.zoom, s.neighborhood ?? undefined);
+    onSelect({
+      lat: s.lat,
+      lng: s.lng,
+      zoom: s.zoom,
+      neighborhood: s.neighborhood ?? undefined,
+      label,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -191,6 +206,12 @@ export function WizardAddressSearch({ cityCode, onSelect, className = "" }: Prop
     },
     [],
   );
+
+  useEffect(() => {
+    if (!syncAddress) return;
+    if (inputRef.current && document.activeElement === inputRef.current) return;
+    setQuery((current) => (current === syncAddress ? current : syncAddress));
+  }, [syncAddress]);
 
   const handleClear = () => {
     setQuery("");
