@@ -53,6 +53,11 @@ type Props = {
   interactionMode?: "crosshair" | "drag";
   /** Zoom level to fly to when position changes (default 13). */
   zoom?: number;
+  /**
+   * Keep the pin/disk centered without pan-to-place (read-only preview).
+   * Zoom stays allowed; dragging the map is off.
+   */
+  viewOnly?: boolean;
 };
 
 /** Circle styling for approximate / privacy radius (brand green). */
@@ -279,9 +284,10 @@ function MapViewSync({
       return;
     }
 
+    const targetZoom = Math.min(zoom, map.getMaxZoom());
     try {
-      const targetZoom = Math.min(zoom, map.getMaxZoom());
       if (isInitial) {
+        map.invalidateSize({ animate: false });
         map.setView(position, targetZoom, { animate: false });
       } else {
         map.flyTo(position, targetZoom, { duration: 0.75 });
@@ -289,6 +295,17 @@ function MapViewSync({
     } catch {
       /* map tearing down */
     }
+
+    if (!isInitial) return;
+    const t = window.setTimeout(() => {
+      try {
+        map.invalidateSize({ animate: false });
+        map.setView(position, Math.min(zoom, map.getMaxZoom()), { animate: false });
+      } catch {
+        /* map tearing down */
+      }
+    }, 80);
+    return () => window.clearTimeout(t);
   }, [map, position, skipFlyRef, zoom]);
 
   return null;
@@ -610,6 +627,7 @@ export function WizardLocationMap({
   mapHeight = 288,
   interactionMode = "drag",
   zoom = 13,
+  viewOnly = false,
 }: Props) {
   const [localPosition, setLocalPosition] = useState(position);
   const [localLocationSelected, setLocalLocationSelected] = useState(hasDefinedLocation);
@@ -709,9 +727,11 @@ export function WizardLocationMap({
           maxZoom={MAP_MAX_ZOOM}
           className="z-0 w-full overflow-hidden rounded-xl border border-border shadow-sm [&_.leaflet-control-attribution]:text-[10px]"
           style={{ height: mapHeightStyle }}
-          scrollWheelZoom={isCrosshair ? "center" : true}
-          touchZoom={isCrosshair ? "center" : true}
-          doubleClickZoom={isCrosshair ? "center" : true}
+          dragging={!viewOnly}
+          keyboard={!viewOnly}
+          scrollWheelZoom={isCrosshair ? "center" : !viewOnly}
+          touchZoom={viewOnly ? false : isCrosshair ? "center" : true}
+          doubleClickZoom={viewOnly ? false : isCrosshair ? "center" : true}
           zoomControl={false}
           attributionControl={false}
         >
@@ -735,15 +755,13 @@ export function WizardLocationMap({
             </>
           )}
 
-          {/* Crosshair mode: track pan events */}
-          {isCrosshair && (
-            <>
-              <CrosshairMapSync onPanMove={handlePanMove} onPanCommit={handlePanCommit} />
-              {showApproximateRadius ? (
-                <FitPrivacyCircleMaxZoom radiusMeters={circleRadius} />
-              ) : null}
-            </>
-          )}
+          {/* Crosshair mode: track pan events (skipped when the preview is read-only). */}
+          {isCrosshair && !viewOnly ? (
+            <CrosshairMapSync onPanMove={handlePanMove} onPanCommit={handlePanCommit} />
+          ) : null}
+          {isCrosshair && showApproximateRadius ? (
+            <FitPrivacyCircleMaxZoom radiusMeters={circleRadius} />
+          ) : null}
 
           {/* Privacy circle */}
           {showApproximateRadius && circleDraggable ? (
