@@ -29,6 +29,7 @@ import {
   SELF_SERVE_MAX_TEXT_CHARS,
 } from "./assistedDraftLimits.js";
 import { claimPublishMissingRent } from "./claimPublishRent.js";
+import { resolveClaimSaveRoomTargets } from "./claimSaveRoomMatch.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { isListingTag } from "./listingTags.js";
@@ -45,6 +46,7 @@ import {
   ROOM_TITLE_MAX_LEN,
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
+  isSafeRoomOrListingId,
   validLatLng,
 } from "./validation.js";
 
@@ -976,19 +978,41 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const existingRooms = db.prepare(
         `SELECT id FROM rooms WHERE property_id = ? ORDER BY sort_order`
       ).all(prop.id) as { id: string }[];
-      const existingIds = new Set(existingRooms.map((room) => room.id));
       const now = new Date().toISOString();
+      const validRoomPatches = roomsPatch.filter(
+        (roomPatch): roomPatch is Record<string, unknown> => Boolean(roomPatch) && typeof roomPatch === "object",
+      );
+      const targets = resolveClaimSaveRoomTargets(
+        existingRooms.map((room) => room.id),
+        validRoomPatches.map((roomPatch) => asTrimmedString(roomPatch.id)),
+      );
+      const savedRoomIds: string[] = [];
 
-      for (const roomPatch of roomsPatch) {
-        if (!roomPatch || typeof roomPatch !== "object") continue;
-        const requestedId = asTrimmedString(roomPatch.id);
-        const roomId =
-          requestedId && existingIds.has(requestedId)
-            ? requestedId
-            : existingRooms.length === 1
-              ? existingRooms[0]!.id
-              : null;
-        if (!roomId) continue;
+      for (let roomIndex = 0; roomIndex < validRoomPatches.length; roomIndex++) {
+        const roomPatch = validRoomPatches[roomIndex]!;
+        let roomId = targets[roomIndex]?.existingId ?? null;
+        if (!roomId) {
+          const requestedId = asTrimmedString(roomPatch.id);
+          roomId =
+            requestedId && isSafeRoomOrListingId(requestedId) ? requestedId : randomUUID();
+          db.prepare(`
+            INSERT INTO rooms (
+              id, property_id, status, title, rent_mxn, rooms_available, tags_json,
+              roommate_gender_pref, age_min, age_max, summary, lodging_type,
+              available_from, minimal_stay_months, room_dimension,
+              aval_required, sublet_allowed, sort_order, deposit_mxn,
+              occupancy_status, occupant_women_count, occupant_men_count,
+              image_urls_json, created_at, updated_at
+            ) VALUES (
+              ?, ?, 'draft', '', 0, 1, '[]',
+              'any', 18, 99, '', 'private_room',
+              ?, 1, 'medium',
+              0, 0, ?, 0,
+              'available', 0, 0,
+              '[]', ?, ?
+            )
+          `).run(roomId, prop.id, now.slice(0, 10), roomIndex, now, now);
+        }
 
         const roomRow = db.prepare(
           `SELECT * FROM rooms WHERE id = ? AND property_id = ?`
@@ -1107,10 +1131,15 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           roomId,
           prop.id,
         );
+        savedRoomIds.push(roomId);
       }
 
       issuePublisherCookie(res, row.orphan_publisher_id);
-      res.json({ ok: true, propertyId: prop.id });
+      res.json({
+        ok: true,
+        propertyId: prop.id,
+        rooms: savedRoomIds.map((id) => ({ id })),
+      });
     },
   );
 

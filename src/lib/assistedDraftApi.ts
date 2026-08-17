@@ -229,7 +229,7 @@ export type AssistedDraftClaimSaveBody = {
 export async function saveAssistedDraftClaim(
   token: string,
   body: AssistedDraftClaimSaveBody,
-): Promise<{ propertyId: string }> {
+): Promise<{ propertyId: string; rooms: Array<{ id: string }> }> {
   const base = apiBase();
   const res = await apiFetch(`${base}/api/assisted-draft/claim/${encodeURIComponent(token)}`, {
     method: "PUT",
@@ -237,10 +237,19 @@ export async function saveAssistedDraftClaim(
     credentials: cred,
     body: JSON.stringify(body),
   });
-  const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string };
+  const j = (await res.json().catch(() => ({}))) as {
+    propertyId?: string;
+    rooms?: Array<{ id?: string }>;
+    error?: string;
+  };
   if (!res.ok) throw new Error(j.error ?? `claim_save_${res.status}`);
   if (!j.propertyId) throw new Error("claim_save_bad_response");
-  return { propertyId: j.propertyId };
+  const rooms = Array.isArray(j.rooms)
+    ? j.rooms
+        .map((room) => ({ id: typeof room?.id === "string" ? room.id.trim() : "" }))
+        .filter((room) => room.id)
+    : [];
+  return { propertyId: j.propertyId, rooms };
 }
 
 /** Public: activate claim (sets orphan publisher cookie). Returns propertyId. */

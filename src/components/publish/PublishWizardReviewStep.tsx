@@ -288,7 +288,8 @@ export function PublishWizardReviewStep({
 
       {isRoomOfProperty ? null : (
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        {rentMissing || isRentRequiredPublishError(actionErr) ? (
+        {rentMissing ||
+        (isRentRequiredPublishError(actionErr) && firstRoomIndexMissingRent(draft) >= 0) ? (
           <MissingRentCallout
             className="mb-4"
             onEdit={openMissingRentRoom}
@@ -312,7 +313,8 @@ export function PublishWizardReviewStep({
             {isLiveEdit ? "Para guardar:" : "Para publicar:"} {publishBlockedReason}
           </p>
         ) : null}
-        {actionErr && !isRentRequiredPublishError(actionErr) ? (
+        {actionErr &&
+        !(isRentRequiredPublishError(actionErr) && firstRoomIndexMissingRent(draft) >= 0) ? (
           <p
             className={`text-sm text-error ${publishBlockedReason || rentMissing || hasRoomFieldIssues ? "mt-3" : ""}`}
             role="alert"

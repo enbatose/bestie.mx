@@ -130,7 +130,12 @@ import {
   ROOM_SUMMARY_MIN,
   ROOM_SUMMARY_MAX,
 } from "@/lib/publishWizard/publishCore";
-import { firstRoomIndexWithIssues, rentRequiredPublishMessage, roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
+import {
+  firstRoomIndexMissingRent,
+  firstRoomIndexWithIssues,
+  rentRequiredPublishMessage,
+  roomPreviewOptionLabel,
+} from "@/lib/publishWizard/roomWizardValidation";
 import {
   applyPropertyRentRoomCount,
   hydrateRoomOccupantCounts,
@@ -1115,6 +1120,21 @@ export function PublishWizardPage() {
     }
   }
 
+  function rememberClaimSyncedDraft(token: string, syncedDraft: Draft) {
+    const nextSync = {
+      propertyId: serverSyncRef.current.propertyId,
+      roomIds: syncedDraft.rooms.map((room) => room.id),
+    };
+    serverSyncRef.current = nextSync;
+    setServerSync(nextSync);
+    writeAssistedDraftClaimSession({
+      token,
+      draft: syncedDraft,
+      serverSync: nextSync,
+      step,
+    });
+  }
+
   useEffect(() => {
     if (me === undefined) return;
     const claimToken = assistedDraftTokenRef.current || searchParams.get("borrador")?.trim();
@@ -1642,21 +1662,20 @@ export function PublishWizardPage() {
     try {
       setAutosaveNote("saving");
       if (claimToken) {
-        const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, d);
+        const syncedDraft = await syncAssistedDraftClaimToServer(
+          claimToken,
+          d,
+          serverSyncRef.current.roomIds,
+        );
         if (generation !== autosaveGenerationRef.current) {
           return serverSyncRef.current;
         }
         const syncedSig = wizardAutosaveSignature(syncedDraft);
         lastSavedSignatureRef.current = syncedSig;
+        rememberClaimSyncedDraft(claimToken, syncedDraft);
         if (wizardAutosaveSignature(draftRef.current) === beforeSig && syncedSig !== beforeSig) {
           setDraft(syncedDraft);
         }
-        writeAssistedDraftClaimSession({
-          token: claimToken,
-          draft: syncedDraft,
-          serverSync: serverSyncRef.current,
-          step,
-        });
         setAutosaveNote("saved");
         setLastAutosavedAt(Date.now());
         const now = Date.now();
@@ -3077,15 +3096,14 @@ export function PublishWizardPage() {
         setSubmitInFlight("draft");
         try {
           if (apiOn) {
-            const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, draftRef.current);
+            const syncedDraft = await syncAssistedDraftClaimToServer(
+              claimToken,
+              draftRef.current,
+              serverSyncRef.current.roomIds,
+            );
             setDraft(syncedDraft);
             markAutosaveBaseline(syncedDraft, { touchUi: true });
-            writeAssistedDraftClaimSession({
-              token: claimToken,
-              draft: syncedDraft,
-              serverSync: serverSyncRef.current,
-              step,
-            });
+            rememberClaimSyncedDraft(claimToken, syncedDraft);
           }
         } catch {
           setPublishErr("No se pudieron guardar los cambios. Revisa tu conexión e intenta de nuevo.");
@@ -3100,9 +3118,14 @@ export function PublishWizardPage() {
       setSubmitInFlight("publish");
       try {
         if (apiOn) {
-          const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, draftRef.current);
+          const syncedDraft = await syncAssistedDraftClaimToServer(
+            claimToken,
+            draftRef.current,
+            serverSyncRef.current.roomIds,
+          );
           setDraft(syncedDraft);
           markAutosaveBaseline(syncedDraft, { touchUi: true });
+          rememberClaimSyncedDraft(claimToken, syncedDraft);
         }
         const claimed = await publishAssistedDraftClaim(claimToken);
         clearAssistedDraftClaimSession(claimToken);
@@ -3133,7 +3156,9 @@ export function PublishWizardPage() {
         const msg = e instanceof Error ? e.message : "No se pudo publicar.";
         setPublishErr(
           msg === "rent_required"
-            ? rentRequiredPublishMessage(draftRef.current.postMode)
+            ? firstRoomIndexMissingRent(draftRef.current) >= 0
+              ? rentRequiredPublishMessage(draftRef.current.postMode)
+              : "No se pudieron guardar los precios de las recámaras. Intenta publicar de nuevo."
             : msg,
         );
         setSubmitInFlight(null);
@@ -3326,15 +3351,14 @@ export function PublishWizardPage() {
     try {
       const claimToken = assistedDraftTokenRef.current;
       if (claimToken) {
-        const syncedDraft = await syncAssistedDraftClaimToServer(claimToken, draftRef.current);
+        const syncedDraft = await syncAssistedDraftClaimToServer(
+          claimToken,
+          draftRef.current,
+          serverSyncRef.current.roomIds,
+        );
         setDraft(syncedDraft);
         markAutosaveBaseline(syncedDraft, { touchUi: true });
-        writeAssistedDraftClaimSession({
-          token: claimToken,
-          draft: syncedDraft,
-          serverSync: serverSyncRef.current,
-          step,
-        });
+        rememberClaimSyncedDraft(claimToken, syncedDraft);
 
         if (!me) {
           track("publish_auth_required", {

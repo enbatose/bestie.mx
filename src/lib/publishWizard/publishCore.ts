@@ -445,7 +445,10 @@ export type SyncDraftMeta = {
   wizardStep?: number;
 };
 
-export function buildAssistedDraftClaimSaveBody(draft: Draft): AssistedDraftClaimSaveBody {
+export function buildAssistedDraftClaimSaveBody(
+  draft: Draft,
+  roomIds?: readonly string[],
+): AssistedDraftClaimSaveBody {
   const anchor = CITY_ANCHOR[draft.city];
   const neighborhood = draft.neighborhood.trim() || anchor.neighborhood;
   const { lat, lng } = resolveLatLngForDraft(draft);
@@ -476,7 +479,7 @@ export function buildAssistedDraftClaimSaveBody(draft: Draft): AssistedDraftClai
     rooms: draft.rooms.map((room, index) => {
       const fields = roomApiFieldsFromDraft(draft, room, index);
       return {
-        id: room.id,
+        id: roomIds?.[index]?.trim() || room.id,
         title: fields.title,
         rentMxn: fields.rentMxn,
         depositMxn: fields.depositMxn,
@@ -499,10 +502,24 @@ export function buildAssistedDraftClaimSaveBody(draft: Draft): AssistedDraftClai
   };
 }
 
-export async function syncAssistedDraftClaimToServer(token: string, draft: Draft): Promise<Draft> {
+export async function syncAssistedDraftClaimToServer(
+  token: string,
+  draft: Draft,
+  roomIds?: readonly string[],
+): Promise<Draft> {
   const withUploads = await ensureDraftListingImagesUploadedForApi(draft);
-  await saveAssistedDraftClaim(token, buildAssistedDraftClaimSaveBody(withUploads));
-  return withUploads;
+  const saved = await saveAssistedDraftClaim(
+    token,
+    buildAssistedDraftClaimSaveBody(withUploads, roomIds),
+  );
+  if (!saved.rooms.length) return withUploads;
+  return {
+    ...withUploads,
+    rooms: withUploads.rooms.map((room, index) => ({
+      ...room,
+      id: saved.rooms[index]?.id || room.id,
+    })),
+  };
 }
 
 export async function syncDraftToServer(
