@@ -1228,6 +1228,46 @@ export function EditableListingPreview({
         )}
       </PreviewSection>
 
+      {showPropertyBlocks && draft.postMode === "property" ? (
+        <PreviewSection
+          title="Sobre la propiedad"
+          onEdit={
+            () => {
+              setPropertySummaryDraft(draft.propertySummary);
+              setEditingProperty(true);
+            }
+          }
+        >
+          {editingProperty ? (
+            <InlineFieldEditor
+              label="Descripción de la propiedad y áreas comunes"
+              onSave={savePropertySummary}
+              onCancel={() => setEditingProperty(false)}
+            >
+              <ResizableTextarea
+                value={propertySummaryDraft}
+                onChange={(e) => setPropertySummaryDraft(e.target.value)}
+                rows={6}
+                maxLength={PROPERTY_SUMMARY_MAX}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              />
+              <FieldCharCount
+                current={propertySummaryDraft.trim().length}
+                min={PROPERTY_SUMMARY_MIN}
+                max={PROPERTY_SUMMARY_MAX}
+                warnBelowMin
+              />
+            </InlineFieldEditor>
+          ) : (
+            <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
+              {draft.propertySummary.trim() || (
+                <span className="italic">Sin descripción de la propiedad.</span>
+              )}
+            </div>
+          )}
+        </PreviewSection>
+      ) : null}
+
       {showRoomBlocks ? (
       <PreviewSection
         id={PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID}
@@ -1448,46 +1488,6 @@ export function EditableListingPreview({
               occupiedByMenCount={occupantCounts.occupiedByMenCount}
               showEmptyOccupants
             />
-          )}
-        </PreviewSection>
-      ) : null}
-
-      {showPropertyBlocks && draft.postMode === "property" ? (
-        <PreviewSection
-          title="Sobre la propiedad"
-          onEdit={
-            () => {
-              setPropertySummaryDraft(draft.propertySummary);
-              setEditingProperty(true);
-            }
-          }
-        >
-          {editingProperty ? (
-            <InlineFieldEditor
-              label="Descripción de la propiedad y áreas comunes"
-              onSave={savePropertySummary}
-              onCancel={() => setEditingProperty(false)}
-            >
-              <ResizableTextarea
-                value={propertySummaryDraft}
-                onChange={(e) => setPropertySummaryDraft(e.target.value)}
-                rows={6}
-                maxLength={PROPERTY_SUMMARY_MAX}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-              />
-              <FieldCharCount
-                current={propertySummaryDraft.trim().length}
-                min={PROPERTY_SUMMARY_MIN}
-                max={PROPERTY_SUMMARY_MAX}
-                warnBelowMin
-              />
-            </InlineFieldEditor>
-          ) : (
-            <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
-              {draft.propertySummary.trim() || (
-                <span className="italic">Sin descripción de la propiedad.</span>
-              )}
-            </div>
           )}
         </PreviewSection>
       ) : null}
