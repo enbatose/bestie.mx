@@ -16,6 +16,7 @@ import { buildStreetViewAnalyticsResponse } from "./streetViewAnalytics.js";
 import { buildImageUploadAnalytics } from "./imageUploadAnalytics.js";
 import { buildUsageAnalyticsResponse } from "./usageAnalytics.js";
 import { listAdminPosts } from "./adminPosts.js";
+import { getAdminNavCounts } from "./adminNavCounts.js";
 import { listAdminUsers } from "./adminUsers.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 
@@ -74,6 +75,10 @@ export function adminRouter(db: DatabaseSync) {
         offset: req.query.offset,
       }),
     );
+  });
+
+  r.get("/nav-counts", (_req: Request, res: Response) => {
+    res.json(getAdminNavCounts(db));
   });
 
   r.patch("/properties/:id/status", jsonMw(), (req: Request, res: Response) => {

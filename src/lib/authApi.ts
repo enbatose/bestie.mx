@@ -465,6 +465,19 @@ export type AdminUserCounts = {
   all: number;
 };
 
+export type AdminNavCounts = {
+  verifiedUsers: number;
+  publishedPosts: number;
+  unreadSupportMessages: number;
+};
+
+export async function adminNavCounts(signal?: AbortSignal): Promise<AdminNavCounts> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/nav-counts`, { credentials: cred, signal });
+  if (!res.ok) throw new Error(`admin_nav_counts_${res.status}`);
+  return (await res.json()) as AdminNavCounts;
+}
+
 export async function adminListUsers(
   opts: { limit?: number; offset?: number; segment?: AdminUserSegment } = {},
   signal?: AbortSignal,

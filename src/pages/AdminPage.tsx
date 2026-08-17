@@ -6,12 +6,14 @@ import {
   adminFetchSupportThread,
   adminGetFeaturedCities,
   adminListSupportConversations,
+  adminNavCounts,
   adminPatchPropertyStatus,
   adminPutFeaturedCities,
   adminReplySupportThread,
   adminStreetViewAnalytics,
   adminImageUploadAnalytics,
   adminUsageAnalytics,
+  type AdminNavCounts,
   type AdminStreetViewAnalytics,
   type AdminImageUploadAnalytics,
   type AdminUsageAnalytics,
@@ -34,7 +36,7 @@ import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesA
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
-import { ADMIN_DEFAULT_PATH, ADMIN_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
+import { ADMIN_DEFAULT_PATH, ADMIN_NAV_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
 
 function monthOptions(count = 12): string[] {
   const out: string[] = [];
@@ -168,6 +170,7 @@ export function AdminPage() {
   const [summary, setSummary] = useState<{ publishedPropertyCount: number; dauPublishersApprox: number; day: string } | null>(
     null,
   );
+  const [navCounts, setNavCounts] = useState<AdminNavCounts | null>(null);
   const monthChoices = useMemo(() => monthOptions(12), []);
   const [streetViewMonth, setStreetViewMonth] = useState(() => monthChoices[0] ?? new Date().toISOString().slice(0, 7));
   const [streetView, setStreetView] = useState<AdminStreetViewAnalytics | null>(null);
@@ -198,6 +201,10 @@ export function AdminPage() {
 
   const loadImageUploads = useCallback(async (failuresOnly: boolean) => {
     setImageUploads(await adminImageUploadAnalytics({ hours: 48, limit: 60, failuresOnly }));
+  }, []);
+
+  const loadNavCounts = useCallback(async () => {
+    setNavCounts(await adminNavCounts());
   }, []);
 
   const loadSupportConversations = useCallback(async (q?: string, kind: AdminSupportKindFilter = "all") => {
@@ -238,6 +245,7 @@ export function AdminPage() {
       setSupportFiles([]);
       await loadSupportThread(supportActiveId);
       await loadSupportConversations(supportDebouncedSearch || undefined, supportKindFilter);
+      await loadNavCounts();
     } catch (x) {
       setErr(x instanceof Error ? x.message : "No se pudo enviar la respuesta.");
     } finally {
@@ -250,6 +258,7 @@ export function AdminPage() {
       try {
         await loadCities();
         await loadSummary();
+        await loadNavCounts();
         await loadStreetView(streetViewMonth);
         await loadUsage(streetViewMonth);
         await loadImageUploads(imageFailuresOnly);
@@ -258,7 +267,7 @@ export function AdminPage() {
         setErr(x instanceof Error ? x.message : "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).");
       }
     })();
-  }, [loadCities, loadSummary, loadStreetView, loadUsage, loadImageUploads, streetViewMonth, imageFailuresOnly]);
+  }, [loadCities, loadSummary, loadNavCounts, loadStreetView, loadUsage, loadImageUploads, streetViewMonth, imageFailuresOnly]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setSupportDebouncedSearch(supportSearchInput.trim()), 300);
@@ -270,11 +279,15 @@ export function AdminPage() {
   }, [tab, loadSupportConversations, supportDebouncedSearch, supportKindFilter]);
 
   useEffect(() => {
-    if (supportActiveId) void loadSupportThread(supportActiveId);
+    if (supportActiveId) {
+      void loadSupportThread(supportActiveId).then(() => {
+        void loadNavCounts();
+      });
+    }
     setSupportDraft("");
     setSupportFiles([]);
     setSupportAttachErr(null);
-  }, [supportActiveId, loadSupportThread]);
+  }, [supportActiveId, loadSupportThread, loadNavCounts]);
 
   const sortedSupportRows = useMemo(
     () => sortAdminSupportConversations(supportRows, supportSortKey),
@@ -315,19 +328,49 @@ export function AdminPage() {
       ) : null}
 
       <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-1 text-sm font-medium [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-        {ADMIN_SECTIONS.map((section) => (
-          <NavLink
-            key={section.id}
-            to={`/admin/${section.slug}`}
-            className={({ isActive }) =>
-              `min-h-11 shrink-0 rounded-full px-4 py-2 transition ${
-                isActive ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
-              }`
-            }
-          >
-            {section.label}
-          </NavLink>
-        ))}
+        {ADMIN_NAV_SECTIONS.map((section) => {
+          const countKey = "countKey" in section ? section.countKey : null;
+          const count = countKey && navCounts ? navCounts[countKey] : null;
+          const unreadAlert = countKey === "unreadSupportMessages" && count != null && count > 0;
+          return (
+            <NavLink
+              key={section.id}
+              to={`/admin/${section.slug}`}
+              title={
+                countKey === "verifiedUsers"
+                  ? "Usuarios verificados"
+                  : countKey === "publishedPosts"
+                    ? "Posts publicados"
+                    : countKey === "unreadSupportMessages"
+                      ? "Mensajes no leídos"
+                      : undefined
+              }
+              aria-label={
+                count != null
+                  ? `${section.label}, ${count.toLocaleString("es-MX")}`
+                  : section.label
+              }
+              className={({ isActive }) =>
+                `inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 py-2 transition ${
+                  isActive ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
+                }`
+              }
+            >
+              {section.label}
+              {count != null ? (
+                <span
+                  className={`tabular-nums ${
+                    unreadAlert
+                      ? "rounded-full bg-error px-1.5 py-0.5 text-[11px] font-bold text-white"
+                      : "text-[11px] font-semibold opacity-80"
+                  }`}
+                >
+                  {count.toLocaleString("es-MX")}
+                </span>
+              ) : null}
+            </NavLink>
+          );
+        })}
       </div>
 
       {tab === "users" ? <AdminUsersPanel onError={clearErr} /> : null}
@@ -1033,7 +1076,7 @@ export function AdminPage() {
             Todos los posts (publicados y borradores). Busca por cualquier columna, pagina el reporte y
             pausa o archiva desde cada fila. Como admin puedes abrir posts no publicados.
           </p>
-          <AdminPostsPanel onError={clearErr} />
+          <AdminPostsPanel onError={clearErr} onStatusChanged={() => void loadNavCounts()} />
           <div className="mt-8 space-y-3 rounded-xl border border-dashed border-border bg-surface/60 p-4">
             <h2 className="text-sm font-semibold text-body">Cambio rápido por ID</h2>
             <label className="block text-sm font-medium text-body">
@@ -1084,6 +1127,7 @@ export function AdminPage() {
                   const result = await adminPatchPropertyStatus(propId, propStatus);
                   setPropId(result.propertyId);
                   setPropOk(`Listo: ${result.propertyId} → ${result.status}`);
+                  void loadNavCounts();
                 } catch (x) {
                   setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
                 } finally {

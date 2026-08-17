@@ -1,13 +1,18 @@
+export const ADMIN_NAV_COUNT_KEYS = ["verifiedUsers", "publishedPosts", "unreadSupportMessages"] as const;
+export type AdminNavCountKey = (typeof ADMIN_NAV_COUNT_KEYS)[number];
+
 export const ADMIN_SECTIONS = [
-  { id: "users", slug: "usuarios", label: "Usuarios" },
-  { id: "cities", slug: "ciudades", label: "Ciudades" },
-  { id: "analytics", slug: "metricas", label: "Métricas" },
-  { id: "property", slug: "posts", label: "Posts" },
-  { id: "soporte", slug: "soporte", label: "Soporte" },
-  { id: "outreach", slug: "outreach", label: "Outreach" },
+  { id: "users", slug: "usuarios", label: "Usuarios", countKey: "verifiedUsers", inNav: true },
+  { id: "property", slug: "posts", label: "Posts", countKey: "publishedPosts", inNav: true },
+  { id: "soporte", slug: "soporte", label: "Soporte", countKey: "unreadSupportMessages", inNav: true },
+  { id: "outreach", slug: "outreach", label: "Outreach", inNav: true },
+  { id: "analytics", slug: "metricas", label: "Métricas", inNav: true },
+  { id: "cities", slug: "ciudades", label: "Ciudades", inNav: false },
 ] as const;
 
 export type AdminSectionId = (typeof ADMIN_SECTIONS)[number]["id"];
+
+export const ADMIN_NAV_SECTIONS = ADMIN_SECTIONS.filter((section) => section.inNav !== false);
 
 export const ADMIN_DEFAULT_PATH = "/admin/usuarios";
 

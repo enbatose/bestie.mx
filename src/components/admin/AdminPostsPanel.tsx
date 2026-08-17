@@ -65,9 +65,10 @@ function AiOriginBadge() {
 
 type Props = {
   onError: (message: string | null) => void;
+  onStatusChanged?: () => void;
 };
 
-export function AdminPostsPanel({ onError }: Props) {
+export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
   const [rows, setRows] = useState<AdminPostRow[]>([]);
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState("");
@@ -128,6 +129,7 @@ export function AdminPostsPanel({ onError }: Props) {
       await adminPatchPropertyStatus(row.propertyId, status);
       setActionNote(`${row.shortId} → ${statusLabel(status)}`);
       await load();
+      onStatusChanged?.();
     } catch (x) {
       onError(x instanceof Error ? x.message : "No se pudo actualizar el estado.");
     } finally {

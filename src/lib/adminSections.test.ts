@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ADMIN_DEFAULT_PATH,
+  ADMIN_NAV_SECTIONS,
   ADMIN_SECTIONS,
   adminSectionPath,
   parseAdminSectionSlug,
@@ -11,14 +12,15 @@ describe("adminSections", () => {
     expect(adminSectionPath("users")).toBe("/admin/usuarios");
     expect(adminSectionPath("property")).toBe("/admin/posts");
     expect(adminSectionPath("analytics")).toBe("/admin/metricas");
-    expect(ADMIN_SECTIONS.map((s) => s.slug)).toEqual([
+    expect(ADMIN_NAV_SECTIONS.map((s) => s.slug)).toEqual([
       "usuarios",
-      "ciudades",
-      "metricas",
       "posts",
       "soporte",
       "outreach",
+      "metricas",
     ]);
+    expect(ADMIN_SECTIONS.map((s) => s.slug)).toContain("ciudades");
+    expect(parseAdminSectionSlug("ciudades")).toBe("cities");
   });
 
   it("parses slugs and rejects unknown sections", () => {

@@ -109,6 +109,11 @@ function mapUserRow(u: Record<string, unknown>): AdminUserRow {
   };
 }
 
+export function countAdminUsersSegment(db: DatabaseSync, segment: AdminUserSegment): number {
+  const pred = segmentPredicate(segment, [...parseAdminEmails()]);
+  return countWhere(db, pred.sql, pred.params);
+}
+
 export function listAdminUsers(
   db: DatabaseSync,
   opts: { segment?: unknown; limit?: unknown; offset?: unknown } = {},
