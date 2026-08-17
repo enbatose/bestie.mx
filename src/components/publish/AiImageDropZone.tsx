@@ -32,6 +32,38 @@ export function toComposeImages(images: AiLocalImage[]) {
   );
 }
 
+/** Fetch URL-only images (Autopoblar `/admin-seed/…`) so compose can persist `/api/uploads/…`. */
+export async function hydrateLocalImagesForCompose(images: AiLocalImage[]): Promise<AiLocalImage[]> {
+  return Promise.all(
+    images.map(async (img) => {
+      if (img.data) return img;
+      if (img.url?.startsWith("/api/uploads/")) return img;
+      const src = img.preview || img.url;
+      if (!src) return img;
+      try {
+        const res = await fetch(src);
+        if (!res.ok) return img;
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const idx = dataUrl.indexOf(",");
+        if (idx < 0) return img;
+        return {
+          ...img,
+          mimeType: blob.type || img.mimeType || "image/jpeg",
+          data: dataUrl.slice(idx + 1),
+        };
+      } catch {
+        return img;
+      }
+    }),
+  );
+}
+
 type Props = {
   images: AiLocalImage[];
   onImages: (next: AiLocalImage[]) => void;

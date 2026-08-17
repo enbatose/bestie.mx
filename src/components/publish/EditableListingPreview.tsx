@@ -28,7 +28,6 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { listingGalleryImageUrls } from "@/lib/listingImageUrls";
 import {
   roomDimensionWizardLabel,
 } from "@/lib/listingKeyLabels";
@@ -503,32 +502,14 @@ export function EditableListingPreview({
 
   const galleryUrls = useMemo(() => {
     if (isPropertyPreview || isPropertyScope) {
-      return listingGalleryImageUrls({
-        postMode: "property",
-        propertyImageUrls: listing.propertyImageUrls,
-        roomImageUrls: [],
-      });
+      return draftImagesToUrls(preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls));
     }
-    if (isRoomScope) {
-      return listingGalleryImageUrls({
-        postMode: draft.postMode === "room" ? "room" : "property",
-        propertyImageUrls: draft.postMode === "room" ? listing.propertyImageUrls : [],
-        roomImageUrls: listing.roomImageUrls,
-      });
-    }
-    return listingGalleryImageUrls({
-      postMode: listing.propertyPostMode,
-      propertyImageUrls: listing.propertyImageUrls,
-      roomImageUrls: listing.roomImageUrls,
-    });
+    return draftImagesToUrls(draftRoomEditorImages(draft, roomIndex));
   }, [
     isPropertyPreview,
     isPropertyScope,
-    isRoomScope,
-    draft.postMode,
-    listing.propertyPostMode,
-    listing.propertyImageUrls,
-    listing.roomImageUrls,
+    draft,
+    roomIndex,
   ]);
 
   const mapCenter = useMemo(

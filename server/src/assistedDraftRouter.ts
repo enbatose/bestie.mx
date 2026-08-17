@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { readAuthUserId } from "./jwtSession.js";
@@ -166,13 +167,44 @@ function keptComposeImagePath(url: string): string | null {
   return null;
 }
 
+function adminSeedFilePath(filename: string): string | null {
+  if (!/^[A-Za-z0-9._-]+$/.test(filename)) return null;
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.resolve(process.cwd(), "../dist/admin-seed", filename),
+    path.resolve(process.cwd(), "dist/admin-seed", filename),
+    path.resolve(process.cwd(), "../public/admin-seed", filename),
+    path.resolve(process.cwd(), "public/admin-seed", filename),
+    path.resolve(here, "../../../dist/admin-seed", filename),
+    path.resolve(here, "../../../public/admin-seed", filename),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+/** Persist `/admin-seed/…` Autopoblar photos as real uploads so preview/publish keep them. */
+function materializeComposeImageUrl(url: string, uploadDir: string): string | null {
+  const kept = keptComposeImagePath(url);
+  if (!kept) return null;
+  if (kept.startsWith("/api/uploads/")) return kept;
+  const filename = kept.slice("/admin-seed/".length);
+  const src = adminSeedFilePath(filename);
+  if (!src) return kept;
+  const ext = path.extname(filename) || ".png";
+  const destName = `${randomUUID()}${ext}`;
+  fs.copyFileSync(src, path.join(uploadDir, destName));
+  return `/api/uploads/${destName}`;
+}
+
 function resolveImageUrls(inputs: ImageInput[] | undefined, uploadDir: string, max: number): string[] {
   const urls: string[] = [];
   for (const img of inputs ?? []) {
     if (urls.length >= max) break;
     if (typeof img.url === "string") {
-      const kept = keptComposeImagePath(img.url);
-      if (kept) {
+      const kept = materializeComposeImageUrl(img.url, uploadDir);
+      if (kept?.startsWith("/api/uploads/")) {
         urls.push(kept);
         continue;
       }

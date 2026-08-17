@@ -60,7 +60,7 @@ import {
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { FacebookMark } from "@/components/FacebookMark";
 import { AiRoomCreateStep } from "@/components/publish/AiRoomCreateStep";
-import { toComposeImages, type AiLocalImage } from "@/components/publish/AiImageDropZone";
+import { toComposeImages, hydrateLocalImagesForCompose, type AiLocalImage } from "@/components/publish/AiImageDropZone";
 import {
   EMPTY_AI_HINTS,
   type PublishAiHintState,
@@ -92,6 +92,7 @@ import {
   normalizeDraftImages,
   normalizePersistedDraftImages,
   syncDraftPhotoArrays,
+  draftImagesToUrls,
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
 import {
@@ -467,6 +468,39 @@ const defaultDraft = (): Draft => ({
   isApproximateLocation: false,
   approximateRadiusMeters: APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
 });
+
+/** If compose dropped gallery photos, keep the step-1 images on the preview draft. */
+function applyAiLocalGalleryIfMissing(
+  draft: Draft,
+  photos: AiLocalImage[],
+  infographics: AiLocalImage[],
+): Draft {
+  const existing = [
+    ...draftImagesToUrls(draft.rooms[0]?.photos ?? []),
+    ...draftImagesToUrls(draft.propertyImageUrls ?? []),
+  ];
+  if (existing.some((u) => u.includes("/api/uploads/") || u.includes("/admin-seed/"))) {
+    return draft;
+  }
+  const urls = [...photos, ...infographics]
+    .map((img) => {
+      if (img.url && (img.url.startsWith("/api/uploads/") || img.url.startsWith("/admin-seed/"))) {
+        return img.url;
+      }
+      return img.preview || img.url || "";
+    })
+    .filter(Boolean);
+  if (!urls.length) return draft;
+  const images = hydrateDraftImagesFromUrls(urls);
+  const rooms = draft.rooms.length > 0 ? draft.rooms : [defaultRoom()];
+  return normalizePersistedDraft({
+    ...draft,
+    rooms: rooms.map((r, i) => (i === 0 ? { ...r, photos: images } : r)),
+    roomImageUrls: rooms.map((_, i) => (i === 0 ? images : draft.roomImageUrls[i] ?? [])),
+    commonAreaPhotos: images,
+    propertyImageUrls: images,
+  });
+}
 
 function isDraftOnlyRoomTitleSeed(value: string) {
   return DRAFT_ONLY_ROOM_TITLE_SEEDS.includes(value.trim() as (typeof DRAFT_ONLY_ROOM_TITLE_SEEDS)[number]);
@@ -2832,6 +2866,8 @@ export function PublishWizardPage() {
     setAiComposeInFlight(true);
     setPublishErr(null);
     try {
+      const galleryForCompose = await hydrateLocalImagesForCompose(aiPhotos);
+      const infographicsForCompose = await hydrateLocalImagesForCompose(aiInfographics);
       const result = await selfComposeAssistedDraft({
         text: aiSourceText.trim() || undefined,
         city: draft.city,
@@ -2841,8 +2877,8 @@ export function PublishWizardPage() {
           tagsOn: aiHints.tagsOn,
           gender: aiHints.gender,
         },
-        photos: toComposeImages(aiPhotos),
-        infographicPhotos: toComposeImages(aiInfographics),
+        photos: toComposeImages(galleryForCompose),
+        infographicPhotos: toComposeImages(infographicsForCompose),
         existingToken: assistedDraftTokenRef.current || undefined,
       });
       try {
@@ -2852,7 +2888,11 @@ export function PublishWizardPage() {
       }
       const info = await fetchAssistedDraftClaim(result.token);
       const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
-      const nextDraft: Draft = { ...mapped.draft, roomCreateFlow: "ai", city: draft.city };
+      const nextDraft: Draft = applyAiLocalGalleryIfMissing(
+        { ...mapped.draft, roomCreateFlow: "ai", city: draft.city },
+        galleryForCompose,
+        infographicsForCompose,
+      );
       const resumeStep = lastWizardStep(nextDraft);
       setAssistedDraftToken(result.token);
       writeAssistedDraftClaimToken(result.token);
