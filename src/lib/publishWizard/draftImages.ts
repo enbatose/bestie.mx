@@ -57,8 +57,27 @@ export function draftImageUrlAt(images: readonly DraftImage[], index: number): s
   return images[index]?.url;
 }
 
+/** Path form so `/api/uploads/x` and `https://host/api/uploads/x` compare equal. */
+export function canonicalDraftPhotoUrl(url: string): string {
+  const t = url.trim();
+  if (!t || t.startsWith("data:") || t.startsWith("blob:")) return t;
+  try {
+    if (t.startsWith("http://") || t.startsWith("https://")) {
+      const parsed = new URL(t);
+      return `${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    /* keep raw */
+  }
+  return t;
+}
+
+export function draftPhotoUrlsMatch(a: string, b: string): boolean {
+  return canonicalDraftPhotoUrl(a) === canonicalDraftPhotoUrl(b);
+}
+
 export function draftImagesWithoutUrl(images: readonly DraftImage[], url: string): DraftImage[] {
-  const next = images.filter((img) => img.url !== url);
+  const next = images.filter((img) => !draftPhotoUrlsMatch(img.url, url));
   if (next.length && !next.some((i) => i.isCover)) next[0]!.isCover = true;
   return next;
 }
@@ -68,7 +87,7 @@ export function draftImagesAppend(
   item: DraftImage,
   maxCount: number,
 ): DraftImage[] {
-  const without = images.filter((img) => img.url !== item.url);
+  const without = images.filter((img) => !draftPhotoUrlsMatch(img.url, item.url));
   const merged = item.isCover
     ? [item, ...without.map((img) => ({ ...img, isCover: false }))]
     : [...without, item];
@@ -113,12 +132,26 @@ export function syncDraftPhotoArrays<
     rooms: Array<{ photos?: DraftImage[] } & Record<string, unknown>>;
   },
 >(d: T): T {
-  const commonAreaPhotos = preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls);
   const legacyRows = d.roomImageUrls ?? [];
   const rooms = d.rooms.map((room, i) => ({
     ...room,
     photos: preferDraftImages(room.photos, legacyRows[i]),
   }));
+  const roomKeys = new Set<string>();
+  for (const room of rooms) {
+    for (const img of room.photos ?? []) {
+      const key = canonicalDraftPhotoUrl(img.url);
+      if (key) roomKeys.add(key);
+    }
+  }
+  const commonAreaPhotos = preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls).filter(
+    (img) => !roomKeys.has(canonicalDraftPhotoUrl(img.url)),
+  );
+  const sharedKeys = new Set(commonAreaPhotos.map((img) => canonicalDraftPhotoUrl(img.url)));
+  const unassignedImageUrls = normalizeDraftImages(d.unassignedImageUrls).filter((img) => {
+    const key = canonicalDraftPhotoUrl(img.url);
+    return !roomKeys.has(key) && !sharedKeys.has(key);
+  });
   const roomImageUrls = rooms.map((r) => normalizeDraftImages(r.photos));
   while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
   return {
@@ -126,7 +159,7 @@ export function syncDraftPhotoArrays<
     rooms,
     commonAreaPhotos,
     propertyImageUrls: commonAreaPhotos,
-    unassignedImageUrls: normalizeDraftImages(d.unassignedImageUrls),
+    unassignedImageUrls,
     roomImageUrls: roomImageUrls.slice(0, Math.max(rooms.length, 1)),
   };
 }
@@ -208,6 +241,50 @@ export function assignDraftPhoto<T extends AssignablePhotoDraft>(
   return syncDraftPhotoArrays({
     ...stripped,
     rooms: stripped.rooms.map((room, i) => (i === idx ? { ...room, photos: nextRow } : room)),
+  });
+}
+
+/** Unassigned + shared photos, first occurrence wins, canonical-URL de-duped. */
+export function listSharedDumpPhotos<T extends AssignablePhotoDraft>(d: T): DraftImage[] {
+  const seen = new Set<string>();
+  const out: DraftImage[] = [];
+  const push = (img: DraftImage) => {
+    const key = canonicalDraftPhotoUrl(img.url);
+    if (!img.url || seen.has(key)) return;
+    seen.add(key);
+    out.push(img);
+  };
+  for (const img of normalizeDraftImages(d.unassignedImageUrls)) push(img);
+  for (const img of preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls)) push(img);
+  return out;
+}
+
+export function listSharedDumpPhotosNotInRoom<T extends AssignablePhotoDraft>(
+  d: T,
+  roomIndex: number,
+  roomPhotos?: DraftImage[],
+): DraftImage[] {
+  const taken = new Set(
+    normalizeDraftImages(
+      roomPhotos ?? preferDraftImages(d.rooms[roomIndex]?.photos, d.roomImageUrls?.[roomIndex]),
+    ).map((img) => canonicalDraftPhotoUrl(img.url)),
+  );
+  return listSharedDumpPhotos(d).filter((img) => !taken.has(canonicalDraftPhotoUrl(img.url)));
+}
+
+/** Put these photos on one room and remove the same URLs from shared / unassigned / sibling rooms. */
+export function setRoomPhotosExclusive<T extends AssignablePhotoDraft>(
+  d: T,
+  roomIndex: number,
+  photos: DraftImage[],
+): T {
+  if (roomIndex < 0 || roomIndex >= d.rooms.length) return d;
+  const nextPhotos = normalizeDraftImages(photos);
+  let stripped: T = d;
+  for (const img of nextPhotos) stripped = stripDraftPhoto(stripped, img.url);
+  return syncDraftPhotoArrays({
+    ...stripped,
+    rooms: stripped.rooms.map((room, i) => (i === roomIndex ? { ...room, photos: nextPhotos } : room)),
   });
 }
 

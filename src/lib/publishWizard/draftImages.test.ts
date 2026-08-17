@@ -5,7 +5,9 @@ import {
   mirrorRoomModePhotosToProperty,
   preferDraftImages,
   roomModeEditorImages,
+  setRoomPhotosExclusive,
   syncDraftPhotoArrays,
+  canonicalDraftPhotoUrl,
   type DraftImage,
 } from "@/lib/publishWizard/draftImages";
 
@@ -192,5 +194,58 @@ describe("assignDraftPhoto", () => {
     );
     expect(next.commonAreaPhotos.map((i) => i.url)).toEqual(["/sala.jpg", "/cuarto.jpg"]);
     expect(next.rooms[0]!.photos).toEqual([]);
+  });
+
+  it("strips the same photo when one bucket used an absolute URL", () => {
+    const next = assignDraftPhoto(
+      {
+        commonAreaPhotos: imgs("https://dev.bestie.mx/api/uploads/cuarto.jpg", "/sala.jpg"),
+        propertyImageUrls: imgs("https://dev.bestie.mx/api/uploads/cuarto.jpg", "/sala.jpg"),
+        unassignedImageUrls: imgs("/api/uploads/cuarto.jpg"),
+        roomImageUrls: [[]],
+        rooms: [{ photos: [] }],
+      },
+      "/api/uploads/cuarto.jpg",
+      "room:1",
+    );
+    expect(next.commonAreaPhotos.map((i) => i.url)).toEqual(["/sala.jpg"]);
+    expect(next.unassignedImageUrls).toEqual([]);
+    expect(next.rooms[0]!.photos!.map((i) => canonicalDraftPhotoUrl(i.url))).toEqual([
+      "/api/uploads/cuarto.jpg",
+    ]);
+  });
+});
+
+describe("syncDraftPhotoArrays exclusive buckets", () => {
+  it("drops shared and unassigned copies of a room photo", () => {
+    const synced = syncDraftPhotoArrays({
+      commonAreaPhotos: imgs("/sala.jpg", "/cuarto.jpg"),
+      propertyImageUrls: imgs("/sala.jpg", "/cuarto.jpg"),
+      unassignedImageUrls: imgs("/cuarto.jpg"),
+      roomImageUrls: [imgs("/cuarto.jpg")],
+      rooms: [{ photos: imgs("/cuarto.jpg") }],
+    });
+    expect(synced.commonAreaPhotos.map((i) => i.url)).toEqual(["/sala.jpg"]);
+    expect(synced.unassignedImageUrls).toEqual([]);
+    expect(synced.rooms[0]!.photos!.map((i) => i.url)).toEqual(["/cuarto.jpg"]);
+  });
+});
+
+describe("setRoomPhotosExclusive", () => {
+  it("saves room photos and removes them from the dump", () => {
+    const next = setRoomPhotosExclusive(
+      {
+        commonAreaPhotos: imgs("/sala.jpg", "/cuarto.jpg"),
+        propertyImageUrls: imgs("/sala.jpg", "/cuarto.jpg"),
+        unassignedImageUrls: [],
+        roomImageUrls: [[]],
+        rooms: [{ photos: [], title: "Habitación 1" }],
+      },
+      0,
+      imgs("/cuarto.jpg"),
+    );
+    expect(next.commonAreaPhotos.map((i) => i.url)).toEqual(["/sala.jpg"]);
+    expect(next.rooms[0]!.photos!.map((i) => i.url)).toEqual(["/cuarto.jpg"]);
+    expect((next.rooms[0] as { title?: string }).title).toBe("Habitación 1");
   });
 });

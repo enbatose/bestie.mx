@@ -80,9 +80,11 @@ import {
 } from "@/lib/publishWizard/roomWizardValidation";
 import {
   assignDraftPhoto,
+  canonicalDraftPhotoUrl,
   draftImagesToUrls,
   parsePhotoAssignDest,
   preferDraftImages,
+  setRoomPhotosExclusive,
   syncDraftPhotoArrays,
   type PhotoAssignDest,
 } from "@/lib/publishWizard/draftImages";
@@ -152,8 +154,9 @@ function listPropertyPhotosForAssign(draft: Draft): Array<{ url: string; dest: P
   const seen = new Set<string>();
   const out: Array<{ url: string; dest: PhotoAssignDest }> = [];
   const push = (url: string, dest: PhotoAssignDest) => {
-    if (!url || seen.has(url)) return;
-    seen.add(url);
+    const key = canonicalDraftPhotoUrl(url);
+    if (!url || seen.has(key)) return;
+    seen.add(key);
     out.push({ url, dest });
   };
   for (const img of draft.unassignedImageUrls) push(img.url, "uncat");
@@ -801,11 +804,14 @@ export function EditableListingPreview({
 
   const commitRoomAt = (index: number, updated: RoomDraft) => {
     onDraftChange((d) =>
-      syncDraftPhotoArrays({
-        ...d,
-        rooms: d.rooms.map((r, i) => (i === index ? updated : r)),
-        roomImageUrls: d.roomImageUrls.map((row, i) => (i === index ? updated.photos ?? row : row)),
-      }),
+      setRoomPhotosExclusive(
+        {
+          ...d,
+          rooms: d.rooms.map((r, i) => (i === index ? updated : r)),
+        },
+        index,
+        updated.photos ?? [],
+      ),
     );
   };
 
@@ -839,13 +845,14 @@ export function EditableListingPreview({
           if (localIssues.length) return;
 
           const applyRoom = (d: Draft): Draft =>
-            syncDraftPhotoArrays({
-              ...d,
-              rooms: d.rooms.map((r, i) => (i === editingRoomModalIndex ? updated : r)),
-              roomImageUrls: d.roomImageUrls.map((row, i) =>
-                i === editingRoomModalIndex ? updated.photos ?? row : row,
-              ),
-            });
+            setRoomPhotosExclusive(
+              {
+                ...d,
+                rooms: d.rooms.map((r, i) => (i === editingRoomModalIndex ? updated : r)),
+              },
+              editingRoomModalIndex,
+              updated.photos ?? [],
+            );
 
           if (isRoomOfProperty && onCommitAndPublish) {
             onCommitAndPublish(applyRoom);
@@ -1118,7 +1125,8 @@ export function EditableListingPreview({
               <div className="mb-4 rounded-lg border border-border bg-bg-light p-3 text-sm">
                 <p className="font-medium text-body">Mover fotos a cada recámara</p>
                 <p className="mt-1 text-xs text-muted">
-                  Las fotos del dump quedan en áreas compartidas. Elige una recámara para pasarlas.
+                  Las fotos del dump quedan en áreas compartidas. Elige una recámara, o ábrela y
+                  tócalas en «Usar fotos del dump».
                 </p>
                 {draft.unassignedImageUrls.length > 0 ? (
                   <p className="mt-2 text-sm font-medium text-warning-fg">

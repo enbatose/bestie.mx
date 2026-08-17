@@ -30,7 +30,7 @@ import {
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
-import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
+import { draftImagesToUrls, listSharedDumpPhotosNotInRoom } from "@/lib/publishWizard/draftImages";
 import { draftRoomEditorImages, ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
 import {
@@ -39,6 +39,7 @@ import {
   type RoomIssueSection,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
+import { SharedDumpPhotosPicker } from "@/components/publish/SharedDumpPhotosPicker";
 import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
@@ -175,7 +176,14 @@ export function EditableRoomModal({
   const panelRef = useRef<HTMLDivElement>(null);
   const [localRoom, setLocalRoom] = useState<RoomDraft>(() => cloneRoomDraft(room));
   const [editingHeader, setEditingHeader] = useState(false);
-  const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos);
+  const [editingPhotos, setEditingPhotos] = useState(() => {
+    if (initialEditingPhotos) return true;
+    if (draft.postMode !== "property") return false;
+    const existing = draftImagesToUrls(draftRoomEditorImages(draft, roomIndex, room.photos));
+    return (
+      existing.length === 0 && listSharedDumpPhotosNotInRoom(draft, roomIndex, room.photos).length > 0
+    );
+  });
   const [editingDetails, setEditingDetails] = useState(false);
   const [editingSummary, setEditingSummary] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
@@ -541,6 +549,13 @@ export function EditableRoomModal({
                       onCancel={() => setEditingPhotos(false)}
                       saveLabel="Listo"
                     >
+                      <SharedDumpPhotosPicker
+                        draft={draft}
+                        roomIndex={roomIndex}
+                        roomPhotos={localRoom.photos ?? []}
+                        maxCount={20}
+                        onTake={(next) => setLocalRoom((r) => ({ ...r, photos: next }))}
+                      />
                       <BulkImageUploader
                         title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
                         images={draftRoomEditorImages(draft, roomIndex, localRoom.photos)}
