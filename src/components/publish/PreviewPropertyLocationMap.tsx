@@ -17,8 +17,8 @@ import { CITY_ANCHOR } from "@/lib/publishWizard/publishCore";
 import { streetCityFromNominatim, type NominatimAddress } from "@/lib/nominatimAddress";
 import type { PropertyListing, StreetViewPov } from "@/types/listing";
 
-/** Zoom de barrio (~5 km de contexto visible en pantallas típicas). */
-const PREVIEW_LOCATION_MAP_ZOOM = 13;
+/** Zoom de colonia (calles cercanas; el círculo de privacidad sigue cabiendo a ~200 m). */
+const PREVIEW_LOCATION_MAP_ZOOM = 15;
 
 type Props = {
   listing: PropertyListing;
