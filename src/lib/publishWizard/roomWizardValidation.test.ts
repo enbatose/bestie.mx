@@ -4,7 +4,9 @@ import {
   firstRoomIndexMissingRent,
   firstStandaloneRoomFixSection,
   formatRoomsValidationMessage,
+  isRentRequiredPublishError,
   PUBLISH_PREVIEW_HEADER_ID,
+  rentRequiredPublishMessage,
   roomPreviewOptionLabel,
   roomSaveIssuesHeading,
   roomSaveIssuesOpenLabel,
@@ -160,5 +162,13 @@ describe("firstRoomIndexMissingRent", () => {
       rooms: [sampleRoom({ rentMxn: 8200 })],
     });
     expect(firstRoomIndexMissingRent(draft)).toBe(-1);
+  });
+});
+
+describe("rent required copy", () => {
+  it("points property posts at a recámara instead of the listing header", () => {
+    expect(rentRequiredPublishMessage("property")).toMatch(/recámara disponible/i);
+    expect(rentRequiredPublishMessage("room")).not.toMatch(/encabezado/i);
+    expect(isRentRequiredPublishError("Falta el precio de renta en una recámara disponible.")).toBe(true);
   });
 });

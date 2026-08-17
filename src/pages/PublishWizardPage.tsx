@@ -130,7 +130,7 @@ import {
   ROOM_SUMMARY_MIN,
   ROOM_SUMMARY_MAX,
 } from "@/lib/publishWizard/publishCore";
-import { firstRoomIndexWithIssues, roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
+import { firstRoomIndexWithIssues, rentRequiredPublishMessage, roomPreviewOptionLabel } from "@/lib/publishWizard/roomWizardValidation";
 import {
   applyPropertyRentRoomCount,
   hydrateRoomOccupantCounts,
@@ -3133,7 +3133,7 @@ export function PublishWizardPage() {
         const msg = e instanceof Error ? e.message : "No se pudo publicar.";
         setPublishErr(
           msg === "rent_required"
-            ? "Falta el precio de renta. Agrégalo en «Editar encabezado» para publicar."
+            ? rentRequiredPublishMessage(draftRef.current.postMode)
             : msg,
         );
         setSubmitInFlight(null);

@@ -28,6 +28,7 @@ import {
   SELF_SERVE_MAX_PHOTOS,
   SELF_SERVE_MAX_TEXT_CHARS,
 } from "./assistedDraftLimits.js";
+import { claimPublishMissingRent } from "./claimPublishRent.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { isListingTag } from "./listingTags.js";
@@ -1147,12 +1148,9 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       }
 
       const rentRows = db.prepare(
-        `SELECT rent_mxn FROM rooms WHERE property_id = ?`
-      ).all(row.property_id) as { rent_mxn: number }[];
-      if (
-        rentRows.length === 0 ||
-        rentRows.some((r) => !Number.isFinite(Number(r.rent_mxn)) || Number(r.rent_mxn) <= 0)
-      ) {
+        `SELECT rent_mxn, occupancy_status FROM rooms WHERE property_id = ?`
+      ).all(row.property_id) as { rent_mxn: number; occupancy_status?: string }[];
+      if (claimPublishMissingRent(rentRows)) {
         res.status(400).json({ error: "rent_required" });
         return;
       }

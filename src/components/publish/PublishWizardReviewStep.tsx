@@ -6,6 +6,7 @@ import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import {
   firstRoomIndexMissingRent,
   firstRoomIndexWithIssues,
+  isRentRequiredPublishError,
   isStandaloneRoomPost,
   roomPreviewOptionLabel,
   roomSaveIssuesPrimaryLabel,
@@ -124,6 +125,11 @@ export function PublishWizardReviewStep({
     setJumpToRoomIndex(index);
   };
 
+  const openMissingRentRoom = () => {
+    const idx = isPropertyPreview ? firstRoomIndexMissingRent(draft) : safeRoomIndex;
+    if (idx >= 0) openIncompleteRoom(idx, !isStandaloneRoomPost(draft));
+  };
+
   const attemptPublish = () => {
     if (hasRoomFieldIssues) {
       openIncompleteRoom(firstIncompleteRoom, true);
@@ -210,10 +216,13 @@ export function PublishWizardReviewStep({
               </ul>
             ) : null}
             {rentMissing ? (
-              <p className="mt-1.5 text-xs font-semibold text-error">
-                Falta el precio de renta. Agrégalo en «Editar encabezado» — no se puede publicar
-                en 0 MXN / mes.
-              </p>
+              <button
+                type="button"
+                onClick={openMissingRentRoom}
+                className="mt-1.5 text-left text-xs font-semibold text-error underline decoration-2 underline-offset-2"
+              >
+                Falta el precio de renta. Toca para abrirlo — no se puede publicar en 0 MXN / mes.
+              </button>
             ) : null}
           </div>
         ) : null}
@@ -279,13 +288,10 @@ export function PublishWizardReviewStep({
 
       {isRoomOfProperty ? null : (
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        {rentMissing ? (
+        {rentMissing || isRentRequiredPublishError(actionErr) ? (
           <MissingRentCallout
             className="mb-4"
-            onEdit={() => {
-              const idx = isPropertyPreview ? firstRoomIndexMissingRent(draft) : safeRoomIndex;
-              if (idx >= 0) openIncompleteRoom(idx, !isStandaloneRoomPost(draft));
-            }}
+            onEdit={openMissingRentRoom}
           />
         ) : null}
         {hasRoomFieldIssues ? (
@@ -306,14 +312,14 @@ export function PublishWizardReviewStep({
             {isLiveEdit ? "Para guardar:" : "Para publicar:"} {publishBlockedReason}
           </p>
         ) : null}
-        {actionErr ? (
+        {actionErr && !isRentRequiredPublishError(actionErr) ? (
           <p
             className={`text-sm text-error ${publishBlockedReason || rentMissing || hasRoomFieldIssues ? "mt-3" : ""}`}
             role="alert"
           >
             {actionErr}
           </p>
-        ) : draftSaved ? (
+        ) : !actionErr && draftSaved ? (
           <p className="mt-3 text-sm font-medium text-primary" role="status">
             Borrador guardado. Puedes cerrar esta página y retomarlo con el mismo enlace.
           </p>

@@ -191,6 +191,16 @@ export function firstRoomIndexMissingRent(d: Draft): number {
   return d.rooms.findIndex((room) => isRoomAvailableForRent(room) && isListingRentMissing(room.rentMxn));
 }
 
+export function rentRequiredPublishMessage(postMode: Draft["postMode"]): string {
+  return postMode === "property"
+    ? "Falta el precio de renta en una recámara disponible. Toca para abrirla y agregarlo."
+    : "Falta el precio de renta. Toca para agregarlo — no se puede publicar en 0 MXN / mes.";
+}
+
+export function isRentRequiredPublishError(message: string | null | undefined): boolean {
+  return Boolean(message && /Falta el precio de renta|rent_required/i.test(message));
+}
+
 export function roomsWithFieldIssues(d: Draft): Array<{
   index: number;
   label: string;
