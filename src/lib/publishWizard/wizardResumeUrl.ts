@@ -48,6 +48,8 @@ export type ApplyWizardResumeSearchInput = {
   stepIndex?: number;
   /** Claim flow: keep `borrador` and do not write `edit`. */
   assistedDraftToken?: string | null;
+  /** AI Datos before compose: autosave must not look like a live `?edit=` session. */
+  clearEdit?: boolean;
 };
 
 export function applyWizardResumeSearchParams(
@@ -61,6 +63,8 @@ export function applyWizardResumeSearchParams(
     next.delete("edit");
   } else if (input.propertyId) {
     next.set("edit", wizardPropertyEditCode(input.propertyId));
+  } else if (input.clearEdit) {
+    next.delete("edit");
   }
 
   if (input.roomId) {

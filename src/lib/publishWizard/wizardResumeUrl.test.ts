@@ -35,13 +35,12 @@ describe("wizardResumeUrl", () => {
     expect(hasWizardResumeQuery(next)).toBe(true);
   });
 
-  it("keeps claim token instead of edit", () => {
-    const next = applyWizardResumeSearchParams(new URLSearchParams("edit=P550E8400"), {
-      assistedDraftToken: "claim-token",
-      stepIndex: 4,
+  it("drops edit during AI Datos before compose", () => {
+    const next = applyWizardResumeSearchParams(new URLSearchParams("edit=P550E8400&paso=2"), {
+      clearEdit: true,
+      stepIndex: 1,
     });
-    expect(next.get("borrador")).toBe("claim-token");
     expect(next.get("edit")).toBeNull();
-    expect(next.get("paso")).toBe("5");
+    expect(next.get("paso")).toBe("2");
   });
 });

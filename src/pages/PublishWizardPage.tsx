@@ -35,8 +35,10 @@ import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam } from "@/lib/listingReference";
 import {
   forgetManualRoomCreateChoice,
+  isAiRoomCreateFlow,
   type PublishWizardServerSync,
   publishWizardLastStepIndex,
+  roomCreateFlowFromHydratedListing,
 } from "@/lib/publishWizard/previewSession";
 import {
   applyWizardResumeSearchParams,
@@ -166,11 +168,6 @@ const WIZARD_FIRST_NUMBERED_STEP = WIZARD_STEP_POST_MODE + 1;
 
 function lastWizardStep(d: Pick<Draft, "postMode" | "roomCreateFlow">): number {
   return publishWizardLastStepIndex(d.postMode, d.roomCreateFlow);
-}
-
-function isAiRoomCreateFlow(d: Pick<Draft, "postMode" | "roomCreateFlow">, opts?: { liveEdit?: boolean; editId?: string | null }): boolean {
-  if (opts?.liveEdit || opts?.editId) return false;
-  return d.roomCreateFlow === "ai";
 }
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
@@ -787,7 +784,10 @@ export function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Dra
 
   const draft: Draft = {
     ...defaultDraft(),
-    roomCreateFlow: "manual",
+    roomCreateFlow: roomCreateFlowFromHydratedListing({
+      status: p.status,
+      wizardStep: p.wizardStep,
+    }),
     postMode: p.postMode === "room" ? "room" : "property",
     city,
     propertyTitle: p.title,
@@ -1799,7 +1799,11 @@ export function PublishWizardPage() {
     setSearchParams(
       (prev) => {
         const next = applyWizardResumeSearchParams(prev, {
-          propertyId: assistedDraftToken ? null : serverSync.propertyId,
+          propertyId:
+            assistedDraftToken || (draft.roomCreateFlow === "ai" && !editingLiveProperty)
+              ? null
+              : serverSync.propertyId,
+          clearEdit: draft.roomCreateFlow === "ai" && !editingLiveProperty && !assistedDraftToken,
           stepIndex: step,
           roomId: editingLiveProperty
             ? (editListingId || liveEditReturnListingId)
@@ -1816,6 +1820,7 @@ export function PublishWizardPage() {
   }, [
     assistedDraftToken,
     claimAwaitingPayload,
+    draft.roomCreateFlow,
     editListingId,
     editingLiveProperty,
     liveEditReturnListingId,
@@ -1898,7 +1903,6 @@ export function PublishWizardPage() {
 
   const aiRoomFlow = isAiRoomCreateFlow(draft, {
     liveEdit: Boolean(editingLiveProperty),
-    editId: editPropertyId,
   });
 
   const steps = useMemo(
