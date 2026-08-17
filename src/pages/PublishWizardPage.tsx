@@ -33,7 +33,11 @@ import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam } from "@/lib/listingReference";
-import { type PublishWizardServerSync, publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
+import {
+  forgetManualRoomCreateChoice,
+  type PublishWizardServerSync,
+  publishWizardLastStepIndex,
+} from "@/lib/publishWizard/previewSession";
 import {
   applyWizardResumeSearchParams,
   hasWizardResumeQuery,
@@ -1902,6 +1906,7 @@ export function PublishWizardPage() {
                     setDraft((d) => ({
                       ...d,
                       postMode: "room",
+                      roomCreateFlow: "ai",
                       rooms: [{ ...defaultRoom(), title: SINGLE_ROOM_DEFAULT_TITLE }],
                       roomImageUrls: [d.roomImageUrls[0] ?? []],
                       propertySummary: "",
@@ -1939,10 +1944,16 @@ export function PublishWizardPage() {
                   onClick={() => {
                     track("publish_mode_selected", { mode: "property" });
                     setDraft((d) => {
-                      if (d.postMode === "property") return d;
+                      if (d.postMode === "property") return forgetManualRoomCreateChoice(d);
                       return applyPropertyRentRoomCount(
                         syncPropertyRoomSlotsToTotal(
-                          { ...d, postMode: "property", rooms: [defaultRoom()], roomImageUrls: [[]] },
+                          {
+                            ...d,
+                            postMode: "property",
+                            roomCreateFlow: "ai",
+                            rooms: [defaultRoom()],
+                            roomImageUrls: [[]],
+                          },
                           defaultRoom,
                         ),
                         1,
@@ -2832,6 +2843,13 @@ export function PublishWizardPage() {
   const maxStepIndex = Math.max(0, steps.length - 1);
   const safeStep = Math.min(Math.max(0, step), maxStepIndex);
   const current = steps[safeStep]!;
+
+  useEffect(() => {
+    if (safeStep !== WIZARD_STEP_POST_MODE) return;
+    if (editingLiveProperty || editPropertyId) return;
+    setDraft((d) => forgetManualRoomCreateChoice(d));
+  }, [safeStep, editingLiveProperty, editPropertyId]);
+
   const isPublishStep = current.title === "Revisar y publicar";
   const showWizardProgress = safeStep >= WIZARD_FIRST_NUMBERED_STEP;
   const progressSteps = steps.slice(WIZARD_FIRST_NUMBERED_STEP);
@@ -3691,7 +3709,11 @@ export function PublishWizardPage() {
                   step_title: current.title,
                   mode: draft.postMode,
                 });
-                setStep((s) => Math.max(0, s - 1));
+                const next = Math.max(0, safeStep - 1);
+                if (next === WIZARD_STEP_POST_MODE && !editingLiveProperty && !editPropertyId) {
+                  setDraft((d) => forgetManualRoomCreateChoice(d));
+                }
+                setStep(next);
               }}
               className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
             >

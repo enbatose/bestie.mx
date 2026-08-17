@@ -58,6 +58,15 @@ export function publishWizardLastStepIndex(
   return 5;
 }
 
+/**
+ * AI vs manual is chosen after post type. Returning to type selection forgets that choice
+ * so “Un cuarto o Loft” opens the AI step again.
+ */
+export function forgetManualRoomCreateChoice<T extends Pick<Draft, "roomCreateFlow">>(draft: T): T {
+  if (draft.roomCreateFlow === "ai") return draft;
+  return { ...draft, roomCreateFlow: "ai" };
+}
+
 export function publishWizardPhotosStepIndex(postMode: Draft["postMode"]): number {
   return postMode === "room" ? 4 : -1;
 }
