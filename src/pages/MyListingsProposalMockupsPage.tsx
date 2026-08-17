@@ -25,7 +25,6 @@ import {
   LISTING_TAG_LABEL_OVERRIDES,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
-  isRoomIdealParaTag,
 } from "@/lib/listingTags";
 import { TAG_LABELS } from "@/lib/searchFilters";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
@@ -438,7 +437,6 @@ function activationDraftComplete(d: RoomActivationDraft): boolean {
   if (d.ageMin < 18 || d.ageMax < 18 || d.ageMax > 99 || d.ageMin > d.ageMax) return false;
   const summary = d.summary.trim();
   if (summary.length < ROOM_SUMMARY_MIN || summary.length > ROOM_SUMMARY_MAX) return false;
-  if (!d.tags.some((t) => isRoomIdealParaTag(t))) return false;
   return true;
 }
 
@@ -854,7 +852,6 @@ function RoomActivationModal({
               <div key={group.title}>
                 <p className="text-sm font-medium text-body">
                   {group.title}
-                  {group.title === "Ideal para" ? <span className="text-error"> *</span> : null}
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {group.tags.map((tag) => {

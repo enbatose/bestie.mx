@@ -630,7 +630,6 @@ function AvailableRoomFields({
               title={group.title}
               tags={group.tags}
               selected={room.tags}
-              required={group.title === "Ideal para"}
               onToggle={(tag, active) => onToggleTag(tag, active)}
             />
           ))}

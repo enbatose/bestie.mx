@@ -2774,7 +2774,6 @@ export function PublishWizardPage() {
                         title={group.title}
                         tags={group.tags}
                         selected={room.tags}
-                        required={group.title === "Ideal para"}
                         onToggle={(tag, active) => setDraft((d) => toggleRoomTag(d, i, tag, active))}
                       />
                     ))}

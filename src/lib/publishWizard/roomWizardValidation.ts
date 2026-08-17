@@ -1,5 +1,4 @@
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
-import { isRoomIdealParaTag } from "@/lib/listingTags";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { LodgingType, RoommateGenderPref } from "@/types/listing";
 
@@ -173,15 +172,6 @@ export function collectRoomFieldIssueDetails(
       id: "summary-long",
       section: "description",
       message: `La descripción no puede pasar de ${ROOM_SUMMARY_MAX} caracteres.`,
-    });
-  }
-
-  if (!room.tags.some((t) => isRoomIdealParaTag(t))) {
-    issues.push({
-      id: "idealPara",
-      section: "tags",
-      message:
-        "En etiquetas, elige al menos una opción en «Ideal para» (estudiantes, profesionistas, parejas…).",
     });
   }
 

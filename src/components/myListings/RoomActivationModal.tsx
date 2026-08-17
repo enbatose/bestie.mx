@@ -14,7 +14,6 @@ import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
 import {
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
-  isRoomIdealParaTag,
 } from "@/lib/listingTags";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import {
@@ -106,7 +105,6 @@ function missingFields(d: Draft): string[] {
     issues.push(`Detalles de esta recámara (mínimo ${ROOM_SUMMARY_MIN} caracteres)`);
   else if (summary.length > ROOM_SUMMARY_MAX)
     issues.push(`Detalles de esta recámara (máximo ${ROOM_SUMMARY_MAX} caracteres)`);
-  if (!d.tags.some((t) => isRoomIdealParaTag(t))) issues.push("Ideal para (al menos una opción)");
   return issues;
 }
 
@@ -450,7 +448,6 @@ export function RoomActivationModal({
                 title={group.title}
                 tags={group.tags}
                 selected={draft.tags}
-                required={group.title === "Ideal para"}
                 onToggle={(tag, active) =>
                   patch({
                     tags: active ? draft.tags.filter((t) => t !== tag) : [...draft.tags, tag],
