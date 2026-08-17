@@ -2851,7 +2851,7 @@ export function PublishWizardPage() {
         setAiSourceText(seed.text);
         setAiHints(seed.hints);
         setAiPhotos(seed.photos);
-        setAiInfographics([]);
+        setAiInfographics(seed.infographics);
         setPublishErr(null);
         setDraft((d) => (d.city === "Guadalajara" ? d : { ...d, city: "Guadalajara" }));
         return;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CITY_ANCHOR } from "@/lib/publishWizard/publishCore";
 import { AiImageDropZone, type AiLocalImage } from "@/components/publish/AiImageDropZone";
 import {
@@ -34,6 +34,10 @@ export function AiRoomCreateStep({
   onFillManually,
 }: Props) {
   const [infographicOpen, setInfographicOpen] = useState(infographics.length > 0);
+
+  useEffect(() => {
+    if (infographics.length > 0) setInfographicOpen(true);
+  }, [infographics.length]);
 
   return (
     <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>

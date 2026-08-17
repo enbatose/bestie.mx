@@ -397,56 +397,70 @@ export type SeedAiRoomForm = {
     gender: "female" | "male" | null;
   };
   photos: Array<{ mimeType: string; preview: string; url: string }>;
+  infographics: Array<{ mimeType: string; preview: string; url: string }>;
 };
 
-/** Facebook-style paste + chips + seed photos for the AI room step (admin Autopoblar). */
-export function seedAiRoomForm(): SeedAiRoomForm {
-  const colonia = pick(COLONIAS);
-  const rent = randInt(35, 80) * 100;
-  const loft = Math.random() > 0.75;
-  const shared = Math.random() > 0.7;
-  const pets = Math.random() > 0.45;
-  const lgbt = Math.random() > 0.7;
-  const privateBath = Math.random() > 0.4;
-  const parking = Math.random() > 0.5;
-  const furnished = Math.random() > 0.35;
-  const gender = pick([null, null, "female", "male"] as const);
-  const lodgingType: "private_room" | "shared_room" = shared ? "shared_room" : "private_room";
-  const tagsOn: SeedAiRoomForm["hints"]["tagsOn"] = [];
-  if (pets) tagsOn.push("mascotas");
-  if (lgbt) tagsOn.push("lgbt-friendly");
-  if (privateBath) tagsOn.push("baño-privado");
-  if (parking) tagsOn.push("estacionamiento");
-  if (furnished) tagsOn.push("muebles");
+const SEED_INFOGRAPHICS = [
+  {
+    file: "infographic-exact-mexico.png",
+    exactAddress: true,
+    colonia: "Ladrón de Guevara",
+    rent: 6500,
+    loft: false,
+    lodgingType: "private_room" as const,
+    tagsOn: ["baño-privado", "estacionamiento", "muebles"] as SeedAiRoomForm["hints"]["tagsOn"],
+    gender: null as "female" | "male" | null,
+    text: "Rento el cuarto del infografico. Precio, direccion exacta y amenidades estan en la imagen. Disponible ya.",
+  },
+  {
+    file: "infographic-exact-americana.png",
+    exactAddress: true,
+    colonia: "Colonia Americana",
+    rent: 8200,
+    loft: true,
+    lodgingType: "private_room" as const,
+    tagsOn: ["baño-privado", "estacionamiento", "muebles"] as SeedAiRoomForm["hints"]["tagsOn"],
+    gender: null as "female" | "male" | null,
+    text: "Loft en Americana. Todo el detalle (incluyendo la direccion exacta para el mapa) va en el infografico.",
+  },
+  {
+    file: "infographic-colonia-providencia.png",
+    exactAddress: false,
+    colonia: "Providencia",
+    rent: 5800,
+    loft: false,
+    lodgingType: "private_room" as const,
+    tagsOn: ["mascotas", "lgbt-friendly"] as SeedAiRoomForm["hints"]["tagsOn"],
+    gender: null as "female" | "male" | null,
+    text: "Rento cuarto en Providencia. No pongo la calle por privacidad; la zona aproximada esta en el infografico. Se aceptan mascotas.",
+  },
+] as const;
 
-  const space = loft ? "loft" : shared ? "cuarto compartido" : "cuarto privado";
-  const genderLine =
-    gender === "female" ? "Solo mujeres." : gender === "male" ? "Solo hombres." : "Hombre o mujer.";
-  const text = [
-    `Rento ${space} en ${colonia}, Guadalajara.`,
-    `$${rent.toLocaleString("es-MX")} MXN al mes, depósito de un mes.`,
-    furnished ? "Recámara amueblada (cama, escritorio y clóset)." : "Sin amueblar.",
-    privateBath ? "Baño privado." : "Baño compartido.",
-    parking ? "Cochera incluida." : "Sin cochera.",
-    pets ? "Se aceptan mascotas (perro o gato chico)." : "No se aceptan mascotas.",
-    lgbt ? "Espacio LGBT+ friendly." : "",
-    genderLine,
-    "Disponible ya. Estancia mínima 1 mes. Servicios de agua, luz, gas y WiFi incluidos.",
-    "Zona tranquila, cerca de transporte. Mándame mensaje si te interesa.",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const photos = randSubset([...SEED_ROOM_IMAGES, ...SEED_COMMON_IMAGES], 2, 4).map((filename) => ({
+function seedAdminImage(filename: string) {
+  return {
     mimeType: "image/png",
     preview: seedImg(filename),
     url: `/admin-seed/${filename}`,
-  }));
+  };
+}
+
+/** Facebook-style paste + chips + seed photos + infographic for the AI room step (admin Autopoblar). */
+export function seedAiRoomForm(): SeedAiRoomForm {
+  const exact = SEED_INFOGRAPHICS.filter((p) => p.exactAddress);
+  const approx = SEED_INFOGRAPHICS.filter((p) => !p.exactAddress);
+  const poster = Math.random() < 0.65 ? pick(exact) : pick(approx);
+  const photos = randSubset([...SEED_ROOM_IMAGES, ...SEED_COMMON_IMAGES], 2, 4).map(seedAdminImage);
 
   return {
-    text,
-    hints: { lodgingType, loft, tagsOn, gender },
+    text: poster.text,
+    hints: {
+      lodgingType: poster.lodgingType,
+      loft: poster.loft,
+      tagsOn: [...poster.tagsOn],
+      gender: poster.gender,
+    },
     photos,
+    infographics: [seedAdminImage(poster.file)],
   };
 }
 
