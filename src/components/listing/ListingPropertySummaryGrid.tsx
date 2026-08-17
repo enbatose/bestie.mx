@@ -55,7 +55,7 @@ type StatProps = {
 
 function ListingDetailStat({ icon: Icon, label, value, detail }: StatProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
+    <div className="flex h-full min-w-0 flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
       <Icon className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
       <div className="min-w-0">
         <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">{label}</p>
@@ -76,22 +76,19 @@ function PropertyRoommatesStat({
   menCount: number;
 }) {
   return (
-    <div className="col-span-2 flex flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
+    <div className="flex h-full min-w-0 flex-col gap-2.5 rounded-xl border border-border bg-bg-light p-3.5">
       <Users className="size-4 shrink-0 text-primary/80" strokeWidth={2} aria-hidden />
-      <div>
+      <div className="min-w-0">
         <p className="text-[11px] font-medium uppercase leading-snug tracking-wide text-muted">
           Besties actuales
         </p>
-        <p className="text-[11px] text-muted leading-snug">
-          Personas que viven actualmente en la propiedad
-        </p>
-        <p className="mt-2 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
-            <UserRound className="size-3.5 text-primary/70" aria-hidden />
+        <p className="mt-2 flex flex-col items-start gap-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-body">
+            <UserRound className="size-3.5 shrink-0 text-primary/70" aria-hidden />
             {womenCount} {womenCount === 1 ? "mujer" : "mujeres"}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body">
-            <User className="size-3.5 text-primary/70" aria-hidden />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-body">
+            <User className="size-3.5 shrink-0 text-primary/70" aria-hidden />
             {menCount} {menCount === 1 ? "hombre" : "hombres"}
           </span>
         </p>
@@ -117,7 +114,7 @@ export function ListingPropertySummaryGrid({
   const menCount = occupiedByMenCount ?? 0;
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 items-stretch gap-4">
       <ListingDetailStat
         icon={Building2}
         label="Tipo de vivienda"
