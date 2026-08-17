@@ -469,6 +469,82 @@ const defaultDraft = (): Draft => ({
   approximateRadiusMeters: APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
 });
 
+function aiImagesFingerprint(images: AiLocalImage[]): string {
+  return images
+    .map((img) => {
+      if (img.url) return `u:${img.url}`;
+      if (img.data) return `d:${img.mimeType}:${img.data.length}:${img.data.slice(0, 20)}:${img.data.slice(-20)}`;
+      return `p:${img.preview.slice(0, 40)}`;
+    })
+    .join("|");
+}
+
+type AiComposeSnapshot = {
+  text: string;
+  city: string;
+  hintsKey: string;
+  infographicsKey: string;
+  photosKey: string;
+};
+
+function aiHintsFingerprint(hints: PublishAiHintState): string {
+  return JSON.stringify({
+    lodgingType: hints.lodgingType,
+    loft: hints.loft,
+    tagsOn: [...hints.tagsOn].sort(),
+    gender: hints.gender,
+  });
+}
+
+function captureAiComposeSnapshot(opts: {
+  text: string;
+  city: string;
+  hints: PublishAiHintState;
+  photos: AiLocalImage[];
+  infographics: AiLocalImage[];
+}): AiComposeSnapshot {
+  return {
+    text: opts.text.trim(),
+    city: opts.city,
+    hintsKey: aiHintsFingerprint(opts.hints),
+    infographicsKey: aiImagesFingerprint(opts.infographics),
+    photosKey: aiImagesFingerprint(opts.photos),
+  };
+}
+
+/** True when Gemini-facing inputs changed (text, infográfico, chips, ciudad). */
+function aiComposeNeedsRegenerate(prev: AiComposeSnapshot, next: AiComposeSnapshot): boolean {
+  return (
+    prev.text !== next.text ||
+    prev.city !== next.city ||
+    prev.hintsKey !== next.hintsKey ||
+    prev.infographicsKey !== next.infographicsKey
+  );
+}
+
+function urlsFromAiLocalImages(photos: AiLocalImage[], infographics: AiLocalImage[]): string[] {
+  return [...photos, ...infographics]
+    .map((img) => {
+      if (img.url && (img.url.startsWith("/api/uploads/") || img.url.startsWith("/admin-seed/"))) {
+        return img.url;
+      }
+      return img.preview || img.url || "";
+    })
+    .filter(Boolean);
+}
+
+function applyAiGalleryUrls(draft: Draft, urls: string[]): Draft {
+  const images = hydrateDraftImagesFromUrls(urls);
+  const rooms = draft.rooms.length > 0 ? draft.rooms : [defaultRoom()];
+  return normalizePersistedDraft({
+    ...draft,
+    rooms: rooms.map((r, i) => (i === 0 ? { ...r, photos: images } : r)),
+    roomImageUrls: rooms.map((_, i) => (i === 0 ? images : draft.roomImageUrls[i] ?? [])),
+    commonAreaPhotos: images,
+    propertyImageUrls: images,
+  });
+}
+
 /** If compose dropped gallery photos, keep the step-1 images on the preview draft. */
 function applyAiLocalGalleryIfMissing(
   draft: Draft,
@@ -482,24 +558,9 @@ function applyAiLocalGalleryIfMissing(
   if (existing.some((u) => u.includes("/api/uploads/") || u.includes("/admin-seed/"))) {
     return draft;
   }
-  const urls = [...photos, ...infographics]
-    .map((img) => {
-      if (img.url && (img.url.startsWith("/api/uploads/") || img.url.startsWith("/admin-seed/"))) {
-        return img.url;
-      }
-      return img.preview || img.url || "";
-    })
-    .filter(Boolean);
+  const urls = urlsFromAiLocalImages(photos, infographics);
   if (!urls.length) return draft;
-  const images = hydrateDraftImagesFromUrls(urls);
-  const rooms = draft.rooms.length > 0 ? draft.rooms : [defaultRoom()];
-  return normalizePersistedDraft({
-    ...draft,
-    rooms: rooms.map((r, i) => (i === 0 ? { ...r, photos: images } : r)),
-    roomImageUrls: rooms.map((_, i) => (i === 0 ? images : draft.roomImageUrls[i] ?? [])),
-    commonAreaPhotos: images,
-    propertyImageUrls: images,
-  });
+  return applyAiGalleryUrls(draft, urls);
 }
 
 function isDraftOnlyRoomTitleSeed(value: string) {
@@ -935,6 +996,7 @@ export function PublishWizardPage() {
   const [aiConflicts, setAiConflicts] = useState<AssistedDraftConflict[]>([]);
   const [aiComposeInFlight, setAiComposeInFlight] = useState(false);
   const [aiDidCompose, setAiDidCompose] = useState(false);
+  const [aiComposeSnapshot, setAiComposeSnapshot] = useState<AiComposeSnapshot | null>(null);
 
   usePageSeo({
     title: "Publicar anuncio | Bestie MX",
@@ -2856,11 +2918,42 @@ export function PublishWizardPage() {
 
   const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
 
+  const currentAiComposeSnapshot = useMemo(
+    () =>
+      captureAiComposeSnapshot({
+        text: aiSourceText,
+        city: draft.city,
+        hints: aiHints,
+        photos: aiPhotos,
+        infographics: aiInfographics,
+      }),
+    [aiSourceText, draft.city, aiHints, aiPhotos, aiInfographics],
+  );
+  const aiWillRecompose = Boolean(
+    aiDidCompose &&
+      aiComposeSnapshot &&
+      aiComposeNeedsRegenerate(aiComposeSnapshot, currentAiComposeSnapshot),
+  );
+
   async function submitAiCompose() {
     if (!aiSourceText.trim() && aiInfographics.length === 0) {
       setPublishErr(
         "Pega el texto de tu publicación o agrega un infográfico, poster o mapa. También puedes llenar los datos a mano.",
       );
+      return;
+    }
+    if (aiDidCompose && aiComposeSnapshot && !aiComposeNeedsRegenerate(aiComposeSnapshot, currentAiComposeSnapshot)) {
+      if (aiComposeSnapshot.photosKey !== currentAiComposeSnapshot.photosKey) {
+        const nextDraft = applyAiGalleryUrls(
+          draftRef.current,
+          urlsFromAiLocalImages(aiPhotos, aiInfographics),
+        );
+        draftRef.current = nextDraft;
+        setDraft(nextDraft);
+        setAiComposeSnapshot(currentAiComposeSnapshot);
+      }
+      setPublishErr(null);
+      setStep(lastWizardStep(draftRef.current));
       return;
     }
     setAiComposeInFlight(true);
@@ -2901,6 +2994,7 @@ export function PublishWizardPage() {
       setServerSync(mapped.serverSync);
       setAiConflicts(result.conflicts);
       setAiDidCompose(true);
+      setAiComposeSnapshot(currentAiComposeSnapshot);
       writeAssistedDraftClaimSession({
         token: result.token,
         draft: nextDraft,
@@ -3580,7 +3674,7 @@ export function PublishWizardPage() {
             {publishErr}
           </p>
         ) : null}
-        {current.title === WIZARD_STEP_TITLES.AI_INPUT && aiDidCompose ? (
+        {current.title === WIZARD_STEP_TITLES.AI_INPUT && aiWillRecompose ? (
           <p className="mt-3 text-xs text-muted">Se volverá a armar el anuncio con lo que hay ahora.</p>
         ) : null}
 
