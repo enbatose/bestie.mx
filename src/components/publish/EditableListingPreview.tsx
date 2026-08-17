@@ -80,11 +80,12 @@ import {
   standaloneRoomFixAnchorId,
 } from "@/lib/publishWizard/roomWizardValidation";
 import {
-  draftImagesAppend,
+  assignDraftPhoto,
   draftImagesToUrls,
-  draftImagesWithoutUrl,
+  parsePhotoAssignDest,
   preferDraftImages,
   syncDraftPhotoArrays,
+  type PhotoAssignDest,
 } from "@/lib/publishWizard/draftImages";
 import {
   ROOM_SINGLE_FLOW_PHOTO_HINT,
@@ -146,6 +147,26 @@ function propertyRentRangeLabel(rooms: readonly RoomDraft[]): string | null {
   const maxRent = Math.max(...rents);
   if (minRent === maxRent) return listingHeroPriceLabel(minRent);
   return `${money.format(minRent)} – ${money.format(maxRent)} / mes`;
+}
+
+function listPropertyPhotosForAssign(draft: Draft): Array<{ url: string; dest: PhotoAssignDest }> {
+  const seen = new Set<string>();
+  const out: Array<{ url: string; dest: PhotoAssignDest }> = [];
+  const push = (url: string, dest: PhotoAssignDest) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    out.push({ url, dest });
+  };
+  for (const img of draft.unassignedImageUrls) push(img.url, "uncat");
+  for (const img of preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls)) {
+    push(img.url, img.isCover ? "facade" : "shared");
+  }
+  draft.rooms.forEach((room, idx) => {
+    for (const img of preferDraftImages(room.photos, draft.roomImageUrls[idx])) {
+      push(img.url, `room:${idx + 1}`);
+    }
+  });
+  return out;
 }
 
 function RoomPreviewCard({
@@ -530,6 +551,9 @@ export function EditableListingPreview({
     draft,
     roomIndex,
   ]);
+
+  const photosForAssign =
+    showPropertyBlocks && draft.postMode === "property" ? listPropertyPhotosForAssign(draft) : [];
 
   const mapCenter = useMemo(
     (): [number, number] => [CITY_ANCHOR[draft.city].lat, CITY_ANCHOR[draft.city].lng],
@@ -1093,16 +1117,22 @@ export function EditableListingPreview({
             onCancel={() => setPhotosEditing(false)}
             saveLabel="Listo"
           >
-            {showPropertyBlocks && draft.postMode === "property" && draft.unassignedImageUrls.length > 0 ? (
-              <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">
-                <p className="font-medium">
-                  {draft.unassignedImageUrls.length} foto(s) sin categorizar — asígnalas antes de publicar.
+            {showPropertyBlocks && draft.postMode === "property" && photosForAssign.length > 0 ? (
+              <div className="mb-4 rounded-lg border border-border bg-bg-light p-3 text-sm">
+                <p className="font-medium text-body">Mover fotos a cada recámara</p>
+                <p className="mt-1 text-xs text-muted">
+                  Las fotos del dump quedan en áreas compartidas. Elige una recámara para pasarlas.
                 </p>
+                {draft.unassignedImageUrls.length > 0 ? (
+                  <p className="mt-2 text-sm font-medium text-warning-fg">
+                    {draft.unassignedImageUrls.length} foto(s) sin categorizar — asígnalas antes de publicar.
+                  </p>
+                ) : null}
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {draft.unassignedImageUrls.map((img) => (
-                    <div key={img.url} className="flex items-start gap-3 rounded-lg border border-border bg-surface p-2">
+                  {photosForAssign.map((photo) => (
+                    <div key={photo.url} className="flex items-start gap-3 rounded-lg border border-border bg-surface p-2">
                       <img
-                        src={apiAbsoluteUrl(img.url)}
+                        src={apiAbsoluteUrl(photo.url)}
                         alt=""
                         className="h-14 w-14 rounded-lg object-cover ring-1 ring-border"
                         loading="lazy"
@@ -1111,73 +1141,21 @@ export function EditableListingPreview({
                         Asignar a…
                         <select
                           className="mt-1 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm text-body"
-                          defaultValue="uncat"
+                          value={photo.dest}
                           onChange={(e) => {
-                            const v = e.target.value;
-                            const u = img.url;
-                            onDraftChange((d) => {
-                              const nextUnassigned = d.unassignedImageUrls.filter((x) => x.url !== u);
-                              if (v === "shared") {
-                                const nextShared = draftImagesAppend(
-                                  preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls),
-                                  { url: u, isCover: false },
-                                  20,
-                                );
-                                return syncDraftPhotoArrays({
-                                  ...d,
-                                  unassignedImageUrls: nextUnassigned,
-                                  commonAreaPhotos: nextShared,
-                                  propertyImageUrls: nextShared,
-                                });
-                              }
-                              if (v === "facade") {
-                                const base = preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls);
-                                const nextShared = draftImagesAppend(
-                                  draftImagesWithoutUrl(base, u),
-                                  { url: u, isCover: true },
-                                  20,
-                                );
-                                return syncDraftPhotoArrays({
-                                  ...d,
-                                  unassignedImageUrls: nextUnassigned,
-                                  commonAreaPhotos: nextShared,
-                                  propertyImageUrls: nextShared,
-                                });
-                              }
-                              if (v.startsWith("room:")) {
-                                const idx = Number(v.split(":")[1] ?? "1") - 1;
-                                if (!Number.isFinite(idx) || idx < 0 || idx >= d.rooms.length) return d;
-                                const row = preferDraftImages(d.rooms[idx]?.photos, d.roomImageUrls[idx]);
-                                const nextRow = draftImagesAppend(
-                                  row,
-                                  { url: u, isCover: row.length === 0 },
-                                  20,
-                                );
-                                return syncDraftPhotoArrays({
-                                  ...d,
-                                  unassignedImageUrls: nextUnassigned,
-                                  rooms: d.rooms.map((r, ri) =>
-                                    ri === idx ? { ...r, photos: nextRow } : r,
-                                  ),
-                                  roomImageUrls: d.roomImageUrls.map((r, ri) =>
-                                    ri === idx ? nextRow : r,
-                                  ),
-                                });
-                              }
-                              return d;
-                            });
+                            const dest = parsePhotoAssignDest(e.target.value);
+                            if (!dest || dest === photo.dest) return;
+                            onDraftChange((d) => assignDraftPhoto(d, photo.url, dest));
                           }}
                         >
                           <option value="uncat">Sin categorizar</option>
                           <option value="shared">Áreas compartidas</option>
                           <option value="facade">Fachada</option>
-                          {draft.postMode === "property"
-                            ? draft.rooms.map((r, idx) => (
-                                <option key={idx} value={`room:${idx + 1}`}>
-                                  {roomPreviewOptionLabel(r, idx)}
-                                </option>
-                              ))
-                            : null}
+                          {draft.rooms.map((r, idx) => (
+                            <option key={r.id || idx} value={`room:${idx + 1}`}>
+                              {roomPreviewOptionLabel(r, idx)}
+                            </option>
+                          ))}
                         </select>
                       </label>
                     </div>

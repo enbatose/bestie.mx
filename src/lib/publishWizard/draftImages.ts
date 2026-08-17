@@ -131,6 +131,86 @@ export function syncDraftPhotoArrays<
   };
 }
 
+export type PhotoAssignDest = "uncat" | "shared" | "facade" | `room:${number}`;
+
+export function parsePhotoAssignDest(raw: string): PhotoAssignDest | null {
+  if (raw === "uncat" || raw === "shared" || raw === "facade") return raw;
+  const m = /^room:(\d+)$/.exec(raw);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n < 1) return null;
+  return `room:${n}`;
+}
+
+type AssignablePhotoDraft = {
+  commonAreaPhotos?: DraftImage[];
+  propertyImageUrls?: DraftImage[];
+  unassignedImageUrls?: DraftImage[];
+  roomImageUrls?: DraftImage[][];
+  rooms: Array<{ photos?: DraftImage[] } & Record<string, unknown>>;
+};
+
+function stripDraftPhoto<T extends AssignablePhotoDraft>(d: T, url: string): T {
+  const common = draftImagesWithoutUrl(preferDraftImages(d.commonAreaPhotos, d.propertyImageUrls), url);
+  const rooms = d.rooms.map((room, i) => ({
+    ...room,
+    photos: draftImagesWithoutUrl(preferDraftImages(room.photos, d.roomImageUrls?.[i]), url),
+  }));
+  return {
+    ...d,
+    commonAreaPhotos: common,
+    propertyImageUrls: common,
+    unassignedImageUrls: draftImagesWithoutUrl(normalizeDraftImages(d.unassignedImageUrls), url),
+    rooms,
+    roomImageUrls: rooms.map((room) => normalizeDraftImages(room.photos)),
+  };
+}
+
+/** Move a photo between unassigned, common areas, facade, or a room. */
+export function assignDraftPhoto<T extends AssignablePhotoDraft>(
+  d: T,
+  url: string,
+  dest: PhotoAssignDest,
+): T {
+  const trimmed = url.trim();
+  if (!trimmed) return d;
+  const stripped = stripDraftPhoto(d, trimmed);
+  const item: DraftImage = { url: trimmed, isCover: dest === "facade" };
+
+  if (dest === "uncat") {
+    return syncDraftPhotoArrays({
+      ...stripped,
+      unassignedImageUrls: draftImagesAppend(
+        normalizeDraftImages(stripped.unassignedImageUrls),
+        { url: trimmed, isCover: false },
+        120,
+      ),
+    });
+  }
+
+  if (dest === "shared" || dest === "facade") {
+    const nextShared = draftImagesAppend(
+      preferDraftImages(stripped.commonAreaPhotos, stripped.propertyImageUrls),
+      item,
+      20,
+    );
+    return syncDraftPhotoArrays({
+      ...stripped,
+      commonAreaPhotos: nextShared,
+      propertyImageUrls: nextShared,
+    });
+  }
+
+  const idx = Number(dest.slice("room:".length)) - 1;
+  if (!Number.isFinite(idx) || idx < 0 || idx >= stripped.rooms.length) return stripped;
+  const row = preferDraftImages(stripped.rooms[idx]?.photos, stripped.roomImageUrls?.[idx]);
+  const nextRow = draftImagesAppend(row, { url: trimmed, isCover: row.length === 0 }, 20);
+  return syncDraftPhotoArrays({
+    ...stripped,
+    rooms: stripped.rooms.map((room, i) => (i === idx ? { ...room, photos: nextRow } : room)),
+  });
+}
+
 type RoomModePhotoDraft = {
   postMode?: string;
   commonAreaPhotos?: DraftImage[];

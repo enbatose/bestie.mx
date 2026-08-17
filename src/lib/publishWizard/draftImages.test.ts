@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assignDraftPhoto,
   hydrateRoomModePhotosFromProperty,
   mirrorRoomModePhotosToProperty,
   preferDraftImages,
@@ -156,5 +157,40 @@ describe("roomModeEditorImages", () => {
 
   it("does not fall back to property photos for property-mode rooms", () => {
     expect(roomModeEditorImages("property", [], [], imgs("/shared.jpg"), imgs("/shared.jpg"))).toEqual([]);
+  });
+});
+
+describe("assignDraftPhoto", () => {
+  it("moves a shared photo onto a room without leaving a copy", () => {
+    const next = assignDraftPhoto(
+      {
+        commonAreaPhotos: imgs("/sala.jpg", "/cuarto.jpg"),
+        propertyImageUrls: imgs("/sala.jpg", "/cuarto.jpg"),
+        unassignedImageUrls: [],
+        roomImageUrls: [[]],
+        rooms: [{ photos: [] }],
+      },
+      "/cuarto.jpg",
+      "room:1",
+    );
+    expect(next.commonAreaPhotos.map((i) => i.url)).toEqual(["/sala.jpg"]);
+    expect(next.rooms[0]!.photos!.map((i) => i.url)).toEqual(["/cuarto.jpg"]);
+    expect(next.unassignedImageUrls).toEqual([]);
+  });
+
+  it("moves a room photo back to shared areas", () => {
+    const next = assignDraftPhoto(
+      {
+        commonAreaPhotos: imgs("/sala.jpg"),
+        propertyImageUrls: imgs("/sala.jpg"),
+        unassignedImageUrls: [],
+        roomImageUrls: [imgs("/cuarto.jpg")],
+        rooms: [{ photos: imgs("/cuarto.jpg") }],
+      },
+      "/cuarto.jpg",
+      "shared",
+    );
+    expect(next.commonAreaPhotos.map((i) => i.url)).toEqual(["/sala.jpg", "/cuarto.jpg"]);
+    expect(next.rooms[0]!.photos).toEqual([]);
   });
 });
