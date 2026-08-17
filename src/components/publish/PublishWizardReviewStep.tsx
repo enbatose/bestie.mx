@@ -4,6 +4,7 @@ import { listingPublicPath } from "@/lib/listingReference";
 import { isListingRentMissing } from "@/lib/listingTags";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import {
+  firstRoomIndexMissingRent,
   firstRoomIndexWithIssues,
   isStandaloneRoomPost,
   roomPreviewOptionLabel,
@@ -278,7 +279,15 @@ export function PublishWizardReviewStep({
 
       {isRoomOfProperty ? null : (
       <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-        {rentMissing ? <MissingRentCallout className="mb-4" /> : null}
+        {rentMissing ? (
+          <MissingRentCallout
+            className="mb-4"
+            onEdit={() => {
+              const idx = isPropertyPreview ? firstRoomIndexMissingRent(draft) : safeRoomIndex;
+              if (idx >= 0) openIncompleteRoom(idx, !isStandaloneRoomPost(draft));
+            }}
+          />
+        ) : null}
         {hasRoomFieldIssues ? (
           <div className={rentMissing ? "mt-3" : ""}>
             <RoomSaveIssuesCallout

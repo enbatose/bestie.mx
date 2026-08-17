@@ -33,7 +33,11 @@ import {
 import { draftImagesToUrls } from "@/lib/publishWizard/draftImages";
 import { draftRoomEditorImages, ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/publishWizard/wizardTags";
-import { collectRoomFieldIssueDetails, type RoomIssueSection } from "@/lib/publishWizard/roomWizardValidation";
+import {
+  collectRoomFieldIssueDetails,
+  PUBLISH_PREVIEW_RENT_INPUT_ID,
+  type RoomIssueSection,
+} from "@/lib/publishWizard/roomWizardValidation";
 import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
 import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
@@ -225,6 +229,14 @@ export function EditableRoomModal({
     // Only on mount: highlight whatever is already missing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!editingHeader || !rentMissing) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(PUBLISH_PREVIEW_RENT_INPUT_ID)?.focus();
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [editingHeader, rentMissing]);
 
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -449,6 +461,7 @@ export function EditableRoomModal({
                           Renta (MXN / mes)
                           <span className="text-error"> *</span>
                           <input
+                            id={PUBLISH_PREVIEW_RENT_INPUT_ID}
                             type="number"
                             min={0}
                             step={100}

@@ -67,6 +67,7 @@ import {
 import {
   collectRoomFieldIssueDetails,
   collectRoomFieldIssues,
+  firstRoomIndexMissingRent,
   firstRoomIndexWithIssues,
   firstStandaloneRoomFixSection,
   isStandaloneRoomPost,
@@ -1068,7 +1069,12 @@ export function EditableListingPreview({
             {isPropertyPreview ? (
               propertyRentMissing ? (
                 <div className="mt-3">
-                  <MissingRentCallout />
+                  <MissingRentCallout
+                    onEdit={() => {
+                      const idx = firstRoomIndexMissingRent(draft);
+                      if (idx >= 0) openRoomModal(idx);
+                    }}
+                  />
                 </div>
               ) : propertyPriceLabel ? (
                 <p className="mt-2 text-2xl font-bold text-body">{propertyPriceLabel}</p>

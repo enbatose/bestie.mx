@@ -1,4 +1,5 @@
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
+import { isListingRentMissing } from "@/lib/listingTags";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
 import type { LodgingType, RoommateGenderPref } from "@/types/listing";
 
@@ -183,6 +184,11 @@ export function roomValidationIssuesByIndex(d: Draft): string[][] {
 export function firstRoomIndexWithIssues(d: Draft): number {
   const rows = roomValidationIssuesByIndex(d);
   return rows.findIndex((issues) => issues.length > 0);
+}
+
+/** First available room with no publishable monthly rent, or -1. */
+export function firstRoomIndexMissingRent(d: Draft): number {
+  return d.rooms.findIndex((room) => isRoomAvailableForRent(room) && isListingRentMissing(room.rentMxn));
 }
 
 export function roomsWithFieldIssues(d: Draft): Array<{

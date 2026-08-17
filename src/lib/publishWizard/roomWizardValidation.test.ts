@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import {
+  firstRoomIndexMissingRent,
   firstStandaloneRoomFixSection,
   formatRoomsValidationMessage,
   PUBLISH_PREVIEW_HEADER_ID,
@@ -137,5 +138,27 @@ describe("single-room missing-field copy", () => {
     const section = firstStandaloneRoomFixSection(draft, draft.rooms[0]!);
     expect(section).toBe("header");
     expect(standaloneRoomFixAnchorId(section)).toBe(PUBLISH_PREVIEW_HEADER_ID);
+  });
+});
+
+describe("firstRoomIndexMissingRent", () => {
+  it("skips occupied rooms and returns the first available room without rent", () => {
+    const draft = sampleDraft({
+      postMode: "property",
+      rooms: [
+        sampleRoom({ occupancyStatus: "occupied", rentMxn: 0 }),
+        sampleRoom({ id: "r2", title: "Habitación 2", rentMxn: 0 }),
+        sampleRoom({ id: "r3", title: "Habitación 3", rentMxn: 8200 }),
+      ],
+      roomImageUrls: [[], [], []],
+    });
+    expect(firstRoomIndexMissingRent(draft)).toBe(1);
+  });
+
+  it("returns -1 when every available room has rent", () => {
+    const draft = sampleDraft({
+      rooms: [sampleRoom({ rentMxn: 8200 })],
+    });
+    expect(firstRoomIndexMissingRent(draft)).toBe(-1);
   });
 });
