@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 /** Select/date/text controls that sit beside `WizardNumberStepper` — same height, radius, and label gap. */
 export const WIZARD_FIELD_CONTROL_CLASS =
-  "mt-2 box-border h-11 w-full rounded-xl border border-border bg-surface px-3 py-0 text-sm text-body outline-none ring-accent focus:ring-2";
+  "mt-2 box-border h-11 w-full rounded-xl border border-border bg-surface px-3 py-0 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm";
 
 /** Equal-height label slot so mixed grid fields keep their controls on one baseline. */
 export function WizardPairedFieldLabel({ children }: { children: ReactNode }) {

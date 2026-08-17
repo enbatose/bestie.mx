@@ -227,10 +227,10 @@ function RoomPreviewCard({
     <article className="rounded-xl border border-border bg-bg-light p-4">
       <div className="flex gap-3">
         <div className="min-w-0 flex-1">
-          {/* Room name row — pencil opens inline rename */}
-          <div className="flex flex-wrap items-start justify-between gap-2">
+          {/* Room name + occupancy — stacked so the toggle stays tappable on phones */}
+          <div className="flex flex-col gap-2">
             {editingName ? (
-              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <input
                   ref={nameInputRef}
                   autoFocus
@@ -240,30 +240,30 @@ function RoomPreviewCard({
                     if (e.key === "Enter") { e.preventDefault(); commitName(); }
                     if (e.key === "Escape") cancelNameEdit();
                   }}
-                  className="min-w-0 flex-1 rounded-lg border border-primary/60 bg-surface px-2 py-1 text-sm font-semibold text-body focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-primary/60 bg-surface px-2 py-1 text-base font-semibold text-body focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:text-sm"
                 />
                 <button
                   type="button"
                   onClick={commitName}
-                  className="shrink-0 rounded-full bg-primary p-1.5 text-primary-fg transition hover:brightness-110"
+                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg transition hover:brightness-110"
                   title="Guardar nombre"
                 >
-                  <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
+                  <Check className="size-4" strokeWidth={2.5} aria-hidden />
                 </button>
                 <button
                   type="button"
                   onClick={cancelNameEdit}
-                  className="shrink-0 rounded-full border border-border p-1.5 text-muted transition hover:bg-surface-elevated"
+                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:bg-surface-elevated"
                   title="Cancelar"
                 >
-                  <X className="size-3.5" strokeWidth={2.5} aria-hidden />
+                  <X className="size-4" strokeWidth={2.5} aria-hidden />
                 </button>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={openNameEdit}
-                className="inline-flex max-w-[75%] items-center gap-1.5 text-left text-sm font-semibold text-body transition hover:text-primary"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 text-left text-sm font-semibold text-body transition hover:text-primary"
                 title="Cambiar nombre de la recámara"
                 aria-label={`Cambiar nombre de ${name}`}
               >
@@ -276,7 +276,7 @@ function RoomPreviewCard({
               </button>
             )}
             {!editingName ? (
-              <span className="flex shrink-0 items-center gap-2">
+              <span className="flex items-center gap-2">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                     available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
@@ -292,7 +292,13 @@ function RoomPreviewCard({
           {available ? (
             <>
               {rentMissing ? (
-                <p className="mt-1 text-sm font-semibold text-error">Falta el precio de renta</p>
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="mt-1 text-left text-sm font-semibold text-error underline decoration-2 underline-offset-2"
+                >
+                  Falta el precio de renta
+                </button>
               ) : (
                 <p className="mt-1 text-sm text-muted">
                   {money.format(room.rentMxn)} / mes · {roomDimensionWizardLabel(room.roomDimension)}
@@ -305,16 +311,16 @@ function RoomPreviewCard({
                   Disponible {formatRoomAvailableFrom(room.availableFrom ?? "")}
                 </span>
                 {/* Gender preference — always shown as icon */}
-                <span className="group/icon relative inline-flex">
-                  <span className="inline-flex size-7 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
+                <span className="group/icon relative inline-flex" title={genderTooltip}>
+                  <span className="inline-flex size-8 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
                     <GenderIcon className={quickAttributeGenderIconClass(genderIconId, true)} aria-hidden />
                   </span>
                   <span className={tooltipClass}>{genderTooltip}</span>
                 </span>
                 {/* Private bathroom — only when enabled */}
                 {hasPrivateBath ? (
-                  <span className="group/icon relative inline-flex">
-                    <span className="inline-flex size-7 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
+                  <span className="group/icon relative inline-flex" title="Baño privado">
+                    <span className="inline-flex size-8 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
                       <Bath className="size-[15px]" aria-hidden />
                     </span>
                     <span className={tooltipClass}>Baño privado</span>
@@ -322,8 +328,8 @@ function RoomPreviewCard({
                 ) : null}
                 {/* Private parking — only when enabled */}
                 {hasParking ? (
-                  <span className="group/icon relative inline-flex">
-                    <span className="inline-flex size-7 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
+                  <span className="group/icon relative inline-flex" title="Cochera incluida">
+                    <span className="inline-flex size-8 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-border">
                       <CarFront className="size-[15px]" aria-hidden />
                     </span>
                     <span className={tooltipClass}>Cochera incluida</span>
@@ -918,7 +924,7 @@ export function EditableListingPreview({
             <button
               type="button"
               onClick={openHeaderEdit}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-xs font-semibold text-primary hover:underline"
             >
               <Pencil className="size-3.5" aria-hidden />
               Editar encabezado
@@ -1036,7 +1042,7 @@ export function EditableListingPreview({
                         rentMxn: Math.max(0, Number(e.target.value) || 0),
                       }))
                     }
-                    className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-sm ${
+                    className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-base sm:text-sm ${
                       isListingRentMissing(headerDraft.rentMxn)
                         ? "border border-error ring-1 ring-error/40"
                         : "border border-border"
@@ -1145,7 +1151,7 @@ export function EditableListingPreview({
                       <label className="min-w-0 flex-1 text-xs font-semibold text-muted">
                         Asignar a…
                         <select
-                          className="mt-1 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-sm text-body"
+                          className="mt-1 min-h-11 w-full rounded-lg border border-border bg-bg-light px-2 py-1.5 text-base text-body sm:text-sm"
                           value={photo.dest}
                           onChange={(e) => {
                             const dest = parsePhotoAssignDest(e.target.value);

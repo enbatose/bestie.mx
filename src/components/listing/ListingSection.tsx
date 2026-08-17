@@ -33,7 +33,7 @@ export function ListingSection({
           </h2>
           {subtitle ? <p className="mt-0.5 text-xs text-muted">{subtitle}</p> : null}
         </div>
-        {action ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{action}</div> : null}
+        {action ? <div className="max-w-[48%] shrink-0 sm:max-w-none">{action}</div> : null}
       </div>
       <div className="mt-3">{children}</div>
     </section>

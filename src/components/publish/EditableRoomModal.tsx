@@ -379,7 +379,7 @@ export function EditableRoomModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-body"
+            className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold text-body"
           >
             Cerrar
           </button>
@@ -401,7 +401,7 @@ export function EditableRoomModal({
                   <button
                     type="button"
                     onClick={openHeaderEdit}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                    className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-primary hover:underline"
                   >
                     Editar encabezado
                   </button>
@@ -480,7 +480,7 @@ export function EditableRoomModal({
                                 rentMxn: Math.max(0, Number(e.target.value) || 0),
                               }))
                             }
-                            className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-sm ${
+                            className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-base sm:text-sm ${
                               isListingRentMissing(headerDraft.rentMxn)
                                 ? "border border-error ring-1 ring-error/40"
                                 : "border border-border"
@@ -791,7 +791,7 @@ export function EditableRoomModal({
           </div>
         </div>
 
-        <div className="shrink-0 space-y-2 border-t border-border bg-surface p-4">
+        <div className="shrink-0 space-y-2 border-t border-border bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {showIssues && localIssues.length ? (
             <RoomLocalIssuesCallout draft={draft} room={localRoom} />
           ) : publishBlockedReason ? (

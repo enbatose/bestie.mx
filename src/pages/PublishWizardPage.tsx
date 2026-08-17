@@ -1938,7 +1938,7 @@ export function PublishWizardPage() {
                           }),
                     }));
                   }}
-                  className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
+                  className={`min-h-24 w-full rounded-2xl border-2 px-4 py-5 text-left transition ${
                     draft.postMode === "room"
                       ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
                       : "border-border bg-surface hover:bg-surface-elevated"
@@ -1976,7 +1976,7 @@ export function PublishWizardPage() {
                       );
                     });
                   }}
-                  className={`rounded-2xl border-2 px-4 py-5 text-left transition ${
+                  className={`min-h-24 w-full rounded-2xl border-2 px-4 py-5 text-left transition ${
                     draft.postMode === "property"
                       ? "border-secondary bg-secondary/10 ring-2 ring-secondary/40"
                       : "border-border bg-surface hover:bg-surface-elevated"
@@ -3535,7 +3535,7 @@ export function PublishWizardPage() {
 
   const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
   return (
-    <div className={`mx-auto px-4 py-8 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
+    <div className={`mx-auto px-3 py-4 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
       {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
@@ -3614,7 +3614,7 @@ export function PublishWizardPage() {
                           }
                           title={isPast ? `Volver a "${s.title}"` : s.title}
                           aria-current={isCurrent ? "step" : undefined}
-                          className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none transition ${
+                          className={`inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none transition sm:size-6 ${
                             isCurrent
                               ? "bg-primary text-primary-fg ring-2 ring-primary/30 ring-offset-1"
                               : isPast
@@ -3625,7 +3625,7 @@ export function PublishWizardPage() {
                           {progressIdx + 1}
                         </button>
                         <span
-                          className={`mt-1 w-full truncate px-0.5 text-center text-[8px] font-medium leading-tight sm:text-[9px] ${
+                          className={`mt-1 w-full truncate px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[9px] ${
                             isCurrent
                               ? "text-primary"
                               : isPast
@@ -3714,7 +3714,11 @@ export function PublishWizardPage() {
         ) : null}
 
         <div
-          className={`mt-8 flex flex-wrap items-center gap-3 ${step > 0 ? "justify-between" : "justify-end"}`}
+          className={`${
+            isPublishStep
+              ? "mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center"
+              : "sticky bottom-0 z-[1100] -mx-4 mt-8 flex flex-col-reverse gap-3 border-t border-border bg-surface/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:mx-0 sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+          } ${step > 0 ? "sm:justify-between" : "sm:justify-end"}`}
         >
           {step > 0 ? (
             <button
@@ -3733,12 +3737,12 @@ export function PublishWizardPage() {
                 }
                 setStep(next);
               }}
-              className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
             >
               Atrás
             </button>
           ) : null}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             {!isPublishStep ? (
               <button
                 type="button"
@@ -3769,7 +3773,7 @@ export function PublishWizardPage() {
                   setStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
                 disabled={submitInFlight !== null || aiComposeInFlight}
-                className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50 sm:w-auto"
               >
                 {current.title === WIZARD_STEP_TITLES.AI_INPUT
                   ? aiComposeInFlight

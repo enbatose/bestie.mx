@@ -317,16 +317,16 @@ export function BulkImageUploader({
             {hint ? ` · ${hint}` : ""}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           <label
-            className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated"
+            className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
             onClick={() => openPicker("gallery")}
           >
             <input type="file" accept={accept} multiple className="sr-only" onChange={pickAndAdd("gallery")} />
             Subir fotos
           </label>
           <label
-            className="inline-flex cursor-pointer items-center rounded-full border border-border bg-surface px-3 py-2 text-xs font-semibold text-body hover:bg-surface-elevated"
+            className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
             onClick={() => openPicker("camera")}
           >
             <input
@@ -389,7 +389,7 @@ export function BulkImageUploader({
               ) : null}
               <button
                 type="button"
-                className={`absolute bottom-1 left-1 rounded-full p-1 ${
+                className={`absolute bottom-1 left-1 inline-flex size-8 items-center justify-center rounded-full ${
                   img.isCover ? "bg-primary text-primary-fg" : "bg-black/60 text-white hover:bg-black/80"
                 }`}
                 onClick={() => setCover(img.url)}
@@ -400,7 +400,7 @@ export function BulkImageUploader({
               </button>
               <button
                 type="button"
-                className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white"
+                className="absolute right-1 top-1 inline-flex size-8 items-center justify-center rounded-full bg-black/60 text-base leading-none text-white"
                 onClick={() => remove(ix)}
                 aria-label="Quitar"
               >

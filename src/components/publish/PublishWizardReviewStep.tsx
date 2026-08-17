@@ -336,7 +336,7 @@ export function PublishWizardReviewStep({
               disabled={submitInFlight !== null || nonRoomBlock}
               title={nonRoomBlock ? (publishBlockedReason ?? undefined) : undefined}
               onClick={attemptPublish}
-              className="w-full rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
+              className="w-full min-h-11 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
             >
               {hasRoomFieldIssues
                 ? roomSaveIssuesPrimaryLabel(draft, firstIncompleteRoom)
@@ -352,7 +352,7 @@ export function PublishWizardReviewStep({
               type="button"
               disabled={submitInFlight !== null}
               onClick={onSaveDraft}
-              className="w-full rounded-full border border-secondary/60 bg-white px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/10 disabled:opacity-50"
+              className="w-full min-h-11 rounded-full border border-secondary/60 bg-white px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/10 disabled:opacity-50"
             >
               {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
             </button>
@@ -360,7 +360,7 @@ export function PublishWizardReviewStep({
           {isLiveEdit && cancelTo ? (
             <Link
               to={cancelTo}
-              className="inline-flex w-full items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
+              className="inline-flex w-full min-h-11 items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
             >
               {cancelLabel}
             </Link>

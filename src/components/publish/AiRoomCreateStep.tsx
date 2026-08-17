@@ -51,7 +51,7 @@ export function AiRoomCreateStep({
           <select
             value={city}
             onChange={(e) => onCityChange(e.target.value)}
-            className="w-full max-w-xs rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body focus:border-accent focus:outline-none"
+            className="h-11 w-full max-w-xs rounded-xl border border-border bg-surface px-3 text-base text-body focus:border-accent focus:outline-none sm:text-sm"
           >
             {(Object.keys(CITY_ANCHOR) as Array<keyof typeof CITY_ANCHOR>).map((c) => (
               <option key={c} value={c}>
@@ -77,7 +77,7 @@ export function AiRoomCreateStep({
           onChange={(e) => onTextChange(e.target.value)}
           placeholder="Pega aquí el texto de tu publicación de Facebook…"
           rows={7}
-          className="w-full resize-y rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
+          className="min-h-[9rem] w-full resize-y rounded-xl border border-border bg-surface px-3 py-2.5 text-base text-body placeholder:text-muted focus:border-accent focus:outline-none sm:text-sm"
         />
       </div>
 
@@ -105,7 +105,7 @@ export function AiRoomCreateStep({
           <button
             type="button"
             onClick={() => setInfographicOpen(true)}
-            className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-2 hover:underline"
           >
             ¿Tienes un infográfico, poster o captura del mapa?
           </button>
@@ -127,7 +127,7 @@ export function AiRoomCreateStep({
         <button
           type="button"
           onClick={onFillManually}
-          className="font-semibold text-primary underline-offset-2 hover:underline"
+          className="inline-flex min-h-11 items-center px-2 font-semibold text-primary underline-offset-2 hover:underline"
         >
           Prefiero llenar los datos a mano (Sin IA)
         </button>

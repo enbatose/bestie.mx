@@ -60,7 +60,7 @@ export function SharedDumpPhotosPicker({
                 className="aspect-square w-full object-cover"
                 loading="lazy"
               />
-              <span className="block px-1.5 py-1 text-center text-[11px] font-semibold text-primary group-disabled:text-muted">
+              <span className="block min-h-9 px-1.5 py-1.5 text-center text-[11px] font-semibold text-primary group-disabled:text-muted">
                 {full ? "Límite" : "Usar aquí"}
               </span>
             </button>

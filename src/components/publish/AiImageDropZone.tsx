@@ -156,10 +156,10 @@ export function AiImageDropZone({
               <button
                 type="button"
                 aria-label="Eliminar imagen"
-                className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition group-hover:opacity-100"
+                className="absolute right-1 top-1 inline-flex size-8 items-center justify-center rounded-full bg-black/70 text-white"
                 onClick={() => onImages(images.filter((_, j) => j !== i))}
               >
-                <Trash2 size={16} className="text-white" />
+                <Trash2 size={14} aria-hidden />
               </button>
             </div>
           ))}

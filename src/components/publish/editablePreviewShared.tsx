@@ -39,7 +39,7 @@ export function PreviewSection({
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-semibold text-primary transition hover:bg-surface-elevated"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-surface-elevated"
           >
             <Pencil className="size-3.5" aria-hidden />
             {editLabel}
@@ -69,18 +69,18 @@ export function InlineFieldEditor({
     <div className="space-y-3">
       <p className="text-xs font-medium text-muted">{label}</p>
       {children}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={onSave}
-          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-fg"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
         >
           {saveLabel}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-body"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body"
         >
           Cancelar
         </button>
