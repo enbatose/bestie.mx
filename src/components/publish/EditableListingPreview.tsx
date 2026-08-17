@@ -3,7 +3,6 @@ import { Bath, Camera, CarFront, Check, Pencil, X } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { RoomOnOffToggle } from "@/components/myListings/listingCardChrome";
-import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
   ListingPropertySummaryGrid,
@@ -55,7 +54,6 @@ import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSumma
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
-  ROOM_PHYSICAL_TAGS,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   filterPropertyScopeTags,
@@ -217,8 +215,6 @@ function RoomPreviewCard({
   const genderTooltip = genderPref === "female" ? "Solo Mujeres" : genderPref === "male" ? "Solo Hombres" : "Sin preferencia";
   const hasPrivateBath = room.tags.includes("baño-privado");
   const hasParking = room.tags.includes("estacionamiento");
-  const physicalTags = ROOM_PHYSICAL_TAGS.filter((t) => room.tags.includes(t));
-  const unselectedPhysicalTags = listingTagsNotSelected(ROOM_PHYSICAL_TAGS, physicalTags);
 
   const tooltipClass =
     "pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block";
@@ -263,12 +259,13 @@ function RoomPreviewCard({
               <button
                 type="button"
                 onClick={openNameEdit}
-                className="group/name inline-flex max-w-[75%] items-center gap-1 text-left text-sm font-semibold text-body transition hover:text-primary"
+                className="inline-flex max-w-[75%] items-center gap-1.5 text-left text-sm font-semibold text-body transition hover:text-primary"
                 title="Cambiar nombre de la recámara"
+                aria-label={`Cambiar nombre de ${name}`}
               >
                 <span className="truncate">{name}</span>
                 <Pencil
-                  className="size-3.5 shrink-0 text-muted opacity-0 transition group-hover/name:opacity-100"
+                  className="size-3.5 shrink-0 text-muted"
                   strokeWidth={2}
                   aria-hidden
                 />
@@ -329,12 +326,6 @@ function RoomPreviewCard({
                   </span>
                 ) : null}
               </div>
-              <div className="mt-3">
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                    Propiedades de la recámara
-                  </p>
-                  <ListingTagChips tags={physicalTags} unselectedTags={unselectedPhysicalTags} />
-                </div>
             </>
           ) : occupantSummary ? (
             <p className="mt-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
