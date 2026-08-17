@@ -24,6 +24,7 @@ import {
 import {
   filterRoomScopeTags,
   isListingRentMissing,
+  listingTagsNotSelected,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   sortRoomScopeTags,
@@ -735,6 +736,10 @@ export function EditableRoomModal({
                         return active ? prev.filter((t) => t !== tag) : [...prev, tag];
                       })
                     }
+                    unselectedTags={listingTagsNotSelected(
+                      ROOM_TAG_GROUPS.flatMap((g) => g.tags),
+                      roomTagsActive,
+                    )}
                   />
                 </PreviewSection>
               </>

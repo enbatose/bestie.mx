@@ -19,19 +19,44 @@ export function listingTagFullLabel(tag: ListingTag): string {
   return listingTagLabel(tag).replace(/\u00AD/g, "");
 }
 
-export function ListingTagChips({ tags }: { tags: readonly ListingTag[] }) {
-  if (!tags.length) {
-    return <p className="text-sm italic text-muted">Sin etiquetas seleccionadas.</p>;
-  }
-
+export function ListingTagChips({
+  tags,
+  unselectedTags,
+}: {
+  tags: readonly ListingTag[];
+  unselectedTags?: readonly ListingTag[];
+}) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {tags.map((t) => (
-        <span key={t} className={TAG_CHIP_CLASS}>
-          {listingTagLabel(t)}
-        </span>
-      ))}
-    </div>
+    <>
+      {tags.length ? (
+        <div className="flex flex-wrap gap-2">
+          {tags.map((t) => (
+            <span key={t} className={TAG_CHIP_CLASS}>
+              {listingTagLabel(t)}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm italic text-muted">Sin etiquetas seleccionadas.</p>
+      )}
+      {unselectedTags && unselectedTags.length > 0 ? (
+        <div className="mt-3">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted/50">
+            No incluidas · edita para agregar
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {unselectedTags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted/50"
+              >
+                {listingTagLabel(t)}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

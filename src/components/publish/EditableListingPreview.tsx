@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Bath, Camera, CarFront, Check, Pencil, X } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
   ListingPropertySummaryGrid,
@@ -52,6 +53,7 @@ import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSumma
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
+  ROOM_PHYSICAL_TAGS,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   filterPropertyScopeTags,
@@ -59,6 +61,7 @@ import {
   formatRoomAvailableFrom,
   isListingRentMissing,
   listingHeroPriceLabel,
+  listingTagsNotSelected,
   sortRoomScopeTags,
 } from "@/lib/listingTags";
 import {
@@ -189,6 +192,8 @@ function RoomPreviewCard({
   const genderTooltip = genderPref === "female" ? "Solo Mujeres" : genderPref === "male" ? "Solo Hombres" : "Sin preferencia";
   const hasPrivateBath = room.tags.includes("baño-privado");
   const hasParking = room.tags.includes("estacionamiento");
+  const physicalTags = ROOM_PHYSICAL_TAGS.filter((t) => room.tags.includes(t));
+  const unselectedPhysicalTags = listingTagsNotSelected(ROOM_PHYSICAL_TAGS, physicalTags);
 
   const tooltipClass =
     "pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block";
@@ -296,6 +301,12 @@ function RoomPreviewCard({
                   </span>
                 ) : null}
               </div>
+              <div className="mt-3">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                    Propiedades de la recámara
+                  </p>
+                  <ListingTagChips tags={physicalTags} unselectedTags={unselectedPhysicalTags} />
+                </div>
             </>
           ) : occupantSummary ? (
             <p className="mt-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
@@ -537,15 +548,15 @@ export function EditableListingPreview({
 
   const showUnselected = isAssistedDraft && variant === "preview";
   const unselectedPropertyTags = showUnselected
-    ? (PROPERTY_TAG_GROUPS.flatMap((g) => g.tags).filter(
-        (t) => !propertyTagsActive.includes(t),
-      ) as ListingTag[])
+    ? listingTagsNotSelected(
+        PROPERTY_TAG_GROUPS.flatMap((g) => g.tags),
+        propertyTagsActive,
+      )
     : undefined;
-  const unselectedRoomTags = showUnselected
-    ? (ROOM_TAG_GROUPS.flatMap((g) => g.tags).filter(
-        (t) => !roomTagsActive.includes(t),
-      ) as ListingTag[])
-    : undefined;
+  const unselectedRoomTags = listingTagsNotSelected(
+    ROOM_TAG_GROUPS.flatMap((g) => g.tags),
+    roomTagsActive,
+  );
 
   const openHeaderEdit = () => {
     setHeaderDraft({

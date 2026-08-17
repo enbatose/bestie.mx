@@ -1,6 +1,6 @@
 import { Pencil } from "lucide-react";
 import { ListingSection } from "@/components/listing/ListingSection";
-import { ListingTagChips, listingTagLabel } from "@/components/listing/ListingTagChips";
+import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import { newRoomDraftId } from "@/lib/roomDisplay";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
@@ -160,26 +160,7 @@ export function ScopeTagsBlock({
             <TagGroupsEditor groups={editGroups} selected={draftTags} onToggle={onToggle} />
           </InlineFieldEditor>
         ) : (
-          <>
-            <ListingTagChips tags={tags} />
-            {unselectedTags && unselectedTags.length > 0 ? (
-              <div className="mt-3">
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted/50">
-                  No incluidas · edita para agregar
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {unselectedTags.map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted/50"
-                    >
-                      {listingTagLabel(t)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </>
+          <ListingTagChips tags={tags} unselectedTags={unselectedTags} />
         )}
       </div>
     </div>

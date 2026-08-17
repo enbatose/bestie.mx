@@ -111,6 +111,8 @@ const ROOM_PHYSICAL_TAG_SLUGS = [
   "fumar-permitido-recamara",
 ] as const satisfies readonly ListingTag[];
 
+export const ROOM_PHYSICAL_TAGS: readonly ListingTag[] = ROOM_PHYSICAL_TAG_SLUGS;
+
 /** Grupos de tags editables por recámara (wizard paso Recámaras + preview). */
 export const ROOM_TAG_GROUPS: readonly ListingTagGroup[] = [
   {
@@ -490,6 +492,15 @@ export function filterPropertyScopeTags(tags: readonly ListingTag[]): ListingTag
 
 export function filterRoomScopeTags(tags: readonly ListingTag[]): ListingTag[] {
   return tags.filter((t) => isRoomScopeTag(t));
+}
+
+/** Catalog tags that are not currently selected (preview “no incluidas” chips). */
+export function listingTagsNotSelected(
+  catalog: readonly ListingTag[],
+  selected: readonly ListingTag[],
+): ListingTag[] {
+  const on = new Set(selected);
+  return catalog.filter((t) => !on.has(t));
 }
 
 /** Orden de visualización alineado con `ROOM_TAG_GROUPS`. */
