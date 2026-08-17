@@ -30,6 +30,7 @@ export type AssistedDraftExtraction = {
   minimalStayMonths?: number;
   roomDimension?: "small" | "medium" | "large";
   tags?: string[];
+  deniedTags?: string[];
   roomSummary?: string;
   location?: {
     type: "precise" | "approximate" | "none";
@@ -41,8 +42,27 @@ export type AssistedDraftExtraction = {
   confidence?: Record<string, number>;
 };
 
+export type AssistedDraftConflict = {
+  field: string;
+  message: string;
+};
+
+export type SelfServeComposeHints = {
+  lodgingType?: "private_room" | "shared_room" | null;
+  loft?: boolean;
+  tagsOn?: Array<"mascotas" | "lgbt-friendly" | "baño-privado" | "estacionamiento" | "muebles">;
+  gender?: "female" | "male" | null;
+};
+
+export type SelfServeImageInput = {
+  mimeType?: string;
+  data?: string;
+  url?: string;
+};
+
 export type AssistedDraftClaimInfo = {
   isClaimed: boolean;
+  source?: "admin" | "self_serve";
   propertyId: string;
   property: {
     id: string;
@@ -115,6 +135,38 @@ export async function adminCreateAssistedDraft(opts: {
   if (!res.ok) throw new Error(j.error ?? `create_${res.status}`);
   if (!j.claimUrl) throw new Error("create_bad_response");
   return { claimUrl: j.claimUrl, propertyId: j.propertyId ?? "" };
+}
+
+/** Public: extract Facebook text/infographic + create or replace a self-serve draft. */
+export async function selfComposeAssistedDraft(opts: {
+  text?: string;
+  city?: string;
+  hints?: SelfServeComposeHints;
+  photos?: SelfServeImageInput[];
+  infographicPhotos?: SelfServeImageInput[];
+  existingToken?: string;
+}): Promise<{
+  token: string;
+  propertyId: string;
+  conflicts: AssistedDraftConflict[];
+}> {
+  const base = apiBase();
+  const res = await apiFetch(`${base}/api/assisted-draft/self/compose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: cred,
+    body: JSON.stringify(opts),
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    token?: string;
+    propertyId?: string;
+    conflicts?: AssistedDraftConflict[];
+    error?: string;
+  };
+  if (res.status === 429) throw new Error("rate_limited");
+  if (!res.ok) throw new Error(j.error ?? `compose_${res.status}`);
+  if (!j.token) throw new Error("compose_bad_response");
+  return { token: j.token, propertyId: j.propertyId ?? "", conflicts: j.conflicts ?? [] };
 }
 
 /** Public: fetch draft info by claim token. */

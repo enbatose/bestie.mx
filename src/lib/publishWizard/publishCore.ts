@@ -33,6 +33,7 @@ import {
 /** Titles used in `PublishWizardPage` steps — keep in sync when renaming steps. */
 export const WIZARD_STEP_TITLES = {
   POST_MODE: "¿Qué tipo de espacio deseas publicar?",
+  AI_INPUT: "Cuéntanos sobre tu espacio",
   LOCATION: "¿Dónde se ubica el espacio?",
   PROPERTY_GENERAL: "¿Cómo es tu espacio?",
   ROOMS: "Recámaras",
@@ -360,6 +361,9 @@ export function validateWizardStepByTitle(
   stepIndex: number,
 ): string | null {
   switch (stepTitle) {
+    case WIZARD_STEP_TITLES.AI_INPUT: {
+      return null;
+    }
     case WIZARD_STEP_TITLES.LOCATION: {
       const err = locationStepInvalidReason(draft);
       return err ? stepPrefix(stepIndex, "Ubicación", err) : null;
@@ -639,7 +643,7 @@ export async function publishDraftFromWizard(opts: {
     wizardStep:
       typeof opts.wizardStep === "number"
         ? opts.wizardStep
-        : publishWizardLastStepIndex(draft.postMode),
+        : publishWizardLastStepIndex(draft.postMode, draft.roomCreateFlow),
   };
 
   const blocked = getPublishBlockedReason(draft, { skipRoomValidation: opts.skipRoomValidation });

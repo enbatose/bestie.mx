@@ -91,7 +91,7 @@ export function TermsPage() {
         <p>Bestie ofrece herramientas para:</p>
         <LegalList
           items={[
-            "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida.",
+            "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida. Puedes armar un anuncio de un cuarto pegando el texto o un infográfico de una publicación (por ejemplo de Facebook); Bestie usa un modelo de inteligencia artificial para proponer los campos del borrador. Ese borrador no se publica hasta que lo revisas, completas lo que falte y confirmas.",
             "Generar (con ayuda de inteligencia artificial) un texto sugerido para que compartas tu anuncio en redes o mensajería; puedes revisarlo y editarlo antes de enviarlo. Ese texto no forma parte de la ficha pública del anuncio ni de su vista previa al compartir el enlace.",
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
@@ -174,14 +174,16 @@ export function TermsPage() {
           incumpla estos Términos o la ley, sin que ello genere responsabilidad para el Titular.
         </p>
         <p>
-          <strong>Borradores asistidos.</strong> Como parte de sus actividades de crecimiento, Bestie
-          puede crear borradores de anuncios a partir de publicaciones compartidas en grupos de Facebook
-          asociados o de información proporcionada públicamente por el propietario. Estos borradores{" "}
-          <strong>nunca se publican sin el consentimiento expreso del propietario</strong>: el propietario
-          recibe un enlace de reclamación, revisa el contenido, lo edita si lo desea y, al publicarlo,
-          crea su cuenta en Bestie, asumiendo desde ese momento la plena responsabilidad sobre el anuncio.
-          La información del borrador es orientativa y puede estar incompleta; el propietario es
-          responsable de verificar y completar los datos antes de publicar.
+          <strong>Borradores asistidos.</strong> Bestie puede crear borradores de anuncios de dos
+          formas: (i) como parte de sus actividades de crecimiento, a partir de publicaciones
+          compartidas en grupos de Facebook asociados o de información proporcionada públicamente por
+          el propietario, mediante un enlace de reclamación; y (ii) cuando tú pegas el texto o un
+          infográfico de tu propia publicación en el flujo de publicar un cuarto. En ambos casos estos
+          borradores{" "}
+          <strong>nunca se publican sin tu consentimiento expreso</strong>: revisas el contenido, lo
+          editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. La
+          información del borrador es orientativa y puede estar incompleta; eres responsable de
+          verificar y completar los datos antes de publicar.
         </p>
       </LegalSection>
 
@@ -222,7 +224,8 @@ export function TermsPage() {
           envío de correos electrónicos, infraestructura de alojamiento,
           analítica de producto (PostHog), medición de anuncios (píxel de Meta / Facebook e Instagram Ads)
           y modelos de inteligencia artificial (Google Gemini) para
-          sugerir textos de compartir de anuncios. El uso de estas funciones puede estar sujeto a los términos
+          extraer datos de un texto o infográfico que tú proporcionas al crear un anuncio de cuarto, y
+          para sugerir textos de compartir de anuncios. El uso de estas funciones puede estar sujeto a los términos
           y políticas de dichos terceros. Bestie no es responsable por los servicios, la disponibilidad
           ni las prácticas de esos terceros.
         </p>

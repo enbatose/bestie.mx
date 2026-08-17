@@ -8,6 +8,21 @@ import { isAdminUser } from "./adminAuth.js";
 import { issuePublisherCookie } from "./session.js";
 import { extractListingDataWithGemini, type ExtractionInput, type AssistedDraftExtraction } from "./assistedDraftGemini.js";
 import { recordAssistedDraftGenerate } from "./usageAnalytics.js";
+import { createSlidingWindowLimiter } from "./rateLimit.js";
+import {
+  mergeExtractionWithHints,
+  isSelfServeCreator,
+  SELF_SERVE_CREATOR_ID,
+  type SelfServeHints,
+  type HintTagSlug,
+} from "./assistedDraftMerge.js";
+import {
+  SELF_SERVE_COMPOSE_IP_MAX_PER_HOUR,
+  SELF_SERVE_COMPOSE_WINDOW_MS,
+  SELF_SERVE_MAX_INFOGRAPHICS,
+  SELF_SERVE_MAX_PHOTOS,
+  SELF_SERVE_MAX_TEXT_CHARS,
+} from "./assistedDraftLimits.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { isListingTag } from "./listingTags.js";
@@ -30,6 +45,42 @@ import {
 const CLAIM_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CLAIM_SAVE_OCCUPANT_MAX = 50;
+
+/** Match frontend CITY_ANCHOR.Guadalajara so a city-center pin is a real map pin. */
+const GDL_CITY_ANCHOR = { lat: 20.674_39, lng: -103.387_39 };
+
+const HINT_TAG_SET = new Set<HintTagSlug>([
+  "mascotas",
+  "lgbt-friendly",
+  "baño-privado",
+  "estacionamiento",
+  "muebles",
+]);
+
+function composeRateLimitKey(req: Request): string {
+  const ip = req.ip ?? "unknown";
+  const fp = (req.get("x-device-fingerprint") ?? "").trim().slice(0, 64);
+  return `${ip}|${fp}`;
+}
+
+type ImageInput = { mimeType?: string; data?: string; url?: string };
+
+function parseHints(raw: unknown): SelfServeHints {
+  if (!raw || typeof raw !== "object") return {};
+  const o = raw as Record<string, unknown>;
+  const lodging =
+    o.lodgingType === "private_room" || o.lodgingType === "shared_room" ? o.lodgingType : null;
+  const gender = o.gender === "female" || o.gender === "male" ? o.gender : null;
+  const tagsOn = Array.isArray(o.tagsOn)
+    ? o.tagsOn.filter((t): t is HintTagSlug => typeof t === "string" && HINT_TAG_SET.has(t as HintTagSlug))
+    : [];
+  return {
+    lodgingType: lodging,
+    loft: o.loft === true,
+    tagsOn,
+    gender,
+  };
+}
 
 function asFiniteNumber(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
@@ -100,6 +151,58 @@ function saveBase64Image(
   }
 }
 
+function isKeptUploadUrl(url: string): boolean {
+  return url.startsWith("/api/uploads/") && !url.includes("..");
+}
+
+function resolveImageUrls(inputs: ImageInput[] | undefined, uploadDir: string, max: number): string[] {
+  const urls: string[] = [];
+  for (const img of inputs ?? []) {
+    if (urls.length >= max) break;
+    if (typeof img.url === "string" && isKeptUploadUrl(img.url.trim())) {
+      urls.push(img.url.trim());
+      continue;
+    }
+    if (typeof img.data === "string" && img.data.length > 0) {
+      const url = saveBase64Image(img.data, img.mimeType ?? "image/jpeg", uploadDir);
+      if (url) urls.push(url);
+    }
+  }
+  return urls;
+}
+
+function locationFromExtraction(ext: AssistedDraftExtraction): {
+  lat: number;
+  lng: number;
+  isApproximate: number;
+  approximateRadius: number | null;
+} {
+  const loc = ext.location;
+  let lat = GDL_CITY_ANCHOR.lat;
+  let lng = GDL_CITY_ANCHOR.lng;
+  let isApproximate = 1;
+  let approximateRadius: number | null = 200;
+
+  if (loc?.type === "precise" && loc.lat != null && loc.lng != null) {
+    lat = loc.lat;
+    lng = loc.lng;
+    isApproximate = 0;
+    approximateRadius = null;
+  } else if (loc?.type === "approximate" && loc.lat != null && loc.lng != null) {
+    lat = loc.lat;
+    lng = loc.lng;
+    isApproximate = 1;
+    approximateRadius = loc.radiusMeters ?? 500;
+  }
+  if (loc?.type === "none" || loc == null) {
+    lat = GDL_CITY_ANCHOR.lat;
+    lng = GDL_CITY_ANCHOR.lng;
+    isApproximate = 1;
+    approximateRadius = 1000;
+  }
+  return { lat, lng, isApproximate, approximateRadius };
+}
+
 export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
   const r = express.Router();
   const resolvedUploadDir = path.resolve(uploadDir);
@@ -111,6 +214,11 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     if (!isAdminUser(db, uid)) { res.status(403).json({ error: "forbidden" }); return; }
     next();
   }
+
+  const composeLimiter = createSlidingWindowLimiter({
+    windowMs: SELF_SERVE_COMPOSE_WINDOW_MS,
+    max: SELF_SERVE_COMPOSE_IP_MAX_PER_HOUR,
+  });
 
   // ── Admin: AI extraction ──────────────────────────────────────────────────
   r.post(
@@ -300,6 +408,245 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     },
   );
 
+  // ── Public: extract + create/update self-serve assisted draft ─────────────
+  r.post(
+    "/self/compose",
+    express.json({ limit: "30mb" }),
+    (req: Request, res: Response): void => {
+      void (async () => {
+        const lim = composeLimiter(composeRateLimitKey(req));
+        if (!lim.ok) {
+          res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+          return;
+        }
+        try {
+          const body = req.body as {
+            text?: string;
+            city?: string;
+            hints?: unknown;
+            infographicPhotos?: ImageInput[];
+            photos?: ImageInput[];
+            existingToken?: string;
+          };
+          const text = typeof body.text === "string" ? body.text.trim().slice(0, SELF_SERVE_MAX_TEXT_CHARS) : "";
+          const infographics = Array.isArray(body.infographicPhotos)
+            ? body.infographicPhotos.slice(0, SELF_SERVE_MAX_INFOGRAPHICS)
+            : [];
+          const photos = Array.isArray(body.photos) ? body.photos.slice(0, SELF_SERVE_MAX_PHOTOS) : [];
+          const hasInfographicData = infographics.some(
+            (img) => (typeof img.data === "string" && img.data.length > 0) || (typeof img.url === "string" && img.url),
+          );
+          if (!text && !hasInfographicData) {
+            res.status(400).json({ error: "text_or_infographic_required" });
+            return;
+          }
+
+          const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : "Guadalajara";
+          const hints = parseHints(body.hints);
+          const existingToken = typeof body.existingToken === "string" ? body.existingToken.trim() : "";
+
+          const geminiImages = infographics
+            .filter((img) => typeof img.data === "string" && img.data.length > 0 && typeof img.mimeType === "string")
+            .map((img) => ({ mimeType: img.mimeType as string, data: img.data as string }));
+
+          const result = await extractListingDataWithGemini({
+            text: text || undefined,
+            images: geminiImages.length > 0 ? geminiImages : undefined,
+            city,
+          });
+          recordAssistedDraftGenerate(result.promptTokens, result.outputTokens, result.model);
+
+          const merged = mergeExtractionWithHints(result.extraction, hints, text);
+          const ext = merged.extraction;
+          const photoUrls = [
+            ...resolveImageUrls(photos, resolvedUploadDir, SELF_SERVE_MAX_PHOTOS),
+            ...resolveImageUrls(infographics, resolvedUploadDir, SELF_SERVE_MAX_INFOGRAPHICS),
+          ];
+          const loc = locationFromExtraction(ext);
+          const now = new Date().toISOString();
+          const title = ext.propertyTitle ?? "";
+          const neighborhood = ext.neighborhood ?? "";
+          const propertyKind = ext.propertyKind ?? null;
+          const imageUrlsJson = JSON.stringify(photoUrls);
+          const rentMxn = ext.rentMxn ?? 0;
+          const depositMxn = ext.depositMxn ?? 0;
+          const roommateGenderPref = ext.roommateGenderPref ?? "any";
+          const ageMin = ext.ageMin ?? 18;
+          const ageMax = ext.ageMax ?? 99;
+          const lodgingType = ext.lodgingType ?? "private_room";
+          const availableFrom = ext.availableFrom ?? now.slice(0, 10);
+          const minimalStayMonths = ext.minimalStayMonths ?? 1;
+          const roomDimension = ext.roomDimension ?? "medium";
+          const roomSummary = ext.roomSummary ?? "";
+          const tagsJson = JSON.stringify(ext.tags ?? []);
+          const bedroomsTotal = propertyKind === "loft" ? 1 : 1;
+
+          let token = existingToken;
+          let propertyId = "";
+          let roomId = "";
+
+          if (token) {
+            const row = db.prepare(
+              `SELECT * FROM assisted_draft_claim_tokens WHERE token = ?`,
+            ).get(token) as AssistedDraftClaimRow | undefined;
+            const canReuse =
+              row &&
+              Date.now() <= row.expires_at &&
+              row.claimed_by_user_id == null &&
+              isSelfServeCreator(row.created_by_admin_id);
+            if (!canReuse) {
+              token = "";
+            } else {
+              propertyId = row.property_id;
+              const room = db.prepare(
+                `SELECT id FROM rooms WHERE property_id = ? ORDER BY sort_order LIMIT 1`,
+              ).get(propertyId) as { id: string } | undefined;
+              if (!room) {
+                token = "";
+              } else {
+                roomId = room.id;
+                db.prepare(`
+                  UPDATE properties SET
+                    title = @title, city = @city, neighborhood = @neighborhood,
+                    lat = @lat, lng = @lng, property_kind = @propertyKind,
+                    bedrooms_total = @bedroomsTotal, bathrooms = 1,
+                    image_urls_json = @imageUrlsJson,
+                    is_approximate_location = @isApproximate,
+                    approximate_radius_m = @approximateRadius
+                  WHERE id = @id
+                `).run({
+                  id: propertyId,
+                  title,
+                  city,
+                  neighborhood,
+                  lat: loc.lat,
+                  lng: loc.lng,
+                  propertyKind,
+                  bedroomsTotal,
+                  imageUrlsJson,
+                  isApproximate: loc.isApproximate,
+                  approximateRadius: loc.approximateRadius,
+                });
+                db.prepare(`
+                  UPDATE rooms SET
+                    rent_mxn = @rentMxn, deposit_mxn = @depositMxn, tags_json = @tagsJson,
+                    roommate_gender_pref = @roommateGenderPref, age_min = @ageMin, age_max = @ageMax,
+                    summary = @roomSummary, lodging_type = @lodgingType,
+                    available_from = @availableFrom, minimal_stay_months = @minimalStayMonths,
+                    room_dimension = @roomDimension, image_urls_json = @imageUrlsJson,
+                    updated_at = @now
+                  WHERE id = @roomId
+                `).run({
+                  roomId,
+                  rentMxn,
+                  depositMxn,
+                  tagsJson,
+                  roommateGenderPref,
+                  ageMin,
+                  ageMax,
+                  roomSummary,
+                  lodgingType,
+                  availableFrom,
+                  minimalStayMonths,
+                  roomDimension,
+                  imageUrlsJson,
+                  now,
+                });
+              }
+            }
+          }
+
+          if (!token) {
+            propertyId = `prp__${randomUUID()}`;
+            roomId = randomUUID();
+            const orphanPublisherId = randomUUID();
+            token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "").slice(0, 8);
+            db.prepare(`
+              INSERT INTO properties (
+                id, publisher_id, status, post_mode, title, city, neighborhood,
+                lat, lng, summary, contact_whatsapp, property_kind,
+                bedrooms_total, bathrooms, show_whatsapp, image_urls_json,
+                is_approximate_location, approximate_radius_m,
+                created_at, assisted_draft, created_by_admin_id
+              ) VALUES (
+                @id, @publisherId, 'draft', 'room', @title, @city, @neighborhood,
+                @lat, @lng, '', '', @propertyKind,
+                @bedroomsTotal, 1, 0, @imageUrlsJson,
+                @isApproximate, @approximateRadius,
+                @createdAt, 1, @adminId
+              )
+            `).run({
+              id: propertyId,
+              publisherId: orphanPublisherId,
+              title,
+              city,
+              neighborhood,
+              lat: loc.lat,
+              lng: loc.lng,
+              propertyKind,
+              bedroomsTotal,
+              imageUrlsJson,
+              isApproximate: loc.isApproximate,
+              approximateRadius: loc.approximateRadius,
+              createdAt: now,
+              adminId: SELF_SERVE_CREATOR_ID,
+            });
+            db.prepare(`
+              INSERT INTO rooms (
+                id, property_id, status, title, rent_mxn, rooms_available, tags_json,
+                roommate_gender_pref, age_min, age_max, summary, lodging_type,
+                available_from, minimal_stay_months, room_dimension,
+                aval_required, sublet_allowed, sort_order, deposit_mxn,
+                image_urls_json, created_at, updated_at
+              ) VALUES (
+                @id, @propertyId, 'draft', '', @rentMxn, 1, @tagsJson,
+                @roommateGenderPref, @ageMin, @ageMax, @roomSummary, @lodgingType,
+                @availableFrom, @minimalStayMonths, @roomDimension,
+                0, 0, 0, @depositMxn,
+                @imageUrlsJson, @now, @now
+              )
+            `).run({
+              id: roomId,
+              propertyId,
+              rentMxn,
+              tagsJson,
+              roommateGenderPref,
+              ageMin,
+              ageMax,
+              roomSummary,
+              lodgingType,
+              availableFrom,
+              minimalStayMonths,
+              roomDimension,
+              depositMxn,
+              imageUrlsJson,
+              now,
+            });
+            db.prepare(`
+              INSERT INTO assisted_draft_claim_tokens (
+                token, property_id, created_by_admin_id, orphan_publisher_id,
+                expires_at, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?)
+            `).run(token, propertyId, SELF_SERVE_CREATOR_ID, orphanPublisherId, Date.now() + CLAIM_TOKEN_TTL_MS, Date.now());
+          }
+
+          res.status(201).json({
+            ok: true,
+            token,
+            propertyId,
+            roomId,
+            source: "self_serve",
+            conflicts: merged.conflicts,
+            extraction: ext,
+          });
+        } catch (err) {
+          console.error("[assisted-draft] self compose error", err);
+          res.status(500).json({ error: "compose_failed" });
+        }
+      })();
+    },
+  );
+
   // ── Public: get draft info by claim token ─────────────────────────────────
   r.get("/claim/:token", (req: Request, res: Response): void => {
     const token = String(req.params.token ?? "").trim();
@@ -330,6 +677,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     res.json({
       ok: true,
       isClaimed,
+      source: isSelfServeCreator(row.created_by_admin_id) ? "self_serve" : "admin",
       propertyId: prop.id,
       property: {
         id: prop.id,

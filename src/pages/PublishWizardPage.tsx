@@ -58,7 +58,14 @@ import {
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
-import { publishAssistedDraftClaim, activateAssistedDraftClaim, fetchAssistedDraftClaim } from "@/lib/assistedDraftApi";
+import { FacebookMark } from "@/components/FacebookMark";
+import { AiRoomCreateStep } from "@/components/publish/AiRoomCreateStep";
+import { toComposeImages, type AiLocalImage } from "@/components/publish/AiImageDropZone";
+import {
+  EMPTY_AI_HINTS,
+  type PublishAiHintState,
+} from "@/components/publish/PublishAiFilterChips";
+import { publishAssistedDraftClaim, activateAssistedDraftClaim, fetchAssistedDraftClaim, selfComposeAssistedDraft, type AssistedDraftConflict } from "@/lib/assistedDraftApi";
 import { claimInfoToBundle } from "@/lib/assistedDraftClaim";
 import {
   clearAssistedDraftClaimSession,
@@ -94,6 +101,7 @@ import {
 } from "@/lib/nominatimAddress";
 import {
   CITY_ANCHOR,
+  WIZARD_STEP_TITLES,
   draftRoomEditorImages,
   effectiveRoomsAvailable,
   effectiveWizardPropertyBathrooms,
@@ -150,6 +158,15 @@ const PROPERTY_BATHROOMS_MAX = 10;
 const WIZARD_STEP_POST_MODE = 0;
 /** First numbered header step — ubicación, shown as paso 1. */
 const WIZARD_FIRST_NUMBERED_STEP = WIZARD_STEP_POST_MODE + 1;
+
+function lastWizardStep(d: Pick<Draft, "postMode" | "roomCreateFlow">): number {
+  return publishWizardLastStepIndex(d.postMode, d.roomCreateFlow);
+}
+
+function isAiRoomCreateFlow(d: Pick<Draft, "postMode" | "roomCreateFlow">, opts?: { liveEdit?: boolean; editId?: string | null }): boolean {
+  if (opts?.liveEdit || opts?.editId) return false;
+  return d.postMode === "room" && d.roomCreateFlow === "ai";
+}
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
 const WIZARD_STEP_PROPERTY_GENERAL = 2;
@@ -248,6 +265,12 @@ function normalizePersistedDraft(d: Draft): Draft {
   while (roomImageUrls.length < rooms.length) roomImageUrls.push([]);
   const base: Draft = {
     ...migrated,
+    roomCreateFlow:
+      migrated.roomCreateFlow === "manual" || migrated.roomCreateFlow === "ai"
+        ? migrated.roomCreateFlow
+        : migrated.useCustomMapPin || Boolean(migrated.propertyTitle?.trim())
+          ? "manual"
+          : "ai",
     commonAreaPhotos: normalizeDraftImages(migrated.commonAreaPhotos ?? migrated.propertyImageUrls ?? []),
     rooms: rooms.length ? rooms : [defaultRoom()],
     roomImageUrls: roomImageUrls.slice(0, rooms.length || 1),
@@ -332,6 +355,8 @@ export type RoomDraft = {
 export type Draft = {
   /** Strategy: 'room' = single-room post; 'property' = property/multi-room post. */
   postMode: "room" | "property";
+  /** Single-room create path. Ignored for property posts and live edits. */
+  roomCreateFlow: "ai" | "manual";
   city: (typeof CITIES)[number];
   propertyTitle: string;
   neighborhood: string;
@@ -417,6 +442,7 @@ const DRAFT_ONLY_ROOM_TITLE_SEEDS = [
 
 const defaultDraft = (): Draft => ({
   postMode: "room",
+  roomCreateFlow: "ai",
   city: "Guadalajara",
   propertyTitle: "",
   neighborhood: "",
@@ -588,7 +614,9 @@ export function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Dra
   const usePin =
     Number.isFinite(p.lat) &&
     Number.isFinite(p.lng) &&
-    (Math.abs(p.lat - anchor.lat) > 0.0002 || Math.abs(p.lng - anchor.lng) > 0.0002);
+    (Boolean(p.isApproximateLocation) ||
+      Math.abs(p.lat - anchor.lat) > 0.0002 ||
+      Math.abs(p.lng - anchor.lng) > 0.0002);
   let roomDrafts: RoomDraft[] =
     srvRooms.length > 0
       ? srvRooms.map((r) =>
@@ -649,6 +677,7 @@ export function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Dra
 
   const draft: Draft = {
     ...defaultDraft(),
+    roomCreateFlow: "manual",
     postMode: p.postMode === "room" ? "room" : "property",
     city,
     propertyTitle: p.title,
@@ -810,10 +839,10 @@ export function PublishWizardPage() {
   const [resumeBoot] = useState(loadWizardResumeBoot);
   const [step, setStep] = useState(() => {
     if (assistedBoot?.session) {
-      return publishWizardLastStepIndex(assistedBoot.session.draft.postMode);
+      return lastWizardStep(normalizePersistedDraft(assistedBoot.session.draft));
     }
     if (typeof resumeBoot?.step === "number") return resumeBoot.step;
-    if (readClaimTokenFromWindow()) return publishWizardLastStepIndex("room");
+    if (readClaimTokenFromWindow()) return lastWizardStep({ postMode: "room", roomCreateFlow: "manual" });
     return 0;
   });
   const [expandedPropertyRoomIndex, setExpandedPropertyRoomIndex] = useState<number | null>(null);
@@ -865,6 +894,13 @@ export function PublishWizardPage() {
    * location step (pan or address search). Returning to the step does not remount it.
    */
   const [streetViewViewerReady, setStreetViewViewerReady] = useState(false);
+  const [aiSourceText, setAiSourceText] = useState("");
+  const [aiHints, setAiHints] = useState<PublishAiHintState>(EMPTY_AI_HINTS);
+  const [aiPhotos, setAiPhotos] = useState<AiLocalImage[]>([]);
+  const [aiInfographics, setAiInfographics] = useState<AiLocalImage[]>([]);
+  const [aiConflicts, setAiConflicts] = useState<AssistedDraftConflict[]>([]);
+  const [aiComposeInFlight, setAiComposeInFlight] = useState(false);
+  const [aiDidCompose, setAiDidCompose] = useState(false);
 
   usePageSeo({
     title: "Publicar anuncio | Bestie MX",
@@ -915,7 +951,7 @@ export function PublishWizardPage() {
         token: st.assistedDraftToken,
         draft: resumed,
         serverSync: st.resumeServerSync ?? { propertyId: null, roomIds: [] },
-        step: typeof st.resumeStep === "number" ? st.resumeStep : publishWizardLastStepIndex(resumed.postMode),
+        step: typeof st.resumeStep === "number" ? st.resumeStep : lastWizardStep(resumed),
       });
     }
     // Signal the auth effect to skip its reset — we already have the correct draft/step.
@@ -1030,7 +1066,7 @@ export function PublishWizardPage() {
     if (assistedBoot?.session || resumeStateAppliedRef.current) {
       claimHydrateLock.current = true;
       if (assistedBoot?.session) {
-        setStep(publishWizardLastStepIndex(assistedBoot.session.draft.postMode));
+        setStep(lastWizardStep(assistedBoot.session.draft));
       }
       setStorageReady(true);
       return;
@@ -1039,7 +1075,7 @@ export function PublishWizardPage() {
     const cached = readAssistedDraftClaimSession(token);
     if (cached) {
       const nextDraft = normalizePersistedDraft(cached.draft);
-      const resumeStep = publishWizardLastStepIndex(nextDraft.postMode);
+      const resumeStep = lastWizardStep(nextDraft);
       setDraft(nextDraft);
       setServerSync(cached.serverSync);
       setStep(resumeStep);
@@ -1058,8 +1094,11 @@ export function PublishWizardPage() {
         const info = await fetchAssistedDraftClaim(token);
         if (cancelled || info.isClaimed) return;
         const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
-        const nextDraft = mapped.draft;
-        const resumeStep = publishWizardLastStepIndex(nextDraft.postMode);
+        const nextDraft: Draft = {
+          ...mapped.draft,
+          roomCreateFlow: info.source === "self_serve" ? "ai" : "manual",
+        };
+        const resumeStep = lastWizardStep(nextDraft);
         setDraft(nextDraft);
         setServerSync(mapped.serverSync);
         setStep(resumeStep);
@@ -1181,7 +1220,7 @@ export function PublishWizardPage() {
       Math.min(cached.previewRoomIndex, Math.max(0, nextDraft.rooms.length - 1)),
     );
     setLiveEditEditingPhotos(cached.editingPhotos);
-    setStep(publishWizardLastStepIndex(nextDraft.postMode));
+    setStep(lastWizardStep(nextDraft));
     markAutosaveBaseline(nextDraft);
     setHandoffBanner(
       cached.status === "paused"
@@ -1277,7 +1316,7 @@ export function PublishWizardPage() {
 
           const urlStep = readWizardPasoIndex(searchParams);
           if (ps === "published" || ps === "paused") {
-            setStep(publishWizardLastStepIndex(nextDraft.postMode));
+            setStep(lastWizardStep(nextDraft));
           } else if (urlStep != null) {
             setStep(urlStep);
           } else if (typeof bundle.property.wizardStep === "number") {
@@ -1746,9 +1785,14 @@ export function PublishWizardPage() {
     }));
   }
 
+  const aiRoomFlow = isAiRoomCreateFlow(draft, {
+    liveEdit: Boolean(editingLiveProperty),
+    editId: editPropertyId,
+  });
+
   const steps = useMemo(
-    () => [
-      {
+    () => {
+      const typeStep = {
         title: "¿Qué tipo de espacio deseas publicar?",
         body: (
           <form className="space-y-6">
@@ -1788,6 +1832,10 @@ export function PublishWizardPage() {
                   <p className="mt-2 text-xs text-muted">
                     Publica un cuarto o Loft de forma rápida y sencilla. Ideal para la búsqueda ocasional de un roomie.
                   </p>
+                  <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-body">
+                    <FacebookMark className="mt-0.5 size-3.5 shrink-0" />
+                    <span>Mejor opción para crear un post desde tu publicación de Facebook.</span>
+                  </p>
                 </button>
                 {editPostModeLock !== "room" ? (
                 <button
@@ -1820,10 +1868,57 @@ export function PublishWizardPage() {
                 </button>
                 ) : null}
               </div>
+              {draft.postMode === "room" ? (
+                <p className="text-sm text-muted">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      track("publish_manual_flow_selected", { from: "type_card" });
+                      setDraft((d) => ({ ...d, postMode: "room", roomCreateFlow: "manual" }));
+                      setStep(1);
+                    }}
+                    className="font-semibold text-primary underline-offset-2 hover:underline"
+                  >
+                    Prefiero llenar los datos a mano
+                  </button>
+                </p>
+              ) : null}
             </div>
           </form>
         ),
-      },
+      };
+      if (aiRoomFlow) {
+        return [
+          typeStep,
+          {
+            title: WIZARD_STEP_TITLES.AI_INPUT,
+            body: (
+              <AiRoomCreateStep
+                city={draft.city}
+                onCityChange={(city) => setDraft((d) => ({ ...d, city: city as Draft["city"] }))}
+                text={aiSourceText}
+                onTextChange={setAiSourceText}
+                hints={aiHints}
+                onHintsChange={setAiHints}
+                photos={aiPhotos}
+                onPhotosChange={setAiPhotos}
+                infographics={aiInfographics}
+                onInfographicsChange={setAiInfographics}
+                onFillManually={() => {
+                  track("publish_manual_flow_selected", { from: "ai_step" });
+                  setDraft((d) => ({ ...d, roomCreateFlow: "manual" }));
+                }}
+              />
+            ),
+          },
+          {
+            title: WIZARD_STEP_TITLES.REVIEW,
+            body: null,
+          },
+        ];
+      }
+      return [
+        typeStep,
       {
         title: "¿Dónde se ubica el espacio?",
         body: (
@@ -2649,8 +2744,9 @@ export function PublishWizardPage() {
         title: "Revisar y publicar",
         body: null,
       },
-    ],
-    [draft, apiOn, mapAddressShown, mapGeocode, addressFieldText, mapZoom, streetViewViewerReady, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me],
+    ];
+    },
+    [draft, apiOn, mapAddressShown, mapGeocode, addressFieldText, mapZoom, streetViewViewerReady, expandedPropertyRoomIndex, submitInFlight, editPropertyId, editingLiveProperty, editPostModeLock, me, aiRoomFlow, aiSourceText, aiHints, aiPhotos, aiInfographics],
   );
 
   const maxStepIndex = Math.max(0, steps.length - 1);
@@ -2730,6 +2826,72 @@ export function PublishWizardPage() {
   }, [step]);
 
   const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
+
+  async function submitAiCompose() {
+    if (!aiSourceText.trim() && aiInfographics.length === 0) {
+      setPublishErr(
+        "Pega el texto de tu publicación o agrega un infográfico, poster o mapa. También puedes llenar los datos a mano.",
+      );
+      return;
+    }
+    setAiComposeInFlight(true);
+    setPublishErr(null);
+    try {
+      const result = await selfComposeAssistedDraft({
+        text: aiSourceText.trim() || undefined,
+        city: draft.city,
+        hints: {
+          lodgingType: aiHints.lodgingType,
+          loft: aiHints.loft,
+          tagsOn: aiHints.tagsOn,
+          gender: aiHints.gender,
+        },
+        photos: toComposeImages(aiPhotos),
+        infographicPhotos: toComposeImages(aiInfographics),
+        existingToken: assistedDraftTokenRef.current || undefined,
+      });
+      try {
+        await activateAssistedDraftClaim(result.token);
+      } catch {
+        /* already activated */
+      }
+      const info = await fetchAssistedDraftClaim(result.token);
+      const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
+      const nextDraft: Draft = { ...mapped.draft, roomCreateFlow: "ai", city: draft.city };
+      const resumeStep = lastWizardStep(nextDraft);
+      setAssistedDraftToken(result.token);
+      writeAssistedDraftClaimToken(result.token);
+      draftRef.current = nextDraft;
+      setDraft(nextDraft);
+      setServerSync(mapped.serverSync);
+      setAiConflicts(result.conflicts);
+      setAiDidCompose(true);
+      writeAssistedDraftClaimSession({
+        token: result.token,
+        draft: nextDraft,
+        serverSync: mapped.serverSync,
+        step: resumeStep,
+      });
+      try {
+        sessionStorage.setItem(`bestie-ai-conflicts:${result.token}`, JSON.stringify(result.conflicts));
+      } catch {
+        /* quota */
+      }
+      markAutosaveBaseline(nextDraft);
+      setStep(resumeStep);
+      track("publish_ai_compose_ok", { conflict_count: result.conflicts.length });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      setPublishErr(
+        msg === "rate_limited"
+          ? "Demasiados intentos. Espera un momento y vuelve a intentar."
+          : "No pudimos armar el anuncio. Reintenta o llena los datos a mano.",
+      );
+      track("publish_ai_compose_fail", { error: msg });
+    } finally {
+      setAiComposeInFlight(false);
+    }
+  }
 
   async function submitPublish() {
     setPublishErr(null);
@@ -3264,6 +3426,7 @@ export function PublishWizardPage() {
                   const isCurrent = i === safeStep;
                   const shortLabel = (() => {
                     const t = s.title;
+                    if (/cuéntanos/i.test(t)) return "Datos";
                     if (/ubica/i.test(t)) return "Ubicación";
                     if (/cómo.*espacio/i.test(t)) return "Descripción";
                     if (/recámara|recamara/i.test(t)) return "Recámaras";
@@ -3354,6 +3517,8 @@ export function PublishWizardPage() {
               roomIndex={Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1))}
               onRoomIndexChange={setPreviewRoomIndex}
               isAssistedDraft={Boolean(assistedDraftToken)}
+              isSelfServeAssistedDraft={Boolean(assistedDraftToken) && draft.roomCreateFlow === "ai"}
+              fieldConflicts={aiConflicts}
               onDraftChange={(updater) => {
               setDraft((d) => {
                 const next = syncDraftPhotoFields(updater(d));
@@ -3379,6 +3544,9 @@ export function PublishWizardPage() {
           <p className="mt-4 text-sm text-error" role="alert">
             {publishErr}
           </p>
+        ) : null}
+        {current.title === WIZARD_STEP_TITLES.AI_INPUT && aiDidCompose ? (
+          <p className="mt-3 text-xs text-muted">Se volverá a armar el anuncio con lo que hay ahora.</p>
         ) : null}
 
         <div
@@ -3407,6 +3575,10 @@ export function PublishWizardPage() {
               <button
                 type="button"
                 onClick={() => {
+                  if (current.title === WIZARD_STEP_TITLES.AI_INPUT) {
+                    void submitAiCompose();
+                    return;
+                  }
                   const err = validateWizardStepByTitle(current.title, draft, safeStep);
                   if (err) {
                     setPublishErr(err);
@@ -3428,10 +3600,14 @@ export function PublishWizardPage() {
                   });
                   setStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
-                disabled={submitInFlight !== null}
+                disabled={submitInFlight !== null || aiComposeInFlight}
                 className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-50"
               >
-                Siguiente
+                {current.title === WIZARD_STEP_TITLES.AI_INPUT
+                  ? aiComposeInFlight
+                    ? "Armando tu anuncio…"
+                    : "Continuar"
+                  : "Siguiente"}
               </button>
             ) : null}
           </div>

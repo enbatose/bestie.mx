@@ -50,8 +50,10 @@ type Props = {
   initialEditingPhotos?: boolean;
   onEditingPhotosChange?: (editing: boolean) => void;
   onPhotoPickerOpen?: () => void;
-  /** True when the draft was created by the AI assistant, not manually. */
   isAssistedDraft?: boolean;
+  /** Self-serve AI flow (not an admin outreach claim link). */
+  isSelfServeAssistedDraft?: boolean;
+  fieldConflicts?: Array<{ field: string; message: string }>;
 };
 
 export function PublishWizardReviewStep({
@@ -73,6 +75,8 @@ export function PublishWizardReviewStep({
   onEditingPhotosChange,
   onPhotoPickerOpen,
   isAssistedDraft = false,
+  isSelfServeAssistedDraft = false,
+  fieldConflicts = [],
 }: Props) {
   const navigate = useNavigate();
   const [jumpToRoomIndex, setJumpToRoomIndex] = useState<number | null>(null);
@@ -177,15 +181,33 @@ export function PublishWizardReviewStep({
         <h3 className="text-[15px] font-bold text-primary">{heading}</h3>
         {isAssistedDraft && !isLiveEdit ? (
           <div className="mt-2 border-t border-amber-200 pt-2">
-            <p className="text-xs font-semibold text-amber-800">Borrador creado por Bestie</p>
-            <p className="mt-0.5 text-xs text-amber-700">
-              Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el
-              anuncio quedará bajo tu nombre.
-            </p>
-            <p className="mt-1.5 text-xs text-amber-700">
-              Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
-              recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
-            </p>
+            {isSelfServeAssistedDraft ? (
+              <>
+                <p className="text-xs font-semibold text-amber-800">Revisa lo que armamos con tu publicación</p>
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Corrige lo que falte antes de publicar. La IA puede haber dejado campos vacíos.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-amber-800">Borrador creado por Bestie</p>
+                <p className="mt-0.5 text-xs text-amber-700">
+                  Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el
+                  anuncio quedará bajo tu nombre.
+                </p>
+                <p className="mt-1.5 text-xs text-amber-700">
+                  Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
+                  recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
+                </p>
+              </>
+            )}
+            {fieldConflicts.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs font-medium text-amber-900">
+                {fieldConflicts.map((c) => (
+                  <li key={`${c.field}-${c.message}`}>{c.message}</li>
+                ))}
+              </ul>
+            ) : null}
             {rentMissing ? (
               <p className="mt-1.5 text-xs font-semibold text-error">
                 Falta el precio de renta. Agrégalo en «Editar encabezado» — no se puede publicar

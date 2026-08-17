@@ -45,6 +45,8 @@ export type AssistedDraftExtraction = {
   roomDimension?: "small" | "medium" | "large";
   tags?: string[];
   idealParaTags?: string[];
+  /** Tags the source explicitly says are NOT available (do not invent). */
+  deniedTags?: string[];
   roomSummary?: string;
   location?: {
     type: "precise" | "approximate" | "none";
@@ -88,6 +90,7 @@ REGLAS IMPORTANTES:
 - Para precio: extrae solo si está claramente especificado en MXN.
 - Para ubicación: busca colonia, barrio, calle o referencia geográfica.
 - Para disponibilidad: intenta inferir una fecha desde menciones como "disponible ya", "primer de mes", etc.
+- deniedTags: slugs que el anuncio niega de forma explícita (p. ej. "no se aceptan mascotas" → ["mascotas"]). No pongas un tag en tags y deniedTags a la vez.
 - Para descripción (roomSummary): genera un texto atractivo en español usando SOLO la información disponible. 
   Mínimo 100 caracteres, máximo 1200. Si no hay suficiente información, sé conciso pero honesto.
   Usa un tono cálido y directo, sin exagerar características no mencionadas.
@@ -116,6 +119,7 @@ Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
   "roomDimension": { "value": "small|medium|large", "confidence": 0-100 },
   "tags": { "value": ["slug1", "slug2"], "confidence": 0-100 },
   "idealParaTags": { "value": ["slug1"], "confidence": 0-100 },
+  "deniedTags": { "value": ["mascotas"], "confidence": 0-100 },
   "roomSummary": { "value": "...", "confidence": 0-100 },
   "location": {
     "type": "precise|approximate|none",
@@ -147,6 +151,7 @@ type RawGeminiExtraction = {
   roomDimension?: RawFieldResult;
   tags?: RawFieldResult;
   idealParaTags?: RawFieldResult;
+  deniedTags?: RawFieldResult;
   roomSummary?: RawFieldResult;
   location?: {
     type?: string;
@@ -309,6 +314,7 @@ export async function extractListingDataWithGemini(
     record("roomDimension", parsed.roomDimension);
     record("tags", parsed.tags);
     record("idealParaTags", parsed.idealParaTags);
+    record("deniedTags", parsed.deniedTags);
     record("roomSummary", parsed.roomSummary);
 
     const allTags = [
@@ -316,6 +322,7 @@ export async function extractListingDataWithGemini(
       ...(extractTags(parsed.idealParaTags, IDEAL_PARA_TAGS) ?? []),
     ];
     const uniqueTags = [...new Set(allTags)];
+    const deniedTags = extractTags(parsed.deniedTags, VALID_TAGS);
 
     const rawSummary = extractString(parsed.roomSummary);
     const roomSummary = rawSummary ? rawSummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
@@ -356,6 +363,7 @@ export async function extractListingDataWithGemini(
         minimalStayMonths: extractInt(parsed.minimalStayMonths),
         roomDimension: extractEnum(parsed.roomDimension, ["small", "medium", "large"] as const),
         tags: uniqueTags.length > 0 ? uniqueTags : undefined,
+        deniedTags: deniedTags && deniedTags.length > 0 ? deniedTags : undefined,
         roomSummary,
         location,
         confidence: confidenceMap,

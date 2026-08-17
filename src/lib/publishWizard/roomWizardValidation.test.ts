@@ -43,6 +43,7 @@ function sampleRoom(overrides: Partial<RoomDraft> = {}): RoomDraft {
 function sampleDraft(overrides: Partial<Draft> = {}): Draft {
   return {
     postMode: "room",
+    roomCreateFlow: "manual",
     city: "Guadalajara",
     propertyTitle: "Casa en Americana",
     neighborhood: "Americana",
