@@ -10,7 +10,7 @@ import {
 } from "@/lib/feedbackSession";
 import { startFeedbackConversation, type FeedbackSource } from "@/lib/messagesApi";
 
-const SENT_AUTO_CLOSE_MS = 5_000;
+const SENT_AUTO_CLOSE_MS = 2_000;
 const COMMENT_MAX = 2000;
 
 type Props = {
