@@ -88,7 +88,7 @@ export type AnalyticsProps = {
   listing_auth_required: { listing_id: string; reason: "message" };
 
   publish_mode_selected: { mode: "room" | "property" };
-  publish_manual_flow_selected: { from: "type_card" | "ai_step" };
+  publish_manual_flow_selected: { from: "ai_step" };
   publish_ai_compose_ok: { conflict_count: number };
   publish_ai_compose_fail: { error: string };
   publish_step_completed: {

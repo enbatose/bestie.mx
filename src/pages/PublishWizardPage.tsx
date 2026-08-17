@@ -1868,21 +1868,6 @@ export function PublishWizardPage() {
                 </button>
                 ) : null}
               </div>
-              {draft.postMode === "room" ? (
-                <p className="text-sm text-muted">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      track("publish_manual_flow_selected", { from: "type_card" });
-                      setDraft((d) => ({ ...d, postMode: "room", roomCreateFlow: "manual" }));
-                      setStep(1);
-                    }}
-                    className="font-semibold text-primary underline-offset-2 hover:underline"
-                  >
-                    Prefiero llenar los datos a mano
-                  </button>
-                </p>
-              ) : null}
             </div>
           </form>
         ),
