@@ -1226,6 +1226,58 @@ export function EditableListingPreview({
         )}
       </PreviewSection>
 
+      {showRoomBlocks ? (
+      <PreviewSection
+        id={PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID}
+        className="scroll-mt-24"
+        title="Descripción de la recámara"
+        onEdit={() => {
+          setRoomSummaryDraft(room.summary);
+          setEditingRoom(true);
+        }}
+      >
+        {editingRoom ? (
+          <InlineFieldEditor
+            label="Descripción de la recámara"
+            onSave={saveRoomSummary}
+            onCancel={() => setEditingRoom(false)}
+          >
+            <ResizableTextarea
+              value={roomSummaryDraft}
+              onChange={(e) => setRoomSummaryDraft(e.target.value)}
+              rows={6}
+              maxLength={ROOM_SUMMARY_MAX}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            />
+            <FieldCharCount
+              current={roomSummaryDraft.trim().length}
+              min={ROOM_SUMMARY_MIN}
+              max={ROOM_SUMMARY_MAX}
+              warnBelowMin
+            />
+          </InlineFieldEditor>
+        ) : (
+          <>
+            <p className="text-sm leading-relaxed text-muted sm:text-base">
+              {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
+            </p>
+            <ScopeTagsBlock
+              heading="Etiquetas de la recámara"
+              tags={roomTagsActive}
+              editing={editingRoomTags}
+              onStartEdit={openRoomTagsEdit}
+              onSave={saveRoomTags}
+              onCancel={() => setEditingRoomTags(false)}
+              editGroups={ROOM_TAG_GROUPS}
+              draftTags={roomTagsDraft}
+              onToggle={toggleRoomTagDraft}
+              unselectedTags={unselectedRoomTags}
+            />
+          </>
+        )}
+      </PreviewSection>
+      ) : null}
+
       {showPropertyBlocks ? (
         <PreviewSection
           title="Amenidades de la propiedad"
@@ -1640,58 +1692,6 @@ export function EditableListingPreview({
             roomCount={draft.rooms.length}
             propertyTags={draft.propertyTags}
           />
-        )}
-      </PreviewSection>
-      ) : null}
-
-      {showRoomBlocks ? (
-      <PreviewSection
-        id={PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID}
-        className="scroll-mt-24"
-        title="Descripción de la recámara"
-        onEdit={() => {
-          setRoomSummaryDraft(room.summary);
-          setEditingRoom(true);
-        }}
-      >
-        {editingRoom ? (
-          <InlineFieldEditor
-            label="Descripción de la recámara"
-            onSave={saveRoomSummary}
-            onCancel={() => setEditingRoom(false)}
-          >
-            <ResizableTextarea
-              value={roomSummaryDraft}
-              onChange={(e) => setRoomSummaryDraft(e.target.value)}
-              rows={6}
-              maxLength={ROOM_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-            />
-            <FieldCharCount
-              current={roomSummaryDraft.trim().length}
-              min={ROOM_SUMMARY_MIN}
-              max={ROOM_SUMMARY_MAX}
-              warnBelowMin
-            />
-          </InlineFieldEditor>
-        ) : (
-          <>
-            <p className="text-sm leading-relaxed text-muted sm:text-base">
-              {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
-            </p>
-            <ScopeTagsBlock
-              heading="Etiquetas de la recámara"
-              tags={roomTagsActive}
-              editing={editingRoomTags}
-              onStartEdit={openRoomTagsEdit}
-              onSave={saveRoomTags}
-              onCancel={() => setEditingRoomTags(false)}
-              editGroups={ROOM_TAG_GROUPS}
-              draftTags={roomTagsDraft}
-              onToggle={toggleRoomTagDraft}
-              unselectedTags={unselectedRoomTags}
-            />
-          </>
         )}
       </PreviewSection>
       ) : null}
