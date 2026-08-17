@@ -121,7 +121,7 @@ export function AiRoomCreateStep({
           onClick={onFillManually}
           className="font-semibold text-primary underline-offset-2 hover:underline"
         >
-          Prefiero llenar los datos a mano
+          Prefiero llenar los datos a mano (Sin IA)
         </button>
       </p>
     </form>
