@@ -490,6 +490,9 @@ export function buildAssistedDraftClaimSaveBody(draft: Draft): AssistedDraftClai
         minimalStayMonths: fields.minimalStayMonths,
         roomDimension: fields.roomDimension,
         avalRequired: fields.avalRequired,
+        occupancyStatus: fields.occupancyStatus,
+        occupantWomenCount: room.occupantWomenCount,
+        occupantMenCount: room.occupantMenCount,
         imageUrls: fields.imageUrls,
       };
     }),

@@ -29,6 +29,28 @@ describe("assisted draft self compose", () => {
     }
   });
 
+  it("creates available and occupied room stubs for a property compose", async () => {
+    const res = await request(app)
+      .post("/api/assisted-draft/self/compose")
+      .send({
+        city: "Guadalajara",
+        text: "Casa en Americana con tres recámaras, dos se rentan.",
+        postMode: "property",
+        hints: { roomsForRent: 2, roomsOccupied: 1 },
+      })
+      .expect(201);
+    expect(res.body.propertyId).toBeTruthy();
+    const prop = db.prepare("SELECT post_mode, bedrooms_total FROM properties WHERE id = ?").get(
+      res.body.propertyId,
+    ) as { post_mode: string; bedrooms_total: number };
+    expect(prop.post_mode).toBe("property");
+    expect(prop.bedrooms_total).toBe(3);
+    const rooms = db
+      .prepare("SELECT occupancy_status FROM rooms WHERE property_id = ? ORDER BY sort_order")
+      .all(res.body.propertyId) as { occupancy_status: string }[];
+    expect(rooms.map((r) => r.occupancy_status)).toEqual(["available", "available", "occupied"]);
+  });
+
   it("rejects compose without text or infographic", async () => {
     const res = await request(app)
       .post("/api/assisted-draft/self/compose")

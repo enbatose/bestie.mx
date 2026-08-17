@@ -52,6 +52,8 @@ export type SelfServeComposeHints = {
   loft?: boolean;
   tagsOn?: Array<"mascotas" | "lgbt-friendly" | "baño-privado" | "estacionamiento" | "muebles">;
   gender?: "female" | "male" | null;
+  roomsForRent?: number | null;
+  roomsOccupied?: number | null;
 };
 
 export type SelfServeImageInput = {
@@ -96,6 +98,9 @@ export type AssistedDraftClaimInfo = {
     availableFrom: string | null;
     minimalStayMonths: number | null;
     roomDimension: string | null;
+    occupancyStatus?: "available" | "occupied";
+    occupantWomenCount?: number;
+    occupantMenCount?: number;
     tags: string[];
     imageUrls: string[];
   }>;
@@ -141,6 +146,7 @@ export async function adminCreateAssistedDraft(opts: {
 export async function selfComposeAssistedDraft(opts: {
   text?: string;
   city?: string;
+  postMode?: "room" | "property";
   hints?: SelfServeComposeHints;
   photos?: SelfServeImageInput[];
   infographicPhotos?: SelfServeImageInput[];
@@ -212,6 +218,9 @@ export type AssistedDraftClaimSaveBody = {
     minimalStayMonths?: number;
     roomDimension?: string;
     avalRequired?: boolean;
+    occupancyStatus?: "available" | "occupied";
+    occupantWomenCount?: number;
+    occupantMenCount?: number;
     imageUrls?: string[];
   }>;
 };

@@ -3,6 +3,7 @@ import { Armchair, Bath, CarFront, DoorClosed, PawPrint, Warehouse } from "lucid
 import { LgbtTextIcon } from "@/components/icons/LgbtTextIcon";
 import { PlusOneIcon } from "@/components/icons/PlusOneIcon";
 import { HighHeelIcon, MustacheIcon } from "@/components/icons/GenderFilterIcons";
+import { WizardNumberStepper } from "@/components/WizardNumberStepper";
 import type { SelfServeComposeHints } from "@/lib/assistedDraftApi";
 
 export type PublishAiHintState = {
@@ -10,6 +11,8 @@ export type PublishAiHintState = {
   loft: boolean;
   tagsOn: NonNullable<SelfServeComposeHints["tagsOn"]>;
   gender: "female" | "male" | null;
+  roomsForRent: number;
+  roomsOccupied: number;
 };
 
 export const EMPTY_AI_HINTS: PublishAiHintState = {
@@ -17,6 +20,8 @@ export const EMPTY_AI_HINTS: PublishAiHintState = {
   loft: false,
   tagsOn: [],
   gender: null,
+  roomsForRent: 1,
+  roomsOccupied: 0,
 };
 
 type Chip = {
@@ -59,9 +64,10 @@ function FilterRow({ chip }: { chip: Chip }) {
 type Props = {
   hints: PublishAiHintState;
   onChange: (next: PublishAiHintState) => void;
+  variant?: "room" | "property";
 };
 
-export function PublishAiFilterChips({ hints, onChange }: Props) {
+export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Props) {
   const toggleTag = (slug: PublishAiHintState["tagsOn"][number]) => {
     const on = hints.tagsOn.includes(slug);
     onChange({
@@ -169,6 +175,46 @@ export function PublishAiFilterChips({ hints, onChange }: Props) {
 
   return (
     <div className="space-y-4">
+      {variant === "property" ? (
+        <div>
+          <h3 className="text-[15px] font-bold text-primary">Recámaras de la propiedad</h3>
+          <p className="mt-1 text-xs text-muted">
+            Dile a la IA cuántas se rentan y cuántas ya están ocupadas. El resto lo arma con tu texto.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="block text-sm font-medium text-body">
+              <span className="block">Se rentan</span>
+              <WizardNumberStepper
+                compact
+                value={hints.roomsForRent}
+                min={1}
+                max={20}
+                onChange={(n) =>
+                  onChange({
+                    ...hints,
+                    roomsForRent: n,
+                    roomsOccupied: Math.min(hints.roomsOccupied, Math.max(0, 20 - n)),
+                  })
+                }
+                decrementLabel="Menos recámaras en renta"
+                incrementLabel="Más recámaras en renta"
+              />
+            </div>
+            <div className="block text-sm font-medium text-body">
+              <span className="block">Ya ocupadas</span>
+              <WizardNumberStepper
+                compact
+                value={hints.roomsOccupied}
+                min={0}
+                max={Math.max(0, 20 - hints.roomsForRent)}
+                onChange={(n) => onChange({ ...hints, roomsOccupied: n })}
+                decrementLabel="Menos recámaras ocupadas"
+                incrementLabel="Más recámaras ocupadas"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div>
         <h3 className="text-[15px] font-bold text-primary">Filtros de publicación</h3>
         <p className="mt-1 text-xs text-muted">
@@ -176,11 +222,13 @@ export function PublishAiFilterChips({ hints, onChange }: Props) {
           con tu texto o infográfico.
         </p>
       </div>
+      {variant === "room" ? (
       <div className="space-y-2">
         {lodgingChips.map((chip) => (
           <FilterRow key={chip.id} chip={chip} />
         ))}
       </div>
+      ) : null}
       <div className="space-y-2">
         {amenityChips.map((chip) => (
           <FilterRow key={chip.id} chip={chip} />

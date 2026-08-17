@@ -53,14 +53,14 @@ export function publishWizardLastStepIndex(
   postMode: Draft["postMode"],
   roomCreateFlow?: Draft["roomCreateFlow"],
 ): number {
-  if (postMode === "property") return 4;
   if (roomCreateFlow === "ai") return 2;
+  if (postMode === "property") return 4;
   return 5;
 }
 
 /**
  * AI vs manual is chosen after post type. Returning to type selection forgets that choice
- * so “Un cuarto o Loft” opens the AI step again.
+ * so choosing a type again opens the AI step, not the long manual wizard.
  */
 export function forgetManualRoomCreateChoice<T extends Pick<Draft, "roomCreateFlow">>(draft: T): T {
   if (draft.roomCreateFlow === "ai") return draft;

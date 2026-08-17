@@ -14,8 +14,12 @@ import {
   mergeExtractionWithHints,
   isSelfServeCreator,
   SELF_SERVE_CREATOR_ID,
+  clampComposeRoomCount,
+  planComposeRooms,
+  COMPOSE_BEDROOMS_MAX,
   type SelfServeHints,
   type HintTagSlug,
+  type PlannedComposeRoom,
 } from "./assistedDraftMerge.js";
 import {
   SELF_SERVE_COMPOSE_IP_MAX_PER_HOUR,
@@ -80,6 +84,8 @@ function parseHints(raw: unknown): SelfServeHints {
     loft: o.loft === true,
     tagsOn,
     gender,
+    roomsForRent: typeof o.roomsForRent === "number" ? clampComposeRoomCount(o.roomsForRent, 1) : null,
+    roomsOccupied: typeof o.roomsOccupied === "number" ? clampComposeRoomCount(o.roomsOccupied, 0) : null,
   };
 }
 
@@ -96,6 +102,95 @@ function occupantCountOrNull(value: unknown): number | null {
   const n = asFiniteNumber(value);
   if (n == null) return null;
   return Math.max(0, Math.min(CLAIM_SAVE_OCCUPANT_MAX, Math.floor(n)));
+}
+
+function inventoryFromHints(postMode: "room" | "property", hints: SelfServeHints): {
+  roomsForRent: number;
+  roomsOccupied: number;
+} {
+  if (postMode !== "property") return { roomsForRent: 1, roomsOccupied: 0 };
+  let roomsForRent = Math.max(1, hints.roomsForRent ?? 1);
+  let roomsOccupied = Math.max(0, hints.roomsOccupied ?? 0);
+  if (roomsForRent + roomsOccupied > COMPOSE_BEDROOMS_MAX) {
+    if (roomsForRent >= COMPOSE_BEDROOMS_MAX) {
+      roomsForRent = COMPOSE_BEDROOMS_MAX;
+      roomsOccupied = 0;
+    } else {
+      roomsOccupied = COMPOSE_BEDROOMS_MAX - roomsForRent;
+    }
+  }
+  return { roomsForRent, roomsOccupied };
+}
+
+function insertPlannedComposeRoom(
+  db: DatabaseSync,
+  opts: {
+    id: string;
+    propertyId: string;
+    sortOrder: number;
+    planned: PlannedComposeRoom;
+    imageUrlsJson: string;
+    now: string;
+  },
+): void {
+  db.prepare(`
+    INSERT INTO rooms (
+      id, property_id, status, title, rent_mxn, rooms_available, tags_json,
+      roommate_gender_pref, age_min, age_max, summary, lodging_type,
+      available_from, minimal_stay_months, room_dimension,
+      aval_required, sublet_allowed, sort_order, deposit_mxn,
+      occupancy_status, occupant_women_count, occupant_men_count,
+      image_urls_json, created_at, updated_at
+    ) VALUES (
+      @id, @propertyId, 'draft', @title, @rentMxn, 1, @tagsJson,
+      @roommateGenderPref, @ageMin, @ageMax, @roomSummary, @lodgingType,
+      @availableFrom, @minimalStayMonths, @roomDimension,
+      0, 0, @sortOrder, @depositMxn,
+      @occupancyStatus, 0, 0,
+      @imageUrlsJson, @now, @now
+    )
+  `).run({
+    id: opts.id,
+    propertyId: opts.propertyId,
+    title: opts.planned.title,
+    rentMxn: opts.planned.rentMxn,
+    tagsJson: JSON.stringify(opts.planned.tags),
+    roommateGenderPref: opts.planned.roommateGenderPref,
+    ageMin: opts.planned.ageMin,
+    ageMax: opts.planned.ageMax,
+    roomSummary: opts.planned.summary,
+    lodgingType: opts.planned.lodgingType,
+    availableFrom: opts.planned.availableFrom,
+    minimalStayMonths: opts.planned.minimalStayMonths,
+    roomDimension: opts.planned.roomDimension,
+    sortOrder: opts.sortOrder,
+    depositMxn: opts.planned.depositMxn,
+    occupancyStatus: opts.planned.occupancyStatus,
+    imageUrlsJson: opts.imageUrlsJson,
+    now: opts.now,
+  });
+}
+
+function replaceComposeRooms(
+  db: DatabaseSync,
+  propertyId: string,
+  planned: PlannedComposeRoom[],
+  roomImageUrlsJson: string,
+  now: string,
+): string[] {
+  db.prepare(`DELETE FROM rooms WHERE property_id = ?`).run(propertyId);
+  return planned.map((room, index) => {
+    const id = randomUUID();
+    insertPlannedComposeRoom(db, {
+      id,
+      propertyId,
+      sortOrder: index,
+      planned: room,
+      imageUrlsJson: roomImageUrlsJson,
+      now,
+    });
+    return id;
+  });
 }
 
 type AssistedDraftClaimRow = {
@@ -469,6 +564,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           const body = req.body as {
             text?: string;
             city?: string;
+            postMode?: string;
             hints?: unknown;
             infographicPhotos?: ImageInput[];
             photos?: ImageInput[];
@@ -488,7 +584,9 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           }
 
           const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : "Guadalajara";
+          const postMode = body.postMode === "property" ? "property" : "room";
           const hints = parseHints(body.hints);
+          const inventory = inventoryFromHints(postMode, hints);
           const existingToken = typeof body.existingToken === "string" ? body.existingToken.trim() : "";
 
           const geminiImages = infographics
@@ -514,22 +612,27 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           const neighborhood = ext.neighborhood ?? "";
           const propertyKind = ext.propertyKind ?? null;
           const imageUrlsJson = JSON.stringify(photoUrls);
-          const rentMxn = ext.rentMxn ?? 0;
-          const depositMxn = ext.depositMxn ?? 0;
-          const roommateGenderPref = ext.roommateGenderPref ?? "any";
-          const ageMin = ext.ageMin ?? 18;
-          const ageMax = ext.ageMax ?? 99;
-          const lodgingType = ext.lodgingType ?? "private_room";
-          const availableFrom = ext.availableFrom ?? now.slice(0, 10);
-          const minimalStayMonths = ext.minimalStayMonths ?? 1;
-          const roomDimension = ext.roomDimension ?? "medium";
-          const roomSummary = ext.roomSummary ?? "";
-          const tagsJson = JSON.stringify(ext.tags ?? []);
-          const bedroomsTotal = propertyKind === "loft" ? 1 : 1;
+          const roomImageUrlsJson = postMode === "property" ? "[]" : imageUrlsJson;
+          const propertySummary =
+            postMode === "property" ? (ext.propertySummary ?? ext.roomSummary ?? "") : "";
+          const bathrooms = clampBathrooms(ext.bathrooms ?? 1);
+          const bedroomsTotal =
+            postMode === "property"
+              ? inventory.roomsForRent + inventory.roomsOccupied
+              : propertyKind === "loft"
+                ? 1
+                : 1;
+          const plannedRooms = planComposeRooms({
+            postMode,
+            roomsForRent: inventory.roomsForRent,
+            roomsOccupied: inventory.roomsOccupied,
+            extraction: ext,
+            nowIso: now,
+          });
 
           let token = existingToken;
           let propertyId = "";
-          let roomId = "";
+          let roomIds: string[] = [];
 
           if (token) {
             const row = db.prepare(
@@ -544,67 +647,37 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
               token = "";
             } else {
               propertyId = row.property_id;
-              const room = db.prepare(
-                `SELECT id FROM rooms WHERE property_id = ? ORDER BY sort_order LIMIT 1`,
-              ).get(propertyId) as { id: string } | undefined;
-              if (!room) {
-                token = "";
-              } else {
-                roomId = room.id;
-                db.prepare(`
-                  UPDATE properties SET
-                    title = @title, city = @city, neighborhood = @neighborhood,
-                    lat = @lat, lng = @lng, property_kind = @propertyKind,
-                    bedrooms_total = @bedroomsTotal, bathrooms = 1,
-                    image_urls_json = @imageUrlsJson,
-                    is_approximate_location = @isApproximate,
-                    approximate_radius_m = @approximateRadius
-                  WHERE id = @id
-                `).run({
-                  id: propertyId,
-                  title,
-                  city,
-                  neighborhood,
-                  lat: loc.lat,
-                  lng: loc.lng,
-                  propertyKind,
-                  bedroomsTotal,
-                  imageUrlsJson,
-                  isApproximate: loc.isApproximate,
-                  approximateRadius: loc.approximateRadius,
-                });
-                db.prepare(`
-                  UPDATE rooms SET
-                    rent_mxn = @rentMxn, deposit_mxn = @depositMxn, tags_json = @tagsJson,
-                    roommate_gender_pref = @roommateGenderPref, age_min = @ageMin, age_max = @ageMax,
-                    summary = @roomSummary, lodging_type = @lodgingType,
-                    available_from = @availableFrom, minimal_stay_months = @minimalStayMonths,
-                    room_dimension = @roomDimension, image_urls_json = @imageUrlsJson,
-                    updated_at = @now
-                  WHERE id = @roomId
-                `).run({
-                  roomId,
-                  rentMxn,
-                  depositMxn,
-                  tagsJson,
-                  roommateGenderPref,
-                  ageMin,
-                  ageMax,
-                  roomSummary,
-                  lodgingType,
-                  availableFrom,
-                  minimalStayMonths,
-                  roomDimension,
-                  imageUrlsJson,
-                  now,
-                });
-              }
+              db.prepare(`
+                UPDATE properties SET
+                  post_mode = @postMode, title = @title, city = @city, neighborhood = @neighborhood,
+                  lat = @lat, lng = @lng, summary = @summary, property_kind = @propertyKind,
+                  bedrooms_total = @bedroomsTotal, bathrooms = @bathrooms,
+                  image_urls_json = @imageUrlsJson,
+                  is_approximate_location = @isApproximate,
+                  approximate_radius_m = @approximateRadius
+                WHERE id = @id
+              `).run({
+                id: propertyId,
+                postMode,
+                title,
+                city,
+                neighborhood,
+                lat: loc.lat,
+                lng: loc.lng,
+                summary: propertySummary,
+                propertyKind,
+                bedroomsTotal,
+                bathrooms,
+                imageUrlsJson,
+                isApproximate: loc.isApproximate,
+                approximateRadius: loc.approximateRadius,
+              });
+              roomIds = replaceComposeRooms(db, propertyId, plannedRooms, roomImageUrlsJson, now);
             }
           }
 
           if (!token) {
             propertyId = `prp__${randomUUID()}`;
-            roomId = randomUUID();
             const orphanPublisherId = randomUUID();
             token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "").slice(0, 8);
             db.prepare(`
@@ -615,59 +688,32 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
                 is_approximate_location, approximate_radius_m,
                 created_at, assisted_draft, created_by_admin_id
               ) VALUES (
-                @id, @publisherId, 'draft', 'room', @title, @city, @neighborhood,
-                @lat, @lng, '', '', @propertyKind,
-                @bedroomsTotal, 1, 0, @imageUrlsJson,
+                @id, @publisherId, 'draft', @postMode, @title, @city, @neighborhood,
+                @lat, @lng, @summary, '', @propertyKind,
+                @bedroomsTotal, @bathrooms, 0, @imageUrlsJson,
                 @isApproximate, @approximateRadius,
                 @createdAt, 1, @adminId
               )
             `).run({
               id: propertyId,
               publisherId: orphanPublisherId,
+              postMode,
               title,
               city,
               neighborhood,
               lat: loc.lat,
               lng: loc.lng,
+              summary: propertySummary,
               propertyKind,
               bedroomsTotal,
+              bathrooms,
               imageUrlsJson,
               isApproximate: loc.isApproximate,
               approximateRadius: loc.approximateRadius,
               createdAt: now,
               adminId: SELF_SERVE_CREATOR_ID,
             });
-            db.prepare(`
-              INSERT INTO rooms (
-                id, property_id, status, title, rent_mxn, rooms_available, tags_json,
-                roommate_gender_pref, age_min, age_max, summary, lodging_type,
-                available_from, minimal_stay_months, room_dimension,
-                aval_required, sublet_allowed, sort_order, deposit_mxn,
-                image_urls_json, created_at, updated_at
-              ) VALUES (
-                @id, @propertyId, 'draft', '', @rentMxn, 1, @tagsJson,
-                @roommateGenderPref, @ageMin, @ageMax, @roomSummary, @lodgingType,
-                @availableFrom, @minimalStayMonths, @roomDimension,
-                0, 0, 0, @depositMxn,
-                @imageUrlsJson, @now, @now
-              )
-            `).run({
-              id: roomId,
-              propertyId,
-              rentMxn,
-              tagsJson,
-              roommateGenderPref,
-              ageMin,
-              ageMax,
-              roomSummary,
-              lodgingType,
-              availableFrom,
-              minimalStayMonths,
-              roomDimension,
-              depositMxn,
-              imageUrlsJson,
-              now,
-            });
+            roomIds = replaceComposeRooms(db, propertyId, plannedRooms, roomImageUrlsJson, now);
             db.prepare(`
               INSERT INTO assisted_draft_claim_tokens (
                 token, property_id, created_by_admin_id, orphan_publisher_id,
@@ -680,7 +726,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
             ok: true,
             token,
             propertyId,
-            roomId,
+            roomId: roomIds[0] ?? "",
             source: "self_serve",
             conflicts: merged.conflicts,
             extraction: ext,
@@ -758,6 +804,15 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           ageMax: r.age_max,
           summary: r.summary,
           lodgingType: r.lodging_type,
+          occupancyStatus: r.occupancy_status === "occupied" ? "occupied" : "available",
+          occupantWomenCount:
+            r.occupant_women_count != null && Number.isFinite(Number(r.occupant_women_count))
+              ? Math.max(0, Math.floor(Number(r.occupant_women_count)))
+              : 0,
+          occupantMenCount:
+            r.occupant_men_count != null && Number.isFinite(Number(r.occupant_men_count))
+              ? Math.max(0, Math.floor(Number(r.occupant_men_count)))
+              : 0,
           availableFrom: r.available_from,
           minimalStayMonths: r.minimal_stay_months,
           roomDimension: r.room_dimension,
@@ -1002,6 +1057,20 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           roomPatch.avalRequired === undefined
             ? Number(roomRow.aval_required ?? 0)
             : roomPatch.avalRequired ? 1 : 0;
+        const occupancyStatus =
+          roomPatch.occupancyStatus === "occupied" || roomPatch.occupancyStatus === "available"
+            ? roomPatch.occupancyStatus
+            : String(roomRow.occupancy_status ?? "available") === "occupied"
+              ? "occupied"
+              : "available";
+        const occupantWomenCount =
+          asFiniteNumber(roomPatch.occupantWomenCount) != null
+            ? occupantCountOrNull(roomPatch.occupantWomenCount)
+            : occupantCountOrNull(roomRow.occupant_women_count);
+        const occupantMenCount =
+          asFiniteNumber(roomPatch.occupantMenCount) != null
+            ? occupantCountOrNull(roomPatch.occupantMenCount)
+            : occupantCountOrNull(roomRow.occupant_men_count);
         const imageUrlsJson =
           roomPatch.imageUrls !== undefined
             ? JSON.stringify(clampListingImageUrls(roomPatch.imageUrls))
@@ -1012,7 +1081,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
             title = ?, rent_mxn = ?, deposit_mxn = ?, summary = ?, tags_json = ?,
             roommate_gender_pref = ?, age_min = ?, age_max = ?, lodging_type = ?,
             available_from = ?, minimal_stay_months = ?, room_dimension = ?,
-            aval_required = ?, image_urls_json = ?, updated_at = ?
+            aval_required = ?, occupancy_status = ?, occupant_women_count = ?, occupant_men_count = ?,
+            image_urls_json = ?, updated_at = ?
           WHERE id = ? AND property_id = ?
         `).run(
           title,
@@ -1028,6 +1098,9 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           minimalStayMonths,
           roomDimension,
           avalRequired,
+          occupancyStatus,
+          occupantWomenCount,
+          occupantMenCount,
           imageUrlsJson,
           now,
           roomId,

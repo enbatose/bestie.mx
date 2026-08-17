@@ -18,6 +18,7 @@ type Props = {
   infographics: AiLocalImage[];
   onInfographicsChange: (images: AiLocalImage[]) => void;
   onFillManually: () => void;
+  variant?: "room" | "property";
 };
 
 export function AiRoomCreateStep({
@@ -32,6 +33,7 @@ export function AiRoomCreateStep({
   infographics,
   onInfographicsChange,
   onFillManually,
+  variant = "room",
 }: Props) {
   const [infographicOpen, setInfographicOpen] = useState(infographics.length > 0);
 
@@ -65,7 +67,9 @@ export function AiRoomCreateStep({
           Texto de tu publicación
         </label>
         <p className="text-xs text-muted">
-          Pega aquí el texto de Facebook o describe el cuarto. La IA arma el anuncio con esto.
+          {variant === "property"
+            ? "Pega aquí el texto de Facebook o describe la casa y las recámaras. La IA arma la propiedad y deja las recámaras listas para verificar."
+            : "Pega aquí el texto de Facebook o describe el cuarto. La IA arma el anuncio con esto."}
         </p>
         <textarea
           id="ai-room-source-text"
@@ -78,7 +82,7 @@ export function AiRoomCreateStep({
       </div>
 
       <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm">
-        <PublishAiFilterChips hints={hints} onChange={onHintsChange} />
+        <PublishAiFilterChips hints={hints} onChange={onHintsChange} variant={variant} />
       </div>
 
       <div className="rounded-xl border border-border bg-bg-light p-4 px-5 shadow-sm space-y-3">
@@ -87,8 +91,12 @@ export function AiRoomCreateStep({
           onImages={onPhotosChange}
           maxCount={20}
           showCamera
-          label="Fotos de tu espacio"
-          hint="Estas fotos se publican en el anuncio. No las lee la IA. Pega, arrastra, elige archivo o toma una foto."
+          label={variant === "property" ? "Fotos de la propiedad y recámaras" : "Fotos de tu espacio"}
+          hint={
+            variant === "property"
+              ? "Súbelas todas juntas. Quedan en áreas compartidas; en Verificar puedes pasarlas a cada recámara. No las lee la IA."
+              : "Estas fotos se publican en el anuncio. No las lee la IA. Pega, arrastra, elige archivo o toma una foto."
+          }
         />
       </div>
 

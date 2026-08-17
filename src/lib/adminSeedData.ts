@@ -395,6 +395,8 @@ export type SeedAiRoomForm = {
     loft: boolean;
     tagsOn: Array<"mascotas" | "lgbt-friendly" | "baño-privado" | "estacionamiento" | "muebles">;
     gender: "female" | "male" | null;
+    roomsForRent: number;
+    roomsOccupied: number;
   };
   photos: Array<{ mimeType: string; preview: string; url: string }>;
   infographics: Array<{ mimeType: string; preview: string; url: string }>;
@@ -458,9 +460,27 @@ export function seedAiRoomForm(): SeedAiRoomForm {
       loft: poster.loft,
       tagsOn: [...poster.tagsOn],
       gender: poster.gender,
+      roomsForRent: 1,
+      roomsOccupied: 0,
     },
     photos,
     infographics: [seedAdminImage(poster.file)],
+  };
+}
+
+/** Facebook-style paste for the AI property step (admin Autopoblar). */
+export function seedAiPropertyForm(): SeedAiRoomForm {
+  const seed = seedAiRoomForm();
+  return {
+    ...seed,
+    text: "Casa en Americana. Se rentan 2 recámaras, una ya está ocupada. Precio y zona en el infográfico. Áreas comunes amplias.",
+    hints: {
+      ...seed.hints,
+      loft: false,
+      lodgingType: null,
+      roomsForRent: 2,
+      roomsOccupied: 1,
+    },
   };
 }
 
@@ -490,9 +510,12 @@ export function seedAiRoomReview(draft: Draft): Partial<Draft> {
 
 export function seedForStep(safeStep: number, draft: Draft): Partial<Draft> {
   const isPropertyMode = draft.postMode === "property";
-  if (draft.roomCreateFlow === "ai" && !isPropertyMode) {
+  if (draft.roomCreateFlow === "ai") {
     switch (safeStep) {
       case 0: {
+        if (isPropertyMode) {
+          return { postMode: "property", roomCreateFlow: "ai" };
+        }
         const room = seedRoom(0);
         const photos = randomSeedPhotos(SEED_ROOM_IMAGES, 1, 3);
         return {
@@ -506,7 +529,9 @@ export function seedForStep(safeStep: number, draft: Draft): Partial<Draft> {
       case 1:
         return {};
       case 2:
-        return seedAiRoomReview(draft);
+        return isPropertyMode
+          ? { ...seedStep2(draft), ...seedStep3(draft), ...seedStepPublish(), postMode: "property", roomCreateFlow: "ai" }
+          : seedAiRoomReview(draft);
       default:
         return {};
     }

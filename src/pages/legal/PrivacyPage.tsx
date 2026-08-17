@@ -112,7 +112,7 @@ export function PrivacyPage() {
           items={[
             <>
               <strong>Directamente de ti:</strong> cuando te registras, completas tu perfil, publicas
-              anuncios o nos contactas. Si usas la publicación asistida de un cuarto, el texto y las
+              anuncios o nos contactas. Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
               imágenes (fotos e infográficos) que pegas o subes para armar el borrador.
             </>,
             <>
@@ -268,7 +268,7 @@ export function PrivacyPage() {
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
             "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",
-            "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para, a tu solicitud: (i) extraer campos de un anuncio (por ejemplo zona, renta, tipo de espacio y etiquetas) a partir del texto o infográfico que proporcionas al publicar un cuarto; y (ii) generar un texto sugerido de compartir basado en los datos estructurados de tu anuncio. El texto de compartir no sustituye la descripción pública del anuncio ni se usa como vista previa Open Graph; puedes editarlo antes de compartirlo. El borrador extraído no se publica hasta que lo revisas y confirmas.",
+            "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para, a tu solicitud: (i) extraer campos de un anuncio (por ejemplo zona, renta, tipo de espacio, recámaras y etiquetas) a partir del texto o infográfico que proporcionas al publicar un cuarto o una propiedad; y (ii) generar un texto sugerido de compartir basado en los datos estructurados de tu anuncio. El texto de compartir no sustituye la descripción pública del anuncio ni se usa como vista previa Open Graph; puedes editarlo antes de compartirlo. El borrador extraído no se publica hasta que lo revisas y confirmas.",
           ]}
         />
         <p>

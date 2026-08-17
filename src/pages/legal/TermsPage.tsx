@@ -91,7 +91,7 @@ export function TermsPage() {
         <p>Bestie ofrece herramientas para:</p>
         <LegalList
           items={[
-            "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida. Puedes armar un anuncio de un cuarto pegando el texto o un infográfico de una publicación (por ejemplo de Facebook); Bestie usa un modelo de inteligencia artificial para proponer los campos del borrador. Ese borrador no se publica hasta que lo revisas, completas lo que falte y confirmas.",
+            "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida. Puedes armar un anuncio de un cuarto o de una propiedad pegando el texto o un infográfico de una publicación (por ejemplo de Facebook); Bestie usa un modelo de inteligencia artificial para proponer los campos del borrador, incluidas las recámaras de una propiedad. Ese borrador no se publica hasta que lo revisas, completas lo que falte y confirmas.",
             "Generar (con ayuda de inteligencia artificial) un texto sugerido para que compartas tu anuncio en redes o mensajería; puedes revisarlo y editarlo antes de enviarlo. Ese texto no forma parte de la ficha pública del anuncio ni de su vista previa al compartir el enlace.",
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
@@ -178,7 +178,7 @@ export function TermsPage() {
           formas: (i) como parte de sus actividades de crecimiento, a partir de publicaciones
           compartidas en grupos de Facebook asociados o de información proporcionada públicamente por
           el propietario, mediante un enlace de reclamación; y (ii) cuando tú pegas el texto o un
-          infográfico de tu propia publicación en el flujo de publicar un cuarto. En ambos casos estos
+          infográfico de tu propia publicación en el flujo de publicar un cuarto o una propiedad. En ambos casos estos
           borradores{" "}
           <strong>nunca se publican sin tu consentimiento expreso</strong>: revisas el contenido, lo
           editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. La
@@ -224,7 +224,7 @@ export function TermsPage() {
           envío de correos electrónicos, infraestructura de alojamiento,
           analítica de producto (PostHog), medición de anuncios (píxel de Meta / Facebook e Instagram Ads)
           y modelos de inteligencia artificial (Google Gemini) para
-          extraer datos de un texto o infográfico que tú proporcionas al crear un anuncio de cuarto, y
+          extraer datos de un texto o infográfico que tú proporcionas al crear un anuncio de cuarto o de propiedad, y
           para sugerir textos de compartir de anuncios. El uso de estas funciones puede estar sujeto a los términos
           y políticas de dichos terceros. Bestie no es responsable por los servicios, la disponibilidad
           ni las prácticas de esos terceros.

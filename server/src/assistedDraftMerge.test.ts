@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeExtractionWithHints } from "./assistedDraftMerge.js";
+import { mergeExtractionWithHints, planComposeRooms } from "./assistedDraftMerge.js";
 
 describe("mergeExtractionWithHints", () => {
   it("lets the model fill tags when the user left chips off", () => {
@@ -51,6 +51,22 @@ describe("mergeExtractionWithHints", () => {
       { loft: true },
     );
     expect(extraction.propertyKind).toBe("loft");
+  });
+
+  it("plans two rentable rooms and one occupied stub from inventory chips", () => {
+    const planned = planComposeRooms({
+      postMode: "property",
+      roomsForRent: 2,
+      roomsOccupied: 1,
+      extraction: { rentMxn: 5500, roomSummary: "Recámara iluminada" },
+      nowIso: "2026-08-16T00:00:00.000Z",
+    });
+    expect(planned).toHaveLength(3);
+    expect(planned[0]?.occupancyStatus).toBe("available");
+    expect(planned[0]?.rentMxn).toBe(5500);
+    expect(planned[1]?.occupancyStatus).toBe("available");
+    expect(planned[1]?.rentMxn).toBe(0);
+    expect(planned[2]?.occupancyStatus).toBe("occupied");
   });
 
   it("keeps user gender over an opposite extraction", () => {

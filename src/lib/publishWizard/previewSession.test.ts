@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { forgetManualRoomCreateChoice } from "./previewSession";
+import { forgetManualRoomCreateChoice, publishWizardLastStepIndex } from "./previewSession";
+
+describe("publishWizardLastStepIndex", () => {
+  it("uses the 2-step AI path for property posts", () => {
+    expect(publishWizardLastStepIndex("property", "ai")).toBe(2);
+  });
+
+  it("keeps the long wizard when filling a property by hand", () => {
+    expect(publishWizardLastStepIndex("property", "manual")).toBe(4);
+  });
+});
 
 describe("forgetManualRoomCreateChoice", () => {
   it("resets a manual single-room path back to AI", () => {

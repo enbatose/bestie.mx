@@ -309,7 +309,7 @@ function RoomPreviewCard({
             onClick={onEdit}
             className="mt-4 inline-flex w-full min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-95 sm:w-auto"
           >
-            Editar esta recámara
+            {issues.length || rentMissing ? "Completar" : "Editar esta recámara"}
           </button>
         </div>
 

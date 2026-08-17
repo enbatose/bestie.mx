@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
-import { seedAiRoomForm, seedForStep } from "@/lib/adminSeedData";
+import { seedAiPropertyForm, seedAiRoomForm, seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { usePageSeo } from "@/hooks/usePageSeo";
@@ -170,7 +170,7 @@ function lastWizardStep(d: Pick<Draft, "postMode" | "roomCreateFlow">): number {
 
 function isAiRoomCreateFlow(d: Pick<Draft, "postMode" | "roomCreateFlow">, opts?: { liveEdit?: boolean; editId?: string | null }): boolean {
   if (opts?.liveEdit || opts?.editId) return false;
-  return d.postMode === "room" && d.roomCreateFlow === "ai";
+  return d.roomCreateFlow === "ai";
 }
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
@@ -360,7 +360,7 @@ export type RoomDraft = {
 export type Draft = {
   /** Strategy: 'room' = single-room post; 'property' = property/multi-room post. */
   postMode: "room" | "property";
-  /** Single-room create path. Ignored for property posts and live edits. */
+  /** Create path. `ai` = paste/infográfico then preview; `manual` = full wizard. Live edits ignore this. */
   roomCreateFlow: "ai" | "manual";
   city: (typeof CITIES)[number];
   propertyTitle: string;
@@ -497,6 +497,8 @@ function aiHintsFingerprint(hints: PublishAiHintState): string {
     loft: hints.loft,
     tagsOn: [...hints.tagsOn].sort(),
     gender: hints.gender,
+    roomsForRent: hints.roomsForRent,
+    roomsOccupied: hints.roomsOccupied,
   });
 }
 
@@ -539,6 +541,14 @@ function urlsFromAiLocalImages(photos: AiLocalImage[], infographics: AiLocalImag
 
 function applyAiGalleryUrls(draft: Draft, urls: string[]): Draft {
   const images = hydrateDraftImagesFromUrls(urls);
+  if (draft.postMode === "property") {
+    return normalizePersistedDraft({
+      ...draft,
+      commonAreaPhotos: images,
+      propertyImageUrls: images,
+      unassignedImageUrls: [],
+    });
+  }
   const rooms = draft.rooms.length > 0 ? draft.rooms : [defaultRoom()];
   return normalizePersistedDraft({
     ...draft,
@@ -558,6 +568,7 @@ function applyAiLocalGalleryIfMissing(
   const existing = [
     ...draftImagesToUrls(draft.rooms[0]?.photos ?? []),
     ...draftImagesToUrls(draft.propertyImageUrls ?? []),
+    ...draftImagesToUrls(draft.commonAreaPhotos ?? []),
   ];
   if (existing.some((u) => u.includes("/api/uploads/") || u.includes("/admin-seed/"))) {
     return draft;
@@ -1969,8 +1980,11 @@ export function PublishWizardPage() {
                 >
                   <div className="text-base font-bold text-primary">Propiedad con múltiples cuartos</div>
                   <p className="mt-2 text-xs text-muted">
-                    Publica varios cuartos dentro de una misma propiedad, separa fotografías por cuarto o áreas comunes.
-                    Ideal para viviendas con muchos roomies o alta rotación.
+                    Publica varios cuartos dentro de una misma propiedad. Ideal para viviendas con muchos roomies o alta rotación.
+                  </p>
+                  <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-body">
+                    <FacebookMark className="mt-0.5 size-3.5 shrink-0" />
+                    <span>Arma la propiedad y las recámaras desde tu publicación de Facebook.</span>
                   </p>
                 </button>
                 ) : null}
@@ -1996,6 +2010,7 @@ export function PublishWizardPage() {
                 onPhotosChange={setAiPhotos}
                 infographics={aiInfographics}
                 onInfographicsChange={setAiInfographics}
+                variant={draft.postMode === "property" ? "property" : "room"}
                 onFillManually={() => {
                   track("publish_manual_flow_selected", { from: "ai_step" });
                   setDraft((d) => ({ ...d, roomCreateFlow: "manual" }));
@@ -2864,7 +2879,7 @@ export function PublishWizardPage() {
   const autofillStep = useCallback(
     (stepIndex: number) => {
       if (aiRoomFlow && stepIndex === 1) {
-        const seed = seedAiRoomForm();
+        const seed = draft.postMode === "property" ? seedAiPropertyForm() : seedAiRoomForm();
         setAiSourceText(seed.text);
         setAiHints(seed.hints);
         setAiPhotos(seed.photos);
@@ -2875,7 +2890,7 @@ export function PublishWizardPage() {
       }
       setDraft((d) => normalizePersistedDraft({ ...d, ...seedForStep(stepIndex, d) }));
     },
-    [aiRoomFlow],
+    [aiRoomFlow, draft.postMode],
   );
 
   /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */
@@ -2981,11 +2996,14 @@ export function PublishWizardPage() {
       const result = await selfComposeAssistedDraft({
         text: aiSourceText.trim() || undefined,
         city: draft.city,
+        postMode: draft.postMode,
         hints: {
           lodgingType: aiHints.lodgingType,
           loft: aiHints.loft,
           tagsOn: aiHints.tagsOn,
           gender: aiHints.gender,
+          roomsForRent: draft.postMode === "property" ? aiHints.roomsForRent : undefined,
+          roomsOccupied: draft.postMode === "property" ? aiHints.roomsOccupied : undefined,
         },
         photos: toComposeImages(galleryForCompose),
         infographicPhotos: toComposeImages(infographicsForCompose),
@@ -3025,7 +3043,7 @@ export function PublishWizardPage() {
       }
       markAutosaveBaseline(nextDraft);
       setStep(resumeStep);
-      track("publish_ai_compose_ok", { conflict_count: result.conflicts.length });
+      track("publish_ai_compose_ok", { conflict_count: result.conflicts.length, mode: draft.postMode });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       setPublishErr(

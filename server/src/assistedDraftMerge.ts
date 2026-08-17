@@ -17,6 +17,8 @@ export type SelfServeHints = {
   loft?: boolean;
   tagsOn?: HintTagSlug[];
   gender?: "female" | "male" | null;
+  roomsForRent?: number | null;
+  roomsOccupied?: number | null;
 };
 
 export type FieldConflict = {
@@ -141,6 +143,107 @@ export function mergeExtractionWithHints(
   }
 
   return { extraction: next, conflicts };
+}
+
+export const COMPOSE_BEDROOMS_MAX = 20;
+
+export function clampComposeRoomCount(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(COMPOSE_BEDROOMS_MAX, Math.floor(value)));
+}
+
+export type PlannedComposeRoom = {
+  occupancyStatus: "available" | "occupied";
+  rentMxn: number;
+  depositMxn: number;
+  summary: string;
+  title: string;
+  lodgingType: string;
+  tags: string[];
+  roommateGenderPref: string;
+  ageMin: number;
+  ageMax: number;
+  roomDimension: string;
+  availableFrom: string;
+  minimalStayMonths: number;
+};
+
+function composeRoomDefaults(
+  extraction: AssistedDraftExtraction,
+  nowIso: string,
+): Omit<PlannedComposeRoom, "occupancyStatus" | "rentMxn" | "summary" | "title"> {
+  const ageMin = extraction.ageMin ?? 18;
+  const ageMaxRaw = extraction.ageMax ?? 99;
+  return {
+    depositMxn: extraction.depositMxn ?? 0,
+    lodgingType: extraction.lodgingType ?? "private_room",
+    tags: uniqueTags(extraction.tags),
+    roommateGenderPref: extraction.roommateGenderPref ?? "any",
+    ageMin,
+    ageMax: ageMaxRaw < ageMin ? ageMin : ageMaxRaw,
+    roomDimension: extraction.roomDimension ?? "medium",
+    availableFrom: extraction.availableFrom ?? nowIso.slice(0, 10),
+    minimalStayMonths: extraction.minimalStayMonths ?? 1,
+  };
+}
+
+/**
+ * User chips decide how many available vs occupied slots to create.
+ * Extraction fills the first available rooms; extra rentable rooms stay incomplete for Completar.
+ */
+export function planComposeRooms(opts: {
+  postMode: "room" | "property";
+  roomsForRent: number;
+  roomsOccupied: number;
+  extraction: AssistedDraftExtraction;
+  nowIso: string;
+}): PlannedComposeRoom[] {
+  const base = composeRoomDefaults(opts.extraction, opts.nowIso);
+  const extractedRooms = opts.extraction.rooms ?? [];
+  const extractedAvailable = extractedRooms.filter((room) => room.occupancy !== "occupied");
+
+  if (opts.postMode !== "property") {
+    return [
+      {
+        ...base,
+        occupancyStatus: "available",
+        rentMxn: opts.extraction.rentMxn ?? 0,
+        depositMxn: opts.extraction.depositMxn ?? 0,
+        summary: opts.extraction.roomSummary ?? "",
+        title: "",
+      },
+    ];
+  }
+
+  const forRent = Math.max(1, opts.roomsForRent);
+  const occupied = Math.max(0, opts.roomsOccupied);
+  const planned: PlannedComposeRoom[] = [];
+
+  for (let i = 0; i < forRent; i++) {
+    const extra = extractedAvailable[i];
+    planned.push({
+      ...base,
+      occupancyStatus: "available",
+      lodgingType: extra?.lodgingType ?? base.lodgingType,
+      rentMxn: extra?.rentMxn ?? (i === 0 ? opts.extraction.rentMxn ?? 0 : 0),
+      depositMxn: i === 0 ? base.depositMxn : extra?.rentMxn ? base.depositMxn : 0,
+      summary: extra?.roomSummary ?? (i === 0 ? opts.extraction.roomSummary ?? "" : ""),
+      title: extra?.title?.trim() ?? "",
+    });
+  }
+
+  for (let i = 0; i < occupied; i++) {
+    planned.push({
+      ...base,
+      occupancyStatus: "occupied",
+      rentMxn: 0,
+      depositMxn: 0,
+      summary: "",
+      title: "",
+    });
+  }
+
+  return planned;
 }
 
 export function isSelfServeCreator(createdByAdminId: string | null | undefined): boolean {

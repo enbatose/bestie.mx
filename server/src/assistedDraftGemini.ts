@@ -48,6 +48,16 @@ export type AssistedDraftExtraction = {
   /** Tags the source explicitly says are NOT available (do not invent). */
   deniedTags?: string[];
   roomSummary?: string;
+  propertySummary?: string;
+  bathrooms?: number;
+  bedroomsTotal?: number;
+  rooms?: Array<{
+    occupancy?: "available" | "occupied";
+    rentMxn?: number;
+    title?: string;
+    roomSummary?: string;
+    lodgingType?: "private_room" | "shared_room";
+  }>;
   location?: {
     type: "precise" | "approximate" | "none";
     lat?: number;
@@ -94,6 +104,10 @@ REGLAS IMPORTANTES:
 - Para descripción (roomSummary): genera un texto atractivo en español usando SOLO la información disponible. 
   Mínimo 100 caracteres, máximo 1200. Si no hay suficiente información, sé conciso pero honesto.
   Usa un tono cálido y directo, sin exagerar características no mencionadas.
+- Si el anuncio describe una CASA o PROPIEDAD con varias recámaras (no un solo cuarto):
+  llena propertySummary (convivencia y áreas comunes), bathrooms, bedroomsTotal y rooms
+  (una entrada por recámara detectada: occupancy available|occupied, renta si se menciona).
+  Si es un solo cuarto, omite rooms.
 
 TAGS válidos (usa solo estos slugs exactos):
 - Servicios: wifi, agua, luz, gas, servicios-incluidos
@@ -121,6 +135,10 @@ Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
   "idealParaTags": { "value": ["slug1"], "confidence": 0-100 },
   "deniedTags": { "value": ["mascotas"], "confidence": 0-100 },
   "roomSummary": { "value": "...", "confidence": 0-100 },
+  "propertySummary": { "value": "...", "confidence": 0-100 },
+  "bathrooms": { "value": 1, "confidence": 0-100 },
+  "bedroomsTotal": { "value": 1, "confidence": 0-100 },
+  "rooms": { "value": [{ "occupancy": "available|occupied", "rentMxn": 0, "title": "", "roomSummary": "", "lodgingType": "private_room|shared_room" }], "confidence": 0-100 },
   "location": {
     "type": "precise|approximate|none",
     "address": "...",
@@ -153,6 +171,10 @@ type RawGeminiExtraction = {
   idealParaTags?: RawFieldResult;
   deniedTags?: RawFieldResult;
   roomSummary?: RawFieldResult;
+  propertySummary?: RawFieldResult;
+  bathrooms?: RawFieldResult;
+  bedroomsTotal?: RawFieldResult;
+  rooms?: RawFieldResult;
   location?: {
     type?: string;
     address?: string;
@@ -190,6 +212,33 @@ function extractEnum<T extends string>(
 ): T | undefined {
   const s = extractString(field);
   return s && (allowed as readonly string[]).includes(s) ? (s as T) : undefined;
+}
+
+function extractExtractedRooms(field: RawFieldResult | undefined): AssistedDraftExtraction["rooms"] {
+  if (!aboveThreshold(field) || !Array.isArray(field!.value)) return undefined;
+  const rooms = (field!.value as unknown[]).flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const o = raw as Record<string, unknown>;
+    const occupancy = o.occupancy === "occupied" ? ("occupied" as const) : ("available" as const);
+    const rent = Number(o.rentMxn);
+    const lodging: "private_room" | "shared_room" | undefined =
+      o.lodgingType === "shared_room" || o.lodgingType === "private_room" ? o.lodgingType : undefined;
+    const title = typeof o.title === "string" && o.title.trim() ? o.title.trim() : undefined;
+    const roomSummary =
+      typeof o.roomSummary === "string" && o.roomSummary.trim()
+        ? o.roomSummary.trim().slice(0, SUMMARY_MAX_CHARS)
+        : undefined;
+    return [
+      {
+        occupancy,
+        ...(Number.isFinite(rent) && rent > 0 ? { rentMxn: Math.round(rent) } : {}),
+        ...(title ? { title } : {}),
+        ...(roomSummary ? { roomSummary } : {}),
+        ...(lodging ? { lodgingType: lodging } : {}),
+      },
+    ];
+  });
+  return rooms.length > 0 ? rooms : undefined;
 }
 
 function extractTags(field: RawFieldResult | undefined, validSet: Set<string>): string[] | undefined {
@@ -257,7 +306,7 @@ export async function extractListingDataWithGemini(
     contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
       responseMimeType: "application/json",
     },
   };
@@ -316,6 +365,10 @@ export async function extractListingDataWithGemini(
     record("idealParaTags", parsed.idealParaTags);
     record("deniedTags", parsed.deniedTags);
     record("roomSummary", parsed.roomSummary);
+    record("propertySummary", parsed.propertySummary);
+    record("bathrooms", parsed.bathrooms);
+    record("bedroomsTotal", parsed.bedroomsTotal);
+    record("rooms", parsed.rooms);
 
     const allTags = [
       ...(extractTags(parsed.tags, VALID_TAGS) ?? []),
@@ -326,6 +379,8 @@ export async function extractListingDataWithGemini(
 
     const rawSummary = extractString(parsed.roomSummary);
     const roomSummary = rawSummary ? rawSummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
+    const rawPropertySummary = extractString(parsed.propertySummary);
+    const propertySummary = rawPropertySummary ? rawPropertySummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
 
     const locConf = parsed.location?.confidence ?? 0;
     let location: AssistedDraftExtraction["location"] | undefined;
@@ -365,6 +420,10 @@ export async function extractListingDataWithGemini(
         tags: uniqueTags.length > 0 ? uniqueTags : undefined,
         deniedTags: deniedTags && deniedTags.length > 0 ? deniedTags : undefined,
         roomSummary,
+        propertySummary,
+        bathrooms: extractNumber(parsed.bathrooms),
+        bedroomsTotal: extractInt(parsed.bedroomsTotal),
+        rooms: extractExtractedRooms(parsed.rooms),
         location,
         confidence: confidenceMap,
         rawText,

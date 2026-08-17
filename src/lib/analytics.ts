@@ -89,7 +89,7 @@ export type AnalyticsProps = {
 
   publish_mode_selected: { mode: "room" | "property" };
   publish_manual_flow_selected: { from: "ai_step" };
-  publish_ai_compose_ok: { conflict_count: number };
+  publish_ai_compose_ok: { conflict_count: number; mode?: "room" | "property" };
   publish_ai_compose_fail: { error: string };
   publish_step_completed: {
     step_index: number;
