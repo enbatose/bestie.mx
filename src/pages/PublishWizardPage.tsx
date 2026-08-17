@@ -3577,7 +3577,7 @@ export function PublishWizardPage() {
                     if (/cómo.*espacio/i.test(t)) return "Descripción";
                     if (/recámara|recamara/i.test(t)) return "Recámaras";
                     if (/foto/i.test(t)) return "Fotos";
-                    if (/revisar|publicar/i.test(t)) return "Publicar";
+                    if (/revisar|publicar/i.test(t)) return "Verificar";
                     return t.split(/\s+/).slice(0, 2).join(" ");
                   })();
                   return (
