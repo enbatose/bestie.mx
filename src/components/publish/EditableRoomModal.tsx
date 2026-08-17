@@ -4,6 +4,7 @@ import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import { ListingRoomDetailsGrid } from "@/components/listing/ListingPropertySummaryGrid";
 import { ListingHeroPrice } from "@/components/listing/PublicListingHeader";
+import { RoomOnOffToggle, RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
@@ -387,6 +388,20 @@ export function EditableRoomModal({
                 ) : null}
               </div>
 
+              {draft.postMode === "property" ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <RoomOccupancyBadge available={available} />
+                  <RoomOnOffToggle
+                    available={available}
+                    onChange={(next) =>
+                      setLocalRoom((r) => ({
+                        ...r,
+                        occupancyStatus: next ? "available" : "occupied",
+                      }))
+                    }
+                  />
+                </div>
+              ) : (
               <div className="mt-3 inline-flex w-full rounded-xl border border-border bg-surface p-1 shadow-sm" role="group" aria-label="Estado de la recámara">
                 <button
                   type="button"
@@ -411,6 +426,7 @@ export function EditableRoomModal({
                   Disponible
                 </button>
               </div>
+              )}
 
               {editingHeader ? (
                 <div className="mt-3">

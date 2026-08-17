@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Bath, Camera, CarFront, Check, Pencil, X } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
+import { RoomOnOffToggle } from "@/components/myListings/listingCardChrome";
 import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
@@ -47,6 +48,7 @@ import { draftToListingPreview } from "@/lib/publishWizard/draftPreview";
 import { clampApproximateRadiusMeters } from "@/lib/approximateLocationRadius";
 import {
   derivedPropertyOccupantCounts,
+  setRoomOccupancyStatus,
   syncPropertyRoomSlotsToTotal,
 } from "@/lib/publishWizard/propertyRoomSlots";
 import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSummary, roomDisplayName } from "@/lib/roomDisplay";
@@ -152,12 +154,14 @@ function RoomPreviewCard({
   draft,
   onEdit,
   onRename,
+  onAvailabilityChange,
 }: {
   room: RoomDraft;
   index: number;
   draft: Draft;
   onEdit: () => void;
   onRename: (name: string) => void;
+  onAvailabilityChange: (nextAvailable: boolean) => void;
 }) {
   const available = isRoomAvailableForRent(room);
   const name = roomDisplayName(room, index);
@@ -250,12 +254,15 @@ function RoomPreviewCard({
               </button>
             )}
             {!editingName ? (
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
-                }`}
-              >
-                {occupancyStatusLabel(available ? "available" : "occupied")}
+              <span className="flex shrink-0 items-center gap-2">
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
+                  }`}
+                >
+                  {occupancyStatusLabel(available ? "available" : "occupied")}
+                </span>
+                <RoomOnOffToggle available={available} onChange={onAvailabilityChange} />
               </span>
             ) : null}
           </div>
@@ -1732,6 +1739,11 @@ export function EditableListingPreview({
                             rooms: d.rooms.map((room, i) => (i === idx ? { ...room, customName } : room)),
                           }))
                         }
+                        onAvailabilityChange={(nextAvailable) =>
+                          onDraftChange((d) =>
+                            setRoomOccupancyStatus(d, idx, nextAvailable ? "available" : "occupied"),
+                          )
+                        }
                       />
                     ) : null,
                   )}
@@ -1757,6 +1769,11 @@ export function EditableListingPreview({
                             ...d,
                             rooms: d.rooms.map((room, i) => (i === idx ? { ...room, customName } : room)),
                           }))
+                        }
+                        onAvailabilityChange={(nextAvailable) =>
+                          onDraftChange((d) =>
+                            setRoomOccupancyStatus(d, idx, nextAvailable ? "available" : "occupied"),
+                          )
                         }
                       />
                     ) : null,
