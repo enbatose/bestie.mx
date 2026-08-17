@@ -120,8 +120,16 @@ describe("single-room missing-field copy", () => {
     expect(roomSaveIssuesHeading(draft, "Para publicar,")).toBe(
       "Para publicar, falta completar una o más recámaras.",
     );
-    expect(roomSaveIssuesOpenLabel(draft, "Recámara 1")).toBe("Abrir Recámara 1 y completar");
+    expect(roomSaveIssuesOpenLabel(draft, "Recámara 1")).toBe("Completar");
     expect(roomSaveIssuesPrimaryLabel(draft, 0)).toBe("Completar Recámara 1");
+  });
+
+  it("does not require occupant gender counts on occupied property rooms", () => {
+    const draft = sampleDraft({
+      postMode: "property",
+      rooms: [sampleRoom({ occupancyStatus: "occupied", occupantWomenCount: 0, occupantMenCount: 0 })],
+    });
+    expect(formatRoomsValidationMessage(draft)).toBeNull();
   });
 
   it("points Completar at the rent header on a single-room post missing price", () => {

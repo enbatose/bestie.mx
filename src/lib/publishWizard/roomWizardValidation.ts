@@ -63,13 +63,6 @@ export function collectRoomFieldIssueDetails(
   if (d.postMode === "property" && !isRoomAvailableForRent(room)) {
     const women = Math.max(0, Math.floor(room.occupantWomenCount ?? 0));
     const men = Math.max(0, Math.floor(room.occupantMenCount ?? 0));
-    if (women + men < 1) {
-      issues.push({
-        id: "occupants",
-        section: "occupants",
-        message: "Indica quién ocupa esta recámara (al menos 1 mujer u hombre).",
-      });
-    }
     if (women > 12 || men > 12) {
       issues.push({
         id: "occupants-max",
@@ -225,8 +218,8 @@ export function roomSaveIssuesHeading(d: Draft, prefix: string): string {
     : `${prefix} falta completar una o más recámaras.`;
 }
 
-export function roomSaveIssuesOpenLabel(d: Draft, roomLabel: string): string {
-  return isStandaloneRoomPost(d) ? "Completar" : `Abrir ${roomLabel} y completar`;
+export function roomSaveIssuesOpenLabel(_d: Draft, _roomLabel: string): string {
+  return "Completar";
 }
 
 export function roomSaveIssuesPrimaryLabel(d: Draft, roomIndex: number): string {

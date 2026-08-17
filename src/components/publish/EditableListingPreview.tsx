@@ -164,6 +164,7 @@ function RoomPreviewCard({
     null;
   const issues = collectRoomFieldIssues(draft, room, index);
   const rentMissing = available && isListingRentMissing(room.rentMxn);
+  const occupantSummary = available ? null : occupiedRoomOccupantSummary(room);
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -296,11 +297,11 @@ function RoomPreviewCard({
                 ) : null}
               </div>
             </>
-          ) : (
+          ) : occupantSummary ? (
             <p className="mt-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-              {occupiedRoomOccupantSummary(room) ?? "Ocupada"}
+              {occupantSummary}
             </p>
-          )}
+          ) : null}
           {issues.length ? (
             <p className="mt-2 text-xs font-semibold text-warning-fg">Incompleta</p>
           ) : null}

@@ -93,13 +93,6 @@ function roomOccupancyFieldsFromBody(body: Partial<Room>): {
   return { customName, occupancyStatus, occupantGender, occupantAge, occupantWomenCount, occupantMenCount };
 }
 
-function occupiedRoomOccupantsOk(occFields: ReturnType<typeof roomOccupancyFieldsFromBody>): boolean {
-  const women = occFields.occupantWomenCount ?? 0;
-  const men = occFields.occupantMenCount ?? 0;
-  if (women + men >= 1) return true;
-  return Boolean(occFields.occupantGender && occFields.occupantAge != null);
-}
-
 function optLodging(v: unknown): LodgingType | undefined {
   if (v !== "whole_home" && v !== "private_room" && v !== "shared_room") return undefined;
   return v;
@@ -394,13 +387,6 @@ export function propertiesRouter(db: DatabaseSync) {
       const rm = raw as Partial<Room> & { availableFrom?: unknown; depositMxn?: unknown };
       const occFields = roomOccupancyFieldsFromBody(rm);
       if (occFields.occupancyStatus === "occupied") {
-        if (!occupiedRoomOccupantsOk(occFields)) {
-          res.status(400).json({
-            error: "invalid_room",
-            message: "Each occupied room needs at least one woman or man count.",
-          });
-          return;
-        }
         continue;
       }
       if (
@@ -562,10 +548,6 @@ export function propertiesRouter(db: DatabaseSync) {
           occFields.customName ||
           clampStr(String(rm.title), ROOM_TITLE_MAX_LEN) ||
           (occFields.occupancyStatus === "occupied" ? "Ocupada" : "Recámara");
-
-        if (occFields.occupancyStatus === "occupied") {
-          if (!occupiedRoomOccupantsOk(occFields)) throw new Error("bad_occupant");
-        }
 
         const prefRaw = String(rm.roommateGenderPref ?? "any");
         if (!isRoommateGenderPref(prefRaw)) throw new Error("bad_pref");

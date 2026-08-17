@@ -78,19 +78,29 @@ function OccupiedRoomOccupantFields({
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-muted">Ocupado por —</span>
+        <span className="text-xs text-muted">Ocupado por — opcional</span>
         {!needsDetailSteppers ? (
           <>
             <button
               type="button"
-              onClick={() => onChange({ occupantWomenCount: 1, occupantMenCount: 0 })}
+              onClick={() =>
+                onChange({
+                  occupantWomenCount: women === 1 && men === 0 ? 0 : 1,
+                  occupantMenCount: 0,
+                })
+              }
               className={chipClass(women === 1 && men === 0)}
             >
               1 Mujer
             </button>
             <button
               type="button"
-              onClick={() => onChange({ occupantMenCount: 1, occupantWomenCount: 0 })}
+              onClick={() =>
+                onChange({
+                  occupantMenCount: men === 1 && women === 0 ? 0 : 1,
+                  occupantWomenCount: 0,
+                })
+              }
               className={chipClass(men === 1 && women === 0)}
             >
               1 Hombre
@@ -114,7 +124,6 @@ function OccupiedRoomOccupantFields({
         <div className="mt-2 grid grid-cols-2 gap-2">
           <label className="block min-w-0 text-[11px] font-medium text-body">
             Mujeres
-            <span className="text-error"> *</span>
             <WizardNumberStepper
               compact
               value={women}
@@ -127,7 +136,6 @@ function OccupiedRoomOccupantFields({
           </label>
           <label className="block min-w-0 text-[11px] font-medium text-body">
             Hombres
-            <span className="text-error"> *</span>
             <WizardNumberStepper
               compact
               value={men}
