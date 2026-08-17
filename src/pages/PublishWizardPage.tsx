@@ -1982,10 +1982,6 @@ export function PublishWizardPage() {
                   <p className="mt-2 text-xs text-muted">
                     Publica varios cuartos dentro de una misma propiedad. Ideal para viviendas con muchos roomies o alta rotación.
                   </p>
-                  <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-body">
-                    <FacebookMark className="mt-0.5 size-3.5 shrink-0" />
-                    <span>Arma la propiedad y las recámaras desde tu publicación de Facebook.</span>
-                  </p>
                 </button>
                 ) : null}
               </div>
