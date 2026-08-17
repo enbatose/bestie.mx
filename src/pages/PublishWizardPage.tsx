@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CloudCheck, ShieldCheck, Wand2 } from "lucide-react";
-import { seedForStep } from "@/lib/adminSeedData";
+import { seedAiRoomForm, seedForStep } from "@/lib/adminSeedData";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { usePageSeo } from "@/hooks/usePageSeo";
@@ -2750,9 +2750,19 @@ export function PublishWizardPage() {
 
   const autofillStep = useCallback(
     (stepIndex: number) => {
+      if (aiRoomFlow && stepIndex === 1) {
+        const seed = seedAiRoomForm();
+        setAiSourceText(seed.text);
+        setAiHints(seed.hints);
+        setAiPhotos(seed.photos);
+        setAiInfographics([]);
+        setPublishErr(null);
+        setDraft((d) => (d.city === "Guadalajara" ? d : { ...d, city: "Guadalajara" }));
+        return;
+      }
       setDraft((d) => normalizePersistedDraft({ ...d, ...seedForStep(stepIndex, d) }));
     },
-    [],
+    [aiRoomFlow],
   );
 
   /** Figma/dev: deep-link wizard step and mode (e.g. `/publicar?publishMode=room&publishStep=2`). */

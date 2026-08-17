@@ -388,8 +388,115 @@ function seedRoom(index: number, named = false): RoomDraft {
 // Master dispatcher — given current safeStep index and draft, returns the seed
 // ---------------------------------------------------------------------------
 
+export type SeedAiRoomForm = {
+  text: string;
+  hints: {
+    lodgingType: "private_room" | "shared_room" | null;
+    loft: boolean;
+    tagsOn: Array<"mascotas" | "lgbt-friendly" | "baño-privado" | "estacionamiento" | "muebles">;
+    gender: "female" | "male" | null;
+  };
+  photos: Array<{ mimeType: string; preview: string; url: string }>;
+};
+
+/** Facebook-style paste + chips + seed photos for the AI room step (admin Autopoblar). */
+export function seedAiRoomForm(): SeedAiRoomForm {
+  const colonia = pick(COLONIAS);
+  const rent = randInt(35, 80) * 100;
+  const loft = Math.random() > 0.75;
+  const shared = Math.random() > 0.7;
+  const pets = Math.random() > 0.45;
+  const lgbt = Math.random() > 0.7;
+  const privateBath = Math.random() > 0.4;
+  const parking = Math.random() > 0.5;
+  const furnished = Math.random() > 0.35;
+  const gender = pick([null, null, "female", "male"] as const);
+  const lodgingType: "private_room" | "shared_room" = shared ? "shared_room" : "private_room";
+  const tagsOn: SeedAiRoomForm["hints"]["tagsOn"] = [];
+  if (pets) tagsOn.push("mascotas");
+  if (lgbt) tagsOn.push("lgbt-friendly");
+  if (privateBath) tagsOn.push("baño-privado");
+  if (parking) tagsOn.push("estacionamiento");
+  if (furnished) tagsOn.push("muebles");
+
+  const space = loft ? "loft" : shared ? "cuarto compartido" : "cuarto privado";
+  const genderLine =
+    gender === "female" ? "Solo mujeres." : gender === "male" ? "Solo hombres." : "Hombre o mujer.";
+  const text = [
+    `Rento ${space} en ${colonia}, Guadalajara.`,
+    `$${rent.toLocaleString("es-MX")} MXN al mes, depósito de un mes.`,
+    furnished ? "Recámara amueblada (cama, escritorio y clóset)." : "Sin amueblar.",
+    privateBath ? "Baño privado." : "Baño compartido.",
+    parking ? "Cochera incluida." : "Sin cochera.",
+    pets ? "Se aceptan mascotas (perro o gato chico)." : "No se aceptan mascotas.",
+    lgbt ? "Espacio LGBT+ friendly." : "",
+    genderLine,
+    "Disponible ya. Estancia mínima 1 mes. Servicios de agua, luz, gas y WiFi incluidos.",
+    "Zona tranquila, cerca de transporte. Mándame mensaje si te interesa.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const photos = randSubset([...SEED_ROOM_IMAGES, ...SEED_COMMON_IMAGES], 2, 4).map((filename) => ({
+    mimeType: "image/png",
+    preview: seedImg(filename),
+    url: `/admin-seed/${filename}`,
+  }));
+
+  return {
+    text,
+    hints: { lodgingType, loft, tagsOn, gender },
+    photos,
+  };
+}
+
+/** Full listing seed for the AI-flow preview (no Gemini). */
+export function seedAiRoomReview(draft: Draft): Partial<Draft> {
+  const loc = seedStep1();
+  const withLoc = { ...draft, ...loc, postMode: "room" as const };
+  const general = seedStep2(withLoc);
+  const withGeneral = { ...withLoc, ...general };
+  const withAtLeastOneRoom = {
+    ...withGeneral,
+    rooms: withGeneral.rooms.length > 0 ? withGeneral.rooms : [seedRoom(0)],
+  };
+  const rooms = seedStep3(withAtLeastOneRoom);
+  const withRooms = { ...withAtLeastOneRoom, ...rooms };
+  const photos = seedStep4(withRooms);
+  return {
+    ...loc,
+    ...general,
+    ...rooms,
+    ...photos,
+    ...seedStepPublish(),
+    postMode: "room",
+    roomCreateFlow: "ai",
+  };
+}
+
 export function seedForStep(safeStep: number, draft: Draft): Partial<Draft> {
   const isPropertyMode = draft.postMode === "property";
+  if (draft.roomCreateFlow === "ai" && !isPropertyMode) {
+    switch (safeStep) {
+      case 0: {
+        const room = seedRoom(0);
+        const photos = randomSeedPhotos(SEED_ROOM_IMAGES, 1, 3);
+        return {
+          postMode: "room",
+          roomCreateFlow: "ai",
+          rooms: [{ ...room, photos }],
+          roomImageUrls: [photos],
+          propertySummary: "",
+        };
+      }
+      case 1:
+        return {};
+      case 2:
+        return seedAiRoomReview(draft);
+      default:
+        return {};
+    }
+  }
 
   switch (safeStep) {
     case 0:

@@ -151,17 +151,31 @@ function saveBase64Image(
   }
 }
 
-function isKeptUploadUrl(url: string): boolean {
-  return url.startsWith("/api/uploads/") && !url.includes("..");
+function keptComposeImagePath(url: string): string | null {
+  let pathname = url.trim();
+  if (pathname.startsWith("http://") || pathname.startsWith("https://")) {
+    try {
+      pathname = new URL(pathname).pathname;
+    } catch {
+      return null;
+    }
+  }
+  if (pathname.includes("..") || pathname.includes("\\")) return null;
+  if (pathname.startsWith("/api/uploads/")) return pathname;
+  if (/^\/admin-seed\/[A-Za-z0-9._-]+$/.test(pathname)) return pathname;
+  return null;
 }
 
 function resolveImageUrls(inputs: ImageInput[] | undefined, uploadDir: string, max: number): string[] {
   const urls: string[] = [];
   for (const img of inputs ?? []) {
     if (urls.length >= max) break;
-    if (typeof img.url === "string" && isKeptUploadUrl(img.url.trim())) {
-      urls.push(img.url.trim());
-      continue;
+    if (typeof img.url === "string") {
+      const kept = keptComposeImagePath(img.url);
+      if (kept) {
+        urls.push(kept);
+        continue;
+      }
     }
     if (typeof img.data === "string" && img.data.length > 0) {
       const url = saveBase64Image(img.data, img.mimeType ?? "image/jpeg", uploadDir);
