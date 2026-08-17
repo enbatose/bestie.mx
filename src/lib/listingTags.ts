@@ -337,6 +337,14 @@ export function propertySpacesPreviewLabel(
   return `${beds} • ${propertyBathroomsCountLabel(bathrooms)}`;
 }
 
+/** True when the listing has at least one current occupant to show publicly. */
+export function hasListedOccupants(
+  menCount: number | null | undefined,
+  womenCount: number | null | undefined,
+): boolean {
+  return (menCount ?? 0) > 0 || (womenCount ?? 0) > 0;
+}
+
 export function currentOccupantsPreviewLabel(
   menCount: number | null | undefined,
   womenCount: number | null | undefined,
@@ -370,7 +378,7 @@ export function previewRoomOccupantsBadgeLabel(
 ): string | null {
   const men = menCount ?? 0;
   const women = womenCount ?? 0;
-  if (men <= 0 && women <= 0) return null;
+  if (!hasListedOccupants(men, women)) return null;
   const parts: string[] = [];
   if (men > 0) parts.push(`${men} ${men === 1 ? "Hombre" : "Hombres"}`);
   if (women > 0) parts.push(`${women} ${women === 1 ? "Mujer" : "Mujeres"}`);

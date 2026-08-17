@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Bath, BedDouble, Home, Users, VenusAndMars } from "lucide-react";
 import type { ReactNode } from "react";
 import {
+  hasListedOccupants,
   listingHeroPriceLabel,
   propertyBathroomsCountLabel,
   propertyBedroomsCountLabel,
@@ -56,6 +57,7 @@ export function SingleRoomHeader({
   shareActions?: ReactNode;
   title?: string;
 }) {
+  const showOccupants = hasListedOccupants(menCount, womenCount);
   return (
     <div className="space-y-3">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -64,8 +66,14 @@ export function SingleRoomHeader({
       </div>
       <HeaderLocationLine neighborhood={listing.neighborhood} city={listing.city} />
       <p className="text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
+      <div
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
+          showOccupants ? "lg:grid-cols-4" : "lg:grid-cols-3"
+        }`}
+      >
+        {showOccupants ? (
+          <HeaderInfoItem icon={Users} label="Viven aquí" value={`${menCount} Hombres, ${womenCount} Mujeres`} />
+        ) : null}
         <HeaderInfoItem icon={Home} label="Tipo de vivienda" value={propertyKindLabel(listing.propertyKind)} />
         <HeaderInfoItem
           icon={BedDouble}
@@ -113,11 +121,13 @@ export function PropertyHeader({
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <HeaderInfoItem icon={BedDouble} label="Cuartos disponibles" value={String(availableRooms.length)} />
-        <HeaderInfoItem
-          icon={Users}
-          label="Viven aquí"
-          value={`${property.occupiedByMenCount ?? 0} Hombres, ${property.occupiedByWomenCount ?? 0} Mujeres`}
-        />
+        {hasListedOccupants(property.occupiedByMenCount, property.occupiedByWomenCount) ? (
+          <HeaderInfoItem
+            icon={Users}
+            label="Viven aquí"
+            value={`${property.occupiedByMenCount ?? 0} Hombres, ${property.occupiedByWomenCount ?? 0} Mujeres`}
+          />
+        ) : null}
         <HeaderInfoItem
           icon={VenusAndMars}
           label="Preferencia de género"

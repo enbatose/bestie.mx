@@ -1444,6 +1444,7 @@ export function EditableListingPreview({
               }
               occupiedByWomenCount={occupantCounts.occupiedByWomenCount}
               occupiedByMenCount={occupantCounts.occupiedByMenCount}
+              showEmptyOccupants
             />
           )}
         </PreviewSection>

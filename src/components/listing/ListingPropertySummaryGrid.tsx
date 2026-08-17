@@ -34,6 +34,7 @@ import {
   roomDimensionPreviewLabel,
   roomPlazasLabel,
   shouldShowRoomPriceInDetails,
+  hasListedOccupants,
   utilitiesBundleSatisfied,
 } from "@/lib/listingTags";
 import { yesNo } from "@/lib/listingKeyLabels";
@@ -103,15 +104,19 @@ export function ListingPropertySummaryGrid({
   propertyBathrooms,
   occupiedByWomenCount,
   occupiedByMenCount,
+  showEmptyOccupants = false,
 }: {
   propertyKind: PropertyKind;
   propertyBedroomsTotal: number;
   propertyBathrooms?: number;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  /** Preview/edit: keep Besties actuales visible at 0/0 so it can be edited. */
+  showEmptyOccupants?: boolean;
 }) {
   const womenCount = occupiedByWomenCount ?? 0;
   const menCount = occupiedByMenCount ?? 0;
+  const showOccupants = showEmptyOccupants || hasListedOccupants(menCount, womenCount);
 
   return (
     <div className="grid grid-cols-2 items-stretch gap-4">
@@ -132,7 +137,7 @@ export function ListingPropertySummaryGrid({
           value={propertyBathroomsCountLabel(resolvedPropertyBathroomsCount(propertyBathrooms))}
         />
       ) : null}
-      <PropertyRoommatesStat womenCount={womenCount} menCount={menCount} />
+      {showOccupants ? <PropertyRoommatesStat womenCount={womenCount} menCount={menCount} /> : null}
     </div>
   );
 }
