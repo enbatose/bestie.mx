@@ -4,6 +4,7 @@ import {
   ADMIN_NAV_SECTIONS,
   ADMIN_SECTIONS,
   adminSectionPath,
+  adminSupportConversationPath,
   parseAdminSectionSlug,
 } from "./adminSections";
 
@@ -29,5 +30,10 @@ describe("adminSections", () => {
     expect(parseAdminSectionSlug("nope")).toBeNull();
     expect(parseAdminSectionSlug(undefined)).toBeNull();
     expect(ADMIN_DEFAULT_PATH).toBe("/admin/usuarios");
+  });
+
+  it("builds a Soporte deep link for a conversation", () => {
+    expect(adminSupportConversationPath("abc-123")).toBe("/admin/soporte?c=abc-123");
+    expect(adminSupportConversationPath("")).toBe("/admin/soporte");
   });
 });

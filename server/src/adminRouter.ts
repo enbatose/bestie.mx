@@ -18,6 +18,7 @@ import { buildUsageAnalyticsResponse } from "./usageAnalytics.js";
 import { listAdminPosts } from "./adminPosts.js";
 import { getAdminNavCounts } from "./adminNavCounts.js";
 import { listAdminUsers } from "./adminUsers.js";
+import { startAdminSupportConversation } from "./adminSupportStart.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 
 function jsonMw() {
@@ -25,6 +26,7 @@ function jsonMw() {
 }
 
 const supportReplyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
+const supportStartLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
 
 function isoNow(): string {
   return new Date().toISOString();
@@ -290,6 +292,28 @@ export function adminRouter(db: DatabaseSync) {
         lastPreview: row.last_preview ?? "",
         unreadCount: Number(row.unread_count) || 0,
       })),
+    });
+  });
+
+  r.post("/support/conversations", jsonMw(), (req: Request, res: Response) => {
+    const lim = supportStartLimiter(req.ip ?? "ip");
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const body = req.body as { userId?: unknown; subject?: unknown };
+    const result = startAdminSupportConversation(db, {
+      userId: typeof body.userId === "string" ? body.userId : "",
+      subject: typeof body.subject === "string" ? body.subject : undefined,
+    });
+    if (!result.ok) {
+      const status = result.error === "invalid_user" ? 400 : 404;
+      res.status(status).json({ error: result.error });
+      return;
+    }
+    res.status(result.created ? 201 : 200).json({
+      conversationId: result.conversationId,
+      created: result.created,
     });
   });
 

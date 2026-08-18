@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, Navigate, useParams } from "react-router-dom";
+import { Link, NavLink, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { publishWizardEditPath } from "@/lib/listingReference";
 import {
   adminAnalyticsSummary,
@@ -149,8 +149,10 @@ function formatImageEventTime(iso: string): string {
 
 export function AdminPage() {
   const { section: sectionSlug } = useParams<{ section: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const parsedSection = parseAdminSectionSlug(sectionSlug);
   const tab = parsedSection ?? "users";
+  const conversationFromUrl = searchParams.get("c")?.trim() || null;
   const [err, setErr] = useState<string | null>(null);
   const [citiesText, setCitiesText] = useState("");
   const [supportRows, setSupportRows] = useState<AdminSupportConversationRow[]>([]);
@@ -277,6 +279,28 @@ export function AdminPage() {
   useEffect(() => {
     if (tab === "soporte") void loadSupportConversations(supportDebouncedSearch || undefined, supportKindFilter);
   }, [tab, loadSupportConversations, supportDebouncedSearch, supportKindFilter]);
+
+  useEffect(() => {
+    if (tab !== "soporte") return;
+    setSupportActiveId(conversationFromUrl);
+  }, [tab, conversationFromUrl]);
+
+  const openSupportConversation = useCallback(
+    (conversationId: string) => {
+      setSearchParams({ c: conversationId }, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  const closeSupportConversation = useCallback(() => {
+    if (!searchParams.has("c")) {
+      setSupportActiveId(null);
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("c");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (supportActiveId) {
@@ -1231,7 +1255,7 @@ export function AdminPage() {
                   <li key={row.id}>
                     <button
                       type="button"
-                      onClick={() => setSupportActiveId(row.id)}
+                      onClick={() => openSupportConversation(row.id)}
                       className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
                         row.id === supportActiveId
                           ? "bg-secondary/15 ring-1 ring-secondary/40"
@@ -1293,7 +1317,7 @@ export function AdminPage() {
                   <div className="flex items-start gap-2">
                     <button
                       type="button"
-                      onClick={() => setSupportActiveId(null)}
+                      onClick={closeSupportConversation}
                       className="mt-0.5 shrink-0 rounded-full border border-primary-fg/30 px-3 py-1 text-xs font-semibold text-primary-fg md:hidden"
                     >
                       Volver
@@ -1313,6 +1337,11 @@ export function AdminPage() {
                   <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto p-4">
                     {supportLoadingThread ? (
                       <p className="text-sm text-muted">Cargando mensajes…</p>
+                    ) : supportThread && supportThread.messages.length === 0 ? (
+                      <p className="text-sm text-muted">
+                        Aún no hay mensajes. Escribe abajo para iniciar el chat. La persona lo verá en Mensajes
+                        como “Soporte de Bestie”.
+                      </p>
                     ) : (
                       supportThread?.messages.map((m) => (
                         <div
@@ -1370,9 +1399,12 @@ export function AdminPage() {
                         placeholder={
                           supportThread?.kind === "feedback"
                             ? "Responder como Feedback de Bestie…"
-                            : "Responder como Soporte de Bestie…"
+                            : supportThread?.messages.length === 0
+                              ? "Escribe el primer mensaje…"
+                              : "Responder como Soporte de Bestie…"
                         }
                         disabled={supportSending}
+                        autoFocus={Boolean(supportThread && supportThread.messages.length === 0)}
                         className="min-h-[44px] flex-1 resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none ring-accent focus:ring-2 disabled:opacity-60"
                       />
                       <button
@@ -1398,7 +1430,7 @@ export function AdminPage() {
                   <div className="border-t border-border p-3 md:hidden">
                     <button
                       type="button"
-                      onClick={() => setSupportActiveId(null)}
+                      onClick={closeSupportConversation}
                       className="w-full min-h-11 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
                     >
                       Volver

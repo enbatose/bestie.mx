@@ -878,6 +878,36 @@ export async function adminFetchSupportThread(
   return (await res.json()) as AdminSupportThread;
 }
 
+export async function adminStartSupportConversation(
+  input: { userId: string; subject?: string },
+  signal?: AbortSignal,
+): Promise<{ conversationId: string; created: boolean }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/support/conversations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ userId: input.userId, subject: input.subject }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    conversationId?: string;
+    created?: boolean;
+    error?: string;
+  };
+  if (!res.ok) {
+    if (j.error === "invalid_user") {
+      throw new Error("Esta cuenta de sistema no admite chat de soporte.");
+    }
+    if (j.error === "not_found") {
+      throw new Error("No encontramos a esa persona.");
+    }
+    throw new Error(j.error || `admin_support_start_${res.status}`);
+  }
+  if (!j.conversationId) throw new Error("missing_conversation");
+  return { conversationId: j.conversationId, created: Boolean(j.created) };
+}
+
 export async function adminReplySupportThread(
   conversationId: string,
   body: string,

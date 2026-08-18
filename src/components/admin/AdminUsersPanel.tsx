@@ -5,6 +5,7 @@ import {
   type AdminUserRow,
   type AdminUserSegment,
 } from "@/lib/authApi";
+import { AdminUserSupportLink } from "@/components/admin/AdminUserSupportLink";
 
 const USER_SUBTABS: { id: AdminUserSegment; label: string }[] = [
   { id: "real", label: "Usuarios" },
@@ -96,7 +97,7 @@ export function AdminUsersPanel({ onError }: Props) {
             : segment === "staff"
               ? "Administradores y cuentas de sistema (soporte y feedback)."
               : "Todas las cuentas de personas, sin admin ni sistema."}{" "}
-        Total: {total}
+        Total: {total} El nombre o el correo abre un chat de soporte.
       </p>
 
       {loading ? (
@@ -113,8 +114,17 @@ export function AdminUsersPanel({ onError }: Props) {
             const staff = roleBadge(u.role);
             return (
               <li key={u.id} className="px-4 py-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="font-medium text-body">{u.displayName}</div>
+                <div className="flex flex-wrap items-start gap-2">
+                  {u.role === "system" ? (
+                    <div className="font-medium text-body">{u.displayName}</div>
+                  ) : (
+                    <AdminUserSupportLink
+                      userId={u.id}
+                      displayName={u.displayName}
+                      email={u.email}
+                      onError={onError}
+                    />
+                  )}
                   {staff ? (
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${staff.className}`}
@@ -137,10 +147,17 @@ export function AdminUsersPanel({ onError }: Props) {
                     </span>
                   )}
                 </div>
-                <div className="ph-no-capture text-xs text-muted">
-                  {u.email ?? "sin correo"} · tel …{u.phoneLast4 ?? "—"}
-                  {pending || segment === "pending" ? ` · ${formatCreatedAt(u.createdAt)}` : ""}
-                </div>
+                {u.role === "system" ? (
+                  <div className="ph-no-capture text-xs text-muted">
+                    {u.email ?? "sin correo"} · tel …{u.phoneLast4 ?? "—"}
+                    {pending || segment === "pending" ? ` · ${formatCreatedAt(u.createdAt)}` : ""}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted">
+                    tel …{u.phoneLast4 ?? "—"}
+                    {pending || segment === "pending" ? ` · ${formatCreatedAt(u.createdAt)}` : ""}
+                  </div>
+                )}
               </li>
             );
           })}

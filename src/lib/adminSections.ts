@@ -25,3 +25,8 @@ export function parseAdminSectionSlug(slug: string | undefined): AdminSectionId 
   if (!slug) return null;
   return ADMIN_SECTIONS.find((section) => section.slug === slug)?.id ?? null;
 }
+
+export function adminSupportConversationPath(conversationId: string): string {
+  const id = conversationId.trim();
+  return id ? `/admin/soporte?c=${encodeURIComponent(id)}` : "/admin/soporte";
+}

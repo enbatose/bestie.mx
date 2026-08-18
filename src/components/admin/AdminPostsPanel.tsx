@@ -7,6 +7,7 @@ import {
   type AdminPostRow,
   type AdminPostStatus,
 } from "@/lib/authApi";
+import { AdminUserSupportLink } from "@/components/admin/AdminUserSupportLink";
 
 const STATUS_OPTIONS: { value: AdminPostStatus | "all"; label: string }[] = [
   { value: "all", label: "Todos" },
@@ -190,6 +191,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
         <p>
           {loading ? "Cargando…" : `${total} post${total === 1 ? "" : "s"}`}
           {actionNote ? <span className="ml-2 text-primary">· {actionNote}</span> : null}
+          <span className="ml-2">El nombre o el correo del creador abre un chat de soporte.</span>
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -254,10 +256,15 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                   </div>
                 </td>
                 <td className="max-w-[160px] px-3 py-2.5">
-                  {row.creatorLoggedIn ? (
+                  {row.creatorLoggedIn && row.creatorUserId ? (
                     <>
-                      <div className="font-medium text-body">{row.creatorDisplayName || "Usuario"}</div>
-                      <div className="break-all text-muted">{row.creatorEmail}</div>
+                      <AdminUserSupportLink
+                        userId={row.creatorUserId}
+                        displayName={row.creatorDisplayName || "Usuario"}
+                        email={row.creatorEmail}
+                        subject={row.shortId ? `Sobre tu anuncio ${row.shortId}` : undefined}
+                        onError={onError}
+                      />
                       <div className="mt-0.5 text-[10px] text-primary">Con sesión</div>
                     </>
                   ) : (
@@ -371,9 +378,17 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
               <div>
                 <dt className="font-semibold text-body">Creador</dt>
                 <dd>
-                  {row.creatorLoggedIn
-                    ? `${row.creatorDisplayName || "Usuario"} · ${row.creatorEmail || ""}`
-                    : "Sin sesión aún"}
+                  {row.creatorLoggedIn && row.creatorUserId ? (
+                    <AdminUserSupportLink
+                      userId={row.creatorUserId}
+                      displayName={row.creatorDisplayName || "Usuario"}
+                      email={row.creatorEmail}
+                      subject={row.shortId ? `Sobre tu anuncio ${row.shortId}` : undefined}
+                      onError={onError}
+                    />
+                  ) : (
+                    "Sin sesión aún"
+                  )}
                 </dd>
               </div>
               {row.status === "draft" ? (
