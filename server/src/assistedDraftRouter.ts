@@ -17,6 +17,7 @@ import {
   clampComposeRoomCount,
   planComposeRooms,
   COMPOSE_BEDROOMS_MAX,
+  sanitizeHintsForPostMode,
   type SelfServeHints,
   type HintTagSlug,
   type PlannedComposeRoom,
@@ -588,7 +589,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
           const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : "Guadalajara";
           const postMode = body.postMode === "property" ? "property" : "room";
-          const hints = parseHints(body.hints);
+          const hints = sanitizeHintsForPostMode(parseHints(body.hints), postMode);
           const inventory = inventoryFromHints(postMode, hints);
           const existingToken = typeof body.existingToken === "string" ? body.existingToken.trim() : "";
 

@@ -21,6 +21,23 @@ export type SelfServeHints = {
   roomsOccupied?: number | null;
 };
 
+/** Property AI chips: household-level only. Bath, parking, furnished, and gender are per recámara. */
+const PROPERTY_HINT_TAGS: readonly HintTagSlug[] = ["mascotas", "lgbt-friendly"];
+
+export function sanitizeHintsForPostMode(
+  hints: SelfServeHints,
+  postMode: "room" | "property",
+): SelfServeHints {
+  if (postMode !== "property") return hints;
+  const allowed = new Set<string>(PROPERTY_HINT_TAGS);
+  return {
+    ...hints,
+    lodgingType: null,
+    tagsOn: (hints.tagsOn ?? []).filter((t) => allowed.has(t)),
+    gender: null,
+  };
+}
+
 export type FieldConflict = {
   field: string;
   message: string;

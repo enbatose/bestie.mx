@@ -24,6 +24,27 @@ export const EMPTY_AI_HINTS: PublishAiHintState = {
   roomsOccupied: 0,
 };
 
+/** Property-level AI chips. Bath, parking, furnished, and gender belong on each recámara. */
+const PROPERTY_AI_HINT_TAGS = ["mascotas", "lgbt-friendly"] as const;
+
+export function sanitizeAiHintsForVariant(
+  hints: PublishAiHintState,
+  variant: "room" | "property",
+): PublishAiHintState {
+  if (variant !== "property") return hints;
+  const allowed = new Set<string>(PROPERTY_AI_HINT_TAGS);
+  const tagsOn = hints.tagsOn.filter((t) => allowed.has(t));
+  if (hints.lodgingType == null && hints.gender == null && tagsOn.length === hints.tagsOn.length) {
+    return hints;
+  }
+  return {
+    ...hints,
+    lodgingType: null,
+    tagsOn,
+    gender: null,
+  };
+}
+
 type Chip = {
   id: string;
   label: string;
@@ -111,7 +132,7 @@ export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Prop
     },
   ];
 
-  const amenityChips: Chip[] = [
+  const propertyAmenityChips: Chip[] = [
     {
       id: "pets",
       label: "Aceptan mascotas",
@@ -128,6 +149,9 @@ export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Prop
       active: hints.tagsOn.includes("lgbt-friendly"),
       onToggle: () => toggleTag("lgbt-friendly"),
     },
+  ];
+
+  const roomAmenityChips: Chip[] = [
     {
       id: "bath",
       label: "Baño privado",
@@ -153,6 +177,8 @@ export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Prop
       onToggle: () => toggleTag("muebles"),
     },
   ];
+
+  const amenityChips = variant === "property" ? propertyAmenityChips : [...propertyAmenityChips, ...roomAmenityChips];
 
   const genderChips: Chip[] = [
     {
@@ -218,8 +244,9 @@ export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Prop
       <div>
         <h3 className="text-[15px] font-bold text-primary">Filtros de publicación</h3>
         <p className="mt-1 text-xs text-muted">
-          Opcional. Lo que enciendes queda en el anuncio. Lo que dejas apagado lo puede completar la IA
-          con tu texto o infográfico.
+          {variant === "property"
+            ? "Opcional. Lo que enciendes queda en el anuncio. Baño privado, cochera, amueblado y preferencia de roomie se eligen en cada recámara."
+            : "Opcional. Lo que enciendes queda en el anuncio. Lo que dejas apagado lo puede completar la IA con tu texto o infográfico."}
         </p>
       </div>
       {variant === "room" ? (
@@ -234,6 +261,7 @@ export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Prop
           <FilterRow key={chip.id} chip={chip} />
         ))}
       </div>
+      {variant === "room" ? (
       <div>
         <p className="mb-2 text-xs text-muted">Preferencia de roomie. Si no eliges, puede ser mujer u hombre.</p>
         <div className="space-y-2">
@@ -242,6 +270,7 @@ export function PublishAiFilterChips({ hints, onChange, variant = "room" }: Prop
           ))}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

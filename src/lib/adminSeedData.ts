@@ -478,6 +478,8 @@ export function seedAiPropertyForm(): SeedAiRoomForm {
       ...seed.hints,
       loft: false,
       lodgingType: null,
+      tagsOn: seed.hints.tagsOn.filter((t) => t === "mascotas" || t === "lgbt-friendly"),
+      gender: null,
       roomsForRent: 2,
       roomsOccupied: 1,
     },

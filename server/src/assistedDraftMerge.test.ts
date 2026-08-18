@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeExtractionWithHints, planComposeRooms } from "./assistedDraftMerge.js";
+import { mergeExtractionWithHints, planComposeRooms, sanitizeHintsForPostMode } from "./assistedDraftMerge.js";
 
 describe("mergeExtractionWithHints", () => {
   it("lets the model fill tags when the user left chips off", () => {
@@ -77,5 +77,33 @@ describe("mergeExtractionWithHints", () => {
     );
     expect(extraction.roommateGenderPref).toBe("female");
     expect(conflicts.some((c) => c.field === "roommateGenderPref")).toBe(true);
+  });
+
+  it("drops room-only chips when composing a property", () => {
+    const hints = sanitizeHintsForPostMode(
+      {
+        lodgingType: "private_room",
+        tagsOn: ["mascotas", "baño-privado", "estacionamiento", "muebles", "lgbt-friendly"],
+        gender: "female",
+      },
+      "property",
+    );
+    expect(hints.lodgingType).toBeNull();
+    expect(hints.gender).toBeNull();
+    expect(hints.tagsOn).toEqual(["mascotas", "lgbt-friendly"]);
+  });
+
+  it("keeps room chips when composing a single room", () => {
+    const hints = sanitizeHintsForPostMode(
+      {
+        lodgingType: "shared_room",
+        tagsOn: ["baño-privado", "muebles"],
+        gender: "male",
+      },
+      "room",
+    );
+    expect(hints.lodgingType).toBe("shared_room");
+    expect(hints.gender).toBe("male");
+    expect(hints.tagsOn).toEqual(["baño-privado", "muebles"]);
   });
 });

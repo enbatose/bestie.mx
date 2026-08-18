@@ -69,6 +69,7 @@ import { AiRoomCreateStep } from "@/components/publish/AiRoomCreateStep";
 import { toComposeImages, hydrateLocalImagesForCompose, type AiLocalImage } from "@/components/publish/AiImageDropZone";
 import {
   EMPTY_AI_HINTS,
+  sanitizeAiHintsForVariant,
   type PublishAiHintState,
 } from "@/components/publish/PublishAiFilterChips";
 import { publishAssistedDraftClaim, activateAssistedDraftClaim, fetchAssistedDraftClaim, selfComposeAssistedDraft, type AssistedDraftConflict } from "@/lib/assistedDraftApi";
@@ -1977,6 +1978,7 @@ export function PublishWizardPage() {
                   type="button"
                   onClick={() => {
                     track("publish_mode_selected", { mode: "property" });
+                    setAiHints((h) => sanitizeAiHintsForVariant(h, "property"));
                     setDraft((d) => {
                       if (d.postMode === "property") return forgetManualRoomCreateChoice(d);
                       return applyPropertyRentRoomCount(
@@ -2952,6 +2954,11 @@ export function PublishWizardPage() {
   }, [publishModeParam, editPostModeLock]);
 
   useEffect(() => {
+    if (draft.postMode !== "property") return;
+    setAiHints((h) => sanitizeAiHintsForVariant(h, "property"));
+  }, [draft.postMode]);
+
+  useEffect(() => {
     const n = readWizardPasoIndex(searchParams);
     if (n == null) return;
     setStep(Math.min(n, maxStepIndex));
@@ -2974,11 +2981,11 @@ export function PublishWizardPage() {
       captureAiComposeSnapshot({
         text: aiSourceText,
         city: draft.city,
-        hints: aiHints,
+        hints: sanitizeAiHintsForVariant(aiHints, draft.postMode === "property" ? "property" : "room"),
         photos: aiPhotos,
         infographics: aiInfographics,
       }),
-    [aiSourceText, draft.city, aiHints, aiPhotos, aiInfographics],
+    [aiSourceText, draft.city, draft.postMode, aiHints, aiPhotos, aiInfographics],
   );
   const aiWillRecompose = Boolean(
     aiDidCompose &&
@@ -3012,17 +3019,21 @@ export function PublishWizardPage() {
     try {
       const galleryForCompose = await hydrateLocalImagesForCompose(aiPhotos);
       const infographicsForCompose = await hydrateLocalImagesForCompose(aiInfographics);
+      const composeHints = sanitizeAiHintsForVariant(
+        aiHints,
+        draft.postMode === "property" ? "property" : "room",
+      );
       const result = await selfComposeAssistedDraft({
         text: aiSourceText.trim() || undefined,
         city: draft.city,
         postMode: draft.postMode,
         hints: {
-          lodgingType: aiHints.lodgingType,
-          loft: aiHints.loft,
-          tagsOn: aiHints.tagsOn,
-          gender: aiHints.gender,
-          roomsForRent: draft.postMode === "property" ? aiHints.roomsForRent : undefined,
-          roomsOccupied: draft.postMode === "property" ? aiHints.roomsOccupied : undefined,
+          lodgingType: composeHints.lodgingType,
+          loft: composeHints.loft,
+          tagsOn: composeHints.tagsOn,
+          gender: composeHints.gender,
+          roomsForRent: draft.postMode === "property" ? composeHints.roomsForRent : undefined,
+          roomsOccupied: draft.postMode === "property" ? composeHints.roomsOccupied : undefined,
         },
         photos: toComposeImages(galleryForCompose),
         infographicPhotos: toComposeImages(infographicsForCompose),
