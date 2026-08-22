@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertCircle, ChevronRight, Wand2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { listingPublicPath } from "@/lib/listingReference";
 import { isListingRentMissing } from "@/lib/listingTags";
@@ -184,49 +185,67 @@ export function PublishWizardReviewStep({
   return (
     <div className="space-y-6">
       {isRoomOfProperty ? null : (
-      <div className={`rounded-xl border shadow-sm ${isAssistedDraft && !isLiveEdit ? "border-amber-200 bg-amber-50/80 px-4 py-3" : "border-border bg-bg-light p-4 px-5"}`}>
-        <h3 className="text-[15px] font-bold text-primary">{heading}</h3>
-        {isAssistedDraft && !isLiveEdit ? (
-          <div className="mt-2 border-t border-amber-200 pt-2">
-            {isSelfServeAssistedDraft ? (
-              <>
-                <p className="text-xs font-semibold text-amber-800">Revisa lo que armamos con tu publicación</p>
-                <p className="mt-0.5 text-xs text-amber-700">
-                  Corrige lo que falte antes de publicar. La IA puede haber dejado campos vacíos.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-amber-800">Borrador creado por Bestie</p>
-                <p className="mt-0.5 text-xs text-amber-700">
-                  Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el
-                  anuncio quedará bajo tu nombre.
-                </p>
-                <p className="mt-1.5 text-xs text-amber-700">
-                  Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
-                  recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
-                </p>
-              </>
-            )}
-            {fieldConflicts.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs font-medium text-amber-900">
-                {fieldConflicts.map((c) => (
-                  <li key={`${c.field}-${c.message}`}>{c.message}</li>
-                ))}
-              </ul>
-            ) : null}
-            {rentMissing ? (
-              <button
-                type="button"
-                onClick={openMissingRentRoom}
-                className="mt-1.5 text-left text-xs font-semibold text-error underline decoration-2 underline-offset-2"
-              >
-                Falta el precio de renta. Toca para abrirlo — no se puede publicar en 0 MXN / mes.
-              </button>
-            ) : null}
+      <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-[15px] font-bold tracking-tight text-primary">{heading}</h3>
+          {isAssistedDraft && !isLiveEdit ? (
+            <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border border-secondary/40 bg-secondary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              <Wand2 className="size-3" aria-hidden />
+              {isSelfServeAssistedDraft ? "Armado con IA" : "Creado por Bestie"}
+            </span>
+          ) : null}
+        </div>
+
+        {isAssistedDraft && !isLiveEdit && !isSelfServeAssistedDraft ? (
+          <div className="mt-2 space-y-2 text-sm leading-relaxed text-muted">
+            <p>
+              Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el anuncio
+              quedará bajo tu nombre.
+            </p>
+            <p>
+              Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
+              recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
+            </p>
           </div>
         ) : null}
-        <p className="mt-2 text-sm text-muted">{intro}</p>
+
+        {isAssistedDraft && !isLiveEdit && isSelfServeAssistedDraft ? (
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Revisa lo que armamos con tu publicación y corrige lo que falte antes de publicar. La IA
+            puede haber dejado campos vacíos.
+          </p>
+        ) : null}
+
+        <p className="mt-2 text-sm leading-relaxed text-muted">{intro}</p>
+
+        {isAssistedDraft && !isLiveEdit && fieldConflicts.length > 0 ? (
+          <ul
+            className="mt-3 list-disc space-y-1 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 pl-7 text-xs font-medium text-warning-fg"
+            role="status"
+          >
+            {fieldConflicts.map((c) => (
+              <li key={`${c.field}-${c.message}`}>{c.message}</li>
+            ))}
+          </ul>
+        ) : null}
+
+        {isAssistedDraft && !isLiveEdit && rentMissing ? (
+          <button
+            type="button"
+            onClick={openMissingRentRoom}
+            className="mt-3 flex w-full min-h-11 items-start gap-2.5 rounded-xl border border-error/30 bg-error/5 px-3 py-2.5 text-left text-error transition hover:bg-error/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold tracking-tight">Falta el precio de renta</span>
+              <span className="mt-0.5 block text-xs font-normal leading-snug text-error/90">
+                Toca para abrirlo. No se puede publicar en 0 MXN / mes.
+              </span>
+            </span>
+            <ChevronRight className="mt-0.5 size-4 shrink-0 opacity-70" aria-hidden />
+          </button>
+        ) : null}
+
         {isLiveEdit && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
