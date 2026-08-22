@@ -516,6 +516,9 @@ export async function adminPatchPropertyStatus(
 
 export type AdminPostStatus = "draft" | "published" | "paused" | "archived";
 
+/** How the listing entered Bestie — admin Posts badges. */
+export type AdminPostCreateOrigin = "manual" | "ai_admin" | "ai_user";
+
 export type AdminPostRow = {
   propertyId: string;
   shortId: string;
@@ -542,6 +545,8 @@ export type AdminPostRow = {
   editPath: string;
   primaryRoomId: string | null;
   assistedDraft: boolean;
+  /** Prefer this for badges; falls back to assistedDraft on older API responses. */
+  createOrigin?: AdminPostCreateOrigin;
 };
 
 export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;

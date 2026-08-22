@@ -4,6 +4,7 @@ import {
   ADMIN_POSTS_PAGE_SIZES,
   adminListPosts,
   adminPatchPropertyStatus,
+  type AdminPostCreateOrigin,
   type AdminPostRow,
   type AdminPostStatus,
 } from "@/lib/authApi";
@@ -53,13 +54,31 @@ function statusBadgeClass(status: AdminPostStatus): string {
   }
 }
 
-function AiOriginBadge() {
+function resolveCreateOrigin(row: AdminPostRow): AdminPostCreateOrigin {
+  if (row.createOrigin === "manual" || row.createOrigin === "ai_admin" || row.createOrigin === "ai_user") {
+    return row.createOrigin;
+  }
+  return row.assistedDraft ? "ai_admin" : "manual";
+}
+
+function CreateOriginBadge({ origin }: { origin: AdminPostCreateOrigin }) {
+  if (origin === "manual") return null;
+  if (origin === "ai_admin") {
+    return (
+      <span
+        className="inline-flex rounded-full bg-secondary/25 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+        title="Borrador IA creado por un admin"
+      >
+        IA admin
+      </span>
+    );
+  }
   return (
     <span
-      className="inline-flex rounded-full bg-secondary/25 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
-      title="Generado con IA"
+      className="inline-flex rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary ring-1 ring-primary/20"
+      title="Borrador IA iniciado por un usuario (autoservicio)"
     >
-      IA
+      IA usuario
     </span>
   );
 }
@@ -146,7 +165,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="ID, título, correo, IA, estado, paso, feedback…"
+            placeholder="ID, título, correo, ia admin, ia usuario, estado…"
             className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
           />
         </label>
@@ -246,7 +265,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                     >
                       {statusLabel(row.status)}
                     </span>
-                    {row.assistedDraft ? <AiOriginBadge /> : null}
+                    <CreateOriginBadge origin={resolveCreateOrigin(row)} />
                   </div>
                 </td>
                 <td className="max-w-[180px] px-3 py-2.5">
@@ -371,7 +390,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                 >
                   {statusLabel(row.status)}
                 </span>
-                {row.assistedDraft ? <AiOriginBadge /> : null}
+                <CreateOriginBadge origin={resolveCreateOrigin(row)} />
               </div>
             </div>
             <dl className="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">

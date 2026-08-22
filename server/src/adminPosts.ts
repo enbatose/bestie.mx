@@ -5,6 +5,10 @@ import {
   roomReferenceCode,
 } from "./listingReference.js";
 import { posthogReplayUrl } from "./vendorUsageLimits.js";
+import { isSelfServeCreator, SELF_SERVE_CREATOR_ID } from "./assistedDraftMerge.js";
+
+/** How the listing entered Bestie — drives admin Posts badges. */
+export type AdminPostCreateOrigin = "manual" | "ai_admin" | "ai_user";
 
 /** Short Spanish labels for publish-wizard steps (aligned with client WIZARD_STEP_TITLES order). */
 export const ADMIN_WIZARD_STEP_LABELS = [
@@ -46,9 +50,35 @@ export type AdminPostRow = {
   viewPath: string;
   editPath: string;
   primaryRoomId: string | null;
-  /** True when the listing was created by the admin AI-assisted draft flow. */
+  /** True when the listing came from any AI-assisted draft flow. */
   assistedDraft: boolean;
+  /**
+   * Origin for admin badges:
+   * - `manual` — publisher wizard (no AI draft)
+   * - `ai_admin` — admin-created AI outreach / assisted draft
+   * - `ai_user` — self-serve AI compose by a regular user
+   */
+  createOrigin: AdminPostCreateOrigin;
 };
+
+/** Resolve admin vs user AI origin from property + claim-token creator ids. */
+export function resolveAdminPostCreateOrigin(opts: {
+  assistedDraft: boolean;
+  createdByAdminId?: string | null;
+  claimCreatedByAdminId?: string | null;
+}): AdminPostCreateOrigin {
+  if (!opts.assistedDraft) return "manual";
+  const creator =
+    (typeof opts.createdByAdminId === "string" && opts.createdByAdminId.trim()
+      ? opts.createdByAdminId.trim()
+      : null) ??
+    (typeof opts.claimCreatedByAdminId === "string" && opts.claimCreatedByAdminId.trim()
+      ? opts.claimCreatedByAdminId.trim()
+      : null);
+  if (isSelfServeCreator(creator)) return "ai_user";
+  // Legacy assisted drafts without creator metadata were admin outreach.
+  return "ai_admin";
+}
 
 /** 1-based `paso` for the wizard review step (`publishWizardLastStepIndex` + 1). */
 function wizardReviewPaso(postMode: "room" | "property"): number {
@@ -99,6 +129,39 @@ function escapeLike(token: string): string {
   return token.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
+/** SQL: listing came from any AI-assisted path. */
+const ADMIN_POST_ASSISTED_SQL = `(
+  IFNULL(p.assisted_draft, 0) = 1
+  OR p.id LIKE 'adraft_%'
+  OR p.id LIKE 'prp__adraft_%'
+  OR EXISTS (SELECT 1 FROM assisted_draft_claim_tokens t WHERE t.property_id = p.id)
+)`;
+
+/**
+ * Effective AI creator id: property.created_by_admin_id, else latest claim token creator.
+ * `"self-serve"` = user self-compose; any other non-empty id = admin outreach.
+ */
+const ADMIN_POST_EFFECTIVE_CREATOR_SQL = `COALESCE(
+  NULLIF(TRIM(IFNULL(p.created_by_admin_id, '')), ''),
+  (
+    SELECT t.created_by_admin_id FROM assisted_draft_claim_tokens t
+    WHERE t.property_id = p.id
+    ORDER BY t.created_at DESC
+    LIMIT 1
+  )
+)`;
+
+/** Normalize multi-word origin filters before whitespace tokenization. */
+export function normalizeAdminPostsSearchQuery(raw: string): string {
+  return raw
+    .replace(/\bia[\s_-]+admin\b/gi, "ia-admin")
+    .replace(/\badmin[\s_-]+ia\b/gi, "ia-admin")
+    .replace(/\bia[\s_-]+usuario\b/gi, "ia-usuario")
+    .replace(/\busuario[\s_-]+ia\b/gi, "ia-usuario")
+    .replace(/\bself[\s_-]?serve\b/gi, "ia-usuario")
+    .replace(/\bautoservicio\b/gi, "ia-usuario");
+}
+
 /**
  * List all properties for the admin Posts report with search, status filter, and pagination.
  */
@@ -122,7 +185,10 @@ export function listAdminPosts(
       ? opts.status.trim()
       : null;
 
-  const rawQ = typeof opts.q === "string" ? opts.q.trim().slice(0, 240) : "";
+  const rawQ =
+    typeof opts.q === "string"
+      ? normalizeAdminPostsSearchQuery(opts.q.trim().slice(0, 240))
+      : "";
   const tokens =
     rawQ.length > 0
       ? rawQ
@@ -143,12 +209,28 @@ export function listAdminPosts(
   for (const token of tokens) {
     const lower = token.toLowerCase();
     if (lower === "ia" || lower === "ai" || lower === "asistido") {
-      conditions.push(`(
-        IFNULL(p.assisted_draft, 0) = 1
-        OR p.id LIKE 'adraft_%'
-        OR p.id LIKE 'prp__adraft_%'
-        OR EXISTS (SELECT 1 FROM assisted_draft_claim_tokens t WHERE t.property_id = p.id)
-      )`);
+      conditions.push(ADMIN_POST_ASSISTED_SQL);
+      continue;
+    }
+    if (
+      lower === "ia-admin" ||
+      lower === "admin-ia" ||
+      lower === "asistido-admin"
+    ) {
+      conditions.push(
+        `(${ADMIN_POST_ASSISTED_SQL} AND IFNULL(${ADMIN_POST_EFFECTIVE_CREATOR_SQL}, '') != ?)`,
+      );
+      params.push(SELF_SERVE_CREATOR_ID);
+      continue;
+    }
+    if (
+      lower === "ia-usuario" ||
+      lower === "usuario-ia" ||
+      lower === "self-serve" ||
+      lower === "autoservicio"
+    ) {
+      conditions.push(`(${ADMIN_POST_ASSISTED_SQL} AND ${ADMIN_POST_EFFECTIVE_CREATOR_SQL} = ?)`);
+      params.push(SELF_SERVE_CREATOR_ID);
       continue;
     }
 
@@ -261,6 +343,7 @@ export function listAdminPosts(
         p.feedback_comment,
         p.feedback_at,
         IFNULL(p.assisted_draft, 0) AS assisted_draft,
+        p.created_by_admin_id AS created_by_admin_id,
         u.id AS user_id,
         u.email AS user_email,
         u.display_name AS user_display_name,
@@ -286,6 +369,12 @@ export function listAdminPosts(
           ORDER BY t.created_at DESC
           LIMIT 1
         ) AS claim_token,
+        (
+          SELECT t.created_by_admin_id FROM assisted_draft_claim_tokens t
+          WHERE t.property_id = p.id
+          ORDER BY t.created_at DESC
+          LIMIT 1
+        ) AS claim_created_by_admin_id,
         EXISTS (
           SELECT 1 FROM assisted_draft_claim_tokens h
           WHERE h.property_id = p.id
@@ -343,6 +432,19 @@ export function listAdminPosts(
       Number(row.assisted_draft) === 1 ||
       Number(row.has_claim_history) === 1 ||
       isAssistedDraftPropertyId(propertyId);
+    const createdByAdminId =
+      row.created_by_admin_id != null && String(row.created_by_admin_id).trim()
+        ? String(row.created_by_admin_id).trim()
+        : null;
+    const claimCreatedByAdminId =
+      row.claim_created_by_admin_id != null && String(row.claim_created_by_admin_id).trim()
+        ? String(row.claim_created_by_admin_id).trim()
+        : null;
+    const createOrigin = resolveAdminPostCreateOrigin({
+      assistedDraft,
+      createdByAdminId,
+      claimCreatedByAdminId,
+    });
 
     return {
       propertyId,
@@ -377,6 +479,7 @@ export function listAdminPosts(
       }),
       primaryRoomId,
       assistedDraft,
+      createOrigin,
     };
   });
 
