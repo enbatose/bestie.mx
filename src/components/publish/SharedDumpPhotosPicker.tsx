@@ -29,7 +29,7 @@ export function SharedDumpPhotosPicker({
 
   return (
     <div className="mb-4 rounded-lg border border-border bg-bg-light p-3 text-sm">
-      <p className="font-medium text-body">Usar fotos del dump</p>
+      <p className="font-medium text-body">Usar fotos cargadas en esta habitación</p>
       <p className="mt-1 text-xs text-muted">
         Estas fotos están en áreas compartidas o sin categorizar. Toca una para pasarla a esta
         recámara.

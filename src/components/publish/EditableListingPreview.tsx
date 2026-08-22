@@ -1074,7 +1074,7 @@ export function EditableListingPreview({
                 <p className="font-medium text-body">Mover fotos a cada recámara</p>
                 <p className="mt-1 text-xs text-muted">
                   Las fotos del dump quedan en áreas compartidas. Elige una recámara, o ábrela y
-                  tócalas en «Usar fotos del dump».
+                  tócalas en «Usar fotos cargadas en esta habitación».
                 </p>
                 {draft.unassignedImageUrls.length > 0 ? (
                   <p className="mt-2 text-sm font-medium text-warning-fg">
