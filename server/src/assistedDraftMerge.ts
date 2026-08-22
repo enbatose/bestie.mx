@@ -185,12 +185,16 @@ export type PlannedComposeRoom = {
   minimalStayMonths: number;
 };
 
+/** Match manual publish wizard defaults (`PublishWizardPage` / `normalizeRoomDraft`). */
+export const DEFAULT_LISTING_AGE_MIN = 22;
+export const DEFAULT_LISTING_AGE_MAX = 45;
+
 function composeRoomDefaults(
   extraction: AssistedDraftExtraction,
   nowIso: string,
 ): Omit<PlannedComposeRoom, "occupancyStatus" | "rentMxn" | "summary" | "title"> {
-  const ageMin = extraction.ageMin ?? 18;
-  const ageMaxRaw = extraction.ageMax ?? 99;
+  const ageMin = extraction.ageMin ?? DEFAULT_LISTING_AGE_MIN;
+  const ageMaxRaw = extraction.ageMax ?? DEFAULT_LISTING_AGE_MAX;
   return {
     depositMxn: extraction.depositMxn ?? 0,
     lodgingType: extraction.lodgingType ?? "private_room",

@@ -69,6 +69,31 @@ describe("mergeExtractionWithHints", () => {
     expect(planned[2]?.occupancyStatus).toBe("occupied");
   });
 
+  it("defaults age range to manual publish standard when extraction omits it", () => {
+    const planned = planComposeRooms({
+      postMode: "room",
+      roomsForRent: 1,
+      roomsOccupied: 0,
+      extraction: {},
+      nowIso: "2026-08-16T00:00:00.000Z",
+    });
+    expect(planned).toHaveLength(1);
+    expect(planned[0]?.ageMin).toBe(22);
+    expect(planned[0]?.ageMax).toBe(45);
+  });
+
+  it("keeps an explicit extracted age range", () => {
+    const planned = planComposeRooms({
+      postMode: "room",
+      roomsForRent: 1,
+      roomsOccupied: 0,
+      extraction: { ageMin: 25, ageMax: 35 },
+      nowIso: "2026-08-16T00:00:00.000Z",
+    });
+    expect(planned[0]?.ageMin).toBe(25);
+    expect(planned[0]?.ageMax).toBe(35);
+  });
+
   it("keeps user gender over an opposite extraction", () => {
     const { extraction, conflicts } = mergeExtractionWithHints(
       { roommateGenderPref: "male" },

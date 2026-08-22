@@ -18,6 +18,8 @@ import {
   planComposeRooms,
   COMPOSE_BEDROOMS_MAX,
   sanitizeHintsForPostMode,
+  DEFAULT_LISTING_AGE_MIN,
+  DEFAULT_LISTING_AGE_MAX,
   type SelfServeHints,
   type HintTagSlug,
   type PlannedComposeRoom,
@@ -494,8 +496,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const rentMxn = ext.rentMxn ?? 0;
       const depositMxn = ext.depositMxn ?? 0;
       const roommateGenderPref = ext.roommateGenderPref ?? "any";
-      const ageMin = ext.ageMin ?? 18;
-      const ageMax = ext.ageMax ?? 99;
+      const ageMin = ext.ageMin ?? DEFAULT_LISTING_AGE_MIN;
+      const ageMax = ext.ageMax ?? DEFAULT_LISTING_AGE_MAX;
       const lodgingType = ext.lodgingType ?? "private_room";
       const availableFrom = ext.availableFrom ?? now.slice(0, 10);
       const minimalStayMonths = ext.minimalStayMonths ?? 1;

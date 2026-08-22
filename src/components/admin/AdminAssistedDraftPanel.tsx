@@ -172,7 +172,7 @@ function ExtractionPreview({
   if (ext.rentMxn) rows.push({ label: "Renta mensual", value: `$${ext.rentMxn.toLocaleString("es-MX")} MXN`, key: "rentMxn" });
   if (ext.depositMxn) rows.push({ label: "Depósito", value: `$${ext.depositMxn.toLocaleString("es-MX")} MXN`, key: "depositMxn" });
   if (ext.roommateGenderPref) rows.push({ label: "Preferencia de roomie", value: GENDER_LABELS[ext.roommateGenderPref] ?? ext.roommateGenderPref, key: "roommateGenderPref" });
-  if (ext.ageMin || ext.ageMax) rows.push({ label: "Rango de edad", value: `${ext.ageMin ?? 18}–${ext.ageMax ?? 99} años`, key: "ageMin" });
+  if (ext.ageMin || ext.ageMax) rows.push({ label: "Rango de edad", value: `${ext.ageMin ?? 22}–${ext.ageMax ?? 45} años`, key: "ageMin" });
   if (ext.availableFrom) rows.push({ label: "Disponible desde", value: ext.availableFrom, key: "availableFrom" });
   if (ext.minimalStayMonths) rows.push({ label: "Estancia mínima", value: `${ext.minimalStayMonths} mes(es)`, key: "minimalStayMonths" });
   if (ext.roomDimension) rows.push({ label: "Dimensión del cuarto", value: DIM_LABELS[ext.roomDimension] ?? ext.roomDimension, key: "roomDimension" });

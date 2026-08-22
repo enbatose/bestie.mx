@@ -100,6 +100,7 @@ REGLAS IMPORTANTES:
 - Para precio: extrae solo si está claramente especificado en MXN.
 - Para ubicación: busca colonia, barrio, calle o referencia geográfica.
 - Para disponibilidad: intenta inferir una fecha desde menciones como "disponible ya", "primer de mes", etc.
+- Para edad (ageMin/ageMax): solo si el anuncio menciona un rango o límite explícito. Si no se menciona, omite ambos campos (el sistema aplicará 22–45).
 - deniedTags: slugs que el anuncio niega de forma explícita (p. ej. "no se aceptan mascotas" → ["mascotas"]). No pongas un tag en tags y deniedTags a la vez.
 - Para descripción (roomSummary): genera un texto atractivo en español usando SOLO la información disponible. 
   Mínimo 100 caracteres, máximo 1200. Si no hay suficiente información, sé conciso pero honesto.
@@ -126,8 +127,8 @@ Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
   "rentMxn": { "value": 0, "confidence": 0-100 },
   "depositMxn": { "value": 0, "confidence": 0-100 },
   "roommateGenderPref": { "value": "any|female|male", "confidence": 0-100 },
-  "ageMin": { "value": 18, "confidence": 0-100 },
-  "ageMax": { "value": 99, "confidence": 0-100 },
+  "ageMin": { "value": 22, "confidence": 0-100 },
+  "ageMax": { "value": 45, "confidence": 0-100 },
   "availableFrom": { "value": "YYYY-MM-DD", "confidence": 0-100 },
   "minimalStayMonths": { "value": 1, "confidence": 0-100 },
   "roomDimension": { "value": "small|medium|large", "confidence": 0-100 },
