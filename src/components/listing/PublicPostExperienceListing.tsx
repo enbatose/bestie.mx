@@ -328,6 +328,7 @@ export function PublicPostExperienceListing({
             onImageError={onImageError}
             onContact={() => contactFromExpandedRoom(expandedRoom)}
             onClose={closeExpandedRoom}
+            viewerIsOwner={Boolean(listing.viewerIsOwner)}
             shareActions={
               <ListingShareActions
                 shareMsg={share.shareMsg}

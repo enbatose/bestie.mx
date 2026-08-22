@@ -28,7 +28,11 @@ import {
 import { buildSearchRestorePath, readSearchReturn } from "@/lib/searchReturn";
 import { recordSearchListingClosed } from "@/lib/feedbackSession";
 import { roomDisplayName } from "@/lib/roomDisplay";
-import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
+import {
+  CANNOT_MESSAGE_SELF_MESSAGE,
+  postConversationMessage,
+  startConversationFromListing,
+} from "@/lib/messagesApi";
 import type { PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
 
 const MONTH_ABBREVIATIONS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -414,6 +418,10 @@ export function ListingPage() {
         openLogin();
         return;
       }
+      if (listing?.viewerIsOwner) {
+        setMsgErr(CANNOT_MESSAGE_SELF_MESSAGE);
+        return;
+      }
       setMsgBusy(true);
       try {
         const { conversationId } = await startConversationFromListing(listingRoomId);
@@ -432,7 +440,7 @@ export function ListingPage() {
         setMsgBusy(false);
       }
     },
-    [messagingOn, viewer, openLogin, navigate],
+    [messagingOn, viewer, listing?.viewerIsOwner, openLogin, navigate],
   );
 
   const onSendSingleMessage = useCallback(

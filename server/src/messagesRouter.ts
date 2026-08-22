@@ -359,7 +359,10 @@ export function messagesRouter(db: DatabaseSync) {
       return;
     }
     if (owner === me) {
-      res.status(400).json({ error: "cannot_message_self" });
+      res.status(400).json({
+        error: "cannot_message_self",
+        message: "El usuario anunciante no puede abrir una conversación consigo mismo.",
+      });
       return;
     }
     const title = listingContextTitle(db, listingRoomId);

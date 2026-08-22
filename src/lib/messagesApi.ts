@@ -153,6 +153,9 @@ export async function startFeedbackConversation(
   return { conversationId: j.conversationId };
 }
 
+export const CANNOT_MESSAGE_SELF_MESSAGE =
+  "El usuario anunciante no puede abrir una conversación consigo mismo.";
+
 export async function startConversationFromListing(
   listingRoomId: string,
   signal?: AbortSignal,
@@ -172,6 +175,9 @@ export async function startConversationFromListing(
     message?: string;
   };
   if (!res.ok) {
+    if (j.error === "cannot_message_self") {
+      throw new Error(CANNOT_MESSAGE_SELF_MESSAGE);
+    }
     throw new Error(j.message || j.error || `start_${res.status}`);
   }
   if (!j.conversationId) throw new Error("missing_conversation");

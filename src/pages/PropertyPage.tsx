@@ -21,7 +21,11 @@ import {
 } from "@/lib/myListingsReturn";
 import { buildSearchRestorePath, readSearchReturn } from "@/lib/searchReturn";
 import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
-import { postConversationMessage, startConversationFromListing } from "@/lib/messagesApi";
+import {
+  CANNOT_MESSAGE_SELF_MESSAGE,
+  postConversationMessage,
+  startConversationFromListing,
+} from "@/lib/messagesApi";
 import type { PropertyListing, PropertyWithRooms, Room } from "@/types/listing";
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -207,6 +211,10 @@ export function PropertyPage() {
         openLogin();
         return;
       }
+      if (listing?.viewerIsOwner) {
+        setMsgErr(CANNOT_MESSAGE_SELF_MESSAGE);
+        return;
+      }
       const targetRoomId = roomIds[0] ?? availableRooms[0]?.id ?? entryRoom?.id;
       if (!targetRoomId) return;
       setMsgBusy(true);
@@ -223,7 +231,7 @@ export function PropertyPage() {
         })
         .finally(() => setMsgBusy(false));
     },
-    [entryRoom?.id, messagingOn, navigate, openLogin, viewer?.id],
+    [entryRoom?.id, listing?.viewerIsOwner, messagingOn, navigate, openLogin, viewer?.id],
   );
 
   if (propertyPack === undefined || (propertyPack && entryListing === undefined)) {

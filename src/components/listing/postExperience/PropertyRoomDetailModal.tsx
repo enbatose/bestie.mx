@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MessageCircle } from "lucide-react";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
@@ -6,6 +6,7 @@ import { ListingPhotoCarousel } from "@/components/listing/ListingPhotoCarousel"
 import { SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
 import { RoomSecondaryTagSections } from "@/components/listing/postExperience/RoomSecondaryTagSections";
 import { buildRoomKeyLabels, KEY_LABEL_ROOM_TAG_SLUGS } from "@/lib/listingKeyLabels";
+import { CANNOT_MESSAGE_SELF_MESSAGE } from "@/lib/messagesApi";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import type { Property, PropertyListing, Room } from "@/types/listing";
 
@@ -20,6 +21,7 @@ type Props = {
   onImageError?: (url: string) => void;
   onContact: () => void;
   onClose: () => void;
+  viewerIsOwner?: boolean;
 };
 
 export function PropertyRoomDetailModal({
@@ -33,12 +35,15 @@ export function PropertyRoomDetailModal({
   onImageError,
   onContact,
   onClose,
+  viewerIsOwner = false,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [selfContactNotice, setSelfContactNotice] = useState<string | null>(null);
   const photos = (room.imageUrls ?? room.photos ?? []).map((url) => apiAbsoluteUrl(url));
 
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    setSelfContactNotice(null);
   }, [room.id]);
 
   useEffect(() => {
@@ -126,15 +131,26 @@ export function PropertyRoomDetailModal({
           />
 
           <div className="space-y-3 pt-2">
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center">
               <button
                 type="button"
-                onClick={onContact}
+                onClick={() => {
+                  if (viewerIsOwner) {
+                    setSelfContactNotice(CANNOT_MESSAGE_SELF_MESSAGE);
+                    return;
+                  }
+                  onContact();
+                }}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-95"
               >
                 <MessageCircle className="size-4" aria-hidden />
                 Contactar al anunciante
               </button>
+              {selfContactNotice ? (
+                <p className="mt-2 max-w-sm text-center text-sm text-error" role="status">
+                  {selfContactNotice}
+                </p>
+              ) : null}
             </div>
             <div className="flex justify-end">
               <button
