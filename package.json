@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:live-dev": "node scripts/run-e2e-live-dev.mjs",
+    "test:e2e:live-prod": "node scripts/run-e2e-live-prod.mjs",
     "e2e:serve": "node scripts/e2e-serve.mjs",
     "build:e2e": "npm run server:build && node scripts/build-e2e-spa.mjs",
     "smoke": "node scripts/smoke-deploy.mjs",

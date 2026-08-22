@@ -106,6 +106,51 @@ async function main() {
   }
 
   {
+    const res = await fetch(`${BASE}/publicar`, { redirect: "follow" });
+    const html = await res.text();
+    const ok = res.ok && /id="root"|bestie/i.test(html);
+    record("GET /publicar (publish SPA)", ok, ok ? undefined : `status=${res.status}`);
+  }
+
+  {
+    const res = await fetch(`${BASE}/borrador/smoke-posthog-probe`, { redirect: "follow" });
+    const html = await res.text();
+    const ok = res.ok && /id="root"|bestie/i.test(html);
+    record("GET /borrador/:token (claim SPA)", ok, ok ? undefined : `status=${res.status}`);
+  }
+
+  {
+    // Host policy: only bestie.mx / www may record. Dev smoke must stay on a non-prod host.
+    let hostname = "";
+    try {
+      hostname = new URL(BASE).hostname.toLowerCase();
+    } catch {
+      hostname = "";
+    }
+    const prodHosts = new Set(["bestie.mx", "www.bestie.mx"]);
+    const isProdHost = prodHosts.has(hostname);
+    const isKnownDev =
+      hostname === "dev.bestie.mx" ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1";
+    if (isProdHost) {
+      record(
+        "PostHog host policy (prod origin)",
+        true,
+        `${hostname} may record (client gate + project triggers)`,
+      );
+    } else if (isKnownDev || hostname) {
+      record(
+        "PostHog host policy (non-prod origin)",
+        !prodHosts.has(hostname),
+        `${hostname || "unknown"} must not record`,
+      );
+    } else {
+      record("PostHog host policy", false, `unparseable base URL: ${BASE}`);
+    }
+  }
+
+  {
     const { res, body } = await fetchJson("/api/listings");
     const ok = res.ok && Array.isArray(body);
     record("GET /api/listings", ok, ok ? `count=${body.length}` : `status=${res.status}`);

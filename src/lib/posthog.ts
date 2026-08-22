@@ -6,8 +6,12 @@ const DEFAULT_HOST = "https://us.i.posthog.com";
 /**
  * Hostnames allowed to run PostHog. Everything else (dev.bestie.mx, localhost,
  * Railway previews) stays silent even if a project token was baked into the build.
+ *
+ * Exported for unit + deploy smoke tests — keep this list as the single source of truth.
  */
-const PRODUCTION_ANALYTICS_HOSTS = new Set(["bestie.mx", "www.bestie.mx"]);
+export const PRODUCTION_ANALYTICS_HOSTNAMES = ["bestie.mx", "www.bestie.mx"] as const;
+
+const PRODUCTION_ANALYTICS_HOSTS = new Set<string>(PRODUCTION_ANALYTICS_HOSTNAMES);
 
 /**
  * Build-time token. Prefer leaving this unset on Dev / local.
@@ -16,10 +20,26 @@ const PRODUCTION_ANALYTICS_HOSTS = new Set(["bestie.mx", "www.bestie.mx"]);
 const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN?.trim() || "";
 const host = import.meta.env.VITE_POSTHOG_HOST?.trim() || DEFAULT_HOST;
 
+/** Pure hostname check (no `window`) — used by tests and runtime gates. */
+export function isAnalyticsAllowedHostname(hostname: string): boolean {
+  return PRODUCTION_ANALYTICS_HOSTS.has(hostname.trim().toLowerCase());
+}
+
+/**
+ * Pure enablement check: token + production hostname.
+ * Dev / local / previews always return false even when a token is present.
+ */
+export function shouldEnablePostHog(input: {
+  projectToken: string;
+  hostname: string;
+}): boolean {
+  return Boolean(input.projectToken.trim()) && isAnalyticsAllowedHostname(input.hostname);
+}
+
 /** True only on real production hosts (bestie.mx / www). */
 export function isProductionAnalyticsHost(): boolean {
   if (typeof window === "undefined") return false;
-  return PRODUCTION_ANALYTICS_HOSTS.has(window.location.hostname.toLowerCase());
+  return isAnalyticsAllowedHostname(window.location.hostname);
 }
 
 /**
@@ -27,7 +47,10 @@ export function isProductionAnalyticsHost(): boolean {
  * Dev / local never pass this, regardless of env vars.
  */
 export function isPostHogConfigured(): boolean {
-  return Boolean(token) && isProductionAnalyticsHost();
+  return shouldEnablePostHog({
+    projectToken: token,
+    hostname: typeof window !== "undefined" ? window.location.hostname : "",
+  });
 }
 
 let initialized = false;

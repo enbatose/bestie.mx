@@ -14,6 +14,7 @@ import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import { writeAssistedDraftClaimSession, writeAssistedDraftClaimToken } from "@/lib/publishWizard/assistedDraftClaimSession";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { track } from "@/lib/analytics";
+import { createFlowFromAssistedSource } from "@/lib/publishCreateFlow";
 
 type PageState =
   | { phase: "loading" }
@@ -88,8 +89,7 @@ export function AssistedDraftClaimPage() {
         const bundle = claimInfoToBundle(info);
         const { draft, serverSync } = draftFromPropertyBundle(bundle);
         const resumeStep = publishWizardLastStepIndex(draft.postMode);
-        const createFlow =
-          info.source === "self_serve" ? ("ai" as const) : ("assisted" as const);
+        const createFlow = createFlowFromAssistedSource(info.source);
         track("publish_mode_selected", {
           mode: draft.postMode === "property" ? "property" : "room",
           create_flow: createFlow,

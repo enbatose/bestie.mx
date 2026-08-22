@@ -67,6 +67,7 @@ Runs after unit tests in CI against an **isolated local stack** (`scripts/e2e-se
 | `publisher-draft.spec.ts` | Create **draft** via API, see it in Mis anuncios, assert not public; wizard shell loads |
 | `public-pages.spec.ts` | FAQ, Terms, Privacy |
 | `live-readonly.spec.ts` | Optional read-only against Dev (`npm run test:e2e:live-dev`) — no writes; also desktop + mobile |
+| `posthog-publish.spec.ts` | Publish surfaces (`/publicar`, `/borrador`): **no** PostHog network on local/Dev; **yes** on Prod (`npm run test:e2e:live-prod`) |
 
 ### Local
 
@@ -75,5 +76,15 @@ npx playwright install chromium
 npm run test:e2e
 npm run test:e2e -- --project="Mobile Chrome"   # mobile only
 npm run test:e2e:ui
-npm run test:e2e:live-dev   # read-only vs https://dev.bestie.mx
+npm run test:e2e:live-dev   # read-only + PostHog silent on https://dev.bestie.mx
+npm run test:e2e:live-prod  # PostHog active on https://www.bestie.mx (read-only)
 ```
+
+### PostHog gate (publish flows)
+
+Unit tests in `src/lib/posthog.test.ts` and `src/lib/publishCreateFlow.test.ts` lock:
+
+- Only `bestie.mx` / `www.bestie.mx` may enable PostHog (Dev never records)
+- `create_flow` mapping for AI / Sin IA (`manual`) / assisted claim
+
+Post-deploy smoke (`scripts/smoke-deploy.mjs`) also hits `/publicar` and `/borrador/:token` SPA shells and asserts the origin’s PostHog host policy (prod vs non-prod).

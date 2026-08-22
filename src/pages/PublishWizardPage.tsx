@@ -30,8 +30,9 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
-import { track, type PublishCreateFlow } from "@/lib/analytics";
+import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
+import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam } from "@/lib/listingReference";
 import {
@@ -175,16 +176,6 @@ const WIZARD_FIRST_NUMBERED_STEP = WIZARD_STEP_POST_MODE + 1;
 
 function lastWizardStep(d: Pick<Draft, "postMode" | "roomCreateFlow">): number {
   return publishWizardLastStepIndex(d.postMode, d.roomCreateFlow);
-}
-
-/** AI compose vs Sin IA (manual) vs admin-assisted claim — for PostHog funnels/replays. */
-function resolvePublishCreateFlow(
-  roomCreateFlow: Draft["roomCreateFlow"],
-  assistedToken: string | null | undefined,
-): PublishCreateFlow {
-  if (roomCreateFlow === "ai") return "ai";
-  if (assistedToken) return "assisted";
-  return "manual";
 }
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
