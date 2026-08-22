@@ -4,7 +4,7 @@ import { listingTagChipLabel, listingTagFullLabel, TagToggleGlyph } from "@/comp
 import type { ListingTag } from "@/types/listing";
 
 export const WIZARD_TAG_PILL_CLASS =
-  "inline-flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-center text-[11px] font-medium leading-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0";
+  "inline-flex min-h-11 min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-center text-[11px] font-medium leading-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0 sm:min-h-9";
 
 export const WIZARD_TAG_PILL_ACTIVE =
   "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";

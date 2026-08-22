@@ -9,6 +9,10 @@ const TAG_CHIP_CLASS =
 const TAG_CHIP_UNSELECTED_CLASS =
   "inline-flex min-h-9 min-w-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs hyphens-manual text-muted/70";
 
+/** Interactive publish chips — taller on phones for touch; desktop stays compact. */
+const TAG_CHIP_TOGGLE_CLASS = `${TAG_CHIP_CLASS} min-h-11 sm:min-h-9`;
+const TAG_CHIP_TOGGLE_UNSELECTED_CLASS = `${TAG_CHIP_UNSELECTED_CLASS} min-h-11 sm:min-h-9`;
+
 /** Same 12px box as the bare icon; fill sits behind the glyph so chips don't grow. */
 export function TagToggleGlyph({
   action,
@@ -77,7 +81,7 @@ export function ListingTagChips({
                 key={t}
                 type="button"
                 onClick={() => onToggle(t, true)}
-                className={`${TAG_CHIP_CLASS} transition hover:bg-surface-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                className={`${TAG_CHIP_TOGGLE_CLASS} transition hover:bg-surface-elevated focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                 aria-label={`Quitar ${full}`}
                 title={`Quitar ${full}`}
               >
@@ -111,7 +115,7 @@ export function ListingTagChips({
                   key={t}
                   type="button"
                   onClick={() => onToggle(t, false)}
-                  className={`${TAG_CHIP_UNSELECTED_CLASS} transition hover:border-primary/40 hover:text-body focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                  className={`${TAG_CHIP_TOGGLE_UNSELECTED_CLASS} transition hover:border-primary/40 hover:text-body focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                   aria-label={`Agregar ${full}`}
                   title={`Agregar ${full}`}
                 >

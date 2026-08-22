@@ -248,18 +248,20 @@ export function roomSaveIssuesPrimaryLabel(d: Draft, roomIndex: number): string 
 export const PUBLISH_PREVIEW_HEADER_ID = "publish-preview-header";
 export const PUBLISH_PREVIEW_ROOM_DETAILS_ID = "publish-preview-room-details";
 export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID = "publish-preview-room-description";
-export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID = "publish-preview-room-description-field";
+/** Shared by single-room preview + property-room modal so issue jumps hit the same control. */
+export const PUBLISH_ROOM_DESCRIPTION_FIELD_ID = "publish-room-description-field";
+export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID = PUBLISH_ROOM_DESCRIPTION_FIELD_ID;
+export const PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID = PUBLISH_ROOM_DESCRIPTION_FIELD_ID;
 export const PUBLISH_PREVIEW_PROPERTY_SUMMARY_FIELD_ID = "publish-preview-property-summary-field";
-export const PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID = "publish-room-modal-description-field";
 export const PUBLISH_PREVIEW_RENT_INPUT_ID = "publish-preview-rent";
-export const PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID = "publish-room-modal-deposit";
-export const PUBLISH_ROOM_MODAL_LODGING_ID = "publish-room-modal-lodging";
-export const PUBLISH_ROOM_MODAL_DIMENSION_ID = "publish-room-modal-dimension";
-export const PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID = "publish-room-modal-available-from";
-export const PUBLISH_ROOM_MODAL_STAY_ID = "publish-room-modal-stay";
-export const PUBLISH_ROOM_MODAL_GENDER_ID = "publish-room-modal-gender";
-export const PUBLISH_ROOM_MODAL_AGE_MIN_ID = "publish-room-modal-age-min";
-export const PUBLISH_ROOM_MODAL_AGE_MAX_ID = "publish-room-modal-age-max";
+export const PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID = "publish-room-deposit";
+export const PUBLISH_ROOM_MODAL_LODGING_ID = "publish-room-lodging";
+export const PUBLISH_ROOM_MODAL_DIMENSION_ID = "publish-room-dimension";
+export const PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID = "publish-room-available-from";
+export const PUBLISH_ROOM_MODAL_STAY_ID = "publish-room-stay";
+export const PUBLISH_ROOM_MODAL_GENDER_ID = "publish-room-gender";
+export const PUBLISH_ROOM_MODAL_AGE_MIN_ID = "publish-room-age-min";
+export const PUBLISH_ROOM_MODAL_AGE_MAX_ID = "publish-room-age-max";
 
 /** DOM id of the control a room-issue bullet should scroll/focus to. */
 export function roomIssueFocusElementId(issue: Pick<RoomFieldIssue, "id" | "section">): string {
@@ -284,10 +286,10 @@ export function roomIssueFocusElementId(issue: Pick<RoomFieldIssue, "id" | "sect
     case "summary":
     case "summary-short":
     case "summary-long":
-      return PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID;
+      return PUBLISH_ROOM_DESCRIPTION_FIELD_ID;
     default:
       if (issue.section === "description" || issue.section === "tags") {
-        return PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID;
+        return PUBLISH_ROOM_DESCRIPTION_FIELD_ID;
       }
       if (issue.section === "header") return PUBLISH_PREVIEW_RENT_INPUT_ID;
       return PUBLISH_ROOM_MODAL_LODGING_ID;

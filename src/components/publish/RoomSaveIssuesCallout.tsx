@@ -25,7 +25,7 @@ function IssueJumpButton({
     <button
       type="button"
       onClick={onClick}
-      className="text-left font-medium underline decoration-warning-fg/50 underline-offset-2 transition hover:decoration-warning-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="inline-flex min-h-11 w-full items-center text-left font-medium underline decoration-warning-fg/50 underline-offset-2 transition hover:decoration-warning-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:min-h-0 sm:w-auto"
     >
       {issue.message}
     </button>

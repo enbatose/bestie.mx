@@ -80,6 +80,15 @@ import {
   PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID,
   PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID,
   PUBLISH_PREVIEW_ROOM_DETAILS_ID,
+  PUBLISH_ROOM_MODAL_AGE_MAX_ID,
+  PUBLISH_ROOM_MODAL_AGE_MIN_ID,
+  PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID,
+  PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID,
+  PUBLISH_ROOM_MODAL_DIMENSION_ID,
+  PUBLISH_ROOM_MODAL_GENDER_ID,
+  PUBLISH_ROOM_MODAL_LODGING_ID,
+  PUBLISH_ROOM_MODAL_STAY_ID,
+  roomIssueFocusElementId,
   roomPreviewOptionLabel,
   standaloneRoomFixAnchorId,
 } from "@/lib/publishWizard/roomWizardValidation";
@@ -473,14 +482,13 @@ export function EditableListingPreview({
       }
       onJumpToRoomHandled?.();
       const anchorId = standaloneRoomFixAnchorId(section);
+      const focusId = preferred ? roomIssueFocusElementId(preferred) : null;
       window.setTimeout(() => {
         document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-        if (section === "header") {
-          document.getElementById(PUBLISH_PREVIEW_RENT_INPUT_ID)?.focus();
-        } else if (section === "description" || section === "tags") {
-          document.getElementById(PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID)?.focus();
-        }
-      }, 50);
+        const el = focusId ? document.getElementById(focusId) : null;
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (el instanceof HTMLElement) el.focus();
+      }, 80);
       return;
     }
 
@@ -991,6 +999,7 @@ export function EditableListingPreview({
                 <label className="block text-sm font-medium text-body">
                   Depósito (MXN)
                   <input
+                    id={PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID}
                     type="number"
                     min={0}
                     step={100}
@@ -1183,7 +1192,7 @@ export function EditableListingPreview({
             rows={6}
             maxLength={PROPERTY_SUMMARY_MAX}
             placeholder={PROPERTY_SUMMARY_PLACEHOLDER}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm"
           />
           <FieldCharCount
             current={propertySummaryDraft.trim().length}
@@ -1209,7 +1218,7 @@ export function EditableListingPreview({
           rows={6}
           maxLength={ROOM_SUMMARY_MAX}
           placeholder={ROOM_SUMMARY_PLACEHOLDER}
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm"
         />
         <FieldCharCount
           current={roomSummaryDraft.trim().length}
@@ -1410,6 +1419,7 @@ export function EditableListingPreview({
                   {draft.postMode === "room" ? "Tipo de recámara" : "Tipo de espacio"}
                 </WizardPairedFieldLabel>
                 <select
+                  id={PUBLISH_ROOM_MODAL_LODGING_ID}
                   value={
                     draft.postMode === "room" && detailsRoom.lodgingType === "whole_home"
                       ? "private_room"
@@ -1439,6 +1449,7 @@ export function EditableListingPreview({
               <label className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>Tamaño de la recámara</WizardPairedFieldLabel>
                 <select
+                  id={PUBLISH_ROOM_MODAL_DIMENSION_ID}
                   value={detailsRoom.roomDimension}
                   onChange={(e) =>
                     setRoomDetailsDraft((r) =>
@@ -1471,6 +1482,7 @@ export function EditableListingPreview({
               <label className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>Disponible desde</WizardPairedFieldLabel>
                 <input
+                  id={PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID}
                   type="date"
                   value={detailsRoom.availableFrom}
                   onChange={(e) =>
@@ -1479,7 +1491,7 @@ export function EditableListingPreview({
                   className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
-              <div className="block text-sm font-medium text-body">
+              <div id={PUBLISH_ROOM_MODAL_STAY_ID} className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>Estancia mín. (meses)</WizardPairedFieldLabel>
                 <WizardNumberStepper
                   editableCenter
@@ -1497,6 +1509,7 @@ export function EditableListingPreview({
               <label className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>{ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT}</WizardPairedFieldLabel>
                 <select
+                  id={PUBLISH_ROOM_MODAL_GENDER_ID}
                   value={detailsRoom.roommateGenderPref}
                   onChange={(e) =>
                     setRoomDetailsDraft((r) =>
@@ -1510,7 +1523,7 @@ export function EditableListingPreview({
                   <option value="male">Hombres</option>
                 </select>
               </label>
-              <div className="block text-sm font-medium text-body">
+              <div id={PUBLISH_ROOM_MODAL_AGE_MIN_ID} className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>Edad mín.</WizardPairedFieldLabel>
                 <WizardNumberStepper
                   editableCenter
@@ -1527,7 +1540,7 @@ export function EditableListingPreview({
                   incrementLabel="Mayor edad mínima"
                 />
               </div>
-              <div className="block text-sm font-medium text-body">
+              <div id={PUBLISH_ROOM_MODAL_AGE_MAX_ID} className="block text-sm font-medium text-body">
                 <WizardPairedFieldLabel>Edad máx.</WizardPairedFieldLabel>
                 <WizardNumberStepper
                   editableCenter
