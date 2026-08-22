@@ -20,6 +20,9 @@ export type AnalyticsAuthMethod = "email" | "google" | "facebook";
 
 export type AnalyticsLandingSurface = "home" | "city";
 
+/** How the publisher entered/completed the create wizard. */
+export type PublishCreateFlow = "ai" | "manual" | "assisted";
+
 export type AnalyticsProps = {
   user_signed_up: { method: AnalyticsAuthMethod };
   user_logged_in: { method: AnalyticsAuthMethod };
@@ -87,24 +90,59 @@ export type AnalyticsProps = {
   listing_message_sent: { listing_id: string; has_body: boolean };
   listing_auth_required: { listing_id: string; reason: "message" };
 
-  publish_mode_selected: { mode: "room" | "property" };
-  publish_manual_flow_selected: { from: "ai_step" };
-  publish_ai_compose_ok: { conflict_count: number; mode?: "room" | "property" };
-  publish_ai_compose_fail: { error: string };
+  /**
+   * Publish create path:
+   * - `ai` — self-serve paste/infográfico compose
+   * - `manual` — "Sin IA" full wizard after the AI step
+   * - `assisted` — claim link (`/borrador/:token`) from an admin-assisted draft
+   */
+  publish_mode_selected: {
+    mode: "room" | "property";
+    create_flow: PublishCreateFlow;
+  };
+  publish_manual_flow_selected: { from: "ai_step"; mode: "room" | "property" };
+  publish_ai_compose_ok: {
+    conflict_count: number;
+    mode?: "room" | "property";
+    create_flow: PublishCreateFlow;
+  };
+  publish_ai_compose_fail: {
+    error: string;
+    mode?: "room" | "property";
+    create_flow?: PublishCreateFlow;
+  };
   publish_step_completed: {
     step_index: number;
     step_title: string;
     mode: "room" | "property";
+    create_flow: PublishCreateFlow;
   };
   publish_step_back: {
     step_index: number;
     step_title: string;
     mode: "room" | "property";
+    create_flow: PublishCreateFlow;
   };
-  publish_draft_saved: { mode: "room" | "property"; finish: boolean };
-  publish_auth_required: { intent: "publish" | "draft"; mode: "room" | "property" };
-  publish_succeeded: { mode: "room" | "property"; editing_live: boolean };
-  publish_failed: { mode: "room" | "property"; reason: string };
+  publish_draft_saved: {
+    mode: "room" | "property";
+    finish: boolean;
+    create_flow: PublishCreateFlow;
+  };
+  publish_auth_required: {
+    intent: "publish" | "draft";
+    mode: "room" | "property";
+    create_flow: PublishCreateFlow;
+  };
+  publish_succeeded: {
+    mode: "room" | "property";
+    editing_live: boolean;
+    create_flow: PublishCreateFlow;
+  };
+  publish_failed: {
+    mode: "room" | "property";
+    reason: string;
+    create_flow: PublishCreateFlow;
+  };
 
   my_listing_status_changed: {
     listing_id: string;

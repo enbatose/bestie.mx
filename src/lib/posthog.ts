@@ -74,3 +74,17 @@ export function getPosthogSessionId(): string | null {
     return null;
   }
 }
+
+/**
+ * Force-start session replay on publish / assisted-claim surfaces.
+ * Complements project URL+event trigger groups so AI, Sin IA (manual), and
+ * assisted-claim paths are recorded even when global sampling is below 100%.
+ */
+export function ensurePublishSessionRecording(): void {
+  if (!isPostHogConfigured() || !initialized) return;
+  try {
+    posthog.startSessionRecording?.(true);
+  } catch {
+    /* never break UX for analytics */
+  }
+}

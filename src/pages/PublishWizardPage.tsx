@@ -30,7 +30,8 @@ import {
   updateProperty,
 } from "@/lib/listingsApi";
 import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
-import { track } from "@/lib/analytics";
+import { track, type PublishCreateFlow } from "@/lib/analytics";
+import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam } from "@/lib/listingReference";
 import {
@@ -174,6 +175,16 @@ const WIZARD_FIRST_NUMBERED_STEP = WIZARD_STEP_POST_MODE + 1;
 
 function lastWizardStep(d: Pick<Draft, "postMode" | "roomCreateFlow">): number {
   return publishWizardLastStepIndex(d.postMode, d.roomCreateFlow);
+}
+
+/** AI compose vs Sin IA (manual) vs admin-assisted claim — for PostHog funnels/replays. */
+function resolvePublishCreateFlow(
+  roomCreateFlow: Draft["roomCreateFlow"],
+  assistedToken: string | null | undefined,
+): PublishCreateFlow {
+  if (roomCreateFlow === "ai") return "ai";
+  if (assistedToken) return "assisted";
+  return "manual";
 }
 
 /** Index in `steps` for “Datos generales” (título, colonia, descripción de la propiedad). */
@@ -920,6 +931,9 @@ function loadWizardResumeBoot(): {
 export function PublishWizardPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  useEffect(() => {
+    ensurePublishSessionRecording();
+  }, []);
   const locationMyListingsReturn = useMemo(
     () => readMyListingsReturn(location.state),
     [location.state],
@@ -984,6 +998,9 @@ export function PublishWizardPage() {
   const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(
     () => assistedBoot?.token ?? null,
   );
+  const createFlow = resolvePublishCreateFlow(draft.roomCreateFlow, assistedDraftToken);
+  const createFlowRef = useRef(createFlow);
+  createFlowRef.current = createFlow;
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -1924,7 +1941,7 @@ export function PublishWizardPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    track("publish_mode_selected", { mode: "room" });
+                    track("publish_mode_selected", { mode: "room", create_flow: "ai" });
                     setDraft((d) => ({
                       ...d,
                       postMode: "room",
@@ -1964,7 +1981,7 @@ export function PublishWizardPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    track("publish_mode_selected", { mode: "property" });
+                    track("publish_mode_selected", { mode: "property", create_flow: "ai" });
                     setAiHints((h) => sanitizeAiHintsForVariant(h, "property"));
                     setDraft((d) => {
                       if (d.postMode === "property") return forgetManualRoomCreateChoice(d);
@@ -2020,7 +2037,7 @@ export function PublishWizardPage() {
                 onInfographicsChange={setAiInfographics}
                 variant={draft.postMode === "property" ? "property" : "room"}
                 onFillManually={() => {
-                  track("publish_manual_flow_selected", { from: "ai_step" });
+                  track("publish_manual_flow_selected", { from: "ai_step", mode: draft.postMode });
                   setDraft((d) => ({ ...d, roomCreateFlow: "manual" }));
                 }}
               />
@@ -3060,7 +3077,7 @@ export function PublishWizardPage() {
       }
       markAutosaveBaseline(nextDraft);
       setStep(resumeStep);
-      track("publish_ai_compose_ok", { conflict_count: result.conflicts.length, mode: draft.postMode });
+      track("publish_ai_compose_ok", { conflict_count: result.conflicts.length, mode: draft.postMode, create_flow: "ai" });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
       setPublishErr(
@@ -3068,7 +3085,7 @@ export function PublishWizardPage() {
           ? "Demasiados intentos. Espera un momento y vuelve a intentar."
           : "No pudimos armar el anuncio. Reintenta o llena los datos a mano.",
       );
-      track("publish_ai_compose_fail", { error: msg });
+      track("publish_ai_compose_fail", { error: msg, mode: draft.postMode, create_flow: "ai" });
     } finally {
       setAiComposeInFlight(false);
     }
@@ -3170,10 +3187,8 @@ export function PublishWizardPage() {
     const blocked = getPublishBlockedReason(draftRef.current, { skipRoomValidation });
     if (blocked) {
       setPublishErr(blocked);
-      track("publish_failed", {
-        mode: draftRef.current.postMode,
-        reason: "blocked_validation",
-      });
+      track("publish_failed", { mode: draftRef.current.postMode,
+        reason: "blocked_validation", create_flow: createFlowRef.current });
       return;
     }
     if (me === undefined) {
@@ -3181,10 +3196,8 @@ export function PublishWizardPage() {
       return;
     }
     if (!me) {
-      track("publish_auth_required", {
-        intent: "publish",
-        mode: draftRef.current.postMode,
-      });
+      track("publish_auth_required", { intent: "publish",
+        mode: draftRef.current.postMode, create_flow: createFlowRef.current });
       setSubmitInFlight("draft");
       try {
         let resumeDraft = draftRef.current;
@@ -3213,10 +3226,8 @@ export function PublishWizardPage() {
         });
       } catch (e) {
         setPublishErr(e instanceof Error ? e.message : "No se pudo guardar el borrador.");
-        track("publish_failed", {
-          mode: draftRef.current.postMode,
-          reason: "guest_draft_save",
-        });
+        track("publish_failed", { mode: draftRef.current.postMode,
+          reason: "guest_draft_save", create_flow: createFlowRef.current });
       } finally {
         setSubmitInFlight(null);
       }
@@ -3236,10 +3247,8 @@ export function PublishWizardPage() {
         skipRoomValidation: Boolean(editingLiveProperty) && liveEditScope === "room",
       });
       if (result.kind === "published") {
-        track("publish_succeeded", {
-          mode: draftRef.current.postMode,
-          editing_live: Boolean(editingLiveProperty),
-        });
+        track("publish_succeeded", { mode: draftRef.current.postMode,
+          editing_live: Boolean(editingLiveProperty), create_flow: createFlowRef.current });
         const roomIdx = Math.min(
           previewRoomIndex,
           Math.max(0, draftRef.current.rooms.length - 1),
@@ -3311,17 +3320,13 @@ export function PublishWizardPage() {
       if (result.kind === "error") {
         setDraft(result.draft);
         setPublishErr(result.message);
-        track("publish_failed", {
-          mode: draftRef.current.postMode,
-          reason: result.message.slice(0, 120),
-        });
+        track("publish_failed", { mode: draftRef.current.postMode,
+          reason: result.message.slice(0, 120), create_flow: createFlowRef.current });
       }
     } catch (e) {
       setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
-      track("publish_failed", {
-        mode: draftRef.current.postMode,
-        reason: e instanceof Error ? e.message.slice(0, 120) : "unknown",
-      });
+      track("publish_failed", { mode: draftRef.current.postMode,
+        reason: e instanceof Error ? e.message.slice(0, 120) : "unknown", create_flow: createFlowRef.current });
     } finally {
       if (!leaveWizardForSuccessRef.current) {
         setSubmitInFlight(null);
@@ -3359,10 +3364,8 @@ export function PublishWizardPage() {
         rememberClaimSyncedDraft(claimToken, syncedDraft);
 
         if (!me) {
-          track("publish_auth_required", {
-            intent: "draft",
-            mode: draftRef.current.postMode,
-          });
+          track("publish_auth_required", { intent: "draft",
+            mode: draftRef.current.postMode, create_flow: createFlowRef.current });
           navigate("/entrar", {
             replace: true,
             state: {
@@ -3377,10 +3380,8 @@ export function PublishWizardPage() {
           return;
         }
 
-        track("publish_draft_saved", {
-          mode: draftRef.current.postMode,
-          finish: Boolean(opts?.finish),
-        });
+        track("publish_draft_saved", { mode: draftRef.current.postMode,
+          finish: Boolean(opts?.finish), create_flow: createFlowRef.current });
         setWizardDraftSaveNote("saved");
         window.setTimeout(() => {
           setWizardDraftSaveNote((n) => (n === "saved" ? "idle" : n));
@@ -3402,10 +3403,8 @@ export function PublishWizardPage() {
       resumeDraft = synced.draft;
 
       if (!me) {
-        track("publish_auth_required", {
-          intent: "draft",
-          mode: draftRef.current.postMode,
-        });
+        track("publish_auth_required", { intent: "draft",
+          mode: draftRef.current.postMode, create_flow: createFlowRef.current });
         navigate("/entrar", {
           replace: true,
           state: {
@@ -3419,10 +3418,8 @@ export function PublishWizardPage() {
         return;
       }
 
-      track("publish_draft_saved", {
-        mode: draftRef.current.postMode,
-        finish: Boolean(opts?.finish),
-      });
+      track("publish_draft_saved", { mode: draftRef.current.postMode,
+        finish: Boolean(opts?.finish), create_flow: createFlowRef.current });
 
       if (opts?.finish) {
         navigate(
@@ -3750,11 +3747,9 @@ export function PublishWizardPage() {
               onClick={() => {
                 setPublishErr(null);
                 void flushWizardAutosave();
-                track("publish_step_back", {
-                  step_index: safeStep,
+                track("publish_step_back", { step_index: safeStep,
                   step_title: current.title,
-                  mode: draft.postMode,
-                });
+                  mode: draft.postMode, create_flow: createFlowRef.current });
                 const next = Math.max(0, safeStep - 1);
                 if (next === WIZARD_STEP_POST_MODE && !editingLiveProperty && !editPropertyId) {
                   setDraft((d) => forgetManualRoomCreateChoice(d));
@@ -3789,11 +3784,9 @@ export function PublishWizardPage() {
                   }
                   setPublishErr(null);
                   void flushWizardAutosave();
-                  track("publish_step_completed", {
-                    step_index: safeStep,
+                  track("publish_step_completed", { step_index: safeStep,
                     step_title: current.title,
-                    mode: draft.postMode,
-                  });
+                    mode: draft.postMode, create_flow: createFlowRef.current });
                   setStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
                 disabled={submitInFlight !== null || aiComposeInFlight}

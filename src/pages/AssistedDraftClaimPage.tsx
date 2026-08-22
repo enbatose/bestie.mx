@@ -12,6 +12,8 @@ import { claimInfoToBundle } from "@/lib/assistedDraftClaim";
 import { draftFromPropertyBundle } from "@/pages/PublishWizardPage";
 import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import { writeAssistedDraftClaimSession, writeAssistedDraftClaimToken } from "@/lib/publishWizard/assistedDraftClaimSession";
+import { ensurePublishSessionRecording } from "@/lib/posthog";
+import { track } from "@/lib/analytics";
 
 type PageState =
   | { phase: "loading" }
@@ -29,6 +31,10 @@ export function AssistedDraftClaimPage() {
   const [state, setState] = useState<PageState>({ phase: "loading" });
   const didActivate = useRef(false);
   const didPublish = useRef(false);
+
+  useEffect(() => {
+    ensurePublishSessionRecording();
+  }, []);
 
   // ── Case 1: ?publish=1 — returning from auth, execute publish ────────────
   useEffect(() => {
@@ -82,6 +88,12 @@ export function AssistedDraftClaimPage() {
         const bundle = claimInfoToBundle(info);
         const { draft, serverSync } = draftFromPropertyBundle(bundle);
         const resumeStep = publishWizardLastStepIndex(draft.postMode);
+        const createFlow =
+          info.source === "self_serve" ? ("ai" as const) : ("assisted" as const);
+        track("publish_mode_selected", {
+          mode: draft.postMode === "property" ? "property" : "room",
+          create_flow: createFlow,
+        });
         writeAssistedDraftClaimToken(token);
         writeAssistedDraftClaimSession({ token, draft, serverSync, step: resumeStep });
         navigate(`/publicar?borrador=${encodeURIComponent(token)}`, {
