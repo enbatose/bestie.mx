@@ -1192,13 +1192,29 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         ).run(userId, orphanPub, new Date().toISOString());
       }
 
-      // Publish the property and its rooms
+      // Publish the property and its rooms. Persist PostHog session when provided so
+      // admin "Ver session replay" works for assisted / AI-claim paths too.
       const now = new Date().toISOString();
+      const body = (req.body ?? {}) as { posthogSessionId?: unknown };
+      const incomingSession =
+        typeof body.posthogSessionId === "string" ? body.posthogSessionId.trim().slice(0, 128) : "";
+      const existingSessionRow = db.prepare(
+        `SELECT posthog_session_id FROM properties WHERE id = ? AND publisher_id = ?`,
+      ).get(row.property_id, orphanPub) as { posthog_session_id?: string | null } | undefined;
+      const existingSession =
+        existingSessionRow?.posthog_session_id != null &&
+        String(existingSessionRow.posthog_session_id).trim()
+          ? String(existingSessionRow.posthog_session_id).trim()
+          : null;
+      const posthogSessionId = existingSession ?? (incomingSession || null);
+
       db.prepare(
-        `UPDATE properties SET status = 'published', published_at = ? WHERE id = ? AND publisher_id = ?`
-      ).run(now, row.property_id, orphanPub);
+        `UPDATE properties
+         SET status = 'published', published_at = ?, posthog_session_id = COALESCE(?, posthog_session_id)
+         WHERE id = ? AND publisher_id = ?`,
+      ).run(now, posthogSessionId, row.property_id, orphanPub);
       db.prepare(
-        `UPDATE rooms SET status = 'published', updated_at = ? WHERE property_id = ?`
+        `UPDATE rooms SET status = 'published', updated_at = ? WHERE property_id = ?`,
       ).run(now, row.property_id);
 
       // Mark token claimed

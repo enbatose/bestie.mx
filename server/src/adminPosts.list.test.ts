@@ -170,6 +170,28 @@ describe("listAdminPosts AI origin", () => {
     expect(published.posts[0]?.assistedDraft).toBe(true);
   });
 
+  it("exposes Ver session replay URL for any publish path when session id is stored", () => {
+    const db = setupDb();
+    const now = new Date().toISOString();
+    const sessionId = "019abcde-session-replay-test-0001";
+    db.prepare(
+      `INSERT INTO properties (
+         id, publisher_id, status, post_mode, title, city, neighborhood,
+         created_at, published_at, assisted_draft, posthog_session_id
+       ) VALUES (?, 'pub-replay', 'published', 'room', 'Con replay', 'Guadalajara', 'Centro', ?, ?, 1, ?)`,
+    ).run(PROP_PUBLISHED_AI, now, now, sessionId);
+    db.prepare(
+      `INSERT INTO rooms (id, property_id, status, sort_order) VALUES (?, ?, 'published', 0)`,
+    ).run(ROOM_AI, PROP_PUBLISHED_AI);
+
+    const listed = listAdminPosts(db, { status: "published", limit: 10, offset: 0 });
+    const row = listed.posts.find((p) => p.propertyId === PROP_PUBLISHED_AI);
+    expect(row?.posthogSessionId).toBe(sessionId);
+    expect(row?.posthogReplayUrl).toBe(
+      `https://us.posthog.com/project/517444/replay/${encodeURIComponent(sessionId)}`,
+    );
+  });
+
   it("treats legacy adraft_ ids as AI even when assisted_draft is 0", () => {
     const db = setupDb();
     const now = new Date().toISOString();

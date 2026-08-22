@@ -329,7 +329,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                         rel="noreferrer"
                         className="text-muted underline-offset-2 hover:underline"
                       >
-                        Replay
+                        Ver session replay
                       </a>
                     ) : (
                       <span className="text-muted/60">Sin replay</span>
@@ -434,7 +434,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                   rel="noreferrer"
                   className="rounded-full border border-border px-3 py-1.5 font-semibold text-body"
                 >
-                  Replay
+                  Ver session replay
                 </a>
               ) : null}
             </div>

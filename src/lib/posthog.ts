@@ -111,3 +111,13 @@ export function ensurePublishSessionRecording(): void {
     /* never break UX for analytics */
   }
 }
+
+/**
+ * Session id to persist on the property for admin "Ver session replay".
+ * Starts recording first so AI / Sin IA / assisted publish all get a linkable id on Prod.
+ * Always null on Dev / local (PostHog stays off).
+ */
+export function capturePublishPosthogSessionId(): string | null {
+  ensurePublishSessionRecording();
+  return getPosthogSessionId();
+}

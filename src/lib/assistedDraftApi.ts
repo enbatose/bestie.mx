@@ -1,4 +1,5 @@
 import { apiBase } from "@/lib/apiBase";
+import { capturePublishPosthogSessionId } from "@/lib/posthog";
 
 const cred: RequestCredentials = "include";
 
@@ -274,9 +275,12 @@ export async function activateAssistedDraftClaim(
 /** Auth-gated: claim ownership + publish. Returns propertyId. */
 export async function publishAssistedDraftClaim(token: string): Promise<{ propertyId: string }> {
   const base = apiBase();
+  const posthogSessionId = capturePublishPosthogSessionId();
   const res = await apiFetch(`${base}/api/assisted-draft/claim/${encodeURIComponent(token)}/publish`, {
     method: "POST",
     credentials: cred,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(posthogSessionId ? { posthogSessionId } : {}),
   });
   const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string };
   if (!res.ok) throw new Error(j.error ?? `publish_${res.status}`);

@@ -24,7 +24,7 @@ import { derivedPropertyOccupantCounts } from "@/lib/publishWizard/propertyRoomS
 import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from "@/types/listing";
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
-import { getPosthogSessionId } from "@/lib/posthog";
+import { capturePublishPosthogSessionId } from "@/lib/posthog";
 import {
   saveAssistedDraftClaim,
   type AssistedDraftClaimSaveBody,
@@ -544,8 +544,11 @@ export async function syncDraftToServer(
     };
   const tracking = {
     ...(typeof meta?.wizardStep === "number" ? { wizardStep: meta.wizardStep } : {}),
-    ...(getPosthogSessionId() ? { posthogSessionId: getPosthogSessionId() } : {}),
   };
+  const posthogSessionId = capturePublishPosthogSessionId();
+  if (posthogSessionId) {
+    Object.assign(tracking, { posthogSessionId });
+  }
 
   for (let attempt = 0; attempt < 2; attempt++) {
     let propertyId = serverSync.propertyId;
@@ -753,7 +756,10 @@ export async function publishDraftFromWizard(opts: {
         streetViewPov: draft.streetViewPov ?? null,
         occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
         occupiedByMenCount: occupantTotals.occupiedByMenCount,
-        ...(getPosthogSessionId() ? { posthogSessionId: getPosthogSessionId() } : {}),
+        ...((): { posthogSessionId?: string } => {
+          const id = capturePublishPosthogSessionId();
+          return id ? { posthogSessionId: id } : {};
+        })(),
       },
       rooms: draft.rooms.map((r, i) => {
         const fields = roomApiFieldsFromDraft(draft, r, i);
