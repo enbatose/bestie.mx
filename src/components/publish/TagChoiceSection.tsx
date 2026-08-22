@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Info, Minus, Plus, X } from "lucide-react";
-import { listingTagChipLabel, listingTagFullLabel } from "@/components/listing/ListingTagChips";
+import { Info, X } from "lucide-react";
+import { listingTagChipLabel, listingTagFullLabel, TagToggleGlyph } from "@/components/listing/ListingTagChips";
 import type { ListingTag } from "@/types/listing";
 
 export const WIZARD_TAG_PILL_CLASS =
@@ -140,9 +140,9 @@ export function TagChoiceSection({
               onClick={() => onToggle(tag, active)}
               className={`${WIZARD_TAG_PILL_CLASS} ${active ? WIZARD_TAG_PILL_ACTIVE : inactiveClass}`}
             >
-              {active ? null : <Plus className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />}
+              {active ? null : <TagToggleGlyph action="add" />}
               <span className="min-w-0 hyphens-manual">{listingTagChipLabel(tag)}</span>
-              {active ? <Minus className="size-3 shrink-0" strokeWidth={2.5} aria-hidden /> : null}
+              {active ? <TagToggleGlyph action="remove" onPrimary /> : null}
             </button>
           );
         })}

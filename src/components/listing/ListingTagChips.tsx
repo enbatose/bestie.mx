@@ -9,6 +9,31 @@ const TAG_CHIP_CLASS =
 const TAG_CHIP_UNSELECTED_CLASS =
   "inline-flex min-h-9 min-w-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs hyphens-manual text-muted/70";
 
+/** Same 12px box as the bare icon; fill sits behind the glyph so chips don't grow. */
+export function TagToggleGlyph({
+  action,
+  onPrimary = false,
+}: {
+  action: "add" | "remove";
+  /** Active wizard pills sit on primary fill. */
+  onPrimary?: boolean;
+}) {
+  const Icon = action === "add" ? Plus : Minus;
+  const shell = onPrimary
+    ? "bg-primary-fg/25 text-primary-fg"
+    : action === "add"
+      ? "bg-primary/20 text-primary"
+      : "bg-primary/15 text-primary";
+  return (
+    <span
+      className={`inline-flex size-3 shrink-0 items-center justify-center rounded-full ${shell}`}
+      aria-hidden
+    >
+      <Icon className="size-2.5" strokeWidth={2.75} />
+    </span>
+  );
+}
+
 export function listingTagLabel(tag: ListingTag): string {
   return LISTING_TAG_LABEL_OVERRIDES[tag] ?? TAG_LABELS[tag];
 }
@@ -57,7 +82,7 @@ export function ListingTagChips({
                 title={`Quitar ${full}`}
               >
                 <span className="min-w-0 text-left">{label}</span>
-                <Minus className="size-3 shrink-0 text-muted" strokeWidth={2.5} aria-hidden />
+                <TagToggleGlyph action="remove" />
               </button>
             );
           })}
@@ -90,7 +115,7 @@ export function ListingTagChips({
                   aria-label={`Agregar ${full}`}
                   title={`Agregar ${full}`}
                 >
-                  <Plus className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
+                  <TagToggleGlyph action="add" />
                   <span className="min-w-0 text-left">{label}</span>
                 </button>
               );
