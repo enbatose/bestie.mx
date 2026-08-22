@@ -10,6 +10,7 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
+import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
 import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
 import {
   ROOM_TAG_GROUPS,
@@ -131,7 +132,11 @@ export function RoomActivationModal({
   onCancel: () => void;
   onActivated: (message: string) => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(() => initialDraft(listing));
+  const [draft, setDraft] = useState<Draft>(() => {
+    const initial = initialDraft(listing);
+    if (!initial.customName.trim()) initial.customName = roomLabel;
+    return initial;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showIssues, setShowIssues] = useState(false);
@@ -204,9 +209,11 @@ export function RoomActivationModal({
         <div className="border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
             <RoomOccupancyBadge available={false} />
-            <p className="min-w-0 truncate text-sm font-semibold text-body">
-              {draft.customName.trim() || roomLabel}
-            </p>
+            <RoomTitlePencilEditor
+              value={draft.customName.trim() || roomLabel}
+              fallbackTitle={roomLabel}
+              onCommit={(next) => patch({ customName: next.trim() || roomLabel })}
+            />
           </div>
           <h2 className="mt-2 text-base font-semibold text-body">
             Completa estos datos para ofrecerla en renta
@@ -218,18 +225,6 @@ export function RoomActivationModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <label className="block text-sm font-medium text-body">
-            Título de la recámara
-            <span className="text-error"> *</span>
-            <input
-              type="text"
-              value={draft.customName}
-              placeholder={`Ej. Cuarto con balcón · ${roomLabel}`}
-              onChange={(e) => patch({ customName: e.target.value })}
-              className={FIELD_INPUT}
-            />
-          </label>
-
           <div>
             <h3 className="text-sm font-bold text-primary">Información principal</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">

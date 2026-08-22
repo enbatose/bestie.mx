@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bath, Camera, CarFront, Check, Pencil, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bath, Camera, CarFront, Pencil } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { RoomOnOffToggle } from "@/components/myListings/listingCardChrome";
@@ -14,6 +14,7 @@ import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { EditableRoomModal } from "@/components/publish/EditableRoomModal";
+import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
 import {
   cloneRoomDraft,
   createPreviewDefaultRoom,
@@ -50,7 +51,7 @@ import {
   setRoomOccupancyStatus,
   syncPropertyRoomSlotsToTotal,
 } from "@/lib/publishWizard/propertyRoomSlots";
-import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSummary, roomDisplayName } from "@/lib/roomDisplay";
+import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSummary, propertyRoomPencilTitle, propertyRoomSlotTitle } from "@/lib/roomDisplay";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
   PROPERTY_TAG_GROUPS,
@@ -187,7 +188,8 @@ function RoomPreviewCard({
   onAvailabilityChange: (nextAvailable: boolean) => void;
 }) {
   const available = isRoomAvailableForRent(room);
-  const name = roomDisplayName(room, index);
+  const fallbackTitle = propertyRoomSlotTitle(index + 1);
+  const name = propertyRoomPencilTitle(room, index + 1);
   const coverUrl =
     draftImagesToUrls(preferDraftImages(room.photos, draft.roomImageUrls[index]))[0] ??
     draftRoomImageUrls(draft, index)[0] ??
@@ -195,22 +197,6 @@ function RoomPreviewCard({
   const issues = collectRoomFieldIssues(draft, room, index);
   const rentMissing = available && isListingRentMissing(room.rentMxn);
   const occupantSummary = available ? null : occupiedRoomOccupantSummary(room);
-
-  const [editingName, setEditingName] = useState(false);
-  const [nameDraft, setNameDraft] = useState("");
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  const openNameEdit = () => {
-    setNameDraft(room.customName?.trim() || room.title?.trim() || "");
-    setEditingName(true);
-  };
-
-  const commitName = () => {
-    onRename(nameDraft.trim());
-    setEditingName(false);
-  };
-
-  const cancelNameEdit = () => setEditingName(false);
 
   // Gender pref quick-attribute
   const genderPref = room.roommateGenderPref;
@@ -229,64 +215,21 @@ function RoomPreviewCard({
         <div className="min-w-0 flex-1">
           {/* Room name + occupancy — stacked so the toggle stays tappable on phones */}
           <div className="flex flex-col gap-2">
-            {editingName ? (
-              <div className="flex min-w-0 items-center gap-1.5">
-                <input
-                  ref={nameInputRef}
-                  autoFocus
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); commitName(); }
-                    if (e.key === "Escape") cancelNameEdit();
-                  }}
-                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-primary/60 bg-surface px-2 py-1 text-base font-semibold text-body focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={commitName}
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg transition hover:brightness-110"
-                  title="Guardar nombre"
-                >
-                  <Check className="size-4" strokeWidth={2.5} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelNameEdit}
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:bg-surface-elevated"
-                  title="Cancelar"
-                >
-                  <X className="size-4" strokeWidth={2.5} aria-hidden />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={openNameEdit}
-                className="inline-flex min-h-11 max-w-full items-center gap-1.5 text-left text-sm font-semibold text-body transition hover:text-primary"
-                title="Cambiar nombre de la recámara"
-                aria-label={`Cambiar nombre de ${name}`}
+            <RoomTitlePencilEditor
+              value={name}
+              fallbackTitle={fallbackTitle}
+              onCommit={onRename}
+            />
+            <span className="flex items-center gap-2">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
+                }`}
               >
-                <span className="truncate">{name}</span>
-                <Pencil
-                  className="size-3.5 shrink-0 text-muted"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </button>
-            )}
-            {!editingName ? (
-              <span className="flex items-center gap-2">
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    available ? "bg-secondary/15 text-primary" : "bg-bg-light text-muted ring-1 ring-border"
-                  }`}
-                >
-                  {occupancyStatusLabel(available ? "available" : "occupied")}
-                </span>
-                <RoomOnOffToggle available={available} onChange={onAvailabilityChange} />
+                {occupancyStatusLabel(available ? "available" : "occupied")}
               </span>
-            ) : null}
+              <RoomOnOffToggle available={available} onChange={onAvailabilityChange} />
+            </span>
           </div>
 
           {available ? (
@@ -477,7 +420,6 @@ export function EditableListingPreview({
   const [headerDraft, setHeaderDraft] = useState({
     neighborhood: draft.neighborhood,
     propertyTitle: draft.propertyTitle,
-    roomTitle: room?.title ?? "",
     rentMxn: room?.rentMxn ?? 0,
     depositMxn: room?.depositMxn ?? 0,
     city: draft.city,
@@ -507,7 +449,6 @@ export function EditableListingPreview({
         setHeaderDraft({
           neighborhood: draft.neighborhood,
           propertyTitle: draft.propertyTitle,
-          roomTitle: targetRoom.title,
           rentMxn: targetRoom.rentMxn,
           depositMxn: targetRoom.depositMxn,
           city: draft.city,
@@ -594,7 +535,6 @@ export function EditableListingPreview({
     setHeaderDraft({
       neighborhood: draft.neighborhood,
       propertyTitle: draft.propertyTitle,
-      roomTitle: room.title,
       rentMxn: room.rentMxn,
       depositMxn: room.depositMxn,
       city: draft.city,
@@ -628,7 +568,7 @@ export function EditableListingPreview({
               title:
                 d.postMode === "room"
                   ? nextPropertyTitle.trim() || r.title
-                  : headerDraft.roomTitle,
+                  : r.title,
               rentMxn: Math.max(0, headerDraft.rentMxn),
               depositMxn: Math.max(0, headerDraft.depositMxn),
             }
@@ -821,6 +761,17 @@ export function EditableListingPreview({
     );
   };
 
+  const renameRoomAt = (index: number, name: string) => {
+    const fallback = propertyRoomSlotTitle(index + 1);
+    const trimmed = name.trim();
+    onDraftChange((d) => ({
+      ...d,
+      rooms: d.rooms.map((room, i) =>
+        i === index ? { ...room, customName: trimmed, title: trimmed || fallback } : room,
+      ),
+    }));
+  };
+
   const roomModal =
     editingRoomModalIndex !== null && draft.rooms[editingRoomModalIndex] ? (
       <EditableRoomModal
@@ -961,15 +912,6 @@ export function EditableListingPreview({
                   max={PROPERTY_TITLE_MAX}
                   warnBelowMin
                   className="mt-1"
-                />
-              </label>
-            ) : draft.postMode === "property" ? (
-              <label className="block text-sm font-medium text-body">
-                Título de esta recámara
-                <input
-                  value={headerDraft.roomTitle}
-                  onChange={(e) => setHeaderDraft((h) => ({ ...h, roomTitle: e.target.value }))}
-                  className={WIZARD_FIELD_CONTROL_CLASS}
                 />
               </label>
             ) : (
@@ -1722,12 +1664,7 @@ export function EditableListingPreview({
                         index={idx}
                         draft={draft}
                         onEdit={() => openRoomModal(idx)}
-                        onRename={(customName) =>
-                          onDraftChange((d) => ({
-                            ...d,
-                            rooms: d.rooms.map((room, i) => (i === idx ? { ...room, customName } : room)),
-                          }))
-                        }
+                        onRename={(name) => renameRoomAt(idx, name)}
                         onAvailabilityChange={(nextAvailable) =>
                           onDraftChange((d) =>
                             setRoomOccupancyStatus(d, idx, nextAvailable ? "available" : "occupied"),
@@ -1753,12 +1690,7 @@ export function EditableListingPreview({
                         index={idx}
                         draft={draft}
                         onEdit={() => openRoomModal(idx)}
-                        onRename={(customName) =>
-                          onDraftChange((d) => ({
-                            ...d,
-                            rooms: d.rooms.map((room, i) => (i === idx ? { ...room, customName } : room)),
-                          }))
-                        }
+                        onRename={(name) => renameRoomAt(idx, name)}
                         onAvailabilityChange={(nextAvailable) =>
                           onDraftChange((d) =>
                             setRoomOccupancyStatus(d, idx, nextAvailable ? "available" : "occupied"),

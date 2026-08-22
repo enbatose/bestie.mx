@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
@@ -16,7 +16,6 @@ import {
 import {
   propertyOccupiedRoomCount,
   propertyRentRoomCount,
-  propertyRoomDefaultTitle,
   propertyRoomListOrder,
 } from "@/lib/publishWizard/propertyRoomSlots";
 import {
@@ -24,7 +23,12 @@ import {
   roomValidationIssuesByIndex,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
-import { isRoomAvailableForRent } from "@/lib/roomDisplay";
+import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
+import {
+  isRoomAvailableForRent,
+  propertyRoomPencilTitle,
+  propertyRoomSlotTitle,
+} from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
@@ -107,87 +111,6 @@ function RoomCardFooter({
           Contraer
         </button>
       </div>
-    </div>
-  );
-}
-
-function RoomTitleInlineEditor({
-  room,
-  displayNumber,
-  onUpdate,
-  stopClickPropagation = false,
-}: {
-  room: RoomDraft;
-  displayNumber: number;
-  onUpdate: (patch: Partial<RoomDraft>) => void;
-  /** Prevents accordion toggle when editing from the card header. */
-  stopClickPropagation?: boolean;
-}) {
-  const fallbackTitle = propertyRoomDefaultTitle(displayNumber);
-  const resolvedTitle = room.customName?.trim() || room.title?.trim() || fallbackTitle;
-  const [editing, setEditing] = useState(false);
-  const [draftTitle, setDraftTitle] = useState(resolvedTitle);
-
-  useEffect(() => {
-    if (!editing) setDraftTitle(resolvedTitle);
-  }, [resolvedTitle, editing]);
-
-  const stopBubble = (e: { stopPropagation(): void }) => {
-    if (stopClickPropagation) e.stopPropagation();
-  };
-
-  const commitTitle = () => {
-    const trimmed = draftTitle.trim();
-    onUpdate({
-      customName: trimmed,
-      title: trimmed || fallbackTitle,
-    });
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <label className="block text-sm font-medium text-body" onClick={stopBubble}>
-        Título de la recámara
-        <span className="text-error"> *</span>
-        <input
-          autoFocus
-          value={draftTitle}
-          onChange={(e) => setDraftTitle(e.target.value)}
-          onBlur={commitTitle}
-          onClick={stopBubble}
-          onKeyDown={(e) => {
-            stopBubble(e);
-            if (e.key === "Enter") {
-              e.preventDefault();
-              (e.target as HTMLInputElement).blur();
-            }
-            if (e.key === "Escape") {
-              setDraftTitle(resolvedTitle);
-              setEditing(false);
-            }
-          }}
-          placeholder={`Ej. Cuarto con balcón · ${fallbackTitle}`}
-          className={WIZARD_FIELD_CONTROL_CLASS}
-        />
-      </label>
-    );
-  }
-
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <span className="break-words text-base font-bold text-primary">{resolvedTitle}</span>
-      <button
-        type="button"
-        onClick={(e) => {
-          if (stopClickPropagation) e.stopPropagation();
-          setEditing(true);
-        }}
-        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/5 text-primary transition hover:bg-primary/10"
-        aria-label={`Editar título de ${fallbackTitle}`}
-      >
-        <Pencil className="size-3.5" aria-hidden />
-      </button>
     </div>
   );
 }
@@ -740,9 +663,15 @@ export function PropertyRoomManager({
         const expanded = expandedRoomIndex === i;
         const available = isRoomAvailableForRent(room);
         const issues = issueRows[i] ?? collectRoomFieldIssues(draft, room, i);
-        const slotLabel = propertyRoomDefaultTitle(roomNumber);
-        const customTitle = room.customName?.trim() || room.title?.trim() || "";
-        const roomLabel = customTitle || slotLabel;
+        const fallbackTitle = propertyRoomSlotTitle(roomNumber);
+        const roomLabel = propertyRoomPencilTitle(room, roomNumber);
+        const commitTitle = (nextTitle: string) => {
+          const trimmed = nextTitle.trim();
+          onUpdateRoom(i, {
+            customName: trimmed,
+            title: trimmed || fallbackTitle,
+          });
+        };
         const cardClass = `rounded-xl border bg-bg-light shadow-md ring-1 transition ${
           issues.length
             ? "border-warning/50 ring-warning/30"
@@ -757,10 +686,10 @@ export function PropertyRoomManager({
               <div className="p-4">
                 <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <RoomTitleInlineEditor
-                      room={room}
-                      displayNumber={roomNumber}
-                      onUpdate={(patch) => onUpdateRoom(i, patch)}
+                    <RoomTitlePencilEditor
+                      value={roomLabel}
+                      fallbackTitle={fallbackTitle}
+                      onCommit={commitTitle}
                     />
                     {issues.length > 0 ? (
                       <p className="mt-1 text-xs text-warning-fg">Faltan: {issues.join(", ")}</p>
@@ -796,10 +725,10 @@ export function PropertyRoomManager({
                   }
                 }}
               >
-                <RoomTitleInlineEditor
-                  room={room}
-                  displayNumber={roomNumber}
-                  onUpdate={(patch) => onUpdateRoom(i, patch)}
+                <RoomTitlePencilEditor
+                  value={roomLabel}
+                  fallbackTitle={fallbackTitle}
+                  onCommit={commitTitle}
                   stopClickPropagation
                 />
                 {!expanded && issues.length > 0 ? (

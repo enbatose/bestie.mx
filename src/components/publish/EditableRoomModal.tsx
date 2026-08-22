@@ -40,7 +40,13 @@ import {
 } from "@/lib/publishWizard/roomWizardValidation";
 import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
 import { SharedDumpPhotosPicker } from "@/components/publish/SharedDumpPhotosPicker";
-import { isRoomAvailableForRent, roomDisplayName } from "@/lib/roomDisplay";
+import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
+import {
+  isRoomAvailableForRent,
+  propertyRoomPencilTitle,
+  propertyRoomSlotTitle,
+  roomDisplayName,
+} from "@/lib/roomDisplay";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
@@ -188,7 +194,6 @@ export function EditableRoomModal({
   const [editingSummary, setEditingSummary] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [headerDraft, setHeaderDraft] = useState({
-    roomTitle: room.customName || room.title,
     rentMxn: room.rentMxn,
     depositMxn: room.depositMxn,
   });
@@ -201,7 +206,11 @@ export function EditableRoomModal({
 
   const available = isRoomAvailableForRent(localRoom);
   const rentMissing = available && isListingRentMissing(localRoom.rentMxn);
-  const roomLabel = roomDisplayName(localRoom, roomIndex);
+  const roomSlotTitle = propertyRoomSlotTitle(roomIndex + 1);
+  const roomLabel =
+    draft.postMode === "property"
+      ? propertyRoomPencilTitle(localRoom, roomIndex + 1)
+      : roomDisplayName(localRoom, roomIndex);
   const roomTagsActive = sortRoomScopeTags(filterRoomScopeTags(localRoom.tags));
   const galleryUrls = draftImagesToUrls(draftRoomEditorImages(draft, roomIndex, localRoom.photos));
   const detailsRoom = detailsDraft ?? localRoom;
@@ -209,7 +218,6 @@ export function EditableRoomModal({
   const applyIssueFocus = (sections: readonly RoomIssueSection[]) => {
     if (sections.includes("header")) {
       setHeaderDraft({
-        roomTitle: localRoom.customName || localRoom.title,
         rentMxn: localRoom.rentMxn,
         depositMxn: localRoom.depositMxn,
       });
@@ -269,11 +277,8 @@ export function EditableRoomModal({
   const flushPendingEdits = (base: RoomDraft): RoomDraft => {
     let next = base;
     if (editingHeader) {
-      const nextTitle = headerDraft.roomTitle.trim();
       next = {
         ...next,
-        title: nextTitle || next.title,
-        customName: nextTitle,
         rentMxn: Math.max(0, headerDraft.rentMxn),
         depositMxn: Math.max(0, headerDraft.depositMxn),
       };
@@ -311,7 +316,6 @@ export function EditableRoomModal({
 
   const openHeaderEdit = () => {
     setHeaderDraft({
-      roomTitle: localRoom.customName || localRoom.title,
       rentMxn: localRoom.rentMxn,
       depositMxn: localRoom.depositMxn,
     });
@@ -319,15 +323,21 @@ export function EditableRoomModal({
   };
 
   const saveHeader = () => {
-    const nextTitle = headerDraft.roomTitle.trim();
     setLocalRoom((r) => ({
       ...r,
-      title: nextTitle || r.title,
-      customName: nextTitle,
       rentMxn: Math.max(0, headerDraft.rentMxn),
       depositMxn: Math.max(0, headerDraft.depositMxn),
     }));
     setEditingHeader(false);
+  };
+
+  const commitRoomTitle = (nextTitle: string) => {
+    const trimmed = nextTitle.trim();
+    setLocalRoom((r) => ({
+      ...r,
+      customName: trimmed,
+      title: trimmed || roomSlotTitle,
+    }));
   };
 
   const saveDetails = () => {
@@ -373,13 +383,25 @@ export function EditableRoomModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-            {draft.postMode === "room" ? "Editando anuncio" : `Editando · Recámara ${roomIndex + 1}`}
-          </span>
+          {draft.postMode === "property" ? (
+            <div className="min-w-0 flex-1">
+              <RoomTitlePencilEditor
+                variant="badge"
+                prefix="Editando · "
+                value={roomLabel}
+                fallbackTitle={roomSlotTitle}
+                onCommit={commitRoomTitle}
+              />
+            </div>
+          ) : (
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+              Editando anuncio
+            </span>
+          )}
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm font-semibold text-body"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-border px-4 text-sm font-semibold text-body"
           >
             Cerrar
           </button>
@@ -397,7 +419,7 @@ export function EditableRoomModal({
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">{roomLabel}</p>
-                {!editingHeader ? (
+                {!editingHeader && available ? (
                   <button
                     type="button"
                     onClick={openHeaderEdit}
@@ -448,63 +470,53 @@ export function EditableRoomModal({
               </div>
               )}
 
-              {editingHeader ? (
+              {editingHeader && available ? (
                 <div className="mt-3">
                   <InlineFieldEditor
-                    label="Nombre y precio"
+                    label="Precio"
                     onSave={saveHeader}
                     onCancel={() => setEditingHeader(false)}
                   >
-                    <label className="block text-sm font-medium text-body">
-                      Título de esta recámara
-                      <input
-                        value={headerDraft.roomTitle}
-                        onChange={(e) => setHeaderDraft((h) => ({ ...h, roomTitle: e.target.value }))}
-                        className={WIZARD_FIELD_CONTROL_CLASS}
-                      />
-                    </label>
-                    {available ? (
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        <label className="block text-sm font-medium text-body">
-                          Renta (MXN / mes)
-                          <span className="text-error"> *</span>
-                          <input
-                            id={PUBLISH_PREVIEW_RENT_INPUT_ID}
-                            type="number"
-                            min={0}
-                            step={100}
-                            value={headerDraft.rentMxn === 0 ? "" : headerDraft.rentMxn}
-                            onChange={(e) =>
-                              setHeaderDraft((h) => ({
-                                ...h,
-                                rentMxn: Math.max(0, Number(e.target.value) || 0),
-                              }))
-                            }
-                            className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-base sm:text-sm ${
-                              isListingRentMissing(headerDraft.rentMxn)
-                                ? "border border-error ring-1 ring-error/40"
-                                : "border border-border"
-                            }`}
-                          />
-                        </label>
-                        <label className="block text-sm font-medium text-body">
-                          Depósito (MXN)
-                          <input
-                            type="number"
-                            min={0}
-                            step={100}
-                            value={headerDraft.depositMxn === 0 ? "" : headerDraft.depositMxn}
-                            onChange={(e) =>
-                              setHeaderDraft((h) => ({
-                                ...h,
-                                depositMxn: Math.max(0, Number(e.target.value) || 0),
-                              }))
-                            }
-                            className={WIZARD_FIELD_CONTROL_CLASS}
-                          />
-                        </label>
-                      </div>
-                    ) : null}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="block text-sm font-medium text-body">
+                        Renta (MXN / mes)
+                        <span className="text-error"> *</span>
+                        <input
+                          id={PUBLISH_PREVIEW_RENT_INPUT_ID}
+                          type="number"
+                          min={0}
+                          step={100}
+                          value={headerDraft.rentMxn === 0 ? "" : headerDraft.rentMxn}
+                          onChange={(e) =>
+                            setHeaderDraft((h) => ({
+                              ...h,
+                              rentMxn: Math.max(0, Number(e.target.value) || 0),
+                            }))
+                          }
+                          className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-base sm:text-sm ${
+                            isListingRentMissing(headerDraft.rentMxn)
+                              ? "border border-error ring-1 ring-error/40"
+                              : "border border-border"
+                          }`}
+                        />
+                      </label>
+                      <label className="block text-sm font-medium text-body">
+                        Depósito (MXN)
+                        <input
+                          type="number"
+                          min={0}
+                          step={100}
+                          value={headerDraft.depositMxn === 0 ? "" : headerDraft.depositMxn}
+                          onChange={(e) =>
+                            setHeaderDraft((h) => ({
+                              ...h,
+                              depositMxn: Math.max(0, Number(e.target.value) || 0),
+                            }))
+                          }
+                          className={WIZARD_FIELD_CONTROL_CLASS}
+                        />
+                      </label>
+                    </div>
                   </InlineFieldEditor>
                 </div>
               ) : (

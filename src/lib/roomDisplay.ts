@@ -19,6 +19,29 @@ export function isRoomAvailableForRent(
   return roomOccupancyStatus(room) === "available";
 }
 
+const GENERIC_NUMBERED_ROOM_TITLE = /^(recámara|habitación)\s+\d+$/i;
+
+export function isGenericNumberedRoomTitle(value: string): boolean {
+  return GENERIC_NUMBERED_ROOM_TITLE.test(value.trim());
+}
+
+export function propertyRoomSlotTitle(displayNumber: number): string {
+  return `Recámara ${displayNumber}`;
+}
+
+/**
+ * Title shown next to the pencil in the property-rooms wizard.
+ * Generic “Habitación N” / “Recámara N” seeds all display as Recámara N.
+ */
+export function propertyRoomPencilTitle(
+  room: { customName?: string; title?: string },
+  displayNumber: number,
+): string {
+  const custom = room.customName?.trim() || room.title?.trim();
+  if (custom && !isGenericNumberedRoomTitle(custom)) return custom;
+  return propertyRoomSlotTitle(displayNumber);
+}
+
 export function roomDisplayName(
   room: { customName?: string; title?: string },
   index: number,
