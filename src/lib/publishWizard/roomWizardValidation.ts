@@ -248,6 +248,9 @@ export function roomSaveIssuesPrimaryLabel(d: Draft, roomIndex: number): string 
 export const PUBLISH_PREVIEW_HEADER_ID = "publish-preview-header";
 export const PUBLISH_PREVIEW_ROOM_DETAILS_ID = "publish-preview-room-details";
 export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID = "publish-preview-room-description";
+export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID = "publish-preview-room-description-field";
+export const PUBLISH_PREVIEW_PROPERTY_SUMMARY_FIELD_ID = "publish-preview-property-summary-field";
+export const PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID = "publish-room-modal-description-field";
 export const PUBLISH_PREVIEW_RENT_INPUT_ID = "publish-preview-rent";
 
 /** First missing section to open on the inline preview (single-room posts). */

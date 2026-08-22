@@ -12,6 +12,8 @@ import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from 
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
+import { useDebouncedCommit } from "@/components/publish/useDebouncedCommit";
+import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { EditableRoomModal } from "@/components/publish/EditableRoomModal";
 import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
@@ -73,7 +75,9 @@ import {
   firstStandaloneRoomFixSection,
   isStandaloneRoomPost,
   PUBLISH_PREVIEW_HEADER_ID,
+  PUBLISH_PREVIEW_PROPERTY_SUMMARY_FIELD_ID,
   PUBLISH_PREVIEW_RENT_INPUT_ID,
+  PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID,
   PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID,
   PUBLISH_PREVIEW_ROOM_DETAILS_ID,
   roomPreviewOptionLabel,
@@ -100,6 +104,11 @@ import type { LiveEditScope } from "@/components/publish/PublishWizardReviewStep
 const PROPERTY_BEDROOMS_MAX = 20;
 const PROPERTY_BATHROOMS_MAX = 10;
 const PROPERTY_OCCUPANTS_MAX = 50;
+
+const PROPERTY_SUMMARY_PLACEHOLDER =
+  "Describe cómo es la convivencia, la sala, la cocina, y las reglas generales de la casa.";
+const ROOM_SUMMARY_PLACEHOLDER =
+  "Describe el tamaño, la iluminación, si tiene clóset, y qué incluye.";
 
 const money = new Intl.NumberFormat("es-MX", {
   style: "currency",
@@ -371,7 +380,7 @@ export function EditableListingPreview({
   initialEditingPhotos = false,
   onEditingPhotosChange,
   onPhotoPickerOpen,
-  isAssistedDraft = false,
+  isAssistedDraft: _isAssistedDraft = false,
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
@@ -399,10 +408,6 @@ export function EditableListingPreview({
   const headerUsesPropertyFields = isPropertyPreview || isPropertyScope;
 
   const [editingHeader, setEditingHeader] = useState(false);
-  const [editingProperty, setEditingProperty] = useState(false);
-  const [editingPropertyTags, setEditingPropertyTags] = useState(false);
-  const [editingRoom, setEditingRoom] = useState(false);
-  const [editingRoomTags, setEditingRoomTags] = useState(false);
   const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos && !isPropertyPreview && !isRoomOfProperty);
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
   const [editingPropertyFacts, setEditingPropertyFacts] = useState(false);
@@ -425,9 +430,7 @@ export function EditableListingPreview({
     city: draft.city,
   });
   const [propertySummaryDraft, setPropertySummaryDraft] = useState(draft.propertySummary);
-  const [propertyTagsDraft, setPropertyTagsDraft] = useState<ListingTag[]>([...draft.propertyTags]);
   const [roomSummaryDraft, setRoomSummaryDraft] = useState(room?.summary ?? "");
-  const [roomTagsDraft, setRoomTagsDraft] = useState<ListingTag[]>([]);
   const [roomDetailsDraft, setRoomDetailsDraft] = useState<RoomDraft | null>(null);
   const [propertyFactsDraft, setPropertyFactsDraft] = useState<PropertyFactsDraft>(() =>
     propertyFactsFromDraft(draft),
@@ -459,18 +462,18 @@ export function EditableListingPreview({
         setEditingRoomDetails(true);
       } else if (section === "description") {
         setRoomSummaryDraft(targetRoom.summary);
-        setEditingRoom(true);
-      } else if (section === "tags") {
-        setRoomTagsDraft(filterRoomScopeTags(targetRoom.tags));
-        setEditingRoomTags(true);
       }
       onJumpToRoomHandled?.();
       const anchorId = standaloneRoomFixAnchorId(section);
       const focusRent = section === "header";
+      const focusDescription = section === "description" || section === "tags";
       window.setTimeout(() => {
         document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "center" });
         if (focusRent) {
           document.getElementById(PUBLISH_PREVIEW_RENT_INPUT_ID)?.focus();
+        }
+        if (focusDescription) {
+          document.getElementById(PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID)?.focus();
         }
       }, 50);
       return;
@@ -512,20 +515,39 @@ export function EditableListingPreview({
     }));
   };
 
+  useEffect(() => {
+    setPropertySummaryDraft(draft.propertySummary);
+  }, [draft.propertySummary]);
+
+  useEffect(() => {
+    setRoomSummaryDraft(room?.summary ?? "");
+  }, [room?.summary, roomIndex]);
+
+  const flushPropertySummary = useDebouncedCommit(propertySummaryDraft, (next) => {
+    onDraftChange((d) => (d.propertySummary === next ? d : { ...d, propertySummary: next }));
+  });
+
+  const flushRoomSummary = useDebouncedCommit(roomSummaryDraft, (next) => {
+    onDraftChange((d) => {
+      const current = d.rooms[roomIndex];
+      if (!current || current.summary === next) return d;
+      return {
+        ...d,
+        rooms: d.rooms.map((r, i) => (i === roomIndex ? { ...r, summary: next } : r)),
+      };
+    });
+  });
+
   if (!room) {
     return <p className="text-sm text-muted">No hay recámara seleccionada.</p>;
   }
 
   const propertyTagsActive = filterPropertyScopeTags(draft.propertyTags);
   const roomTagsActive = sortRoomScopeTags(filterRoomScopeTags(room.tags));
-
-  const showUnselected = isAssistedDraft && variant === "preview";
-  const unselectedPropertyTags = showUnselected
-    ? listingTagsNotSelected(
-        PROPERTY_TAG_GROUPS.flatMap((g) => g.tags),
-        propertyTagsActive,
-      )
-    : undefined;
+  const unselectedPropertyTags = listingTagsNotSelected(
+    PROPERTY_TAG_GROUPS.flatMap((g) => g.tags),
+    propertyTagsActive,
+  );
   const unselectedRoomTags = listingTagsNotSelected(
     ROOM_TAG_GROUPS.flatMap((g) => g.tags),
     roomTagsActive,
@@ -578,66 +600,29 @@ export function EditableListingPreview({
     setEditingHeader(false);
   };
 
-  const savePropertySummary = () => {
-    onDraftChange((d) => ({ ...d, propertySummary: propertySummaryDraft }));
-    setEditingProperty(false);
-  };
-
-  const openPropertyTagsEdit = () => {
-    setPropertyTagsDraft(filterPropertyScopeTags(draft.propertyTags));
-    setEditingPropertyTags(true);
-  };
-
-  const savePropertyTags = () => {
-    onDraftChange((d) => ({
-      ...d,
-      propertyTags: filterPropertyScopeTags(propertyTagsDraft),
-    }));
-    setEditingPropertyTags(false);
-  };
-
-  const togglePropertyTagDraft = (tag: ListingTag) => {
-    setPropertyTagsDraft((prev) => {
-      const active = prev.includes(tag);
-      return active ? prev.filter((t) => t !== tag) : [...prev, tag];
+  const togglePropertyTag = (tag: ListingTag, currentlyActive: boolean) => {
+    onDraftChange((d) => {
+      const next = currentlyActive
+        ? d.propertyTags.filter((t) => t !== tag)
+        : [...d.propertyTags, tag];
+      return { ...d, propertyTags: filterPropertyScopeTags(next) };
     });
   };
 
-  const saveRoomSummary = () => {
-    onDraftChange((d) => ({
-      ...d,
-      rooms: d.rooms.map((r, i) => (i === roomIndex ? { ...r, summary: roomSummaryDraft } : r)),
-    }));
-    setEditingRoom(false);
-  };
-
-  const openRoomTagsEdit = () => {
-    setRoomTagsDraft(filterRoomScopeTags(room.tags));
-    setEditingRoomTags(true);
-  };
-
-  const saveRoomTags = () => {
+  const toggleRoomTag = (tag: ListingTag, currentlyActive: boolean) => {
     onDraftChange((d) => ({
       ...d,
       rooms: d.rooms.map((r, i) => {
         if (i !== roomIndex) return r;
-        const tags = filterRoomScopeTags(roomTagsDraft);
+        const next = currentlyActive ? r.tags.filter((t) => t !== tag) : [...r.tags, tag];
+        const tags = filterRoomScopeTags(next);
         return {
           ...r,
           tags,
-          roomsAvailable:
-            d.postMode === "room" ? roomsAvailableFromIdealTags(tags) : r.roomsAvailable,
+          roomsAvailable: d.postMode === "room" ? roomsAvailableFromIdealTags(tags) : r.roomsAvailable,
         };
       }),
     }));
-    setEditingRoomTags(false);
-  };
-
-  const toggleRoomTagDraft = (tag: ListingTag) => {
-    setRoomTagsDraft((prev) => {
-      const active = prev.includes(tag);
-      return active ? prev.filter((t) => t !== tag) : [...prev, tag];
-    });
   };
 
   const openRoomDetailsEdit = () => {
@@ -1177,42 +1162,24 @@ export function EditableListingPreview({
       </PreviewSection>
 
       {showPropertyBlocks && draft.postMode === "property" ? (
-        <PreviewSection
-          title="Sobre la propiedad"
-          onEdit={
-            () => {
-              setPropertySummaryDraft(draft.propertySummary);
-              setEditingProperty(true);
-            }
-          }
-        >
-          {editingProperty ? (
-            <InlineFieldEditor
-              label="Descripción de la propiedad y áreas comunes"
-              onSave={savePropertySummary}
-              onCancel={() => setEditingProperty(false)}
-            >
-              <ResizableTextarea
-                value={propertySummaryDraft}
-                onChange={(e) => setPropertySummaryDraft(e.target.value)}
-                rows={6}
-                maxLength={PROPERTY_SUMMARY_MAX}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-              />
-              <FieldCharCount
-                current={propertySummaryDraft.trim().length}
-                min={PROPERTY_SUMMARY_MIN}
-                max={PROPERTY_SUMMARY_MAX}
-                warnBelowMin
-              />
-            </InlineFieldEditor>
-          ) : (
-            <div className="max-h-[350px] overflow-y-auto overscroll-y-contain pr-1 text-sm leading-relaxed text-muted sm:text-base">
-              {draft.propertySummary.trim() || (
-                <span className="italic">Sin descripción de la propiedad.</span>
-              )}
-            </div>
-          )}
+        <PreviewSection title="Sobre la propiedad">
+          <ResizableTextarea
+            id={PUBLISH_PREVIEW_PROPERTY_SUMMARY_FIELD_ID}
+            value={propertySummaryDraft}
+            onChange={(e) => setPropertySummaryDraft(e.target.value)}
+            onBlur={flushPropertySummary}
+            rows={6}
+            maxLength={PROPERTY_SUMMARY_MAX}
+            placeholder={PROPERTY_SUMMARY_PLACEHOLDER}
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+          />
+          <FieldCharCount
+            current={propertySummaryDraft.trim().length}
+            min={PROPERTY_SUMMARY_MIN}
+            max={PROPERTY_SUMMARY_MAX}
+            warnBelowMin
+            className="mt-1"
+          />
         </PreviewSection>
       ) : null}
 
@@ -1221,71 +1188,39 @@ export function EditableListingPreview({
         id={PUBLISH_PREVIEW_ROOM_DESCRIPTION_ID}
         className="scroll-mt-24"
         title="Descripción de la recámara"
-        onEdit={() => {
-          setRoomSummaryDraft(room.summary);
-          setEditingRoom(true);
-        }}
       >
-        {editingRoom ? (
-          <InlineFieldEditor
-            label="Descripción de la recámara"
-            onSave={saveRoomSummary}
-            onCancel={() => setEditingRoom(false)}
-          >
-            <ResizableTextarea
-              value={roomSummaryDraft}
-              onChange={(e) => setRoomSummaryDraft(e.target.value)}
-              rows={6}
-              maxLength={ROOM_SUMMARY_MAX}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-            />
-            <FieldCharCount
-              current={roomSummaryDraft.trim().length}
-              min={ROOM_SUMMARY_MIN}
-              max={ROOM_SUMMARY_MAX}
-              warnBelowMin
-            />
-          </InlineFieldEditor>
-        ) : (
-          <>
-            <p className="text-sm leading-relaxed text-muted sm:text-base">
-              {room.summary.trim() || <span className="italic">Sin descripción de la recámara.</span>}
-            </p>
-            <ScopeTagsBlock
-              heading="Etiquetas de la recámara"
-              tags={roomTagsActive}
-              editing={editingRoomTags}
-              onStartEdit={openRoomTagsEdit}
-              onSave={saveRoomTags}
-              onCancel={() => setEditingRoomTags(false)}
-              editGroups={ROOM_TAG_GROUPS}
-              draftTags={roomTagsDraft}
-              onToggle={toggleRoomTagDraft}
-              unselectedTags={unselectedRoomTags}
-            />
-          </>
-        )}
+        <ResizableTextarea
+          id={PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID}
+          value={roomSummaryDraft}
+          onChange={(e) => setRoomSummaryDraft(e.target.value)}
+          onBlur={flushRoomSummary}
+          rows={6}
+          maxLength={ROOM_SUMMARY_MAX}
+          placeholder={ROOM_SUMMARY_PLACEHOLDER}
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+        />
+        <FieldCharCount
+          current={roomSummaryDraft.trim().length}
+          min={ROOM_SUMMARY_MIN}
+          max={ROOM_SUMMARY_MAX}
+          warnBelowMin
+          className="mt-1"
+        />
+        <ScopeTagsBlock
+          heading="Etiquetas de la recámara"
+          tags={roomTagsActive}
+          unselectedTags={unselectedRoomTags}
+          onToggle={toggleRoomTag}
+        />
       </PreviewSection>
       ) : null}
 
       {showPropertyBlocks ? (
-        <PreviewSection
-          title="Amenidades de la propiedad"
-          onEdit={editingPropertyTags ? undefined : openPropertyTagsEdit}
-          editLabel="Editar amenidades"
-        >
-          <ScopeTagsBlock
-            heading="Amenidades de la propiedad"
+        <PreviewSection title="Amenidades de la propiedad">
+          <ListingTagChips
             tags={propertyTagsActive}
-            editing={editingPropertyTags}
-            onStartEdit={openPropertyTagsEdit}
-            onSave={savePropertyTags}
-            onCancel={() => setEditingPropertyTags(false)}
-            editGroups={PROPERTY_TAG_GROUPS}
-            draftTags={propertyTagsDraft}
-            onToggle={togglePropertyTagDraft}
-            hideEditButton
             unselectedTags={unselectedPropertyTags}
+            onToggle={togglePropertyTag}
           />
         </PreviewSection>
       ) : null}

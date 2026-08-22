@@ -8,6 +8,7 @@ import { RoomOnOffToggle, RoomOccupancyBadge } from "@/components/myListings/lis
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
+import { useDebouncedCommit } from "@/components/publish/useDebouncedCommit";
 import {
   cloneRoomDraft,
   InlineFieldEditor,
@@ -36,6 +37,7 @@ import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/
 import {
   collectRoomFieldIssueDetails,
   PUBLISH_PREVIEW_RENT_INPUT_ID,
+  PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID,
   type RoomIssueSection,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
@@ -55,6 +57,9 @@ const money = new Intl.NumberFormat("es-MX", {
   currency: "MXN",
   maximumFractionDigits: 0,
 });
+
+const ROOM_SUMMARY_PLACEHOLDER =
+  "Describe el tamaño, la iluminación, si tiene clóset, y qué incluye.";
 
 type Props = {
   room: RoomDraft;
@@ -191,18 +196,19 @@ export function EditableRoomModal({
     );
   });
   const [editingDetails, setEditingDetails] = useState(false);
-  const [editingSummary, setEditingSummary] = useState(false);
-  const [editingTags, setEditingTags] = useState(false);
   const [headerDraft, setHeaderDraft] = useState({
     rentMxn: room.rentMxn,
     depositMxn: room.depositMxn,
   });
   const [detailsDraft, setDetailsDraft] = useState<RoomDraft | null>(null);
   const [summaryDraft, setSummaryDraft] = useState(room.summary);
-  const [tagsDraft, setTagsDraft] = useState<ListingTag[]>(filterRoomScopeTags(room.tags));
   const [showIssues, setShowIssues] = useState(
     () => collectRoomFieldIssueDetails(draft, room).length > 0,
   );
+
+  const flushSummary = useDebouncedCommit(summaryDraft, (next) => {
+    setLocalRoom((r) => (r.summary === next ? r : { ...r, summary: next }));
+  });
 
   const available = isRoomAvailableForRent(localRoom);
   const rentMissing = available && isListingRentMissing(localRoom.rentMxn);
@@ -228,12 +234,9 @@ export function EditableRoomModal({
       setEditingDetails(true);
     }
     if (sections.includes("description")) {
-      setSummaryDraft(localRoom.summary);
-      setEditingSummary(true);
-    }
-    if (sections.includes("tags")) {
-      setTagsDraft(filterRoomScopeTags(localRoom.tags));
-      setEditingTags(true);
+      window.setTimeout(() => {
+        document.getElementById(PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID)?.focus();
+      }, 80);
     }
   };
 
@@ -287,15 +290,11 @@ export function EditableRoomModal({
       next = {
         ...next,
         ...detailsDraft,
-        tags: filterRoomScopeTags(detailsDraft.tags),
+        tags: filterRoomScopeTags(next.tags),
+        summary: summaryDraft,
       };
     }
-    if (editingSummary) {
-      next = { ...next, summary: summaryDraft };
-    }
-    if (editingTags) {
-      next = { ...next, tags: filterRoomScopeTags(tagsDraft) };
-    }
+    next = { ...next, summary: summaryDraft };
     return next;
   };
 
@@ -345,29 +344,27 @@ export function EditableRoomModal({
     setLocalRoom((r) => ({
       ...r,
       ...detailsDraft,
-      tags: filterRoomScopeTags(detailsDraft.tags),
+      tags: filterRoomScopeTags(r.tags),
+      summary: summaryDraft,
       roomsAvailable:
         draft.postMode === "room"
-          ? roomsAvailableFromIdealTags(detailsDraft.tags)
+          ? roomsAvailableFromIdealTags(r.tags)
           : detailsDraft.roomsAvailable,
     }));
     setEditingDetails(false);
     setDetailsDraft(null);
   };
 
-  const saveSummary = () => {
-    setLocalRoom((r) => ({ ...r, summary: summaryDraft }));
-    setEditingSummary(false);
-  };
-
-  const saveTags = () => {
-    const tags = filterRoomScopeTags(tagsDraft);
-    setLocalRoom((r) => ({
-      ...r,
-      tags,
-      roomsAvailable: draft.postMode === "room" ? roomsAvailableFromIdealTags(tags) : r.roomsAvailable,
-    }));
-    setEditingTags(false);
+  const toggleRoomTag = (tag: ListingTag, currentlyActive: boolean) => {
+    setLocalRoom((r) => {
+      const next = currentlyActive ? r.tags.filter((t) => t !== tag) : [...r.tags, tag];
+      const tags = filterRoomScopeTags(next);
+      return {
+        ...r,
+        tags,
+        roomsAvailable: draft.postMode === "room" ? roomsAvailableFromIdealTags(tags) : r.roomsAvailable,
+      };
+    });
   };
 
   const modal = (
@@ -740,62 +737,32 @@ export function EditableRoomModal({
                   )}
                 </PreviewSection>
 
-                <PreviewSection
-                  title="Descripción de la recámara"
-                  onEdit={() => {
-                    setSummaryDraft(localRoom.summary);
-                    setEditingSummary(true);
-                  }}
-                >
-                  {editingSummary ? (
-                    <InlineFieldEditor
-                      label="Descripción de la recámara"
-                      onSave={saveSummary}
-                      onCancel={() => setEditingSummary(false)}
-                    >
-                      <ResizableTextarea
-                        value={summaryDraft}
-                        onChange={(e) => setSummaryDraft(e.target.value)}
-                        rows={6}
-                        maxLength={ROOM_SUMMARY_MAX}
-                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                      />
-                      <FieldCharCount
-                        current={summaryDraft.trim().length}
-                        min={ROOM_SUMMARY_MIN}
-                        max={ROOM_SUMMARY_MAX}
-                        warnBelowMin
-                      />
-                    </InlineFieldEditor>
-                  ) : (
-                    <p className="break-words text-sm leading-relaxed text-muted sm:text-base">
-                      {localRoom.summary.trim() || (
-                        <span className="italic">Sin descripción de la recámara.</span>
-                      )}
-                    </p>
-                  )}
+                <PreviewSection title="Descripción de la recámara">
+                  <ResizableTextarea
+                    id={PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID}
+                    value={summaryDraft}
+                    onChange={(e) => setSummaryDraft(e.target.value)}
+                    onBlur={flushSummary}
+                    rows={6}
+                    maxLength={ROOM_SUMMARY_MAX}
+                    placeholder={ROOM_SUMMARY_PLACEHOLDER}
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                  />
+                  <FieldCharCount
+                    current={summaryDraft.trim().length}
+                    min={ROOM_SUMMARY_MIN}
+                    max={ROOM_SUMMARY_MAX}
+                    warnBelowMin
+                    className="mt-1"
+                  />
                   <ScopeTagsBlock
                     heading="Etiquetas de la recámara"
                     tags={roomTagsActive}
-                    editing={editingTags}
-                    onStartEdit={() => {
-                      setTagsDraft(filterRoomScopeTags(localRoom.tags));
-                      setEditingTags(true);
-                    }}
-                    onSave={saveTags}
-                    onCancel={() => setEditingTags(false)}
-                    editGroups={ROOM_TAG_GROUPS}
-                    draftTags={tagsDraft}
-                    onToggle={(tag) =>
-                      setTagsDraft((prev) => {
-                        const active = prev.includes(tag);
-                        return active ? prev.filter((t) => t !== tag) : [...prev, tag];
-                      })
-                    }
                     unselectedTags={listingTagsNotSelected(
                       ROOM_TAG_GROUPS.flatMap((g) => g.tags),
                       roomTagsActive,
                     )}
+                    onToggle={toggleRoomTag}
                   />
                 </PreviewSection>
               </>

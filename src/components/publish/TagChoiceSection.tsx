@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Info, X } from "lucide-react";
+import { Info, Minus, Plus, X } from "lucide-react";
 import { listingTagChipLabel, listingTagFullLabel } from "@/components/listing/ListingTagChips";
 import type { ListingTag } from "@/types/listing";
 
 export const WIZARD_TAG_PILL_CLASS =
-  "min-w-0 whitespace-nowrap rounded-full px-2.5 py-1.5 text-center text-[11px] font-medium leading-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0";
+  "inline-flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-center text-[11px] font-medium leading-tight transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-0";
 
 export const WIZARD_TAG_PILL_ACTIVE =
   "bg-primary text-primary-fg shadow-sm ring-1 ring-primary/20";
@@ -135,12 +135,14 @@ export function TagChoiceSection({
               type="button"
               role="checkbox"
               aria-checked={active}
-              aria-label={listingTagFullLabel(tag)}
+              aria-label={`${active ? "Quitar" : "Agregar"} ${listingTagFullLabel(tag)}`}
               title={listingTagFullLabel(tag)}
               onClick={() => onToggle(tag, active)}
               className={`${WIZARD_TAG_PILL_CLASS} ${active ? WIZARD_TAG_PILL_ACTIVE : inactiveClass}`}
             >
-              {listingTagChipLabel(tag)}
+              {active ? null : <Plus className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />}
+              <span className="min-w-0 hyphens-manual">{listingTagChipLabel(tag)}</span>
+              {active ? <Minus className="size-3 shrink-0" strokeWidth={2.5} aria-hidden /> : null}
             </button>
           );
         })}

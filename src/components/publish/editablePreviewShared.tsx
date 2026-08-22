@@ -1,11 +1,9 @@
 import { Pencil } from "lucide-react";
 import { ListingSection } from "@/components/listing/ListingSection";
 import { ListingTagChips } from "@/components/listing/ListingTagChips";
-import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import { newRoomDraftId } from "@/lib/roomDisplay";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 import type { ListingTag } from "@/types/listing";
-import type { ListingTagGroup } from "@/lib/listingTags";
 
 export const ROOM_PLAZAS_MAX = 12;
 export const ROOM_STAY_MAX = 36;
@@ -89,79 +87,22 @@ export function InlineFieldEditor({
   );
 }
 
-export function TagGroupsEditor({
-  groups,
-  selected,
-  onToggle,
-}: {
-  groups: readonly ListingTagGroup[];
-  selected: readonly ListingTag[];
-  onToggle: (tag: ListingTag) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      {groups.map((group) => (
-        <TagChoiceSection
-          key={group.title}
-          title={group.title}
-          tags={group.tags}
-          selected={selected}
-          dashedInactive
-          onToggle={(tag) => onToggle(tag)}
-        />
-      ))}
-    </div>
-  );
-}
-
 export function ScopeTagsBlock({
   heading,
   tags,
-  editing,
-  onStartEdit,
-  onSave,
-  onCancel,
-  editGroups,
-  draftTags,
-  onToggle,
-  hideEditButton = false,
   unselectedTags,
+  onToggle,
 }: {
   heading: string;
   tags: readonly ListingTag[];
-  editing: boolean;
-  onStartEdit: () => void;
-  onSave: () => void;
-  onCancel: () => void;
-  editGroups: readonly ListingTagGroup[];
-  draftTags: readonly ListingTag[];
-  onToggle: (tag: ListingTag) => void;
-  hideEditButton?: boolean;
   unselectedTags?: readonly ListingTag[];
+  onToggle: (tag: ListingTag, currentlyActive: boolean) => void;
 }) {
   return (
     <div className="mt-4 border-t border-border pt-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{heading}</p>
-        {!editing && !hideEditButton ? (
-          <button
-            type="button"
-            onClick={onStartEdit}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-surface-elevated"
-          >
-            <Pencil className="size-3" aria-hidden />
-            Editar etiquetas
-          </button>
-        ) : null}
-      </div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{heading}</p>
       <div className="mt-2">
-        {editing ? (
-          <InlineFieldEditor label="Selecciona las etiquetas" onSave={onSave} onCancel={onCancel}>
-            <TagGroupsEditor groups={editGroups} selected={draftTags} onToggle={onToggle} />
-          </InlineFieldEditor>
-        ) : (
-          <ListingTagChips tags={tags} unselectedTags={unselectedTags} />
-        )}
+        <ListingTagChips tags={tags} unselectedTags={unselectedTags} onToggle={onToggle} />
       </div>
     </div>
   );
