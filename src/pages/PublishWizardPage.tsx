@@ -206,8 +206,6 @@ function formatAutosaveTime(ts: number | null): string | null {
 /** Idle pause before server autosave — long enough that typing/toggles don't flash the chip. */
 const WIZARD_AUTOSAVE_DEBOUNCE_MS = 7000;
 const WIZARD_AUTOSAVE_RING_MS = 1000;
-/** Ring animation at most this often; time label still updates on each dirty save. */
-const WIZARD_AUTOSAVE_INDICATOR_MIN_MS = 30_000;
 
 /** Stable content fingerprint so no-op / post-sync draft writes do not re-hit the API. */
 function wizardAutosaveSignature(d: Draft): string {
@@ -218,19 +216,22 @@ function WizardAutosaveIndicator({
   lastSavedAt,
   flashKey,
   showRing,
+  saving,
 }: {
   lastSavedAt: number | null;
   flashKey: number;
   showRing: boolean;
+  saving: boolean;
 }) {
   const timeLabel = formatAutosaveTime(lastSavedAt);
   if (!timeLabel) return null;
+  const ringOn = saving || showRing;
   return (
     <div className="pointer-events-none fixed right-4 top-[72px] z-50" aria-live="polite">
       <div className="relative inline-flex rounded-full">
-        {showRing ? (
+        {ringOn ? (
           <svg
-            key={flashKey}
+            key={saving ? "saving" : flashKey}
             className="pointer-events-none absolute inset-0 h-full w-full"
             viewBox="0 0 200 32"
             preserveAspectRatio="none"
@@ -248,13 +249,17 @@ function WizardAutosaveIndicator({
               strokeWidth="2"
               pathLength="1"
               strokeDasharray="0.16 0.84"
-              className="animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
+              className={
+                saving
+                  ? "animate-[autosave-ring-travel_1s_linear_infinite]"
+                  : "animate-[autosave-ring-travel_1s_ease-in-out_forwards]"
+              }
             />
           </svg>
         ) : null}
         <div className="relative z-10 m-[2px] inline-flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-medium text-body shadow-sm">
           <CloudCheck className="size-3.5" aria-hidden />
-          Auto-guardado {timeLabel}
+          {saving ? "Guardando…" : `Auto-guardado ${timeLabel}`}
         </div>
       </div>
     </div>
@@ -1103,7 +1108,6 @@ export function PublishWizardPage() {
   const autosaveGenerationRef = useRef(0);
   const autosaveRingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedSignatureRef = useRef<string | null>(null);
-  const lastIndicatorFlashAtRef = useRef(0);
 
   function resetAutosaveUiState() {
     setAutosaveNote("idle");
@@ -1111,7 +1115,16 @@ export function PublishWizardPage() {
     setAutosaveFlashKey(0);
     setShowAutosaveRing(false);
     lastSavedSignatureRef.current = null;
-    lastIndicatorFlashAtRef.current = 0;
+  }
+
+  function playAutosaveRing() {
+    setAutosaveFlashKey((k) => k + 1);
+    setShowAutosaveRing(true);
+    if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
+    autosaveRingTimerRef.current = window.setTimeout(() => {
+      setShowAutosaveRing(false);
+      autosaveRingTimerRef.current = null;
+    }, WIZARD_AUTOSAVE_RING_MS);
   }
 
   function markAutosaveBaseline(d: Draft, opts?: { touchUi?: boolean }) {
@@ -1679,20 +1692,7 @@ export function PublishWizardPage() {
         }
         setAutosaveNote("saved");
         setLastAutosavedAt(Date.now());
-        const now = Date.now();
-        const shouldFlash =
-          lastIndicatorFlashAtRef.current === 0 ||
-          now - lastIndicatorFlashAtRef.current >= WIZARD_AUTOSAVE_INDICATOR_MIN_MS;
-        if (shouldFlash) {
-          lastIndicatorFlashAtRef.current = now;
-          setAutosaveFlashKey((k) => k + 1);
-          setShowAutosaveRing(true);
-          if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
-          autosaveRingTimerRef.current = window.setTimeout(() => {
-            setShowAutosaveRing(false);
-            autosaveRingTimerRef.current = null;
-          }, WIZARD_AUTOSAVE_RING_MS);
-        }
+        playAutosaveRing();
         window.setTimeout(() => {
           setAutosaveNote((n) => (n === "saved" ? "idle" : n));
         }, 2000);
@@ -1719,20 +1719,7 @@ export function PublishWizardPage() {
 
       setAutosaveNote("saved");
       setLastAutosavedAt(Date.now());
-      const now = Date.now();
-      const shouldFlash =
-        lastIndicatorFlashAtRef.current === 0 ||
-        now - lastIndicatorFlashAtRef.current >= WIZARD_AUTOSAVE_INDICATOR_MIN_MS;
-      if (shouldFlash) {
-        lastIndicatorFlashAtRef.current = now;
-        setAutosaveFlashKey((k) => k + 1);
-        setShowAutosaveRing(true);
-        if (autosaveRingTimerRef.current) clearTimeout(autosaveRingTimerRef.current);
-        autosaveRingTimerRef.current = window.setTimeout(() => {
-          setShowAutosaveRing(false);
-          autosaveRingTimerRef.current = null;
-        }, WIZARD_AUTOSAVE_RING_MS);
-      }
+      playAutosaveRing();
       window.setTimeout(() => {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
@@ -3489,6 +3476,7 @@ export function PublishWizardPage() {
             lastSavedAt={lastAutosavedAt}
             flashKey={autosaveFlashKey}
             showRing={showAutosaveRing}
+            saving={autosaveNote === "saving"}
           />
         ) : null}
         {myListingsRestorePath ? (
@@ -3576,6 +3564,7 @@ export function PublishWizardPage() {
           lastSavedAt={lastAutosavedAt}
           flashKey={autosaveFlashKey}
           showRing={showAutosaveRing}
+          saving={autosaveNote === "saving"}
         />
       ) : null}
       {myListingsRestorePath ? (
