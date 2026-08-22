@@ -37,7 +37,17 @@ import { ROOM_SINGLE_FLOW_PHOTO_HINT, roomsAvailableFromIdealTags } from "@/lib/
 import {
   collectRoomFieldIssueDetails,
   PUBLISH_PREVIEW_RENT_INPUT_ID,
+  PUBLISH_ROOM_MODAL_AGE_MAX_ID,
+  PUBLISH_ROOM_MODAL_AGE_MIN_ID,
+  PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID,
+  PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID,
   PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID,
+  PUBLISH_ROOM_MODAL_DIMENSION_ID,
+  PUBLISH_ROOM_MODAL_GENDER_ID,
+  PUBLISH_ROOM_MODAL_LODGING_ID,
+  PUBLISH_ROOM_MODAL_STAY_ID,
+  roomIssueFocusElementId,
+  type RoomFieldIssue,
   type RoomIssueSection,
 } from "@/lib/publishWizard/roomWizardValidation";
 import { RoomLocalIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
@@ -71,6 +81,8 @@ type Props = {
   publishBlockedReason?: string | null;
   actionErr?: string | null;
   initialEditingPhotos?: boolean;
+  /** When set (e.g. jumped from a missing-field bullet), focus that control after open. */
+  initialFocusIssueId?: string | null;
   onSave: (updated: RoomDraft) => void;
   onClose: () => void;
   onPhotoPickerOpen?: () => void;
@@ -180,6 +192,7 @@ export function EditableRoomModal({
   publishBlockedReason = null,
   actionErr = null,
   initialEditingPhotos = false,
+  initialFocusIssueId = null,
   onSave,
   onClose,
   onPhotoPickerOpen,
@@ -221,7 +234,27 @@ export function EditableRoomModal({
   const galleryUrls = draftImagesToUrls(draftRoomEditorImages(draft, roomIndex, localRoom.photos));
   const detailsRoom = detailsDraft ?? localRoom;
 
-  const applyIssueFocus = (sections: readonly RoomIssueSection[]) => {
+  const applyIssueFocus = (issue: RoomFieldIssue) => {
+    if (issue.section === "header") {
+      setHeaderDraft({
+        rentMxn: localRoom.rentMxn,
+        depositMxn: localRoom.depositMxn,
+      });
+      setEditingHeader(true);
+    }
+    if (issue.section === "details") {
+      setDetailsDraft(cloneRoomDraft(localRoom));
+      setEditingDetails(true);
+    }
+    const targetId = roomIssueFocusElementId(issue);
+    window.setTimeout(() => {
+      const el = document.getElementById(targetId);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el instanceof HTMLElement) el.focus();
+    }, 80);
+  };
+
+  const applyIssueFocusSections = (sections: readonly RoomIssueSection[]) => {
     if (sections.includes("header")) {
       setHeaderDraft({
         rentMxn: localRoom.rentMxn,
@@ -243,8 +276,12 @@ export function EditableRoomModal({
   useEffect(() => {
     const initial = collectRoomFieldIssueDetails(draft, room);
     if (!initial.length) return;
-    const sections = [...new Set(initial.map((issue) => issue.section))];
-    applyIssueFocus(sections);
+    const preferred =
+      (initialFocusIssueId
+        ? initial.find((issue) => issue.id === initialFocusIssueId)
+        : undefined) ?? initial[0];
+    if (preferred) applyIssueFocus(preferred);
+    else applyIssueFocusSections([...new Set(initial.map((issue) => issue.section))]);
     // Only on mount: highlight whatever is already missing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -306,8 +343,7 @@ export function EditableRoomModal({
     const issues = collectRoomFieldIssueDetails(draft, next);
     if (issues.length) {
       setShowIssues(true);
-      applyIssueFocus([...new Set(issues.map((issue) => issue.section))]);
-      panelRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      applyIssueFocus(issues[0]!);
       return;
     }
     onSave(next);
@@ -497,13 +533,14 @@ export function EditableRoomModal({
                           }`}
                         />
                       </label>
-                      <label className="block text-sm font-medium text-body">
-                        Depósito (MXN)
-                        <input
-                          type="number"
-                          min={0}
-                          step={100}
-                          value={headerDraft.depositMxn === 0 ? "" : headerDraft.depositMxn}
+                        <label className="block text-sm font-medium text-body">
+                          Depósito (MXN)
+                          <input
+                            id={PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID}
+                            type="number"
+                            min={0}
+                            step={100}
+                            value={headerDraft.depositMxn === 0 ? "" : headerDraft.depositMxn}
                           onChange={(e) =>
                             setHeaderDraft((h) => ({
                               ...h,
@@ -603,6 +640,7 @@ export function EditableRoomModal({
                         <label className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Tipo de espacio</WizardPairedFieldLabel>
                           <select
+                            id={PUBLISH_ROOM_MODAL_LODGING_ID}
                             value={detailsRoom.lodgingType}
                             onChange={(e) =>
                               setDetailsDraft((r) =>
@@ -619,6 +657,7 @@ export function EditableRoomModal({
                         <label className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Tamaño de la recámara</WizardPairedFieldLabel>
                           <select
+                            id={PUBLISH_ROOM_MODAL_DIMENSION_ID}
                             value={detailsRoom.roomDimension}
                             onChange={(e) =>
                               setDetailsDraft((r) =>
@@ -649,6 +688,7 @@ export function EditableRoomModal({
                         <label className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Disponible desde</WizardPairedFieldLabel>
                           <input
+                            id={PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID}
                             type="date"
                             value={detailsRoom.availableFrom}
                             onChange={(e) =>
@@ -657,7 +697,7 @@ export function EditableRoomModal({
                             className={WIZARD_FIELD_CONTROL_CLASS}
                           />
                         </label>
-                        <div className="block text-sm font-medium text-body">
+                        <div id={PUBLISH_ROOM_MODAL_STAY_ID} className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Estancia mín. (meses)</WizardPairedFieldLabel>
                           <WizardNumberStepper
                             editableCenter
@@ -677,6 +717,7 @@ export function EditableRoomModal({
                             {ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT}
                           </WizardPairedFieldLabel>
                           <select
+                            id={PUBLISH_ROOM_MODAL_GENDER_ID}
                             value={detailsRoom.roommateGenderPref}
                             onChange={(e) =>
                               setDetailsDraft((r) =>
@@ -692,7 +733,7 @@ export function EditableRoomModal({
                             <option value="male">Hombres</option>
                           </select>
                         </label>
-                        <div className="block text-sm font-medium text-body">
+                        <div id={PUBLISH_ROOM_MODAL_AGE_MIN_ID} className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Edad mín.</WizardPairedFieldLabel>
                           <WizardNumberStepper
                             editableCenter
@@ -709,7 +750,7 @@ export function EditableRoomModal({
                             incrementLabel="Mayor edad mínima"
                           />
                         </div>
-                        <div className="block text-sm font-medium text-body">
+                        <div id={PUBLISH_ROOM_MODAL_AGE_MAX_ID} className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Edad máx.</WizardPairedFieldLabel>
                           <WizardNumberStepper
                             editableCenter
@@ -772,7 +813,11 @@ export function EditableRoomModal({
 
         <div className="shrink-0 space-y-2 border-t border-border bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {showIssues && localIssues.length ? (
-            <RoomLocalIssuesCallout draft={draft} room={localRoom} />
+            <RoomLocalIssuesCallout
+              draft={draft}
+              room={flushPendingEdits(localRoom)}
+              onFocusIssue={applyIssueFocus}
+            />
           ) : publishBlockedReason ? (
             <p className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-medium text-warning-fg" role="status">
               {publishBlockedReason}

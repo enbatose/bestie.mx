@@ -252,6 +252,47 @@ export const PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID = "publish-preview-room-d
 export const PUBLISH_PREVIEW_PROPERTY_SUMMARY_FIELD_ID = "publish-preview-property-summary-field";
 export const PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID = "publish-room-modal-description-field";
 export const PUBLISH_PREVIEW_RENT_INPUT_ID = "publish-preview-rent";
+export const PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID = "publish-room-modal-deposit";
+export const PUBLISH_ROOM_MODAL_LODGING_ID = "publish-room-modal-lodging";
+export const PUBLISH_ROOM_MODAL_DIMENSION_ID = "publish-room-modal-dimension";
+export const PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID = "publish-room-modal-available-from";
+export const PUBLISH_ROOM_MODAL_STAY_ID = "publish-room-modal-stay";
+export const PUBLISH_ROOM_MODAL_GENDER_ID = "publish-room-modal-gender";
+export const PUBLISH_ROOM_MODAL_AGE_MIN_ID = "publish-room-modal-age-min";
+export const PUBLISH_ROOM_MODAL_AGE_MAX_ID = "publish-room-modal-age-max";
+
+/** DOM id of the control a room-issue bullet should scroll/focus to. */
+export function roomIssueFocusElementId(issue: Pick<RoomFieldIssue, "id" | "section">): string {
+  switch (issue.id) {
+    case "rent":
+      return PUBLISH_PREVIEW_RENT_INPUT_ID;
+    case "deposit":
+      return PUBLISH_ROOM_MODAL_DEPOSIT_INPUT_ID;
+    case "lodging":
+      return PUBLISH_ROOM_MODAL_LODGING_ID;
+    case "dimension":
+      return PUBLISH_ROOM_MODAL_DIMENSION_ID;
+    case "availableFrom":
+      return PUBLISH_ROOM_MODAL_AVAILABLE_FROM_ID;
+    case "stay":
+      return PUBLISH_ROOM_MODAL_STAY_ID;
+    case "gender":
+      return PUBLISH_ROOM_MODAL_GENDER_ID;
+    case "age":
+    case "age-order":
+      return PUBLISH_ROOM_MODAL_AGE_MIN_ID;
+    case "summary":
+    case "summary-short":
+    case "summary-long":
+      return PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID;
+    default:
+      if (issue.section === "description" || issue.section === "tags") {
+        return PUBLISH_ROOM_MODAL_DESCRIPTION_FIELD_ID;
+      }
+      if (issue.section === "header") return PUBLISH_PREVIEW_RENT_INPUT_ID;
+      return PUBLISH_ROOM_MODAL_LODGING_ID;
+  }
+}
 
 /** First missing section to open on the inline preview (single-room posts). */
 export function firstStandaloneRoomFixSection(d: Draft, room: RoomDraft): RoomIssueSection {

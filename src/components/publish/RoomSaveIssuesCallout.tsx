@@ -4,14 +4,33 @@ import {
   roomSaveIssuesHeading,
   roomSaveIssuesOpenLabel,
   roomsWithFieldIssues,
+  type RoomFieldIssue,
 } from "@/lib/publishWizard/roomWizardValidation";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 
 type Props = {
   draft: Draft;
   prefix: string;
-  onOpenRoom: (index: number) => void;
+  onOpenRoom: (index: number, issue?: RoomFieldIssue) => void;
 };
+
+function IssueJumpButton({
+  issue,
+  onClick,
+}: {
+  issue: RoomFieldIssue;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left font-medium underline decoration-warning-fg/50 underline-offset-2 transition hover:decoration-warning-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      {issue.message}
+    </button>
+  );
+}
 
 export function RoomSaveIssuesCallout({ draft, prefix, onOpenRoom }: Props) {
   const rows = roomsWithFieldIssues(draft);
@@ -41,12 +60,14 @@ export function RoomSaveIssuesCallout({ draft, prefix, onOpenRoom }: Props) {
               }`}
             >
               {row.issues.map((issue) => (
-                <li key={issue.id}>{issue.message}</li>
+                <li key={issue.id}>
+                  <IssueJumpButton issue={issue} onClick={() => onOpenRoom(row.index, issue)} />
+                </li>
               ))}
             </ul>
             <button
               type="button"
-              onClick={() => onOpenRoom(row.index)}
+              onClick={() => onOpenRoom(row.index, row.issues[0])}
               className="mt-2.5 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg transition hover:brightness-110 sm:w-auto"
             >
               {roomSaveIssuesOpenLabel(draft, row.label)}
@@ -61,9 +82,11 @@ export function RoomSaveIssuesCallout({ draft, prefix, onOpenRoom }: Props) {
 export function RoomLocalIssuesCallout({
   draft,
   room,
+  onFocusIssue,
 }: {
   draft: Draft;
   room: RoomDraft;
+  onFocusIssue: (issue: RoomFieldIssue) => void;
 }) {
   const issues = collectRoomFieldIssueDetails(draft, room);
   if (!issues.length) return null;
@@ -79,7 +102,9 @@ export function RoomLocalIssuesCallout({
       </p>
       <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-relaxed">
         {issues.map((issue) => (
-          <li key={issue.id}>{issue.message}</li>
+          <li key={issue.id}>
+            <IssueJumpButton issue={issue} onClick={() => onFocusIssue(issue)} />
+          </li>
         ))}
       </ul>
     </div>

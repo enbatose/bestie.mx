@@ -132,6 +132,8 @@ type Props = {
   publishAfterRoomFix?: boolean;
   onPublishAfterRoomFixChange?: (next: boolean) => void;
   jumpToRoomIndex?: number | null;
+  /** Optional issue id to focus after opening the jumped room. */
+  jumpToRoomIssueId?: string | null;
   onJumpToRoomHandled?: () => void;
   onRoomModalDismiss?: () => void;
   confirmLabel?: string;
@@ -371,6 +373,7 @@ export function EditableListingPreview({
   publishAfterRoomFix = false,
   onPublishAfterRoomFixChange,
   jumpToRoomIndex = null,
+  jumpToRoomIssueId = null,
   onJumpToRoomHandled,
   onRoomModalDismiss,
   confirmLabel,
@@ -416,6 +419,7 @@ export function EditableListingPreview({
     if (isPropertyPreview && initialEditingPhotos) return roomIndex;
     return null;
   });
+  const [roomModalFocusIssueId, setRoomModalFocusIssueId] = useState<string | null>(null);
 
   const setPhotosEditing = (next: boolean) => {
     setEditingPhotos(next);
@@ -447,7 +451,11 @@ export function EditableListingPreview({
 
     // Single-room posts edit inline on the preview — no recámara modal.
     if (isStandaloneRoomPost(draft)) {
-      const section = firstStandaloneRoomFixSection(draft, targetRoom);
+      const preferred =
+        (jumpToRoomIssueId
+          ? collectRoomFieldIssueDetails(draft, targetRoom).find((i) => i.id === jumpToRoomIssueId)
+          : undefined) ?? collectRoomFieldIssueDetails(draft, targetRoom)[0];
+      const section = preferred?.section ?? firstStandaloneRoomFixSection(draft, targetRoom);
       if (section === "header") {
         setHeaderDraft({
           neighborhood: draft.neighborhood,
@@ -460,30 +468,28 @@ export function EditableListingPreview({
       } else if (section === "details") {
         setRoomDetailsDraft(cloneRoomDraft(targetRoom));
         setEditingRoomDetails(true);
-      } else if (section === "description") {
+      } else if (section === "description" || section === "tags") {
         setRoomSummaryDraft(targetRoom.summary);
       }
       onJumpToRoomHandled?.();
       const anchorId = standaloneRoomFixAnchorId(section);
-      const focusRent = section === "header";
-      const focusDescription = section === "description" || section === "tags";
       window.setTimeout(() => {
         document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-        if (focusRent) {
+        if (section === "header") {
           document.getElementById(PUBLISH_PREVIEW_RENT_INPUT_ID)?.focus();
-        }
-        if (focusDescription) {
+        } else if (section === "description" || section === "tags") {
           document.getElementById(PUBLISH_PREVIEW_ROOM_DESCRIPTION_FIELD_ID)?.focus();
         }
       }, 50);
       return;
     }
 
+    setRoomModalFocusIssueId(jumpToRoomIssueId);
     setEditingRoomModalIndex(jumpToRoomIndex);
     onJumpToRoomHandled?.();
     // draft is read from the click render; jumpToRoomIndex is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jumpToRoomIndex, draft.rooms.length, onJumpToRoomHandled, onRoomIndexChange]);
+  }, [jumpToRoomIndex, jumpToRoomIssueId, draft.rooms.length, onJumpToRoomHandled, onRoomIndexChange]);
 
   const galleryUrls = useMemo(() => {
     if (isPropertyPreview || isPropertyScope) {
@@ -730,6 +736,7 @@ export function EditableListingPreview({
 
   const openRoomModal = (index: number) => {
     onRoomIndexChange?.(index);
+    setRoomModalFocusIssueId(null);
     setEditingRoomModalIndex(index);
   };
 
@@ -760,7 +767,7 @@ export function EditableListingPreview({
   const roomModal =
     editingRoomModalIndex !== null && draft.rooms[editingRoomModalIndex] ? (
       <EditableRoomModal
-        key={draft.rooms[editingRoomModalIndex]?.id ?? editingRoomModalIndex}
+        key={`${draft.rooms[editingRoomModalIndex]?.id ?? editingRoomModalIndex}-${roomModalFocusIssueId ?? "open"}`}
         room={draft.rooms[editingRoomModalIndex]}
         roomIndex={editingRoomModalIndex}
         draft={draft}
@@ -782,6 +789,7 @@ export function EditableListingPreview({
         }
         actionErr={isRoomOfProperty ? actionErr : null}
         initialEditingPhotos={initialEditingPhotos && editingRoomModalIndex === roomIndex}
+        initialFocusIssueId={roomModalFocusIssueId}
         onSave={(updated) => {
           const localIssues = collectRoomFieldIssueDetails(draft, updated);
           if (localIssues.length) return;
@@ -807,20 +815,24 @@ export function EditableListingPreview({
           if (publishAfterRoomFix) {
             const nextIncomplete = firstRoomIndexWithIssues(nextDraft);
             if (nextIncomplete >= 0) {
+              setRoomModalFocusIssueId(null);
               setEditingRoomModalIndex(nextIncomplete);
               onRoomIndexChange?.(nextIncomplete);
               return;
             }
             setEditingRoomModalIndex(null);
+            setRoomModalFocusIssueId(null);
             onPublishAfterRoomFixChange?.(false);
             onPublish?.();
             return;
           }
 
           setEditingRoomModalIndex(null);
+          setRoomModalFocusIssueId(null);
         }}
         onClose={() => {
           setEditingRoomModalIndex(null);
+          setRoomModalFocusIssueId(null);
           onPublishAfterRoomFixChange?.(false);
           if (isRoomOfProperty) onRoomModalDismiss?.();
         }}

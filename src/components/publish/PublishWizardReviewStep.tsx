@@ -83,6 +83,7 @@ export function PublishWizardReviewStep({
 }: Props) {
   const navigate = useNavigate();
   const [jumpToRoomIndex, setJumpToRoomIndex] = useState<number | null>(null);
+  const [jumpToRoomIssueId, setJumpToRoomIssueId] = useState<string | null>(null);
   const [publishAfterRoomFix, setPublishAfterRoomFix] = useState(false);
   const isLiveEdit = liveEdit != null;
   const editScope = liveEdit?.scope ?? null;
@@ -121,8 +122,13 @@ export function PublishWizardReviewStep({
   const hasRoomFieldIssues = firstIncompleteRoom >= 0;
   const nonRoomBlock = Boolean(publishBlockedReason) && !hasRoomFieldIssues;
 
-  const openIncompleteRoom = (index: number, thenPublish: boolean) => {
+  const openIncompleteRoom = (
+    index: number,
+    thenPublish: boolean,
+    issueId?: string | null,
+  ) => {
     setPublishAfterRoomFix(isStandaloneRoomPost(draft) ? false : thenPublish);
+    setJumpToRoomIssueId(issueId ?? null);
     setJumpToRoomIndex(index);
   };
 
@@ -289,7 +295,11 @@ export function PublishWizardReviewStep({
         publishAfterRoomFix={publishAfterRoomFix}
         onPublishAfterRoomFixChange={setPublishAfterRoomFix}
         jumpToRoomIndex={jumpToRoomIndex}
-        onJumpToRoomHandled={() => setJumpToRoomIndex(null)}
+        jumpToRoomIssueId={jumpToRoomIssueId}
+        onJumpToRoomHandled={() => {
+          setJumpToRoomIndex(null);
+          setJumpToRoomIssueId(null);
+        }}
         onRoomModalDismiss={
           cancelTo
             ? () => navigate(cancelTo)
@@ -319,7 +329,7 @@ export function PublishWizardReviewStep({
             <RoomSaveIssuesCallout
               draft={draft}
               prefix={isLiveEdit ? "Para guardar," : "Para publicar,"}
-              onOpenRoom={(index) => openIncompleteRoom(index, true)}
+              onOpenRoom={(index, issue) => openIncompleteRoom(index, true, issue?.id)}
             />
           </div>
         ) : publishBlockedReason && !rentOnlyBlock ? (
