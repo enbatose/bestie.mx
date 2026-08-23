@@ -32,6 +32,7 @@ import {
   type MyListingsTab,
 } from "@/lib/myListingsReturn";
 import { authLinkPublisher, authMe, type AuthMe } from "@/lib/authApi";
+import { joinPublisherReportThread } from "@/lib/reportsApi";
 import { track } from "@/lib/analytics";
 import { roomDisplayName } from "@/lib/roomDisplay";
 import type { ListingStatus, PropertyListing } from "@/types/listing";
@@ -84,9 +85,11 @@ function groupByStatus(groups: readonly PropertyGroup[]): Record<ListingStatus, 
     draft: [],
     paused: [],
     archived: [],
+    pending_review: [],
   };
   for (const g of groups) {
-    map[g.list[0]?.propertyStatus ?? "published"].push(g);
+    const st = g.list[0]?.propertyStatus ?? "published";
+    map[st].push(g);
   }
   return map;
 }
@@ -98,6 +101,7 @@ function countByStatus(groups: readonly PropertyGroup[]): Record<ListingStatus, 
     draft: byStatus.draft.length,
     paused: byStatus.paused.length,
     archived: byStatus.archived.length,
+    pending_review: byStatus.pending_review.length,
   };
 }
 
@@ -224,8 +228,11 @@ export function MyListingsPage() {
   const tabCounts = useMemo(
     () => ({
       archived: groupsByStatus.archived.length,
-      // Paused stay in Publicados (same sort order); only the card shows paused state.
-      published: groupsByStatus.published.length + groupsByStatus.paused.length,
+      // Paused + pending review stay in Publicados; only the card shows state.
+      published:
+        groupsByStatus.published.length +
+        groupsByStatus.paused.length +
+        groupsByStatus.pending_review.length,
       draft: groupsByStatus.draft.length,
     }),
     [groupsByStatus],
@@ -241,6 +248,10 @@ export function MyListingsPage() {
     if (counts.published) parts.push(`${counts.published} publicado${counts.published === 1 ? "" : "s"}`);
     if (counts.draft) parts.push(`${counts.draft} borrador${counts.draft === 1 ? "" : "es"}`);
     if (counts.paused) parts.push(`${counts.paused} pausado${counts.paused === 1 ? "" : "s"}`);
+    if (counts.pending_review)
+      parts.push(
+        `${counts.pending_review} en revisión`,
+      );
     if (counts.archived) parts.push(`${counts.archived} archivado${counts.archived === 1 ? "" : "s"}`);
     return parts;
   }, [allCounts]);
@@ -729,6 +740,47 @@ export function MyListingsPage() {
               }
               onPropertyActive={(next) => handlePropertyActive(propertyId, list, next)}
               onPropertyStatus={(status) => void setPropertyStatus(propertyId, status)}
+              onSubmitForReview={() => {
+                void (async () => {
+                  setActionPropertyId(propertyId);
+                  setErr(null);
+                  clearPropertyError(propertyId);
+                  try {
+                    await updateProperty(propertyId, { status: "pending_review" });
+                    await load();
+                    setFlash({
+                      text: "Enviamos tu anuncio a revisión. Te avisaremos cuando Bestie lo apruebe.",
+                    });
+                  } catch (e) {
+                    setPropertyError(propertyId, e, "No se pudo enviar a revisión.");
+                  } finally {
+                    setActionPropertyId(null);
+                  }
+                })();
+              }}
+              onContactSupportAboutPause={() => {
+                void (async () => {
+                  setActionPropertyId(propertyId);
+                  setErr(null);
+                  clearPropertyError(propertyId);
+                  try {
+                    const { conversationId } = await joinPublisherReportThread({
+                      propertyId,
+                      roomId: head.propertyPostMode === "room" ? head.id : null,
+                      targetType: head.propertyPostMode === "room" ? "room" : "property",
+                    });
+                    navigate(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+                  } catch (e) {
+                    setPropertyError(
+                      propertyId,
+                      e,
+                      "No encontramos el hilo de reporte. Escribe a contacto@bestie.mx.",
+                    );
+                  } finally {
+                    setActionPropertyId(null);
+                  }
+                })();
+              }}
               onArchiveProperty={() =>
                 setPendingConfirm({ kind: "archive-property", id: propertyId })
               }
@@ -752,7 +804,7 @@ export function MyListingsPage() {
     resolvedTab === "published"
       ? matchedGroups.filter((g) => {
           const st = g.list[0]?.propertyStatus ?? "published";
-          return st === "published" || st === "paused";
+          return st === "published" || st === "paused" || st === "pending_review";
         })
       : groupsByStatus[resolvedTab];
 

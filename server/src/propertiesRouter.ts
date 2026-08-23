@@ -50,9 +50,16 @@ import type {
   RoommateGenderPref,
 } from "./types.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
+import { isUserPublisherBlocked, submitPropertyForReview } from "./listingReports.js";
 
 function isListingStatus(s: string): s is ListingStatus {
-  return s === "draft" || s === "published" || s === "paused" || s === "archived";
+  return (
+    s === "draft" ||
+    s === "published" ||
+    s === "paused" ||
+    s === "archived" ||
+    s === "pending_review"
+  );
 }
 
 function isRoommateGenderPref(s: string): s is RoommateGenderPref {
@@ -302,7 +309,8 @@ function canTransitionProperty(from: ListingStatus, to: ListingStatus): boolean 
   if (from === to) return true;
   if (from === "draft") return to === "published";
   if (from === "published") return to === "paused" || to === "archived";
-  if (from === "paused") return to === "published" || to === "archived";
+  if (from === "paused") return to === "published" || to === "archived" || to === "pending_review";
+  if (from === "pending_review") return to === "published" || to === "paused";
   return false;
 }
 
@@ -1365,9 +1373,45 @@ export function propertiesRouter(db: DatabaseSync) {
       nextStatus,
     );
 
+    const curPausedBy =
+      prop.paused_by != null && String(prop.paused_by).trim() ? String(prop.paused_by).trim() : null;
+    if (!actingAsAdmin && patch.status != null) {
+      const uid = readAuthUserId(req);
+      if (uid && isUserPublisherBlocked(db, uid)) {
+        res.status(403).json({ error: "publisher_blocked" });
+        return;
+      }
+      if (curPausedBy === "admin" && patch.status === "published") {
+        res.status(403).json({
+          error: "admin_pause_locked",
+          message: "Este anuncio fue pausado por Bestie. Envíalo a revisión o contacta soporte.",
+        });
+        return;
+      }
+      if (patch.status === "pending_review" && curStatus === "paused" && curPausedBy === "admin") {
+        submitPropertyForReview(db, propertyId);
+        const updatedEarly = db.prepare("SELECT * FROM properties WHERE id = ?").get(propertyId) as Record<
+          string,
+          unknown
+        >;
+        res.json(rowToProperty(updatedEarly));
+        return;
+      }
+    }
+
+    let nextPausedBy: string | null = curPausedBy;
+    if (actingAsAdmin) {
+      if (nextStatus === "paused") nextPausedBy = "admin";
+      else if (nextStatus === "published") nextPausedBy = null;
+    } else if (patch.status != null) {
+      if (nextStatus === "paused" && curStatus === "published") nextPausedBy = "publisher";
+      else if (nextStatus === "published" && curPausedBy === "publisher") nextPausedBy = null;
+    }
+
     db.prepare(
       `UPDATE properties SET
         status = ?,
+        paused_by = ?,
         post_mode = ?,
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
@@ -1378,6 +1422,7 @@ export function propertiesRouter(db: DatabaseSync) {
       WHERE id = ?`,
     ).run(
       nextStatus,
+      nextPausedBy,
       nextMode,
       nextTitle,
       nextSummary,
@@ -1410,15 +1455,20 @@ export function propertiesRouter(db: DatabaseSync) {
 
     if (patch.status === "paused" || patch.status === "archived") {
       const rStatus = patch.status === "archived" ? "archived" : "paused";
-      db.prepare("UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status != 'archived'").run(
-        rStatus,
-        propertyId,
-      );
+      const rPausedBy = !actingAsAdmin && patch.status === "paused" ? "publisher" : nextPausedBy;
+      db.prepare(
+        "UPDATE rooms SET status = ?, paused_by = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status != 'archived'",
+      ).run(rStatus, rPausedBy, propertyId);
     }
     if (patch.status === "published" && curStatus === "paused") {
-      db.prepare("UPDATE rooms SET status = 'published', updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status = 'paused'").run(
-        propertyId,
-      );
+      db.prepare(
+        "UPDATE rooms SET status = 'published', paused_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status = 'paused'",
+      ).run(propertyId);
+    }
+    if (patch.status === "pending_review") {
+      db.prepare(
+        `UPDATE rooms SET status = 'pending_review', updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status IN ('paused', 'pending_review')`,
+      ).run(propertyId);
     }
     if (
       patch.status === "published" &&

@@ -1,6 +1,6 @@
 export type RoommateGenderPref = "any" | "female" | "male";
 
-export type ListingStatus = "draft" | "published" | "paused" | "archived";
+export type ListingStatus = "draft" | "published" | "paused" | "archived" | "pending_review";
 
 export type LodgingType = "whole_home" | "private_room" | "shared_room";
 
@@ -159,6 +159,8 @@ export type PropertyListing = {
   propertyTitle?: string;
   /** Parent property status when returned from my-listings / joins. */
   propertyStatus?: ListingStatus;
+  /** Who paused the parent property (`admin` locks publisher unpause). */
+  propertyPausedBy?: "admin" | "publisher" | null;
   /** Publishing strategy of the parent property. */
   propertyPostMode?: "room" | "property";
   title: string;

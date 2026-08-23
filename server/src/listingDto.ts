@@ -19,7 +19,15 @@ function imageUrlsFromCell(raw: unknown): string[] {
 
 function listingStatusFromRow(v: unknown): ListingStatus {
   const s = String(v ?? "published");
-  if (s === "draft" || s === "published" || s === "paused" || s === "archived") return s;
+  if (
+    s === "draft" ||
+    s === "published" ||
+    s === "paused" ||
+    s === "archived" ||
+    s === "pending_review"
+  ) {
+    return s;
+  }
   return "published";
 }
 
@@ -100,6 +108,12 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     propertyId: String(row.property_id),
     propertyTitle: propertyTitle.trim() || undefined,
     propertyStatus: listingStatusFromRow(row.property_status),
+    propertyPausedBy:
+      String(row.property_paused_by ?? "").trim() === "admin"
+        ? "admin"
+        : String(row.property_paused_by ?? "").trim() === "publisher"
+          ? "publisher"
+          : null,
     propertyPostMode: postMode,
     title: displayTitle,
     ...(trimmedRoomTitle ? { roomTitle: trimmedRoomTitle } : {}),
@@ -200,6 +214,7 @@ SELECT
   p.publisher_id AS publisher_id,
   p.property_kind AS property_kind,
   p.status AS property_status,
+  p.paused_by AS property_paused_by,
   p.bedrooms_total AS bedrooms_total,
   p.bathrooms AS bathrooms,
   p.show_whatsapp AS show_whatsapp,

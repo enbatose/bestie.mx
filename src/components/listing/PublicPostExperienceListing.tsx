@@ -1,5 +1,10 @@
 import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Flag } from "lucide-react";
+import { ReportModal } from "@/components/report/ReportModal";
+import { POST_REPORT_CATEGORIES } from "@/lib/reportCategories";
+import { reportListing, reportProperty } from "@/lib/reportsApi";
+import { propertyReferenceCode, roomReferenceCode } from "@/lib/listingReference";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
 import { PostExperienceContactSection } from "@/components/listing/postExperience/PostExperienceContactSection";
@@ -151,6 +156,31 @@ export function PublicPostExperienceListing({
   const [singleMessage, setSingleMessage] = useState(DEFAULT_SINGLE_MESSAGE);
   const [propertyMessage, setPropertyMessage] = useState(DEFAULT_PROPERTY_MESSAGE);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportPhoto, setReportPhoto] = useState<{ index: number; url: string } | null>(null);
+
+  const submitPostReport = useCallback(
+    async (input: { categories: string[]; detailText: string }) => {
+      const payload = {
+        categories: input.categories,
+        detailText: input.detailText || undefined,
+        photoUrl: reportPhoto?.url,
+        photoIndex: reportPhoto?.index,
+      };
+      if (isPropertyPost && !focusedRoomId) {
+        await reportProperty(propertyReferenceCode(share.propertyId), payload);
+      } else {
+        const roomId = focusedRoomId ?? listing.id;
+        await reportListing(roomReferenceCode(roomId), payload);
+      }
+    },
+    [focusedRoomId, isPropertyPost, listing.id, reportPhoto, share.propertyId],
+  );
+
+  const onReportPhoto = useCallback((index: number, url: string) => {
+    setReportPhoto({ index, url });
+    setReportOpen(true);
+  }, []);
 
   const property = propertyPack?.property;
   const allRooms = propertyPack ? publishedRooms(propertyPack.rooms) : [];
@@ -177,15 +207,45 @@ export function PublicPostExperienceListing({
   const menCount = property?.occupiedByMenCount ?? 0;
   const womenCount = property?.occupiedByWomenCount ?? 0;
 
+  const reportButton = (
+    <button
+      type="button"
+      onClick={() => {
+        setReportPhoto(null);
+        setReportOpen(true);
+      }}
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+    >
+      <Flag className="size-4 text-error" aria-hidden />
+      Reportar anuncio
+    </button>
+  );
+
   const shareActions = (
-    <ListingShareActions
-      shareMsg={share.shareMsg}
-      onShareListing={share.onShareListing}
-      isPropertyPost={share.isPropertyPost}
-      propertyId={share.propertyId}
-      roomShareLinks={share.roomShareLinks}
-      currentListingId={share.currentListingId}
-      onSharePath={share.onSharePath}
+    <div className="flex flex-wrap items-center gap-2">
+      <ListingShareActions
+        shareMsg={share.shareMsg}
+        onShareListing={share.onShareListing}
+        isPropertyPost={share.isPropertyPost}
+        propertyId={share.propertyId}
+        roomShareLinks={share.roomShareLinks}
+        currentListingId={share.currentListingId}
+        onSharePath={share.onSharePath}
+      />
+      {!listing.viewerIsOwner ? reportButton : null}
+    </div>
+  );
+
+  const reportModal = (
+    <ReportModal
+      open={reportOpen}
+      title={reportPhoto ? "Reportar foto" : "Reportar anuncio"}
+      categories={POST_REPORT_CATEGORIES}
+      onClose={() => {
+        setReportOpen(false);
+        setReportPhoto(null);
+      }}
+      onSubmit={submitPostReport}
     />
   );
 
@@ -210,7 +270,12 @@ export function PublicPostExperienceListing({
   }, []);
 
   const photosBlock = galleryUrls.length ? (
-    <ListingPhotoCarousel urls={galleryUrls} failedUrls={failedImageUrls} onImageError={onImageError} />
+    <ListingPhotoCarousel
+      urls={galleryUrls}
+      failedUrls={failedImageUrls}
+      onImageError={onImageError}
+      onReportPhoto={listing.viewerIsOwner ? undefined : onReportPhoto}
+    />
   ) : (
     <ListingPhotoPlaceholder />
   );
@@ -343,6 +408,7 @@ export function PublicPostExperienceListing({
             }
           />
         ) : null}
+        {reportModal}
       </section>
     );
   }
@@ -397,6 +463,7 @@ export function PublicPostExperienceListing({
         searchRestorePath={searchRestorePath}
         myListingsRestorePath={myListingsRestorePath}
       />
+      {reportModal}
     </section>
   );
 }

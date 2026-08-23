@@ -64,6 +64,13 @@ export type AdminPostRow = {
    * - `ai_user` — self-serve AI compose by a regular user
    */
   createOrigin: AdminPostCreateOrigin;
+  /** True when this property (or any of its rooms) has a post report thread. */
+  hasReport: boolean;
+  /** False when the report thread has not been marked reviewed yet. */
+  reportReviewed: boolean;
+  /** Admin Soporte conversation id for the report thread, if any. */
+  reportConversationId: string | null;
+  reportCount: number;
 };
 
 /** Resolve admin vs user AI origin from property + claim-token creator ids. */
@@ -185,10 +192,9 @@ export function listAdminPosts(
     : 25;
   const offset = Math.max(0, Math.floor(Number(opts.offset) || 0));
 
-  const statusFilter =
-    typeof opts.status === "string" && isAdminPostStatus(opts.status.trim())
-      ? opts.status.trim()
-      : null;
+  const statusRaw = typeof opts.status === "string" ? opts.status.trim() : "";
+  const reportFilter = statusRaw === "reported";
+  const statusFilter = isAdminPostStatus(statusRaw) ? statusRaw : null;
 
   const rawQ =
     typeof opts.q === "string"
@@ -206,7 +212,16 @@ export function listAdminPosts(
   const conditions: string[] = [];
   const params: (string | number)[] = [];
 
-  if (statusFilter) {
+  if (reportFilter) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM post_reports pr
+      WHERE pr.target_type IN ('room', 'property')
+        AND (
+          pr.target_property_id = p.id
+          OR pr.target_room_id IN (SELECT r2.id FROM rooms r2 WHERE r2.property_id = p.id)
+        )
+    )`);
+  } else if (statusFilter) {
     conditions.push(`p.status = ?`);
     params.push(statusFilter);
   }
@@ -389,7 +404,37 @@ export function listAdminPosts(
           JOIN rooms r_msg ON r_msg.id = c.listing_room_id
           WHERE r_msg.property_id = p.id
             AND COALESCE(c.kind, 'listing') = 'listing'
-        ) AS message_thread_count
+        ) AS message_thread_count,
+        (
+          SELECT pr.conversation_id FROM post_reports pr
+          WHERE pr.target_type IN ('room', 'property')
+            AND (
+              pr.target_property_id = p.id
+              OR pr.target_room_id IN (SELECT r2.id FROM rooms r2 WHERE r2.property_id = p.id)
+            )
+          ORDER BY pr.updated_at DESC
+          LIMIT 1
+        ) AS report_conversation_id,
+        (
+          SELECT COALESCE(SUM(pr.report_count), 0) FROM post_reports pr
+          WHERE pr.target_type IN ('room', 'property')
+            AND (
+              pr.target_property_id = p.id
+              OR pr.target_room_id IN (SELECT r2.id FROM rooms r2 WHERE r2.property_id = p.id)
+            )
+        ) AS report_count,
+        (
+          SELECT CASE
+            WHEN COUNT(*) = 0 THEN 0
+            WHEN SUM(CASE WHEN pr.reviewed_at IS NULL THEN 1 ELSE 0 END) > 0 THEN 0
+            ELSE 1
+          END FROM post_reports pr
+          WHERE pr.target_type IN ('room', 'property')
+            AND (
+              pr.target_property_id = p.id
+              OR pr.target_room_id IN (SELECT r2.id FROM rooms r2 WHERE r2.property_id = p.id)
+            )
+        ) AS report_reviewed
       ${fromSql}
       ${where}
       ORDER BY COALESCE(p.created_at, '') DESC, p.id DESC
@@ -492,6 +537,15 @@ export function listAdminPosts(
       messageThreadCount: Math.max(0, Math.floor(Number(row.message_thread_count) || 0)),
       assistedDraft,
       createOrigin,
+      hasReport: Boolean(
+        row.report_conversation_id != null && String(row.report_conversation_id).trim(),
+      ),
+      reportReviewed: Number(row.report_reviewed) === 1,
+      reportConversationId:
+        row.report_conversation_id != null && String(row.report_conversation_id).trim()
+          ? String(row.report_conversation_id).trim()
+          : null,
+      reportCount: Math.max(0, Math.floor(Number(row.report_count) || 0)),
     };
   });
 

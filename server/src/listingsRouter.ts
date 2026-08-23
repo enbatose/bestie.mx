@@ -75,7 +75,13 @@ function isRoommateGenderPref(s: string): s is RoommateGenderPref {
 }
 
 function isListingStatus(s: string): s is ListingStatus {
-  return s === "draft" || s === "published" || s === "paused" || s === "archived";
+  return (
+    s === "draft" ||
+    s === "published" ||
+    s === "paused" ||
+    s === "archived" ||
+    s === "pending_review"
+  );
 }
 
 type PublicListingUnavailableReason =
@@ -115,7 +121,8 @@ function canTransitionStatus(from: ListingStatus, to: ListingStatus): boolean {
   if (from === to) return true;
   if (from === "draft") return to === "published";
   if (from === "published") return to === "paused" || to === "archived";
-  if (from === "paused") return to === "published" || to === "archived";
+  if (from === "paused") return to === "published" || to === "archived" || to === "pending_review";
+  if (from === "pending_review") return to === "published" || to === "paused";
   return false;
 }
 
@@ -125,12 +132,12 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
   const roomStatus = String(row.status ?? "");
   // Never confirm drafts to anonymous callers — treat as not found.
   if (roomStatus === "draft") return "listing_not_found";
-  if (roomStatus === "paused") return "listing_paused";
+  if (roomStatus === "paused" || roomStatus === "pending_review") return "listing_paused";
   if (roomStatus === "archived") return "listing_archived";
 
   const propertyStatus = String(row.property_status ?? "");
   if (propertyStatus === "draft") return "listing_not_found";
-  if (propertyStatus === "paused") return "property_paused";
+  if (propertyStatus === "paused" || propertyStatus === "pending_review") return "property_paused";
   if (propertyStatus === "archived") return "property_archived";
 
   if (String(row.occupancy_status ?? "available") === "occupied") return "listing_occupied";

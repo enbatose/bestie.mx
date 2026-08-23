@@ -9,13 +9,15 @@ import {
   type AdminPostStatus,
 } from "@/lib/authApi";
 import { AdminUserSupportLink } from "@/components/admin/AdminUserSupportLink";
+import { adminSupportConversationPath } from "@/lib/adminSections";
 
-const STATUS_OPTIONS: { value: AdminPostStatus | "all"; label: string }[] = [
+const STATUS_OPTIONS: { value: AdminPostStatus | "all" | "reported"; label: string }[] = [
   { value: "all", label: "Todos" },
   { value: "draft", label: "Borrador" },
   { value: "published", label: "Publicado" },
   { value: "paused", label: "Pausado" },
   { value: "archived", label: "Archivado" },
+  { value: "reported", label: "Con reporte" },
 ];
 
 function formatAdminDate(iso: string | null | undefined): string {
@@ -93,7 +95,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all">("published");
+  const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all" | "reported">("published");
   const [pageSize, setPageSize] = useState<(typeof ADMIN_POSTS_PAGE_SIZES)[number]>(25);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -173,7 +175,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
           Estado
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as AdminPostStatus | "all")}
+            onChange={(e) => setStatusFilter(e.target.value as AdminPostStatus | "all" | "reported")}
             className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
           >
             {STATUS_OPTIONS.map((o) => (
@@ -272,6 +274,27 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                       {statusLabel(row.status)}
                     </span>
                     <CreateOriginBadge origin={resolveCreateOrigin(row)} />
+                    {row.hasReport ? (
+                      <Link
+                        to={
+                          row.reportConversationId
+                            ? adminSupportConversationPath(row.reportConversationId)
+                            : "/admin/soporte"
+                        }
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          row.reportReviewed
+                            ? "bg-muted/20 text-muted ring-1 ring-border"
+                            : "bg-error text-white"
+                        }`}
+                        title={
+                          row.reportReviewed
+                            ? `Reporte revisado (${row.reportCount ?? 0})`
+                            : `Reporte sin revisar (${row.reportCount ?? 0}) — abrir en Soporte`
+                        }
+                      >
+                        {row.reportReviewed ? "Reporte" : "Reporte · nuevo"}
+                      </Link>
+                    ) : null}
                   </div>
                 </td>
                 <td className="max-w-[180px] px-3 py-2.5">
@@ -400,6 +423,22 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                   {statusLabel(row.status)}
                 </span>
                 <CreateOriginBadge origin={resolveCreateOrigin(row)} />
+                {row.hasReport ? (
+                  <Link
+                    to={
+                      row.reportConversationId
+                        ? adminSupportConversationPath(row.reportConversationId)
+                        : "/admin/soporte"
+                    }
+                    className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      row.reportReviewed
+                        ? "bg-muted/20 text-muted ring-1 ring-border"
+                        : "bg-error text-white"
+                    }`}
+                  >
+                    {row.reportReviewed ? "Reporte" : "Reporte · nuevo"}
+                  </Link>
+                ) : null}
               </div>
             </div>
             <dl className="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">

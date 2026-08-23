@@ -12,6 +12,7 @@ import { backfillPublishFeedbackFromMessages } from "./adminPosts.js";
 import { ensureAssistedDraftSchema } from "./assistedDraftSchema.js";
 import { ensureBlogSchema } from "./blogSchema.js";
 import { ensureBlogBotUser } from "./blogReports.js";
+import { ensureReportsSchema } from "./reportsSchema.js";
 
 const SEED_PUBLISHER_ID = "__seed__";
 
@@ -565,6 +566,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensureAssistedDraftSchema(db);
   ensureBlogSchema(db);
   ensureBlogBotUser(db);
+  ensureReportsSchema(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
   // Demo catalog only when explicitly enabled (local/dev). Production stays empty for pilots.

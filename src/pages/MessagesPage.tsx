@@ -27,7 +27,9 @@ import {
   buildMyListingsRestorePath,
   readMyListingsReturn,
 } from "@/lib/myListingsReturn";
-import { authMe, type AuthMe } from "@/lib/authApi";
+import { reportConversation } from "@/lib/reportsApi";
+import { CHAT_REPORT_CATEGORIES } from "@/lib/reportCategories";
+import { ReportModal } from "@/components/report/ReportModal";
 
 function SupportBadge() {
   return (
@@ -41,6 +43,14 @@ function FeedbackBadge() {
   return (
     <span className="inline-flex w-fit items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
       Feedback
+    </span>
+  );
+}
+
+function ReportBadge() {
+  return (
+    <span className="inline-flex w-fit items-center rounded-full bg-error/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-error">
+      Reporte
     </span>
   );
 }
@@ -62,7 +72,7 @@ function ParticipantAvatar({
   displayName?: string | null;
   profilePictureUrl?: string | null;
   useSystemMark?: boolean;
-  systemTone?: "support" | "feedback";
+  systemTone?: "support" | "feedback" | "report";
   size?: "sm" | "md";
   className?: string;
 }) {
@@ -70,7 +80,9 @@ function ParticipantAvatar({
     const ring =
       systemTone === "feedback"
         ? "bg-amber-500/15 ring-1 ring-amber-500/30"
-        : "bg-primary/10 ring-1 ring-border";
+        : systemTone === "report"
+          ? "bg-error/10 ring-1 ring-error/30"
+          : "bg-primary/10 ring-1 ring-border";
     return (
       <span
         aria-hidden
@@ -180,6 +192,7 @@ export function MessagesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState(() => qParam.trim());
   const [sortKey, setSortKey] = useState<UserConversationSortKey>("updated");
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [chatReportOpen, setChatReportOpen] = useState(false);
   const listSeqRef = useRef(0);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
@@ -329,8 +342,10 @@ export function MessagesPage() {
   const sortedRows = useMemo(() => sortUserConversations(rows, sortKey), [rows, sortKey]);
   const active = useMemo(() => rows.find((r) => r.id === activeId), [rows, activeId]);
   const isSupportThread = active?.kind === "support";
+  const isListingThread = active?.kind === "listing";
   const isFeedbackThread = active?.kind === "feedback";
-  const isSystemThread = isSupportThread || isFeedbackThread;
+  const isReportThread = active?.kind === "report";
+  const isSystemThread = isSupportThread || isFeedbackThread || isReportThread;
 
   const clearActive = () => {
     const next = new URLSearchParams(searchParams);
@@ -480,8 +495,16 @@ export function MessagesPage() {
                     <ParticipantAvatar
                       displayName={r.otherDisplayName}
                       profilePictureUrl={r.otherProfilePictureUrl}
-                      useSystemMark={r.kind === "support" || r.kind === "feedback"}
-                      systemTone={r.kind === "feedback" ? "feedback" : "support"}
+                      useSystemMark={
+                        r.kind === "support" || r.kind === "feedback" || r.kind === "report"
+                      }
+                      systemTone={
+                        r.kind === "feedback"
+                          ? "feedback"
+                          : r.kind === "report"
+                            ? "report"
+                            : "support"
+                      }
                       size="sm"
                       className="mt-0.5"
                     />
@@ -491,6 +514,7 @@ export function MessagesPage() {
                           <span className="truncate">{r.otherDisplayName}</span>
                           {r.kind === "support" ? <SupportBadge /> : null}
                           {r.kind === "feedback" ? <FeedbackBadge /> : null}
+                          {r.kind === "report" ? <ReportBadge /> : null}
                         </span>
                         <span className="shrink-0 text-[10px] text-muted">
                           {formatRelativeUpdatedAt(r.updatedAt)}
@@ -526,7 +550,7 @@ export function MessagesPage() {
             <>
               <div
                 className={`border-b border-border px-4 py-3 text-primary-fg dark:border-slate-600 ${
-                  isFeedbackThread ? "bg-amber-700" : "bg-primary"
+                  isFeedbackThread ? "bg-amber-700" : isReportThread ? "bg-error" : "bg-primary"
                 }`}
               >
                 <div className="flex items-start gap-2">
@@ -552,6 +576,15 @@ export function MessagesPage() {
                           Ver anuncio
                         </Link>
                       ) : null}
+                      {isListingThread ? (
+                        <button
+                          type="button"
+                          onClick={() => setChatReportOpen(true)}
+                          className="text-xs font-semibold underline"
+                        >
+                          Reportar conversación
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -565,6 +598,11 @@ export function MessagesPage() {
               {isFeedbackThread ? (
                 <p className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-body">
                   Feedback de Bestie · las respuestas pueden tardar hasta 48 horas.
+                </p>
+              ) : null}
+              {isReportThread ? (
+                <p className="border-b border-error/30 bg-error/5 px-4 py-2 text-xs text-body">
+                  Reporte de Bestie · aquí puedes hablar con el equipo sobre tu anuncio.
                 </p>
               ) : null}
 
@@ -612,7 +650,13 @@ export function MessagesPage() {
                                   mine ? me.profilePictureUrl : active?.otherProfilePictureUrl
                                 }
                                 useSystemMark={otherIsSystem}
-                                systemTone={isFeedbackThread ? "feedback" : "support"}
+                                systemTone={
+                                  isFeedbackThread
+                                    ? "feedback"
+                                    : isReportThread
+                                      ? "report"
+                                      : "support"
+                                }
                                 size="sm"
                               />
                             ) : (
@@ -640,6 +684,7 @@ export function MessagesPage() {
                                       <span className="text-sm font-semibold text-body">{displayName}</span>
                                       {otherIsSystem && isSupportThread ? <SupportBadge /> : null}
                                       {otherIsSystem && isFeedbackThread ? <FeedbackBadge /> : null}
+                                      {otherIsSystem && isReportThread ? <ReportBadge /> : null}
                                       <span className="text-xs text-muted" aria-hidden>
                                         ·
                                       </span>
@@ -773,6 +818,21 @@ export function MessagesPage() {
           Buscar
         </Link>
       </p>
+
+      <ReportModal
+        open={chatReportOpen && Boolean(activeId)}
+        title="Reportar conversación"
+        categories={CHAT_REPORT_CATEGORIES}
+        disclaimer="Al reportar, un administrador revisará el historial de esta conversación."
+        onClose={() => setChatReportOpen(false)}
+        onSubmit={async (input) => {
+          if (!activeId) return;
+          await reportConversation(activeId, {
+            categories: input.categories,
+            detailText: input.detailText || undefined,
+          });
+        }}
+      />
     </div>
   );
 }

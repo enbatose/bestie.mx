@@ -3,7 +3,7 @@ import type { AdminSupportConversationRow } from "@/lib/authApi";
 
 export type UserConversationSortKey = "updated" | "user" | "unread" | "listing" | "support" | "feedback";
 export type AdminSupportSortKey = "updated" | "user" | "unread" | "email";
-export type AdminSupportKindFilter = "all" | "support" | "feedback" | "blog";
+export type AdminSupportKindFilter = "all" | "support" | "feedback" | "blog" | "report";
 
 export const USER_CONVERSATION_SORT_OPTIONS: { value: UserConversationSortKey; label: string }[] = [
   { value: "updated", label: "Más recientes" },
@@ -26,6 +26,7 @@ export const ADMIN_SUPPORT_KIND_FILTER_OPTIONS: { value: AdminSupportKindFilter;
   { value: "support", label: "Solo Soporte" },
   { value: "feedback", label: "Solo Feedback" },
   { value: "blog", label: "Solo Blog" },
+  { value: "report", label: "Solo Reporte" },
 ];
 
 function cmpStr(a: string, b: string): number {

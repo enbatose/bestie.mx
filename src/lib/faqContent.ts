@@ -129,7 +129,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     id: "reportar",
     question: "¿Cómo reporto un anuncio sospechoso?",
     answer:
-      "Escríbenos a contacto@bestie.mx con el enlace del anuncio y una breve descripción.",
+      "Usa el botón Reportar en cualquier anuncio, foto o conversación privada. También puedes escribir a contacto@bestie.mx con el enlace del anuncio.",
     synonyms: [
       "reportar",
       "denunciar",

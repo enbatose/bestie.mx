@@ -57,6 +57,11 @@ export type ListingPropertyCardProps = {
   /** Property cards: Off asks for confirmation, then marks every available room occupied. */
   onPropertyActive: (next: boolean) => void;
   onPropertyStatus: (status: Extract<ListingStatus, "published" | "paused">) => void;
+  /** Submit admin-paused listing for Bestie review. */
+  onSubmitForReview?: () => void;
+  /** Open/join the report Soporte thread for this property. */
+  onContactSupportAboutPause?: () => void;
+  supportBusy?: boolean;
   onArchiveProperty: () => void;
   onRoomOccupancy: (l: PropertyListing, available: boolean) => void;
   /** Restore an archived room to published (property-room rows only). */
@@ -85,6 +90,9 @@ export function ListingPropertyCard({
   onSingleRoomActive,
   onPropertyActive,
   onPropertyStatus,
+  onSubmitForReview,
+  onContactSupportAboutPause,
+  supportBusy = false,
   onArchiveProperty,
   onRoomOccupancy,
   onRestoreRoom,
@@ -117,14 +125,23 @@ export function ListingPropertyCard({
     ? propertyPublicPath(propertyId)
     : listingPublicPath(first.id);
   const viewPath = publicPath;
-  const canEdit = propSt === "draft" || propSt === "published" || propSt === "paused";
+  const adminPaused =
+    head.propertyPausedBy === "admin" &&
+    (propSt === "paused" || propSt === "pending_review");
+  const canEdit =
+    propSt === "draft" ||
+    propSt === "published" ||
+    propSt === "paused" ||
+    propSt === "pending_review";
   const canShare = propSt === "published";
-  const canArchive = propSt === "draft" || propSt === "published" || propSt === "paused";
+  const canArchive =
+    propSt === "draft" || propSt === "published" || propSt === "paused" || propSt === "pending_review";
 
   // The header switch always tracks publication. For property posts, pausing also
   // marks every available room as occupied after the user confirms the room list.
   const active = propSt === "published";
-  const toggleDisabled = propSt === "draft" || propSt === "archived" || propertyBusy;
+  const toggleDisabled =
+    propSt === "draft" || propSt === "archived" || propertyBusy || adminPaused;
 
   const summedViews = list.reduce((n, l) => n + (l.viewsCount ?? 0), 0);
   const summedInquiries = list.reduce((n, l) => n + (l.inquiryCount ?? 0), 0);
@@ -221,23 +238,29 @@ export function ListingPropertyCard({
             </>
           }
           toggle={
-            <CardOnOffToggle
-              tone={tone}
-              active={active}
-              busy={propertyBusy}
-              disabled={toggleDisabled}
-              onChange={isProperty ? onPropertyActive : onSingleRoomActive}
-              onLabel={
-                isProperty
-                  ? "Propiedad publicada — tocar para pausar y marcar sus recámaras como ocupadas"
-                  : "Anuncio publicado — tocar para pausar"
-              }
-              offLabel={
-                isProperty
-                  ? "Propiedad pausada — tocar para publicar y ofrecer recámaras en renta"
-                  : "Anuncio pausado — tocar para publicar"
-              }
-            />
+            adminPaused ? (
+              <span className="rounded-full border border-warning/40 bg-warning/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-warning-fg">
+                {propSt === "pending_review" ? "En revisión" : "Pausado por Bestie"}
+              </span>
+            ) : (
+              <CardOnOffToggle
+                tone={tone}
+                active={active}
+                busy={propertyBusy}
+                disabled={toggleDisabled}
+                onChange={isProperty ? onPropertyActive : onSingleRoomActive}
+                onLabel={
+                  isProperty
+                    ? "Propiedad publicada — tocar para pausar y marcar sus recámaras como ocupadas"
+                    : "Anuncio publicado — tocar para pausar"
+                }
+                offLabel={
+                  isProperty
+                    ? "Propiedad pausada — tocar para publicar y ofrecer recámaras en renta"
+                    : "Anuncio pausado — tocar para publicar"
+                }
+              />
+            )
           }
           title={head.propertyTitle ?? head.title}
           place={`${head.neighborhood} · ${head.city}`}
@@ -304,6 +327,42 @@ export function ListingPropertyCard({
             )
           }
         />
+
+        {adminPaused ? (
+          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">
+            <p className="font-semibold">
+              {propSt === "pending_review"
+                ? "Tu anuncio está en revisión por Bestie."
+                : "Tu anuncio fue pausado por Bestie."}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed">
+              Puedes editarlo y enviarlo a revisión. Si tienes preguntas,{" "}
+              {onContactSupportAboutPause ? (
+                <button
+                  type="button"
+                  disabled={supportBusy || propertyBusy}
+                  onClick={onContactSupportAboutPause}
+                  className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                >
+                  contacta soporte
+                </button>
+              ) : (
+                "contacta soporte"
+              )}
+              .
+            </p>
+            {propSt === "paused" && onSubmitForReview ? (
+              <button
+                type="button"
+                disabled={propertyBusy || supportBusy}
+                onClick={onSubmitForReview}
+                className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-40"
+              >
+                Enviar a revisión
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {propSt === "draft" && missingFields ? (
           <MissingFieldsCallout fields={missingFields} />

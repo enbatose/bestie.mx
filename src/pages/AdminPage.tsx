@@ -35,6 +35,7 @@ import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentL
 import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesApi";
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
+import { AdminReportActions } from "@/components/admin/AdminReportActions";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
 import { AdminBlogPanel } from "@/components/admin/AdminBlogPanel";
 import { ADMIN_DEFAULT_PATH, ADMIN_NAV_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
@@ -383,14 +384,23 @@ export function AdminPage() {
             >
               {section.label}
               {count != null ? (
-                <span
-                  className={`tabular-nums ${
-                    unreadAlert
-                      ? "rounded-full bg-error px-1.5 py-0.5 text-[11px] font-bold text-white"
-                      : "text-[11px] font-semibold opacity-80"
-                  }`}
-                >
-                  {count.toLocaleString("es-MX")}
+                <span className="inline-flex items-center gap-1">
+                  <span
+                    className={`tabular-nums ${
+                      unreadAlert
+                        ? "rounded-full bg-error px-1.5 py-0.5 text-[11px] font-bold text-white"
+                        : "text-[11px] font-semibold opacity-80"
+                    }`}
+                  >
+                    {count.toLocaleString("es-MX")}
+                  </span>
+                  {countKey === "publishedPosts" &&
+                  navCounts?.unreviewedReportedPosts != null &&
+                  navCounts.unreviewedReportedPosts > 0 ? (
+                    <span className="text-[11px] font-bold text-error">
+                      ({navCounts.unreviewedReportedPosts.toLocaleString("es-MX")})
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
             </NavLink>
@@ -1275,7 +1285,13 @@ export function AdminPage() {
                                   : "bg-primary/10 text-primary"
                             }`}
                           >
-                            {row.kind === "feedback" ? "Feedback" : row.kind === "blog" ? "Blog" : "Soporte"}
+                            {row.kind === "feedback"
+                              ? "Feedback"
+                              : row.kind === "blog"
+                                ? "Blog"
+                                : row.kind === "report"
+                                  ? "Reporte"
+                                  : "Soporte"}
                           </span>
                         </span>
                         <span className="shrink-0 text-[10px] text-muted">
@@ -1314,7 +1330,11 @@ export function AdminPage() {
               <>
                 <div
                   className={`border-b border-border px-4 py-3 text-primary-fg ${
-                    supportThread?.kind === "feedback" ? "bg-amber-700" : "bg-primary"
+                    supportThread?.kind === "feedback"
+                      ? "bg-amber-700"
+                      : supportThread?.kind === "report"
+                        ? "bg-error"
+                        : "bg-primary"
                   }`}
                 >
                   <div className="flex items-start gap-2">
@@ -1331,7 +1351,9 @@ export function AdminPage() {
                           ? "Feedback"
                           : supportThread?.kind === "blog"
                             ? "Blog"
-                            : "Soporte"} ·{" "}
+                            : supportThread?.kind === "report"
+                              ? "Reporte"
+                              : "Soporte"} ·{" "}
                         {supportThread?.customer?.displayName ?? "…"} ·{" "}
                         {supportThread?.customer?.email ?? "sin correo"}
                       </p>
@@ -1339,6 +1361,15 @@ export function AdminPage() {
                     </div>
                   </div>
                 </div>
+
+                {supportThread?.kind === "report" && supportActiveId ? (
+                  <AdminReportActions
+                    conversationId={supportActiveId}
+                    onRefreshThread={() => {
+                      if (supportActiveId) void openSupportConversation(supportActiveId);
+                    }}
+                  />
+                ) : null}
 
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="min-h-[200px] flex-1 space-y-3 overflow-y-auto p-4">

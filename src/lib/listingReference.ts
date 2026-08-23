@@ -146,6 +146,7 @@ export function propertyPublicPath(propertyId: string): string {
 const PROPERTY_STATUS_ORDER: Record<ListingStatus, number> = {
   published: 0,
   paused: 0,
+  pending_review: 0,
   draft: 1,
   archived: 2,
 };

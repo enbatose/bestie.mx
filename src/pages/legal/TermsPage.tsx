@@ -153,8 +153,13 @@ export function TermsPage() {
             "Vulnerar la seguridad del Servicio, usar bots, scraping no autorizado, o sobrecargar la infraestructura.",
             "Infringir derechos de propiedad intelectual o industrial de terceros.",
             "Usar el Servicio para fines distintos a la búsqueda u oferta genuina de vivienda compartida.",
+            "Enviar reportes falsos o abusivos de forma reiterada.",
           ]}
         />
+        <p>
+          Bestie permite reportar anuncios, fotografías y conversaciones privadas. Los reportes pueden ser revisados por
+          administradores, quienes podrán pausar anuncios, solicitar cambios o restringir cuentas que incumplan estas reglas.
+        </p>
       </LegalSection>
 
       <LegalSection id="contenido" index={7} title="Contenido de los usuarios">

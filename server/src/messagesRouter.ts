@@ -24,6 +24,7 @@ import {
 } from "./validation.js";
 import { attachPublishFeedbackToProperty } from "./adminPosts.js";
 import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
+import { isUserPublisherBlocked, loadPostReportByConversationId, REPORT_BOT_USER_ID } from "./listingReports.js";
 
 const postMsgLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 });
@@ -238,7 +239,15 @@ export function messagesRouter(db: DatabaseSync) {
     }
 
     const conditions: string[] = [];
-    const params: string[] = [me, me, me];
+    const params: string[] = [
+      me,
+      me,
+      me,
+      SUPPORT_BOT_USER_ID,
+      FEEDBACK_BOT_USER_ID,
+      "blog-bestie",
+      REPORT_BOT_USER_ID,
+    ];
     for (const token of tokens) {
       const like = `%${token.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
       // Title / counterpart / message body always participate.
@@ -312,6 +321,12 @@ export function messagesRouter(db: DatabaseSync) {
          FROM conversations c
          JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
          JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
+           AND (
+             CASE
+               WHEN c.kind IN ('support', 'feedback', 'blog', 'report') THEN om.user_id IN (?, ?, ?, ?)
+               ELSE 1
+             END
+           )
          JOIN users other ON other.id = om.user_id
          ${where}
          ORDER BY c.updated_at DESC`,
@@ -368,6 +383,20 @@ export function messagesRouter(db: DatabaseSync) {
       res.status(400).json({
         error: "cannot_message_self",
         message: "El usuario anunciante no puede abrir una conversación consigo mismo.",
+      });
+      return;
+    }
+    if (isUserPublisherBlocked(db, owner)) {
+      res.status(403).json({
+        error: "publisher_blocked",
+        message: "Este anunciante no puede recibir mensajes por ahora.",
+      });
+      return;
+    }
+    if (isUserPublisherBlocked(db, me)) {
+      res.status(403).json({
+        error: "publisher_blocked",
+        message: "Tu cuenta no puede contactar a otros usuarios por ahora.",
       });
       return;
     }
@@ -508,6 +537,11 @@ export function messagesRouter(db: DatabaseSync) {
     markThreadRead(db, id, me);
     const unreadCount = countUnreadForUser(db, me);
     const kind = conversationKind(db, id);
+    let publisherOnlyView = false;
+    if (kind === "report") {
+      const report = loadPostReportByConversationId(db, id);
+      publisherOnlyView = Boolean(report?.publisherUserId && report.publisherUserId === me);
+    }
     const rows = db
       .prepare(
         `SELECT m.id, m.sender_user_id, m.body, m.created_at, m.delivered_at, m.read_at, m.attachments_json
@@ -516,13 +550,20 @@ export function messagesRouter(db: DatabaseSync) {
       .all(id) as Record<string, unknown>[];
     res.json({
       unreadCount,
-      messages: rows.map((m) => {
+      messages: rows
+        .filter((m) => {
+          if (!publisherOnlyView) return true;
+          const sender = String(m.sender_user_id);
+          return sender === me || sender === REPORT_BOT_USER_ID || isAdminUser(db, sender);
+        })
+        .map((m) => {
         const rawSenderId = String(m.sender_user_id);
         // Never reveal which real admin replied — customers only see the system bot identity.
         let senderUserId = rawSenderId;
         if (rawSenderId !== me && isAdminUser(db, rawSenderId)) {
           if (kind === "support") senderUserId = SUPPORT_BOT_USER_ID;
           else if (kind === "feedback") senderUserId = FEEDBACK_BOT_USER_ID;
+          else if (kind === "report") senderUserId = REPORT_BOT_USER_ID;
         }
         return {
           id: m.id,
@@ -556,6 +597,23 @@ export function messagesRouter(db: DatabaseSync) {
     if (!assertMember(db, id, me)) {
       res.status(404).json({ error: "not_found" });
       return;
+    }
+    const kind = conversationKind(db, id);
+    if (kind === "listing") {
+      if (isUserPublisherBlocked(db, me)) {
+        res.status(403).json({ error: "publisher_blocked" });
+        return;
+      }
+      const conv = db
+        .prepare(`SELECT listing_room_id FROM conversations WHERE id = ?`)
+        .get(id) as { listing_room_id: string | null } | undefined;
+      if (conv?.listing_room_id) {
+        const owner = ownerUserIdForRoomListing(db, conv.listing_room_id);
+        if (owner && isUserPublisherBlocked(db, owner)) {
+          res.status(403).json({ error: "publisher_blocked" });
+          return;
+        }
+      }
     }
     const bodyRaw = (req.body as { body?: unknown }).body;
     const body = typeof bodyRaw === "string" ? bodyRaw.trim().slice(0, 4000) : "";

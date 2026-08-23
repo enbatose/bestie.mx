@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, X } from "lucide-react";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 
 const SWIPE_THRESHOLD_PX = 48;
@@ -9,6 +9,7 @@ type Props = {
   urls: readonly string[];
   failedUrls?: ReadonlySet<string>;
   onImageError?: (url: string) => void;
+  onReportPhoto?: (index: number, url: string) => void;
 };
 
 function PhotoSlide({
@@ -57,6 +58,7 @@ type CarouselChromeProps = {
   onSelect: (i: number) => void;
   onOpenFullscreen?: () => void;
   onCloseFullscreen?: () => void;
+  onReportPhoto?: (index: number, url: string) => void;
   fullscreen?: boolean;
   thumbRefs: React.MutableRefObject<(HTMLButtonElement | null)[]>;
 };
@@ -71,6 +73,7 @@ function CarouselChrome({
   onSelect,
   onOpenFullscreen,
   onCloseFullscreen,
+  onReportPhoto,
   fullscreen = false,
   thumbRefs,
 }: CarouselChromeProps) {
@@ -90,6 +93,25 @@ function CarouselChrome({
   return (
     <>
       <div className={frameClass}>
+        {onReportPhoto ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReportPhoto(index, currentUrl);
+            }}
+            className={`absolute left-3 top-3 z-20 flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold shadow-md transition ${
+              fullscreen
+                ? "bg-black/55 text-white backdrop-blur-sm hover:bg-black/70"
+                : "bg-surface/95 text-error ring-1 ring-border hover:bg-surface"
+            }`}
+            aria-label="Reportar foto"
+          >
+            <Flag className="size-3.5" aria-hidden />
+            Reportar
+          </button>
+        ) : null}
+
         {fullscreen && onCloseFullscreen ? (
           <button
             type="button"
@@ -251,7 +273,7 @@ function CarouselChrome({
   );
 }
 
-export function ListingPhotoCarousel({ urls, failedUrls, onImageError }: Props) {
+export function ListingPhotoCarousel({ urls, failedUrls, onImageError, onReportPhoto }: Props) {
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -346,6 +368,7 @@ export function ListingPhotoCarousel({ urls, failedUrls, onImageError }: Props) 
     index,
     failedUrls,
     onImageError,
+    onReportPhoto,
     onPrev: () => go(-1),
     onNext: () => go(1),
     onSelect,

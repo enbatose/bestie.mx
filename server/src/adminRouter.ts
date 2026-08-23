@@ -10,6 +10,7 @@ import {
   normalizeConversationKind,
 } from "./messagingSchema.js";
 import { BLOG_BOT_USER_ID } from "./blogReports.js";
+import { REPORT_BOT_USER_ID } from "./listingReports.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { clampMessageAttachments, clampStr, type MessageAttachment } from "./validation.js";
 import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
@@ -92,7 +93,7 @@ export function adminRouter(db: DatabaseSync) {
       return;
     }
     const st = (req.body as { status?: unknown }).status;
-    if (st !== "published" && st !== "paused" && st !== "archived" && st !== "draft") {
+    if (st !== "published" && st !== "paused" && st !== "archived" && st !== "draft" && st !== "pending_review") {
       res.status(400).json({ error: "invalid_status" });
       return;
     }
@@ -105,18 +106,33 @@ export function adminRouter(db: DatabaseSync) {
     }
     const firstPublish = isFirstPropertyPublish(cur.status, cur.published_at, st);
     if (st === "published" && (cur.published_at == null || String(cur.published_at).trim() === "")) {
-      db.prepare(`UPDATE properties SET status = ?, published_at = ? WHERE id = ?`).run(
+      db.prepare(`UPDATE properties SET status = ?, published_at = ?, paused_by = NULL WHERE id = ?`).run(
         st,
         new Date().toISOString(),
         propertyId,
       );
+    } else if (st === "published") {
+      db.prepare(`UPDATE properties SET status = ?, paused_by = NULL WHERE id = ?`).run(st, propertyId);
+    } else if (st === "paused") {
+      db.prepare(`UPDATE properties SET status = ?, paused_by = 'admin' WHERE id = ?`).run(st, propertyId);
     } else {
       db.prepare(`UPDATE properties SET status = ? WHERE id = ?`).run(st, propertyId);
     }
-    db.prepare(`UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ?`).run(
-      st,
-      propertyId,
-    );
+    const roomPausedBy = st === "paused" ? "admin" : st === "published" ? null : undefined;
+    if (roomPausedBy === "admin") {
+      db.prepare(
+        `UPDATE rooms SET status = ?, paused_by = 'admin', updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status != 'archived'`,
+      ).run(st, propertyId);
+    } else if (st === "published") {
+      db.prepare(
+        `UPDATE rooms SET status = ?, paused_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND (status = 'paused' OR status = 'pending_review')`,
+      ).run(st, propertyId);
+    } else {
+      db.prepare(`UPDATE rooms SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE property_id = ?`).run(
+        st,
+        propertyId,
+      );
+    }
     if (firstPublish) scheduleNotifyOpsNewPostPublished(db, propertyId);
     res.json({ ok: true, propertyId, status: st });
   });
@@ -219,13 +235,17 @@ export function adminRouter(db: DatabaseSync) {
         : null;
     const kindFilterRaw = typeof req.query.kind === "string" ? req.query.kind.trim().toLowerCase() : "all";
     const kindFilter =
-      kindFilterRaw === "support" || kindFilterRaw === "feedback" || kindFilterRaw === "blog"
+      kindFilterRaw === "support" ||
+      kindFilterRaw === "feedback" ||
+      kindFilterRaw === "blog" ||
+      kindFilterRaw === "report"
         ? kindFilterRaw
         : "all";
     const kindSql =
       kindFilter === "all"
-        ? `c.kind IN ('support', 'feedback', 'blog')`
+        ? `c.kind IN ('support', 'feedback', 'blog', 'report')`
         : `c.kind = '${kindFilter}'`;
+    const botIds = [SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, BLOG_BOT_USER_ID, REPORT_BOT_USER_ID];
     const rows = (
       like
         ? db
@@ -237,11 +257,11 @@ export function adminRouter(db: DatabaseSync) {
                       (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
                       (SELECT COUNT(*) FROM messages m
                         WHERE m.conversation_id = c.id
-                          AND m.sender_user_id NOT IN (?, ?, ?)
+                          AND m.sender_user_id NOT IN (?, ?, ?, ?)
                           AND m.read_at IS NULL) AS unread_count
                FROM conversations c
                JOIN conversation_participants cp ON cp.conversation_id = c.id
-                 AND cp.user_id NOT IN (?, ?, ?)
+                 AND cp.user_id NOT IN (?, ?, ?, ?)
                JOIN users customer ON customer.id = cp.user_id
                WHERE ${kindSql}
                  AND (
@@ -256,12 +276,8 @@ export function adminRouter(db: DatabaseSync) {
                ORDER BY c.updated_at DESC`,
             )
             .all(
-              SUPPORT_BOT_USER_ID,
-              FEEDBACK_BOT_USER_ID,
-              BLOG_BOT_USER_ID,
-              SUPPORT_BOT_USER_ID,
-              FEEDBACK_BOT_USER_ID,
-              BLOG_BOT_USER_ID,
+              ...botIds,
+              ...botIds,
               like,
               like,
               like,
@@ -276,23 +292,16 @@ export function adminRouter(db: DatabaseSync) {
                       (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
                       (SELECT COUNT(*) FROM messages m
                         WHERE m.conversation_id = c.id
-                          AND m.sender_user_id NOT IN (?, ?, ?)
+                          AND m.sender_user_id NOT IN (?, ?, ?, ?)
                           AND m.read_at IS NULL) AS unread_count
                FROM conversations c
                JOIN conversation_participants cp ON cp.conversation_id = c.id
-                 AND cp.user_id NOT IN (?, ?, ?)
+                 AND cp.user_id NOT IN (?, ?, ?, ?)
                JOIN users customer ON customer.id = cp.user_id
                WHERE ${kindSql}
                ORDER BY c.updated_at DESC`,
             )
-            .all(
-              SUPPORT_BOT_USER_ID,
-              FEEDBACK_BOT_USER_ID,
-              BLOG_BOT_USER_ID,
-              SUPPORT_BOT_USER_ID,
-              FEEDBACK_BOT_USER_ID,
-              BLOG_BOT_USER_ID,
-            )
+            .all(...botIds, ...botIds)
     ) as Record<string, unknown>[];
     res.json({
       conversations: rows.map((row) => ({
@@ -331,13 +340,13 @@ export function adminRouter(db: DatabaseSync) {
     });
   });
 
-  function assertAdminInboxConversation(id: string): "support" | "feedback" | "blog" | null {
+  function assertAdminInboxConversation(id: string): "support" | "feedback" | "blog" | "report" | null {
     const row = db.prepare(`SELECT kind FROM conversations WHERE id = ?`).get(id) as
       | { kind: string }
       | undefined;
     if (!row) return null;
     const kind = normalizeConversationKind(row.kind);
-    return kind === "support" || kind === "feedback" || kind === "blog" ? kind : null;
+    return kind === "support" || kind === "feedback" || kind === "blog" || kind === "report" ? kind : null;
   }
 
   r.get("/support/conversations/:id/messages", (req: Request, res: Response) => {
@@ -355,9 +364,9 @@ export function adminRouter(db: DatabaseSync) {
         `SELECT u.id, u.display_name, u.email
          FROM conversation_participants cp
          JOIN users u ON u.id = cp.user_id
-         WHERE cp.conversation_id = ? AND cp.user_id NOT IN (?, ?)`,
+         WHERE cp.conversation_id = ? AND cp.user_id NOT IN (?, ?, ?, ?)`,
       )
-      .get(id, SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID) as
+      .get(id, SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, BLOG_BOT_USER_ID, REPORT_BOT_USER_ID) as
       | { id: string; display_name: string; email: string | null }
       | undefined;
     // Mark only the customer's inbound messages as read for the admin inbox.
@@ -375,9 +384,16 @@ export function adminRouter(db: DatabaseSync) {
          WHERE m.conversation_id = ? ORDER BY m.created_at ASC`,
       )
       .all(id) as Record<string, unknown>[];
+    const reportMeta =
+      kind === "report"
+        ? db
+            .prepare(`SELECT report_count FROM post_reports WHERE conversation_id = ?`)
+            .get(id) as { report_count: number } | undefined
+        : null;
     res.json({
       subject: conv.context_title,
       kind,
+      reportCount: reportMeta ? Number(reportMeta.report_count) : undefined,
       customer: customer
         ? { id: customer.id, displayName: customer.display_name, email: customer.email }
         : null,

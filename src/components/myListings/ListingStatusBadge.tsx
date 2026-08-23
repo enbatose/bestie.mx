@@ -5,6 +5,7 @@ const STATUS_CLASS = {
   draft: "bg-warning/10 text-warning-fg",
   paused: "bg-primary/5 text-primary/80 ring-1 ring-primary/20",
   archived: "bg-bg-light text-muted/70 ring-1 ring-border",
+  pending_review: "bg-warning/15 text-warning-fg ring-1 ring-warning/40",
 } as const;
 
 export function listingStatusLabel(status: ListingStatus | undefined, noun: "room" | "property" = "room"): string {
@@ -17,6 +18,8 @@ export function listingStatusLabel(status: ListingStatus | undefined, noun: "roo
         return "Pausada";
       case "archived":
         return "Archivada";
+      case "pending_review":
+        return "En revisión";
       default:
         return "Publicada";
     }
@@ -28,6 +31,8 @@ export function listingStatusLabel(status: ListingStatus | undefined, noun: "roo
       return "Pausado";
     case "archived":
       return "Archivado";
+    case "pending_review":
+      return "En revisión";
     default:
       return "Publicado";
   }

@@ -29,6 +29,8 @@ import { resolveUploadDir } from "./dataPaths.js";
 import { injectFacebookAppId, injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
 import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
+import { reportsRouter } from "./reportsRouter.js";
+import { adminReportsRouter } from "./adminReportsRouter.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
 import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
 import { assistedDraftRouter } from "./assistedDraftRouter.js";
@@ -190,9 +192,11 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
   app.use("/api/auth", authRouter(db));
   app.use("/api/messages", messagesRouter(db));
+  app.use("/api/reports", reportsRouter(db));
   app.use("/api/notifications", notificationsRouter(db));
   app.use("/api/saved-searches", savedSearchesRouter(db));
   app.use("/api/admin", adminRouter(db));
+  app.use("/api/admin/reports", adminReportsRouter(db));
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));
   app.use("/api/compliance", complianceRouter());

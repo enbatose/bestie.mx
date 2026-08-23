@@ -469,6 +469,7 @@ export type AdminNavCounts = {
   verifiedUsers: number;
   publishedPosts: number;
   unreadSupportMessages: number;
+  unreviewedReportedPosts: number;
 };
 
 export async function adminNavCounts(signal?: AbortSignal): Promise<AdminNavCounts> {
@@ -552,6 +553,10 @@ export type AdminPostRow = {
   assistedDraft: boolean;
   /** Prefer this for badges; falls back to assistedDraft on older API responses. */
   createOrigin?: AdminPostCreateOrigin;
+  hasReport?: boolean;
+  reportReviewed?: boolean;
+  reportConversationId?: string | null;
+  reportCount?: number;
 };
 
 export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -559,7 +564,7 @@ export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;
 export async function adminListPosts(
   opts: {
     q?: string;
-    status?: AdminPostStatus | "all";
+    status?: AdminPostStatus | "all" | "reported";
     limit?: number;
     offset?: number;
   } = {},
@@ -831,7 +836,8 @@ export type GroupRow = {
 export type AdminSupportConversationRow = {
   id: string;
   subject: string;
-  kind?: "support" | "feedback" | "blog";
+  kind?: "support" | "feedback" | "blog" | "report";
+  reportCount?: number;
   updatedAt: string;
   customerUserId: string;
   customerDisplayName: string;
@@ -841,7 +847,7 @@ export type AdminSupportConversationRow = {
 };
 
 export async function adminListSupportConversations(
-  opts?: { q?: string; kind?: "all" | "support" | "feedback" | "blog"; signal?: AbortSignal },
+  opts?: { q?: string; kind?: "all" | "support" | "feedback" | "blog" | "report"; signal?: AbortSignal },
 ): Promise<AdminSupportConversationRow[]> {
   const base = apiBase();
   const params = new URLSearchParams();
@@ -870,7 +876,8 @@ export type AdminSupportMessage = {
 
 export type AdminSupportThread = {
   subject: string;
-  kind?: "support" | "feedback" | "blog";
+  kind?: "support" | "feedback" | "blog" | "report";
+  reportCount?: number;
   customer: { id: string; displayName: string; email: string | null } | null;
   messages: AdminSupportMessage[];
 };
@@ -975,4 +982,79 @@ export async function groupsJoin(inviteCode: string, signal?: AbortSignal): Prom
     signal,
   });
   if (!res.ok) throw new Error(`groups_join_${res.status}`);
+}
+
+export type AdminReportContext = {
+  report: {
+    id: string;
+    conversationId: string;
+    targetType: string;
+    targetRoomId: string | null;
+    targetPropertyId: string | null;
+    targetChatConversationId: string | null;
+    publisherUserId: string | null;
+    reportCount: number;
+    reviewedAt: string | null;
+  };
+  stats: {
+    reportsAgainstPost: number;
+    reportsAgainstPublisherPosts: number;
+    postsReportedForPublisher: number;
+    reportsFiledByUser: number;
+    abuseFlagsForReporter: number;
+  };
+  postUrl: string | null;
+  editPath: string | null;
+  propertyStatus: string | null;
+  pausedBy: string | null;
+  latestReporterId: string | null;
+  reporters: {
+    eventId: string;
+    reporterUserId: string | null;
+    categories: string[];
+    detailText: string | null;
+    photoUrl: string | null;
+    photoIndex: number | null;
+    createdAt: string;
+  }[];
+  chatHistory: { id: string; senderUserId: string; body: string; createdAt: string }[];
+};
+
+export async function adminFetchReportContext(
+  conversationId: string,
+  opts?: { historyDays?: number; signal?: AbortSignal },
+): Promise<AdminReportContext> {
+  const base = apiBase();
+  const q = new URLSearchParams();
+  if (opts?.historyDays != null) q.set("historyDays", String(opts.historyDays));
+  const qs = q.size ? `?${q}` : "";
+  const res = await networkFetch(
+    `${base}/api/admin/reports/conversations/${encodeURIComponent(conversationId)}/context${qs}`,
+    { credentials: cred, signal: opts?.signal },
+  );
+  if (!res.ok) throw new Error(`admin_report_context_${res.status}`);
+  return (await res.json()) as AdminReportContext;
+}
+
+export async function adminReportAction(
+  conversationId: string,
+  action: string,
+  body?: Record<string, unknown>,
+): Promise<{ conversationId?: string }> {
+  const base = apiBase();
+  const res = await networkFetch(
+    `${base}/api/admin/reports/conversations/${encodeURIComponent(conversationId)}/${action}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...deviceHeaders() },
+      credentials: cred,
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+  if (!res.ok) throw new Error(`admin_report_${action}_${res.status}`);
+  return (await res.json().catch(() => ({}))) as { conversationId?: string };
+}
+
+export async function adminMarkReportReviewed(conversationId: string): Promise<void> {
+  await adminReportAction(conversationId, "mark-reviewed");
 }

@@ -10,7 +10,7 @@ export type MessageAttachment = {
   filename: string;
 };
 
-export type ConversationKind = "listing" | "support" | "feedback" | "blog";
+export type ConversationKind = "listing" | "support" | "feedback" | "blog" | "report";
 
 export type ConversationSummary = {
   id: string;
