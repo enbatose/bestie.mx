@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
 import {
   adminChatBlogArticle,
@@ -20,6 +20,13 @@ const primaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rou
 const secondaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-40";
 type Topic = Awaited<ReturnType<typeof adminProposeBlogTopics>>["topics"][number];
 
+function topicIdeaText(topic: Topic): string {
+  return [topic.title, topic.angle, topic.whyNow ? `Por qué ahora: ${topic.whyNow}` : ""]
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function AdminBlogPanel() {
   const [articles, setArticles] = useState<BlogArticle[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -36,6 +43,8 @@ export function AdminBlogPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const ideaSectionRef = useRef<HTMLDivElement>(null);
+  const ideaInputRef = useRef<HTMLTextAreaElement>(null);
 
   const loadList = useCallback(async (q?: string) => {
     setArticles(await adminListBlogArticles(q));
@@ -49,6 +58,14 @@ export function AdminBlogPanel() {
     setBlocksText(JSON.stringify(data.article.blocks, null, 2));
     setSourcesText(JSON.stringify(data.article.sources, null, 2));
     setSelectedSuggestions([]);
+    return data.article;
+  }, []);
+
+  const focusIdeaSection = useCallback(() => {
+    window.setTimeout(() => {
+      ideaSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      ideaInputRef.current?.focus();
+    }, 80);
   }, []);
 
   useEffect(() => {
@@ -115,6 +132,50 @@ export function AdminBlogPanel() {
     );
   };
 
+  const useTopicIdea = async (topic: Topic) => {
+    const text = topicIdeaText(topic);
+    setIdea(text);
+
+    if (topic.promoteArticleId) {
+      const selected = await selectArticle(topic.promoteArticleId);
+      if (topic.socialCaption) {
+        setArticle({ ...selected, socialCaption: topic.socialCaption });
+      }
+      setNotice(
+        topic.socialCaption
+          ? "Idea de promoción cargada. Revisa el caption social y regenera creativos si hace falta."
+          : "Artículo existente abierto para promover. Puedes ajustar el caption o pedir a la IA una actualización.",
+      );
+      focusIdeaSection();
+      return;
+    }
+
+    let targetId = selectedId;
+    if (!targetId) {
+      const created = await adminCreateBlogArticle({
+        title: topic.title.slice(0, 180) || "Nuevo artículo",
+        cityCode: topic.cityCode,
+      });
+      await loadList(search);
+      await selectArticle(created.id);
+      targetId = created.id;
+    } else {
+      setField("title", topic.title.slice(0, 180) || article?.title || "Nuevo artículo");
+      if (topic.cityCode === "gdl" || topic.cityCode == null) {
+        setField("cityCode", topic.cityCode);
+      }
+    }
+
+    if (topic.socialCaption && targetId) {
+      setArticle((current) =>
+        current ? { ...current, socialCaption: topic.socialCaption ?? current.socialCaption } : current,
+      );
+    }
+
+    setNotice("Idea cargada en Generación con IA. Pulsa Generar artículo cuando quieras.");
+    focusIdeaSection();
+  };
+
   return (
     <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
       <aside className="h-fit rounded-2xl border border-border bg-surface p-3 lg:sticky lg:top-4">
@@ -127,7 +188,39 @@ export function AdminBlogPanel() {
           })} className={primaryClass} aria-label="Nuevo artículo"><Plus className="size-4" /></button>
         </div>
         <button type="button" disabled={busy} onClick={() => void run(async () => setTopics((await adminProposeBlogTopics(article?.cityCode)).topics))} className={`${secondaryClass} mt-3 w-full`}><Sparkles className="size-4" /> Escanear temas</button>
-        {topics.length ? <div className="mt-4 border-t border-border pt-3"><h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Temas para promover</h3><ul className="mt-2 space-y-2">{topics.map((topic, index) => <li key={`${topic.title}-${index}`} className="rounded-lg bg-bg-light p-2 text-xs"><p className="font-semibold text-body">{topic.title}</p><p className="mt-1 text-muted">{topic.angle}</p>{topic.promotePath ? <a href={topic.promotePath} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 font-semibold text-primary">Promover artículo <ExternalLink className="size-3" /></a> : <button type="button" onClick={() => setIdea(`${topic.title}\n\n${topic.angle}\n\nPor qué ahora: ${topic.whyNow}`)} className="mt-1 font-semibold text-primary">Usar idea</button>}</li>)}</ul></div> : null}
+        {topics.length ? (
+          <div className="mt-4 border-t border-border pt-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Temas sugeridos</h3>
+            <ul className="mt-2 space-y-2">
+              {topics.map((topic, index) => (
+                <li key={`${topic.title}-${index}`} className="rounded-lg bg-bg-light p-2 text-xs">
+                  <p className="font-semibold text-body">{topic.title}</p>
+                  <p className="mt-1 text-muted">{topic.angle}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void run(() => useTopicIdea(topic))}
+                      className="font-semibold text-primary hover:underline disabled:opacity-40"
+                    >
+                      Usar idea
+                    </button>
+                    {topic.promotePath ? (
+                      <a
+                        href={topic.promotePath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-muted hover:text-primary"
+                      >
+                        Ver público <ExternalLink className="size-3" />
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <ul className="mt-4 max-h-[60vh] space-y-1 overflow-y-auto border-t border-border pt-3">
           {articles.map((item) => <li key={item.id}><button type="button" onClick={() => void run(() => selectArticle(item.id))} className={`w-full rounded-xl p-3 text-left ${item.id === selectedId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"}`}><span className="line-clamp-2 text-sm font-semibold text-body">{item.title}</span><span className="mt-1 flex justify-between text-xs text-muted"><span>{item.status}</span><span>{item.cityLabel || "Nacional"}</span></span></button></li>)}
         </ul>
@@ -156,9 +249,16 @@ export function AdminBlogPanel() {
               <label className="sm:col-span-2 text-sm font-medium text-body">Fuentes (JSON)<textarea value={sourcesText} onChange={(e) => setSourcesText(e.target.value)} rows={7} className={`${fieldClass} font-mono text-xs`} /></label>
             </div>
 
-            <div className="rounded-2xl border border-border bg-surface p-4">
+            <div ref={ideaSectionRef} className="rounded-2xl border border-border bg-surface p-4">
               <h3 className="font-semibold text-body">Generación con IA</h3>
-              <textarea value={idea} onChange={(e) => setIdea(e.target.value)} rows={4} placeholder="Idea, ángulo y datos que debe cubrir…" className={fieldClass} />
+              <textarea
+                ref={ideaInputRef}
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                rows={4}
+                placeholder="Idea, ángulo y datos que debe cubrir…"
+                className={fieldClass}
+              />
               <button type="button" disabled={busy || !idea.trim()} onClick={() => void run(async () => { applyResult(await adminGenerateBlogArticle(article.id, { idea, cityCode: article.cityCode })); setNotice("Borrador generado."); })} className={`${primaryClass} mt-3`}><Sparkles className="size-4" /> Generar artículo</button>
             </div>
 
