@@ -44,7 +44,7 @@ export function buildPostReportEmail(payload: PostReportEmailPayload): BuiltTran
       <tr>
         <td style="padding:14px 16px;">
           <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:${B.muted};">Motivos: ${escapeHtml(payload.categories.join(", ") || "—")}</p>
-          ${payload.detailText?.trim() ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:${B.muted};">Detalle: ${escapeHtml(payload.detailText.trim())}</p>` : `<p style="margin:0 0 12px;"></p>`}
+          ${payload.detailText?.trim() ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:${B.muted};">Detalle: ${escapeHtml(payload.detailText.trim())}</p>` : ""}
           <hr style="border:none;border-top:1px solid ${B.border};margin:0 0 12px;" />
           <p style="margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${B.muted};">${escapeHtml(typeLabel)} · ${escapeHtml(payload.shortId ?? "—")} · #${payload.reportCount}</p>
           <p style="margin:0;font-size:13px;line-height:1.5;color:${B.muted};">Reportador: ${escapeHtml(payload.reporterLabel)}</p>
