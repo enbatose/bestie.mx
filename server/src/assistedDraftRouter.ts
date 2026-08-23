@@ -53,7 +53,11 @@ import {
   validLatLng,
 } from "./validation.js";
 
-const CLAIM_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+import {
+  ADMIN_OUTREACH_CLAIM_TTL_MS,
+  SELF_SERVE_CLAIM_TTL_MS,
+} from "./assistedDraftPurge.js";
+
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CLAIM_SAVE_OCCUPANT_MAX = 50;
 
@@ -540,7 +544,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       // Create claim token
       const token = randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "").slice(0, 8);
-      const expiresAt = Date.now() + CLAIM_TOKEN_TTL_MS;
+      const expiresAt = Date.now() + ADMIN_OUTREACH_CLAIM_TTL_MS;
 
       db.prepare(`
         INSERT INTO assisted_draft_claim_tokens (
@@ -725,7 +729,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
                 token, property_id, created_by_admin_id, orphan_publisher_id,
                 expires_at, created_at
               ) VALUES (?, ?, ?, ?, ?, ?)
-            `).run(token, propertyId, SELF_SERVE_CREATOR_ID, orphanPublisherId, Date.now() + CLAIM_TOKEN_TTL_MS, Date.now());
+            `).run(token, propertyId, SELF_SERVE_CREATOR_ID, orphanPublisherId, Date.now() + SELF_SERVE_CLAIM_TTL_MS, Date.now());
           }
 
           res.status(201).json({

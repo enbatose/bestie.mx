@@ -184,7 +184,9 @@ export function TermsPage() {
           <strong>nunca se publican sin tu consentimiento expreso</strong>: revisas el contenido, lo
           editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. La
           información del borrador es orientativa y puede estar incompleta; eres responsable de
-          verificar y completar los datos antes de publicar.
+          verificar y completar los datos antes de publicar. Los borradores creados por Bestie en el
+          flujo de crecimiento (enlace de reclamación) que <strong>no sean reclamados en un plazo
+          de 7 días</strong> se eliminan automáticamente.
         </p>
       </LegalSection>
 

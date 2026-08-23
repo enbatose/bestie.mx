@@ -475,7 +475,7 @@ export function AdminAssistedDraftPanel() {
             </button>
           </div>
           <p className="mt-2 text-xs text-muted">
-            Envía este enlace al propietario por WhatsApp o mensaje directo. El enlace expira en 30 días si no se usa.
+            Envía este enlace al propietario por WhatsApp o mensaje directo. Si no se reclama, el borrador se elimina automáticamente a los 7 días.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <a
