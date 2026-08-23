@@ -64,6 +64,20 @@ function setupDb(): DatabaseSync {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE post_reports (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL UNIQUE,
+      target_type TEXT NOT NULL,
+      target_room_id TEXT,
+      target_property_id TEXT,
+      target_chat_conversation_id TEXT,
+      publisher_user_id TEXT,
+      report_count INTEGER NOT NULL DEFAULT 1,
+      reviewed_at TEXT,
+      reviewed_by_admin_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   return db;
 }
