@@ -9,6 +9,7 @@ import {
   proposeBlogTopics,
   rescoreBlogArticle,
 } from "./blogAiService.js";
+import { clearBlogChatMemory, loadBlogChatMemory } from "./blogChatMemory.js";
 import { sumBlogAiCosts } from "./blogCosts.js";
 import {
   getBlogArticleById,
@@ -91,9 +92,16 @@ export function blogAdminRouter(db: DatabaseSync, databasePath?: string) {
       return;
     }
     const costs = sumBlogAiCosts(db, row.id);
+    const memory = loadBlogChatMemory(row);
     res.json({
       article: rowToBlogArticleDto(row),
       costs: { totalUsd: costs.usd, totalMxn: costs.mxn, entries: costs.rows },
+      chatHistory: memory.history,
+      chatRevisions: memory.revisions.map((r) => ({
+        revision: r.revision,
+        title: r.title,
+        createdAt: r.createdAt,
+      })),
     });
   });
 
@@ -207,10 +215,14 @@ export function blogAdminRouter(db: DatabaseSync, databasePath?: string) {
       res.status(400).json({ error: result.error });
       return;
     }
+    // Full regenerate starts a new editorial baseline; drop prior instruction memory.
+    clearBlogChatMemory(db, String(req.params.id));
     const costs = sumBlogAiCosts(db, String(req.params.id));
     res.json({
       article: result.article,
       costs: { totalUsd: costs.usd, totalMxn: costs.mxn, entries: costs.rows },
+      chatHistory: [],
+      chatRevisions: [],
     });
   });
 
@@ -269,8 +281,21 @@ export function blogAdminRouter(db: DatabaseSync, databasePath?: string) {
       article: result.article,
       reply: result.reply,
       actions: result.actions,
+      chatHistory: result.chatHistory,
+      chatRevisions: result.chatRevisions,
       costs: { totalUsd: costs.usd, totalMxn: costs.mxn, entries: costs.rows },
     });
+  });
+
+  r.delete("/articles/:id/chat-memory", (req, res) => {
+    const id = String(req.params.id);
+    const row = getBlogArticleById(db, id);
+    if (!row) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    clearBlogChatMemory(db, id);
+    res.json({ ok: true, chatHistory: [], chatRevisions: [] });
   });
 
   r.post("/topics", async (req, res) => {

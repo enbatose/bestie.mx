@@ -87,6 +87,12 @@ export function ensureBlogSchema(db: DatabaseSync): void {
   if (!tableHasColumn(db, "blog_articles", "quality_strengths_json")) {
     db.exec(`ALTER TABLE blog_articles ADD COLUMN quality_strengths_json TEXT NOT NULL DEFAULT '[]'`);
   }
+  if (!tableHasColumn(db, "blog_articles", "chat_history_json")) {
+    db.exec(`ALTER TABLE blog_articles ADD COLUMN chat_history_json TEXT NOT NULL DEFAULT '[]'`);
+  }
+  if (!tableHasColumn(db, "blog_articles", "chat_revisions_json")) {
+    db.exec(`ALTER TABLE blog_articles ADD COLUMN chat_revisions_json TEXT NOT NULL DEFAULT '[]'`);
+  }
 
   db.exec(`UPDATE blog_articles SET status = 'paused' WHERE status = 'archived'`);
 }

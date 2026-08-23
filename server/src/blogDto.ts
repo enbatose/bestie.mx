@@ -38,6 +38,8 @@ export type BlogArticleRow = {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  chat_history_json?: string | null;
+  chat_revisions_json?: string | null;
 };
 
 export type BlogArticleDto = {

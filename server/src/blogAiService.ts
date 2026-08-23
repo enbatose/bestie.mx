@@ -1,6 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { BLOG_BRAND_VOICE, BLOG_EDITORIAL_GOALS } from "./blogBrandPrompt.js";
+import {
+  applyRestoreFrom,
+  chatTranscriptForPrompt,
+  ensureBaselineRevision,
+  loadBlogChatMemory,
+  nextRevisionNumber,
+  revisionIndexForPrompt,
+  revisionsPayloadForPrompt,
+  saveBlogChatMemory,
+  snapshotFromDto,
+  type BlogChatTurn,
+} from "./blogChatMemory.js";
 import { recordBlogAiCost } from "./blogCosts.js";
 import {
   getBlogArticleById,
@@ -671,19 +683,43 @@ export async function chatEditBlogArticle(opts: {
       article: ReturnType<typeof rowToBlogArticleDto>;
       reply: string;
       actions: string[];
+      chatHistory: BlogChatTurn[];
+      chatRevisions: Array<{ revision: number; title: string; createdAt: string }>;
     }
   | { ok: false; error: string }
 > {
   const row = getBlogArticleById(opts.db, opts.articleId);
   if (!row) return { ok: false, error: "not_found" };
   const dto = rowToBlogArticleDto(row);
+  const now = isoNow();
+  let memory = ensureBaselineRevision(loadBlogChatMemory(row), dto, now);
+  const revisionPayloads = revisionsPayloadForPrompt(memory.revisions);
 
   const gen = await generateGeminiText({
     system: `${BLOG_BRAND_VOICE}\n${BLOG_EDITORIAL_GOALS}
-Eres el copiloto del editor del blog en admin. Puedes proponer cambios al artículo completo.
+Eres el copiloto del editor del blog en admin. Tienes memoria de TODA la conversación de «Instrucciones al asistente» y de las revisiones guardadas.
+Puedes proponer cambios al artículo completo.
+Si el usuario pide restaurar una versión anterior (p. ej. «la primera versión», «revisión 2», «el título de la segunda iteración»), USA "restoreFrom" con el número de revisión — no inventes el contenido de memoria.
+Ejemplos restoreFrom:
+- Restaurar todo desde revisión 1: {"all":1}
+- Cuerpo de revisión 1 + título de revisión 2: {"blocks":1,"sources":1,"faq":1,"excerpt":1,"title":2}
 Si el usuario pide explícitamente publicar, pausar, reanudar o cambiar status/slug/labels/ciudad, inclúyelo en "articlePatch" (status: draft | published | paused).
-Responde SOLO JSON: {"reply":"...","actions":["..."],"articlePatch":{...campos parciales del artículo incluyendo blocks/sources si cambian...}}`,
-    user: `Artículo actual:\n${JSON.stringify(dto)}\n\nMensaje del editor:\n${opts.message.trim()}`,
+Responde SOLO JSON:
+{"reply":"...","actions":["..."],"restoreFrom":{...opcional...},"articlePatch":{...campos parciales opcionales...}}`,
+    user: `Artículo actual (estado vivo):
+${JSON.stringify(dto)}
+
+Historial de instrucciones (completo, en orden):
+${chatTranscriptForPrompt(memory.history)}
+
+Índice de revisiones guardadas:
+${revisionIndexForPrompt(memory.revisions)}
+
+Contenido completo de revisiones (fuente de verdad para restoreFrom):
+${JSON.stringify(revisionPayloads)}
+
+Mensaje nuevo del editor:
+${opts.message.trim()}`,
     model: blogGeminiDraftModel(),
     googleSearch: /busca|investiga|fuente|noticia|news|actualiza datos/i.test(opts.message),
     temperature: 0.5,
@@ -706,6 +742,7 @@ Responde SOLO JSON: {"reply":"...","actions":["..."],"articlePatch":{...campos p
   const parsed = extractJsonObject<{
     reply?: string;
     actions?: string[];
+    restoreFrom?: Record<string, unknown>;
     articlePatch?: Partial<{
       title: string;
       slug: string;
@@ -724,16 +761,47 @@ Responde SOLO JSON: {"reply":"...","actions":["..."],"articlePatch":{...campos p
     }>;
   }>(gen.text);
 
-  const patch = parsed?.articlePatch;
-  if (patch) {
-    applyArticlePatch(opts.db, row, patch as Record<string, unknown>);
+  const restored = applyRestoreFrom(dto, memory.revisions, parsed?.restoreFrom);
+  const patch = { ...restored, ...(parsed?.articlePatch ?? {}) } as Record<string, unknown>;
+  const hasPatch = Object.keys(patch).length > 0;
+  if (hasPatch) {
+    applyArticlePatch(opts.db, getBlogArticleById(opts.db, opts.articleId)!, patch);
   }
+
+  const updatedRow = getBlogArticleById(opts.db, opts.articleId)!;
+  const updatedDto = rowToBlogArticleDto(updatedRow);
+  const reply = String(parsed?.reply || "Listo.").trim();
+  const actions = Array.isArray(parsed?.actions) ? parsed!.actions!.map(String) : [];
+
+  const afterRev = nextRevisionNumber(memory.revisions);
+  memory = {
+    history: [
+      ...memory.history,
+      { role: "user", text: opts.message.trim(), createdAt: now },
+      {
+        role: "assistant",
+        text: reply,
+        createdAt: isoNow(),
+        revisionAfter: hasPatch ? afterRev : memory.revisions[memory.revisions.length - 1]?.revision,
+      },
+    ],
+    revisions: hasPatch
+      ? [...memory.revisions, snapshotFromDto(updatedDto, afterRev, isoNow())]
+      : memory.revisions,
+  };
+  saveBlogChatMemory(opts.db, opts.articleId, memory);
 
   return {
     ok: true,
-    article: rowToBlogArticleDto(getBlogArticleById(opts.db, opts.articleId)!),
-    reply: String(parsed?.reply || "Listo.").trim(),
-    actions: Array.isArray(parsed?.actions) ? parsed!.actions!.map(String) : [],
+    article: updatedDto,
+    reply,
+    actions,
+    chatHistory: memory.history,
+    chatRevisions: memory.revisions.map((r) => ({
+      revision: r.revision,
+      title: r.title,
+      createdAt: r.createdAt,
+    })),
   };
 }
 

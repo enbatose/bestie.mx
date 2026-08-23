@@ -71,6 +71,19 @@ export type BlogComment = {
   canModerate: boolean;
 };
 
+export type BlogChatTurn = {
+  role: "user" | "assistant" | "system";
+  text: string;
+  createdAt: string;
+  revisionAfter?: number;
+};
+
+export type BlogChatRevisionSummary = {
+  revision: number;
+  title: string;
+  createdAt: string;
+};
+
 export type BlogCosts = {
   totalUsd: number;
   totalMxn: number;
@@ -217,13 +230,29 @@ export async function adminListBlogArticles(q?: string, signal?: AbortSignal): P
 export async function adminGetBlogArticle(
   id: string,
   signal?: AbortSignal,
-): Promise<{ article: BlogArticle; costs: BlogCosts }> {
+): Promise<{
+  article: BlogArticle;
+  costs: BlogCosts;
+  chatHistory: BlogChatTurn[];
+  chatRevisions: BlogChatRevisionSummary[];
+}> {
   const res = await fetch(`${apiBase()}/api/admin/blog/articles/${encodeURIComponent(id)}`, {
     credentials: cred,
     signal,
   });
   if (!res.ok) throw new Error(`admin_blog_get_${res.status}`);
-  return (await res.json()) as { article: BlogArticle; costs: BlogCosts };
+  const json = (await res.json()) as {
+    article: BlogArticle;
+    costs: BlogCosts;
+    chatHistory?: BlogChatTurn[];
+    chatRevisions?: BlogChatRevisionSummary[];
+  };
+  return {
+    article: json.article,
+    costs: json.costs,
+    chatHistory: json.chatHistory ?? [],
+    chatRevisions: json.chatRevisions ?? [],
+  };
 }
 
 export async function adminCreateBlogArticle(input?: {
@@ -266,7 +295,12 @@ export async function adminSaveBlogArticle(
 export async function adminGenerateBlogArticle(
   id: string,
   input: { idea: string; cityCode?: string | null },
-): Promise<{ article: BlogArticle; costs: BlogCosts }> {
+): Promise<{
+  article: BlogArticle;
+  costs: BlogCosts;
+  chatHistory?: BlogChatTurn[];
+  chatRevisions?: BlogChatRevisionSummary[];
+}> {
   const res = await fetch(
     `${apiBase()}/api/admin/blog/articles/${encodeURIComponent(id)}/generate`,
     {
@@ -277,7 +311,12 @@ export async function adminGenerateBlogArticle(
     },
   );
   if (!res.ok) throw new Error(`admin_blog_generate_${res.status}`);
-  return (await res.json()) as { article: BlogArticle; costs: BlogCosts };
+  return (await res.json()) as {
+    article: BlogArticle;
+    costs: BlogCosts;
+    chatHistory?: BlogChatTurn[];
+    chatRevisions?: BlogChatRevisionSummary[];
+  };
 }
 
 export async function adminRescoreBlogArticle(
@@ -311,7 +350,14 @@ export async function adminEnhanceBlogArticle(
 export async function adminChatBlogArticle(
   id: string,
   message: string,
-): Promise<{ article: BlogArticle; costs: BlogCosts; reply: string; actions: string[] }> {
+): Promise<{
+  article: BlogArticle;
+  costs: BlogCosts;
+  reply: string;
+  actions: string[];
+  chatHistory: BlogChatTurn[];
+  chatRevisions: BlogChatRevisionSummary[];
+}> {
   const res = await fetch(
     `${apiBase()}/api/admin/blog/articles/${encodeURIComponent(id)}/chat`,
     {
@@ -322,7 +368,27 @@ export async function adminChatBlogArticle(
     },
   );
   if (!res.ok) throw new Error(`admin_blog_chat_${res.status}`);
-  return (await res.json()) as Awaited<ReturnType<typeof adminChatBlogArticle>>;
+  const json = (await res.json()) as {
+    article: BlogArticle;
+    costs: BlogCosts;
+    reply: string;
+    actions: string[];
+    chatHistory?: BlogChatTurn[];
+    chatRevisions?: BlogChatRevisionSummary[];
+  };
+  return {
+    ...json,
+    chatHistory: json.chatHistory ?? [],
+    chatRevisions: json.chatRevisions ?? [],
+  };
+}
+
+export async function adminClearBlogChatMemory(id: string): Promise<void> {
+  const res = await fetch(
+    `${apiBase()}/api/admin/blog/articles/${encodeURIComponent(id)}/chat-memory`,
+    { method: "DELETE", credentials: cred },
+  );
+  if (!res.ok) throw new Error(`admin_blog_clear_chat_${res.status}`);
 }
 
 export async function adminProposeBlogTopics(cityCode?: string | null): Promise<{

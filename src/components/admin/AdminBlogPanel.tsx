@@ -4,6 +4,7 @@ import { Check, Copy, Eye, ExternalLink, Pause, Play, Plus, RefreshCw, Save, Spa
 import { BlogArticlePreviewModal } from "@/components/blog/BlogArticlePreviewModal";
 import {
   adminChatBlogArticle,
+  adminClearBlogChatMemory,
   adminCreateBlogArticle,
   adminDeleteBlogArticle,
   adminEnhanceBlogArticle,
@@ -16,6 +17,8 @@ import {
   adminSaveBlogArticle,
   type BlogArticle,
   type BlogBlock,
+  type BlogChatRevisionSummary,
+  type BlogChatTurn,
   type BlogCosts,
   type BlogSource,
 } from "@/lib/blogApi";
@@ -130,6 +133,8 @@ export function AdminBlogPanel() {
   const [idea, setIdea] = useState("");
   const [chat, setChat] = useState("");
   const [chatReply, setChatReply] = useState("");
+  const [chatHistory, setChatHistory] = useState<BlogChatTurn[]>([]);
+  const [chatRevisions, setChatRevisions] = useState<BlogChatRevisionSummary[]>([]);
   const [blocksText, setBlocksText] = useState("[]");
   const [sourcesText, setSourcesText] = useState("[]");
   const [selectedSuggestions, setSelectedSuggestions] = useState<string[]>([]);
@@ -215,18 +220,33 @@ export function AdminBlogPanel() {
     setSourcesText("[]");
     setSelectedSuggestions([]);
     setIdea("");
+    setChat("");
+    setChatReply("");
+    setChatHistory([]);
+    setChatRevisions([]);
     setPreviewOpen(false);
   }, []);
 
-  const applyLoadedArticle = useCallback((data: { article: BlogArticle; costs: BlogCosts }) => {
-    setSelectedId(data.article.id);
-    setArticle(data.article);
-    setCosts(data.costs);
-    setBlocksText(JSON.stringify(data.article.blocks, null, 2));
-    setSourcesText(JSON.stringify(data.article.sources, null, 2));
-    setSelectedSuggestions([]);
-    setCaptionCopied(false);
-  }, []);
+  const applyLoadedArticle = useCallback(
+    (data: {
+      article: BlogArticle;
+      costs: BlogCosts;
+      chatHistory?: BlogChatTurn[];
+      chatRevisions?: BlogChatRevisionSummary[];
+    }) => {
+      setSelectedId(data.article.id);
+      setArticle(data.article);
+      setCosts(data.costs);
+      setBlocksText(JSON.stringify(data.article.blocks, null, 2));
+      setSourcesText(JSON.stringify(data.article.sources, null, 2));
+      setSelectedSuggestions([]);
+      setCaptionCopied(false);
+      setChatHistory(data.chatHistory ?? []);
+      setChatRevisions(data.chatRevisions ?? []);
+      setChatReply("");
+    },
+    [],
+  );
 
   const loadList = useCallback(async (q?: string) => {
     setArticles(await adminListBlogArticles(q));
@@ -311,17 +331,29 @@ export function AdminBlogPanel() {
     await run(operation);
   };
 
-  const applyResult = (result: { article: BlogArticle; costs: BlogCosts }) => {
+  const applyResult = (result: {
+    article: BlogArticle;
+    costs: BlogCosts;
+    chatHistory?: BlogChatTurn[];
+    chatRevisions?: BlogChatRevisionSummary[];
+  }) => {
     setArticle(result.article);
     setCosts(result.costs);
     setBlocksText(JSON.stringify(result.article.blocks, null, 2));
     setSourcesText(JSON.stringify(result.article.sources, null, 2));
+    if (result.chatHistory) setChatHistory(result.chatHistory);
+    if (result.chatRevisions) setChatRevisions(result.chatRevisions);
     void loadList(search);
   };
 
   /** Apply AI result and surface how much MXN this run added to the article total. */
   const applyAiResult = (
-    result: { article: BlogArticle; costs: BlogCosts },
+    result: {
+      article: BlogArticle;
+      costs: BlogCosts;
+      chatHistory?: BlogChatTurn[];
+      chatRevisions?: BlogChatRevisionSummary[];
+    },
     successNotice: string,
     beforeMxn: number,
   ) => {
@@ -824,12 +856,67 @@ export function AdminBlogPanel() {
             </div>
 
             <div className="rounded-2xl border border-border bg-surface p-4">
-              <h3 className="font-semibold text-body">Instrucciones al asistente</h3>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-body">Instrucciones al asistente</h3>
+                  <p className="mt-1 text-xs text-muted">
+                    Recuerda toda la conversación y las revisiones. Puedes pedir p. ej. «restaura el
+                    cuerpo de la revisión 1 con el título de la 2».
+                  </p>
+                </div>
+                {chatHistory.length || chatRevisions.length ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        if (!article) return;
+                        await adminClearBlogChatMemory(article.id);
+                        setChatHistory([]);
+                        setChatRevisions([]);
+                        setChatReply("");
+                        setNotice("Memoria del asistente borrada para este artículo.");
+                      })
+                    }
+                    className={secondaryClass}
+                  >
+                    Borrar memoria
+                  </button>
+                ) : null}
+              </div>
+
+              {chatRevisions.length ? (
+                <p className="mt-3 text-xs text-muted">
+                  Revisiones:{" "}
+                  {chatRevisions
+                    .map((r) => `${r.revision} «${r.title.slice(0, 40)}${r.title.length > 40 ? "…" : ""}»`)
+                    .join(" · ")}
+                </p>
+              ) : null}
+
+              {chatHistory.length ? (
+                <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-border bg-bg-light/60 p-3 text-sm">
+                  {chatHistory.map((turn, index) => {
+                    const who =
+                      turn.role === "user" ? "Tú" : turn.role === "assistant" ? "Asistente" : "Sistema";
+                    return (
+                      <li key={`${turn.createdAt}-${index}`} className="border-t border-border/70 pt-2 first:border-0 first:pt-0">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                          {who}
+                          {turn.revisionAfter != null ? ` · rev. ${turn.revisionAfter}` : ""}
+                        </span>
+                        <p className="mt-0.5 whitespace-pre-wrap text-body">{turn.text}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+
               <textarea
                 value={chat}
                 onChange={(e) => setChat(e.target.value)}
                 rows={3}
-                placeholder="Ej. Haz el tono más directo y agrega una FAQ…"
+                placeholder="Ej. Haz el tono más directo… o: restaura la revisión 1 con el título de la 2"
                 className={fieldClass}
                 disabled={busy}
               />
@@ -842,6 +929,8 @@ export function AdminBlogPanel() {
                     const result = await adminChatBlogArticle(article.id, chat);
                     applyAiResult(result, "Instrucción aplicada.", beforeMxn);
                     setChatReply(result.reply);
+                    setChatHistory(result.chatHistory);
+                    setChatRevisions(result.chatRevisions);
                     setChat("");
                   })
                 }
