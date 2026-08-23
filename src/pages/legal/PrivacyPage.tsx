@@ -22,6 +22,7 @@ const TOC: LegalTocItem[] = [
   { id: "eliminacion-de-datos", label: "Eliminación de datos" },
   { id: "conservacion", label: "Conservación de datos" },
   { id: "seguridad", label: "Medidas de seguridad" },
+  { id: "incidentes", label: "Incidentes de seguridad" },
   { id: "menores", label: "Menores de edad" },
   { id: "cambios", label: "Cambios al aviso" },
   { id: "autoridad", label: "Autoridad y contacto" },
@@ -358,14 +359,31 @@ export function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="menores" index={13} title="Menores de edad">
+      <LegalSection id="incidentes" index={13} title="Incidentes de seguridad">
+        <p>
+          Si tenemos conocimiento de un incidente de seguridad que afecte de forma relevante tus datos
+          personales (por ejemplo, acceso no autorizado, filtración o pérdida de información),
+          actuaremos de buena fe para: (i) investigar y contener el incidente en la medida razonable;
+          (ii) evaluar el riesgo para los titulares afectados; y (iii) notificarte por los medios
+          disponibles (incluido el correo asociado a tu cuenta o <LegalMail />) cuando la ley o el
+          nivel de riesgo lo hagan procedente, con la información que sea razonable comunicar en ese
+          momento. También podremos informar a las autoridades competentes cuando corresponda.
+        </p>
+        <p>
+          Este compromiso no garantiza que todo incidente sea detectado de inmediato ni que no puedan
+          ocurrir fallas técnicas. Si sospechas un acceso indebido a tu cuenta, escríbenos de inmediato
+          a <LegalMail />.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="menores" index={14} title="Menores de edad">
         <p>
           El Servicio está dirigido a personas mayores de 18 años. No recabamos intencionalmente datos
           de menores de edad. Si detectamos que se creó una cuenta por un menor, la eliminaremos.
         </p>
       </LegalSection>
 
-      <LegalSection id="cambios" index={14} title="Cambios al aviso de privacidad">
+      <LegalSection id="cambios" index={15} title="Cambios al aviso de privacidad">
         <p>
           Podemos actualizar este Aviso de Privacidad para reflejar cambios en el Servicio o en la
           normativa. Publicaremos la versión vigente en esta página con su fecha de actualización y, en
@@ -373,7 +391,7 @@ export function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="autoridad" index={15} title="Autoridad y contacto">
+      <LegalSection id="autoridad" index={16} title="Autoridad y contacto">
         <p>
           Si consideras que tu derecho a la protección de datos personales ha sido vulnerado, puedes
           acudir ante la autoridad competente en México. Para cualquier duda sobre este Aviso o sobre el

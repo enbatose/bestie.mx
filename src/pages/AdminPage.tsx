@@ -36,6 +36,7 @@ import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesA
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 import { AdminReportActions } from "@/components/admin/AdminReportActions";
+import { AdminFraudReportChecklist } from "@/components/admin/AdminFraudReportChecklist";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
 import { AdminBlogPanel } from "@/components/admin/AdminBlogPanel";
 import { ADMIN_DEFAULT_PATH, ADMIN_NAV_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
@@ -1178,7 +1179,9 @@ export function AdminPage() {
       ) : null}
 
       {tab === "soporte" ? (
-        <div className="mt-6 grid min-h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="mt-6 space-y-4">
+          <AdminFraudReportChecklist />
+        <div className="grid min-h-[min(70vh,640px)] gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
           <aside
             className={`flex min-h-0 flex-col rounded-2xl border border-border bg-surface p-3 shadow-sm ${
               supportActiveId ? "hidden md:flex" : "flex"
@@ -1478,6 +1481,7 @@ export function AdminPage() {
               </>
             )}
           </section>
+        </div>
         </div>
       ) : null}
 
