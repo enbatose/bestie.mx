@@ -50,6 +50,11 @@ export type AdminPostRow = {
   viewPath: string;
   editPath: string;
   primaryRoomId: string | null;
+  /**
+   * Unique listing conversation threads for rooms under this property.
+   * Same seeker × room = 1; same seeker on two rooms = 2. Not raw message count.
+   */
+  messageThreadCount: number;
   /** True when the listing came from any AI-assisted draft flow. */
   assistedDraft: boolean;
   /**
@@ -378,7 +383,13 @@ export function listAdminPosts(
         EXISTS (
           SELECT 1 FROM assisted_draft_claim_tokens h
           WHERE h.property_id = p.id
-        ) AS has_claim_history
+        ) AS has_claim_history,
+        (
+          SELECT COUNT(*) FROM conversations c
+          JOIN rooms r_msg ON r_msg.id = c.listing_room_id
+          WHERE r_msg.property_id = p.id
+            AND COALESCE(c.kind, 'listing') = 'listing'
+        ) AS message_thread_count
       ${fromSql}
       ${where}
       ORDER BY COALESCE(p.created_at, '') DESC, p.id DESC
@@ -478,6 +489,7 @@ export function listAdminPosts(
         claimToken,
       }),
       primaryRoomId,
+      messageThreadCount: Math.max(0, Math.floor(Number(row.message_thread_count) || 0)),
       assistedDraft,
       createOrigin,
     };

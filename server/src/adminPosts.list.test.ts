@@ -56,6 +56,14 @@ function setupDb(): DatabaseSync {
       claimed_at INTEGER,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE conversations (
+      id TEXT PRIMARY KEY,
+      listing_room_id TEXT,
+      context_title TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL DEFAULT 'listing',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -287,5 +295,57 @@ describe("resolveAdminPostCreateOrigin", () => {
         claimCreatedByAdminId: null,
       }),
     ).toBe("ai_admin");
+  });
+});
+
+describe("listAdminPosts messageThreadCount", () => {
+  it("counts listing threads per room under the property (same seeker on two rooms = 2)", () => {
+    const db = setupDb();
+    const now = new Date().toISOString();
+    const roomA = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    const roomB = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+    const otherProp = "prp__eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+    const otherRoom = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+
+    db.prepare(
+      `INSERT INTO properties (id, publisher_id, status, post_mode, title, city, neighborhood, created_at, published_at, assisted_draft)
+       VALUES (?, 'pub-1', 'published', 'property', 'Multi room', 'Guadalajara', 'Centro', ?, ?, 0)`,
+    ).run(PROP_MANUAL, now, now);
+    db.prepare(
+      `INSERT INTO rooms (id, property_id, status, sort_order) VALUES (?, ?, 'published', 0)`,
+    ).run(roomA, PROP_MANUAL);
+    db.prepare(
+      `INSERT INTO rooms (id, property_id, status, sort_order) VALUES (?, ?, 'published', 1)`,
+    ).run(roomB, PROP_MANUAL);
+
+    db.prepare(
+      `INSERT INTO properties (id, publisher_id, status, post_mode, title, city, neighborhood, created_at, published_at, assisted_draft)
+       VALUES (?, 'pub-2', 'published', 'room', 'Other', 'Guadalajara', 'Centro', ?, ?, 0)`,
+    ).run(otherProp, now, now);
+    db.prepare(
+      `INSERT INTO rooms (id, property_id, status, sort_order) VALUES (?, ?, 'published', 0)`,
+    ).run(otherRoom, otherProp);
+
+    // Two threads on different rooms of PROP_MANUAL + one support (ignored) + one on other property.
+    db.prepare(
+      `INSERT INTO conversations (id, listing_room_id, context_title, kind, created_at, updated_at)
+       VALUES ('c1', ?, 'Room A', 'listing', ?, ?)`,
+    ).run(roomA, now, now);
+    db.prepare(
+      `INSERT INTO conversations (id, listing_room_id, context_title, kind, created_at, updated_at)
+       VALUES ('c2', ?, 'Room B', 'listing', ?, ?)`,
+    ).run(roomB, now, now);
+    db.prepare(
+      `INSERT INTO conversations (id, listing_room_id, context_title, kind, created_at, updated_at)
+       VALUES ('c3', ?, 'Support', 'support', ?, ?)`,
+    ).run(roomA, now, now);
+    db.prepare(
+      `INSERT INTO conversations (id, listing_room_id, context_title, kind, created_at, updated_at)
+       VALUES ('c4', ?, 'Other prop', 'listing', ?, ?)`,
+    ).run(otherRoom, now, now);
+
+    const listed = listAdminPosts(db, { status: "published", limit: 25, offset: 0 });
+    expect(listed.posts.find((p) => p.propertyId === PROP_MANUAL)?.messageThreadCount).toBe(2);
+    expect(listed.posts.find((p) => p.propertyId === otherProp)?.messageThreadCount).toBe(1);
   });
 });

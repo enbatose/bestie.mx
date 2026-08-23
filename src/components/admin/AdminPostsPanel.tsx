@@ -237,7 +237,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface lg:block">
-        <table className="min-w-[1100px] w-full text-left text-xs">
+        <table className="min-w-[1180px] w-full text-left text-xs">
           <thead className="border-b border-border bg-bg-light/80 text-[11px] uppercase tracking-wide text-muted">
             <tr>
               <th className="px-3 py-2.5 font-semibold">ID</th>
@@ -246,6 +246,12 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
               <th className="px-3 py-2.5 font-semibold">Creador</th>
               <th className="px-3 py-2.5 font-semibold">Paso borrador</th>
               <th className="px-3 py-2.5 font-semibold">Feedback</th>
+              <th
+                className="px-3 py-2.5 font-semibold"
+                title="Hilos de chat únicos por seeker y recámara (no cuenta mensajes repetidos)"
+              >
+                Mensajes
+              </th>
               <th className="px-3 py-2.5 font-semibold">Fechas</th>
               <th className="px-3 py-2.5 font-semibold">Enlaces</th>
               <th className="px-3 py-2.5 font-semibold">Acciones</th>
@@ -321,6 +327,9 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                     <span className="text-muted">Sin feedback</span>
                   )}
                 </td>
+                <td className="px-3 py-2.5 tabular-nums text-body">
+                  {Math.max(0, Math.floor(row.messageThreadCount ?? 0))}
+                </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-muted">
                   <div>Creado: {formatAdminDate(row.createdAt)}</div>
                   <div>Pub: {formatAdminDate(row.publishedAt)}</div>
@@ -366,7 +375,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
             ))}
             {!loading && rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-muted">
+                <td colSpan={10} className="px-3 py-8 text-center text-muted">
                   No hay posts que coincidan con el filtro.
                 </td>
               </tr>
@@ -423,6 +432,10 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                     ? `${row.feedbackRating}/5${row.feedbackComment ? ` · ${row.feedbackComment}` : ""}`
                     : "Sin feedback"}
                 </dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-body">Mensajes</dt>
+                <dd className="tabular-nums">{Math.max(0, Math.floor(row.messageThreadCount ?? 0))}</dd>
               </div>
               <div>
                 <dt className="font-semibold text-body">Fechas</dt>

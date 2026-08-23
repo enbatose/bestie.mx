@@ -544,6 +544,11 @@ export type AdminPostRow = {
   viewPath: string;
   editPath: string;
   primaryRoomId: string | null;
+  /**
+   * Unique listing conversation threads under this property (one per seeker × room).
+   * Shown as "Mensajes" in admin Posts — not raw message count.
+   */
+  messageThreadCount?: number;
   assistedDraft: boolean;
   /** Prefer this for badges; falls back to assistedDraft on older API responses. */
   createOrigin?: AdminPostCreateOrigin;
