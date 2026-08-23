@@ -9,7 +9,7 @@ import { MessagingSafetyModal } from "@/components/messaging/MessagingSafetyModa
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { authMe, type AuthMe } from "@/lib/authApi";
+import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import {
   formatRelativeUpdatedAt,
   sortUserConversations,
@@ -175,6 +175,7 @@ export function MessagesPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { openLogin } = useAuthModal();
+  const { me } = useAppShellOutlet();
   const activeId = searchParams.get("c");
   const qParam = searchParams.get("q") ?? "";
   const messagesReturnTo = `${location.pathname}${location.search}`;
@@ -183,7 +184,6 @@ export function MessagesPage() {
     const ctx = readMyListingsReturn(location.state);
     return ctx ? buildMyListingsRestorePath(ctx) : null;
   }, [location.state]);
-  const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [rows, setRows] = useState<ConversationSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -208,10 +208,6 @@ export function MessagesPage() {
   const threadScrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
-
-  const loadMe = useCallback(async () => {
-    setMe(await authMe().catch(() => null));
-  }, []);
 
   const loadSafetyStatus = useCallback(async () => {
     try {
@@ -273,10 +269,6 @@ export function MessagesPage() {
       if (!silent) setLoadingThread(false);
     }
   }, [activeId]);
-
-  useEffect(() => {
-    void loadMe();
-  }, [loadMe]);
 
   useEffect(() => {
     if (!me?.id) {
