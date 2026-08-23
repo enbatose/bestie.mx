@@ -174,8 +174,6 @@ export function BlogArticlePage() {
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-body"><Share2 className="size-4" /> Compartir</span>
         <button type="button" onClick={async () => { await navigator.clipboard.writeText(shareUrl); setCopied(true); window.setTimeout(() => setCopied(false), 2000); }} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border px-4 text-sm text-body">{copied ? <Check className="size-4" /> : <Copy className="size-4" />}{copied ? "Copiado" : "Copiar enlace"}</button>
         <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border px-4 text-sm text-body"><span className="font-bold">f</span> Facebook</a>
-        {social.facebook ? <a href={social.facebook} target="_blank" rel="noreferrer" aria-label="Seguir a Bestie en Facebook" className="font-bold text-primary">f</a> : null}
-        {social.instagram ? <a href={social.instagram} target="_blank" rel="noreferrer" aria-label="Seguir a Bestie en Instagram" className="font-bold text-primary">ig</a> : null}
       </section>
 
       <section className="mt-10" id="comentarios">
