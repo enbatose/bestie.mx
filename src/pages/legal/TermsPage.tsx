@@ -99,6 +99,7 @@ export function TermsPage() {
             "Crear y administrar un perfil de usuario.",
             "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) o desde el botón de ayuda en el mapa de búsqueda, para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas. Cuando tengas mensajes nuevos (incluido Soporte o Feedback), podemos enviarte un correo de aviso (como máximo uno cada 3 horas), sin incluir el contenido de los mensajes.",
             "Enviar feedback a Feedback de Bestie (calificación de 1 a 5 estrellas y comentario opcional) desde el menú Feedback, el botón de feedback en el mapa, o cuando te lo pidamos tras publicar un anuncio o tras abrir varios anuncios en una búsqueda. Requiere iniciar sesión; se crea un chat aparte de Soporte, con respuestas que pueden tardar hasta 48 horas.",
+            "Consultar artículos del blog de Bestie y, al iniciar sesión, publicar comentarios en ellos. Los comentarios pueden recibir respuestas y están sujetos a moderación y reporte.",
           ]}
         />
         <p>
@@ -159,7 +160,7 @@ export function TermsPage() {
       <LegalSection id="contenido" index={7} title="Contenido de los usuarios">
         <p>
           Eres el único responsable del contenido que publicas (textos, fotografías, precios, datos de
-          contacto y demás información de tus anuncios), así como del contenido y archivos adjuntos que
+          contacto y demás información de tus anuncios), de los comentarios que publiques en el blog, así como del contenido y archivos adjuntos que
           envíes por mensajes o por el chat directo con Soporte de Bestie o Feedback de Bestie. Declaras que cuentas con los
           derechos y autorizaciones necesarios sobre dicho contenido.
         </p>

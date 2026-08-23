@@ -32,6 +32,9 @@ import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
 import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
 import { assistedDraftRouter } from "./assistedDraftRouter.js";
+import { blogAdminRouter } from "./blogAdminRouter.js";
+import { blogPublicRouter } from "./blogPublicRouter.js";
+import { injectBlogShareOg, resolveBlogShareOg } from "./blogShareOg.js";
 import { buildSitemapXml } from "./sitemap.js";
 import { bindUsageAnalyticsDb } from "./usageAnalytics.js";
 import { installVanityRedirects } from "./vanityRedirects.js";
@@ -178,6 +181,8 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/properties", propertiesRouter(db));
   app.use("/api/share-copy", shareAiCopyRouter(db));
   app.use("/api/assisted-draft", assistedDraftRouter(db, resolveUploadDir(databasePath)));
+  app.use("/api/blog", blogPublicRouter(db));
+  app.use("/api/admin/blog", blogAdminRouter(db, databasePath));
 
   const uploadDir = resolveUploadDir(databasePath);
   app.use("/api/uploads", uploadsRouter({ db, uploadDir }));
@@ -241,6 +246,19 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
         if (og) {
           try {
             const html = injectListingShareOg(readIndexHtml(), og);
+            res.status(200).type("html").send(html);
+            return;
+          } catch (err) {
+            next(err);
+            return;
+          }
+        }
+
+        const blogOg = resolveBlogShareOg(db, req.path, sharePreviewBaseUrl(req));
+        if (blogOg) {
+          try {
+            let html = injectBlogShareOg(readIndexHtml(), blogOg);
+            html = injectFacebookAppId(html);
             res.status(200).type("html").send(html);
             return;
           } catch (err) {

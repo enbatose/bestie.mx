@@ -21,6 +21,9 @@ export function SiteFooter() {
           <Link to="/contacto" className={linkClass}>
             Contacto
           </Link>
+          <Link to="/blog" className={linkClass}>
+            Blog
+          </Link>
           <Link to="/legal/terminos" className={linkClass}>
             Términos y Condiciones
           </Link>

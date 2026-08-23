@@ -109,6 +109,15 @@ export const ROUTE_SEO: ReadonlyArray<{ match: RegExp; seo: RouteSeoMeta }> = [
     },
   },
   {
+    match: /^\/blog\/?$/i,
+    seo: {
+      title: "Blog Bestie MX | Roomies, renta compartida y vida en México",
+      description:
+        "Artículos de Bestie sobre roomies, costos compartidos y vivir en México. Guías prácticas para encontrar o publicar un cuarto.",
+      canonicalPath: "/blog",
+    },
+  },
+  {
     match: /^\/nosotros\/?$/i,
     seo: {
       title: "Sobre Bestie MX | Roomies y cuartos compartidos en Guadalajara",

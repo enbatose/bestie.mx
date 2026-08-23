@@ -30,6 +30,8 @@ import { SavedSearchesPage } from "@/pages/SavedSearchesPage";
 import { SearchPage } from "@/pages/SearchPage";
 import { PostLoginRedirectPage } from "@/pages/PostLoginRedirectPage";
 import { SignInPage } from "@/pages/SignInPage";
+import { BlogIndexPage } from "@/pages/BlogIndexPage";
+import { BlogArticlePage } from "@/pages/BlogArticlePage";
 
 const router = createBrowserRouter([
   {
@@ -65,6 +67,9 @@ const router = createBrowserRouter([
       { path: "notificaciones", element: <Navigate to="/notifications" replace /> },
       { path: "faq", element: <FaqPage /> },
       { path: "nosotros", element: <NosotrosPage /> },
+      { path: "blog", element: <BlogIndexPage /> },
+      { path: "blog/gdl/:slug", element: <BlogArticlePage /> },
+      { path: "blog/:slug", element: <BlogArticlePage /> },
       { path: "legal", element: <LegalPage /> },
       { path: "legal/terminos", element: <TermsPage /> },
       { path: "legal/privacidad", element: <PrivacyPage /> },

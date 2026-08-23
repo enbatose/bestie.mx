@@ -9,6 +9,7 @@ import {
   isSystemMessagingBot,
   normalizeConversationKind,
 } from "./messagingSchema.js";
+import { BLOG_BOT_USER_ID } from "./blogReports.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { clampMessageAttachments, clampStr, type MessageAttachment } from "./validation.js";
 import { resolveAdminPropertyIdFromParam } from "./resolveListingRouteId.js";
@@ -218,9 +219,13 @@ export function adminRouter(db: DatabaseSync) {
         : null;
     const kindFilterRaw = typeof req.query.kind === "string" ? req.query.kind.trim().toLowerCase() : "all";
     const kindFilter =
-      kindFilterRaw === "support" || kindFilterRaw === "feedback" ? kindFilterRaw : "all";
+      kindFilterRaw === "support" || kindFilterRaw === "feedback" || kindFilterRaw === "blog"
+        ? kindFilterRaw
+        : "all";
     const kindSql =
-      kindFilter === "all" ? `c.kind IN ('support', 'feedback')` : `c.kind = '${kindFilter}'`;
+      kindFilter === "all"
+        ? `c.kind IN ('support', 'feedback', 'blog')`
+        : `c.kind = '${kindFilter}'`;
     const rows = (
       like
         ? db
@@ -232,11 +237,11 @@ export function adminRouter(db: DatabaseSync) {
                       (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
                       (SELECT COUNT(*) FROM messages m
                         WHERE m.conversation_id = c.id
-                          AND m.sender_user_id NOT IN (?, ?)
+                          AND m.sender_user_id NOT IN (?, ?, ?)
                           AND m.read_at IS NULL) AS unread_count
                FROM conversations c
                JOIN conversation_participants cp ON cp.conversation_id = c.id
-                 AND cp.user_id NOT IN (?, ?)
+                 AND cp.user_id NOT IN (?, ?, ?)
                JOIN users customer ON customer.id = cp.user_id
                WHERE ${kindSql}
                  AND (
@@ -253,8 +258,10 @@ export function adminRouter(db: DatabaseSync) {
             .all(
               SUPPORT_BOT_USER_ID,
               FEEDBACK_BOT_USER_ID,
+              BLOG_BOT_USER_ID,
               SUPPORT_BOT_USER_ID,
               FEEDBACK_BOT_USER_ID,
+              BLOG_BOT_USER_ID,
               like,
               like,
               like,
@@ -269,16 +276,23 @@ export function adminRouter(db: DatabaseSync) {
                       (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
                       (SELECT COUNT(*) FROM messages m
                         WHERE m.conversation_id = c.id
-                          AND m.sender_user_id NOT IN (?, ?)
+                          AND m.sender_user_id NOT IN (?, ?, ?)
                           AND m.read_at IS NULL) AS unread_count
                FROM conversations c
                JOIN conversation_participants cp ON cp.conversation_id = c.id
-                 AND cp.user_id NOT IN (?, ?)
+                 AND cp.user_id NOT IN (?, ?, ?)
                JOIN users customer ON customer.id = cp.user_id
                WHERE ${kindSql}
                ORDER BY c.updated_at DESC`,
             )
-            .all(SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID)
+            .all(
+              SUPPORT_BOT_USER_ID,
+              FEEDBACK_BOT_USER_ID,
+              BLOG_BOT_USER_ID,
+              SUPPORT_BOT_USER_ID,
+              FEEDBACK_BOT_USER_ID,
+              BLOG_BOT_USER_ID,
+            )
     ) as Record<string, unknown>[];
     res.json({
       conversations: rows.map((row) => ({
@@ -317,13 +331,13 @@ export function adminRouter(db: DatabaseSync) {
     });
   });
 
-  function assertAdminInboxConversation(id: string): "support" | "feedback" | null {
+  function assertAdminInboxConversation(id: string): "support" | "feedback" | "blog" | null {
     const row = db.prepare(`SELECT kind FROM conversations WHERE id = ?`).get(id) as
       | { kind: string }
       | undefined;
     if (!row) return null;
     const kind = normalizeConversationKind(row.kind);
-    return kind === "support" || kind === "feedback" ? kind : null;
+    return kind === "support" || kind === "feedback" || kind === "blog" ? kind : null;
   }
 
   r.get("/support/conversations/:id/messages", (req: Request, res: Response) => {

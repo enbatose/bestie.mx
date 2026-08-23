@@ -826,7 +826,7 @@ export type GroupRow = {
 export type AdminSupportConversationRow = {
   id: string;
   subject: string;
-  kind?: "support" | "feedback";
+  kind?: "support" | "feedback" | "blog";
   updatedAt: string;
   customerUserId: string;
   customerDisplayName: string;
@@ -836,7 +836,7 @@ export type AdminSupportConversationRow = {
 };
 
 export async function adminListSupportConversations(
-  opts?: { q?: string; kind?: "all" | "support" | "feedback"; signal?: AbortSignal },
+  opts?: { q?: string; kind?: "all" | "support" | "feedback" | "blog"; signal?: AbortSignal },
 ): Promise<AdminSupportConversationRow[]> {
   const base = apiBase();
   const params = new URLSearchParams();
@@ -865,7 +865,7 @@ export type AdminSupportMessage = {
 
 export type AdminSupportThread = {
   subject: string;
-  kind?: "support" | "feedback";
+  kind?: "support" | "feedback" | "blog";
   customer: { id: string; displayName: string; email: string | null } | null;
   messages: AdminSupportMessage[];
 };

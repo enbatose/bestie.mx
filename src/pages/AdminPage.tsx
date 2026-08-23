@@ -36,6 +36,7 @@ import { uploadMessageAttachment, type MessageAttachment } from "@/lib/messagesA
 import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
+import { AdminBlogPanel } from "@/components/admin/AdminBlogPanel";
 import { ADMIN_DEFAULT_PATH, ADMIN_NAV_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
 
 function monthOptions(count = 12): string[] {
@@ -331,7 +332,7 @@ export function AdminPage() {
   }
 
   return (
-    <div className={`mx-auto w-full min-w-0 px-4 py-6 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" ? "max-w-7xl" : "max-w-3xl"}`}>
+    <div className={`mx-auto w-full min-w-0 px-4 py-6 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" || tab === "blog" ? "max-w-7xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
       <p className="mt-2 break-words text-sm text-muted">
         Solo cuentas cuyo correo está en la lista de administradores del servidor (integrada +{" "}
@@ -1269,10 +1270,12 @@ export function AdminPage() {
                             className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
                               row.kind === "feedback"
                                 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300"
-                                : "bg-primary/10 text-primary"
+                                : row.kind === "blog"
+                                  ? "bg-secondary/25 text-primary"
+                                  : "bg-primary/10 text-primary"
                             }`}
                           >
-                            {row.kind === "feedback" ? "Feedback" : "Soporte"}
+                            {row.kind === "feedback" ? "Feedback" : row.kind === "blog" ? "Blog" : "Soporte"}
                           </span>
                         </span>
                         <span className="shrink-0 text-[10px] text-muted">
@@ -1324,7 +1327,11 @@ export function AdminPage() {
                     </button>
                     <div className="ph-no-capture min-w-0 flex-1">
                       <p className="text-xs font-medium uppercase tracking-wide text-primary-fg/80">
-                        {supportThread?.kind === "feedback" ? "Feedback" : "Soporte"} ·{" "}
+                        {supportThread?.kind === "feedback"
+                          ? "Feedback"
+                          : supportThread?.kind === "blog"
+                            ? "Blog"
+                            : "Soporte"} ·{" "}
                         {supportThread?.customer?.displayName ?? "…"} ·{" "}
                         {supportThread?.customer?.email ?? "sin correo"}
                       </p>
@@ -1448,6 +1455,8 @@ export function AdminPage() {
           <AdminAssistedDraftPanel />
         </div>
       ) : null}
+
+      {tab === "blog" ? <AdminBlogPanel /> : null}
 
       <p className="mt-10 text-sm text-muted">
         <Link to="/" className="font-semibold text-primary underline-offset-2 hover:underline">

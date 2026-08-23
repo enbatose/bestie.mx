@@ -10,6 +10,8 @@ import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
 import { backfillPublishFeedbackFromMessages } from "./adminPosts.js";
 import { ensureAssistedDraftSchema } from "./assistedDraftSchema.js";
+import { ensureBlogSchema } from "./blogSchema.js";
+import { ensureBlogBotUser } from "./blogReports.js";
 
 const SEED_PUBLISHER_ID = "__seed__";
 
@@ -561,6 +563,8 @@ export function openDb(databasePath: string): DatabaseSync {
   ensureSavedSearchSchema(db);
   ensureNotificationsSchema(db);
   ensureAssistedDraftSchema(db);
+  ensureBlogSchema(db);
+  ensureBlogBotUser(db);
 
   const countRow = db.prepare("SELECT COUNT(*) AS c FROM properties").get() as { c: number };
   // Demo catalog only when explicitly enabled (local/dev). Production stays empty for pilots.

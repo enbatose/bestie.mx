@@ -13,15 +13,16 @@ const FEEDBACK_BOT_EMAIL = "feedback-sistema@bestie.mx";
 /** Not a valid scrypt hash — any login attempt against this account fails `verifyPassword`. */
 const SYSTEM_BOT_PASSWORD_MARKER = "system-support-account-no-login";
 
-export type MessagingConversationKind = "listing" | "support" | "feedback";
+export type MessagingConversationKind = "listing" | "support" | "feedback" | "blog";
 
 export function isSystemMessagingBot(userId: string): boolean {
-  return userId === SUPPORT_BOT_USER_ID || userId === FEEDBACK_BOT_USER_ID;
+  return userId === SUPPORT_BOT_USER_ID || userId === FEEDBACK_BOT_USER_ID || userId === "blog-bestie";
 }
 
 export function normalizeConversationKind(kind: string | null | undefined): MessagingConversationKind {
   if (kind === "support") return "support";
   if (kind === "feedback") return "feedback";
+  if (kind === "blog") return "blog";
   return "listing";
 }
 

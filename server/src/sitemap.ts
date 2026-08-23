@@ -16,6 +16,7 @@ const STATIC_PATHS: readonly { path: string; changefreq: SitemapUrl["changefreq"
     { path: "/buscar/gdl", changefreq: "daily", priority: 0.95 },
     { path: "/nosotros", changefreq: "monthly", priority: 0.8 },
     { path: "/faq", changefreq: "monthly", priority: 0.75 },
+    { path: "/blog", changefreq: "weekly", priority: 0.8 },
     { path: "/contacto", changefreq: "monthly", priority: 0.5 },
     { path: "/legal", changefreq: "yearly", priority: 0.3 },
     { path: "/legal/terminos", changefreq: "yearly", priority: 0.3 },
@@ -94,6 +95,25 @@ export function collectSitemapUrls(db: DatabaseSync, base: string = publicBaseUr
         lastmod: toDate(row.updated_at),
         changefreq: "weekly",
         priority: 0.65,
+      });
+    }
+
+    const articles = db
+      .prepare(
+        `SELECT slug, city_code, COALESCE(published_at, updated_at, created_at) AS updated_at
+         FROM blog_articles WHERE status = 'published'`,
+      )
+      .all() as { slug: string; city_code: string | null; updated_at: string | null }[];
+    for (const a of articles) {
+      const path =
+        a.city_code && a.city_code.trim()
+          ? `/blog/${a.city_code.trim()}/${a.slug}`
+          : `/blog/${a.slug}`;
+      urls.push({
+        loc: `${origin}${path}`,
+        lastmod: toDate(a.updated_at),
+        changefreq: "weekly",
+        priority: 0.72,
       });
     }
   } catch {

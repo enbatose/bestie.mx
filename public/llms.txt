@@ -19,6 +19,7 @@
 - About: https://www.bestie.mx/nosotros
 - FAQ: https://www.bestie.mx/faq
 - Contact: https://www.bestie.mx/contacto
+- Blog: https://www.bestie.mx/blog
 - Terms: https://www.bestie.mx/legal/terminos
 - Privacy: https://www.bestie.mx/legal/privacidad
 - Sitemap: https://www.bestie.mx/sitemap.xml

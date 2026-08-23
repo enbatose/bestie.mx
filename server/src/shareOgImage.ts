@@ -67,7 +67,7 @@ export function coverUploadFilename(
   return null;
 }
 
-export function shareOgImagePublicPath(kind: "anuncio" | "propiedad", refCode: string): string {
+export function shareOgImagePublicPath(kind: "anuncio" | "propiedad" | "blog", refCode: string): string {
   const safe = encodeURIComponent(refCode.replace(/\.jpg$/i, ""));
   return `/api/share-og/${kind}/${safe}.jpg`;
 }

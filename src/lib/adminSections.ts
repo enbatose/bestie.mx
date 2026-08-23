@@ -6,6 +6,7 @@ export const ADMIN_SECTIONS = [
   { id: "property", slug: "posts", label: "Posts", countKey: "publishedPosts", inNav: true },
   { id: "soporte", slug: "soporte", label: "Soporte", countKey: "unreadSupportMessages", inNav: true },
   { id: "outreach", slug: "outreach", label: "Outreach", inNav: true },
+  { id: "blog", slug: "blog", label: "Blog", inNav: true },
   { id: "analytics", slug: "metricas", label: "Métricas", inNav: true },
   { id: "cities", slug: "ciudades", label: "Ciudades", inNav: false },
 ] as const;
