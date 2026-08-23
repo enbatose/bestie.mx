@@ -91,7 +91,6 @@ export function BlogArticlePage() {
   const { me } = useAppShellOutlet();
   const { openLogin } = useAuthModal();
   const [article, setArticle] = useState<BlogArticle | null>(null);
-  const [social, setSocial] = useState({ facebook: "", instagram: "" });
   const [comments, setComments] = useState<BlogComment[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
@@ -131,7 +130,6 @@ export function BlogArticlePage() {
     void fetchBlogArticleByPath({ slug, city: city ?? null, signal: controller.signal })
       .then(async (data) => {
         setArticle(data.article);
-        setSocial(data.social);
         setComments(await fetchBlogComments(data.article.id, controller.signal));
         if (viewedId.current !== data.article.id) {
           viewedId.current = data.article.id;
