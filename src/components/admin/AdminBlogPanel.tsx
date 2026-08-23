@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
 import { BlogArticlePreviewModal } from "@/components/blog/BlogArticlePreviewModal";
 import {
@@ -113,8 +114,10 @@ function AiProgressBanner({
 }
 
 export function AdminBlogPanel() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const articleIdFromUrl = searchParams.get("a")?.trim() || null;
   const [articles, setArticles] = useState<BlogArticle[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(articleIdFromUrl);
   const [article, setArticle] = useState<BlogArticle | null>(null);
   const [costs, setCosts] = useState<BlogCosts | null>(null);
   const [search, setSearch] = useState("");
@@ -175,20 +178,90 @@ export function AdminBlogPanel() {
 
   useEffect(() => () => clearProgressTimer(), []);
 
-  const loadList = useCallback(async (q?: string) => {
-    setArticles(await adminListBlogArticles(q));
+  const setArticleInUrl = useCallback(
+    (id: string | null) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          const current = next.get("a");
+          if (id) {
+            if (current === id) return prev;
+            next.set("a", id);
+          } else if (!current) {
+            return prev;
+          } else {
+            next.delete("a");
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const clearEditor = useCallback(() => {
+    setSelectedId(null);
+    setArticle(null);
+    setCosts(null);
+    setBlocksText("[]");
+    setSourcesText("[]");
+    setSelectedSuggestions([]);
+    setIdea("");
+    setPreviewOpen(false);
   }, []);
 
-  const selectArticle = useCallback(async (id: string) => {
-    setSelectedId(id);
-    const data = await adminGetBlogArticle(id);
+  const applyLoadedArticle = useCallback((data: { article: BlogArticle; costs: BlogCosts }) => {
+    setSelectedId(data.article.id);
     setArticle(data.article);
     setCosts(data.costs);
     setBlocksText(JSON.stringify(data.article.blocks, null, 2));
     setSourcesText(JSON.stringify(data.article.sources, null, 2));
     setSelectedSuggestions([]);
-    return data.article;
   }, []);
+
+  const loadList = useCallback(async (q?: string) => {
+    setArticles(await adminListBlogArticles(q));
+  }, []);
+
+  const selectArticle = useCallback(
+    async (id: string) => {
+      setArticleInUrl(id);
+      const data = await adminGetBlogArticle(id);
+      applyLoadedArticle(data);
+      return data.article;
+    },
+    [applyLoadedArticle, setArticleInUrl],
+  );
+
+  // Deep-link / refresh: restore editor from ?a=
+  useEffect(() => {
+    if (!articleIdFromUrl) {
+      if (selectedId || article) clearEditor();
+      return;
+    }
+    if (article?.id === articleIdFromUrl) {
+      if (selectedId !== articleIdFromUrl) setSelectedId(articleIdFromUrl);
+      return;
+    }
+    let cancelled = false;
+    void adminGetBlogArticle(articleIdFromUrl)
+      .then((data) => {
+        if (cancelled) return;
+        applyLoadedArticle(data);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError("No se pudo abrir el artículo de la URL.");
+        clearEditor();
+        setArticleInUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only react to URL changes; loaded article id is checked inside.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional URL-driven restore
+  }, [articleIdFromUrl]);
 
   const focusIdeaSection = useCallback(() => {
     window.setTimeout(() => {
@@ -336,14 +409,9 @@ export function AdminBlogPanel() {
     );
     if (!ok) return;
     await adminDeleteBlogArticle(id);
-    if (selectedId === id) {
-      setSelectedId(null);
-      setArticle(null);
-      setCosts(null);
-      setBlocksText("[]");
-      setSourcesText("[]");
-      setIdea("");
-      setPreviewOpen(false);
+    if (selectedId === id || articleIdFromUrl === id) {
+      clearEditor();
+      setArticleInUrl(null);
     }
     await loadList(search);
     setNotice("Artículo eliminado.");

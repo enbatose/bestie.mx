@@ -31,3 +31,8 @@ export function adminSupportConversationPath(conversationId: string): string {
   const id = conversationId.trim();
   return id ? `/admin/soporte?c=${encodeURIComponent(id)}` : "/admin/soporte";
 }
+
+export function adminBlogArticlePath(articleId: string): string {
+  const id = articleId.trim();
+  return id ? `/admin/blog?a=${encodeURIComponent(id)}` : "/admin/blog";
+}
