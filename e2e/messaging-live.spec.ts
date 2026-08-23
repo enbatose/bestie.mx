@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { acceptSafetyModal, loginViaApi, roomPublicSlug } from "./helpers";
+import { acceptSafetyModal, loginViaApi, newE2eContext, roomPublicSlug } from "./helpers";
 
 /**
  * Authenticated messaging against a deployed origin.
@@ -30,8 +30,8 @@ test.describe("Live messaging (fixture accounts)", () => {
     const slug = roomPublicSlug(listingId);
     const token = `live-msg-${Date.now()}`;
 
-    const seekCtx = await browser.newContext();
-    const pubCtx = await browser.newContext();
+    const seekCtx = await newE2eContext(browser);
+    const pubCtx = await newE2eContext(browser);
     try {
       await loginViaApi(seekCtx.request, process.env.E2E_MSG_SEEKER_EMAIL!, process.env.E2E_MSG_SEEKER_PASSWORD!);
       await loginViaApi(

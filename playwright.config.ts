@@ -1,8 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import { e2eCookieConsentStorageState } from "./e2e/helpers";
 
 const port = Number(process.env.E2E_PORT || 4177);
 const baseURL = process.env.E2E_BASE_URL || `http://127.0.0.1:${port}`;
 const isLive = Boolean(process.env.E2E_LIVE);
+const consentStorage = e2eCookieConsentStorageState(new URL(baseURL).origin);
 
 /** Shared ignore: live suite only when E2E_LIVE; mutating isolated specs never against live. */
 const projectIgnore = isLive
@@ -32,6 +34,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL,
+    storageState: consentStorage,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

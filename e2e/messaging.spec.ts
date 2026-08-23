@@ -4,6 +4,7 @@ import {
   createPublishedListing,
   inboxRow,
   isMobileProject,
+  newE2eContext,
   registerViaApi,
   uniqueEmail,
   unreadCount,
@@ -45,8 +46,8 @@ test.describe("Messaging (isolated)", () => {
   test("seeker contacts via A-ref URL, accepts safety notice, publisher replies", async ({
     browser,
   }) => {
-    const pubCtx = await browser.newContext();
-    const seekCtx = await browser.newContext();
+    const pubCtx = await newE2eContext(browser);
+    const seekCtx = await newE2eContext(browser);
     try {
       const publisher = await preparePublisher(pubCtx);
       const seeker = await prepareSeeker(seekCtx);
@@ -122,7 +123,7 @@ test.describe("Messaging (isolated)", () => {
   });
 
   test("publisher cannot message their own listing", async ({ browser }) => {
-    const pubCtx = await browser.newContext();
+    const pubCtx = await newE2eContext(browser);
     try {
       const publisher = await preparePublisher(pubCtx);
       await publisher.page.goto(publisher.listing.publicPath);
@@ -138,7 +139,7 @@ test.describe("Messaging (isolated)", () => {
   });
 
   test("anonymous seeker is asked to sign in before messaging", async ({ page, browser }) => {
-    const pubCtx = await browser.newContext();
+    const pubCtx = await newE2eContext(browser);
     try {
       const publisher = await preparePublisher(pubCtx);
       await page.goto(publisher.listing.publicPath);
@@ -158,13 +159,13 @@ test.describe("Messaging (isolated)", () => {
   }, testInfo) => {
     test.skip(isMobileProject(testInfo), "API contract runs once on desktop");
 
-    const pubCtx = await browser.newContext();
-    const seekCtx = await browser.newContext();
+    const pubCtx = await newE2eContext(browser);
+    const seekCtx = await newE2eContext(browser);
     try {
       const publisher = await preparePublisher(pubCtx);
       const seeker = await prepareSeeker(seekCtx);
 
-      const anon = await browser.newContext();
+      const anon = await newE2eContext(browser);
       try {
         const anonConv = await anon.request.get("/api/messages/conversations");
         expect(anonConv.status()).toBe(401);
@@ -213,7 +214,7 @@ test.describe("Messaging (isolated)", () => {
       expect((await inboxRow(publisher.request, conversationId))?.lastPreview).toBe("Nuevo mensaje");
       expect(await unreadCount(publisher.request)).toBeGreaterThanOrEqual(1);
 
-      const strangerCtx = await browser.newContext();
+      const strangerCtx = await newE2eContext(browser);
       try {
         const stranger = await prepareSeeker(strangerCtx);
         const stolenList = await stranger.request.get("/api/messages/conversations");

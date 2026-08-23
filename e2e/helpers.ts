@@ -1,9 +1,47 @@
-import { expect, type APIRequestContext, type Page, type TestInfo } from "@playwright/test";
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import {
+  COOKIE_CONSENT_STORAGE_KEY,
+  COOKIE_CONSENT_VERSION,
+} from "../src/lib/cookieConsent";
 
 export const PROP_SUMMARY_OK =
   "Descripción de la propiedad lo bastante larga para pruebas E2E de publicación (≥100 caracteres requeridos).";
 export const ROOM_SUMMARY_OK =
   "Descripción del cuarto lo bastante larga para pruebas E2E de publicación (≥100 caracteres requeridos en el anuncio).";
+
+/**
+ * Pre-decide cookie consent so the bottom banner cannot intercept clicks
+ * (Mostrar listado, Enviar, etc.) in CI.
+ */
+export function e2eCookieConsentStorageState(origin: string) {
+  return {
+    cookies: [] as { name: string; value: string; domain: string; path: string }[],
+    origins: [
+      {
+        origin,
+        localStorage: [
+          {
+            name: COOKIE_CONSENT_STORAGE_KEY,
+            value: JSON.stringify({
+              version: COOKIE_CONSENT_VERSION,
+              analytics: false,
+              marketing: false,
+              decidedAt: "2026-01-01T00:00:00.000Z",
+            }),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** New context with consent seeded (for specs that call `browser.newContext`). */
+export async function newE2eContext(
+  browser: Browser,
+  origin = new URL(process.env.E2E_BASE_URL || `http://127.0.0.1:${process.env.E2E_PORT || 4177}`).origin,
+): Promise<BrowserContext> {
+  return browser.newContext({ storageState: e2eCookieConsentStorageState(origin) });
+}
 
 export function uniqueEmail(prefix = "e2e"): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.test`;
