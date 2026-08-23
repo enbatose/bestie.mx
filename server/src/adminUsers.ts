@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { isAdminEmail, parseAdminEmails } from "./adminAuth.js";
+import { BLOG_BOT_USER_ID } from "./blogReports.js";
 import { isUserEmailVerified, userAccountStatus } from "./emailVerification.js";
 import { FEEDBACK_BOT_USER_ID, isSystemMessagingBot, SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
 
@@ -34,7 +35,8 @@ export type AdminUsersListResult = {
   counts: AdminUserCounts;
 };
 
-const SYSTEM_BOT_IDS = [SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID] as const;
+/** Support, feedback, and blog bots. Keep in sync with `isSystemMessagingBot`. */
+const SYSTEM_BOT_IDS = [SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, BLOG_BOT_USER_ID] as const;
 
 export function parseAdminUserSegment(raw: unknown): AdminUserSegment {
   const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";

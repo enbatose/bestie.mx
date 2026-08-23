@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
+import { BLOG_BOT_USER_ID, ensureBlogBotUser } from "./blogReports.js";
 import { ensureMessagingSchema, FEEDBACK_BOT_USER_ID, SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
 import { classifyAdminUserRole, listAdminUsers } from "./adminUsers.js";
 
@@ -18,6 +19,7 @@ function setupDb(): DatabaseSync {
     );
   `);
   ensureMessagingSchema(db);
+  ensureBlogBotUser(db);
   return db;
 }
 
@@ -50,6 +52,7 @@ describe("admin user segments", () => {
     process.env.ADMIN_EMAILS = "ops@test.mx";
     expect(classifyAdminUserRole(SUPPORT_BOT_USER_ID, "soporte-sistema@bestie.mx")).toBe("system");
     expect(classifyAdminUserRole(FEEDBACK_BOT_USER_ID, "feedback-sistema@bestie.mx")).toBe("system");
+    expect(classifyAdminUserRole(BLOG_BOT_USER_ID, "blog-sistema@bestie.mx")).toBe("system");
     expect(classifyAdminUserRole("u-admin", "ops@test.mx")).toBe("admin");
     expect(classifyAdminUserRole("u-real", "ana@test.mx")).toBe("user");
     process.env.ADMIN_EMAILS = prevAdmin;
@@ -76,20 +79,24 @@ describe("admin user segments", () => {
     const pending = listAdminUsers(db, { segment: "pending" });
     expect(pending.users.map((u) => u.id)).toEqual(["u-pending"]);
     expect(pending.users[0]?.accountStatus).toBe("pending_validation");
+    expect(pending.users.some((u) => u.id === BLOG_BOT_USER_ID)).toBe(false);
 
     const staff = listAdminUsers(db, { segment: "staff" });
     const staffIds = staff.users.map((u) => u.id);
     expect(staffIds).toContain("u-admin");
     expect(staffIds).toContain(SUPPORT_BOT_USER_ID);
     expect(staffIds).toContain(FEEDBACK_BOT_USER_ID);
+    expect(staffIds).toContain(BLOG_BOT_USER_ID);
     expect(staff.users.find((u) => u.id === "u-admin")?.role).toBe("admin");
     expect(staff.users.find((u) => u.id === SUPPORT_BOT_USER_ID)?.role).toBe("system");
+    expect(staff.users.find((u) => u.id === BLOG_BOT_USER_ID)?.role).toBe("system");
 
     const all = listAdminUsers(db, { segment: "all" });
     expect(all.users.map((u) => u.id).sort()).toEqual(["u-pending", "u-phone", "u-real"].sort());
     expect(all.counts.all).toBe(3);
     expect(all.users.some((u) => u.id === "u-admin")).toBe(false);
     expect(all.users.some((u) => u.id === SUPPORT_BOT_USER_ID)).toBe(false);
+    expect(all.users.some((u) => u.id === BLOG_BOT_USER_ID)).toBe(false);
 
     process.env.ADMIN_EMAILS = prevAdmin;
   });
