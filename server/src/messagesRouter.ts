@@ -25,6 +25,7 @@ import {
 import { attachPublishFeedbackToProperty } from "./adminPosts.js";
 import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
 import { isUserPublisherBlocked, loadPostReportByConversationId, REPORT_BOT_USER_ID } from "./listingReports.js";
+import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
   hasAcceptedMessagingSafety,
   isMessagingSafetyExemptPeer,
@@ -462,14 +463,23 @@ export function messagesRouter(db: DatabaseSync) {
       res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
       return;
     }
-    const listingRoomId = (req.body as { listingRoomId?: unknown }).listingRoomId;
-    if (typeof listingRoomId !== "string" || !isSafeRoomOrListingId(listingRoomId)) {
+    const listingRoomIdRaw = (req.body as { listingRoomId?: unknown }).listingRoomId;
+    if (typeof listingRoomIdRaw !== "string" || !listingRoomIdRaw.trim()) {
+      res.status(400).json({ error: "invalid_listing_room_id" });
+      return;
+    }
+    // Accept UUID or public short code (`A550E8400`) — same as GET /api/listings/:id.
+    const listingRoomId = resolveRoomIdFromRouteParam(db, listingRoomIdRaw);
+    if (!listingRoomId) {
       res.status(400).json({ error: "invalid_listing_room_id" });
       return;
     }
     // Drafts / paused / occupied must not be contactable via API (UI already blocks contact).
     if (!isRoomListingPubliclyVisible(db, listingRoomId)) {
-      res.status(404).json({ error: "not_found" });
+      res.status(404).json({
+        error: "not_found",
+        message: "Este anuncio no está disponible para mensajes por ahora.",
+      });
       return;
     }
     const owner = ownerUserIdForRoomListing(db, listingRoomId);

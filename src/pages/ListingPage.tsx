@@ -445,16 +445,16 @@ export function ListingPage() {
 
   const onSendSingleMessage = useCallback(
     (message: string) => {
-      if (!id) return;
-      void openConversation(id, message);
+      if (!listing?.id) return;
+      void openConversation(listing.id, message);
     },
-    [id, openConversation],
+    [listing?.id, openConversation],
   );
 
   const onSendPropertyMessage = useCallback(
     (message: string, roomIds: string[], availableRooms: readonly Room[]) => {
-      if (!id) return;
-      const targetRoomId = roomIds[0] ?? availableRooms[0]?.id ?? id;
+      if (!listing?.id) return;
+      const targetRoomId = roomIds[0] ?? availableRooms[0]?.id ?? listing.id;
       const selectedRooms = roomIds
         .map((roomId) => availableRooms.find((room) => room.id === roomId))
         .filter((room): room is Room => Boolean(room));
@@ -466,7 +466,7 @@ export function ListingPage() {
       }
       void openConversation(targetRoomId, body);
     },
-    [id, openConversation],
+    [listing?.id, openConversation],
   );
 
   const scrollToContact = useCallback(() => {

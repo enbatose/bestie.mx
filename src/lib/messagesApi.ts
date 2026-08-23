@@ -233,6 +233,20 @@ export async function startConversationFromListing(
     if (j.error === "cannot_message_self") {
       throw new Error(CANNOT_MESSAGE_SELF_MESSAGE);
     }
+    if (j.error === "owner_not_reachable") {
+      throw new Error(
+        j.message || "El anunciante no tiene una cuenta vinculada para mensajes en la app.",
+      );
+    }
+    if (j.error === "publisher_blocked") {
+      throw new Error(j.message || "No se pueden enviar mensajes a este anunciante por ahora.");
+    }
+    if (j.error === "not_found") {
+      throw new Error(j.message || "Este anuncio no está disponible para mensajes por ahora.");
+    }
+    if (j.error === "invalid_listing_room_id") {
+      throw new Error("No pudimos identificar el anuncio. Recarga la página e intenta de nuevo.");
+    }
     throw new Error(j.message || j.error || `start_${res.status}`);
   }
   if (!j.conversationId) throw new Error("missing_conversation");

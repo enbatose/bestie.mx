@@ -967,4 +967,58 @@ describe("Phase B API hardening", () => {
       .expect(404);
     expect((blocked.body as { error?: string }).error).toBe("not_found");
   });
+
+  it("POST /api/messages/conversations/from-listing accepts public A-reference slugs", async () => {
+    const publisher = request.agent(app);
+    const r1 = await publisher
+      .post("/api/properties")
+      .send({
+        title: "Casa ref mensajes",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "523331112244",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+    const r2 = await publisher
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto ref mensajes",
+        rentMxn: 4600,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: ROOM_SUMMARY_OK,
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+    await registerAndLinkAnonymousPublisher(publisher);
+    await patchRoomWithTestPhoto(publisher, propertyId, roomId);
+    await publisher
+      .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
+      .send({ status: "published", postMode: "room" })
+      .expect(200);
+    await publisher.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
+
+    const seeker = request.agent(app);
+    await seeker
+      .post("/api/auth/register")
+      .send({
+        email: uniqueTestEmail("seeker-aref-msg"),
+        password: "longenough1",
+        displayName: "Seeker ARef",
+      })
+      .expect(201);
+
+    const started = await seeker
+      .post("/api/messages/conversations/from-listing")
+      .send({ listingRoomId: roomReferenceCode(roomId) })
+      .expect(201);
+    expect((started.body as { conversationId?: string }).conversationId).toBeTruthy();
+  });
 });
