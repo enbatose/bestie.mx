@@ -18,6 +18,7 @@ describe("adminSections", () => {
       "posts",
       "soporte",
       "outreach",
+      "blog",
       "metricas",
     ]);
     expect(ADMIN_SECTIONS.map((s) => s.slug)).toContain("ciudades");
