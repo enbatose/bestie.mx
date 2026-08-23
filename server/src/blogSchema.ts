@@ -4,14 +4,16 @@ import type { DatabaseSync } from "node:sqlite";
 export const BLOG_LIVE_CITY_CODES = ["gdl"] as const;
 export type BlogLiveCityCode = (typeof BLOG_LIVE_CITY_CODES)[number];
 
-export type BlogArticleStatus = "draft" | "published" | "archived";
+export type BlogArticleStatus = "draft" | "published" | "paused";
 
 export function isBlogLiveCityCode(raw: string | null | undefined): raw is BlogLiveCityCode {
   return raw === "gdl";
 }
 
 export function normalizeBlogStatus(raw: string | null | undefined): BlogArticleStatus {
-  if (raw === "published" || raw === "archived" || raw === "draft") return raw;
+  if (raw === "published" || raw === "paused" || raw === "draft") return raw;
+  // Legacy blog rows used "archived" for off-public; treat as paused.
+  if (raw === "archived") return "paused";
   return "draft";
 }
 
@@ -85,6 +87,8 @@ export function ensureBlogSchema(db: DatabaseSync): void {
   if (!tableHasColumn(db, "blog_articles", "quality_strengths_json")) {
     db.exec(`ALTER TABLE blog_articles ADD COLUMN quality_strengths_json TEXT NOT NULL DEFAULT '[]'`);
   }
+
+  db.exec(`UPDATE blog_articles SET status = 'paused' WHERE status = 'archived'`);
 }
 
 function tableHasColumn(db: DatabaseSync, table: string, column: string): boolean {

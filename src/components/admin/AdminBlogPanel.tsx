@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Check, Copy, Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
+import { Check, Copy, Eye, ExternalLink, Pause, Play, Plus, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
 import { BlogArticlePreviewModal } from "@/components/blog/BlogArticlePreviewModal";
 import {
   adminChatBlogArticle,
@@ -24,6 +24,12 @@ const fieldClass = "mt-1 min-h-11 w-full rounded-xl border border-border bg-bg-l
 const primaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40";
 const secondaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-40";
 type Topic = Awaited<ReturnType<typeof adminProposeBlogTopics>>["topics"][number];
+
+const STATUS_LABELS: Record<BlogArticle["status"], string> = {
+  draft: "Borrador",
+  published: "Publicado",
+  paused: "Pausado",
+};
 
 const ACTIVITY_LABELS: Record<string, string> = {
   research: "Investigación",
@@ -332,7 +338,7 @@ export function AdminBlogPanel() {
     setArticle((current) => current ? { ...current, [key]: value } : current);
   };
 
-  const save = async () => {
+  const save = async (opts?: { status?: BlogArticle["status"]; notice?: string }) => {
     if (!article) return;
     let blocks: BlogArticle["blocks"];
     let sources: BlogArticle["sources"];
@@ -342,8 +348,33 @@ export function AdminBlogPanel() {
     } catch {
       throw new Error("Revisa el JSON de bloques y fuentes.");
     }
-    applyResult(await adminSaveBlogArticle(article.id, { ...article, blocks, sources }));
-    setNotice("Artículo guardado.");
+    const nextStatus = opts?.status ?? article.status;
+    applyResult(
+      await adminSaveBlogArticle(article.id, {
+        ...article,
+        status: nextStatus,
+        blocks,
+        sources,
+      }),
+    );
+    setNotice(opts?.notice ?? "Cambios guardados (sin cambiar el estado).");
+  };
+
+  const publishArticle = async () => {
+    const fromPaused = article?.status === "paused";
+    await save({
+      status: "published",
+      notice: fromPaused
+        ? "Artículo reanudado: ya es público otra vez."
+        : "Artículo publicado: ya es visible en el blog y en las landings.",
+    });
+  };
+
+  const pauseArticle = async () => {
+    await save({
+      status: "paused",
+      notice: "Artículo pausado: dejó de ser público. Puedes reanudarlo cuando quieras.",
+    });
   };
 
   const publishMeta = async (platform: "facebook" | "instagram") => {
@@ -507,12 +538,12 @@ export function AdminBlogPanel() {
             <li key={item.id} className="group relative">
               <button
                 type="button"
-                onClick={() => void run(() => selectArticle(item.id))}
+                onClick={() => void run(async () => { await selectArticle(item.id); })}
                 className={`w-full rounded-xl p-3 pr-10 text-left ${item.id === selectedId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"}`}
               >
                 <span className="line-clamp-2 text-sm font-semibold text-body">{item.title}</span>
                 <span className="mt-1 flex justify-between text-xs text-muted">
-                  <span>{item.status}</span>
+                  <span>{STATUS_LABELS[item.status] ?? item.status}</span>
                   <span>{item.cityLabel || "Nacional"}</span>
                 </span>
               </button>
@@ -544,12 +575,53 @@ export function AdminBlogPanel() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-body">Editar artículo</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-bold text-body">Editar artículo</h2>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      article.status === "published"
+                        ? "bg-secondary/20 text-primary"
+                        : article.status === "paused"
+                          ? "bg-warning/15 text-warning-fg"
+                          : "bg-bg-light text-muted"
+                    }`}
+                  >
+                    {STATUS_LABELS[article.status]}
+                  </span>
+                </div>
                 <p className="text-xs text-muted">{article.path}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={busy} onClick={openPreview} className={secondaryClass}>
                   <Eye className="size-4" /> Vista previa
+                </button>
+                {article.status === "published" ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void run(pauseArticle)}
+                    className={secondaryClass}
+                  >
+                    <Pause className="size-4" /> Pausar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void run(publishArticle)}
+                    className={primaryClass}
+                  >
+                    <Play className="size-4" />
+                    {article.status === "paused" ? "Reanudar" : "Publicar"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void run(() => save())}
+                  className={secondaryClass}
+                >
+                  <Save className="size-4" /> Guardar
                 </button>
                 <button
                   type="button"
@@ -558,9 +630,6 @@ export function AdminBlogPanel() {
                   className={`${secondaryClass} border-error/30 text-error hover:bg-error/10`}
                 >
                   <Trash2 className="size-4" /> Eliminar
-                </button>
-                <button type="button" disabled={busy} onClick={() => void run(save)} className={primaryClass}>
-                  <Save className="size-4" /> Guardar
                 </button>
               </div>
             </div>
@@ -606,9 +675,8 @@ export function AdminBlogPanel() {
               </div>
               <label className="sm:col-span-2 text-sm font-medium text-body">Título<input value={article.title} onChange={(e) => setField("title", e.target.value)} className={fieldClass} /></label>
               <label className="text-sm font-medium text-body">Slug<input value={article.slug} onChange={(e) => setField("slug", e.target.value)} className={fieldClass} /></label>
-              <label className="text-sm font-medium text-body">Estado<select value={article.status} onChange={(e) => setField("status", e.target.value as BlogArticle["status"])} className={fieldClass}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></label>
               <label className="text-sm font-medium text-body">Ciudad<select value={article.cityCode ?? ""} onChange={(e) => setField("cityCode", e.target.value || null)} className={fieldClass}><option value="">Nacional</option><option value="gdl">Guadalajara</option></select></label>
-              <label className="text-sm font-medium text-body">Etiquetas<input value={article.labels.join(", ")} onChange={(e) => setField("labels", e.target.value.split(",").map((value) => value.trim()).filter(Boolean))} className={fieldClass} /></label>
+              <label className="sm:col-span-2 text-sm font-medium text-body">Etiquetas<input value={article.labels.join(", ")} onChange={(e) => setField("labels", e.target.value.split(",").map((value) => value.trim()).filter(Boolean))} className={fieldClass} /></label>
               <label className="sm:col-span-2 text-sm font-medium text-body">Extracto<textarea value={article.excerpt} onChange={(e) => setField("excerpt", e.target.value)} rows={3} className={fieldClass} /></label>
               <label className="text-sm font-medium text-body">Meta title<input value={article.metaTitle ?? ""} onChange={(e) => setField("metaTitle", e.target.value || null)} className={fieldClass} /></label>
               <label className="text-sm font-medium text-body">Imagen de portada<input value={article.coverImageUrl ?? ""} onChange={(e) => setField("coverImageUrl", e.target.value || null)} className={fieldClass} /></label>

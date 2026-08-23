@@ -100,7 +100,7 @@ function existingArticlesContext(db: DatabaseSync, excludeId?: string): string {
     .prepare(
       `SELECT id, title, slug, city_code, excerpt, labels_json, status
        FROM blog_articles
-       WHERE status IN ('published','draft')
+       WHERE status IN ('published','draft','paused')
        ORDER BY updated_at DESC LIMIT 40`,
     )
     .all() as Array<{
@@ -409,7 +409,7 @@ export async function computeSimilarityWarnings(
   const others = db
     .prepare(
       `SELECT id, title, slug, city_code, excerpt, labels_json FROM blog_articles
-       WHERE id != ? AND status IN ('published','draft') LIMIT 30`,
+       WHERE id != ? AND status IN ('published','draft','paused') LIMIT 30`,
     )
     .all(opts.articleId) as Array<{
     id: string;
@@ -676,7 +676,7 @@ export async function chatEditBlogArticle(opts: {
   const gen = await generateGeminiText({
     system: `${BLOG_BRAND_VOICE}\n${BLOG_EDITORIAL_GOALS}
 Eres el copiloto del editor del blog en admin. Puedes proponer cambios al artículo completo.
-Si el usuario pide explícitamente publicar, archivar o cambiar status/slug/labels/ciudad, inclúyelo en "articlePatch".
+Si el usuario pide explícitamente publicar, pausar, reanudar o cambiar status/slug/labels/ciudad, inclúyelo en "articlePatch" (status: draft | published | paused).
 Responde SOLO JSON: {"reply":"...","actions":["..."],"articlePatch":{...campos parciales del artículo incluyendo blocks/sources si cambian...}}`,
     user: `Artículo actual:\n${JSON.stringify(dto)}\n\nMensaje del editor:\n${opts.message.trim()}`,
     model: blogGeminiDraftModel(),
@@ -739,7 +739,9 @@ function applyArticlePatch(db: DatabaseSync, row: BlogArticleRow, patch: Record<
     typeof p.slug === "string" ? slugifyBlogTitle(p.slug) : row.slug;
   const excerpt = typeof p.excerpt === "string" ? p.excerpt.trim().slice(0, 400) : row.excerpt;
   let status = row.status;
-  if (p.status === "draft" || p.status === "published" || p.status === "archived") status = p.status;
+  if (p.status === "draft" || p.status === "published" || p.status === "paused" || p.status === "archived") {
+    status = p.status === "archived" ? "paused" : p.status;
+  }
   let cityCode = row.city_code;
   if (p.cityCode === null || p.cityCode === "") cityCode = null;
   else if (typeof p.cityCode === "string" && p.cityCode === "gdl") cityCode = "gdl";

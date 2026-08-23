@@ -31,7 +31,7 @@ export type BlogArticle = {
   slug: string;
   title: string;
   excerpt: string;
-  status: "draft" | "published" | "archived";
+  status: "draft" | "published" | "paused";
   cityCode: string | null;
   cityLabel: string | null;
   labels: string[];
