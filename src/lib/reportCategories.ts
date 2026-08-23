@@ -9,6 +9,7 @@ export const POST_REPORT_CATEGORIES = [
 ] as const;
 
 export const CHAT_REPORT_CATEGORIES = [
+  { id: "estafa", label: "Estafa o fraude" },
   { id: "ofensas", label: "Ofensas o insultos" },
   { id: "falta_respeto", label: "Falta de respeto" },
   { id: "discriminacion", label: "Discriminación" },

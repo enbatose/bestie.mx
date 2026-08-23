@@ -7,12 +7,12 @@ export function PublishReviewDisclaimer() {
     <p className="mx-auto mt-4 max-w-2xl text-center text-xs text-muted">
       Al publicar, confirmas que la información proporcionada es veraz y asumes la responsabilidad sobre las
       condiciones del espacio. Consulta nuestros{" "}
-      <Link to="/legal" className={linkClass}>
+      <Link to="/legal/terminos" className={linkClass}>
         Términos y Condiciones
       </Link>{" "}
-      y la{" "}
-      <Link to="/legal" className={linkClass}>
-        Política de Privacidad
+      y el{" "}
+      <Link to="/legal/privacidad" className={linkClass}>
+        Aviso de Privacidad
       </Link>{" "}
       para más detalles.
     </p>

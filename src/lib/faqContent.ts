@@ -129,7 +129,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
     id: "reportar",
     question: "¿Cómo reporto un anuncio sospechoso?",
     answer:
-      "Usa el botón Reportar en cualquier anuncio, foto o conversación privada. También puedes escribir a contacto@bestie.mx con el enlace del anuncio.",
+      "Usa el botón Reportar en cualquier anuncio, foto o conversación privada (motivos como estafa, fotos falsas o contenido inapropiado). También puedes escribir a contacto@bestie.mx con el enlace del anuncio. Antes de chatear sobre un anuncio, Bestie muestra un aviso de seguridad: no pagues depósito ni renta antes de visitar y firmar un contrato, y verifica a tu contraparte. Bestie solo facilita el contacto; no es parte del arrendamiento ni garantiza pagos entre usuarios.",
     synonyms: [
       "reportar",
       "denunciar",
@@ -144,6 +144,8 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
       "ayuda",
       "soporte",
       "contacto",
+      "deposito",
+      "anticipo",
     ],
   },
   {

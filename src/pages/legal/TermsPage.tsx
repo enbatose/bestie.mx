@@ -159,6 +159,13 @@ export function TermsPage() {
         <p>
           Bestie permite reportar anuncios, fotografías y conversaciones privadas. Los reportes pueden ser revisados por
           administradores, quienes podrán pausar anuncios, solicitar cambios o restringir cuentas que incumplan estas reglas.
+          Las herramientas de reporte y los avisos de seguridad son medidas de prevención y moderación comunitaria:{" "}
+          <strong>
+            no garantizan que se detecte o evite toda conducta indebida, ni convierten a Bestie en garante de la
+            identidad, veracidad o honestidad de los usuarios
+          </strong>
+          . El Titular no asume responsabilidad por daños derivados de fraudes o disputas entre usuarios, aunque exista o
+          haya existido un reporte o un aviso de seguridad previo.
         </p>
       </LegalSection>
 
