@@ -225,9 +225,10 @@ export function createOrAppendPostReport(
   const ctx = buildPostReportContext(db, opts);
   const reporterLine = reporterLabel(db, opts.reporterUserId);
   const eventBody =
+    `${formatCategoryBlock(opts.categories, detail, false)}\n` +
+    `————————————\n` +
     `${ctx.bodyPrefix}` +
     `Reportador: ${reporterLine}\n` +
-    `${formatCategoryBlock(opts.categories, detail, false)}\n` +
     `— Reporte #${(existing?.reportCount ?? 0) + 1}`;
 
   if (existing) {
@@ -370,9 +371,10 @@ export function createOrAppendChatReport(
   const ctx = buildChatReportContext(db, opts.chatConversationId);
   const reporterLine = reporterLabel(db, opts.reporterUserId);
   const eventBody =
+    `${formatCategoryBlock(opts.categories, detail, true)}\n` +
+    `————————————\n` +
     `${ctx.bodyPrefix}` +
     `Reportador: ${reporterLine}\n` +
-    `${formatCategoryBlock(opts.categories, detail, true)}\n` +
     `— Reporte #${(existing?.reportCount ?? 0) + 1}`;
 
   if (existing) {
