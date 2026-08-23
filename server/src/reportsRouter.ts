@@ -3,10 +3,7 @@ import express, { type Request, type Response } from "express";
 import { readAuthUserId } from "./jwtSession.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { clampStr } from "./validation.js";
-import {
-  parsePropertyReferenceSuffix,
-  parseRoomReferenceSuffix,
-} from "./listingReference.js";
+import { resolvePropertyIdFromRouteParam, resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import { normalizePostReportCategories, normalizeChatReportCategories } from "./reportCategories.js";
 import {
   createOrAppendChatReport,
@@ -69,14 +66,14 @@ export function reportsRouter(db: DatabaseSync) {
   r.post("/listings/:id", jsonMw(), (req: Request, res: Response) => {
     if (!rateLimitReport(req, res)) return;
     const raw = String(req.params.id ?? "").trim();
-    const suffix = parseRoomReferenceSuffix(raw) ?? (raw.length >= 8 ? raw : null);
-    if (!suffix) {
-      res.status(400).json({ error: "invalid_id" });
+    const roomId = resolveRoomIdFromRouteParam(db, raw);
+    if (!roomId) {
+      res.status(404).json({ error: "not_found" });
       return;
     }
     const room = db
-      .prepare(`SELECT r.id, r.property_id FROM rooms r WHERE r.id LIKE ? ESCAPE '\\' LIMIT 1`)
-      .get(`%${suffix}`) as { id: string; property_id: string } | undefined;
+      .prepare(`SELECT r.id, r.property_id FROM rooms r WHERE r.id = ?`)
+      .get(roomId) as { id: string; property_id: string } | undefined;
     if (!room) {
       res.status(404).json({ error: "not_found" });
       return;
@@ -108,15 +105,8 @@ export function reportsRouter(db: DatabaseSync) {
   r.post("/properties/:id", jsonMw(), (req: Request, res: Response) => {
     if (!rateLimitReport(req, res)) return;
     const raw = String(req.params.id ?? "").trim();
-    const suffix = parsePropertyReferenceSuffix(raw) ?? (raw.length >= 8 ? raw : null);
-    if (!suffix) {
-      res.status(400).json({ error: "invalid_id" });
-      return;
-    }
-    const prop = db
-      .prepare(`SELECT id FROM properties WHERE id LIKE ? ESCAPE '\\' LIMIT 1`)
-      .get(`%${suffix}`) as { id: string } | undefined;
-    if (!prop) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, raw);
+    if (!propertyId) {
       res.status(404).json({ error: "not_found" });
       return;
     }
@@ -134,7 +124,7 @@ export function reportsRouter(db: DatabaseSync) {
     const result = createOrAppendPostReport(db, {
       reporterUserId,
       targetType: "property",
-      propertyId: prop.id,
+      propertyId,
       categories: validated.categories,
       detailText: validated.detail,
       photoUrl: photoUrl || null,

@@ -35,7 +35,16 @@ export function ReportModal({ open, title, categories, disclaimer, onClose, onSu
       await onSubmit({ categories: selected, detailText: detail.trim() });
       setDone(true);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "No se pudo enviar el reporte.");
+      const raw = e instanceof Error ? e.message : "";
+      const friendly =
+        raw === "not_found"
+          ? "No encontramos ese anuncio. Recarga la página e inténtalo de nuevo."
+          : raw === "rate_limited"
+            ? "Demasiados reportes. Espera un momento e inténtalo de nuevo."
+            : raw === "category_or_detail_required"
+              ? "Elige al menos un motivo o escribe un detalle."
+              : raw || "No se pudo enviar el reporte.";
+      setErr(friendly);
     } finally {
       setBusy(false);
     }
