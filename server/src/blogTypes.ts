@@ -40,6 +40,12 @@ export type BlogQualitySuggestion = {
   accepted?: boolean;
 };
 
+export type BlogQualityStrength = {
+  id: string;
+  title: string;
+  detail: string;
+};
+
 export type BlogSimilarityWarning = {
   articleId: string;
   title: string;

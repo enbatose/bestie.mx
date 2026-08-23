@@ -19,6 +19,7 @@ import { blogArticlePublicPath, BLOG_CITY_META, BLOG_SOCIAL, ctaPathForArticle, 
 import type {
   BlogBlock,
   BlogFaqItem,
+  BlogQualityStrength,
   BlogQualitySuggestion,
   BlogSimilarityWarning,
   BlogSource,
@@ -28,6 +29,71 @@ import { recordGeminiTokens } from "./usageAnalytics.js";
 function isoNow() {
   return new Date().toISOString();
 }
+
+/** Praise / already-done wording must not appear as checkable improvements. */
+const QUALITY_PRAISE_RE =
+  /\b(está bien|bien adaptad|se incluyen|se incluyeron|ya (tiene|incluye|cuenta|está)|excelente|muy buen|fortaleza|cumpl(e|ió|ido)|adecuado|correcto)\b/i;
+const QUALITY_ACTION_RE =
+  /\b(agrega|añade|incluye|mejora|amplía|corrige|reescribe|falt|falta|debería|debes|puedes|considera|evita|quita|reemplaza|actualiza)\b/i;
+
+function looksLikePraise(title: string, detail: string): boolean {
+  const text = `${title} ${detail}`;
+  if (QUALITY_ACTION_RE.test(text)) return false;
+  return QUALITY_PRAISE_RE.test(text);
+}
+
+function normalizeQualityFeedback(input: {
+  qualityScore?: number;
+  qualityStrengths?: Array<{ title?: string; detail?: string }>;
+  qualitySuggestions?: Array<{ title?: string; detail?: string }>;
+}): { score: number; strengths: BlogQualityStrength[]; suggestions: BlogQualitySuggestion[] } {
+  const strengths: BlogQualityStrength[] = [];
+  const suggestions: BlogQualitySuggestion[] = [];
+
+  for (const s of input.qualityStrengths ?? []) {
+    const title = String(s.title || "").trim();
+    const detail = String(s.detail || "").trim();
+    if (!title && !detail) continue;
+    strengths.push({
+      id: randomUUID(),
+      title: title || "Fortaleza",
+      detail,
+    });
+  }
+
+  for (const s of input.qualitySuggestions ?? []) {
+    const title = String(s.title || "").trim();
+    const detail = String(s.detail || "").trim();
+    if (!title && !detail) continue;
+    if (looksLikePraise(title, detail)) {
+      strengths.push({
+        id: randomUUID(),
+        title: title || "Fortaleza",
+        detail,
+      });
+      continue;
+    }
+    suggestions.push({
+      id: randomUUID(),
+      title: title || "Mejora",
+      detail,
+    });
+  }
+
+  return {
+    score: Math.max(0, Math.min(100, Math.round(Number(input.qualityScore) || 0))),
+    strengths: strengths.slice(0, 8),
+    suggestions: suggestions.slice(0, 8),
+  };
+}
+
+const QUALITY_JSON_INSTRUCTIONS = `
+Calidad editorial (obligatorio):
+- "qualityScore": 0-100 (entero).
+- "qualityStrengths": 0-5 ítems de lo que YA está bien en el borrador. Solo observación positiva; NO se aplican como cambios. title corto + detail 1 oración.
+- "qualitySuggestions": SOLO huecos accionables que AÚN faltan. Cada ítem debe pedir un cambio concreto en imperativo (Agrega…, Mejora…, Incluye…, Corrige…). NUNCA elogios ni "ya está bien" / "se incluyeron".
+- Si el artículo ya está fuerte (score alto), qualitySuggestions puede ser [] y qualityStrengths resume lo bueno.
+`.trim();
 
 function existingArticlesContext(db: DatabaseSync, excludeId?: string): string {
   const rows = db
@@ -69,6 +135,7 @@ type DraftPayload = {
   faq: BlogFaqItem[];
   imageQueries: string[];
   qualityScore: number;
+  qualityStrengths?: Array<{ title: string; detail: string }>;
   qualitySuggestions: Array<{ title: string; detail: string }>;
 };
 
@@ -218,8 +285,10 @@ Devuelve JSON con esta forma:
   "sources": [{"title":"...","url":"https://...","publisher":"..."}],
   "faq": [{"question":"...","answer":"..."}],
   "qualityScore": 0-100,
+  "qualityStrengths": [{"title":"...","detail":"..."}],
   "qualitySuggestions": [{"title":"...","detail":"..."}]
 }
+${QUALITY_JSON_INSTRUCTIONS}
 Incluye 2-3 bloques image, cada uno con imageQuery DIFERENTE y alineado a la sección (no repetir la misma foto/concepto).
 Cada imageQuery debe describir personas/lugar/acción concretos relacionados al tema (finanzas, roomies, ciudad, etc.).
 Incluye 1 cta hacia ${ctaPath}, y sección útil con referencias [n].
@@ -285,11 +354,7 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
 
   const cover = images[0] ?? bodyImages[0] ?? null;
   const slug = slugifyBlogTitle(payload.slug || payload.title);
-  const suggestions: BlogQualitySuggestion[] = (payload.qualitySuggestions ?? []).slice(0, 8).map((s) => ({
-    id: randomUUID(),
-    title: String(s.title || "Mejora").trim(),
-    detail: String(s.detail || "").trim(),
-  }));
+  const quality = normalizeQualityFeedback(payload);
 
   const similarity = await computeSimilarityWarnings(opts.db, {
     articleId: opts.articleId,
@@ -305,6 +370,7 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
         title = ?, slug = ?, excerpt = ?, city_code = ?, labels_json = ?,
         cover_image_url = ?, cover_image_credit = ?, cover_image_source = ?,
         blocks_json = ?, sources_json = ?, quality_score = ?, quality_suggestions_json = ?,
+        quality_strengths_json = ?,
         similarity_warnings_json = ?, meta_title = ?, meta_description = ?, aeo_summary = ?,
         faq_json = ?, social_caption = ?, updated_at = ?
        WHERE id = ?`,
@@ -320,8 +386,9 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
       cover?.source ?? row.cover_image_source,
       JSON.stringify(blocks),
       JSON.stringify(sources),
-      Math.max(0, Math.min(100, Math.round(Number(payload.qualityScore) || 0))),
-      JSON.stringify(suggestions),
+      quality.score,
+      JSON.stringify(quality.suggestions),
+      JSON.stringify(quality.strengths),
       JSON.stringify(similarity),
       String(payload.metaTitle || payload.title).trim().slice(0, 70),
       String(payload.metaDescription || payload.excerpt).trim().slice(0, 170),
@@ -436,7 +503,7 @@ export async function rescoreBlogArticle(opts: {
   const dto = rowToBlogArticleDto(row);
 
   const gen = await generateGeminiText({
-    system: `${BLOG_BRAND_VOICE}\nEvalúa calidad editorial 0-100. SOLO JSON.`,
+    system: `${BLOG_BRAND_VOICE}\nEvalúa calidad editorial. SOLO JSON.`,
     user: `Artículo:
 ${JSON.stringify({
   title: dto.title,
@@ -446,7 +513,9 @@ ${JSON.stringify({
   sources: dto.sources,
   aeoSummary: dto.aeoSummary,
 })}
-Devuelve {"qualityScore":0-100,"qualitySuggestions":[{"title":"...","detail":"..."}]}`,
+Devuelve JSON:
+{"qualityScore":0-100,"qualityStrengths":[{"title":"...","detail":"..."}],"qualitySuggestions":[{"title":"...","detail":"..."}]}
+${QUALITY_JSON_INSTRUCTIONS}`,
     model: blogGeminiCheapModel(),
     temperature: 0.3,
     maxOutputTokens: 2048,
@@ -465,21 +534,19 @@ Devuelve {"qualityScore":0-100,"qualitySuggestions":[{"title":"...","detail":"..
 
   const parsed = extractJsonObject<{
     qualityScore?: number;
+    qualityStrengths?: Array<{ title: string; detail: string }>;
     qualitySuggestions?: Array<{ title: string; detail: string }>;
   }>(gen.text);
-  const suggestions = (parsed?.qualitySuggestions ?? []).slice(0, 8).map((s) => ({
-    id: randomUUID(),
-    title: String(s.title || "Mejora").trim(),
-    detail: String(s.detail || "").trim(),
-  }));
+  const quality = normalizeQualityFeedback(parsed ?? {});
 
   opts.db
     .prepare(
-      `UPDATE blog_articles SET quality_score = ?, quality_suggestions_json = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE blog_articles SET quality_score = ?, quality_suggestions_json = ?, quality_strengths_json = ?, updated_at = ? WHERE id = ?`,
     )
     .run(
-      Math.max(0, Math.min(100, Math.round(Number(parsed?.qualityScore) || 0))),
-      JSON.stringify(suggestions),
+      quality.score,
+      JSON.stringify(quality.suggestions),
+      JSON.stringify(quality.strengths),
       isoNow(),
       opts.articleId,
     );
@@ -500,8 +567,8 @@ export async function enhanceBlogWithSuggestions(opts: {
   if (!selected.length) return { ok: false, error: "no_suggestions" };
 
   const gen = await generateGeminiText({
-    system: `${BLOG_BRAND_VOICE}\n${BLOG_EDITORIAL_GOALS}\nMejora el artículo aplicando SOLO las sugerencias aceptadas. SOLO JSON con los mismos campos que un draft completo.`,
-    user: `Artículo actual:\n${JSON.stringify(dto)}\n\nSugerencias a aplicar:\n${JSON.stringify(selected)}`,
+    system: `${BLOG_BRAND_VOICE}\n${BLOG_EDITORIAL_GOALS}\nMejora el artículo aplicando SOLO las sugerencias aceptadas (son huecos pendientes, no elogios). SOLO JSON con los mismos campos que un draft completo, incluyendo qualityStrengths y qualitySuggestions actualizados.`,
+    user: `Artículo actual:\n${JSON.stringify(dto)}\n\nMejoras pendientes a aplicar ahora:\n${JSON.stringify(selected)}\n\n${QUALITY_JSON_INSTRUCTIONS}`,
     model: blogGeminiDraftModel(),
     googleSearch: true,
     temperature: 0.55,
@@ -547,6 +614,11 @@ export async function enhanceBlogWithSuggestions(opts: {
   const cover = images[0] ?? bodyImages[0];
   const slug = slugifyBlogTitle(payload.slug || payload.title);
   const cityCode = row.city_code;
+  const quality = normalizeQualityFeedback({
+    qualityScore: payload.qualityScore ?? dto.qualityScore ?? 0,
+    qualityStrengths: payload.qualityStrengths,
+    qualitySuggestions: payload.qualitySuggestions,
+  });
   opts.db
     .prepare(
       `UPDATE blog_articles SET
@@ -555,6 +627,7 @@ export async function enhanceBlogWithSuggestions(opts: {
         cover_image_credit = COALESCE(?, cover_image_credit),
         cover_image_source = COALESCE(?, cover_image_source),
         blocks_json = ?, sources_json = ?, quality_score = ?, quality_suggestions_json = ?,
+        quality_strengths_json = ?,
         meta_title = ?, meta_description = ?, aeo_summary = ?, faq_json = ?, social_caption = ?,
         updated_at = ?
        WHERE id = ?`,
@@ -569,14 +642,9 @@ export async function enhanceBlogWithSuggestions(opts: {
       cover?.source ?? null,
       JSON.stringify(blocks),
       JSON.stringify(sources.length ? sources : dto.sources),
-      Math.max(0, Math.min(100, Math.round(Number(payload.qualityScore) || dto.qualityScore || 0))),
-      JSON.stringify(
-        (payload.qualitySuggestions ?? []).slice(0, 8).map((s) => ({
-          id: randomUUID(),
-          title: String(s.title || "Mejora").trim(),
-          detail: String(s.detail || "").trim(),
-        })),
-      ),
+      quality.score,
+      JSON.stringify(quality.suggestions),
+      JSON.stringify(quality.strengths),
       String(payload.metaTitle || payload.title).trim().slice(0, 70),
       String(payload.metaDescription || payload.excerpt).trim().slice(0, 170),
       String(payload.aeoSummary || payload.excerpt).trim().slice(0, 600),

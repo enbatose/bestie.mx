@@ -568,29 +568,65 @@ export function AdminBlogPanel() {
                   Rescore
                 </button>
               </div>
-              <ul className="mt-3 space-y-2">
-                {article.qualitySuggestions.map((suggestion) => (
-                  <li key={suggestion.id}>
-                    <label className="flex gap-2 rounded-lg bg-bg-light p-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={selectedSuggestions.includes(suggestion.id)}
-                        onChange={(e) =>
-                          setSelectedSuggestions((current) =>
-                            e.target.checked
-                              ? [...current, suggestion.id]
-                              : current.filter((id) => id !== suggestion.id),
-                          )
-                        }
-                      />
-                      <span>
-                        <strong className="text-body">{suggestion.title}</strong>
-                        <span className="block text-xs text-muted">{suggestion.detail}</span>
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-2 text-xs text-muted">
+                El score resume la calidad. Abajo: lo que ya está bien (solo lectura) vs mejoras pendientes
+                que sí puedes marcar y aplicar.
+              </p>
+
+              {(article.qualityStrengths?.length ?? 0) > 0 ? (
+                <div className="mt-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    Lo que ya está bien
+                  </h4>
+                  <ul className="mt-2 space-y-2">
+                    {article.qualityStrengths.map((strength) => (
+                      <li
+                        key={strength.id}
+                        className="rounded-lg border border-border/60 bg-bg-light/70 p-3 text-sm"
+                      >
+                        <strong className="text-body">{strength.title}</strong>
+                        <span className="mt-0.5 block text-xs text-muted">{strength.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <div className="mt-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Mejoras pendientes
+                </h4>
+                {article.qualitySuggestions.length === 0 ? (
+                  <p className="mt-2 rounded-lg bg-bg-light p-3 text-sm text-muted">
+                    No hay huecos accionables. Usa «Rescore» si el artículo es viejo, o «Instrucciones al
+                    asistente» para un cambio puntual.
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-2">
+                    {article.qualitySuggestions.map((suggestion) => (
+                      <li key={suggestion.id}>
+                        <label className="flex gap-2 rounded-lg bg-bg-light p-3 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedSuggestions.includes(suggestion.id)}
+                            onChange={(e) =>
+                              setSelectedSuggestions((current) =>
+                                e.target.checked
+                                  ? [...current, suggestion.id]
+                                  : current.filter((id) => id !== suggestion.id),
+                              )
+                            }
+                          />
+                          <span>
+                            <strong className="text-body">{suggestion.title}</strong>
+                            <span className="block text-xs text-muted">{suggestion.detail}</span>
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <button
                 type="button"
                 disabled={busy || !selectedSuggestions.length}

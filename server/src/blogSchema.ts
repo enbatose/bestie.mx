@@ -32,6 +32,7 @@ export function ensureBlogSchema(db: DatabaseSync): void {
       sources_json TEXT NOT NULL DEFAULT '[]',
       quality_score INTEGER,
       quality_suggestions_json TEXT NOT NULL DEFAULT '[]',
+      quality_strengths_json TEXT NOT NULL DEFAULT '[]',
       similarity_warnings_json TEXT NOT NULL DEFAULT '[]',
       view_count INTEGER NOT NULL DEFAULT 0,
       meta_title TEXT,
@@ -80,4 +81,13 @@ export function ensureBlogSchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_blog_ai_costs_article ON blog_ai_costs(article_id, created_at);
   `);
+
+  if (!tableHasColumn(db, "blog_articles", "quality_strengths_json")) {
+    db.exec(`ALTER TABLE blog_articles ADD COLUMN quality_strengths_json TEXT NOT NULL DEFAULT '[]'`);
+  }
+}
+
+function tableHasColumn(db: DatabaseSync, table: string, column: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  return rows.some((r) => r.name === column);
 }

@@ -6,6 +6,7 @@ import {
   parseLabels,
   type BlogBlock,
   type BlogFaqItem,
+  type BlogQualityStrength,
   type BlogQualitySuggestion,
   type BlogSimilarityWarning,
   type BlogSource,
@@ -26,6 +27,7 @@ export type BlogArticleRow = {
   sources_json: string;
   quality_score: number | null;
   quality_suggestions_json: string;
+  quality_strengths_json: string;
   similarity_warnings_json: string;
   view_count: number;
   meta_title: string | null;
@@ -54,6 +56,7 @@ export type BlogArticleDto = {
   sources: BlogSource[];
   qualityScore: number | null;
   qualitySuggestions: BlogQualitySuggestion[];
+  qualityStrengths: BlogQualityStrength[];
   similarityWarnings: BlogSimilarityWarning[];
   viewCount: number;
   metaTitle: string | null;
@@ -86,6 +89,7 @@ export function rowToBlogArticleDto(row: BlogArticleRow): BlogArticleDto {
     sources: parseJsonArray<BlogSource>(row.sources_json),
     qualityScore: row.quality_score == null ? null : Number(row.quality_score),
     qualitySuggestions: parseJsonArray<BlogQualitySuggestion>(row.quality_suggestions_json),
+    qualityStrengths: parseJsonArray<BlogQualityStrength>(row.quality_strengths_json ?? "[]"),
     similarityWarnings: parseJsonArray<BlogSimilarityWarning>(row.similarity_warnings_json),
     viewCount: Number(row.view_count) || 0,
     metaTitle: row.meta_title,

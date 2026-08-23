@@ -42,6 +42,7 @@ export type BlogArticle = {
   sources: BlogSource[];
   qualityScore: number | null;
   qualitySuggestions: Array<{ id: string; title: string; detail: string }>;
+  qualityStrengths: Array<{ id: string; title: string; detail: string }>;
   similarityWarnings: Array<{ articleId: string; title: string; path: string; score: number }>;
   viewCount: number;
   metaTitle: string | null;
