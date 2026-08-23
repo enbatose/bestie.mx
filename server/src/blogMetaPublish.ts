@@ -1,4 +1,4 @@
-import { blogArticlePublicPath, BLOG_SOCIAL } from "./blogPaths.js";
+import { blogArticlePublicPath, normalizeSocialCaption } from "./blogPaths.js";
 import type { BlogArticleDto } from "./blogDto.js";
 
 /**
@@ -23,9 +23,9 @@ export async function tryPublishBlogToMeta(opts: {
 > {
   const origin = (process.env.PUBLIC_WEB_ORIGIN || "https://www.bestie.mx").replace(/\/+$/, "");
   const shareUrl = `${origin}${opts.article.path || blogArticlePublicPath(opts.article)}`;
-  const caption =
-    (opts.article.socialCaption || `${opts.article.title}\n\n${shareUrl}`).trim() +
-    `\n\nSíguenos: ${BLOG_SOCIAL.instagram}`;
+  const caption = normalizeSocialCaption(
+    opts.article.socialCaption || opts.article.title,
+  );
 
   const pageToken = process.env.META_PAGE_ACCESS_TOKEN?.trim();
   const pageId = process.env.META_PAGE_ID?.trim();

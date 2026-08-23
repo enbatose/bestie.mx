@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
+import { Check, Copy, Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
 import { BlogArticlePreviewModal } from "@/components/blog/BlogArticlePreviewModal";
 import {
   adminChatBlogArticle,
@@ -132,6 +132,7 @@ export function AdminBlogPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [captionCopied, setCaptionCopied] = useState(false);
   const [aiJob, setAiJob] = useState<{
     kind: string;
     title: string;
@@ -218,6 +219,7 @@ export function AdminBlogPanel() {
     setBlocksText(JSON.stringify(data.article.blocks, null, 2));
     setSourcesText(JSON.stringify(data.article.sources, null, 2));
     setSelectedSuggestions([]);
+    setCaptionCopied(false);
   }, []);
 
   const loadList = useCallback(async (q?: string) => {
@@ -564,6 +566,44 @@ export function AdminBlogPanel() {
             </div>
 
             <div className="grid gap-4 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="blog-social-caption" className="text-sm font-medium text-body">
+                    Caption social
+                  </label>
+                  <button
+                    type="button"
+                    disabled={!article.socialCaption?.trim()}
+                    onClick={() => {
+                      const text = article.socialCaption?.trim() ?? "";
+                      if (!text) return;
+                      void navigator.clipboard.writeText(text).then(() => {
+                        setCaptionCopied(true);
+                        window.setTimeout(() => setCaptionCopied(false), 1600);
+                        setNotice("Caption copiado al portapapeles.");
+                      }).catch(() => {
+                        setError("No se pudo copiar el caption.");
+                      });
+                    }}
+                    className={secondaryClass}
+                  >
+                    {captionCopied ? <Check className="size-4 text-secondary" /> : <Copy className="size-4" />}
+                    {captionCopied ? "Copiado" : "Copiar"}
+                  </button>
+                </div>
+                <textarea
+                  id="blog-social-caption"
+                  value={article.socialCaption ?? ""}
+                  onChange={(e) => setField("socialCaption", e.target.value || null)}
+                  rows={5}
+                  className={fieldClass}
+                  placeholder="Texto listo para pegar en Facebook / Instagram…"
+                />
+                <p className="mt-1 text-xs text-muted">
+                  Copia esto al publicar. Sin links: el enlace del artículo va aparte (preview o adjunto).
+                </p>
+                <hr className="mt-4 border-border" />
+              </div>
               <label className="sm:col-span-2 text-sm font-medium text-body">Título<input value={article.title} onChange={(e) => setField("title", e.target.value)} className={fieldClass} /></label>
               <label className="text-sm font-medium text-body">Slug<input value={article.slug} onChange={(e) => setField("slug", e.target.value)} className={fieldClass} /></label>
               <label className="text-sm font-medium text-body">Estado<select value={article.status} onChange={(e) => setField("status", e.target.value as BlogArticle["status"])} className={fieldClass}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></label>
@@ -574,7 +614,6 @@ export function AdminBlogPanel() {
               <label className="text-sm font-medium text-body">Imagen de portada<input value={article.coverImageUrl ?? ""} onChange={(e) => setField("coverImageUrl", e.target.value || null)} className={fieldClass} /></label>
               <label className="sm:col-span-2 text-sm font-medium text-body">Meta description<textarea value={article.metaDescription ?? ""} onChange={(e) => setField("metaDescription", e.target.value || null)} rows={2} className={fieldClass} /></label>
               <label className="sm:col-span-2 text-sm font-medium text-body">Resumen AEO<textarea value={article.aeoSummary ?? ""} onChange={(e) => setField("aeoSummary", e.target.value || null)} rows={3} className={fieldClass} /></label>
-              <label className="sm:col-span-2 text-sm font-medium text-body">Caption social<textarea value={article.socialCaption ?? ""} onChange={(e) => setField("socialCaption", e.target.value || null)} rows={3} className={fieldClass} /></label>
               <label className="sm:col-span-2 text-sm font-medium text-body">Bloques (JSON)<textarea value={blocksText} onChange={(e) => setBlocksText(e.target.value)} rows={14} className={`${fieldClass} font-mono text-xs`} /></label>
               <label className="sm:col-span-2 text-sm font-medium text-body">Fuentes (JSON)<textarea value={sourcesText} onChange={(e) => setSourcesText(e.target.value)} rows={7} className={`${fieldClass} font-mono text-xs`} /></label>
             </div>
@@ -775,7 +814,7 @@ export function AdminBlogPanel() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Publicar en Meta</h3><p className="mt-1 text-xs text-muted">Usa el caption social y la portada del artículo. Creativo OG con logo Bestie:</p><a className="mt-2 inline-flex text-xs font-semibold text-primary underline" href={`/api/share-og/blog/${article.id}.jpg`} target="_blank" rel="noreferrer">Descargar portada branded (1200)</a><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("facebook"))} className={primaryClass}>Facebook</button><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("instagram"))} className={secondaryClass}>Instagram</button></div></div>
+              <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Publicar en Meta</h3><p className="mt-1 text-xs text-muted">Usa el Caption social (arriba) y la portada. El link del artículo se agrega aparte en Facebook. Creativo OG con logo Bestie:</p><a className="mt-2 inline-flex text-xs font-semibold text-primary underline" href={`/api/share-og/blog/${article.id}.jpg`} target="_blank" rel="noreferrer">Descargar portada branded (1200)</a><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("facebook"))} className={primaryClass}>Facebook</button><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("instagram"))} className={secondaryClass}>Instagram</button></div></div>
             </div>
           </div>
         )}

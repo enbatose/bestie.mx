@@ -15,7 +15,7 @@ import {
   generateGeminiText,
 } from "./blogGemini.js";
 import { resolveBlogImagesForSlots, type BlogImageSlot } from "./blogImages.js";
-import { blogArticlePublicPath, BLOG_CITY_META, BLOG_SOCIAL, ctaPathForArticle, slugifyBlogTitle } from "./blogPaths.js";
+import { blogArticlePublicPath, BLOG_CITY_META, ctaPathForArticle, normalizeSocialCaption, slugifyBlogTitle } from "./blogPaths.js";
 import type {
   BlogBlock,
   BlogFaqItem,
@@ -256,7 +256,6 @@ export async function generateBlogDraft(opts: {
 Idea del editor: ${opts.idea.trim()}
 Ciudad/enfoque: ${cityLabel}${cityCode ? ` (código ${cityCode})` : ""}
 CTA principal del artículo: ${ctaPath}
-Redes a mencionar al final: Facebook ${BLOG_SOCIAL.facebook} · Instagram ${BLOG_SOCIAL.instagram}
 
 Artículos existentes (evita duplicar; si hay overlap, diferencia el ángulo):
 ${existing || "(ninguno)"}
@@ -271,7 +270,7 @@ Devuelve JSON con esta forma:
   "aeoSummary": string (respuesta directa 2-4 oraciones para AEO),
   "metaTitle": string (<=60 chars),
   "metaDescription": string (<=155 chars),
-  "socialCaption": string (español MX, listo para FB/IG, incluye URL placeholder BESTIE_URL),
+  "socialCaption": string (español MX, listo para pegar en FB/IG: gancho + 2-4 oraciones; SIN URLs ni links; cierra con exactamente "¡Síguenos para más consejos!" en la línea siguiente al texto, sin línea en blanco extra),
   "imageQueries": string[] (3-5 búsquedas EN INGLÉS, cada una una escena visual concreta distinta; nada genérico como solo "Mexico"),
   "blocks": [
     {"type":"heading","level":2,"text":"..."},
@@ -394,7 +393,7 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
       String(payload.metaDescription || payload.excerpt).trim().slice(0, 170),
       String(payload.aeoSummary || payload.excerpt).trim().slice(0, 600),
       JSON.stringify(payload.faq ?? []),
-      String(payload.socialCaption || "").replace(/BESTIE_URL/g, `https://www.bestie.mx${blogArticlePublicPath({ slug, cityCode })}`),
+      normalizeSocialCaption(payload.socialCaption),
       now,
       opts.articleId,
     );
@@ -613,7 +612,6 @@ export async function enhanceBlogWithSuggestions(opts: {
 
   const cover = images[0] ?? bodyImages[0];
   const slug = slugifyBlogTitle(payload.slug || payload.title);
-  const cityCode = row.city_code;
   const quality = normalizeQualityFeedback({
     qualityScore: payload.qualityScore ?? dto.qualityScore ?? 0,
     qualityStrengths: payload.qualityStrengths,
@@ -649,10 +647,7 @@ export async function enhanceBlogWithSuggestions(opts: {
       String(payload.metaDescription || payload.excerpt).trim().slice(0, 170),
       String(payload.aeoSummary || payload.excerpt).trim().slice(0, 600),
       JSON.stringify(payload.faq ?? dto.faq),
-      String(payload.socialCaption || dto.socialCaption || "").replace(
-        /BESTIE_URL/g,
-        `https://www.bestie.mx${blogArticlePublicPath({ slug, cityCode })}`,
-      ),
+      normalizeSocialCaption(payload.socialCaption || dto.socialCaption),
       isoNow(),
       opts.articleId,
     );
@@ -757,7 +752,8 @@ function applyArticlePatch(db: DatabaseSync, row: BlogArticleRow, patch: Record<
   const metaDescription =
     typeof p.metaDescription === "string" ? p.metaDescription.slice(0, 170) : row.meta_description;
   const aeoSummary = typeof p.aeoSummary === "string" ? p.aeoSummary.slice(0, 600) : row.aeo_summary;
-  const socialCaption = typeof p.socialCaption === "string" ? p.socialCaption : row.social_caption;
+  const socialCaption =
+    typeof p.socialCaption === "string" ? normalizeSocialCaption(p.socialCaption) : row.social_caption;
   const qualityScore =
     typeof p.qualityScore === "number"
       ? Math.max(0, Math.min(100, Math.round(p.qualityScore)))
@@ -830,7 +826,7 @@ ${existing || "(ninguno)"}
 Publicados (para promote):
 ${published.map((p) => `- id=${p.id} path=${p.path} title=${p.title}`).join("\n") || "(ninguno)"}
 
-Devuelve {"topics":[{"title":"...","angle":"...","whyNow":"...","cityCode":${cityCode ? `"gdl"` : "null"},"promoteArticleId": null o id,"socialCaption":"..."}]}
+Devuelve {"topics":[{"title":"...","angle":"...","whyNow":"...","cityCode":${cityCode ? `"gdl"` : "null"},"promoteArticleId": null o id,"socialCaption":"gancho sin URLs; cierra con ¡Síguenos para más consejos!"}]}
 Máximo 8 topics. Incluye mix de ideas nuevas y 1-3 promotes si aplica.`,
     model: blogGeminiDraftModel(),
     googleSearch: true,
@@ -867,7 +863,7 @@ Máximo 8 topics. Incluye mix de ideas nuevas y 1-3 promotes si aplica.`,
       cityCode: t.cityCode === "gdl" || cityCode === "gdl" ? ("gdl" as const) : null,
       promoteArticleId: promote?.id,
       promotePath: promote?.path,
-      socialCaption: t.socialCaption ? String(t.socialCaption) : undefined,
+      socialCaption: t.socialCaption ? normalizeSocialCaption(t.socialCaption) : undefined,
     };
   }).filter((t) => t.title);
 
