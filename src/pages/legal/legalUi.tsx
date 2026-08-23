@@ -16,8 +16,9 @@ export const LEGAL_OPERATOR = {
   domain: "bestie.mx",
   site: "https://www.bestie.mx",
   contactEmail: "contacto@bestie.mx",
-  fiscalRegime: "Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios",
-  address: "Calle Herodoto 55, Vallarta San Jorge, C.P. 44690, Guadalajara, Jalisco, México",
+  fiscalRegime: "Régimen Simplificado de Confianza (RESICO)",
+  /** Public domicilio for LFPDPPP: street + exterior only (no interior / unit). */
+  address: "Avenida México 2582, Ladrón de Guevara, C.P. 44600, Guadalajara, Jalisco, México",
 } as const;
 
 export type LegalTocItem = { id: string; label: string };

@@ -124,14 +124,15 @@ export function PrivacyPage() {
               Servicio.
             </>,
             <>
-              <strong>De grupos de Facebook asociados (borradores asistidos):</strong> cuando una
-              publicación de renta se comparte en un grupo de Facebook con el que Bestie colabora, podemos
-              usar esa información publicada para crear un borrador de anuncio. Ese borrador no se publica
-              sin que el propietario lo reclame y lo confirme. Si el enlace de reclamación no se usa en
-              un plazo de 7 días, eliminamos el borrador automáticamente. El propietario puede revisar,
-              editar o eliminar el borrador en cualquier momento antes de publicarlo. También puedes
-              crear tú un borrador pegando el texto o un infográfico de tu propia publicación; en ese
-              caso los datos salen de ti, no del grupo.
+              <strong>De publicaciones públicas (borradores asistidos de crecimiento):</strong> el
+              Titular o su equipo puede capturar de forma <strong>manual</strong> (copiar y pegar
+              texto e imágenes) información ya publicada por terceros en grupos de Facebook u otros
+              canales públicos de renta compartida, únicamente para crear un borrador interno y
+              ofrecerle al propietario un enlace de reclamación. Ese borrador{" "}
+              <strong>no se publica</strong> hasta que el propietario lo reclame, revise y confirme.
+              Si no se reclama, se elimina automáticamente a los <strong>7 días</strong>. También
+              puedes crear tú un borrador pegando el texto o un infográfico de tu propia publicación;
+              en ese caso los datos salen de ti, no de un tercero.
             </>,
           ]}
         />

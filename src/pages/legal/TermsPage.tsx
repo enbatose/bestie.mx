@@ -91,7 +91,7 @@ export function TermsPage() {
         <p>Bestie ofrece herramientas para:</p>
         <LegalList
           items={[
-            "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida. Puedes armar un anuncio de un cuarto o de una propiedad pegando el texto o un infográfico de una publicación (por ejemplo de Facebook); Bestie usa un modelo de inteligencia artificial para proponer los campos del borrador, incluidas las recámaras de una propiedad. Ese borrador no se publica hasta que lo revisas, completas lo que falte y confirmas.",
+            "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida. Puedes armar un anuncio de un cuarto o de una propiedad pegando el texto o un infográfico de una publicación (por ejemplo de Facebook); Bestie usa un modelo de inteligencia artificial para proponer los campos del borrador, incluidas las recámaras de una propiedad. La IA no publica por ti: el borrador permanece privado hasta que lo revisas, completas lo que falte y confirmas expresamente la publicación.",
             "Generar (con ayuda de inteligencia artificial) un texto sugerido para que compartas tu anuncio en redes o mensajería; puedes revisarlo y editarlo antes de enviarlo. Ese texto no forma parte de la ficha pública del anuncio ni de su vista previa al compartir el enlace.",
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
@@ -176,17 +176,26 @@ export function TermsPage() {
         </p>
         <p>
           <strong>Borradores asistidos.</strong> Bestie puede crear borradores de anuncios de dos
-          formas: (i) como parte de sus actividades de crecimiento, a partir de publicaciones
-          compartidas en grupos de Facebook asociados o de información proporcionada públicamente por
-          el propietario, mediante un enlace de reclamación; y (ii) cuando tú pegas el texto o un
-          infográfico de tu propia publicación en el flujo de publicar un cuarto o una propiedad. En ambos casos estos
-          borradores{" "}
+          formas: (i) como parte de sus actividades de crecimiento, cuando el Titular o su equipo
+          captura de forma <strong>manual</strong> (por ejemplo, copiar y pegar texto e imágenes) el
+          contenido de una publicación pública de renta compartida en grupos de Facebook u otros
+          canales públicos, y genera un borrador interno con un enlace de reclamación para el
+          propietario; y (ii) cuando tú pegas el texto o un infográfico de tu propia publicación en el
+          flujo de publicar un cuarto o una propiedad. En ambos casos estos borradores{" "}
           <strong>nunca se publican sin tu consentimiento expreso</strong>: revisas el contenido, lo
           editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. La
-          información del borrador es orientativa y puede estar incompleta; eres responsable de
-          verificar y completar los datos antes de publicar. Los borradores creados por Bestie en el
-          flujo de crecimiento (enlace de reclamación) que <strong>no sean reclamados en un plazo
-          de 7 días</strong> se eliminan automáticamente.
+          información del borrador es orientativa y puede estar incompleta o contener errores de
+          extracción; eres responsable de verificar, corregir y completar los datos antes de
+          publicar. Los borradores del supuesto (i) que no sean reclamados se eliminan
+          automáticamente a los <strong>7 días</strong>.
+        </p>
+        <p>
+          <strong>Asistencia con inteligencia artificial.</strong> Cuando Bestie usa un modelo de IA
+          para proponer campos de un anuncio o un texto sugerido para compartir, el resultado es solo
+          una propuesta. <strong>Ningún anuncio se publica automáticamente</strong>: debes revisar,
+          editar si procede y confirmar expresamente la publicación. Al confirmar, declaras que el
+          contenido es veraz y asumes la responsabilidad exclusiva frente a terceros por ese
+          anuncio, sin que el Titular garantice la exactitud de la propuesta generada por la IA.
         </p>
       </LegalSection>
 
