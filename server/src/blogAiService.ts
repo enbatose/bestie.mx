@@ -11,6 +11,7 @@ import {
 import {
   blogGeminiCheapModel,
   blogGeminiDraftModel,
+  BLOG_DRAFT_MAX_OUTPUT_TOKENS,
   extractJsonObject,
   generateGeminiText,
 } from "./blogGemini.js";
@@ -300,7 +301,7 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
     model: blogGeminiDraftModel(),
     googleSearch: true,
     temperature: 0.65,
-    maxOutputTokens: 8192,
+    maxOutputTokens: BLOG_DRAFT_MAX_OUTPUT_TOKENS,
     timeoutMs: 120_000,
   });
   if (!gen.ok) return { ok: false, error: gen.error };
@@ -573,7 +574,7 @@ export async function enhanceBlogWithSuggestions(opts: {
     model: blogGeminiDraftModel(),
     googleSearch: true,
     temperature: 0.55,
-    maxOutputTokens: 8192,
+    maxOutputTokens: BLOG_DRAFT_MAX_OUTPUT_TOKENS,
     timeoutMs: 120_000,
   });
   if (!gen.ok) return { ok: false, error: gen.error };
@@ -686,7 +687,7 @@ Responde SOLO JSON: {"reply":"...","actions":["..."],"articlePatch":{...campos p
     model: blogGeminiDraftModel(),
     googleSearch: /busca|investiga|fuente|noticia|news|actualiza datos/i.test(opts.message),
     temperature: 0.5,
-    maxOutputTokens: 8192,
+    maxOutputTokens: BLOG_DRAFT_MAX_OUTPUT_TOKENS,
     timeoutMs: 120_000,
   });
   if (!gen.ok) return { ok: false, error: gen.error };

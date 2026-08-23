@@ -39,6 +39,12 @@ type GeminiGenerateResponse = {
   error?: { message?: string };
 };
 
+/** Default Gemini output budget for full blog drafts (generate / enhance / chat). */
+export const BLOG_DRAFT_MAX_OUTPUT_TOKENS = 16_384;
+
+/** Admin PUT/POST body size for articles with long blocks JSON. */
+export const BLOG_ADMIN_JSON_BODY_LIMIT = "4mb";
+
 /** Stronger default for long-form blog drafts; override with BLOG_GEMINI_MODEL. */
 export function blogGeminiDraftModel(): string {
   return process.env.BLOG_GEMINI_MODEL?.trim() || process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
@@ -61,7 +67,7 @@ export async function generateGeminiText(
     contents: [{ role: "user", parts: [{ text: opts.user }] }],
     generationConfig: {
       temperature: opts.temperature ?? 0.7,
-      maxOutputTokens: opts.maxOutputTokens ?? 8192,
+      maxOutputTokens: opts.maxOutputTokens ?? BLOG_DRAFT_MAX_OUTPUT_TOKENS,
       responseMimeType: "application/json",
     },
   };

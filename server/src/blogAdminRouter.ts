@@ -19,6 +19,7 @@ import { blogArticleShareUrl, normalizeSocialCaption, slugifyBlogTitle } from ".
 import { isBlogLiveCityCode, normalizeBlogStatus } from "./blogSchema.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { readAuthUserId } from "./jwtSession.js";
+import { BLOG_ADMIN_JSON_BODY_LIMIT } from "./blogGemini.js";
 import { tryPublishBlogToMeta } from "./blogMetaPublish.js";
 import { clampStr } from "./validation.js";
 
@@ -41,7 +42,7 @@ function requireAdmin(db: DatabaseSync, req: Request, res: Response, next: NextF
 
 export function blogAdminRouter(db: DatabaseSync, databasePath?: string) {
   const r = express.Router();
-  r.use(express.json({ limit: "2mb" }));
+  r.use(express.json({ limit: BLOG_ADMIN_JSON_BODY_LIMIT }));
   r.use((req, res, next) => requireAdmin(db, req, res, next));
 
   const uploadDir = resolveUploadDir(databasePath);
