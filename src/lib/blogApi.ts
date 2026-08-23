@@ -235,6 +235,14 @@ export async function adminCreateBlogArticle(input?: {
   return json.article;
 }
 
+export async function adminDeleteBlogArticle(id: string): Promise<void> {
+  const res = await fetch(`${apiBase()}/api/admin/blog/articles/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: cred,
+  });
+  if (!res.ok) throw new Error(`admin_blog_delete_${res.status}`);
+}
+
 export async function adminSaveBlogArticle(
   id: string,
   article: Partial<BlogArticle>,

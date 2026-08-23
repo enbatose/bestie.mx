@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
+import { Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
 import { BlogArticlePreviewModal } from "@/components/blog/BlogArticlePreviewModal";
 import {
   adminChatBlogArticle,
   adminCreateBlogArticle,
+  adminDeleteBlogArticle,
   adminEnhanceBlogArticle,
   adminGenerateBlogArticle,
   adminGetBlogArticle,
@@ -203,6 +204,25 @@ export function AdminBlogPanel() {
     focusIdeaSection();
   };
 
+  const deleteArticle = async (id: string, title: string) => {
+    const ok = window.confirm(
+      `¿Eliminar permanentemente “${title.trim() || "este artículo"}”? Esta acción no se puede deshacer.`,
+    );
+    if (!ok) return;
+    await adminDeleteBlogArticle(id);
+    if (selectedId === id) {
+      setSelectedId(null);
+      setArticle(null);
+      setCosts(null);
+      setBlocksText("[]");
+      setSourcesText("[]");
+      setIdea("");
+      setPreviewOpen(false);
+    }
+    await loadList(search);
+    setNotice("Artículo eliminado.");
+  };
+
   const openPreview = () => {
     if (!article) return;
     try {
@@ -276,7 +296,34 @@ export function AdminBlogPanel() {
           </div>
         ) : null}
         <ul className="mt-4 max-h-[60vh] space-y-1 overflow-y-auto border-t border-border pt-3">
-          {articles.map((item) => <li key={item.id}><button type="button" onClick={() => void run(() => selectArticle(item.id))} className={`w-full rounded-xl p-3 text-left ${item.id === selectedId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"}`}><span className="line-clamp-2 text-sm font-semibold text-body">{item.title}</span><span className="mt-1 flex justify-between text-xs text-muted"><span>{item.status}</span><span>{item.cityLabel || "Nacional"}</span></span></button></li>)}
+          {articles.map((item) => (
+            <li key={item.id} className="group relative">
+              <button
+                type="button"
+                onClick={() => void run(() => selectArticle(item.id))}
+                className={`w-full rounded-xl p-3 pr-10 text-left ${item.id === selectedId ? "bg-secondary/15 ring-1 ring-secondary/40" : "hover:bg-surface-elevated"}`}
+              >
+                <span className="line-clamp-2 text-sm font-semibold text-body">{item.title}</span>
+                <span className="mt-1 flex justify-between text-xs text-muted">
+                  <span>{item.status}</span>
+                  <span>{item.cityLabel || "Nacional"}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                title="Eliminar"
+                aria-label={`Eliminar ${item.title}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void run(() => deleteArticle(item.id, item.title));
+                }}
+                className="absolute right-2 top-2 inline-flex size-8 items-center justify-center rounded-full text-muted opacity-70 hover:bg-error/10 hover:text-error hover:opacity-100 disabled:opacity-40"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </li>
+          ))}
         </ul>
       </aside>
 
@@ -293,6 +340,14 @@ export function AdminBlogPanel() {
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={busy} onClick={openPreview} className={secondaryClass}>
                   <Eye className="size-4" /> Vista previa
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void run(() => deleteArticle(article.id, article.title))}
+                  className={`${secondaryClass} border-error/30 text-error hover:bg-error/10`}
+                >
+                  <Trash2 className="size-4" /> Eliminar
                 </button>
                 <button type="button" disabled={busy} onClick={() => void run(save)} className={primaryClass}>
                   <Save className="size-4" /> Guardar

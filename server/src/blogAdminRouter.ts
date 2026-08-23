@@ -176,6 +176,8 @@ export function blogAdminRouter(db: DatabaseSync, databasePath?: string) {
       res.status(404).json({ error: "not_found" });
       return;
     }
+    db.prepare(`DELETE FROM blog_comments WHERE article_id = ?`).run(id);
+    db.prepare(`DELETE FROM blog_ai_costs WHERE article_id = ?`).run(id);
     db.prepare(`DELETE FROM blog_articles WHERE id = ?`).run(id);
     res.json({ ok: true });
   });
