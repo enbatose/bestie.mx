@@ -596,9 +596,11 @@ export function AdminBlogPanel() {
                 disabled={busy || !selectedSuggestions.length}
                 onClick={() =>
                   void runAi("enhance", "Aplicando mejoras…", async () => {
+                    const beforeMxn = costs?.totalMxn ?? 0;
                     applyAiResult(
                       await adminEnhanceBlogArticle(article.id, selectedSuggestions),
                       "Mejoras aplicadas.",
+                      beforeMxn,
                     );
                     setSelectedSuggestions([]);
                   })
@@ -624,8 +626,9 @@ export function AdminBlogPanel() {
                 disabled={busy || !chat.trim()}
                 onClick={() =>
                   void runAi("chat", "Aplicando instrucciones…", async () => {
+                    const beforeMxn = costs?.totalMxn ?? 0;
                     const result = await adminChatBlogArticle(article.id, chat);
-                    applyAiResult(result, "Instrucción aplicada.");
+                    applyAiResult(result, "Instrucción aplicada.", beforeMxn);
                     setChatReply(result.reply);
                     setChat("");
                   })
