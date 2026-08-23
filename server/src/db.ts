@@ -6,6 +6,8 @@ import type { ListingStatus } from "./types.js";
 import { backfillUserEmailCanonical } from "./authEmail.js";
 import { ensurePhaseCDSchema } from "./phaseCDSchema.js";
 import { ensureMessagingSchema } from "./messagingSchema.js";
+import { ensureMessagingSafetySchema } from "./messagingSafety.js";
+
 import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
 import { backfillPublishFeedbackFromMessages } from "./adminPosts.js";
@@ -561,6 +563,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensurePhaseCDSchema(db);
   backfillUserEmailCanonical(db);
   ensureMessagingSchema(db);
+  ensureMessagingSafetySchema(db);
   ensureSavedSearchSchema(db);
   ensureNotificationsSchema(db);
   ensureAssistedDraftSchema(db);

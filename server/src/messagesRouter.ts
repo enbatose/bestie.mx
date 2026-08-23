@@ -25,9 +25,19 @@ import {
 import { attachPublishFeedbackToProperty } from "./adminPosts.js";
 import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
 import { isUserPublisherBlocked, loadPostReportByConversationId, REPORT_BOT_USER_ID } from "./listingReports.js";
+import {
+  hasAcceptedMessagingSafety,
+  isMessagingSafetyExemptConversation,
+  MESSAGING_SAFETY_NOTICE_VERSION,
+  MESSAGING_SAFETY_PREVIEW_PLACEHOLDER,
+  recordMessagingSafetyAcknowledgment,
+  resolveMessagingSafetyRole,
+  type MessagingSafetyRole,
+} from "./messagingSafety.js";
 
 const postMsgLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 });
+const safetyAckLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
 
 const SUPPORT_SUBJECT_MAX_LEN = 200;
 const SUPPORT_BODY_MAX_LEN = 4000;
@@ -333,20 +343,105 @@ export function messagesRouter(db: DatabaseSync) {
       )
       .all(...params) as Record<string, unknown>[];
     markInboxDelivered(db, me);
+    const safetyAccepted = hasAcceptedMessagingSafety(db, me);
     res.json({
-      conversations: rows.map((row) => ({
-        id: row.id,
-        contextTitle: row.context_title,
-        listingRoomId: row.listing_room_id,
-        kind: normalizeConversationKind(typeof row.kind === "string" ? row.kind : null),
-        updatedAt: row.updated_at,
-        otherUserId: row.other_user_id,
-        otherDisplayName: row.other_display_name,
-        otherProfilePictureUrl:
-          typeof row.other_profile_picture_url === "string" ? row.other_profile_picture_url : null,
-        lastPreview: row.last_preview ?? "",
-        unreadCount: Number(row.unread_count) || 0,
-      })),
+      conversations: rows.map((row) => {
+        const kind = normalizeConversationKind(typeof row.kind === "string" ? row.kind : null);
+        const otherUserId = String(row.other_user_id);
+        const listingRoomId =
+          typeof row.listing_room_id === "string" && row.listing_room_id.trim()
+            ? row.listing_room_id
+            : null;
+        const messagingGateExempt = isMessagingSafetyExemptConversation(db, kind, otherUserId);
+        const rawPreview = typeof row.last_preview === "string" ? row.last_preview : "";
+        const lastPreview =
+          !safetyAccepted && !messagingGateExempt && rawPreview
+            ? MESSAGING_SAFETY_PREVIEW_PLACEHOLDER
+            : rawPreview;
+        const viewerIsListingOwner = Boolean(
+          listingRoomId && ownerUserIdForRoomListing(db, listingRoomId) === me,
+        );
+        return {
+          id: row.id,
+          contextTitle: row.context_title,
+          listingRoomId,
+          kind,
+          updatedAt: row.updated_at,
+          otherUserId,
+          otherDisplayName: row.other_display_name,
+          otherProfilePictureUrl:
+            typeof row.other_profile_picture_url === "string" ? row.other_profile_picture_url : null,
+          lastPreview,
+          unreadCount: Number(row.unread_count) || 0,
+          messagingGateExempt,
+          viewerIsListingOwner,
+        };
+      }),
+    });
+  });
+
+  r.get("/safety-acknowledgment", (req: Request, res: Response) => {
+    const me = readAuthUserId(req);
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    res.json({
+      noticeVersion: MESSAGING_SAFETY_NOTICE_VERSION,
+      accepted: hasAcceptedMessagingSafety(db, me),
+    });
+  });
+
+  r.post("/safety-acknowledgment", jsonMw(), (req: Request, res: Response) => {
+    const me = readAuthUserId(req);
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const lim = safetyAckLimiter(req.ip ?? "ip");
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    if (hasAcceptedMessagingSafety(db, me)) {
+      res.json({
+        noticeVersion: MESSAGING_SAFETY_NOTICE_VERSION,
+        accepted: true,
+        alreadyAccepted: true,
+      });
+      return;
+    }
+    const body = req.body as { conversationId?: unknown; role?: unknown };
+    const conversationId =
+      typeof body.conversationId === "string" && body.conversationId.trim().length > 0
+        ? body.conversationId.trim().slice(0, 120)
+        : null;
+    if (conversationId && !assertMember(db, conversationId, me)) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    let role: MessagingSafetyRole =
+      body.role === "publisher" || body.role === "seeker" ? body.role : "seeker";
+    if (conversationId) {
+      const conv = db
+        .prepare(`SELECT listing_room_id FROM conversations WHERE id = ?`)
+        .get(conversationId) as { listing_room_id: string | null } | undefined;
+      role = resolveMessagingSafetyRole(db, me, conv?.listing_room_id ?? null);
+    }
+    const acceptedAt = isoNow();
+    recordMessagingSafetyAcknowledgment(db, {
+      id: randomUUID(),
+      userId: me,
+      noticeVersion: MESSAGING_SAFETY_NOTICE_VERSION,
+      role,
+      conversationId,
+      acceptedAt,
+    });
+    res.status(201).json({
+      noticeVersion: MESSAGING_SAFETY_NOTICE_VERSION,
+      accepted: true,
+      role,
+      acceptedAt,
     });
   });
 

@@ -23,6 +23,17 @@ export type ConversationSummary = {
   otherProfilePictureUrl: string | null;
   lastPreview: string;
   unreadCount: number;
+  /** True for Soporte/Feedback/Reporte/admin peers — no safety gate. */
+  messagingGateExempt?: boolean;
+  /** Current user is the listing owner on this thread (publisher role). */
+  viewerIsListingOwner?: boolean;
+};
+
+export type MessagingSafetyRole = "seeker" | "publisher";
+
+export type MessagingSafetyStatus = {
+  noticeVersion: string;
+  accepted: boolean;
 };
 
 export type ChatMessage = {
@@ -70,6 +81,50 @@ export async function fetchUnreadMessageCount(signal?: AbortSignal): Promise<num
   if (!res.ok) return 0;
   const j = (await res.json()) as { count?: number };
   return typeof j.count === "number" ? j.count : 0;
+}
+
+export async function fetchMessagingSafetyStatus(
+  signal?: AbortSignal,
+): Promise<MessagingSafetyStatus> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/messages/safety-acknowledgment`, {
+    credentials: cred,
+    signal,
+  });
+  if (res.status === 401) throw new Error("unauthorized");
+  if (!res.ok) throw new Error(`safety_status_${res.status}`);
+  const j = (await res.json()) as { noticeVersion?: string; accepted?: boolean };
+  return {
+    noticeVersion: typeof j.noticeVersion === "string" ? j.noticeVersion : "",
+    accepted: Boolean(j.accepted),
+  };
+}
+
+export async function postMessagingSafetyAcknowledgment(input: {
+  conversationId?: string | null;
+  role?: MessagingSafetyRole;
+  signal?: AbortSignal;
+}): Promise<MessagingSafetyStatus> {
+  const base = apiBase();
+  const res = await fetch(`${base}/api/messages/safety-acknowledgment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({
+      conversationId: input.conversationId ?? undefined,
+      role: input.role,
+    }),
+    signal: input.signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(j.error || `safety_ack_${res.status}`);
+  }
+  const j = (await res.json()) as { noticeVersion?: string; accepted?: boolean };
+  return {
+    noticeVersion: typeof j.noticeVersion === "string" ? j.noticeVersion : "",
+    accepted: Boolean(j.accepted),
+  };
 }
 
 export async function fetchConversations(

@@ -117,3 +117,4 @@ export function ensureMessagingSchema(db: DatabaseSync): void {
   ensureSupportBotUser(db);
   ensureFeedbackBotUser(db);
 }
+

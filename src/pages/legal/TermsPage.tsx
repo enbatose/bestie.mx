@@ -216,6 +216,7 @@ export function TermsPage() {
             "En esta etapa, Bestie no verifica en campo cada anuncio ni realiza estudios de crédito o antecedentes de los usuarios.",
             "Los usuarios son responsables de verificar por su cuenta la identidad de su contraparte, las condiciones de la propiedad y de firmar los contratos correspondientes.",
             "Recomendamos no realizar pagos por adelantado sin haber verificado la propiedad y la identidad de la contraparte.",
+            "Antes de ver mensajes entre usuarios sobre un anuncio, puedes recibir un aviso de seguridad en la app. Al aceptarlo, reconoces el riesgo de estafas o fraudes entre usuarios y que Bestie y el Titular no son responsables por el uso del chat ni por acuerdos o pagos entre ustedes. Registramos esa aceptación (fecha y versión del aviso) como evidencia de tu consentimiento.",
           ]}
         />
       </LegalSection>

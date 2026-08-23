@@ -5,9 +5,11 @@ import { listingPublicPath } from "@/lib/listingReference";
 import { AttachmentPicker } from "@/components/messaging/AttachmentPicker";
 import { ChatMessageBody } from "@/components/messaging/ChatMessageBody";
 import { MessageAttachmentList } from "@/components/messaging/MessageAttachmentList";
+import { MessagingSafetyModal } from "@/components/messaging/MessagingSafetyModal";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { authMe, type AuthMe } from "@/lib/authApi";
 import {
   formatRelativeUpdatedAt,
   sortUserConversations,
@@ -17,11 +19,14 @@ import {
 import {
   fetchConversationMessages,
   fetchConversations,
+  fetchMessagingSafetyStatus,
   postConversationMessage,
+  postMessagingSafetyAcknowledgment,
   uploadMessageAttachment,
   type ChatMessage,
   type ConversationSummary,
   type MessageAttachment,
+  type MessagingSafetyRole,
 } from "@/lib/messagesApi";
 import {
   buildMyListingsRestorePath,
@@ -193,6 +198,9 @@ export function MessagesPage() {
   const [sortKey, setSortKey] = useState<UserConversationSortKey>("updated");
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [chatReportOpen, setChatReportOpen] = useState(false);
+  const [safetyAccepted, setSafetyAccepted] = useState<boolean | null>(null);
+  const [safetyBusy, setSafetyBusy] = useState(false);
+  const [safetyError, setSafetyError] = useState<string | null>(null);
   const listSeqRef = useRef(0);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
@@ -203,6 +211,15 @@ export function MessagesPage() {
 
   const loadMe = useCallback(async () => {
     setMe(await authMe().catch(() => null));
+  }, []);
+
+  const loadSafetyStatus = useCallback(async () => {
+    try {
+      const status = await fetchMessagingSafetyStatus();
+      setSafetyAccepted(status.accepted);
+    } catch {
+      setSafetyAccepted(false);
+    }
   }, []);
 
   const loadList = useCallback(async (q?: string) => {
@@ -260,6 +277,14 @@ export function MessagesPage() {
   useEffect(() => {
     void loadMe();
   }, [loadMe]);
+
+  useEffect(() => {
+    if (!me?.id) {
+      setSafetyAccepted(null);
+      return;
+    }
+    void loadSafetyStatus();
+  }, [me?.id, loadSafetyStatus]);
 
   // Seed / refresh the search bar when arriving from Mis Anuncios (`?q=title id`).
   useEffect(() => {
@@ -346,6 +371,37 @@ export function MessagesPage() {
   const isFeedbackThread = active?.kind === "feedback";
   const isReportThread = active?.kind === "report";
   const isSystemThread = isSupportThread || isFeedbackThread || isReportThread;
+  const safetyRole: MessagingSafetyRole = active?.viewerIsListingOwner ? "publisher" : "seeker";
+  const hasInboundPeerMessage = useMemo(
+    () => Boolean(me?.id && messages.some((m) => m.senderUserId !== me.id)),
+    [me?.id, messages],
+  );
+  const needsSafetyGate =
+    safetyAccepted === false &&
+    Boolean(activeId) &&
+    Boolean(active) &&
+    !active?.messagingGateExempt &&
+    isListingThread &&
+    hasInboundPeerMessage &&
+    !loadingThread;
+
+  const acceptSafetyNotice = async () => {
+    if (!activeId || safetyBusy) return;
+    setSafetyBusy(true);
+    setSafetyError(null);
+    try {
+      await postMessagingSafetyAcknowledgment({
+        conversationId: activeId,
+        role: safetyRole,
+      });
+      setSafetyAccepted(true);
+      await loadList(debouncedSearch || undefined);
+    } catch {
+      setSafetyError("No pudimos guardar tu aceptación. Intenta de nuevo.");
+    } finally {
+      setSafetyBusy(false);
+    }
+  };
 
   const clearActive = () => {
     const next = new URLSearchParams(searchParams);
@@ -356,6 +412,7 @@ export function MessagesPage() {
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeId || (!draft.trim() && attachFiles.length === 0)) return;
+    if (needsSafetyGate) return;
     setErr(null);
     setSendingMessage(true);
     try {
@@ -611,7 +668,10 @@ export function MessagesPage() {
                   <div
                     ref={threadScrollRef}
                     onScroll={onThreadScroll}
-                    className="h-full overflow-y-auto p-4"
+                    className={`h-full overflow-y-auto p-4 ${
+                      needsSafetyGate ? "pointer-events-none select-none blur-[6px]" : ""
+                    }`}
+                    aria-hidden={needsSafetyGate || undefined}
                   >
                   {loadingThread ? (
                     <p className="text-sm text-muted">Cargando mensajes…</p>
@@ -736,7 +796,7 @@ export function MessagesPage() {
                     })
                   )}
                   </div>
-                  {showJumpToLatest ? (
+                  {showJumpToLatest && !needsSafetyGate ? (
                     <button
                       type="button"
                       onClick={() => scrollThreadToBottom("smooth")}
@@ -748,7 +808,13 @@ export function MessagesPage() {
                   ) : null}
                 </div>
 
-                <form onSubmit={send} className="shrink-0 border-t border-border bg-bg-light p-3 dark:border-slate-600 dark:bg-slate-800">
+                <form
+                  onSubmit={send}
+                  className={`shrink-0 border-t border-border bg-bg-light p-3 dark:border-slate-600 dark:bg-slate-800 ${
+                    needsSafetyGate ? "pointer-events-none opacity-50" : ""
+                  }`}
+                  aria-hidden={needsSafetyGate || undefined}
+                >
                   <label className="sr-only" htmlFor="msg-body">
                     Mensaje
                   </label>
@@ -832,6 +898,14 @@ export function MessagesPage() {
             detailText: input.detailText || undefined,
           });
         }}
+      />
+
+      <MessagingSafetyModal
+        open={needsSafetyGate}
+        role={safetyRole}
+        busy={safetyBusy}
+        error={safetyError}
+        onAccept={() => void acceptSafetyNotice()}
       />
     </div>
   );

@@ -86,8 +86,9 @@ export function PrivacyPage() {
               invitaciones a calificar el producto, y los archivos que adjuntes, por ejemplo capturas
               de pantalla), calificaciones (por ejemplo de 1 a 5 estrellas) y comentarios opcionales
               asociados a ese feedback, textos sugeridos para compartir tu anuncio (generados con
-              ayuda de IA a partir de datos estructurados del anuncio y editables por ti) y tus
-              interacciones en la Plataforma.
+              ayuda de IA a partir de datos estructurados del anuncio y editables por ti), la
+              aceptación del aviso de seguridad al usar mensajes entre usuarios (fecha, versión del
+              aviso y, en su caso, el hilo que lo disparó) y tus interacciones en la Plataforma.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
