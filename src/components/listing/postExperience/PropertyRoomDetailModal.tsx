@@ -123,7 +123,7 @@ export function PropertyRoomDetailModal({
               urls={photos}
               failedUrls={failedImageUrls}
               onImageError={onImageError}
-              onReportPhoto={viewerIsOwner ? undefined : onReportPhoto}
+              onReportPhoto={onReportPhoto}
             />
           ) : null}
 

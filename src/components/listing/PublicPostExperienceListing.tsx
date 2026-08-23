@@ -207,9 +207,8 @@ export function PublicPostExperienceListing({
   const menCount = property?.occupiedByMenCount ?? 0;
   const womenCount = property?.occupiedByWomenCount ?? 0;
 
-  const canReport = !listing.viewerIsOwner;
-
-  const reportButton = canReport ? (
+  /** Anyone can report — including the publisher (useful for QA; admins can dismiss false reports). */
+  const reportButton = (
     <button
       type="button"
       onClick={() => {
@@ -221,7 +220,7 @@ export function PublicPostExperienceListing({
       <Flag className="size-4 shrink-0" aria-hidden />
       Reportar
     </button>
-  ) : null;
+  );
 
   /** Keep share in the header; Reportar sits in its own full-width row so it is not clipped by max-w-[45%]. */
   const shareActions = (
@@ -236,12 +235,12 @@ export function PublicPostExperienceListing({
     />
   );
 
-  const reportRow = reportButton ? (
+  const reportRow = (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3">
       <p className="text-xs text-muted">¿Hay un problema con este anuncio?</p>
       {reportButton}
     </div>
-  ) : null;
+  );
 
   const reportModal = (
     <ReportModal
@@ -281,7 +280,7 @@ export function PublicPostExperienceListing({
       urls={galleryUrls}
       failedUrls={failedImageUrls}
       onImageError={onImageError}
-      onReportPhoto={canReport ? onReportPhoto : undefined}
+      onReportPhoto={onReportPhoto}
     />
   ) : (
     <ListingPhotoPlaceholder />
@@ -402,7 +401,7 @@ export function PublicPostExperienceListing({
             onContact={() => contactFromExpandedRoom(expandedRoom)}
             onClose={closeExpandedRoom}
             viewerIsOwner={Boolean(listing.viewerIsOwner)}
-            onReportPhoto={canReport ? onReportPhoto : undefined}
+            onReportPhoto={onReportPhoto}
             reportActions={reportRow}
             shareActions={
               <ListingShareActions
