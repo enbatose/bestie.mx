@@ -23,9 +23,9 @@ export async function tryPublishBlogToMeta(opts: {
 > {
   const origin = (process.env.PUBLIC_WEB_ORIGIN || "https://www.bestie.mx").replace(/\/+$/, "");
   const shareUrl = `${origin}${opts.article.path || blogArticlePublicPath(opts.article)}`;
-  const caption = normalizeSocialCaption(
-    opts.article.socialCaption || opts.article.title,
-  );
+  const caption = normalizeSocialCaption(opts.article.socialCaption || opts.article.title, {
+    articleUrl: shareUrl,
+  });
 
   const pageToken = process.env.META_PAGE_ACCESS_TOKEN?.trim();
   const pageId = process.env.META_PAGE_ID?.trim();

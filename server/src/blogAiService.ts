@@ -15,7 +15,7 @@ import {
   generateGeminiText,
 } from "./blogGemini.js";
 import { resolveBlogImagesForSlots, type BlogImageSlot } from "./blogImages.js";
-import { blogArticlePublicPath, BLOG_CITY_META, ctaPathForArticle, normalizeSocialCaption, slugifyBlogTitle } from "./blogPaths.js";
+import { blogArticlePublicPath, blogArticleShareUrl, BLOG_CITY_META, ctaPathForArticle, normalizeSocialCaption, slugifyBlogTitle } from "./blogPaths.js";
 import type {
   BlogBlock,
   BlogFaqItem,
@@ -270,7 +270,7 @@ Devuelve JSON con esta forma:
   "aeoSummary": string (respuesta directa 2-4 oraciones para AEO),
   "metaTitle": string (<=60 chars),
   "metaDescription": string (<=155 chars),
-  "socialCaption": string (español MX, listo para pegar en FB/IG: gancho + 2-4 oraciones; SIN URLs ni links; cierra con exactamente "¡Síguenos para más consejos!" en la línea siguiente al texto, sin línea en blanco extra),
+  "socialCaption": string (español MX, listo para pegar en FB/IG: gancho con emojis naturales (2-6) + 2-4 oraciones potentes; SIN links de Facebook/Instagram; incluye exactamente el placeholder BESTIE_URL en su propia línea al final; antes del link cierra con "¡Síguenos para más consejos!" en la línea previa),
   "imageQueries": string[] (3-5 búsquedas EN INGLÉS, cada una una escena visual concreta distinta; nada genérico como solo "Mexico"),
   "blocks": [
     {"type":"heading","level":2,"text":"..."},
@@ -393,7 +393,9 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
       String(payload.metaDescription || payload.excerpt).trim().slice(0, 170),
       String(payload.aeoSummary || payload.excerpt).trim().slice(0, 600),
       JSON.stringify(payload.faq ?? []),
-      normalizeSocialCaption(payload.socialCaption),
+      normalizeSocialCaption(payload.socialCaption, {
+        articleUrl: blogArticleShareUrl({ slug, cityCode }),
+      }),
       now,
       opts.articleId,
     );
@@ -647,7 +649,9 @@ export async function enhanceBlogWithSuggestions(opts: {
       String(payload.metaDescription || payload.excerpt).trim().slice(0, 170),
       String(payload.aeoSummary || payload.excerpt).trim().slice(0, 600),
       JSON.stringify(payload.faq ?? dto.faq),
-      normalizeSocialCaption(payload.socialCaption || dto.socialCaption),
+      normalizeSocialCaption(payload.socialCaption || dto.socialCaption, {
+        articleUrl: blogArticleShareUrl({ slug, cityCode: row.city_code }),
+      }),
       isoNow(),
       opts.articleId,
     );
@@ -755,7 +759,11 @@ function applyArticlePatch(db: DatabaseSync, row: BlogArticleRow, patch: Record<
     typeof p.metaDescription === "string" ? p.metaDescription.slice(0, 170) : row.meta_description;
   const aeoSummary = typeof p.aeoSummary === "string" ? p.aeoSummary.slice(0, 600) : row.aeo_summary;
   const socialCaption =
-    typeof p.socialCaption === "string" ? normalizeSocialCaption(p.socialCaption) : row.social_caption;
+    typeof p.socialCaption === "string"
+      ? normalizeSocialCaption(p.socialCaption, {
+          articleUrl: blogArticleShareUrl({ slug, cityCode }),
+        })
+      : row.social_caption;
   const qualityScore =
     typeof p.qualityScore === "number"
       ? Math.max(0, Math.min(100, Math.round(p.qualityScore)))
@@ -828,7 +836,7 @@ ${existing || "(ninguno)"}
 Publicados (para promote):
 ${published.map((p) => `- id=${p.id} path=${p.path} title=${p.title}`).join("\n") || "(ninguno)"}
 
-Devuelve {"topics":[{"title":"...","angle":"...","whyNow":"...","cityCode":${cityCode ? `"gdl"` : "null"},"promoteArticleId": null o id,"socialCaption":"gancho sin URLs; cierra con ¡Síguenos para más consejos!"}]}
+Devuelve {"topics":[{"title":"...","angle":"...","whyNow":"...","cityCode":${cityCode ? `"gdl"` : "null"},"promoteArticleId": null o id,"socialCaption":"gancho con emojis; cierra con ¡Síguenos para más consejos! (sin URL de artículo aún)"}]}
 Máximo 8 topics. Incluye mix de ideas nuevas y 1-3 promotes si aplica.`,
     model: blogGeminiDraftModel(),
     googleSearch: true,

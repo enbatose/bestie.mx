@@ -5,28 +5,75 @@ export const BLOG_SOCIAL = {
   instagram: "https://www.instagram.com/bestie.mexico/",
 } as const;
 
-/** Closing line for FB/IG captions — no profile URLs (paste-ready body only). */
+/** Closing line for FB/IG captions — profile URLs stay out; article URL is separate. */
 export const BLOG_SOCIAL_FOLLOW_LINE = "¡Síguenos para más consejos!";
 
+export function publicWebOrigin(): string {
+  return (process.env.PUBLIC_WEB_ORIGIN || "https://www.bestie.mx").replace(/\/+$/, "");
+}
+
+export function blogArticleShareUrl(opts: {
+  slug: string;
+  cityCode?: string | null;
+  origin?: string;
+}): string {
+  const origin = (opts.origin || publicWebOrigin()).replace(/\/+$/, "");
+  return `${origin}${blogArticlePublicPath(opts)}`;
+}
+
+function urlsMatchArticle(candidate: string, articleUrl: string): boolean {
+  try {
+    const a = new URL(articleUrl);
+    const u = new URL(candidate);
+    const pathA = a.pathname.replace(/\/+$/, "") || "/";
+    const pathU = u.pathname.replace(/\/+$/, "") || "/";
+    const hostA = a.hostname.replace(/^www\./i, "").toLowerCase();
+    const hostU = u.hostname.replace(/^www\./i, "").toLowerCase();
+    return hostA === hostU && pathA === pathU;
+  } catch {
+    return candidate.replace(/\/+$/, "") === articleUrl.replace(/\/+$/, "");
+  }
+}
+
 /**
- * Caption for manual Meta paste: strip URLs/placeholders and keep the follow line
- * immediately after the main copy (single newline).
+ * Caption for Meta paste: keep emojis, strip profile/other links, ensure follow line
+ * + the article URL (for link previews) at the end.
  */
-export function normalizeSocialCaption(raw: string | null | undefined): string {
+export function normalizeSocialCaption(
+  raw: string | null | undefined,
+  opts?: { articleUrl?: string | null },
+): string {
+  const articleUrl = (opts?.articleUrl ?? "").trim().replace(/\/+$/, "") || null;
   let text = String(raw ?? "").trim();
-  text = text.replace(/BESTIE_URL/gi, "");
-  text = text.replace(/https?:\/\/\S+/gi, "");
-  text = text.replace(/www\.\S+/gi, "");
+
+  if (articleUrl) {
+    text = text.replace(/BESTIE_URL/gi, articleUrl);
+  } else {
+    text = text.replace(/BESTIE_URL/gi, "");
+  }
+
   text = text.replace(/^[ \t]*Síguenos\s*[:：].*$/gim, "");
   text = text.replace(/¡?\s*Síguenos para más consejos!?\.?/gi, "");
+
+  text = text.replace(/https?:\/\/\S+/gi, (match) => {
+    const cleaned = match.replace(/[.,);:!?\]>'"]+$/g, "");
+    if (articleUrl && urlsMatchArticle(cleaned, articleUrl)) return "";
+    return "";
+  });
+  text = text.replace(/\bwww\.\S+/gi, "");
+
   text = text
     .split("\n")
     .map((line) => line.replace(/[ \t]{2,}/g, " ").trimEnd())
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  if (!text) return BLOG_SOCIAL_FOLLOW_LINE;
-  return `${text}\n${BLOG_SOCIAL_FOLLOW_LINE}`;
+
+  const parts: string[] = [];
+  if (text) parts.push(text);
+  parts.push(BLOG_SOCIAL_FOLLOW_LINE);
+  if (articleUrl) parts.push(articleUrl);
+  return parts.join("\n");
 }
 
 export const BLOG_CITY_META: Record<

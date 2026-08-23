@@ -669,7 +669,8 @@ export function AdminBlogPanel() {
                   placeholder="Texto listo para pegar en Facebook / Instagram…"
                 />
                 <p className="mt-1 text-xs text-muted">
-                  Copia esto al publicar. Sin links: el enlace del artículo va aparte (preview o adjunto).
+                  Incluye el link del artículo (para el preview en redes) y puedes usar emojis. Al
+                  guardar se normaliza el cierre y la URL.
                 </p>
                 <hr className="mt-4 border-border" />
               </div>
@@ -882,7 +883,7 @@ export function AdminBlogPanel() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Publicar en Meta</h3><p className="mt-1 text-xs text-muted">Usa el Caption social (arriba) y la portada. El link del artículo se agrega aparte en Facebook. Creativo OG con logo Bestie:</p><a className="mt-2 inline-flex text-xs font-semibold text-primary underline" href={`/api/share-og/blog/${article.id}.jpg`} target="_blank" rel="noreferrer">Descargar portada branded (1200)</a><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("facebook"))} className={primaryClass}>Facebook</button><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("instagram"))} className={secondaryClass}>Instagram</button></div></div>
+              <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Publicar en Meta</h3><p className="mt-1 text-xs text-muted">Usa el Caption social (arriba, con link del artículo) y la portada. Creativo OG con logo Bestie:</p><a className="mt-2 inline-flex text-xs font-semibold text-primary underline" href={`/api/share-og/blog/${article.id}.jpg`} target="_blank" rel="noreferrer">Descargar portada branded (1200)</a><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("facebook"))} className={primaryClass}>Facebook</button><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("instagram"))} className={secondaryClass}>Instagram</button></div></div>
             </div>
           </div>
         )}

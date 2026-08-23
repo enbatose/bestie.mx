@@ -15,7 +15,7 @@ import {
   rowToBlogArticleDto,
   type BlogArticleRow,
 } from "./blogDto.js";
-import { normalizeSocialCaption, slugifyBlogTitle } from "./blogPaths.js";
+import { blogArticleShareUrl, normalizeSocialCaption, slugifyBlogTitle } from "./blogPaths.js";
 import { isBlogLiveCityCode, normalizeBlogStatus } from "./blogSchema.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { readAuthUserId } from "./jwtSession.js";
@@ -130,7 +130,9 @@ export function blogAdminRouter(db: DatabaseSync, databasePath?: string) {
     const aeoSummary = typeof body.aeoSummary === "string" ? body.aeoSummary.slice(0, 600) : row.aeo_summary;
     const socialCaption =
       typeof body.socialCaption === "string"
-        ? normalizeSocialCaption(body.socialCaption)
+        ? normalizeSocialCaption(body.socialCaption, {
+            articleUrl: blogArticleShareUrl({ slug, cityCode }),
+          })
         : row.social_caption;
 
     let publishedAt = row.published_at;
