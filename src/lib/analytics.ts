@@ -1,4 +1,4 @@
-import { isPostHogConfigured, posthog } from "@/lib/posthog";
+import { isPostHogActive, posthog } from "@/lib/posthog";
 import { trackMetaEvent } from "@/lib/metaPixel";
 
 /**
@@ -169,7 +169,7 @@ export function track<E extends AnalyticsEvent>(
   event: E,
   properties: AnalyticsProps[E],
 ): void {
-  if (isPostHogConfigured()) {
+  if (isPostHogActive()) {
     try {
       posthog.capture(event, properties as Record<string, unknown>);
     } catch {
@@ -204,7 +204,7 @@ export function identifyUser(
     is_admin?: boolean;
   },
 ): void {
-  if (!isPostHogConfigured() || !userId) return;
+  if (!isPostHogActive() || !userId) return;
   try {
     const props: Record<string, unknown> = {};
     if (properties?.email) props.email = properties.email;
@@ -228,7 +228,7 @@ export function identifyUser(
 }
 
 export function resetAnalyticsUser(): void {
-  if (!isPostHogConfigured()) return;
+  if (!isPostHogActive()) return;
   try {
     posthog.reset();
   } catch {
@@ -238,7 +238,7 @@ export function resetAnalyticsUser(): void {
 
 /** SPA pageview — call on react-router location changes. */
 export function trackPageview(pathname: string, search = ""): void {
-  if (!isPostHogConfigured()) return;
+  if (!isPostHogActive()) return;
   try {
     posthog.capture("$pageview", {
       $current_url: `${window.location.origin}${pathname}${search}`,
@@ -254,7 +254,7 @@ export function trackPageview(pathname: string, search = ""): void {
  * Soft launch: `soft_launch_new_search_ui` (kept at 0% until ready).
  */
 export function isFeatureEnabled(flag: string, defaultValue = false): boolean {
-  if (!isPostHogConfigured()) return defaultValue;
+  if (!isPostHogActive()) return defaultValue;
   try {
     const value = posthog.isFeatureEnabled(flag);
     return value == null ? defaultValue : Boolean(value);

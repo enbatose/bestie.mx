@@ -1,5 +1,5 @@
 import { analyticsEvent } from "@/lib/authApi";
-import { isPostHogConfigured, posthog } from "@/lib/posthog";
+import { isPostHogActive, posthog } from "@/lib/posthog";
 import {
   classifyFileName,
   classifyImageError,
@@ -58,7 +58,7 @@ export async function trackImagePipeline(metrics: ImagePipelineMetrics): Promise
   await analyticsEvent("image_pipeline", payload);
 
   // Always mirror failures to PostHog; sample successes lightly for volume.
-  if (!isPostHogConfigured()) return;
+  if (!isPostHogActive()) return;
   try {
     if (!metrics.ok || metrics.step === "full" || Math.random() < 0.15) {
       posthog.capture("publish_image_pipeline", payload);

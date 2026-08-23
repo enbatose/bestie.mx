@@ -127,9 +127,9 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   },
   {
     id: "reportar",
-    question: "¿Cómo reporto un anuncio sospechoso?",
+    question: "¿Cómo reporto un anuncio, foto o chat sospechoso?",
     answer:
-      "Usa el botón Reportar en cualquier anuncio, foto o conversación privada (motivos como estafa, fotos falsas o contenido inapropiado). También puedes escribir a contacto@bestie.mx con el enlace del anuncio. Antes de chatear sobre un anuncio, Bestie muestra un aviso de seguridad: no pagues depósito ni renta antes de visitar y firmar un contrato, y verifica a tu contraparte. Bestie solo facilita el contacto; no es parte del arrendamiento ni garantiza pagos entre usuarios.",
+      "Usa el botón Reportar en el anuncio, en una foto o en la conversación privada. Elige un motivo (por ejemplo estafa, fotos falsas, contenido inapropiado o acoso) y, si quieres, agrega un detalle. Revisaremos el reporte; también puedes escribir a contacto@bestie.mx con el enlace. Bestie puede pausar anuncios o restringir cuentas que incumplan las reglas.",
     synonyms: [
       "reportar",
       "denunciar",
@@ -144,15 +144,59 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
       "ayuda",
       "soporte",
       "contacto",
+      "foto",
+      "chat",
+      "conversacion",
+      "inapropiado",
+    ],
+  },
+  {
+    id: "prevenir-estafas",
+    question: "¿Cómo evito estafas al buscar o rentar un cuarto?",
+    answer:
+      "Antes de ver mensajes sobre un anuncio, Bestie muestra un aviso de seguridad que debes aceptar. No pagues depósito ni renta antes de visitar el inmueble y firmar un contrato. Desconfía de urgencia, precios muy bajos o “dueños” que no pueden mostrarte la propiedad. Verifica la identidad de tu contraparte. Si algo no cuadra, usa Reportar en el anuncio o en el chat. Bestie solo facilita el contacto: no es parte del arrendamiento ni garantiza pagos entre usuarios.",
+    synonyms: [
+      "estafa",
+      "fraude",
+      "scam",
       "deposito",
       "anticipo",
+      "pago",
+      "seguridad",
+      "aviso",
+      "prevenir",
+      "cuidado",
+      "contrato",
+      "visitar",
+      "clabe",
+      "transferencia",
+    ],
+  },
+  {
+    id: "cookies",
+    question: "¿Qué cookies usa Bestie y cómo las controlo?",
+    answer:
+      "Las cookies necesarias (sesión e inicio de sesión) siempre están activas. La analítica (PostHog) y la medición de anuncios (píxel de Meta) solo se activan si las aceptas en el banner de cookies. Puedes elegir “Solo necesarias”, “Aceptar todas” o personalizar, y cambiar tu decisión desde el enlace Cookies del pie de página. Más detalle en el Aviso de Privacidad (sección Cookies).",
+    synonyms: [
+      "cookies",
+      "cookie",
+      "rastreo",
+      "tracking",
+      "posthog",
+      "pixel",
+      "meta",
+      "facebook",
+      "analitica",
+      "privacidad",
+      "consentimiento",
+      "banner",
     ],
   },
   {
     id: "datos",
     question: "¿Mis datos están seguros?",
     answer:
-      "Consulta cómo tratamos y protegemos tus datos en nuestro Aviso de Privacidad.",
+      "Consulta cómo tratamos y protegemos tus datos en nuestro Aviso de Privacidad. Puedes solicitar la eliminación de tu cuenta y datos escribiendo a contacto@bestie.mx.",
     synonyms: [
       "datos",
       "privacidad",

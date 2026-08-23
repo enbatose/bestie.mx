@@ -30,6 +30,15 @@ export function SiteFooter() {
           <Link to="/legal/privacidad" className={linkClass}>
             Aviso de Privacidad
           </Link>
+          <button
+            type="button"
+            className={linkClass}
+            onClick={() => {
+              window.dispatchEvent(new Event("bestie:open-cookie-preferences"));
+            }}
+          >
+            Cookies
+          </button>
         </nav>
 
         <div className="flex w-full max-w-md flex-col items-center gap-3 sm:flex-row sm:justify-between">

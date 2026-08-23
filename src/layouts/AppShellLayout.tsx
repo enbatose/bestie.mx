@@ -8,6 +8,7 @@ import { AuthModalProvider } from "@/contexts/AuthModalContext";
 import { FeedbackModalProvider } from "@/contexts/FeedbackModalContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { PostHogIdentify, PostHogPageViews } from "@/components/analytics/PostHogApp";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { analyticsHeartbeat, authMe, needsEmailVerification, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 import { Link } from "react-router-dom";
@@ -142,6 +143,7 @@ export function AppShellLayout() {
 
         <AuthModal />
       </div>
+      <CookieConsentBanner />
       </NotificationsProvider>
       </FeedbackModalProvider>
     </AuthModalProvider>

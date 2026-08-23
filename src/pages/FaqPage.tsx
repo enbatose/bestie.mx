@@ -9,14 +9,49 @@ function FaqAnswer({ item }: { item: FaqItem }): ReactNode {
   if (item.id === "reportar") {
     return (
       <>
-        Escríbenos a{" "}
+        Usa el botón <strong>Reportar</strong> en el anuncio, en una foto o en la conversación
+        privada. Elige un motivo (por ejemplo estafa, fotos falsas, contenido inapropiado o acoso) y,
+        si quieres, agrega un detalle. Revisaremos el reporte. También puedes escribir a{" "}
         <a
           className="font-medium text-primary underline-offset-2 hover:underline"
           href="mailto:contacto@bestie.mx"
         >
           contacto@bestie.mx
         </a>{" "}
-        con el enlace del anuncio y una breve descripción.
+        con el enlace. Bestie puede pausar anuncios o restringir cuentas que incumplan las reglas.
+      </>
+    );
+  }
+  if (item.id === "prevenir-estafas") {
+    return (
+      <>
+        Antes de ver mensajes sobre un anuncio, Bestie muestra un <strong>aviso de seguridad</strong>{" "}
+        que debes aceptar. No pagues depósito ni renta antes de visitar el inmueble y firmar un
+        contrato. Desconfía de urgencia, precios muy bajos o “dueños” que no pueden mostrarte la
+        propiedad. Verifica la identidad de tu contraparte. Si algo no cuadra, usa{" "}
+        <strong>Reportar</strong>. Bestie solo facilita el contacto: no es parte del arrendamiento ni
+        garantiza pagos entre usuarios. Ver también{" "}
+        <Link to="/legal/terminos#rol" className="font-medium text-primary underline-offset-2 hover:underline">
+          Términos · Rol de Bestie
+        </Link>
+        .
+      </>
+    );
+  }
+  if (item.id === "cookies") {
+    return (
+      <>
+        Las cookies necesarias (sesión e inicio de sesión) siempre están activas. La analítica
+        (PostHog) y la medición de anuncios (píxel de Meta) solo se activan si las aceptas en el
+        banner de cookies. Puedes elegir “Solo necesarias”, “Aceptar todas” o personalizar, y cambiar
+        tu decisión desde el enlace <strong>Cookies</strong> del pie de página. Más detalle en el{" "}
+        <Link
+          to="/legal/privacidad#cookies"
+          className="font-medium text-primary underline-offset-2 hover:underline"
+        >
+          Aviso de Privacidad · Cookies
+        </Link>
+        .
       </>
     );
   }
@@ -30,6 +65,13 @@ function FaqAnswer({ item }: { item: FaqItem }): ReactNode {
         >
           Aviso de Privacidad
         </Link>
+        . Puedes solicitar la eliminación de tu cuenta y datos escribiendo a{" "}
+        <a
+          className="font-medium text-primary underline-offset-2 hover:underline"
+          href="mailto:contacto@bestie.mx"
+        >
+          contacto@bestie.mx
+        </a>
         .
       </>
     );

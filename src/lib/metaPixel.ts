@@ -1,8 +1,9 @@
 import { isProductionAnalyticsHost } from "@/lib/posthog";
+import { hasMarketingConsent } from "@/lib/cookieConsent";
 
 /**
  * Meta Pixel (Ads measurement). Prod hosts only — same gate as PostHog.
- * Pixel ID is build-time via VITE_META_PIXEL_ID.
+ * Also requires marketing cookie consent. Pixel ID is build-time via VITE_META_PIXEL_ID.
  */
 
 const pixelId = import.meta.env.VITE_META_PIXEL_ID?.trim() || "";
@@ -24,17 +25,21 @@ declare global {
 
 let initialized = false;
 
-/** True when Pixel may fire (token + www / bestie.mx). */
+/** True when Pixel may fire (token + www / bestie.mx). Consent checked at init/track time. */
 export function isMetaPixelConfigured(): boolean {
   return Boolean(pixelId) && isProductionAnalyticsHost();
 }
 
+export function isMetaPixelActive(): boolean {
+  return isMetaPixelConfigured() && initialized && hasMarketingConsent();
+}
+
 /**
- * Load fbevents.js once and init the Pixel. Safe to call repeatedly.
+ * Load fbevents.js once and init the Pixel after marketing consent. Safe to call repeatedly.
  * Does not fire PageView — SPA navigations call {@link trackMetaPageview}.
  */
 export function initMetaPixel(): void {
-  if (!isMetaPixelConfigured() || typeof window === "undefined") return;
+  if (!isMetaPixelConfigured() || !hasMarketingConsent() || typeof window === "undefined") return;
   if (initialized) return;
 
   const w = window;
@@ -66,7 +71,7 @@ export function initMetaPixel(): void {
 
 /** SPA PageView — call on every react-router location change. */
 export function trackMetaPageview(): void {
-  if (!isMetaPixelConfigured()) return;
+  if (!isMetaPixelConfigured() || !hasMarketingConsent()) return;
   try {
     initMetaPixel();
     window.fbq?.("track", "PageView");
@@ -80,7 +85,7 @@ export function trackMetaEvent(
   eventName: string,
   params?: Record<string, unknown>,
 ): void {
-  if (!isMetaPixelConfigured()) return;
+  if (!isMetaPixelConfigured() || !hasMarketingConsent()) return;
   try {
     initMetaPixel();
     if (params && Object.keys(params).length > 0) {

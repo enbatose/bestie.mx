@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { PostHogProvider } from "@posthog/react";
 import {
@@ -7,17 +7,27 @@ import {
   track,
   trackPageview,
 } from "@/lib/analytics";
+import {
+  COOKIE_CONSENT_CHANGED_EVENT,
+  hasAnalyticsConsent,
+} from "@/lib/cookieConsent";
 import { initPostHog, isPostHogConfigured, posthog } from "@/lib/posthog";
-import { initMetaPixel, trackMetaPageview } from "@/lib/metaPixel";
+import { trackMetaPageview } from "@/lib/metaPixel";
 import { consumeOAuthMethod } from "@/components/GoogleSignInButton";
 import type { AuthMe } from "@/lib/authApi";
 
-initPostHog();
-initMetaPixel();
-
-/** Wraps the tree with PostHog when configured; otherwise a transparent passthrough. */
+/** Wraps the tree with PostHog when configured + consented; otherwise a transparent passthrough. */
 export function PostHogApp({ children }: { children: ReactNode }) {
-  if (!isPostHogConfigured()) return children;
+  const [ready, setReady] = useState(() => Boolean(initPostHog()));
+
+  useEffect(() => {
+    const sync = () => setReady(Boolean(initPostHog()));
+    sync();
+    window.addEventListener(COOKIE_CONSENT_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(COOKIE_CONSENT_CHANGED_EVENT, sync);
+  }, []);
+
+  if (!isPostHogConfigured() || !hasAnalyticsConsent() || !ready) return children;
   return <PostHogProvider client={posthog}>{children}</PostHogProvider>;
 }
 

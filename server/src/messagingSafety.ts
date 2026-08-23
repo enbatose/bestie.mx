@@ -2,7 +2,14 @@ import type { DatabaseSync } from "node:sqlite";
 import { isAdminEmail, isAdminUser } from "./adminAuth.js";
 import { isSystemMessagingBot, normalizeConversationKind } from "./messagingSchema.js";
 
-/** Bump when the in-app safety notice copy changes materially (forces re-accept). */
+/**
+ * In-app safety notice version for peer listing chats.
+ *
+ * When you change the tip list or legal copy in MessagingSafetyModal in a
+ * material way, bump this string (e.g. "2026-08-24-v2"). Users who already
+ * accepted an older version will see the modal again and must re-accept.
+ * That keeps the DB acknowledgment aligned with the text they actually saw.
+ */
 export const MESSAGING_SAFETY_NOTICE_VERSION = "2026-08-23-v1";
 
 export type MessagingSafetyRole = "seeker" | "publisher";

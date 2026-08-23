@@ -242,20 +242,23 @@ export function PrivacyPage() {
       <LegalSection id="cookies" index={7} title="Cookies y tecnologías similares">
         <p>
           Usamos cookies y tecnologías similares para mantener tu sesión iniciada, recordar preferencias
-          y medir el uso del Servicio. Algunas cookies son estrictamente necesarias para el
+          y, si lo autorizas, medir el uso del Servicio. Algunas cookies son estrictamente necesarias para el
           funcionamiento (por ejemplo, la cookie de sesión y la cookie de estado de inicio de sesión con
-          Google/Facebook). También usamos cookies y almacenamiento local de herramientas de analítica
-          de producto (PostHog) para entender cómo se usa Bestie (páginas visitadas, embudos de búsqueda
-          y publicación, eventos de interacción, métricas de rendimiento de la página, mapas de calor /
-          clics sin respuesta, errores de la interfaz y, cuando está habilitado, grabaciones de sesión que
-          reproducen la interacción con la interfaz; los campos de formulario y el contenido sensible
-          de chat se enmascaran o excluyen en esas grabaciones), con el fin de mejorar el Servicio.
-          Además, cuando visitas el sitio en producción, podemos cargar el píxel de medición de Meta
-          (Facebook/Instagram Ads) para medir visitas y conversiones relacionadas con anuncios
-          (por ejemplo, páginas vistas, registro y publicación de anuncios), optimizar campañas y
-          limitar la repetición de anuncios. Puedes gestionar o eliminar las cookies desde
-          la configuración de tu navegador; deshabilitarlas puede afectar el funcionamiento del Servicio.
-          Los mapas pueden cargar teselas desde proveedores externos conforme a sus propias políticas.
+          Google/Facebook); estas no requieren consentimiento adicional.
+        </p>
+        <p>
+          Con tu consentimiento explícito (banner de cookies o preferencias en el pie de página), podemos
+          usar: (i) analítica de producto (PostHog) — páginas visitadas, embudos de búsqueda y
+          publicación, eventos de interacción, métricas de rendimiento, mapas de calor / clics sin
+          respuesta, errores de la interfaz y, cuando está habilitado, grabaciones de sesión con campos
+          sensibles y contenido de chat enmascarados o excluidos; y (ii) el píxel de medición de Meta
+          (Facebook/Instagram Ads) en producción, para medir visitas y conversiones relacionadas con
+          anuncios, optimizar campañas y limitar la repetición de anuncios. Si rechazas estas
+          categorías, no cargamos PostHog ni el píxel de Meta. Puedes cambiar tu elección en cualquier
+          momento desde el enlace <strong>Cookies</strong> del pie de página. También puedes gestionar
+          cookies desde tu navegador; deshabilitar las necesarias puede afectar el funcionamiento del
+          Servicio. Los mapas pueden cargar teselas desde proveedores externos conforme a sus propias
+          políticas.
         </p>
       </LegalSection>
 

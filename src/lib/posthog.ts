@@ -1,4 +1,5 @@
 import posthog from "posthog-js";
+import { hasAnalyticsConsent } from "@/lib/cookieConsent";
 
 /** Ingestion host (US Cloud). Only used when analytics is enabled. */
 const DEFAULT_HOST = "https://us.i.posthog.com";
@@ -43,8 +44,8 @@ export function isProductionAnalyticsHost(): boolean {
 }
 
 /**
- * True when PostHog may capture. Requires both a build token and a production host.
- * Dev / local never pass this, regardless of env vars.
+ * True when PostHog *may* capture (token + prod host). Consent is checked separately
+ * in {@link initPostHog} / {@link isPostHogActive}.
  */
 export function isPostHogConfigured(): boolean {
   return shouldEnablePostHog({
@@ -55,13 +56,25 @@ export function isPostHogConfigured(): boolean {
 
 let initialized = false;
 
+/** True when PostHog is initialized and the user opted into analytics cookies. */
+export function isPostHogActive(): boolean {
+  return isPostHogConfigured() && initialized && hasAnalyticsConsent();
+}
+
 /**
- * Initialize PostHog once. Safe to call repeatedly.
- * No-ops outside production hosts so events, replays, heatmaps, and flags stay off.
+ * Initialize PostHog once after analytics cookie consent. Safe to call repeatedly.
+ * No-ops outside production hosts or without consent.
  */
 export function initPostHog(): typeof posthog | null {
-  if (!isPostHogConfigured()) return null;
-  if (initialized) return posthog;
+  if (!isPostHogConfigured() || !hasAnalyticsConsent()) return null;
+  if (initialized) {
+    try {
+      posthog.opt_in_capturing?.();
+    } catch {
+      /* ignore */
+    }
+    return posthog;
+  }
 
   posthog.init(token, {
     api_host: host,
@@ -85,11 +98,22 @@ export function initPostHog(): typeof posthog | null {
   return posthog;
 }
 
+/** Stop capturing when the user withdraws analytics consent. */
+export function optOutPostHogCapturing(): void {
+  if (!initialized) return;
+  try {
+    posthog.opt_out_capturing?.();
+    posthog.stopSessionRecording?.();
+  } catch {
+    /* ignore */
+  }
+}
+
 export { posthog };
 
 /** Current PostHog session id when analytics is active; otherwise null. */
 export function getPosthogSessionId(): string | null {
-  if (!isPostHogConfigured() || !initialized) return null;
+  if (!isPostHogActive()) return null;
   try {
     const id = posthog.get_session_id?.();
     return typeof id === "string" && id.trim() ? id.trim() : null;
@@ -104,7 +128,7 @@ export function getPosthogSessionId(): string | null {
  * assisted-claim paths are recorded even when global sampling is below 100%.
  */
 export function ensurePublishSessionRecording(): void {
-  if (!isPostHogConfigured() || !initialized) return;
+  if (!isPostHogActive()) return;
   try {
     posthog.startSessionRecording?.(true);
   } catch {
@@ -115,7 +139,7 @@ export function ensurePublishSessionRecording(): void {
 /**
  * Session id to persist on the property for admin "Ver session replay".
  * Starts recording first so AI / Sin IA / assisted publish all get a linkable id on Prod.
- * Always null on Dev / local (PostHog stays off).
+ * Always null on Dev / local (PostHog stays off) or without analytics consent.
  */
 export function capturePublishPosthogSessionId(): string | null {
   ensurePublishSessionRecording();
