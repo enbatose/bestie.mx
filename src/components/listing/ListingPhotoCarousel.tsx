@@ -100,14 +100,14 @@ function CarouselChrome({
               e.stopPropagation();
               onReportPhoto(index, currentUrl);
             }}
-            className={`absolute left-3 top-3 z-20 flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold shadow-md transition ${
+            className={`absolute z-20 flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold shadow-md transition ${
               fullscreen
-                ? "bg-black/55 text-white backdrop-blur-sm hover:bg-black/70"
-                : "bg-surface/95 text-error ring-1 ring-border hover:bg-surface"
+                ? "left-3 top-3 bg-black/55 text-white backdrop-blur-sm hover:bg-black/70"
+                : "bottom-3 left-1/2 -translate-x-1/2 bg-surface/95 text-error ring-1 ring-border hover:bg-surface"
             }`}
             aria-label="Reportar foto"
           >
-            <Flag className="size-3.5" aria-hidden />
+            <Flag className="size-3.5 shrink-0" aria-hidden />
             Reportar
           </button>
         ) : null}

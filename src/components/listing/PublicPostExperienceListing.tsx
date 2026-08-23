@@ -215,14 +215,14 @@ export function PublicPostExperienceListing({
         setReportPhoto(null);
         setReportOpen(true);
       }}
-      className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-error/30 bg-surface px-3.5 py-2 text-sm font-semibold text-error hover:bg-error/5"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-error/30 bg-surface px-3.5 py-2 text-sm font-semibold text-error hover:bg-error/5"
     >
       <Flag className="size-4 shrink-0" aria-hidden />
-      Reportar
+      Reportar anuncio
     </button>
   );
 
-  /** Keep share in the header; Reportar sits in its own full-width row so it is not clipped by max-w-[45%]. */
+  /** Keep share in the header; report sits in its own row so it is not clipped by max-w-[45%]. */
   const shareActions = (
     <ListingShareActions
       shareMsg={share.shareMsg}
@@ -235,12 +235,7 @@ export function PublicPostExperienceListing({
     />
   );
 
-  const reportRow = (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3">
-      <p className="text-xs text-muted">¿Hay un problema con este anuncio?</p>
-      {reportButton}
-    </div>
-  );
+  const reportRow = <div className="flex justify-end pt-1 sm:pt-0">{reportButton}</div>;
 
   const reportModal = (
     <ReportModal
