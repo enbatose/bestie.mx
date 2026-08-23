@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { isAdminUser } from "./adminAuth.js";
+import { isAdminEmail, isAdminUser } from "./adminAuth.js";
 import { isSystemMessagingBot, normalizeConversationKind } from "./messagingSchema.js";
 
 /** Bump when the in-app safety notice copy changes materially (forces re-accept). */
@@ -60,6 +60,22 @@ export function recordMessagingSafetyAcknowledgment(
     input.conversationId,
     input.acceptedAt,
   );
+}
+
+/**
+ * Pure peer check (no DB). Prefer this in list mappers so we do not N+1 query
+ * under Node's synchronous SQLite driver (blocks the event loop).
+ */
+export function isMessagingSafetyExemptPeer(
+  kindRaw: string | null | undefined,
+  otherUserId: string,
+  otherEmail?: string | null,
+): boolean {
+  const kind = normalizeConversationKind(kindRaw);
+  if (kind !== "listing") return true;
+  if (isSystemMessagingBot(otherUserId)) return true;
+  if (isAdminEmail(otherEmail)) return true;
+  return false;
 }
 
 /** Peer listing threads with a non-admin, non-bot counterpart require the safety gate. */

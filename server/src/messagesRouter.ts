@@ -27,7 +27,7 @@ import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
 import { isUserPublisherBlocked, loadPostReportByConversationId, REPORT_BOT_USER_ID } from "./listingReports.js";
 import {
   hasAcceptedMessagingSafety,
-  isMessagingSafetyExemptConversation,
+  isMessagingSafetyExemptPeer,
   MESSAGING_SAFETY_NOTICE_VERSION,
   MESSAGING_SAFETY_PREVIEW_PLACEHOLDER,
   recordMessagingSafetyAcknowledgment,
@@ -253,6 +253,7 @@ export function messagesRouter(db: DatabaseSync) {
       me,
       me,
       me,
+      me,
       SUPPORT_BOT_USER_ID,
       FEEDBACK_BOT_USER_ID,
       "blog-bestie",
@@ -326,8 +327,15 @@ export function messagesRouter(db: DatabaseSync) {
                 other.id AS other_user_id,
                 other.display_name AS other_display_name,
                 other.profile_picture_url AS other_profile_picture_url,
+                other.email AS other_email,
                 (SELECT m.body FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_preview,
-                (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count
+                (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_user_id != ? AND m.read_at IS NULL) AS unread_count,
+                EXISTS (
+                  SELECT 1 FROM rooms owner_room
+                  INNER JOIN properties owner_prop ON owner_prop.id = owner_room.property_id
+                  INNER JOIN user_publishers owner_up ON owner_up.publisher_id = owner_prop.publisher_id
+                  WHERE owner_room.id = c.listing_room_id AND owner_up.user_id = ?
+                ) AS viewer_is_listing_owner
          FROM conversations c
          JOIN conversation_participants me ON me.conversation_id = c.id AND me.user_id = ?
          JOIN conversation_participants om ON om.conversation_id = c.id AND om.user_id != ?
@@ -352,15 +360,13 @@ export function messagesRouter(db: DatabaseSync) {
           typeof row.listing_room_id === "string" && row.listing_room_id.trim()
             ? row.listing_room_id
             : null;
-        const messagingGateExempt = isMessagingSafetyExemptConversation(db, kind, otherUserId);
+        const otherEmail = typeof row.other_email === "string" ? row.other_email : null;
+        const messagingGateExempt = isMessagingSafetyExemptPeer(kind, otherUserId, otherEmail);
         const rawPreview = typeof row.last_preview === "string" ? row.last_preview : "";
         const lastPreview =
           !safetyAccepted && !messagingGateExempt && rawPreview
             ? MESSAGING_SAFETY_PREVIEW_PLACEHOLDER
             : rawPreview;
-        const viewerIsListingOwner = Boolean(
-          listingRoomId && ownerUserIdForRoomListing(db, listingRoomId) === me,
-        );
         return {
           id: row.id,
           contextTitle: row.context_title,
@@ -374,7 +380,7 @@ export function messagesRouter(db: DatabaseSync) {
           lastPreview,
           unreadCount: Number(row.unread_count) || 0,
           messagingGateExempt,
-          viewerIsListingOwner,
+          viewerIsListingOwner: Boolean(row.viewer_is_listing_owner),
         };
       }),
     });
