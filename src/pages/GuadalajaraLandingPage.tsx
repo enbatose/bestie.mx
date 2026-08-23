@@ -40,7 +40,7 @@ const GDL_FACTS: ReadonlyArray<{
   {
     icon: Building2,
     title: "Íconos tapatíos",
-    body: "Del Centro Histórico a la Minerva y el Águila: la ciudad se vive por colonias — por eso el mapa es el centro de Bestie.",
+    body: "Del Centro Histórico a la Minerva: la ciudad se vive por colonias — por eso el mapa es el centro de Bestie.",
   },
 ];
 
