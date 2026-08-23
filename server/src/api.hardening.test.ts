@@ -498,7 +498,14 @@ describe("Phase B API hardening", () => {
 
     const draftRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
     expect((draftRes.body as { error?: string }).error).toBe("not_found");
-    expect((draftRes.body as { reason?: string }).reason).toBe("listing_draft");
+    // Drafts must not confirm existence — opaque not_found (not listing_draft).
+    expect((draftRes.body as { reason?: string }).reason).toBe("listing_not_found");
+
+    const draftList = await request(app).get("/api/listings").expect(200);
+    expect((draftList.body as { id: string }[]).some((l) => l.id === roomId)).toBe(false);
+
+    const draftProperty = await request(app).get(`/api/properties/${encodeURIComponent(propertyId)}`).expect(404);
+    expect((draftProperty.body as { error?: string }).error).toBe("not_found");
 
     await registerAndLinkAnonymousPublisher(agent);
 
@@ -911,5 +918,53 @@ describe("Phase B API hardening", () => {
       .patch(`/api/properties/${encodeURIComponent(propertyId)}`)
       .send({ status: "published", postMode: "room", imageUrls: [] })
       .expect(200);
+  });
+
+  it("POST /api/messages/conversations/from-listing rejects draft room ids", async () => {
+    const publisher = request.agent(app);
+    const r1 = await publisher
+      .post("/api/properties")
+      .send({
+        title: "Casa draft mensajes",
+        city: "Guadalajara",
+        neighborhood: "Centro",
+        lat: 20.67,
+        lng: -103.35,
+        contactWhatsApp: "523331112233",
+        summary: PROP_SUMMARY_OK,
+      })
+      .expect(201);
+    const propertyId = (r1.body as { id: string }).id;
+    const r2 = await publisher
+      .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
+      .send({
+        title: "Cuarto draft mensajes",
+        rentMxn: 4200,
+        roomsAvailable: 1,
+        tags: [],
+        roommateGenderPref: "any",
+        ageMin: 18,
+        ageMax: 40,
+        summary: ROOM_SUMMARY_OK,
+      })
+      .expect(201);
+    const roomId = (r2.body as { id: string }).id;
+    await registerAndLinkAnonymousPublisher(publisher);
+
+    const seeker = request.agent(app);
+    await seeker
+      .post("/api/auth/register")
+      .send({
+        email: uniqueTestEmail("seeker-draft-msg"),
+        password: "longenough1",
+        displayName: "Seeker Draft",
+      })
+      .expect(201);
+
+    const blocked = await seeker
+      .post("/api/messages/conversations/from-listing")
+      .send({ listingRoomId: roomId })
+      .expect(404);
+    expect((blocked.body as { error?: string }).error).toBe("not_found");
   });
 });

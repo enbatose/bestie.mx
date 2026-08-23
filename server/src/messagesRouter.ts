@@ -23,6 +23,7 @@ import {
   type MessageAttachment,
 } from "./validation.js";
 import { attachPublishFeedbackToProperty } from "./adminPosts.js";
+import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
 
 const postMsgLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const startConvLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 15 });
@@ -348,6 +349,11 @@ export function messagesRouter(db: DatabaseSync) {
     const listingRoomId = (req.body as { listingRoomId?: unknown }).listingRoomId;
     if (typeof listingRoomId !== "string" || !isSafeRoomOrListingId(listingRoomId)) {
       res.status(400).json({ error: "invalid_listing_room_id" });
+      return;
+    }
+    // Drafts / paused / occupied must not be contactable via API (UI already blocks contact).
+    if (!isRoomListingPubliclyVisible(db, listingRoomId)) {
+      res.status(404).json({ error: "not_found" });
       return;
     }
     const owner = ownerUserIdForRoomListing(db, listingRoomId);

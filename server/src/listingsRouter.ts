@@ -6,6 +6,7 @@ import { isListingTag } from "./listingTags.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { canWritePropertyByRequest, isAdminRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
+import { PUBLISHED_JOIN_WHERE } from "./publishedListingsQuery.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import { scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
@@ -122,12 +123,13 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
   if (!row) return "listing_not_found";
 
   const roomStatus = String(row.status ?? "");
-  if (roomStatus === "draft") return "listing_draft";
+  // Never confirm drafts to anonymous callers — treat as not found.
+  if (roomStatus === "draft") return "listing_not_found";
   if (roomStatus === "paused") return "listing_paused";
   if (roomStatus === "archived") return "listing_archived";
 
   const propertyStatus = String(row.property_status ?? "");
-  if (propertyStatus === "draft") return "property_draft";
+  if (propertyStatus === "draft") return "listing_not_found";
   if (propertyStatus === "paused") return "property_paused";
   if (propertyStatus === "archived") return "property_archived";
 
@@ -135,8 +137,6 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
 
   return "listing_not_found";
 }
-
-const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
 
 export function listingsRouter(db: DatabaseSync) {
   const r = express.Router();

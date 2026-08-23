@@ -2,11 +2,20 @@ import type { DatabaseSync } from "node:sqlite";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import type { PropertyListing } from "./types.js";
 
-const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
+/** Room is searchable / contactable / shareable only when both statuses are published and not occupied. */
+export const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
 
 function listingForPublic(l: PropertyListing): PropertyListing {
   const { publisherId: _p, viewsCount: _v, inquiryCount: _i, ...rest } = l;
   return rest;
+}
+
+/** True when a room listing is publicly visible (same rules as search / OG / sitemap). */
+export function isRoomListingPubliclyVisible(db: DatabaseSync, roomId: string): boolean {
+  const row = db
+    .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
+    .get(roomId) as Record<string, unknown> | undefined;
+  return Boolean(row);
 }
 
 /** All published room rows for public search (Messenger, etc.). */
