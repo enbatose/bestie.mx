@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
+import { Eye, ExternalLink, Plus, RefreshCw, Save, Sparkles } from "lucide-react";
+import { BlogArticlePreviewModal } from "@/components/blog/BlogArticlePreviewModal";
 import {
   adminChatBlogArticle,
   adminCreateBlogArticle,
@@ -12,13 +13,38 @@ import {
   adminRescoreBlogArticle,
   adminSaveBlogArticle,
   type BlogArticle,
+  type BlogBlock,
   type BlogCosts,
+  type BlogSource,
 } from "@/lib/blogApi";
 
 const fieldClass = "mt-1 min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2";
 const primaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40";
 const secondaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-40";
 type Topic = Awaited<ReturnType<typeof adminProposeBlogTopics>>["topics"][number];
+
+const ACTIVITY_LABELS: Record<string, string> = {
+  research: "Investigación",
+  draft: "Borrador",
+  rescore: "Rescore",
+  enhance: "Mejoras",
+  chat: "Chat IA",
+  images: "Imágenes",
+  topics: "Temas",
+  similarity: "Similitud",
+  social: "Social",
+  other: "Otro",
+};
+
+function formatMxn(amount: number): string {
+  const n = Number.isFinite(amount) ? amount : 0;
+  return `${n.toLocaleString("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  })} MXN`;
+}
 
 function topicIdeaText(topic: Topic): string {
   return [topic.title, topic.angle, topic.whyNow ? `Por qué ahora: ${topic.whyNow}` : ""]
@@ -43,6 +69,7 @@ export function AdminBlogPanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const ideaSectionRef = useRef<HTMLDivElement>(null);
   const ideaInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -176,8 +203,35 @@ export function AdminBlogPanel() {
     focusIdeaSection();
   };
 
+  const openPreview = () => {
+    if (!article) return;
+    try {
+      JSON.parse(blocksText) as BlogBlock[];
+      JSON.parse(sourcesText) as BlogSource[];
+    } catch {
+      setError("Revisa el JSON de bloques y fuentes antes de previsualizar.");
+      return;
+    }
+    setError(null);
+    setPreviewOpen(true);
+  };
+
+  const previewArticle = (() => {
+    if (!article || !previewOpen) return null;
+    try {
+      const blocks = JSON.parse(blocksText) as BlogBlock[];
+      const sources = JSON.parse(sourcesText) as BlogSource[];
+      return { ...article, blocks, sources };
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <div className="mt-6 grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+      {previewArticle ? (
+        <BlogArticlePreviewModal article={previewArticle} onClose={() => setPreviewOpen(false)} />
+      ) : null}
       <aside className="h-fit rounded-2xl border border-border bg-surface p-3 lg:sticky lg:top-4">
         <div className="flex gap-2">
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar artículos…" className={`${fieldClass} mt-0`} />
@@ -231,7 +285,20 @@ export function AdminBlogPanel() {
         {notice ? <p className="mb-4 rounded-xl border border-secondary/30 bg-secondary/10 p-3 text-sm text-body">{notice}</p> : null}
         {!article ? <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted">Elige un artículo o crea uno nuevo.</div> : (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-body">Editar artículo</h2><p className="text-xs text-muted">{article.path}</p></div><button type="button" disabled={busy} onClick={() => void run(save)} className={primaryClass}><Save className="size-4" /> Guardar</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-body">Editar artículo</h2>
+                <p className="text-xs text-muted">{article.path}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy} onClick={openPreview} className={secondaryClass}>
+                  <Eye className="size-4" /> Vista previa
+                </button>
+                <button type="button" disabled={busy} onClick={() => void run(save)} className={primaryClass}>
+                  <Save className="size-4" /> Guardar
+                </button>
+              </div>
+            </div>
 
             <div className="grid gap-4 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2">
               <label className="sm:col-span-2 text-sm font-medium text-body">Título<input value={article.title} onChange={(e) => setField("title", e.target.value)} className={fieldClass} /></label>
@@ -273,7 +340,19 @@ export function AdminBlogPanel() {
             {article.similarityWarnings.length ? <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4"><h3 className="font-semibold text-warning-fg">Posibles contenidos similares</h3><ul className="mt-2 space-y-2 text-sm">{article.similarityWarnings.map((warning) => <li key={warning.articleId}><a href={warning.path} target="_blank" rel="noreferrer" className="font-semibold text-body underline">{warning.title}</a> · similitud {Math.round(warning.score)}/100</li>)}</ul></div> : null}
 
             <div className="grid gap-5 md:grid-cols-2">
-              <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Costo acumulado</h3><p className="mt-2 text-2xl font-bold text-primary">{(costs?.totalMxn ?? 0).toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</p><ul className="mt-3 space-y-2 text-xs text-muted">{costs?.entries.map((entry) => <li key={entry.id} className="flex justify-between gap-3 border-t border-border pt-2"><span>{entry.activity}</span><span>{entry.mxnEstimate.toLocaleString("es-MX", { style: "currency", currency: "MXN" })}</span></li>)}</ul></div>
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <h3 className="font-semibold text-body">Costo acumulado</h3>
+                <p className="mt-2 text-2xl font-bold text-primary">{formatMxn(costs?.totalMxn ?? 0)}</p>
+                <p className="mt-1 text-xs text-muted">Estimación en pesos mexicanos (MXN)</p>
+                <ul className="mt-3 space-y-2 text-xs text-muted">
+                  {costs?.entries.map((entry) => (
+                    <li key={entry.id} className="flex justify-between gap-3 border-t border-border pt-2">
+                      <span>{ACTIVITY_LABELS[entry.activity] ?? entry.activity}</span>
+                      <span className="shrink-0 font-medium text-body">{formatMxn(entry.mxnEstimate)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Publicar en Meta</h3><p className="mt-1 text-xs text-muted">Usa el caption social y la portada del artículo. Creativo OG con logo Bestie:</p><a className="mt-2 inline-flex text-xs font-semibold text-primary underline" href={`/api/share-og/blog/${article.id}.jpg`} target="_blank" rel="noreferrer">Descargar portada branded (1200)</a><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("facebook"))} className={primaryClass}>Facebook</button><button type="button" disabled={busy} onClick={() => void run(() => publishMeta("instagram"))} className={secondaryClass}>Instagram</button></div></div>
             </div>
           </div>

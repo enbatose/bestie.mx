@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { Check, Copy, Eye, MessageCircle, Share2 } from "lucide-react";
-import { BlogBlocks } from "@/components/blog/BlogBlocks";
+import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
+import { BlogArticleBody } from "@/components/blog/BlogArticleBody";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { usePageSeo } from "@/hooks/usePageSeo";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
@@ -168,20 +168,9 @@ export function BlogArticlePage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <Link to="/blog" className="text-sm font-semibold text-primary underline-offset-2 hover:underline">← Volver al blog</Link>
-      <article className="mt-6">
-        {article.coverImageUrl ? <img src={article.coverImageUrl} alt="" className="aspect-[16/9] w-full rounded-3xl object-cover" /> : null}
-        <div className="mt-7 flex flex-wrap gap-2">{article.labels.map((label) => <span key={label} className="rounded-full bg-secondary/15 px-3 py-1 text-xs font-semibold text-primary">{label}</span>)}</div>
-        <h1 className="mt-4 text-3xl font-bold leading-tight text-primary sm:text-4xl">{article.title}</h1>
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-          <span className="font-semibold text-body">Por Bestie</span>
-          {article.publishedAt ? <time dateTime={article.publishedAt}>{new Date(article.publishedAt).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}</time> : null}
-          <span className="inline-flex items-center gap-1"><Eye className="size-4" /> {article.viewCount.toLocaleString("es-MX")} vistas</span>
-        </div>
-        {article.aeoSummary ? <aside className="blog-aeo-summary mt-7 rounded-2xl border border-secondary/30 bg-secondary/10 p-5 text-sm leading-6 text-body"><strong className="block text-primary">En breve</strong>{article.aeoSummary}</aside> : null}
-        <div className="mt-9"><BlogBlocks blocks={article.blocks} /></div>
-        {article.sources.length ? <section className="mt-10 border-t border-border pt-7"><h2 className="text-lg font-bold text-primary">Fuentes</h2><ol className="mt-3 space-y-2 text-sm text-muted">{article.sources.map((source, index) => <li key={source.id}><span className="mr-2 font-semibold text-body">[{index + 1}]</span><a href={source.url} target="_blank" rel="noreferrer" className="underline hover:text-primary">{source.title}</a>{source.publisher ? ` — ${source.publisher}` : ""}</li>)}</ol></section> : null}
-        <div className="mt-9 flex flex-col gap-4 rounded-2xl bg-primary p-6 text-primary-fg sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">Encuentra tu próximo hogar compartido</p><p className="mt-1 text-sm opacity-80">Busca opciones claras y conecta en Bestie.</p></div><Link to={article.ctaPath} className="inline-flex min-h-11 items-center justify-center rounded-full bg-secondary px-5 text-sm font-bold text-primary">Explorar en Bestie</Link></div>
-      </article>
+      <div className="mt-6">
+        <BlogArticleBody article={article} />
+      </div>
 
       <section className="mt-8 flex flex-wrap items-center gap-3 border-y border-border py-5">
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-body"><Share2 className="size-4" /> Compartir</span>
