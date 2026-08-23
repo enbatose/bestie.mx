@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MapPinned, SlidersHorizontal, UsersRound, type LucideIcon } from "lucide-react";
 import { HeroAnimatedLockup } from "@/components/HeroAnimatedLockup";
+import { LandingBlogCarousel } from "@/components/home/LandingBlogCarousel";
 import { METRO_CITIES } from "@/lib/metroCities";
 import { track } from "@/lib/analytics";
 import { usePageSeo } from "@/hooks/usePageSeo";
@@ -155,6 +156,8 @@ export function HomePage() {
           </ol>
         </div>
       </section>
+
+      <LandingBlogCarousel surface="home" />
 
       <section className="bg-surface px-4 py-14 sm:px-6 sm:py-16">
         <div className="mx-auto max-w-6xl">

@@ -55,6 +55,10 @@ export function blogPublicRouter(db: DatabaseSync) {
     const result = listPublishedBlogArticles(db, {
       q,
       city: cityRaw || null,
+      includeNational:
+        (req.query.includeNational === "1" || req.query.includeNational === "true") &&
+        cityRaw !== "" &&
+        cityRaw !== "national",
       label,
       limit,
       offset,

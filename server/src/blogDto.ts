@@ -136,7 +136,15 @@ export function getBlogArticleBySlug(
 
 export function listPublishedBlogArticles(
   db: DatabaseSync,
-  opts: { q?: string; city?: string | null; label?: string | null; limit?: number; offset?: number },
+  opts: {
+    q?: string;
+    city?: string | null;
+    /** When city is set, also include national (null city_code) articles. */
+    includeNational?: boolean;
+    label?: string | null;
+    limit?: number;
+    offset?: number;
+  },
 ): { items: BlogArticleDto[]; total: number } {
   const limit = Math.min(50, Math.max(1, opts.limit ?? 20));
   const offset = Math.max(0, opts.offset ?? 0);
@@ -150,7 +158,11 @@ export function listPublishedBlogArticles(
   if (city === "national") {
     where.push(`(city_code IS NULL OR city_code = '')`);
   } else if (city) {
-    where.push(`city_code = ?`);
+    if (opts.includeNational) {
+      where.push(`(city_code IS NULL OR city_code = '' OR city_code = ?)`);
+    } else {
+      where.push(`city_code = ?`);
+    }
     params.push(city);
   }
 

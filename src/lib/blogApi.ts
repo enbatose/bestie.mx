@@ -90,13 +90,18 @@ export type BlogCosts = {
 export async function fetchBlogIndex(opts: {
   q?: string;
   city?: string;
+  /** With city set: include national articles too (exclude other cities). */
+  includeNational?: boolean;
   label?: string;
+  limit?: number;
   signal?: AbortSignal;
 }): Promise<{ total: number; items: Array<Pick<BlogArticle, "id" | "title" | "excerpt" | "slug" | "cityCode" | "cityLabel" | "labels" | "coverImageUrl" | "viewCount" | "publishedAt" | "path">> }> {
   const params = new URLSearchParams();
   if (opts.q?.trim()) params.set("q", opts.q.trim());
   if (opts.city) params.set("city", opts.city);
+  if (opts.includeNational) params.set("includeNational", "1");
   if (opts.label?.trim()) params.set("label", opts.label.trim());
+  if (opts.limit != null) params.set("limit", String(opts.limit));
   const res = await fetch(`${apiBase()}/api/blog/articles?${params}`, {
     credentials: cred,
     signal: opts.signal,

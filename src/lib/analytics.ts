@@ -43,7 +43,11 @@ export type AnalyticsProps = {
       | "city_guadalajara"
       | "map_gdl"
       | "map_gdl_dato"
-      | "seo_gdl_search";
+      | "seo_gdl_search"
+      | "blog_section"
+      | "blog_article";
+    surface?: AnalyticsLandingSurface;
+    article_id?: string;
   };
 
   search_results_loaded: {

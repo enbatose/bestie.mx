@@ -4,6 +4,7 @@ import { Building2, MapPinned, TrendingUp, Users } from "lucide-react";
 import { GdlHeroAnimatedLockup } from "@/components/home/GdlHeroAnimatedLockup";
 import { GdlLandmarkSilhouettes } from "@/components/home/GdlLandmarkSilhouettes";
 import { HomeLocationSearch } from "@/components/home/HomeLocationSearch";
+import { LandingBlogCarousel } from "@/components/home/LandingBlogCarousel";
 import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { usePageSeo } from "@/hooks/usePageSeo";
 import { track } from "@/lib/analytics";
@@ -175,6 +176,8 @@ export function GuadalajaraLandingPage() {
           </ul>
         </div>
       </section>
+
+      <LandingBlogCarousel cityCode="gdl" surface="city" />
 
       <section className="border-b border-border bg-surface px-4 py-12 sm:px-6 sm:py-14">
         <div className="mx-auto max-w-3xl text-center">
