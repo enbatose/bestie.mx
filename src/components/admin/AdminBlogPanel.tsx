@@ -26,15 +26,35 @@ type Topic = Awaited<ReturnType<typeof adminProposeBlogTopics>>["topics"][number
 
 const ACTIVITY_LABELS: Record<string, string> = {
   research: "Investigación",
-  draft: "Borrador",
+  draft: "Generación / regeneración",
   rescore: "Rescore",
-  enhance: "Mejoras",
+  enhance: "Mejoras (regeneración)",
   chat: "Chat IA",
   images: "Imágenes",
   topics: "Temas",
   similarity: "Similitud",
   social: "Social",
   other: "Otro",
+};
+
+const AI_PROGRESS_BY_KIND: Record<string, string[]> = {
+  generate: [
+    "Investigando fuentes en la web…",
+    "Redactando el artículo…",
+    "Buscando imágenes del tema…",
+    "Evaluando calidad y similitud…",
+    "Casi listo, armando el borrador…",
+  ],
+  enhance: [
+    "Aplicando mejoras al artículo…",
+    "Actualizando contenido e imágenes…",
+    "Recalculando calidad…",
+    "Casi listo…",
+  ],
+  rescore: ["Evaluando calidad del artículo…", "Preparando sugerencias…"],
+  chat: ["El asistente está editando el artículo…", "Aplicando tus instrucciones…", "Casi listo…"],
+  topics: ["Escaneando noticias y temas…", "Comparando con artículos existentes…", "Preparando propuestas…"],
+  default: ["Trabajando…", "Sigue en proceso, no cierres esta pestaña…"],
 };
 
 function formatMxn(amount: number): string {
@@ -54,6 +74,44 @@ function topicIdeaText(topic: Topic): string {
     .join("\n\n");
 }
 
+function AiProgressBanner({
+  title,
+  stepLabel,
+  percent,
+}: {
+  title: string;
+  stepLabel: string;
+  percent: number;
+}) {
+  return (
+    <div
+      className="sticky top-2 z-[30] mb-4 rounded-2xl border border-secondary/40 bg-surface p-4 shadow-sm"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-primary">
+          <Sparkles className="size-4 animate-pulse" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-body">{title}</p>
+          <p className="mt-1 text-xs text-muted">{stepLabel}</p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
+              style={{ width: `${Math.min(96, Math.max(6, percent))}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            Puede tardar 1–2 minutos. La barra avanza mientras la IA trabaja; no está trabada.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminBlogPanel() {
   const [articles, setArticles] = useState<BlogArticle[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,8 +129,51 @@ export function AdminBlogPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aiJob, setAiJob] = useState<{
+    kind: string;
+    title: string;
+    stepLabel: string;
+    percent: number;
+  } | null>(null);
   const ideaSectionRef = useRef<HTMLDivElement>(null);
   const ideaInputRef = useRef<HTMLTextAreaElement>(null);
+  const progressTimerRef = useRef<number | null>(null);
+
+  const clearProgressTimer = () => {
+    if (progressTimerRef.current != null) {
+      window.clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+  };
+
+  const startAiProgress = (kind: string, title: string) => {
+    clearProgressTimer();
+    const steps = AI_PROGRESS_BY_KIND[kind] ?? AI_PROGRESS_BY_KIND.default;
+    const started = Date.now();
+    setAiJob({ kind, title, stepLabel: steps[0]!, percent: 8 });
+    progressTimerRef.current = window.setInterval(() => {
+      const elapsedSec = (Date.now() - started) / 1000;
+      const stepIndex = Math.min(steps.length - 1, Math.floor(elapsedSec / 12));
+      // Asymptotic progress toward ~92% so it never looks finished early.
+      const percent = Math.min(92, 8 + (1 - Math.exp(-elapsedSec / 35)) * 84);
+      setAiJob({
+        kind,
+        title,
+        stepLabel: steps[stepIndex]!,
+        percent,
+      });
+    }, 900);
+  };
+
+  const stopAiProgress = () => {
+    clearProgressTimer();
+    setAiJob((current) =>
+      current ? { ...current, stepLabel: "Listo.", percent: 100 } : null,
+    );
+    window.setTimeout(() => setAiJob(null), 450);
+  };
+
+  useEffect(() => () => clearProgressTimer(), []);
 
   const loadList = useCallback(async (q?: string) => {
     setArticles(await adminListBlogArticles(q));
@@ -116,7 +217,17 @@ export function AdminBlogPanel() {
       setError(err instanceof Error ? err.message : "No se pudo completar la acción.");
     } finally {
       setBusy(false);
+      stopAiProgress();
     }
+  };
+
+  const runAi = async (
+    kind: string,
+    title: string,
+    operation: () => Promise<void>,
+  ) => {
+    startAiProgress(kind, title);
+    await run(operation);
   };
 
   const applyResult = (result: { article: BlogArticle; costs: BlogCosts }) => {
@@ -125,6 +236,21 @@ export function AdminBlogPanel() {
     setBlocksText(JSON.stringify(result.article.blocks, null, 2));
     setSourcesText(JSON.stringify(result.article.sources, null, 2));
     void loadList(search);
+  };
+
+  /** Apply AI result and surface how much MXN this run added to the article total. */
+  const applyAiResult = (
+    result: { article: BlogArticle; costs: BlogCosts },
+    successNotice: string,
+    beforeMxn: number,
+  ) => {
+    applyResult(result);
+    const added = Math.max(0, (result.costs.totalMxn ?? 0) - beforeMxn);
+    setNotice(
+      added > 0
+        ? `${successNotice} Costo de esta operación: ${formatMxn(added)} (acumulado ${formatMxn(result.costs.totalMxn)}).`
+        : successNotice,
+    );
   };
 
   const setField = <K extends keyof BlogArticle>(key: K, value: BlogArticle[K]) => {
@@ -261,7 +387,18 @@ export function AdminBlogPanel() {
             await selectArticle(created.id);
           })} className={primaryClass} aria-label="Nuevo artículo"><Plus className="size-4" /></button>
         </div>
-        <button type="button" disabled={busy} onClick={() => void run(async () => setTopics((await adminProposeBlogTopics(article?.cityCode)).topics))} className={`${secondaryClass} mt-3 w-full`}><Sparkles className="size-4" /> Escanear temas</button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void runAi("topics", "Escaneando temas…", async () =>
+              setTopics((await adminProposeBlogTopics(article?.cityCode)).topics),
+            )
+          }
+          className={`${secondaryClass} mt-3 w-full`}
+        >
+          <Sparkles className="size-4" /> Escanear temas
+        </button>
         {topics.length ? (
           <div className="mt-4 border-t border-border pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Temas sugeridos</h3>
@@ -328,6 +465,9 @@ export function AdminBlogPanel() {
       </aside>
 
       <section className="min-w-0">
+        {aiJob ? (
+          <AiProgressBanner title={aiJob.title} stepLabel={aiJob.stepLabel} percent={aiJob.percent} />
+        ) : null}
         {error ? <p className="mb-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{error}</p> : null}
         {notice ? <p className="mb-4 rounded-xl border border-secondary/30 bg-secondary/10 p-3 text-sm text-body">{notice}</p> : null}
         {!article ? <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted">Elige un artículo o crea uno nuevo.</div> : (
@@ -381,16 +521,123 @@ export function AdminBlogPanel() {
                 placeholder="Idea, ángulo y datos que debe cubrir…"
                 className={fieldClass}
               />
-              <button type="button" disabled={busy || !idea.trim()} onClick={() => void run(async () => { applyResult(await adminGenerateBlogArticle(article.id, { idea, cityCode: article.cityCode })); setNotice("Borrador generado."); })} className={`${primaryClass} mt-3`}><Sparkles className="size-4" /> Generar artículo</button>
+              <button
+                type="button"
+                disabled={busy || !idea.trim()}
+                onClick={() =>
+                  void runAi("generate", "Regenerando artículo…", async () => {
+                    const beforeMxn = costs?.totalMxn ?? 0;
+                    applyAiResult(
+                      await adminGenerateBlogArticle(article.id, {
+                        idea,
+                        cityCode: article.cityCode,
+                      }),
+                      "Artículo regenerado.",
+                      beforeMxn,
+                    );
+                  })
+                }
+                className={`${primaryClass} mt-3`}
+              >
+                <Sparkles className={`size-4 ${aiJob?.kind === "generate" ? "animate-spin" : ""}`} />
+                {aiJob?.kind === "generate" ? "Generando…" : "Generar artículo"}
+              </button>
             </div>
 
             <div className="rounded-2xl border border-border bg-surface p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold text-body">Calidad: {article.qualityScore ?? "sin evaluar"}/100</h3><button type="button" disabled={busy} onClick={() => void run(async () => applyResult(await adminRescoreBlogArticle(article.id)))} className={secondaryClass}><RefreshCw className="size-4" /> Rescore</button></div>
-              <ul className="mt-3 space-y-2">{article.qualitySuggestions.map((suggestion) => <li key={suggestion.id}><label className="flex gap-2 rounded-lg bg-bg-light p-3 text-sm"><input type="checkbox" checked={selectedSuggestions.includes(suggestion.id)} onChange={(e) => setSelectedSuggestions((current) => e.target.checked ? [...current, suggestion.id] : current.filter((id) => id !== suggestion.id))} /><span><strong className="text-body">{suggestion.title}</strong><span className="block text-xs text-muted">{suggestion.detail}</span></span></label></li>)}</ul>
-              <button type="button" disabled={busy || !selectedSuggestions.length} onClick={() => void run(async () => { applyResult(await adminEnhanceBlogArticle(article.id, selectedSuggestions)); setSelectedSuggestions([]); })} className={`${primaryClass} mt-3`}>Aplicar mejoras</button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="font-semibold text-body">
+                  Calidad: {article.qualityScore ?? "sin evaluar"}/100
+                </h3>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void runAi("rescore", "Recalculando calidad…", async () => {
+                      const beforeMxn = costs?.totalMxn ?? 0;
+                      applyAiResult(
+                        await adminRescoreBlogArticle(article.id),
+                        "Score actualizado.",
+                        beforeMxn,
+                      );
+                    })
+                  }
+                  className={secondaryClass}
+                >
+                  <RefreshCw className={`size-4 ${aiJob?.kind === "rescore" ? "animate-spin" : ""}`} />
+                  Rescore
+                </button>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {article.qualitySuggestions.map((suggestion) => (
+                  <li key={suggestion.id}>
+                    <label className="flex gap-2 rounded-lg bg-bg-light p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedSuggestions.includes(suggestion.id)}
+                        onChange={(e) =>
+                          setSelectedSuggestions((current) =>
+                            e.target.checked
+                              ? [...current, suggestion.id]
+                              : current.filter((id) => id !== suggestion.id),
+                          )
+                        }
+                      />
+                      <span>
+                        <strong className="text-body">{suggestion.title}</strong>
+                        <span className="block text-xs text-muted">{suggestion.detail}</span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                disabled={busy || !selectedSuggestions.length}
+                onClick={() =>
+                  void runAi("enhance", "Aplicando mejoras…", async () => {
+                    applyAiResult(
+                      await adminEnhanceBlogArticle(article.id, selectedSuggestions),
+                      "Mejoras aplicadas.",
+                    );
+                    setSelectedSuggestions([]);
+                  })
+                }
+                className={`${primaryClass} mt-3`}
+              >
+                {aiJob?.kind === "enhance" ? "Mejorando…" : "Aplicar mejoras"}
+              </button>
             </div>
 
-            <div className="rounded-2xl border border-border bg-surface p-4"><h3 className="font-semibold text-body">Instrucciones al asistente</h3><textarea value={chat} onChange={(e) => setChat(e.target.value)} rows={3} placeholder="Ej. Haz el tono más directo y agrega una FAQ…" className={fieldClass} /><button type="button" disabled={busy || !chat.trim()} onClick={() => void run(async () => { const result = await adminChatBlogArticle(article.id, chat); applyResult(result); setChatReply(result.reply); setChat(""); })} className={`${primaryClass} mt-3`}>Enviar instrucción</button>{chatReply ? <p className="mt-3 rounded-lg bg-bg-light p-3 text-sm text-muted">{chatReply}</p> : null}</div>
+            <div className="rounded-2xl border border-border bg-surface p-4">
+              <h3 className="font-semibold text-body">Instrucciones al asistente</h3>
+              <textarea
+                value={chat}
+                onChange={(e) => setChat(e.target.value)}
+                rows={3}
+                placeholder="Ej. Haz el tono más directo y agrega una FAQ…"
+                className={fieldClass}
+                disabled={busy}
+              />
+              <button
+                type="button"
+                disabled={busy || !chat.trim()}
+                onClick={() =>
+                  void runAi("chat", "Aplicando instrucciones…", async () => {
+                    const result = await adminChatBlogArticle(article.id, chat);
+                    applyAiResult(result, "Instrucción aplicada.");
+                    setChatReply(result.reply);
+                    setChat("");
+                  })
+                }
+                className={`${primaryClass} mt-3`}
+              >
+                {aiJob?.kind === "chat" ? "Procesando…" : "Enviar instrucción"}
+              </button>
+              {chatReply ? (
+                <p className="mt-3 rounded-lg bg-bg-light p-3 text-sm text-muted">{chatReply}</p>
+              ) : null}
+            </div>
 
             {article.similarityWarnings.length ? <div className="rounded-2xl border border-warning/40 bg-warning/10 p-4"><h3 className="font-semibold text-warning-fg">Posibles contenidos similares</h3><ul className="mt-2 space-y-2 text-sm">{article.similarityWarnings.map((warning) => <li key={warning.articleId}><a href={warning.path} target="_blank" rel="noreferrer" className="font-semibold text-body underline">{warning.title}</a> · similitud {Math.round(warning.score)}/100</li>)}</ul></div> : null}
 
@@ -398,11 +645,24 @@ export function AdminBlogPanel() {
               <div className="rounded-2xl border border-border bg-surface p-4">
                 <h3 className="font-semibold text-body">Costo acumulado</h3>
                 <p className="mt-2 text-2xl font-bold text-primary">{formatMxn(costs?.totalMxn ?? 0)}</p>
-                <p className="mt-1 text-xs text-muted">Estimación en pesos mexicanos (MXN)</p>
-                <ul className="mt-3 space-y-2 text-xs text-muted">
-                  {costs?.entries.map((entry) => (
+                <p className="mt-1 text-xs text-muted">
+                  Estimación en pesos mexicanos (MXN). Incluye todas las regeneraciones, imágenes y
+                  evaluaciones de este artículo.
+                </p>
+                <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto text-xs text-muted">
+                  {(costs?.entries ?? []).map((entry) => (
                     <li key={entry.id} className="flex justify-between gap-3 border-t border-border pt-2">
-                      <span>{ACTIVITY_LABELS[entry.activity] ?? entry.activity}</span>
+                      <span>
+                        <span className="text-body">{ACTIVITY_LABELS[entry.activity] ?? entry.activity}</span>
+                        <span className="mt-0.5 block text-[10px] text-muted">
+                          {new Date(entry.createdAt).toLocaleString("es-MX", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </span>
                       <span className="shrink-0 font-medium text-body">{formatMxn(entry.mxnEstimate)}</span>
                     </li>
                   ))}
