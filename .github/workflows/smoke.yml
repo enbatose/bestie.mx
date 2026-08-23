@@ -2,7 +2,8 @@ name: Deploy smoke
 
 # Runs after CI succeeds on develop/main. Hits the live Railway origin with
 # read-only / non-persisting probes so broken deploys fail the gate without
-# creating user-visible dummy listings.
+# creating user-visible dummy listings. Messaging smoke adds auth-gate + A-ref
+# probes; optional fixture secrets enable a live seeker↔publisher send/receive.
 
 on:
   workflow_run:
@@ -28,7 +29,7 @@ jobs:
        (github.event.workflow_run.head_branch == 'develop' ||
         github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,3 +56,13 @@ jobs:
           SMOKE_RETRIES: "18"
           SMOKE_RETRY_MS: "15000"
         run: node scripts/smoke-deploy.mjs
+
+      - name: Messaging smoke
+        env:
+          SMOKE_BASE_URL: ${{ steps.url.outputs.base }}
+          SMOKE_MSG_SEEKER_EMAIL: ${{ secrets.SMOKE_MSG_SEEKER_EMAIL }}
+          SMOKE_MSG_SEEKER_PASSWORD: ${{ secrets.SMOKE_MSG_SEEKER_PASSWORD }}
+          SMOKE_MSG_PUBLISHER_EMAIL: ${{ secrets.SMOKE_MSG_PUBLISHER_EMAIL }}
+          SMOKE_MSG_PUBLISHER_PASSWORD: ${{ secrets.SMOKE_MSG_PUBLISHER_PASSWORD }}
+          SMOKE_MSG_LISTING_ID: ${{ secrets.SMOKE_MSG_LISTING_ID }}
+        run: node scripts/smoke-messaging.mjs

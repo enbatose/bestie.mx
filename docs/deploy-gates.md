@@ -39,11 +39,30 @@ After CI succeeds on `develop` or `main`, smoke hits the live origin:
 
 It never registers accounts, never publishes listings, and never creates drafts that appear in search.
 
+After the core smoke, `scripts/smoke-messaging.mjs` always checks:
+
+- `/mensajes` SPA shell
+- Anonymous `/api/messages/*` → **401** (not 5xx)
+- `POST /api/messages/conversations/from-listing` anonymous, including a public **A-ref** when the catalog has listings → **401** (the live bug that returned `not_found`)
+- `GET /api/listings/:id` works for both UUID and `A…` slug
+
+Optional **authenticated** seeker↔publisher send/receive (no new listings or accounts) runs only when these GitHub Actions secrets are set:
+
+| Secret | Role |
+| --- | --- |
+| `SMOKE_MSG_SEEKER_EMAIL` / `SMOKE_MSG_SEEKER_PASSWORD` | Seeker fixture |
+| `SMOKE_MSG_PUBLISHER_EMAIL` / `SMOKE_MSG_PUBLISHER_PASSWORD` | Publisher fixture |
+| `SMOKE_MSG_LISTING_ID` | UUID or `A…` slug **owned by the publisher** |
+
+Use dedicated fixture accounts so live probes never message a real landlord.
+
 ### Local / manual
 
 ```bash
-npm run smoke:dev
+npm run smoke:dev            # core smoke + messaging contract
 npm run smoke:prod
+npm run smoke:messaging:dev  # messaging only
+npm run smoke:messaging:prod
 node scripts/smoke-deploy.mjs https://dev.bestie.mx
 ```
 
@@ -65,8 +84,10 @@ Runs after unit tests in CI against an **isolated local stack** (`scripts/e2e-se
 | `browse.spec.ts` | Home, `/buscar/gdl`, open a seeded listing detail; on mobile, open/close the list drawer |
 | `auth.spec.ts` | Register → verify screen → logout → login |
 | `publisher-draft.spec.ts` | Create **draft** via API, see it in Mis anuncios, assert not public; wizard shell loads |
+| `messaging.spec.ts` | Two-user listing chat: publish → contact via `/anuncio/A…` → safety notice → reply; cannot-message-self; anonymous login gate; API A-ref / draft / Soporte |
 | `public-pages.spec.ts` | FAQ, Terms, Privacy |
 | `live-readonly.spec.ts` | Optional read-only against Dev (`npm run test:e2e:live-dev`) — no writes; also desktop + mobile |
+| `messaging-live.spec.ts` | Optional live seeker↔publisher UI using fixture accounts (`npm run test:e2e:messaging-live-dev`) |
 | `posthog-publish.spec.ts` | Publish surfaces (`/publicar`, `/borrador`): **no** PostHog network on local/Dev; **yes** on Prod (`npm run test:e2e:live-prod`) |
 
 ### Local
@@ -78,6 +99,7 @@ npm run test:e2e -- --project="Mobile Chrome"   # mobile only
 npm run test:e2e:ui
 npm run test:e2e:live-dev   # read-only + PostHog silent on https://dev.bestie.mx
 npm run test:e2e:live-prod  # PostHog active on https://www.bestie.mx (read-only)
+npm run test:e2e:messaging-live-dev   # fixture-account UI chat on Dev
 ```
 
 ### PostHog gate (publish flows)
