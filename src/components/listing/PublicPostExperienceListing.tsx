@@ -207,34 +207,41 @@ export function PublicPostExperienceListing({
   const menCount = property?.occupiedByMenCount ?? 0;
   const womenCount = property?.occupiedByWomenCount ?? 0;
 
-  const reportButton = (
+  const canReport = !listing.viewerIsOwner;
+
+  const reportButton = canReport ? (
     <button
       type="button"
       onClick={() => {
         setReportPhoto(null);
         setReportOpen(true);
       }}
-      className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+      className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-error/30 bg-surface px-3.5 py-2 text-sm font-semibold text-error hover:bg-error/5"
     >
-      <Flag className="size-4 text-error" aria-hidden />
-      Reportar anuncio
+      <Flag className="size-4 shrink-0" aria-hidden />
+      Reportar
     </button>
+  ) : null;
+
+  /** Keep share in the header; Reportar sits in its own full-width row so it is not clipped by max-w-[45%]. */
+  const shareActions = (
+    <ListingShareActions
+      shareMsg={share.shareMsg}
+      onShareListing={share.onShareListing}
+      isPropertyPost={share.isPropertyPost}
+      propertyId={share.propertyId}
+      roomShareLinks={share.roomShareLinks}
+      currentListingId={share.currentListingId}
+      onSharePath={share.onSharePath}
+    />
   );
 
-  const shareActions = (
-    <div className="flex flex-wrap items-center gap-2">
-      <ListingShareActions
-        shareMsg={share.shareMsg}
-        onShareListing={share.onShareListing}
-        isPropertyPost={share.isPropertyPost}
-        propertyId={share.propertyId}
-        roomShareLinks={share.roomShareLinks}
-        currentListingId={share.currentListingId}
-        onSharePath={share.onSharePath}
-      />
-      {!listing.viewerIsOwner ? reportButton : null}
+  const reportRow = reportButton ? (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3">
+      <p className="text-xs text-muted">¿Hay un problema con este anuncio?</p>
+      {reportButton}
     </div>
-  );
+  ) : null;
 
   const reportModal = (
     <ReportModal
@@ -274,7 +281,7 @@ export function PublicPostExperienceListing({
       urls={galleryUrls}
       failedUrls={failedImageUrls}
       onImageError={onImageError}
-      onReportPhoto={listing.viewerIsOwner ? undefined : onReportPhoto}
+      onReportPhoto={canReport ? onReportPhoto : undefined}
     />
   ) : (
     <ListingPhotoPlaceholder />
@@ -335,6 +342,7 @@ export function PublicPostExperienceListing({
         {statusBadge}
 
         <PropertyHeader property={property} availableRooms={availableRooms} shareActions={shareActions} />
+        {reportRow}
 
         <ListingSection title="Fotos">{photosBlock}</ListingSection>
 
@@ -394,6 +402,8 @@ export function PublicPostExperienceListing({
             onContact={() => contactFromExpandedRoom(expandedRoom)}
             onClose={closeExpandedRoom}
             viewerIsOwner={Boolean(listing.viewerIsOwner)}
+            onReportPhoto={canReport ? onReportPhoto : undefined}
+            reportActions={reportRow}
             shareActions={
               <ListingShareActions
                 shareMsg={share.shareMsg}
@@ -430,6 +440,7 @@ export function PublicPostExperienceListing({
         womenCount={womenCount}
         shareActions={shareActions}
       />
+      {reportRow}
 
       <ListingSection title="Fotos">{photosBlock}</ListingSection>
 

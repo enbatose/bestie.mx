@@ -17,8 +17,10 @@ type Props = {
   menCount: number;
   womenCount: number;
   shareActions?: ReactNode;
+  reportActions?: ReactNode;
   failedImageUrls?: ReadonlySet<string>;
   onImageError?: (url: string) => void;
+  onReportPhoto?: (index: number, url: string) => void;
   onContact: () => void;
   onClose: () => void;
   viewerIsOwner?: boolean;
@@ -31,8 +33,10 @@ export function PropertyRoomDetailModal({
   menCount,
   womenCount,
   shareActions,
+  reportActions,
   failedImageUrls,
   onImageError,
+  onReportPhoto,
   onContact,
   onClose,
   viewerIsOwner = false,
@@ -112,9 +116,15 @@ export function PropertyRoomDetailModal({
             womenCount={womenCount}
             shareActions={shareActions}
           />
+          {reportActions}
 
           {photos.length ? (
-            <ListingPhotoCarousel urls={photos} failedUrls={failedImageUrls} onImageError={onImageError} />
+            <ListingPhotoCarousel
+              urls={photos}
+              failedUrls={failedImageUrls}
+              onImageError={onImageError}
+              onReportPhoto={viewerIsOwner ? undefined : onReportPhoto}
+            />
           ) : null}
 
           <ListingKeyLabelsGrid items={buildRoomKeyLabels(room)} />
