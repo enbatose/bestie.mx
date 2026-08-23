@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import {
   BlogArticleBody,
   type BlogArticlePreviewModel,
@@ -54,6 +54,35 @@ export function BlogArticlePreviewModal({
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8">
           <BlogArticleBody article={article} showDraftBadge />
+
+          <section className="mt-10 border-t border-border pt-8" aria-label="Comentarios (vista previa)">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-primary">
+              <MessageCircle className="size-5" /> Comentarios
+            </h2>
+            <p className="mt-2 text-xs text-muted">
+              Así se verá la sección de comentarios. En la vista previa no se pueden publicar.
+            </p>
+            <div className="mt-4 rounded-2xl border border-border bg-bg-light p-4 opacity-90">
+              <label className="text-sm font-semibold text-body">Comparte tu opinión</label>
+              <textarea
+                rows={4}
+                disabled
+                placeholder="Escribe un comentario…"
+                className="mt-2 w-full resize-none rounded-xl border border-border bg-surface p-3 text-sm text-muted"
+              />
+              <p className="mt-2 text-xs text-muted">
+                Los lectores pueden escribir aquí; si no han iniciado sesión, se les pedirá al publicar.
+              </p>
+              <button
+                type="button"
+                disabled
+                className="mt-3 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg opacity-40"
+              >
+                Publicar
+              </button>
+            </div>
+            <p className="mt-6 text-sm text-muted">Sé la primera persona en comentar.</p>
+          </section>
         </div>
       </div>
     </div>,

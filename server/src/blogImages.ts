@@ -12,6 +12,12 @@ export type BlogImagePick = {
   alt: string;
 };
 
+export type BlogImageSlot = {
+  /** English search terms for stock APIs; must describe a concrete visual scene. */
+  query: string;
+  alt?: string;
+};
+
 type CommonsSearchResponse = {
   query?: {
     search?: Array<{ title: string; pageid: number }>;
@@ -37,7 +43,10 @@ type CommonsImageInfo = {
   };
 };
 
-/** Search Wikimedia Commons for openly licensed images. */
+const SKIP_TITLE_RE =
+  /\b(map|mapa|logo|flag|bandera|svg|icon|diagrama|diagram|chart|grafica|screenshot|coat of arms|escudo)\b/i;
+
+/** Search Wikimedia Commons for openly licensed photos (photos only; skip maps/diagrams). */
 export async function searchWikimediaImages(
   query: string,
   limit = 4,
@@ -47,7 +56,7 @@ export async function searchWikimediaImages(
   try {
     const searchUrl =
       `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6` +
-      `&srsearch=${encodeURIComponent(q)}&srlimit=${Math.min(10, limit * 2)}&format=json&origin=*`;
+      `&srsearch=${encodeURIComponent(`${q} photograph`)}&srlimit=${Math.min(16, limit * 4)}&format=json&origin=*`;
     const searchRes = await fetch(searchUrl, {
       headers: { "User-Agent": "BestieMXBlog/1.0 (contacto@bestie.mx)" },
     });
@@ -55,8 +64,8 @@ export async function searchWikimediaImages(
     const searchJson = (await searchRes.json()) as CommonsSearchResponse;
     const titles = (searchJson.query?.search ?? [])
       .map((s) => s.title)
-      .filter((t) => /\.(jpe?g|png|webp)$/i.test(t))
-      .slice(0, limit);
+      .filter((t) => /\.(jpe?g|png|webp)$/i.test(t) && !SKIP_TITLE_RE.test(t))
+      .slice(0, limit * 2);
     if (!titles.length) return [];
 
     const infoUrl =
@@ -69,6 +78,8 @@ export async function searchWikimediaImages(
     const infoJson = (await infoRes.json()) as CommonsImageInfo;
     const out: BlogImagePick[] = [];
     for (const page of Object.values(infoJson.query?.pages ?? {})) {
+      const title = page.title ?? "";
+      if (SKIP_TITLE_RE.test(title)) continue;
       const info = page.imageinfo?.[0];
       const url = info?.url?.trim();
       if (!url) continue;
@@ -78,7 +89,7 @@ export async function searchWikimediaImages(
         url,
         credit: `${artist} · ${license} · Wikimedia Commons`,
         source: "wikimedia",
-        alt: (page.title ?? q).replace(/^File:/i, ""),
+        alt: title.replace(/^File:/i, ""),
       });
       if (out.length >= limit) break;
     }
@@ -94,7 +105,7 @@ export async function searchUnsplashImages(query: string, limit = 3): Promise<Bl
   try {
     const url =
       `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}` +
-      `&per_page=${limit}&orientation=landscape`;
+      `&per_page=${Math.min(12, Math.max(limit, 6))}&orientation=landscape`;
     const res = await fetch(url, {
       headers: { Authorization: `Client-ID ${key}`, "Accept-Version": "v1" },
     });
@@ -103,16 +114,18 @@ export async function searchUnsplashImages(query: string, limit = 3): Promise<Bl
       results?: Array<{
         alt_description?: string;
         urls?: { regular?: string };
-        user?: { name?: string; links?: { html?: string } };
-        links?: { html?: string };
+        user?: { name?: string };
       }>;
     };
-    return (json.results ?? []).slice(0, limit).map((r) => ({
-      url: r.urls?.regular ?? "",
-      credit: `Foto: ${r.user?.name ?? "Unsplash"} · Unsplash`,
-      source: "unsplash" as const,
-      alt: r.alt_description || query,
-    })).filter((x) => x.url);
+    return (json.results ?? [])
+      .slice(0, limit)
+      .map((r) => ({
+        url: r.urls?.regular ?? "",
+        credit: `Foto: ${r.user?.name ?? "Unsplash"} · Unsplash`,
+        source: "unsplash" as const,
+        alt: r.alt_description || query,
+      }))
+      .filter((x) => x.url);
   } catch {
     return [];
   }
@@ -122,7 +135,7 @@ export async function searchPexelsImages(query: string, limit = 3): Promise<Blog
   const key = process.env.PEXELS_API_KEY?.trim();
   if (!key) return [];
   try {
-    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${limit}&orientation=landscape`;
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${Math.min(12, Math.max(limit, 6))}&orientation=landscape`;
     const res = await fetch(url, { headers: { Authorization: key } });
     if (!res.ok) return [];
     const json = (await res.json()) as {
@@ -130,24 +143,90 @@ export async function searchPexelsImages(query: string, limit = 3): Promise<Blog
         alt?: string;
         src?: { large?: string };
         photographer?: string;
-        url?: string;
       }>;
     };
-    return (json.photos ?? []).slice(0, limit).map((p) => ({
-      url: p.src?.large ?? "",
-      credit: `Foto: ${p.photographer ?? "Pexels"} · Pexels`,
-      source: "pexels" as const,
-      alt: p.alt || query,
-    })).filter((x) => x.url);
+    return (json.photos ?? [])
+      .slice(0, limit)
+      .map((p) => ({
+        url: p.src?.large ?? "",
+        credit: `Foto: ${p.photographer ?? "Pexels"} · Pexels`,
+        source: "pexels" as const,
+        alt: p.alt || query,
+      }))
+      .filter((x) => x.url);
   } catch {
     return [];
   }
 }
 
+function pickUnused(candidates: BlogImagePick[], used: Set<string>): BlogImagePick | null {
+  for (const c of candidates) {
+    const key = normalizeImageUrl(c.url);
+    if (!key || used.has(key)) continue;
+    used.add(key);
+    return c;
+  }
+  return null;
+}
+
+function normalizeImageUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`.toLowerCase();
+  } catch {
+    return url.trim().toLowerCase();
+  }
+}
+
 /**
- * Try open-license stock first; fall back to Gemini/Imagen-style generation when none fit.
- * Generated images are stored into upload_blobs when uploadDir is provided.
+ * Resolve one unique image per slot (cover + in-article).
+ * Order per slot: Unsplash → Pexels → Wikimedia → AI generation.
+ * Never reuses the same URL across slots.
  */
+export async function resolveBlogImagesForSlots(opts: {
+  db: DatabaseSync;
+  articleId: string;
+  slots: BlogImageSlot[];
+  uploadDir?: string;
+  themeContext?: string;
+}): Promise<BlogImagePick[]> {
+  const slots = opts.slots.slice(0, 8);
+  const used = new Set<string>();
+  const out: BlogImagePick[] = [];
+
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i]!;
+    const query = slot.query.trim() || opts.themeContext || "roommates shared apartment Mexico lifestyle";
+    let pick: BlogImagePick | null = null;
+
+    pick = pickUnused(await searchUnsplashImages(query, 6), used);
+    if (!pick) pick = pickUnused(await searchPexelsImages(query, 6), used);
+    if (!pick) pick = pickUnused(await searchWikimediaImages(query, 6), used);
+
+    if (!pick) {
+      const generated = await generateAiBlogImages({
+        db: opts.db,
+        articleId: opts.articleId,
+        count: 1,
+        themeHint: `${query}. Context: ${opts.themeContext || ""}`.slice(0, 400),
+        uploadDir: opts.uploadDir,
+        variation: i,
+      });
+      pick = pickUnused(generated, used);
+    }
+
+    if (pick) {
+      out.push({
+        ...pick,
+        alt: (slot.alt || pick.alt || query).slice(0, 180),
+      });
+    }
+  }
+
+  return out;
+}
+
+/** @deprecated Prefer resolveBlogImagesForSlots for topic-matched unique images. */
 export async function resolveBlogImages(opts: {
   db: DatabaseSync;
   articleId: string;
@@ -157,39 +236,30 @@ export async function resolveBlogImages(opts: {
   preferAi?: boolean;
   themeHint?: string;
 }): Promise<BlogImagePick[]> {
-  const need = Math.max(1, Math.min(8, opts.need));
-  const picks: BlogImagePick[] = [];
-
-  if (!opts.preferAi) {
-    for (const q of opts.queries) {
-      if (picks.length >= need) break;
-      const commons = await searchWikimediaImages(q, need - picks.length);
-      picks.push(...commons);
-    }
-    for (const q of opts.queries) {
-      if (picks.length >= need) break;
-      const unsplash = await searchUnsplashImages(q, need - picks.length);
-      picks.push(...unsplash);
-    }
-    for (const q of opts.queries) {
-      if (picks.length >= need) break;
-      const pexels = await searchPexelsImages(q, need - picks.length);
-      picks.push(...pexels);
-    }
+  const queries = opts.queries.length
+    ? opts.queries
+    : [opts.themeHint || "roommates Mexico"];
+  const slots: BlogImageSlot[] = [];
+  for (let i = 0; i < opts.need; i++) {
+    slots.push({ query: queries[i % queries.length]! });
   }
-
-  if (picks.length >= need) return picks.slice(0, need);
-
-  const remaining = need - picks.length;
-  const generated = await generateAiBlogImages({
+  if (opts.preferAi) {
+    const generated = await generateAiBlogImages({
+      db: opts.db,
+      articleId: opts.articleId,
+      count: opts.need,
+      themeHint: opts.themeHint || queries[0] || "roommates Mexico",
+      uploadDir: opts.uploadDir,
+    });
+    return generated.slice(0, opts.need);
+  }
+  return resolveBlogImagesForSlots({
     db: opts.db,
     articleId: opts.articleId,
-    count: remaining,
-    themeHint: opts.themeHint || opts.queries[0] || "roommates Mexico",
+    slots,
     uploadDir: opts.uploadDir,
+    themeContext: opts.themeHint,
   });
-  picks.push(...generated);
-  return picks.slice(0, need);
 }
 
 async function generateAiBlogImages(opts: {
@@ -198,20 +268,29 @@ async function generateAiBlogImages(opts: {
   count: number;
   themeHint: string;
   uploadDir?: string;
+  variation?: number;
 }): Promise<BlogImagePick[]> {
   const key = geminiApiKey();
   if (!key || !opts.uploadDir) return [];
 
-  const model =
-    process.env.BLOG_IMAGE_MODEL?.trim() || "gemini-2.5-flash-image";
+  const model = process.env.BLOG_IMAGE_MODEL?.trim() || "gemini-2.5-flash-image";
   const out: BlogImagePick[] = [];
 
   for (let i = 0; i < opts.count; i++) {
+    const variation = (opts.variation ?? 0) + i;
+    const angles = [
+      "wide lifestyle photo feel, natural light",
+      "close editorial moment, shallow depth of field feel",
+      "urban Mexico neighborhood atmosphere",
+      "warm shared-home interior scene",
+    ];
+    const angle = angles[variation % angles.length];
     const prompt =
-      `Create a brand-safe editorial illustration for Bestie.mx (roommate marketplace in Mexico). ` +
-      `Theme: ${opts.themeHint}. Style: mix of warm flat illustration with subtle silhouette figures ` +
-      `(two friendly people / high-five vibe), forest green #143D30 and lime accent, no text, no logos, ` +
-      `no watermarks, suitable as a blog article image, 16:9.`;
+      `Create a unique brand-safe editorial illustration for Bestie.mx (roommate marketplace in Mexico). ` +
+      `Specific scene: ${opts.themeHint}. Angle: ${angle}. ` +
+      `Style: warm flat illustration mixed with soft photographic cues; optional subtle Bestie-like people silhouettes ` +
+      `contextualized to THIS scene (not a generic high-five logo). Forest green #143D30 and lime accent sparingly. ` +
+      `No text, no logos, no watermarks, no repeated generic apartment stock look. 16:9. Variation seed ${variation + 1}.`;
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
@@ -260,14 +339,14 @@ async function generateAiBlogImages(opts: {
         promptTokens: Number(json.usageMetadata?.promptTokenCount) || 0,
         outputTokens: Number(json.usageMetadata?.candidatesTokenCount) || 0,
         imageCount: 1,
-        meta: { themeHint: opts.themeHint },
+        meta: { themeHint: opts.themeHint, variation },
       });
 
       out.push({
         url: `/api/uploads/${filename}`,
         credit: "Ilustración generada · Bestie",
         source: "ai",
-        alt: opts.themeHint,
+        alt: opts.themeHint.slice(0, 120),
       });
     } catch (err) {
       console.warn("[blog-images] ai error", err instanceof Error ? err.message : err);

@@ -14,7 +14,7 @@ import {
   extractJsonObject,
   generateGeminiText,
 } from "./blogGemini.js";
-import { resolveBlogImages } from "./blogImages.js";
+import { resolveBlogImagesForSlots, type BlogImageSlot } from "./blogImages.js";
 import { blogArticlePublicPath, BLOG_CITY_META, BLOG_SOCIAL, ctaPathForArticle, slugifyBlogTitle } from "./blogPaths.js";
 import type {
   BlogBlock,
@@ -64,7 +64,7 @@ type DraftPayload = {
   metaTitle: string;
   metaDescription: string;
   socialCaption: string;
-  blocks: Array<Partial<BlogBlock> & { type: string }>;
+  blocks: Array<Partial<BlogBlock> & { type: string; imageQuery?: string }>;
   sources: Array<{ title: string; url: string; publisher?: string }>;
   faq: BlogFaqItem[];
   imageQueries: string[];
@@ -72,7 +72,10 @@ type DraftPayload = {
   qualitySuggestions: Array<{ title: string; detail: string }>;
 };
 
-function normalizeBlocks(raw: DraftPayload["blocks"], images: Awaited<ReturnType<typeof resolveBlogImages>>): BlogBlock[] {
+function normalizeBlocks(
+  raw: DraftPayload["blocks"],
+  images: Awaited<ReturnType<typeof resolveBlogImagesForSlots>>,
+): BlogBlock[] {
   const blocks: BlogBlock[] = [];
   let imageIdx = 0;
   for (const b of raw) {
@@ -105,6 +108,7 @@ function normalizeBlocks(raw: DraftPayload["blocks"], images: Awaited<ReturnType
         answer: String(b.answer ?? "").trim(),
       });
     } else if (b.type === "image") {
+      // Cover uses images[0]; in-article images start at 1 when cover reserved.
       const pick = images[imageIdx++];
       if (pick) {
         blocks.push({
@@ -125,6 +129,44 @@ function normalizeBlocks(raw: DraftPayload["blocks"], images: Awaited<ReturnType
     if (b.type === "faq") return Boolean(b.question && b.answer);
     return true;
   });
+}
+
+function buildImageSlots(
+  payload: DraftPayload,
+  cityLabel: string,
+): { coverSlot: BlogImageSlot; bodySlots: BlogImageSlot[] } {
+  const fallbackQueries = (payload.imageQueries ?? [])
+    .map((q) => String(q).trim())
+    .filter(Boolean);
+  const bodySlots: BlogImageSlot[] = [];
+  let fallbackIdx = 0;
+  for (const b of payload.blocks ?? []) {
+    if (b.type !== "image") continue;
+    const fromBlock = typeof b.imageQuery === "string" ? b.imageQuery.trim() : "";
+    const query =
+      fromBlock ||
+      fallbackQueries[fallbackIdx] ||
+      `${payload.title} ${cityLabel} roommates lifestyle photo`;
+    fallbackIdx += 1;
+    bodySlots.push({
+      query,
+      alt: String(b.imageAlt || query).trim(),
+    });
+  }
+  if (!bodySlots.length) {
+    bodySlots.push({
+      query: fallbackQueries[0] || `${payload.title} shared apartment Mexico lifestyle`,
+      alt: payload.title,
+    });
+  }
+  const coverSlot: BlogImageSlot = {
+    query:
+      fallbackQueries[0] ||
+      bodySlots[0]?.query ||
+      `${payload.title} cover photo roommates ${cityLabel}`,
+    alt: payload.title,
+  };
+  return { coverSlot, bodySlots };
 }
 
 export async function generateBlogDraft(opts: {
@@ -163,11 +205,11 @@ Devuelve JSON con esta forma:
   "metaTitle": string (<=60 chars),
   "metaDescription": string (<=155 chars),
   "socialCaption": string (español MX, listo para FB/IG, incluye URL placeholder BESTIE_URL),
-  "imageQueries": string[] (3-5 búsquedas para fotos libres),
+  "imageQueries": string[] (3-5 búsquedas EN INGLÉS, cada una una escena visual concreta distinta; nada genérico como solo "Mexico"),
   "blocks": [
     {"type":"heading","level":2,"text":"..."},
     {"type":"paragraph","text":"... con citas [1] ..."},
-    {"type":"image","imageAlt":"..."},
+    {"type":"image","imageAlt":"...","imageQuery":"specific English visual scene matching THIS section, e.g. young adults splitting rent bills at kitchen table Mexico"},
     {"type":"list","items":["..."]},
     {"type":"quote","text":"..."},
     {"type":"faq","question":"...","answer":"..."},
@@ -178,7 +220,9 @@ Devuelve JSON con esta forma:
   "qualityScore": 0-100,
   "qualitySuggestions": [{"title":"...","detail":"..."}]
 }
-Incluye al menos 2 bloques image, 1 cta hacia ${ctaPath}, y sección útil con referencias [n].
+Incluye 2-3 bloques image, cada uno con imageQuery DIFERENTE y alineado a la sección (no repetir la misma foto/concepto).
+Cada imageQuery debe describir personas/lugar/acción concretos relacionados al tema (finanzas, roomies, ciudad, etc.).
+Incluye 1 cta hacia ${ctaPath}, y sección útil con referencias [n].
 Autoría: Bestie. Cierra con invitación a seguir FB e IG.
 `.trim();
 
@@ -209,16 +253,16 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
     return { ok: false, error: "invalid_model_json" };
   }
 
-  const images = await resolveBlogImages({
+  const { coverSlot, bodySlots } = buildImageSlots(payload, cityLabel);
+  const images = await resolveBlogImagesForSlots({
     db: opts.db,
     articleId: opts.articleId,
-    queries: payload.imageQueries?.length ? payload.imageQueries : [payload.title, cityLabel],
-    need: Math.max(2, payload.blocks.filter((b) => b.type === "image").length || 2),
+    slots: [coverSlot, ...bodySlots],
     uploadDir: opts.uploadDir,
-    themeHint: `${payload.title} — roomies ${cityLabel}`,
+    themeContext: `${payload.title} — roomies ${cityLabel}`,
   });
-
-  const blocks = normalizeBlocks(payload.blocks, images);
+  const bodyImages = images.slice(1);
+  const blocks = normalizeBlocks(payload.blocks, bodyImages.length ? bodyImages : images);
   const sources: BlogSource[] = (payload.sources ?? []).slice(0, 20).map((s, i) => ({
     id: i + 1,
     title: String(s.title || `Fuente ${i + 1}`).trim(),
@@ -239,7 +283,7 @@ Autoría: Bestie. Cierra con invitación a seguir FB e IG.
     });
   }
 
-  const cover = images[0] ?? null;
+  const cover = images[0] ?? bodyImages[0] ?? null;
   const slug = slugifyBlogTitle(payload.slug || payload.title);
   const suggestions: BlogQualitySuggestion[] = (payload.qualitySuggestions ?? []).slice(0, 8).map((s) => ({
     id: randomUUID(),
@@ -480,15 +524,18 @@ export async function enhanceBlogWithSuggestions(opts: {
   const payload = extractJsonObject<DraftPayload>(gen.text);
   if (!payload?.title || !Array.isArray(payload.blocks)) return { ok: false, error: "invalid_model_json" };
 
-  const images = await resolveBlogImages({
+  const cityLabel =
+    row.city_code && BLOG_CITY_META[row.city_code] ? BLOG_CITY_META[row.city_code].label : "México";
+  const { coverSlot, bodySlots } = buildImageSlots(payload, cityLabel);
+  const images = await resolveBlogImagesForSlots({
     db: opts.db,
     articleId: opts.articleId,
-    queries: payload.imageQueries?.length ? payload.imageQueries : [payload.title],
-    need: Math.max(2, payload.blocks.filter((b) => b.type === "image").length || 2),
+    slots: [coverSlot, ...bodySlots],
     uploadDir: opts.uploadDir,
-    themeHint: payload.title,
+    themeContext: payload.title,
   });
-  const blocks = normalizeBlocks(payload.blocks, images);
+  const bodyImages = images.slice(1);
+  const blocks = normalizeBlocks(payload.blocks, bodyImages.length ? bodyImages : images);
   const sources: BlogSource[] = (payload.sources ?? []).slice(0, 20).map((s, i) => ({
     id: i + 1,
     title: String(s.title || `Fuente ${i + 1}`).trim(),
@@ -497,7 +544,7 @@ export async function enhanceBlogWithSuggestions(opts: {
     accessedAt: isoNow().slice(0, 10),
   })).filter((s) => s.url.startsWith("http"));
 
-  const cover = images[0];
+  const cover = images[0] ?? bodyImages[0];
   const slug = slugifyBlogTitle(payload.slug || payload.title);
   const cityCode = row.city_code;
   opts.db
