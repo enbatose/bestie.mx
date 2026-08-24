@@ -408,33 +408,39 @@ const SEED_INFOGRAPHICS = [
     exactAddress: true,
     colonia: "Ladrón de Guevara",
     rent: 6500,
+    phone: "3334567890",
     loft: false,
     lodgingType: "private_room" as const,
     tagsOn: ["baño-privado", "estacionamiento", "muebles"] as SeedAiRoomForm["hints"]["tagsOn"],
     gender: null as "female" | "male" | null,
-    text: "Rento el cuarto del infografico. Precio, direccion exacta y amenidades estan en la imagen. Disponible ya.",
+    text:
+      "Rento el cuarto del infografico. Precio, direccion exacta y amenidades estan en la imagen. WhatsApp 33 3456 7890. Disponible ya.",
   },
   {
     file: "infographic-exact-americana.png",
     exactAddress: true,
     colonia: "Colonia Americana",
     rent: 8200,
+    phone: "3312345678",
     loft: true,
     lodgingType: "private_room" as const,
     tagsOn: ["baño-privado", "estacionamiento", "muebles"] as SeedAiRoomForm["hints"]["tagsOn"],
     gender: null as "female" | "male" | null,
-    text: "Loft en Americana. Todo el detalle (incluyendo la direccion exacta para el mapa) va en el infografico.",
+    text:
+      "Loft en Americana. Todo el detalle (incluyendo la direccion exacta para el mapa) va en el infografico. Cel 33 1234 5678.",
   },
   {
     file: "infographic-colonia-providencia.png",
     exactAddress: false,
     colonia: "Providencia",
     rent: 5800,
+    phone: "3345678901",
     loft: false,
     lodgingType: "private_room" as const,
     tagsOn: ["mascotas", "lgbt-friendly"] as SeedAiRoomForm["hints"]["tagsOn"],
     gender: null as "female" | "male" | null,
-    text: "Rento cuarto en Providencia. No pongo la calle por privacidad; la zona aproximada esta en el infografico. Se aceptan mascotas.",
+    text:
+      "Rento cuarto en Providencia. No pongo la calle por privacidad; la zona aproximada esta en el infografico. Se aceptan mascotas. Tel 33 4567 8901.",
   },
 ] as const;
 
@@ -471,9 +477,10 @@ export function seedAiRoomForm(): SeedAiRoomForm {
 /** Facebook-style paste for the AI property step (admin Autopoblar). */
 export function seedAiPropertyForm(): SeedAiRoomForm {
   const seed = seedAiRoomForm();
+  const phoneLine = seed.text.match(/(?:WhatsApp|Cel|Tel)\s+[\d\s]+/i)?.[0] ?? "WhatsApp 33 1234 5678";
   return {
     ...seed,
-    text: "Casa en Americana. Se rentan 2 recámaras, una ya está ocupada. Precio y zona en el infográfico. Áreas comunes amplias.",
+    text: `Casa en Americana. Se rentan 2 recámaras, una ya está ocupada. Precio y zona en el infográfico. Áreas comunes amplias. ${phoneLine}.`,
     hints: {
       ...seed.hints,
       loft: false,

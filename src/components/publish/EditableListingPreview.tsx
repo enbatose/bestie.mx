@@ -33,7 +33,7 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { phoneDigitsForStorage } from "@/lib/mxPhone";
+import { formatMxPhoneDisplay, phoneDigitsForStorage } from "@/lib/mxPhone";
 import {
   roomDimensionWizardLabel,
 } from "@/lib/listingKeyLabels";
@@ -1100,6 +1100,33 @@ export function EditableListingPreview({
             {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
+            <div className="mt-3 rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Teléfono / móvil
+                  </p>
+                  {phoneDigitsForStorage(draft.contactWhatsApp) && draft.showWhatsApp ? (
+                    <p className="mt-0.5 font-mono text-sm tabular-nums text-body">
+                      {formatMxPhoneDisplay(draft.contactWhatsApp)}
+                    </p>
+                  ) : phoneDigitsForStorage(draft.contactWhatsApp) && !draft.showWhatsApp ? (
+                    <p className="mt-0.5 text-sm text-muted">
+                      Guardado · oculto en el anuncio ({formatMxPhoneDisplay(draft.contactWhatsApp)})
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={openHeaderEdit}
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-full px-2 text-xs font-semibold text-primary hover:underline"
+                >
+                  {phoneDigitsForStorage(draft.contactWhatsApp) ? "Editar" : "Agregar"}
+                </button>
+              </div>
+            </div>
           </>
         )}
       </header>

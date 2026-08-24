@@ -485,6 +485,21 @@ const defaultDraft = (): Draft => ({
   approximateRadiusMeters: APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
 });
 
+/** Prefer AI/extracted listing phone; if empty, fall back to profile for preview/edit. */
+function applyProfilePhoneIfMissing(
+  draft: Draft,
+  profilePhoneE164?: string | null,
+): Draft {
+  if (String(draft.contactWhatsApp ?? "").trim()) return draft;
+  const national = normalizeMxNationalDigits(profilePhoneE164 ?? "");
+  if (!national) return draft;
+  return {
+    ...draft,
+    contactWhatsApp: national,
+    showWhatsApp: true,
+  };
+}
+
 function aiImagesFingerprint(images: AiLocalImage[]): string {
   return images
     .map((img) => {
@@ -1268,10 +1283,13 @@ export function PublishWizardPage() {
         const info = await fetchAssistedDraftClaim(token);
         if (cancelled || info.isClaimed) return;
         const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
-        const nextDraft: Draft = {
-          ...mapped.draft,
-          roomCreateFlow: info.source === "self_serve" ? "ai" : "manual",
-        };
+        const nextDraft: Draft = applyProfilePhoneIfMissing(
+          {
+            ...mapped.draft,
+            roomCreateFlow: info.source === "self_serve" ? "ai" : "manual",
+          },
+          meRef.current?.phoneE164,
+        );
         const resumeStep = lastWizardStep(nextDraft);
         setDraft(nextDraft);
         setServerSync(mapped.serverSync);
@@ -3075,10 +3093,13 @@ export function PublishWizardPage() {
       }
       const info = await fetchAssistedDraftClaim(result.token);
       const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
-      const nextDraft: Draft = applyAiLocalGalleryIfMissing(
-        { ...mapped.draft, roomCreateFlow: "ai", city: draft.city },
-        galleryForCompose,
-        infographicsForCompose,
+      const nextDraft: Draft = applyProfilePhoneIfMissing(
+        applyAiLocalGalleryIfMissing(
+          { ...mapped.draft, roomCreateFlow: "ai", city: draft.city },
+          galleryForCompose,
+          infographicsForCompose,
+        ),
+        meRef.current?.phoneE164,
       );
       const resumeStep = lastWizardStep(nextDraft);
       setAssistedDraftToken(result.token);
