@@ -999,7 +999,7 @@ export function EditableListingPreview({
                   onSaveToProfileChange={() => {}}
                   allowSaveToProfile={false}
                   showPublisherSafety={false}
-                  compact
+                  embedded
                 />
                 {previewHeaderPhoneHidden ? (
                   <p className="mt-2 text-xs leading-snug text-muted">
@@ -1100,20 +1100,26 @@ export function EditableListingPreview({
             {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
-            <div className="mt-3 rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
+            <div className="mt-3 rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Teléfono / móvil
                   </p>
                   {phoneDigitsForStorage(draft.contactWhatsApp) && draft.showWhatsApp ? (
-                    <p className="mt-0.5 font-mono text-sm tabular-nums text-body">
+                    <p className="mt-0.5 break-words font-mono text-base tabular-nums text-body sm:text-sm">
                       {formatMxPhoneDisplay(draft.contactWhatsApp)}
                     </p>
                   ) : phoneDigitsForStorage(draft.contactWhatsApp) && !draft.showWhatsApp ? (
-                    <p className="mt-0.5 text-sm text-muted">
-                      Guardado · oculto en el anuncio ({formatMxPhoneDisplay(draft.contactWhatsApp)})
-                    </p>
+                    <>
+                      <p className="mt-0.5 text-sm text-muted sm:hidden">Guardado · oculto en el anuncio</p>
+                      <p className="mt-0.5 hidden break-words text-sm text-muted sm:block">
+                        Guardado · oculto en el anuncio ({formatMxPhoneDisplay(draft.contactWhatsApp)})
+                      </p>
+                      <p className="mt-0.5 font-mono text-base tabular-nums text-body sm:hidden">
+                        {formatMxPhoneDisplay(draft.contactWhatsApp)}
+                      </p>
+                    </>
                   ) : (
                     <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>
                   )}
@@ -1121,7 +1127,7 @@ export function EditableListingPreview({
                 <button
                   type="button"
                   onClick={openHeaderEdit}
-                  className="inline-flex min-h-11 shrink-0 items-center rounded-full px-2 text-xs font-semibold text-primary hover:underline"
+                  className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-border bg-bg-light px-3 text-xs font-semibold text-primary transition hover:bg-surface-elevated sm:w-auto sm:border-0 sm:bg-transparent sm:px-2 sm:hover:underline"
                 >
                   {phoneDigitsForStorage(draft.contactWhatsApp) ? "Editar" : "Agregar"}
                 </button>

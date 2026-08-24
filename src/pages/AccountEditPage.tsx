@@ -307,7 +307,7 @@ export function AccountEditPage() {
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
             />
           </label>
-          <div className="rounded-2xl border border-border bg-bg-light p-4">
+          <div className="rounded-2xl border border-border bg-bg-light p-3 sm:p-4">
             <h3 className="text-sm font-semibold text-body">Teléfono</h3>
             <p className="mt-1 text-xs leading-snug text-muted">
               {isPublisher
@@ -320,29 +320,29 @@ export function AccountEditPage() {
               onChange={setPhone}
               className="mt-4"
             />
-            <div className="mt-4 space-y-3">
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
+            <div className="mt-4 space-y-2.5 sm:space-y-3">
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
                 <input
                   type="checkbox"
                   checked={phoneNotifyOptIn}
                   onChange={(event) => setPhoneNotifyOptIn(event.target.checked)}
-                  className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+                  className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
                 />
-                <span className="leading-snug">
+                <span className="min-w-0 leading-snug">
                   <span className="block font-medium text-body">Recibir SMS o WhatsApp de Bestie</span>
                   <span className="mt-0.5 block text-xs text-muted">
                     Avisos operativos, seguimiento de soporte y otras notificaciones relacionadas con tu cuenta o actividad.
                   </span>
                 </span>
               </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
                 <input
                   type="checkbox"
                   checked={phoneMarketingOptIn}
                   onChange={(event) => setPhoneMarketingOptIn(event.target.checked)}
-                  className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+                  className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
                 />
-                <span className="leading-snug">
+                <span className="min-w-0 leading-snug">
                   <span className="block font-medium text-body">Recibir promociones y novedades</span>
                   <span className="mt-0.5 block text-xs text-muted">
                     Comunicaciones comerciales de Bestie por SMS o WhatsApp. Puedes desactivarlas después desde esta misma pantalla.

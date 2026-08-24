@@ -61,7 +61,7 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+      className="fixed inset-0 z-[2100] flex items-end justify-center bg-black/45 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="complete-profile-title"
@@ -71,7 +71,7 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
         }
       }}
     >
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-xl sm:p-6">
+      <div className="max-h-[min(92dvh,720px)] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-xl sm:p-6">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Completa tu perfil</p>
         <h2 id="complete-profile-title" className="mt-1 text-lg font-bold text-primary">
           Agrega tu teléfono

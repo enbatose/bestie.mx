@@ -2350,7 +2350,7 @@ export function PublishWizardPage() {
                 profilePhoneE164={me?.phoneE164}
                 saveToProfile={savePhoneToProfile}
                 onSaveToProfileChange={setSavePhoneToProfile}
-                compact={typeof window !== "undefined" ? window.matchMedia("(max-width: 640px)").matches : true}
+                embedded
                 audienceNote="publisher"
               />
               <label className="block text-sm font-medium text-body">

@@ -62,7 +62,9 @@ export function PhoneNumberField({
     <div className={className}>
       <label htmlFor={id} className="block text-sm font-medium text-body">
         {label}
-        {optional ? <span className="ml-1 font-normal text-muted">(opcional)</span> : (
+        {optional ? (
+          <span className="ml-1 font-normal text-muted">(opcional)</span>
+        ) : (
           <span className="text-error"> *</span>
         )}
       </label>
@@ -74,7 +76,7 @@ export function PhoneNumberField({
       ) : null}
       <div className="mt-2 flex min-w-0 items-stretch gap-2">
         <div
-          className="inline-flex shrink-0 items-center rounded-xl border border-border bg-bg-light px-3 text-sm font-semibold tabular-nums text-body"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-border bg-bg-light px-2.5 text-base font-semibold tabular-nums text-body sm:px-3 sm:text-sm"
           aria-label="Código de país México"
         >
           +{MX_COUNTRY_CODE}
@@ -104,16 +106,24 @@ export function PhoneNumberField({
           }}
           className={
             inputClassName ||
-            "min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm tabular-nums text-body outline-none ring-accent focus:ring-2 disabled:opacity-50"
+            // text-base on mobile avoids iOS focus zoom; sm:text-sm matches desktop forms
+            "min-h-11 min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-base tabular-nums text-body outline-none ring-accent focus:ring-2 disabled:opacity-50 sm:text-sm"
           }
           aria-invalid={Boolean(error) || (national.length > 0 && !complete)}
           aria-describedby={error ? `${id ?? "phone"}-err` : undefined}
         />
       </div>
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
-        <span>
+      <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] leading-snug text-muted sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
+        <span className="min-w-0 break-words">
           {national.length}/{MX_NATIONAL_DIGITS} dígitos
-          {preview ? ` · ${preview}` : ""}
+          {preview ? (
+            <>
+              <span className="hidden sm:inline">{` · ${preview}`}</span>
+              <span className="mt-0.5 block font-mono text-xs tabular-nums text-body sm:hidden">
+                {preview}
+              </span>
+            </>
+          ) : null}
         </span>
         {national.length > 0 && !complete ? (
           <span className="text-warning-fg">Faltan {MX_NATIONAL_DIGITS - national.length}</span>

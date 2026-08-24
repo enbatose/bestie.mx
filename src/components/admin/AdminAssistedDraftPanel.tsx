@@ -480,7 +480,7 @@ export function AdminAssistedDraftPanel() {
               onSaveToProfileChange={() => {}}
               allowSaveToProfile={false}
               showPublisherSafety={false}
-              compact
+              embedded
               audienceNote="publisher"
             />
           </div>

@@ -13,9 +13,12 @@ type Props = {
   saveToProfile: boolean;
   onSaveToProfileChange: (v: boolean) => void;
   allowSaveToProfile?: boolean;
-  /** Publisher fraud tips (desktop denser / mobile shorter via compact). */
+  /** Publisher fraud tips (mobile short + desktop long via CSS). */
   showPublisherSafety?: boolean;
+  /** @deprecated Tips are responsive via CSS; kept for call-site compatibility. */
   compact?: boolean;
+  /** Flatten chrome when nested inside another card (wizard Datos Generales). */
+  embedded?: boolean;
   disabled?: boolean;
   /** Seekers vs publishers privacy note. */
   audienceNote?: "publisher" | "seeker" | "both";
@@ -45,25 +48,26 @@ export function ListingPhoneCaptureFields({
   onSaveToProfileChange,
   allowSaveToProfile = true,
   showPublisherSafety = true,
-  compact = false,
+  embedded = false,
   disabled,
   audienceNote = "publisher",
 }: Props) {
-  const national = normalizeMxNationalDigits(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "").slice(0, 10);
-  const profileNational = profilePhoneE164
-    ? normalizeMxNationalDigits(profilePhoneE164)
-    : null;
+  const national =
+    normalizeMxNationalDigits(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "").slice(0, 10);
+  const profileNational = profilePhoneE164 ? normalizeMxNationalDigits(profilePhoneE164) : null;
   const postDigits = phoneDigitsForStorage(national);
   const profileDigits = profilePhoneE164 ? phoneDigitsForStorage(profilePhoneE164) : null;
-  const differsFromProfile = Boolean(
-    postDigits && profileDigits && postDigits !== profileDigits,
-  );
+  const differsFromProfile = Boolean(postDigits && profileDigits && postDigits !== profileDigits);
   const noProfilePhone = !profileDigits;
 
-  const tips = compact ? PUBLISHER_SAFETY_MOBILE : PUBLISHER_SAFETY_DESKTOP;
-
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-surface p-3 sm:p-4">
+    <div
+      className={
+        embedded
+          ? "space-y-3 rounded-xl border border-border/70 bg-surface/60 p-3 sm:border-border sm:bg-surface sm:p-4"
+          : "space-y-3 rounded-xl border border-border bg-surface p-3 sm:p-4"
+      }
+    >
       <PhoneNumberField
         id="listing-contact-phone"
         value={national}
@@ -79,10 +83,10 @@ export function ListingPhoneCaptureFields({
         </p>
       ) : null}
 
-      <label className="flex cursor-pointer items-start gap-2.5 text-sm text-body">
+      <label className="flex min-h-11 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
         <input
           type="checkbox"
-          className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+          className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
           checked={showWhatsApp}
           disabled={disabled || !postDigits}
           onChange={(e) => onShowChange(e.target.checked)}
@@ -96,10 +100,10 @@ export function ListingPhoneCaptureFields({
       </label>
 
       {allowSaveToProfile && postDigits && (noProfilePhone || differsFromProfile) ? (
-        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-body">
+        <label className="flex min-h-11 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
           <input
             type="checkbox"
-            className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+            className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
             checked={saveToProfile}
             disabled={disabled}
             onChange={(e) => onSaveToProfileChange(e.target.checked)}
@@ -121,8 +125,13 @@ export function ListingPhoneCaptureFields({
       {showPublisherSafety && postDigits && showWhatsApp ? (
         <div className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-fg">
           <p className="font-semibold">Prevención de fraude (publicar teléfono)</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-4">
-            {tips.map((t) => (
+          <ul className="mt-1.5 list-disc space-y-1 pl-4 sm:hidden">
+            {PUBLISHER_SAFETY_MOBILE.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+          <ul className="mt-1.5 hidden list-disc space-y-1 pl-4 sm:block">
+            {PUBLISHER_SAFETY_DESKTOP.map((t) => (
               <li key={t}>{t}</li>
             ))}
           </ul>

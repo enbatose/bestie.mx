@@ -76,13 +76,13 @@ function PhoneRevealSafetyModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[2200] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+      className="fixed inset-0 z-[2200] flex items-end justify-center bg-black/45 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={`${tipsId} ${legalId}`}
     >
-      <div className="max-h-[min(90vh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-xl sm:p-6">
+      <div className="max-h-[min(92dvh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-xl sm:p-6">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-warning-fg">Aviso de seguridad</p>
         <h2 id={titleId} className="mt-1 text-lg font-bold text-primary">
           Protégete al usar el teléfono
@@ -111,13 +111,13 @@ function PhoneRevealSafetyModal({
             .
           </p>
         </div>
-        <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-body">
+        <label className="mt-4 flex min-h-11 cursor-pointer items-start gap-2.5 text-sm text-body">
           <input
             type="checkbox"
             checked={checked}
             disabled={busy}
             onChange={(e) => setChecked(e.target.checked)}
-            className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+            className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
           />
           <span>He leído y acepto este aviso</span>
         </label>
@@ -281,30 +281,42 @@ export function ListingPhoneReveal({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-body">Teléfono / móvil</p>
-          {!compact ? (
+          {compact ? (
+            <p className="mt-0.5 text-xs leading-snug text-muted">
+              <span className="sm:hidden">Inicia sesión para verlo.</span>
+              <span className="hidden sm:inline">
+                Idealmente el número de WhatsApp. Inicia sesión para verlo y aceptar los términos.
+              </span>
+            </p>
+          ) : (
             <p className="mt-0.5 text-xs leading-snug text-muted">
               Idealmente el número que usas en WhatsApp. Inicia sesión para verlo y aceptar los términos.
             </p>
-          ) : null}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm tabular-nums text-body">{display}</span>
+          )}
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <span className="break-all font-mono text-base tabular-nums text-body sm:text-sm">{display}</span>
             <button
               type="button"
               onClick={revealed ? () => setRevealed(null) : onEyeClick}
               disabled={busy || viewer === undefined}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-bg-light px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border bg-bg-light px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50 sm:w-auto"
               aria-label={revealed ? "Ocultar teléfono" : "Mostrar teléfono"}
             >
               {revealed ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
-              {busy ? "…" : revealed ? "Ocultar" : viewer ? "Mostrar" : "Inicia sesión para ver"}
+              <span className="sm:hidden">
+                {busy ? "…" : revealed ? "Ocultar" : viewer ? "Mostrar" : "Inicia sesión"}
+              </span>
+              <span className="hidden sm:inline">
+                {busy ? "…" : revealed ? "Ocultar" : viewer ? "Mostrar" : "Inicia sesión para ver"}
+              </span>
             </button>
           </div>
           {revealed && (telHref || waHref) ? (
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {telHref ? (
                 <a
                   href={telHref}
-                  className="inline-flex min-h-11 items-center rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body hover:bg-surface-elevated"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body hover:bg-surface-elevated"
                 >
                   Llamar
                 </a>
@@ -314,7 +326,7 @@ export function ListingPhoneReveal({
                   href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-body hover:bg-[#25D366]/15"
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-body hover:bg-[#25D366]/15"
                 >
                   <WhatsAppMark className="size-3.5 text-[#25D366]" />
                   WhatsApp
