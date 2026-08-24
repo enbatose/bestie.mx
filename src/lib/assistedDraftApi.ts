@@ -131,6 +131,8 @@ export async function adminCreateAssistedDraft(opts: {
   extraction: AssistedDraftExtraction;
   photos?: Array<{ mimeType: string; data: string }>;
   infographicPhotos?: Array<{ mimeType: string; data: string }>;
+  /** When false, store phone on the draft but keep it hidden on the listing. Default true. */
+  showWhatsApp?: boolean;
 }): Promise<{ claimUrl: string; propertyId: string }> {
   const base = apiBase();
   const res = await apiFetch(`${base}/api/assisted-draft/admin/create`, {

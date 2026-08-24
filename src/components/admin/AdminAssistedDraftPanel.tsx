@@ -1,10 +1,12 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Copy, Check, ImagePlus, Trash2, Wand2, Link2 } from "lucide-react";
 import {
   adminExtractAssistedDraft,
   adminCreateAssistedDraft,
   type AssistedDraftExtraction,
 } from "@/lib/assistedDraftApi";
+import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
+import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 
 const CITIES = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
 
@@ -167,6 +169,13 @@ function ExtractionPreview({
 
   if (ext.propertyTitle) rows.push({ label: "Título", value: ext.propertyTitle, key: "propertyTitle" });
   if (ext.neighborhood) rows.push({ label: "Colonia / barrio", value: ext.neighborhood, key: "neighborhood" });
+  if (ext.contactPhone) {
+    rows.push({
+      label: "Teléfono / móvil",
+      value: formatMxPhoneDisplay(ext.contactPhone),
+      key: "contactPhone",
+    });
+  }
   if (ext.propertyKind) rows.push({ label: "Tipo de propiedad", value: PROP_KIND_LABELS[ext.propertyKind] ?? ext.propertyKind, key: "propertyKind" });
   if (ext.lodgingType) rows.push({ label: "Tipo de espacio", value: LODGING_LABELS[ext.lodgingType] ?? ext.lodgingType, key: "lodgingType" });
   if (ext.rentMxn) rows.push({ label: "Renta mensual", value: `$${ext.rentMxn.toLocaleString("es-MX")} MXN`, key: "rentMxn" });
@@ -239,6 +248,14 @@ function ExtractionPreview({
           </p>
         </div>
       )}
+      {!ext.contactPhone && (
+        <div className="flex items-start gap-2 rounded-xl border border-border bg-bg-light px-3 py-2">
+          <p className="text-xs text-muted">
+            No se detectó teléfono en el texto/infográfico. Puedes agregarlo abajo antes de generar el
+            enlace (opcional; el dueño también puede editarlo en la vista previa).
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -257,6 +274,19 @@ export function AdminAssistedDraftPanel() {
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [outreachPhone, setOutreachPhone] = useState("");
+  const [outreachShowPhone, setOutreachShowPhone] = useState(true);
+
+  useEffect(() => {
+    if (!extraction) {
+      setOutreachPhone("");
+      setOutreachShowPhone(true);
+      return;
+    }
+    const national = normalizeMxNationalDigits(extraction.contactPhone ?? "") ?? "";
+    setOutreachPhone(national);
+    setOutreachShowPhone(Boolean(national));
+  }, [extraction]);
 
   const hasInput = text.trim() || infographicImages.length > 0;
 
@@ -285,9 +315,14 @@ export function AdminAssistedDraftPanel() {
     setCreating(true);
     setCreateErr(null);
     try {
+      const digits = outreachPhone.trim() ? phoneDigitsForStorage(outreachPhone) : null;
       const result = await adminCreateAssistedDraft({
         city,
-        extraction,
+        extraction: {
+          ...extraction,
+          contactPhone: digits ?? undefined,
+        },
+        showWhatsApp: outreachShowPhone && Boolean(digits),
         photos: photoImages.map(({ mimeType, data }) => ({ mimeType, data })),
         infographicPhotos: infographicImages.map(({ mimeType, data }) => ({ mimeType, data })),
       });
@@ -427,6 +462,28 @@ export function AdminAssistedDraftPanel() {
           </div>
 
           <ExtractionPreview ext={extraction} />
+
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Teléfono del anuncio (opcional)
+            </h4>
+            <p className="text-xs text-muted">
+              Extraído del texto o infográfico cuando es posible. Misma edición que en la vista previa
+              pública: número, mostrar/ocultar, y el dueño podrá ajustarlo al reclamar el borrador.
+            </p>
+            <ListingPhoneCaptureFields
+              contactWhatsApp={outreachPhone}
+              showWhatsApp={outreachShowPhone}
+              onContactChange={setOutreachPhone}
+              onShowChange={setOutreachShowPhone}
+              saveToProfile={false}
+              onSaveToProfileChange={() => {}}
+              allowSaveToProfile={false}
+              showPublisherSafety={false}
+              compact
+              audienceNote="publisher"
+            />
+          </div>
 
           <div className="flex flex-wrap gap-3 pt-2">
             <button

@@ -807,10 +807,12 @@ export function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Dra
     city,
     propertyTitle: p.title,
     neighborhood: p.neighborhood,
-    contactWhatsApp:
-      p.showWhatsApp === false || /^0+$/.test(String(p.contactWhatsApp ?? "").replace(/\D/g, ""))
-        ? ""
-        : p.contactWhatsApp || "",
+    contactWhatsApp: (() => {
+      const raw = String(p.contactWhatsApp ?? "");
+      const digits = raw.replace(/\D/g, "");
+      if (!digits || /^0+$/.test(digits)) return "";
+      return normalizeMxNationalDigits(raw) ?? digits.slice(-10);
+    })(),
     propertySummary:
       p.status === "draft" && isDefaultPropertySummarySeed(p.summary) ? "" : p.summary?.trim() ? p.summary : "",
     propertyKind: p.propertyKind ?? "house",

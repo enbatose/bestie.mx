@@ -133,14 +133,17 @@ function inventoryFromHints(postMode: "room" | "property", hints: SelfServeHints
   return { roomsForRent, roomsOccupied };
 }
 
-function assistedDraftPhoneFields(extraction: AssistedDraftExtraction): {
+function assistedDraftPhoneFields(
+  extraction: AssistedDraftExtraction,
+  showPublic = true,
+): {
   contactWhatsApp: string;
   showWhatsApp: 0 | 1;
 } {
   if (extraction.contactPhone) {
     return {
       contactWhatsApp: storedContactWhatsApp(true, extraction.contactPhone),
-      showWhatsApp: 1,
+      showWhatsApp: showPublic ? 1 : 0,
     };
   }
   return {
@@ -430,10 +433,12 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         extraction?: AssistedDraftExtraction;
         photos?: Array<{ mimeType: string; data: string }>;
         infographicPhotos?: Array<{ mimeType: string; data: string }>;
+        showWhatsApp?: boolean;
       };
 
       const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : "Guadalajara";
       const ext = body.extraction ?? {};
+      const showPhone = body.showWhatsApp !== false;
 
       // Upload photos
       const photoUrls: string[] = [];
@@ -479,7 +484,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const neighborhood = ext.neighborhood ?? "";
       const summary = "";
       const propertyKind = ext.propertyKind ?? null;
-      const phone = assistedDraftPhoneFields(ext);
+      const phone = assistedDraftPhoneFields(ext, showPhone);
 
       // Room-mode gallery lives on the room; mirror onto the property for API/OG.
       const imageUrlsJson = JSON.stringify(photoUrls);

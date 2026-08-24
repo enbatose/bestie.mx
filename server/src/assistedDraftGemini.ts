@@ -104,7 +104,8 @@ REGLAS IMPORTANTES:
 - Para ubicación: busca colonia, barrio, calle o referencia geográfica.
 - Para disponibilidad: intenta inferir una fecha desde menciones como "disponible ya", "primer de mes", etc.
 - Para edad (ageMin/ageMax): solo si el anuncio menciona un rango o límite explícito. Si no se menciona, omite ambos campos (el sistema aplicará 22–45).
-- Para teléfono/contacto: si el texto o infográfico muestra un celular o WhatsApp, extrae el PRIMER número visible.
+- Para teléfono/contacto (contactPhone): si el texto O una imagen/infográfico muestra celular, WhatsApp, tel o "llamar", extrae el PRIMER número visible.
+  En México suele ser 10 dígitos sin código de país; normaliza a "52" + 10 dígitos (ej. "523312345678"). No inventes. Si no hay número, omite el campo.
 - deniedTags: slugs que el anuncio niega de forma explícita (p. ej. "no se aceptan mascotas" → ["mascotas"]). No pongas un tag en tags y deniedTags a la vez.
 - Para descripción (roomSummary): genera un texto atractivo en español usando SOLO la información disponible. 
   Mínimo 100 caracteres, máximo 1200. Si no hay suficiente información, sé conciso pero honesto.
@@ -206,6 +207,34 @@ function extractPhone(field: RawFieldResult | undefined): string | undefined {
   const raw = extractString(field);
   if (!raw) return undefined;
   return phoneDigitsForStorage(raw) ?? undefined;
+}
+
+/**
+ * Prefer high-confidence Gemini phone, then any Gemini value that normalizes,
+ * then regex on pasted text, then regex on the model raw JSON (helps image-only OCR).
+ */
+export function resolveAssistedDraftContactPhone(opts: {
+  contactPhoneField?: RawFieldResult;
+  sourceText?: string;
+  modelRawText?: string;
+}): string | undefined {
+  const fromField = extractPhone(opts.contactPhoneField);
+  if (fromField) return fromField;
+
+  const loose =
+    opts.contactPhoneField &&
+    typeof opts.contactPhoneField.value === "string" &&
+    typeof opts.contactPhoneField.confidence === "number" &&
+    opts.contactPhoneField.confidence >= 40
+      ? phoneDigitsForStorage(opts.contactPhoneField.value)
+      : null;
+  if (loose) return loose;
+
+  return (
+    extractFirstMxPhoneFromText(opts.sourceText ?? "") ??
+    extractFirstMxPhoneFromText(opts.modelRawText ?? "") ??
+    undefined
+  );
 }
 
 function extractNumber(field: RawFieldResult | undefined): number | undefined {
@@ -395,7 +424,11 @@ export async function extractListingDataWithGemini(
     const roomSummary = rawSummary ? rawSummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
     const rawPropertySummary = extractString(parsed.propertySummary);
     const propertySummary = rawPropertySummary ? rawPropertySummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
-    const contactPhone = extractPhone(parsed.contactPhone) ?? extractFirstMxPhoneFromText(input.text ?? "") ?? undefined;
+    const contactPhone = resolveAssistedDraftContactPhone({
+      contactPhoneField: parsed.contactPhone,
+      sourceText: input.text,
+      modelRawText: rawText,
+    });
 
     const locConf = parsed.location?.confidence ?? 0;
     let location: AssistedDraftExtraction["location"] | undefined;
