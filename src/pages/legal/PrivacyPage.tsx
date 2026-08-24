@@ -68,12 +68,12 @@ export function PrivacyPage() {
           items={[
             <>
               <strong>Datos de identificación y contacto:</strong> nombre o nombre para mostrar y
-              dirección de correo electrónico.
+              dirección de correo electrónico y número de teléfono móvil cuando decides agregarlo a tu perfil o a un anuncio.
             </>,
             <>
               <strong>Datos de cuenta y autenticación:</strong> contraseña cifrada (solo cuentas con
               correo/contraseña), fecha de verificación de correo, identificadores de tu sesión y, en su
-              caso, foto de perfil.
+              caso, foto de perfil, así como tus preferencias de contacto telefónico (avisos/WhatsApp de Bestie, promociones) y el registro de si descartaste el recordatorio de completar tu perfil.
             </>,
             <>
               <strong>Datos de proveedores de identidad:</strong> cuando usas Google o Facebook,
@@ -88,8 +88,9 @@ export function PrivacyPage() {
               de pantalla), calificaciones (por ejemplo de 1 a 5 estrellas) y comentarios opcionales
               asociados a ese feedback, textos sugeridos para compartir tu anuncio (generados con
               ayuda de IA a partir de datos estructurados del anuncio y editables por ti), la
-              aceptación del aviso de seguridad al usar mensajes entre usuarios (fecha, versión del
-              aviso y, en su caso, el hilo que lo disparó) y tus interacciones en la Plataforma.
+              aceptación del aviso de seguridad al usar mensajes entre usuarios o al revelar el teléfono
+              de un anuncio (fecha, versión del aviso y, en su caso, el hilo o anuncio que lo disparó) y tus
+              interacciones en la Plataforma.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
@@ -220,6 +221,7 @@ export function PrivacyPage() {
             "Moderar el blog: revisar comentarios reportados y gestionar contenido inapropiado en los artículos.",
             "Moderar anuncios y conversaciones: revisar reportes de usuarios, pausar o retirar publicaciones y restringir cuentas que incumplan las reglas.",
             "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña, notificaciones del servicio).",
+            "Enviar, si agregas tu teléfono y mantienes activa la preferencia correspondiente, comunicaciones transaccionales por SMS o WhatsApp relacionadas con tu cuenta, soporte, actividad en la Plataforma o seguimiento operativo del Servicio.",
             "Enviarte correos de aviso cuando tengas mensajes nuevos en Bestie (como máximo uno cada 3 horas; el correo no incluye el contenido de los mensajes). Si en ese periodo también se crearon notificaciones en la app, podemos resumirlas en el mismo correo.",
             "Prevenir fraudes, abusos y garantizar la seguridad de la Plataforma.",
             "Cumplir obligaciones legales y fiscales aplicables.",
@@ -231,12 +233,12 @@ export function PrivacyPage() {
         <LegalList
           items={[
             "Analítica y mejora del Servicio mediante métricas de uso.",
-            "Envío de comunicaciones informativas o promocionales sobre Bestie.",
+            "Envío de comunicaciones informativas o promocionales sobre Bestie por correo, SMS o WhatsApp, cuando no te hayas opuesto o retires ese consentimiento desde tu perfil.",
           ]}
         />
         <p>
           Si no deseas que tus datos se traten para las finalidades secundarias, puedes manifestarlo
-          escribiendo a <LegalMail />. Tu negativa no será motivo para negarte el Servicio.
+          escribiendo a <LegalMail /> o desactivando esas preferencias en tu perfil cuando estén disponibles. Tu negativa no será motivo para negarte el Servicio.
         </p>
       </LegalSection>
 

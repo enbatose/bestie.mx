@@ -4,6 +4,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthModal } from "@/components/AuthModal";
+import { CompletaTuPerfilModal } from "@/components/CompletaTuPerfilModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
 import { FeedbackModalProvider } from "@/contexts/FeedbackModalContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
@@ -94,6 +95,7 @@ export function AppShellLayout() {
   const isSearchPage = location.pathname === "/buscar" || location.pathname.startsWith("/buscar/");
   const showEmailVerificationBanner =
     me != null && needsEmailVerification(me) && location.pathname !== "/verificar-correo";
+  const showCompleteProfileModal = me != null && !me.phoneE164 && !me.phonePromptDismissedAt;
 
   const outletContext: AppShellOutletContext = { me, refreshMe, unreadMessageCount: unread };
 
@@ -142,6 +144,14 @@ export function AppShellLayout() {
         {!isSearchPage ? <SiteFooter /> : null}
 
         <AuthModal />
+        {me ? (
+          <CompletaTuPerfilModal
+            open={showCompleteProfileModal}
+            me={me}
+            onSaved={() => void refreshMe()}
+            onDismissed={() => void refreshMe()}
+          />
+        ) : null}
       </div>
       <CookieConsentBanner />
       </NotificationsProvider>

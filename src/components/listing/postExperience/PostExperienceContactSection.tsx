@@ -1,4 +1,5 @@
 import { MessageCircle } from "lucide-react";
+import { ListingPhoneReveal } from "@/components/listing/ListingPhoneReveal";
 import type { AuthMe } from "@/lib/authApi";
 import { PropertyMessageField } from "@/components/listing/postExperience/PropertyMessageField";
 import { ListingSection } from "@/components/listing/ListingSection";
@@ -8,6 +9,10 @@ type BaseProps = {
   canContact: boolean;
   messagingOn: boolean;
   viewer: AuthMe | null | undefined;
+  listingId?: string;
+  propertyId?: string;
+  hasContactPhone?: boolean;
+  phoneRevealRole?: "seeker" | "publisher";
   msgBusy: boolean;
   msgErr: string | null;
   onSend: () => void;
@@ -96,6 +101,19 @@ export function PostExperienceContactSection(props: Props) {
               />
             </label>
           )}
+
+          {props.hasContactPhone && props.listingId ? (
+            <div className="mt-4">
+              <ListingPhoneReveal
+                listingId={props.listingId}
+                propertyId={props.propertyId}
+                viewer={viewer}
+                hasContactPhone={props.hasContactPhone}
+                role={props.phoneRevealRole ?? "seeker"}
+                compact={props.mode === "single"}
+              />
+            </div>
+          ) : null}
 
           {msgErr ? <p className="mt-2 text-sm text-error">{msgErr}</p> : null}
 

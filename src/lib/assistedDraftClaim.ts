@@ -24,7 +24,7 @@ export function claimInfoToBundle(info: AssistedDraftClaimInfo): PropertyWithRoo
       lat: p.lat,
       lng: p.lng,
       summary: p.summary,
-      contactWhatsApp: "",
+      contactWhatsApp: p.contactWhatsApp,
       propertyKind: (p.propertyKind ?? undefined) as PropertyKind | undefined,
       bedroomsTotal: p.bedroomsTotal,
       bathrooms: p.bathrooms,

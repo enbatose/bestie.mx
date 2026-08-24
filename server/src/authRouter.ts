@@ -93,6 +93,9 @@ function authUserPayload(u: {
   id: string;
   email: string | null;
   phone_e164: string | null;
+  phone_notify_opt_in: number;
+  phone_marketing_opt_in: number;
+  phone_prompt_dismissed_at: string | null;
   display_name: string;
   profile_picture_url: string | null;
   created_at: string;
@@ -105,6 +108,9 @@ function authUserPayload(u: {
     id: u.id,
     email: u.email,
     phoneE164: u.phone_e164,
+    phoneNotifyOptIn: Number(u.phone_notify_opt_in) !== 0,
+    phoneMarketingOptIn: Number(u.phone_marketing_opt_in) !== 0,
+    phonePromptDismissedAt: u.phone_prompt_dismissed_at,
     displayName: u.display_name,
     profilePictureUrl: u.profile_picture_url,
     createdAt: u.created_at,
@@ -122,6 +128,12 @@ function parseProfilePictureUrl(raw: unknown): string | null | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   return SAFE_UPLOAD_PATH.test(trimmed) ? trimmed : undefined;
+}
+
+function parseOptionalBoolean(raw: unknown): boolean | undefined {
+  if (raw === true) return true;
+  if (raw === false) return false;
+  return undefined;
 }
 
 export function authRouter(db: DatabaseSync) {
@@ -262,12 +274,17 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     const row = db
-      .prepare("SELECT id, email, phone_e164, password_hash, display_name, profile_picture_url FROM users WHERE id = ?")
+      .prepare(
+        "SELECT id, email, phone_e164, phone_notify_opt_in, phone_marketing_opt_in, phone_prompt_dismissed_at, password_hash, display_name, profile_picture_url FROM users WHERE id = ?",
+      )
       .get(uid) as
       | {
           id: string;
           email: string | null;
           phone_e164: string | null;
+          phone_notify_opt_in: number;
+          phone_marketing_opt_in: number;
+          phone_prompt_dismissed_at: string | null;
           password_hash: string;
           display_name: string;
           profile_picture_url: string | null;
@@ -284,6 +301,9 @@ export function authRouter(db: DatabaseSync) {
       email?: unknown;
       currentPassword?: unknown;
       phone?: unknown;
+      phoneNotifyOptIn?: unknown;
+      phoneMarketingOptIn?: unknown;
+      dismissPhonePrompt?: unknown;
       profilePictureUrl?: unknown;
     };
 
@@ -313,26 +333,54 @@ export function authRouter(db: DatabaseSync) {
     }
 
     if (typeof body.phone === "string") {
-      const digits = normalizeWhatsAppDigits(body.phone);
-      if (!digits) {
-        res.status(400).json({ error: "invalid_phone", message: "Número inválido (usa 10 dígitos o +52…)." });
-        return;
-      }
-      const phoneE164 = phoneE164FromDigits(digits);
-      if (phoneE164 !== (row.phone_e164 ?? "")) {
-        const taken = db
-          .prepare("SELECT id FROM users WHERE phone_e164 = ? AND id != ?")
-          .get(phoneE164, uid) as { id: string } | undefined;
-        if (taken) {
-          res.status(409).json({
-            error: "phone_taken",
-            message: "Ese número ya está vinculado a otra cuenta.",
-          });
+      const trimmedPhone = body.phone.trim();
+      if (!trimmedPhone) {
+        if (row.phone_e164 != null) {
+          sets.push("phone_e164 = ?");
+          params.push(null);
+        }
+      } else {
+        const digits = normalizeWhatsAppDigits(trimmedPhone);
+        if (!digits) {
+          res.status(400).json({ error: "invalid_phone", message: "Número inválido (usa 10 dígitos o +52…)." });
           return;
         }
-        sets.push("phone_e164 = ?");
-        params.push(phoneE164);
+        const phoneE164 = phoneE164FromDigits(digits);
+        if (phoneE164 !== (row.phone_e164 ?? "")) {
+          const taken = db
+            .prepare("SELECT id FROM users WHERE phone_e164 = ? AND id != ?")
+            .get(phoneE164, uid) as { id: string } | undefined;
+          if (taken) {
+            res.status(409).json({
+              error: "phone_taken",
+              message: "Ese número ya está vinculado a otra cuenta.",
+            });
+            return;
+          }
+          sets.push("phone_e164 = ?");
+          params.push(phoneE164);
+        }
       }
+    }
+
+    const nextPhoneNotifyOptIn = parseOptionalBoolean(body.phoneNotifyOptIn);
+    if (nextPhoneNotifyOptIn !== undefined && Number(row.phone_notify_opt_in) !== (nextPhoneNotifyOptIn ? 1 : 0)) {
+      sets.push("phone_notify_opt_in = ?");
+      params.push(nextPhoneNotifyOptIn ? 1 : 0);
+    }
+
+    const nextPhoneMarketingOptIn = parseOptionalBoolean(body.phoneMarketingOptIn);
+    if (
+      nextPhoneMarketingOptIn !== undefined &&
+      Number(row.phone_marketing_opt_in) !== (nextPhoneMarketingOptIn ? 1 : 0)
+    ) {
+      sets.push("phone_marketing_opt_in = ?");
+      params.push(nextPhoneMarketingOptIn ? 1 : 0);
+    }
+
+    if (body.dismissPhonePrompt === true && !row.phone_prompt_dismissed_at) {
+      sets.push("phone_prompt_dismissed_at = ?");
+      params.push(isoNow());
     }
 
     let emailChanged = false;
@@ -546,13 +594,16 @@ export function authRouter(db: DatabaseSync) {
     }
     const u = db
       .prepare(
-        "SELECT id, email, phone_e164, display_name, profile_picture_url, created_at, email_verified_at FROM users WHERE id = ?",
+        "SELECT id, email, phone_e164, phone_notify_opt_in, phone_marketing_opt_in, phone_prompt_dismissed_at, display_name, profile_picture_url, created_at, email_verified_at FROM users WHERE id = ?",
       )
       .get(uid) as
       | {
           id: string;
           email: string | null;
           phone_e164: string | null;
+          phone_notify_opt_in: number;
+          phone_marketing_opt_in: number;
+          phone_prompt_dismissed_at: string | null;
           display_name: string;
           profile_picture_url: string | null;
           created_at: string;

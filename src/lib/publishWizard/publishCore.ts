@@ -25,6 +25,7 @@ import type { ListingStatus, ListingTag, PropertyKind, RoommateGenderPref } from
 import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession";
 import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import { capturePublishPosthogSessionId } from "@/lib/posthog";
+import { phoneDigitsForStorage } from "@/lib/mxPhone";
 import {
   saveAssistedDraftClaim,
   type AssistedDraftClaimSaveBody,
@@ -306,21 +307,36 @@ export function propertyGeneralStepInvalidReason(d: Draft): string | null {
   if (d.postMode === "property" && !VALID_PROPERTY_KINDS.includes(d.propertyKind)) {
     return "Selecciona el tipo de vivienda (Casa, Departamento o Loft).";
   }
+  const phoneReason = contactStepInvalidReason(d);
+  if (phoneReason) return phoneReason;
   return occupantCountsInvalidReason(d);
 }
 
-export function contactStepInvalidReason(_d: Draft): string | null {
+export function contactStepInvalidReason(d: Draft): string | null {
+  const raw = String(d.contactWhatsApp ?? "").trim();
+  if (!raw) return null;
+  const digits = phoneDigitsForStorage(raw);
+  if (!digits) {
+    return "Número inválido. Usa 10 dígitos (México) o +52 seguido de 10 dígitos.";
+  }
+  if (d.showWhatsApp && !digits) {
+    return "Agrega un número válido o desactiva mostrar el teléfono en el anuncio.";
+  }
   return null;
 }
 
 export function resolveListingContactForApi(
   _profilePhoneE164: string | null | undefined,
-  _draft: Draft,
+  draft: Draft,
 ): { contactWhatsApp: string; showWhatsApp: boolean } {
-  // Phone / WhatsApp contact is not part of the current product version.
+  const stored = phoneDigitsForStorage(String(draft.contactWhatsApp ?? ""));
+  if (!stored) {
+    // Optional: publish without a phone; never show an empty field publicly.
+    return { contactWhatsApp: DRAFT_WA_PLACEHOLDER, showWhatsApp: false };
+  }
   return {
-    contactWhatsApp: DRAFT_WA_PLACEHOLDER,
-    showWhatsApp: false,
+    contactWhatsApp: stored,
+    showWhatsApp: Boolean(draft.showWhatsApp),
   };
 }
 
@@ -467,9 +483,11 @@ export function buildAssistedDraftClaimSaveBody(
       lat,
       lng,
       summary: draft.propertySummary.trim(),
+      contactWhatsApp: resolveListingContactForApi(null, draft).contactWhatsApp,
       propertyKind: draft.propertyKind,
       bedroomsTotal: draft.propertyBedroomsTotal,
       bathrooms: effectiveWizardPropertyBathrooms(draft),
+      showWhatsApp: draft.showWhatsApp,
       occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
       occupiedByMenCount: occupantTotals.occupiedByMenCount,
       isApproximateLocation: draft.isApproximateLocation,

@@ -7,6 +7,8 @@ import { backfillUserEmailCanonical } from "./authEmail.js";
 import { ensurePhaseCDSchema } from "./phaseCDSchema.js";
 import { ensureMessagingSchema } from "./messagingSchema.js";
 import { ensureMessagingSafetySchema } from "./messagingSafety.js";
+import { ensurePhoneConsentSchema } from "./phoneConsentSchema.js";
+import { ensurePhoneRevealSafetySchema } from "./phoneRevealSafety.js";
 
 import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
@@ -564,6 +566,8 @@ export function openDb(databasePath: string): DatabaseSync {
   backfillUserEmailCanonical(db);
   ensureMessagingSchema(db);
   ensureMessagingSafetySchema(db);
+  ensurePhoneConsentSchema(db);
+  ensurePhoneRevealSafetySchema(db);
   ensureSavedSearchSchema(db);
   ensureNotificationsSchema(db);
   ensureAssistedDraftSchema(db);

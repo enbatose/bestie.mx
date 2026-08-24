@@ -29,7 +29,9 @@ import {
   isListingsApiConfigured,
   updateProperty,
 } from "@/lib/listingsApi";
-import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
+import { authLinkPublisher, authMe, authUpdateMe, consumeHandoffToken } from "@/lib/authApi";
+import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
+import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
@@ -468,7 +470,7 @@ const defaultDraft = (): Draft => ({
   propertyBathrooms: 0,
   occupiedByWomenCount: 0,
   occupiedByMenCount: 0,
-  showWhatsApp: false,
+  showWhatsApp: true,
   useCustomMapPin: false,
   customLat: "",
   customLng: "",
@@ -942,6 +944,8 @@ export function PublishWizardPage() {
   myListingsReturnRef.current = myListingsReturn;
   const { openAuthModal } = useAuthModal();
   const { me } = useAppShellOutlet();
+  const [savePhoneToProfile, setSavePhoneToProfile] = useState(false);
+  const phonePrefillDoneRef = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
@@ -1105,6 +1109,21 @@ export function PublishWizardPage() {
   const resumeStateAppliedRef = useRef(false);
   const meRef = useRef(me);
   meRef.current = me;
+  const savePhoneToProfileRef = useRef(savePhoneToProfile);
+  savePhoneToProfileRef.current = savePhoneToProfile;
+
+  useEffect(() => {
+    if (phonePrefillDoneRef.current) return;
+    if (!me?.phoneE164) return;
+    if (draft.contactWhatsApp.trim()) {
+      phonePrefillDoneRef.current = true;
+      return;
+    }
+    const national = normalizeMxNationalDigits(me.phoneE164);
+    if (!national) return;
+    phonePrefillDoneRef.current = true;
+    setDraft((d) => (d.contactWhatsApp.trim() ? d : { ...d, contactWhatsApp: national }));
+  }, [me?.phoneE164, draft.contactWhatsApp]);
   const storageReadyRef = useRef(storageReady);
   storageReadyRef.current = storageReady;
   const prevUserIdRef = useRef<string | null>(undefined);
@@ -2301,6 +2320,19 @@ export function PublishWizardPage() {
                   className="mt-1"
                 />
               </label>
+              <ListingPhoneCaptureFields
+                contactWhatsApp={draft.contactWhatsApp}
+                showWhatsApp={draft.showWhatsApp}
+                onContactChange={(national) =>
+                  setDraft((d) => ({ ...d, contactWhatsApp: national }))
+                }
+                onShowChange={(show) => setDraft((d) => ({ ...d, showWhatsApp: show }))}
+                profilePhoneE164={me?.phoneE164}
+                saveToProfile={savePhoneToProfile}
+                onSaveToProfileChange={setSavePhoneToProfile}
+                compact={typeof window !== "undefined" ? window.matchMedia("(max-width: 640px)").matches : true}
+                audienceNote="publisher"
+              />
               <label className="block text-sm font-medium text-body">
                 Colonia o zona
                 <span className="text-error"> *</span>
@@ -3240,6 +3272,17 @@ export function PublishWizardPage() {
       if (result.kind === "published") {
         track("publish_succeeded", { mode: draftRef.current.postMode,
           editing_live: Boolean(editingLiveProperty), create_flow: createFlowRef.current });
+        if (savePhoneToProfileRef.current) {
+          const digits = phoneDigitsForStorage(draftRef.current.contactWhatsApp);
+          if (digits) {
+            try {
+              await authUpdateMe({ phone: digits });
+              window.dispatchEvent(new Event("bestie:me-changed"));
+            } catch {
+              /* profile sync is best-effort; listing already published */
+            }
+          }
+        }
         const roomIdx = Math.min(
           previewRoomIndex,
           Math.max(0, draftRef.current.rooms.length - 1),

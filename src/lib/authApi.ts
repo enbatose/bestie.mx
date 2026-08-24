@@ -68,6 +68,9 @@ export type AuthMe = {
   id: string;
   email: string | null;
   phoneE164: string | null;
+  phoneNotifyOptIn: boolean;
+  phoneMarketingOptIn: boolean;
+  phonePromptDismissedAt: string | null;
   displayName: string;
   profilePictureUrl?: string | null;
   createdAt: string;
@@ -201,8 +204,11 @@ export type UpdateMeBody = {
   displayName?: string;
   email?: string;
   currentPassword?: string;
-  /** Celular en formato libre (+52… o 10 dígitos MX); se guarda como E.164 sin validación por WhatsApp. */
+  /** Celular en formato libre (+52… o 10 dígitos MX); usa `""` para borrar. */
   phone?: string;
+  phoneNotifyOptIn?: boolean;
+  phoneMarketingOptIn?: boolean;
+  dismissPhonePrompt?: true;
   /** Server upload path (`/api/uploads/...`) or `null` to clear. */
   profilePictureUrl?: string | null;
 };

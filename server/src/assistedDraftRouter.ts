@@ -50,6 +50,7 @@ import {
   SUMMARY_MAX_LEN,
   TITLE_MAX_LEN,
   isSafeRoomOrListingId,
+  storedContactWhatsApp,
   validLatLng,
 } from "./validation.js";
 
@@ -130,6 +131,22 @@ function inventoryFromHints(postMode: "room" | "property", hints: SelfServeHints
     }
   }
   return { roomsForRent, roomsOccupied };
+}
+
+function assistedDraftPhoneFields(extraction: AssistedDraftExtraction): {
+  contactWhatsApp: string;
+  showWhatsApp: 0 | 1;
+} {
+  if (extraction.contactPhone) {
+    return {
+      contactWhatsApp: storedContactWhatsApp(true, extraction.contactPhone),
+      showWhatsApp: 1,
+    };
+  }
+  return {
+    contactWhatsApp: storedContactWhatsApp(false, ""),
+    showWhatsApp: 0,
+  };
 }
 
 function insertPlannedComposeRoom(
@@ -226,6 +243,7 @@ type PropertyRow = {
   lng: number;
   summary: string;
   post_mode: string;
+  contact_whatsapp: string;
   property_kind: string | null;
   bedrooms_total: number;
   bathrooms: number;
@@ -461,6 +479,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const neighborhood = ext.neighborhood ?? "";
       const summary = "";
       const propertyKind = ext.propertyKind ?? null;
+      const phone = assistedDraftPhoneFields(ext);
 
       // Room-mode gallery lives on the room; mirror onto the property for API/OG.
       const imageUrlsJson = JSON.stringify(photoUrls);
@@ -474,8 +493,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           created_at, assisted_draft, created_by_admin_id
         ) VALUES (
           @id, @publisherId, 'draft', 'room', @title, @city, @neighborhood,
-          @lat, @lng, @summary, '', @propertyKind,
-          1, 1, 0, @imageUrlsJson,
+          @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
+          1, 1, @showWhatsApp, @imageUrlsJson,
           @isApproximate, @approximateRadius,
           @createdAt, 1, @adminId
         )
@@ -488,7 +507,9 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         lat,
         lng,
         summary,
+        contactWhatsApp: phone.contactWhatsApp,
         propertyKind,
+        showWhatsApp: phone.showWhatsApp,
         imageUrlsJson,
         isApproximate,
         approximateRadius,
@@ -626,6 +647,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           const propertySummary =
             postMode === "property" ? (ext.propertySummary ?? ext.roomSummary ?? "") : "";
           const bathrooms = clampBathrooms(ext.bathrooms ?? 1);
+          const phone = assistedDraftPhoneFields(ext);
           const bedroomsTotal =
             postMode === "property"
               ? inventory.roomsForRent + inventory.roomsOccupied
@@ -660,9 +682,10 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
               db.prepare(`
                 UPDATE properties SET
                   post_mode = @postMode, title = @title, city = @city, neighborhood = @neighborhood,
-                  lat = @lat, lng = @lng, summary = @summary, property_kind = @propertyKind,
+                  lat = @lat, lng = @lng, summary = @summary, contact_whatsapp = @contactWhatsApp,
+                  property_kind = @propertyKind,
                   bedrooms_total = @bedroomsTotal, bathrooms = @bathrooms,
-                  image_urls_json = @imageUrlsJson,
+                  show_whatsapp = @showWhatsApp, image_urls_json = @imageUrlsJson,
                   is_approximate_location = @isApproximate,
                   approximate_radius_m = @approximateRadius
                 WHERE id = @id
@@ -675,9 +698,11 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
                 lat: loc.lat,
                 lng: loc.lng,
                 summary: propertySummary,
+                contactWhatsApp: phone.contactWhatsApp,
                 propertyKind,
                 bedroomsTotal,
                 bathrooms,
+                showWhatsApp: phone.showWhatsApp,
                 imageUrlsJson,
                 isApproximate: loc.isApproximate,
                 approximateRadius: loc.approximateRadius,
@@ -699,8 +724,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
                 created_at, assisted_draft, created_by_admin_id
               ) VALUES (
                 @id, @publisherId, 'draft', @postMode, @title, @city, @neighborhood,
-                @lat, @lng, @summary, '', @propertyKind,
-                @bedroomsTotal, @bathrooms, 0, @imageUrlsJson,
+                @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
+                @bedroomsTotal, @bathrooms, @showWhatsApp, @imageUrlsJson,
                 @isApproximate, @approximateRadius,
                 @createdAt, 1, @adminId
               )
@@ -714,9 +739,11 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
               lat: loc.lat,
               lng: loc.lng,
               summary: propertySummary,
+              contactWhatsApp: phone.contactWhatsApp,
               propertyKind,
               bedroomsTotal,
               bathrooms,
+              showWhatsApp: phone.showWhatsApp,
               imageUrlsJson,
               isApproximate: loc.isApproximate,
               approximateRadius: loc.approximateRadius,
@@ -792,6 +819,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         lat: prop.lat,
         lng: prop.lng,
         summary: prop.summary,
+        contactWhatsApp: prop.contact_whatsapp,
         propertyKind: prop.property_kind,
         bedroomsTotal: prop.bedrooms_total,
         bathrooms: prop.bathrooms,
@@ -909,6 +937,16 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         asTrimmedString(propertyPatch.summary) != null
           ? clampStr(String(propertyPatch.summary), SUMMARY_MAX_LEN)
           : prop.summary;
+      const nextShowWhatsapp =
+        propertyPatch.showWhatsApp === undefined
+          ? (prop.show_whatsapp === 0 ? 0 : 1)
+          : propertyPatch.showWhatsApp
+            ? 1
+            : 0;
+      const nextContactWhatsApp =
+        propertyPatch.contactWhatsApp !== undefined
+          ? storedContactWhatsApp(nextShowWhatsapp === 1, String(propertyPatch.contactWhatsApp ?? ""))
+          : String(prop.contact_whatsapp ?? "");
       const kindRaw = propertyPatch.propertyKind;
       const nextKind =
         kindRaw === "house" || kindRaw === "apartment" || kindRaw === "loft"
@@ -957,7 +995,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       db.prepare(`
         UPDATE properties SET
-          title = ?, neighborhood = ?, summary = ?, property_kind = ?,
+          title = ?, neighborhood = ?, summary = ?, contact_whatsapp = ?, show_whatsapp = ?, property_kind = ?,
           bedrooms_total = ?, bathrooms = ?,
           occupied_by_women = COALESCE(?, occupied_by_women),
           occupied_by_men = COALESCE(?, occupied_by_men),
@@ -969,6 +1007,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         nextTitle,
         nextNeighborhood,
         nextSummary,
+        nextContactWhatsApp,
+        nextShowWhatsapp,
         nextKind,
         nextBedrooms,
         nextBathrooms,

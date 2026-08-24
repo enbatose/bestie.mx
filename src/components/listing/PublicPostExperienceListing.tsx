@@ -364,6 +364,10 @@ export function PublicPostExperienceListing({
           canContact={contact.canContact}
           messagingOn={contact.messagingOn}
           viewer={contact.viewer}
+          listingId={listing.id}
+          propertyId={share.propertyId}
+          hasContactPhone={listing.hasContactPhone}
+          phoneRevealRole={listing.viewerIsOwner ? "publisher" : "seeker"}
           msgBusy={contact.msgBusy}
           msgErr={contact.msgErr}
           message={propertyMessage}
@@ -457,6 +461,10 @@ export function PublicPostExperienceListing({
         canContact={contact.canContact}
         messagingOn={contact.messagingOn}
         viewer={contact.viewer}
+        listingId={listing.id}
+        propertyId={listing.propertyId}
+        hasContactPhone={listing.hasContactPhone}
+        phoneRevealRole={listing.viewerIsOwner ? "publisher" : "seeker"}
         msgBusy={contact.msgBusy}
         msgErr={contact.msgErr}
         message={singleMessage}

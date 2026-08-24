@@ -6,8 +6,12 @@ import type {
   RoomDimension,
   RoommateGenderPref,
 } from "./types.js";
-import { clampListingImageUrls, clampApproximateRadiusMeters } from "./validation.js";
+import {
+  clampListingImageUrls,
+  clampApproximateRadiusMeters,
+} from "./validation.js";
 import { parseStreetViewPovJson } from "./streetViewPov.js";
+import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
 
 function imageUrlsFromCell(raw: unknown): string[] {
   try {
@@ -97,8 +101,12 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
   const bedroomsTotal =
     row.bedrooms_total != null && Number.isFinite(Number(row.bedrooms_total)) ? Number(row.bedrooms_total) : 1;
   const bathrooms = row.bathrooms != null && Number.isFinite(Number(row.bathrooms)) ? Number(row.bathrooms) : 1;
-  // Phone / WhatsApp contact is disabled in the current product version.
-  const showWhatsApp = false;
+  /**
+   * Public listings never embed phone digits (anti-scrape / DevTools).
+   * `hasContactPhone` + `showWhatsApp` tell the UI to offer a login-gated reveal.
+   */
+  const hasContactPhone = propertyHasPublicPhone(row.show_whatsapp, row.contact_whatsapp);
+  const showWhatsApp = hasContactPhone;
 
   const propertyImageUrls = imageUrlsFromCell(row.property_image_urls_json);
   const roomImageUrls = imageUrlsFromCell(row.room_image_urls_json);
@@ -126,6 +134,7 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
     propertyBedroomsTotal: bedroomsTotal,
     propertyBathrooms: bathrooms,
     showWhatsApp,
+    hasContactPhone,
     roomsAvailable: Number(row.rooms_available),
     tags: JSON.parse(String(row.tags_json)) as PropertyListing["tags"],
     roommateGenderPref: String(row.roommate_gender_pref) as PropertyListing["roommateGenderPref"],

@@ -151,6 +151,8 @@ export type PropertyListing = {
   propertyBedroomsTotal: number;
   propertyBathrooms: number;
   showWhatsApp: boolean;
+  /** Public: phone can be revealed after login; digits never in listing JSON. */
+  hasContactPhone?: boolean;
   title: string;
   /**
    * Raw room-specific title (no property-title prefix). Use this for per-room

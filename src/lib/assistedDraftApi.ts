@@ -20,6 +20,7 @@ export type ExtractionInput = {
 export type AssistedDraftExtraction = {
   propertyTitle?: string;
   neighborhood?: string;
+  contactPhone?: string;
   propertyKind?: "house" | "apartment" | "loft";
   lodgingType?: "private_room" | "shared_room";
   rentMxn?: number;
@@ -78,6 +79,7 @@ export type AssistedDraftClaimInfo = {
     lat: number;
     lng: number;
     summary: string;
+    contactWhatsApp: string;
     propertyKind: string | null;
     bedroomsTotal: number;
     bathrooms: number;
@@ -195,9 +197,11 @@ export type AssistedDraftClaimSaveBody = {
     lat?: number;
     lng?: number;
     summary?: string;
+    contactWhatsApp?: string;
     propertyKind?: "house" | "apartment" | "loft";
     bedroomsTotal?: number;
     bathrooms?: number;
+    showWhatsApp?: boolean;
     occupiedByWomenCount?: number | null;
     occupiedByMenCount?: number | null;
     isApproximateLocation?: boolean;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { PasswordField } from "@/components/PasswordField";
 import {
   authChangePassword,
@@ -9,6 +10,7 @@ import {
   authUpdateMe,
   type AuthMe,
 } from "@/lib/authApi";
+import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 
 export function AccountEditPage() {
   const navigate = useNavigate();
@@ -23,6 +25,9 @@ export function AccountEditPage() {
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phoneNotifyOptIn, setPhoneNotifyOptIn] = useState(true);
+  const [phoneMarketingOptIn, setPhoneMarketingOptIn] = useState(true);
   const [currentPassword, setCurrentPassword] = useState("");
 
   const [pwCurrent, setPwCurrent] = useState("");
@@ -44,6 +49,9 @@ export function AccountEditPage() {
     if (next) {
       setDisplayName(next.displayName ?? "");
       setEmail(next.email ?? "");
+      setPhone(normalizeMxNationalDigits(next.phoneE164 ?? "") ?? "");
+      setPhoneNotifyOptIn(next.phoneNotifyOptIn);
+      setPhoneMarketingOptIn(next.phoneMarketingOptIn);
     }
   }, []);
 
@@ -145,15 +153,21 @@ export function AccountEditPage() {
 
   /** Legacy accounts created without email (e.g. former OTP) cannot change password here. */
   const isPhoneOnlyAccount = !me.email && Boolean(me.phoneE164);
+  const isPublisher = me.linkedPublisherIds.length > 0;
   const emailChanged = email.trim().toLowerCase() !== (me.email ?? "").toLowerCase();
   const displayNameChanged = displayName.trim() !== (me.displayName ?? "").trim();
+  const nextPhoneDigits = phone.trim() ? phoneDigitsForStorage(phone) : null;
+  const currentPhoneDigits = me.phoneE164 ? phoneDigitsForStorage(me.phoneE164) : null;
+  const phoneChanged = nextPhoneDigits !== currentPhoneDigits;
+  const phoneNotifyChanged = phoneNotifyOptIn !== me.phoneNotifyOptIn;
+  const phoneMarketingChanged = phoneMarketingOptIn !== me.phoneMarketingOptIn;
   const requiresPasswordForEmail = emailChanged && !isPhoneOnlyAccount;
 
   const onSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileMsg(null);
     setProfileErr(null);
-    if (!displayNameChanged && !emailChanged) {
+    if (!displayNameChanged && !emailChanged && !phoneChanged && !phoneNotifyChanged && !phoneMarketingChanged) {
       setProfileMsg("No hay cambios para guardar.");
       return;
     }
@@ -161,14 +175,28 @@ export function AccountEditPage() {
       setProfileErr("Ingresa tu contraseña actual para confirmar el cambio de correo.");
       return;
     }
+    if (phone.trim() && !nextPhoneDigits) {
+      setProfileErr("Completa un número válido de 10 dígitos.");
+      return;
+    }
     setSavingProfile(true);
     try {
-      const body: { displayName?: string; email?: string; currentPassword?: string } = {};
+      const body: {
+        displayName?: string;
+        email?: string;
+        currentPassword?: string;
+        phone?: string;
+        phoneNotifyOptIn?: boolean;
+        phoneMarketingOptIn?: boolean;
+      } = {};
       if (displayNameChanged) body.displayName = displayName.trim();
       if (emailChanged) {
         body.email = email.trim().toLowerCase();
         if (!isPhoneOnlyAccount) body.currentPassword = currentPassword;
       }
+      if (phoneChanged) body.phone = phone.trim();
+      if (phoneNotifyChanged) body.phoneNotifyOptIn = phoneNotifyOptIn;
+      if (phoneMarketingChanged) body.phoneMarketingOptIn = phoneMarketingOptIn;
       const r = await authUpdateMe(body);
       if (r.emailChanged) {
         window.dispatchEvent(new Event("bestie:me-changed"));
@@ -279,6 +307,50 @@ export function AccountEditPage() {
               className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
             />
           </label>
+          <div className="rounded-2xl border border-border bg-bg-light p-4">
+            <h3 className="text-sm font-semibold text-body">Teléfono</h3>
+            <p className="mt-1 text-xs leading-snug text-muted">
+              {isPublisher
+                ? "Tu número no se muestra automáticamente en tu perfil. Solo aparece en un anuncio si activas esa opción al publicarlo."
+                : "Tu número no se muestra a otras personas en tu perfil. Si algún día publicas un anuncio, podrás decidir si mostrarlo ahí."}
+            </p>
+            <PhoneNumberField
+              id="account-phone"
+              value={phone}
+              onChange={setPhone}
+              className="mt-4"
+            />
+            <div className="mt-4 space-y-3">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
+                <input
+                  type="checkbox"
+                  checked={phoneNotifyOptIn}
+                  onChange={(event) => setPhoneNotifyOptIn(event.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+                />
+                <span className="leading-snug">
+                  <span className="block font-medium text-body">Recibir SMS o WhatsApp de Bestie</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    Avisos operativos, seguimiento de soporte y otras notificaciones relacionadas con tu cuenta o actividad.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
+                <input
+                  type="checkbox"
+                  checked={phoneMarketingOptIn}
+                  onChange={(event) => setPhoneMarketingOptIn(event.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+                />
+                <span className="leading-snug">
+                  <span className="block font-medium text-body">Recibir promociones y novedades</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    Comunicaciones comerciales de Bestie por SMS o WhatsApp. Puedes desactivarlas después desde esta misma pantalla.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
           {isPhoneOnlyAccount ? (
             <p className="text-xs text-muted">
               Esta cuenta aún no tiene correo. Agregar uno aquí te permitirá iniciar sesión con correo una vez que
@@ -298,7 +370,10 @@ export function AccountEditPage() {
           ) : null}
           <button
             type="submit"
-            disabled={savingProfile || (!displayNameChanged && !emailChanged)}
+            disabled={
+              savingProfile ||
+              (!displayNameChanged && !emailChanged && !phoneChanged && !phoneNotifyChanged && !phoneMarketingChanged)
+            }
             className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
           >
             {savingProfile ? "Guardando…" : "Guardar cambios"}

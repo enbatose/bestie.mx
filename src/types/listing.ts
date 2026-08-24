@@ -185,6 +185,8 @@ export type PropertyListing = {
   propertyBedroomsTotal?: number;
   propertyBathrooms?: number;
   showWhatsApp?: boolean;
+  /** True when a phone can be revealed after login (digits not in payload). */
+  hasContactPhone?: boolean;
   roomsAvailable: number;
   tags: ListingTag[];
   roommateGenderPref: RoommateGenderPref;

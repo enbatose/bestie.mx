@@ -1,4 +1,5 @@
 import { geminiApiKey, geminiModel } from "./shareAiCopyGemini.js";
+import { extractFirstMxPhoneFromText, phoneDigitsForStorage } from "./mxPhoneExtract.js";
 
 /** Confidence threshold: fields below this are omitted from the draft. */
 const CONFIDENCE_THRESHOLD = 60;
@@ -33,6 +34,8 @@ export function confidenceToRadius(confidence: number): number {
 export type AssistedDraftExtraction = {
   propertyTitle?: string;
   neighborhood?: string;
+  /** Digits for storage (`52` + 10) when a phone is visible in the source. */
+  contactPhone?: string;
   propertyKind?: "house" | "apartment" | "loft";
   lodgingType?: "private_room" | "shared_room";
   rentMxn?: number;
@@ -101,6 +104,7 @@ REGLAS IMPORTANTES:
 - Para ubicación: busca colonia, barrio, calle o referencia geográfica.
 - Para disponibilidad: intenta inferir una fecha desde menciones como "disponible ya", "primer de mes", etc.
 - Para edad (ageMin/ageMax): solo si el anuncio menciona un rango o límite explícito. Si no se menciona, omite ambos campos (el sistema aplicará 22–45).
+- Para teléfono/contacto: si el texto o infográfico muestra un celular o WhatsApp, extrae el PRIMER número visible.
 - deniedTags: slugs que el anuncio niega de forma explícita (p. ej. "no se aceptan mascotas" → ["mascotas"]). No pongas un tag en tags y deniedTags a la vez.
 - Para descripción (roomSummary): genera un texto atractivo en español usando SOLO la información disponible. 
   Mínimo 100 caracteres, máximo 1200. Si no hay suficiente información, sé conciso pero honesto.
@@ -122,6 +126,7 @@ Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
 {
   "propertyTitle": { "value": "...", "confidence": 0-100 },
   "neighborhood": { "value": "...", "confidence": 0-100 },
+  "contactPhone": { "value": "523312345678", "confidence": 0-100 },
   "propertyKind": { "value": "house|apartment|loft", "confidence": 0-100 },
   "lodgingType": { "value": "private_room|shared_room", "confidence": 0-100 },
   "rentMxn": { "value": 0, "confidence": 0-100 },
@@ -158,6 +163,7 @@ type RawFieldResult = {
 type RawGeminiExtraction = {
   propertyTitle?: RawFieldResult;
   neighborhood?: RawFieldResult;
+  contactPhone?: RawFieldResult;
   propertyKind?: RawFieldResult;
   lodgingType?: RawFieldResult;
   rentMxn?: RawFieldResult;
@@ -194,6 +200,12 @@ function extractString(field: RawFieldResult | undefined): string | undefined {
   if (!aboveThreshold(field)) return undefined;
   const v = field!.value;
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
+}
+
+function extractPhone(field: RawFieldResult | undefined): string | undefined {
+  const raw = extractString(field);
+  if (!raw) return undefined;
+  return phoneDigitsForStorage(raw) ?? undefined;
 }
 
 function extractNumber(field: RawFieldResult | undefined): number | undefined {
@@ -352,6 +364,7 @@ export async function extractListingDataWithGemini(
     };
     record("propertyTitle", parsed.propertyTitle);
     record("neighborhood", parsed.neighborhood);
+    record("contactPhone", parsed.contactPhone);
     record("propertyKind", parsed.propertyKind);
     record("lodgingType", parsed.lodgingType);
     record("rentMxn", parsed.rentMxn);
@@ -382,6 +395,7 @@ export async function extractListingDataWithGemini(
     const roomSummary = rawSummary ? rawSummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
     const rawPropertySummary = extractString(parsed.propertySummary);
     const propertySummary = rawPropertySummary ? rawPropertySummary.slice(0, SUMMARY_MAX_CHARS) : undefined;
+    const contactPhone = extractPhone(parsed.contactPhone) ?? extractFirstMxPhoneFromText(input.text ?? "") ?? undefined;
 
     const locConf = parsed.location?.confidence ?? 0;
     let location: AssistedDraftExtraction["location"] | undefined;
@@ -408,6 +422,7 @@ export async function extractListingDataWithGemini(
       extraction: {
         propertyTitle: extractString(parsed.propertyTitle),
         neighborhood: extractString(parsed.neighborhood),
+        contactPhone,
         propertyKind: extractEnum(parsed.propertyKind, ["house", "apartment", "loft"] as const),
         lodgingType: extractEnum(parsed.lodgingType, ["private_room", "shared_room"] as const),
         rentMxn: extractInt(parsed.rentMxn),

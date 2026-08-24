@@ -123,15 +123,20 @@ export function isDraftPlaceholderWhatsApp(digits: string): boolean {
 export const HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER = "0000000000000";
 
 /**
- * Value to persist in `contact_whatsapp` when `show_whatsapp` is off, or while the field is still empty in drafts.
+ * Value to persist in `contact_whatsapp`.
+ * Keep real digits even when `show_whatsapp` is off so the publisher can toggle visibility later;
+ * public APIs must never return those digits when hidden (see listingDto + reveal endpoint).
  */
-export function storedContactWhatsApp(showPublic: boolean, raw: string): string {
-  if (!showPublic) return HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER;
+export function storedContactWhatsApp(_showPublic: boolean, raw: string): string {
   const d = normalizeWhatsAppDigits(raw);
-  return d ?? HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER;
+  if (d && !isDraftPlaceholderWhatsApp(d)) return d;
+  return HIDDEN_CONTACT_WHATSAPP_PLACEHOLDER;
 }
 
-/** True when publishing is allowed: hidden contact, or real 10–15 digit number (not all-zero placeholder). */
+/**
+ * Publishing is allowed when the phone is hidden/omitted, or when shown with a real number.
+ * Phone on a listing is always optional: `showPublic === false` does not require digits.
+ */
 export function contactWhatsAppOkForPublish(showPublic: boolean, storedDigits: string): boolean {
   if (!showPublic) return true;
   if (isDraftPlaceholderWhatsApp(storedDigits)) return false;

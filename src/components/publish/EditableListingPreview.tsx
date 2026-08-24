@@ -3,6 +3,7 @@ import { Bath, Camera, CarFront, Pencil } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { RoomOnOffToggle } from "@/components/myListings/listingCardChrome";
+import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
   ListingPropertySummaryGrid,
@@ -32,6 +33,7 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { phoneDigitsForStorage } from "@/lib/mxPhone";
 import {
   roomDimensionWizardLabel,
 } from "@/lib/listingKeyLabels";
@@ -438,6 +440,8 @@ export function EditableListingPreview({
   const [headerDraft, setHeaderDraft] = useState({
     neighborhood: draft.neighborhood,
     propertyTitle: draft.propertyTitle,
+    contactWhatsApp: draft.contactWhatsApp,
+    showWhatsApp: draft.showWhatsApp,
     rentMxn: room?.rentMxn ?? 0,
     depositMxn: room?.depositMxn ?? 0,
     city: draft.city,
@@ -469,6 +473,8 @@ export function EditableListingPreview({
         setHeaderDraft({
           neighborhood: draft.neighborhood,
           propertyTitle: draft.propertyTitle,
+          contactWhatsApp: draft.contactWhatsApp,
+          showWhatsApp: draft.showWhatsApp,
           rentMxn: targetRoom.rentMxn,
           depositMxn: targetRoom.depositMxn,
           city: draft.city,
@@ -571,6 +577,8 @@ export function EditableListingPreview({
     setHeaderDraft({
       neighborhood: draft.neighborhood,
       propertyTitle: draft.propertyTitle,
+      contactWhatsApp: draft.contactWhatsApp,
+      showWhatsApp: draft.showWhatsApp,
       rentMxn: room.rentMxn,
       depositMxn: room.depositMxn,
       city: draft.city,
@@ -585,6 +593,8 @@ export function EditableListingPreview({
         ...d,
         neighborhood: headerDraft.neighborhood,
         propertyTitle: nextPropertyTitle,
+        contactWhatsApp: headerDraft.contactWhatsApp,
+        showWhatsApp: headerDraft.showWhatsApp,
         city: headerDraft.city,
       }));
       setEditingHeader(false);
@@ -595,6 +605,8 @@ export function EditableListingPreview({
       // Single-room posts use Datos Generales → Título del anuncio (propertyTitle).
       propertyTitle: d.postMode === "room" ? nextPropertyTitle : d.propertyTitle,
       city: isRoomOfProperty ? d.city : headerDraft.city,
+      contactWhatsApp: isRoomOfProperty ? d.contactWhatsApp : headerDraft.contactWhatsApp,
+      showWhatsApp: isRoomOfProperty ? d.showWhatsApp : headerDraft.showWhatsApp,
       // The colonia belongs to the property, so a room-scoped edit leaves it untouched.
       neighborhood: isRoomOfProperty ? d.neighborhood : headerDraft.neighborhood,
       rooms: d.rooms.map((r, i) =>
@@ -741,6 +753,8 @@ export function EditableListingPreview({
   const propertyPriceLabel = isPropertyPreview ? propertyRentRangeLabel(draft.rooms) : null;
   const firstAvailableRoom =
     draft.rooms.find((r) => isRoomAvailableForRent(r)) ?? room;
+  const previewHeaderPhoneHidden =
+    !phoneDigitsForStorage(headerDraft.contactWhatsApp) || !headerDraft.showWhatsApp;
 
   const openRoomModal = (index: number) => {
     onRoomIndexChange?.(index);
@@ -970,6 +984,29 @@ export function EditableListingPreview({
                   ))}
                 </select>
               </label>
+              <div className="mt-3">
+                <ListingPhoneCaptureFields
+                  contactWhatsApp={headerDraft.contactWhatsApp}
+                  showWhatsApp={headerDraft.showWhatsApp}
+                  onContactChange={(national) =>
+                    setHeaderDraft((h) => ({ ...h, contactWhatsApp: national }))
+                  }
+                  onShowChange={(show) =>
+                    setHeaderDraft((h) => ({ ...h, showWhatsApp: show }))
+                  }
+                  profilePhoneE164={profilePhoneE164}
+                  saveToProfile={false}
+                  onSaveToProfileChange={() => {}}
+                  allowSaveToProfile={false}
+                  showPublisherSafety={false}
+                  compact
+                />
+                {previewHeaderPhoneHidden ? (
+                  <p className="mt-2 text-xs leading-snug text-muted">
+                    Si no agregas un teléfono visible, el anuncio se mantiene oculto por teléfono hasta que decidas mostrarlo.
+                  </p>
+                ) : null}
+              </div>
               </>
             ) : null}
             {!headerUsesPropertyFields ? (

@@ -10,6 +10,14 @@ import { PUBLISHED_JOIN_WHERE } from "./publishedListingsQuery.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import { scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
+import { readAuthUserId } from "./jwtSession.js";
+import {
+  hasAcceptedPhoneRevealSafety,
+  PHONE_REVEAL_SAFETY_NOTICE_VERSION,
+  propertyHasPublicPhone,
+  recordPhoneRevealSafetyAcknowledgment,
+  type PhoneRevealSafetyRole,
+} from "./phoneRevealSafety.js";
 import {
   CITY_MAX_LEN,
   clampAge,
@@ -29,6 +37,8 @@ import {
   TITLE_MAX_LEN,
   validLatLng,
   clampListingImageUrls,
+  isDraftPlaceholderWhatsApp,
+  normalizeWhatsAppDigits,
 } from "./validation.js";
 import type {
   ListingStatus,
@@ -157,6 +167,74 @@ export function listingsRouter(db: DatabaseSync) {
     const rows = db.prepare(sql).all() as Record<string, unknown>[];
     const all = rows.map(joinRowToPropertyListing).map(listingForPublic);
     res.json(filterListings(all, filters));
+  });
+
+  r.get("/phone-reveal/status", (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    res.json({
+      accepted: hasAcceptedPhoneRevealSafety(db, uid),
+      noticeVersion: PHONE_REVEAL_SAFETY_NOTICE_VERSION,
+    });
+  });
+
+  r.post("/phone-reveal/ack", jsonMw, (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (hasAcceptedPhoneRevealSafety(db, uid)) {
+      res.json({ ok: true, alreadyAccepted: true, noticeVersion: PHONE_REVEAL_SAFETY_NOTICE_VERSION });
+      return;
+    }
+    const body = req.body as { role?: unknown; propertyId?: unknown };
+    const role: PhoneRevealSafetyRole = body.role === "publisher" ? "publisher" : "seeker";
+    const propertyId =
+      typeof body.propertyId === "string" && body.propertyId.trim() ? body.propertyId.trim() : null;
+    recordPhoneRevealSafetyAcknowledgment(db, {
+      id: randomUUID(),
+      userId: uid,
+      noticeVersion: PHONE_REVEAL_SAFETY_NOTICE_VERSION,
+      role,
+      propertyId,
+      acceptedAt: new Date().toISOString(),
+    });
+    res.json({ ok: true, noticeVersion: PHONE_REVEAL_SAFETY_NOTICE_VERSION });
+  });
+
+  r.get("/:id/contact-phone", (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (!hasAcceptedPhoneRevealSafety(db, uid)) {
+      res.status(403).json({ error: "safety_required" });
+      return;
+    }
+    const roomId = resolveRoomIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!roomId) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const row = db
+      .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
+      .get(roomId) as Record<string, unknown> | undefined;
+    if (!row || !propertyHasPublicPhone(row.show_whatsapp, row.contact_whatsapp)) {
+      res.status(404).json({ error: "phone_unavailable" });
+      return;
+    }
+    const digits = normalizeWhatsAppDigits(String(row.contact_whatsapp ?? ""));
+    if (!digits || isDraftPlaceholderWhatsApp(digits)) {
+      res.status(404).json({ error: "phone_unavailable" });
+      return;
+    }
+    const e164 = digits.startsWith("52") ? `+${digits}` : digits.length === 10 ? `+52${digits}` : `+${digits}`;
+    res.json({ phoneDigits: digits, e164 });
   });
 
   r.get("/:id", (req: Request, res: Response) => {

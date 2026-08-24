@@ -92,6 +92,7 @@ export function TermsPage() {
         <LegalList
           items={[
             "Publicar y consultar anuncios de habitaciones y propiedades en renta compartida. Puedes armar un anuncio de un cuarto o de una propiedad pegando el texto o un infográfico de una publicación (por ejemplo de Facebook); Bestie usa un modelo de inteligencia artificial para proponer los campos del borrador, incluidas las recámaras de una propiedad. La IA no publica por ti: el borrador permanece privado hasta que lo revisas, completas lo que falte y confirmas expresamente la publicación.",
+            "Guardar un teléfono móvil en tu perfil y, si publicas, decidir si ese número puede revelarse a personas interesadas en un anuncio específico.",
             "Generar (con ayuda de inteligencia artificial) un texto sugerido para que compartas tu anuncio en redes o mensajería; puedes revisarlo y editarlo antes de enviarlo. Ese texto no forma parte de la ficha pública del anuncio ni de su vista previa al compartir el enlace.",
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
             "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
@@ -150,6 +151,7 @@ export function TermsPage() {
             "Publicar contenido ilegal, difamatorio, discriminatorio, violento, sexual explícito o que incite al odio.",
             "Discriminar por origen étnico, género, edad, discapacidad, condición social, religión, preferencia sexual o cualquier otra categoría protegida por la ley.",
             "Acosar, amenazar o dañar a otros usuarios, ni recopilar sus datos sin consentimiento.",
+            "Usar teléfonos revelados en la Plataforma para spam, acoso, scraping, reventa de datos o fines distintos al contacto legítimo entre usuarios sobre un anuncio.",
             "Vulnerar la seguridad del Servicio, usar bots, scraping no autorizado, o sobrecargar la infraestructura.",
             "Infringir derechos de propiedad intelectual o industrial de terceros.",
             "Usar el Servicio para fines distintos a la búsqueda u oferta genuina de vivienda compartida.",
@@ -223,7 +225,7 @@ export function TermsPage() {
             "En esta etapa, Bestie no verifica en campo cada anuncio ni realiza estudios de crédito o antecedentes de los usuarios.",
             "Los usuarios son responsables de verificar por su cuenta la identidad de su contraparte, las condiciones de la propiedad y de firmar los contratos correspondientes.",
             "Recomendamos no realizar pagos por adelantado sin haber verificado la propiedad y la identidad de la contraparte.",
-            "Antes de ver mensajes entre usuarios sobre un anuncio, puedes recibir un aviso de seguridad en la app. Al aceptarlo, reconoces el riesgo de estafas o fraudes entre usuarios y que Bestie y el Titular no son responsables por el uso del chat ni por acuerdos o pagos entre ustedes. Registramos esa aceptación (fecha y versión del aviso) como evidencia de tu consentimiento.",
+            "Antes de ver mensajes entre usuarios o de revelar el teléfono asociado a un anuncio, puedes recibir un aviso de seguridad en la app. Al aceptarlo, reconoces el riesgo de estafas o fraudes entre usuarios y que Bestie y el Titular no son responsables por el uso del chat, llamadas, SMS, WhatsApp ni por acuerdos o pagos entre ustedes. Registramos esa aceptación (fecha y versión del aviso) como evidencia de tu consentimiento.",
           ]}
         />
       </LegalSection>
