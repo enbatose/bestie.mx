@@ -1,0 +1,83 @@
+---
+description: Prevent horizontal overflow on narrow phones (360px). Flex inputs, AppShell children, and padded cards.
+globs: src/**/*.{tsx,css}
+alwaysApply: true
+---
+
+# Mobile layout — no horizontal overflow
+
+Bestie is used on 360px phones (Galaxy S8 / iPhone SE), not only 390–430px. A layout that looks centered on an S20 Ultra (412px) can still clip on an S8+ (360px). **Design and verify at 360px first.**
+
+## The bug that keeps coming back
+
+A page that looks “shifted right” (white gutter on the left, content flush or clipped on the right) is almost never “the phone component.” It is a **min-content width larger than the viewport**, left-aligned because `margin: auto` cannot go negative.
+
+Typical chain:
+
+1. Something inside (often an `<input>`) has a large intrinsic min-width.
+2. That min-content bubbles up through nested padding (`px-3` + `p-4` + `p-4` + `p-3` ≈ 112px of chrome at 360px → ~248px left for content).
+3. The page root is a **flex child of AppShell `<main>`** (`flex flex-col`). Flex items default to `min-width: auto` (content size), so the whole column grows to 385px in a 360px viewport.
+4. Focusing an input then `scrollIntoView`s a parent that used `overflow-x-hidden` (a **scroll container**), which is why it only shows “when editing.”
+
+## Required patterns
+
+### 1. `<input>` / `<select>` in a flex row
+
+The UA default `size="20"` gives inputs a ~20ch min-content width. `min-w-0` alone does **not** always stop that from inflating ancestors.
+
+```tsx
+// BAD — overflows Galaxy S8+ (360px) when nested in padded cards
+<input className="min-w-0 flex-1 ..." />
+
+// GOOD
+<input
+  size={10} // match maxLength when the value is fixed-width
+  className="w-0 min-w-0 flex-1 ..."
+/>
+```
+
+Prefer `w-full` when the field is the only child of a block wrapper (see `WIZARD_FIELD_CONTROL_CLASS`).
+
+### 2. Page shells under AppShell `<main>`
+
+`<main>` is `flex flex-col overflow-x-hidden`. Direct page roots must be able to shrink:
+
+```tsx
+<div className="mx-auto w-full min-w-0 max-w-3xl px-3 py-4 sm:px-6">
+```
+
+`max-w-*` + `mx-auto` without `w-full min-w-0` still sizes to min-content.
+
+### 3. Overflow: `clip`, not `hidden`, next to inputs
+
+- `overflow-x-hidden` / `overflow-auto` create a **scroll container**. Focus + `scrollIntoView` will shift the card sideways if anything is 1px too wide.
+- Use `overflow-x-clip` to crop without creating a scrollable box.
+- Never put `overflow-x-hidden` on an ancestor of a focusable field just to “hide” overflow — **remove the overflow source**.
+
+### 4. No negative horizontal margins inside padded cards
+
+`-mx-4` on a child of `p-4` makes the child 16px wider than the parent. Combined with (3) this is the “edit mode shifts the page” bug.
+
+Full-bleed bars belong in a wrapper that has no horizontal padding, or they stay in-flow with no `-mx-*`.
+
+`PublishWizardActionBar` must stay inside the step card padding.
+
+### 5. Nested padding budget at 360px
+
+Before adding another `p-3` / `p-4` inside the wizard, count remaining content width:
+
+`360 - 2*(shell px-3 + card p-4 + section p-4 + inner p-3)` ≈ **248px**.
+
+If the inner row is prefix + gap + 10-digit field, keep the prefix `shrink-0` and the field `w-0 flex-1`. Do not add a third padded card around that row.
+
+### 6. Text and chips
+
+- Titles: `break-words min-w-0`.
+- Chip labels: soft hyphens (`SOFT_HYPHEN`) + `min-w-0 hyphens-manual` — see `chip-label-soft-hyphens.mdc`.
+- Flex rows of pills: `flex-wrap min-w-0`.
+
+## Verify before finishing UI work
+
+Check **360×740** (Galaxy S8+ / iPhone SE) **and** ~412px. If it only breaks on the smaller one, it is min-content, not “mobile vs desktop.”
+
+In DevTools: the overflowing node’s `scrollWidth > clientWidth`, or `getBoundingClientRect().right > viewport`. The element that *looks* clipped is often just a parent that grew; walk up until `width` exceeds 360.

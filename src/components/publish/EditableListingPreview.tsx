@@ -1046,7 +1046,7 @@ export function EditableListingPreview({
             <p className="mt-3 text-sm text-muted">
               {listing.neighborhood} · {listing.city}
             </p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+            <h1 className="mt-2 break-words text-2xl font-bold tracking-tight text-primary sm:text-3xl">
               {previewHeaderTitle}
             </h1>
             {!isPropertyPreview && draft.postMode === "property" && listing.title.trim() ? (
@@ -1090,7 +1090,7 @@ export function EditableListingPreview({
             ) : null}
             <div className="relative mt-3 min-w-0 max-w-full">
               {editingPhone ? (
-                <div className="min-w-0 max-w-full space-y-2.5 rounded-xl border border-primary/30 bg-surface p-3">
+                <div className="min-w-0 max-w-full overflow-x-clip space-y-2.5 rounded-xl border border-primary/30 bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Teléfono / móvil
                   </p>
@@ -1153,18 +1153,18 @@ export function EditableListingPreview({
                     </label>
                   ) : null}
                   {/* actions */}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex min-w-0 gap-2 pt-1">
                     <button
                       type="button"
                       onClick={savePhone}
-                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+                      className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-full bg-primary px-3 py-2 text-sm font-semibold text-primary-fg sm:px-4"
                     >
                       Listo
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingPhone(false)}
-                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body"
+                      className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-full border border-border px-3 py-2 text-sm font-semibold text-body sm:px-4"
                     >
                       Cancelar
                     </button>

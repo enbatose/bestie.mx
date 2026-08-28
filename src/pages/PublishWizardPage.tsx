@@ -3632,7 +3632,7 @@ export function PublishWizardPage() {
   }
 
   return (
-    <div className={`mx-auto min-w-0 overflow-x-clip px-3 py-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth}`}>
+    <div className={`mx-auto w-full min-w-0 overflow-x-clip px-3 py-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth}`}>
       {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}

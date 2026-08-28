@@ -204,12 +204,12 @@ function ExtractionPreview({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-xl border border-border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto overflow-y-hidden rounded-xl border border-border">
+        <table className="w-full min-w-[20rem] text-sm">
           <tbody>
             {rows.map((r) => (
               <tr key={r.key} className="border-b border-border last:border-0">
-                <td className="w-36 px-3 py-2 text-xs font-medium text-muted">{r.label}</td>
+                <td className="w-28 shrink-0 px-3 py-2 text-xs font-medium text-muted sm:w-36">{r.label}</td>
                 <td className="px-3 py-2 text-body">{r.value}</td>
                 <td className="px-3 py-2">
                   <ConfidenceBadge c={conf[r.key]} label="" />
@@ -356,7 +356,7 @@ export function AdminAssistedDraftPanel() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="min-w-0 space-y-6 pb-12">
       <div>
         <h2 className="text-lg font-bold text-body">Crear borrador asistido</h2>
         <p className="mt-1 text-sm text-muted">

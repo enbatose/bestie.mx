@@ -98,6 +98,7 @@ export function PhoneNumberField({
           disabled={disabled}
           value={national}
           maxLength={MX_NATIONAL_DIGITS}
+          size={MX_NATIONAL_DIGITS}
           placeholder="10 dígitos"
           aria-label={showLabel ? undefined : label}
           onChange={(e) => {
@@ -116,8 +117,9 @@ export function PhoneNumberField({
           }}
           className={
             inputClassName ||
-            // text-base on mobile avoids iOS focus zoom; sm:text-sm matches desktop forms
-            "min-h-11 min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-base tabular-nums text-body outline-none ring-accent focus:ring-2 disabled:opacity-50 sm:text-sm"
+            // w-0 flex-1 beats the UA size=20 min-content width that overflows 360px phones
+            // even when ancestors have min-w-0. text-base avoids iOS focus zoom.
+            "min-h-11 w-0 min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-base tabular-nums text-body outline-none ring-accent focus:ring-2 disabled:opacity-50 sm:text-sm"
           }
           aria-invalid={Boolean(error) || (national.length > 0 && !complete)}
           aria-describedby={error ? `${id ?? "phone"}-err` : undefined}
