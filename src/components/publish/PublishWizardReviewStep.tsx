@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { AlertCircle, ChevronRight, Wand2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { PublishWizardActionBar } from "@/components/publish/PublishWizardActionBar";
@@ -61,8 +60,6 @@ type Props = {
   savePhoneToProfile?: boolean;
   onSavePhoneToProfileChange?: (next: boolean) => void;
   fieldConflicts?: Array<{ field: string; message: string }>;
-  /** Pin Publicar / borrador actions in the shared fixed wizard footer (first-time publish only). */
-  stickyFooterActions?: boolean;
   onStepBack?: () => void;
   showStepBack?: boolean;
 };
@@ -90,7 +87,6 @@ export function PublishWizardReviewStep({
   savePhoneToProfile = false,
   onSavePhoneToProfileChange,
   fieldConflicts = [],
-  stickyFooterActions = false,
   onStepBack,
   showStepBack = false,
 }: Props) {
@@ -238,30 +234,6 @@ export function PublishWizardReviewStep({
       ) : null}
     </>
   );
-
-  const stickyFooter =
-    stickyFooterActions && !isLiveEdit
-      ? createPortal(
-          <PublishWizardActionBar
-            maxWidthClass="max-w-3xl"
-            className={showStepBack ? "sm:justify-between" : "sm:justify-end"}
-          >
-            {showStepBack && onStepBack ? (
-              <button
-                type="button"
-                onClick={onStepBack}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
-              >
-                Atrás
-              </button>
-            ) : null}
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-              {publishActionButtons}
-            </div>
-          </PublishWizardActionBar>,
-          document.body,
-        )
-      : null;
 
   return (
     <div className="space-y-6">
@@ -433,7 +405,7 @@ export function PublishWizardReviewStep({
           </p>
         ) : null}
 
-        {stickyFooterActions && !isLiveEdit ? null : (
+        {isLiveEdit ? (
           <div
             className={`flex flex-col gap-2 ${
               publishBlockedReason || actionErr || rentMissing || draftSaved || hasRoomFieldIssues ? "mt-5" : ""
@@ -441,12 +413,28 @@ export function PublishWizardReviewStep({
           >
             {publishActionButtons}
           </div>
-        )}
-
-        {!isLiveEdit ? <PublishReviewDisclaimer /> : null}
+        ) : null}
       </section>
       )}
-      {stickyFooter}
+
+      {!isLiveEdit && !isRoomOfProperty ? (
+        <PublishWizardActionBar className={showStepBack ? "sm:justify-between" : "sm:justify-end"}>
+          {showStepBack && onStepBack ? (
+            <button
+              type="button"
+              onClick={onStepBack}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
+            >
+              Atrás
+            </button>
+          ) : null}
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+            {publishActionButtons}
+          </div>
+        </PublishWizardActionBar>
+      ) : null}
+
+      {!isLiveEdit && !isRoomOfProperty ? <PublishReviewDisclaimer /> : null}
     </div>
   );
 }

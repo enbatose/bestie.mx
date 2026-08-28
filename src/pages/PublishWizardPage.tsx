@@ -23,10 +23,7 @@ import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
-import {
-  PUBLISH_WIZARD_FOOTER_PAD,
-  PublishWizardActionBar,
-} from "@/components/publish/PublishWizardActionBar";
+import { PublishWizardActionBar } from "@/components/publish/PublishWizardActionBar";
 import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
@@ -3636,9 +3633,7 @@ export function PublishWizardPage() {
   }
 
   return (
-    <div
-      className={`mx-auto px-3 pt-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth} ${PUBLISH_WIZARD_FOOTER_PAD}`}
-    >
+    <div className={`mx-auto px-3 py-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth}`}>
       {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
@@ -3805,7 +3800,6 @@ export function PublishWizardPage() {
               onSaveDraft={() => void submitServerDraft()}
               onPublish={() => void submitPublish()}
               draftSaved={wizardDraftSaveNote === "saved"}
-              stickyFooterActions
               showStepBack={step > 0}
               onStepBack={goWizardStepBack}
             />
@@ -3823,10 +3817,7 @@ export function PublishWizardPage() {
         ) : null}
 
         {!isPublishStep ? (
-          <PublishWizardActionBar
-            maxWidthClass={wizardShellMaxWidth}
-            className={step > 0 ? "sm:justify-between" : "sm:justify-end"}
-          >
+          <PublishWizardActionBar className={step > 0 ? "sm:justify-between" : "sm:justify-end"}>
             {step > 0 ? (
               <button
                 type="button"

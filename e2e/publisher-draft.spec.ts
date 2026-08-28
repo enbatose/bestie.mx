@@ -36,28 +36,28 @@ test.describe("Publisher draft (never published)", () => {
     await expect(page.getByText(/tipo de espacio|recámara|propiedad|Continuar|Siguiente/i).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeVisible();
   });
 
-  test("manual room wizard keeps navigation in viewport after switching from AI", async ({ page }) => {
+  test("manual room wizard keeps navigation visible after switching from AI", async ({ page }) => {
     await page.goto("/publicar");
     await page.getByRole("button", { name: "Un cuarto o Loft" }).click();
     await page.getByRole("button", { name: "Siguiente" }).click();
-    await expect(page.getByRole("button", { name: "Continuar" })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Continuar" })).toBeVisible();
     await page.getByRole("button", { name: /Prefiero llenar los datos a mano/i }).click();
     await expect(page.getByRole("heading", { name: /Dónde se ubica/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeVisible();
   });
 
-  test("manual property wizard keeps navigation in viewport", async ({ page, browserName }) => {
+  test("manual property wizard keeps navigation visible", async ({ page, browserName }) => {
     test.skip(browserName !== "chromium", "Desktop viewport check");
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto("/publicar");
     await page.getByRole("button", { name: /Propiedad con múltiples cuartos/i }).click();
-    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeVisible();
     await page.getByRole("button", { name: "Siguiente" }).click();
     await page.getByRole("button", { name: /Prefiero llenar los datos a mano/i }).click();
     await expect(page.getByRole("heading", { name: /Dónde se ubica/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeVisible();
   });
 });
