@@ -3,7 +3,6 @@ import { Bath, Camera, CarFront } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { RoomOnOffToggle } from "@/components/myListings/listingCardChrome";
-import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import {
   ListingPropertySummaryGrid,
@@ -34,7 +33,8 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { formatMxPhoneDisplay, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import {
   roomDimensionWizardLabel,
 } from "@/lib/listingKeyLabels";
@@ -1090,36 +1090,81 @@ export function EditableListingPreview({
             ) : null}
             <div className="relative mt-3 min-w-0 max-w-full">
               {editingPhone ? (
-                <div className="min-w-0 max-w-full space-y-3 rounded-xl border border-primary/25 bg-surface p-3 ring-1 ring-primary/10 sm:p-3.5">
+                <div className="min-w-0 max-w-full space-y-2.5 rounded-xl bg-surface p-3 ring-1 ring-primary/30">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Teléfono / móvil
                   </p>
-                  <ListingPhoneCaptureFields
-                    contactWhatsApp={phoneDraft.contactWhatsApp}
-                    showWhatsApp={phoneDraft.showWhatsApp}
-                    onContactChange={(national) =>
-                      setPhoneDraft((p) => ({ ...p, contactWhatsApp: national }))
-                    }
-                    onShowChange={(show) => setPhoneDraft((p) => ({ ...p, showWhatsApp: show }))}
-                    profilePhoneE164={profilePhoneE164}
-                    saveToProfile={savePhoneToProfile}
-                    onSaveToProfileChange={onSavePhoneToProfileChange ?? (() => {})}
-                    allowSaveToProfile={canSavePhoneToProfile}
-                    bare
-                    showPhoneLabel={false}
+                  {/* phone input — no label, no whatsapp hint; title above is enough */}
+                  <PhoneNumberField
+                    id="preview-contact-phone"
+                    value={normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10)}
+                    onChange={(national) => {
+                      const hadDigits = Boolean(phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10)));
+                      const nextDigits = phoneDigitsForStorage(normalizeMxNationalDigits(national) ?? national.replace(/\D/g, "").slice(0, 10));
+                      setPhoneDraft((p) => ({
+                        ...p,
+                        contactWhatsApp: national,
+                        showWhatsApp: nextDigits && !hadDigits ? true : p.showWhatsApp,
+                      }));
+                    }}
+                    showLabel={false}
+                    showWhatsAppHint={false}
+                    className="min-w-0"
                   />
-                  <div className="flex flex-col gap-2 border-t border-border/70 pt-3">
+                  {/* show-in-post toggle */}
+                  <label className="grid cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-center gap-x-3 py-0.5 text-sm text-body">
+                    <input
+                      type="checkbox"
+                      className="size-[1.125rem] rounded border-border accent-primary"
+                      checked={phoneDraft.showWhatsApp}
+                      disabled={!phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10))}
+                      onChange={(e) => setPhoneDraft((p) => ({ ...p, showWhatsApp: e.target.checked }))}
+                    />
+                    <span className="min-w-0 break-words leading-snug">Mostrar en la publicación</span>
+                  </label>
+                  {/* save-to-profile — only when there is no profile phone */}
+                  {canSavePhoneToProfile && phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? "") && !profilePhoneE164 ? (
+                    <label className="grid cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-center gap-x-3 py-0.5 text-sm text-body">
+                      <input
+                        type="checkbox"
+                        className="size-[1.125rem] rounded border-border accent-primary"
+                        checked={savePhoneToProfile}
+                        onChange={(e) => onSavePhoneToProfileChange?.(e.target.checked)}
+                      />
+                      <span className="min-w-0 break-words leading-snug">Guardar como teléfono de perfil</span>
+                    </label>
+                  ) : null}
+                  {/* replace-profile — only when post number differs */}
+                  {canSavePhoneToProfile && phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? "") && profilePhoneE164 &&
+                    phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? "") !== phoneDigitsForStorage(profilePhoneE164) ? (
+                    <label className="grid cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-start gap-x-3 py-0.5 text-sm text-body">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 size-[1.125rem] rounded border-border accent-primary"
+                        checked={savePhoneToProfile}
+                        onChange={(e) => onSavePhoneToProfileChange?.(e.target.checked)}
+                      />
+                      <span className="min-w-0 break-words leading-snug">
+                        Reemplazar teléfono de perfil
+                        <span className="mt-0.5 block text-xs text-muted">
+                          Actual: {formatMxPhoneDisplay(profilePhoneE164)}
+                        </span>
+                      </span>
+                    </label>
+                  ) : null}
+                  {/* actions */}
+                  <div className="flex gap-2 pt-1">
                     <button
                       type="button"
                       onClick={savePhone}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
                     >
                       Listo
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingPhone(false)}
-                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body"
+                      className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body"
                     >
                       Cancelar
                     </button>
@@ -1141,19 +1186,14 @@ export function EditableListingPreview({
                       Teléfono / móvil
                     </p>
                     {phoneDigitsForStorage(draft.contactWhatsApp) && draft.showWhatsApp ? (
-                      <p className="mt-0.5 break-words font-mono text-base tabular-nums text-body sm:text-sm">
+                      <p className="mt-0.5 break-all font-mono text-base tabular-nums text-body sm:text-sm">
                         {formatMxPhoneDisplay(draft.contactWhatsApp)}
                       </p>
                     ) : phoneDigitsForStorage(draft.contactWhatsApp) && !draft.showWhatsApp ? (
-                      <>
-                        <p className="mt-0.5 text-sm text-muted sm:hidden">Guardado · oculto en el anuncio</p>
-                        <p className="mt-0.5 hidden break-words text-sm text-muted sm:block">
-                          Guardado · oculto en el anuncio ({formatMxPhoneDisplay(draft.contactWhatsApp)})
-                        </p>
-                        <p className="mt-0.5 font-mono text-base tabular-nums text-body sm:hidden">
-                          {formatMxPhoneDisplay(draft.contactWhatsApp)}
-                        </p>
-                      </>
+                      <p className="mt-0.5 text-sm text-muted">
+                        Guardado · oculto
+                        <span className="hidden sm:inline"> ({formatMxPhoneDisplay(draft.contactWhatsApp)})</span>
+                      </p>
                     ) : (
                       <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>
                     )}
