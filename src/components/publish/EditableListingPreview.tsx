@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bath, Camera, CarFront, Pencil } from "lucide-react";
+import { Bath, Camera, CarFront } from "lucide-react";
 import { HighHeelIcon, MustacheIcon, GenderMixedIcon, quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { RoomOnOffToggle } from "@/components/myListings/listingCardChrome";
@@ -22,6 +22,7 @@ import {
   cloneRoomDraft,
   createPreviewDefaultRoom,
   InlineFieldEditor,
+  PreviewPencilEditButton,
   PreviewSection,
   ROOM_PLAZAS_MAX,
   ROOM_STAY_MAX,
@@ -159,6 +160,9 @@ type Props = {
   onPhotoPickerOpen?: () => void;
   /** Show unselected tags dimmed so the user can see what the AI skipped (AI draft + preview only). */
   isAssistedDraft?: boolean;
+  /** Persist listing phone to profile on publish/save (review step + live edit). */
+  savePhoneToProfile?: boolean;
+  onSavePhoneToProfileChange?: (next: boolean) => void;
 };
 
 function propertyRentRangeLabel(rooms: readonly RoomDraft[]): string | null {
@@ -231,9 +235,17 @@ function RoomPreviewCard({
   const tooltipClass =
     "pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface px-2 py-1 text-[11px] font-medium text-body shadow-md group-hover/icon:block";
 
+  const editAriaLabel =
+    issues.length || rentMissing ? `Completar ${fallbackTitle}` : `Editar ${fallbackTitle}`;
+
   return (
-    <article className="rounded-xl border border-border bg-bg-light p-4">
-      <div className="flex gap-3">
+    <article className="relative rounded-xl border border-border bg-bg-light p-4">
+      <PreviewPencilEditButton
+        onClick={onEdit}
+        ariaLabel={editAriaLabel}
+        className="absolute right-3 top-3 z-10"
+      />
+      <div className="flex gap-3 pr-10">
         <div className="min-w-0 flex-1">
           {/* Room name + occupancy — stacked so the toggle stays tappable on phones */}
           <div className="flex flex-col gap-2">
@@ -310,13 +322,6 @@ function RoomPreviewCard({
           {issues.length ? (
             <p className="mt-2 text-xs font-semibold text-warning-fg">Incompleta</p>
           ) : null}
-          <button
-            type="button"
-            onClick={onEdit}
-            className="mt-4 inline-flex w-full min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg shadow-sm transition hover:brightness-95 sm:w-auto"
-          >
-            {issues.length || rentMissing ? "Completar" : "Editar esta recámara"}
-          </button>
         </div>
 
         {/* Cover photo — self-start prevents flex-stretch distortion; portrait ratio */}
@@ -395,6 +400,8 @@ export function EditableListingPreview({
   onEditingPhotosChange,
   onPhotoPickerOpen,
   isAssistedDraft: _isAssistedDraft = false,
+  savePhoneToProfile = false,
+  onSavePhoneToProfileChange,
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
@@ -422,6 +429,7 @@ export function EditableListingPreview({
   const headerUsesPropertyFields = isPropertyPreview || isPropertyScope;
 
   const [editingHeader, setEditingHeader] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
   const [editingPhotos, setEditingPhotos] = useState(initialEditingPhotos && !isPropertyPreview && !isRoomOfProperty);
   const [editingRoomDetails, setEditingRoomDetails] = useState(false);
   const [editingPropertyFacts, setEditingPropertyFacts] = useState(false);
@@ -440,11 +448,13 @@ export function EditableListingPreview({
   const [headerDraft, setHeaderDraft] = useState({
     neighborhood: draft.neighborhood,
     propertyTitle: draft.propertyTitle,
-    contactWhatsApp: draft.contactWhatsApp,
-    showWhatsApp: draft.showWhatsApp,
     rentMxn: room?.rentMxn ?? 0,
     depositMxn: room?.depositMxn ?? 0,
     city: draft.city,
+  });
+  const [phoneDraft, setPhoneDraft] = useState({
+    contactWhatsApp: draft.contactWhatsApp,
+    showWhatsApp: draft.showWhatsApp,
   });
   const [propertySummaryDraft, setPropertySummaryDraft] = useState(draft.propertySummary);
   const [roomSummaryDraft, setRoomSummaryDraft] = useState(room?.summary ?? "");
@@ -473,8 +483,6 @@ export function EditableListingPreview({
         setHeaderDraft({
           neighborhood: draft.neighborhood,
           propertyTitle: draft.propertyTitle,
-          contactWhatsApp: draft.contactWhatsApp,
-          showWhatsApp: draft.showWhatsApp,
           rentMxn: targetRoom.rentMxn,
           depositMxn: targetRoom.depositMxn,
           city: draft.city,
@@ -577,13 +585,28 @@ export function EditableListingPreview({
     setHeaderDraft({
       neighborhood: draft.neighborhood,
       propertyTitle: draft.propertyTitle,
-      contactWhatsApp: draft.contactWhatsApp,
-      showWhatsApp: draft.showWhatsApp,
       rentMxn: room.rentMxn,
       depositMxn: room.depositMxn,
       city: draft.city,
     });
     setEditingHeader(true);
+  };
+
+  const openPhoneEdit = () => {
+    setPhoneDraft({
+      contactWhatsApp: draft.contactWhatsApp,
+      showWhatsApp: draft.showWhatsApp,
+    });
+    setEditingPhone(true);
+  };
+
+  const savePhone = () => {
+    onDraftChange((d) => ({
+      ...d,
+      contactWhatsApp: phoneDraft.contactWhatsApp,
+      showWhatsApp: phoneDraft.showWhatsApp,
+    }));
+    setEditingPhone(false);
   };
 
   const saveHeader = () => {
@@ -593,8 +616,6 @@ export function EditableListingPreview({
         ...d,
         neighborhood: headerDraft.neighborhood,
         propertyTitle: nextPropertyTitle,
-        contactWhatsApp: headerDraft.contactWhatsApp,
-        showWhatsApp: headerDraft.showWhatsApp,
         city: headerDraft.city,
       }));
       setEditingHeader(false);
@@ -605,8 +626,6 @@ export function EditableListingPreview({
       // Single-room posts use Datos Generales → Título del anuncio (propertyTitle).
       propertyTitle: d.postMode === "room" ? nextPropertyTitle : d.propertyTitle,
       city: isRoomOfProperty ? d.city : headerDraft.city,
-      contactWhatsApp: isRoomOfProperty ? d.contactWhatsApp : headerDraft.contactWhatsApp,
-      showWhatsApp: isRoomOfProperty ? d.showWhatsApp : headerDraft.showWhatsApp,
       // The colonia belongs to the property, so a room-scoped edit leaves it untouched.
       neighborhood: isRoomOfProperty ? d.neighborhood : headerDraft.neighborhood,
       rooms: d.rooms.map((r, i) =>
@@ -753,8 +772,7 @@ export function EditableListingPreview({
   const propertyPriceLabel = isPropertyPreview ? propertyRentRangeLabel(draft.rooms) : null;
   const firstAvailableRoom =
     draft.rooms.find((r) => isRoomAvailableForRent(r)) ?? room;
-  const previewHeaderPhoneHidden =
-    !phoneDigitsForStorage(headerDraft.contactWhatsApp) || !headerDraft.showWhatsApp;
+  const canSavePhoneToProfile = Boolean(onSavePhoneToProfileChange);
 
   const openRoomModal = (index: number) => {
     onRoomIndexChange?.(index);
@@ -891,14 +909,7 @@ export function EditableListingPreview({
               : "Vista previa · Borrador"}
           </span>
           {!editingHeader ? (
-            <button
-              type="button"
-              onClick={openHeaderEdit}
-              className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-xs font-semibold text-primary hover:underline"
-            >
-              <Pencil className="size-3.5" aria-hidden />
-              Editar encabezado
-            </button>
+            <PreviewPencilEditButton onClick={openHeaderEdit} ariaLabel="Editar encabezado" />
           ) : null}
         </div>
 
@@ -984,29 +995,6 @@ export function EditableListingPreview({
                   ))}
                 </select>
               </label>
-              <div className="mt-3">
-                <ListingPhoneCaptureFields
-                  contactWhatsApp={headerDraft.contactWhatsApp}
-                  showWhatsApp={headerDraft.showWhatsApp}
-                  onContactChange={(national) =>
-                    setHeaderDraft((h) => ({ ...h, contactWhatsApp: national }))
-                  }
-                  onShowChange={(show) =>
-                    setHeaderDraft((h) => ({ ...h, showWhatsApp: show }))
-                  }
-                  profilePhoneE164={profilePhoneE164}
-                  saveToProfile={false}
-                  onSaveToProfileChange={() => {}}
-                  allowSaveToProfile={false}
-                  showPublisherSafety={false}
-                  embedded
-                />
-                {previewHeaderPhoneHidden ? (
-                  <p className="mt-2 text-xs leading-snug text-muted">
-                    Si no agregas un teléfono visible, el anuncio se mantiene oculto por teléfono hasta que decidas mostrarlo.
-                  </p>
-                ) : null}
-              </div>
               </>
             ) : null}
             {!headerUsesPropertyFields ? (
@@ -1100,38 +1088,64 @@ export function EditableListingPreview({
             {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
-            <div className="mt-3 rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    Teléfono / móvil
-                  </p>
-                  {phoneDigitsForStorage(draft.contactWhatsApp) && draft.showWhatsApp ? (
-                    <p className="mt-0.5 break-words font-mono text-base tabular-nums text-body sm:text-sm">
-                      {formatMxPhoneDisplay(draft.contactWhatsApp)}
+            <div className="relative mt-3 rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
+              {editingPhone ? (
+                <InlineFieldEditor
+                  label="Teléfono / móvil"
+                  onSave={savePhone}
+                  onCancel={() => setEditingPhone(false)}
+                  saveLabel="Listo"
+                >
+                  <ListingPhoneCaptureFields
+                    contactWhatsApp={phoneDraft.contactWhatsApp}
+                    showWhatsApp={phoneDraft.showWhatsApp}
+                    onContactChange={(national) =>
+                      setPhoneDraft((p) => ({ ...p, contactWhatsApp: national }))
+                    }
+                    onShowChange={(show) => setPhoneDraft((p) => ({ ...p, showWhatsApp: show }))}
+                    profilePhoneE164={profilePhoneE164}
+                    saveToProfile={savePhoneToProfile}
+                    onSaveToProfileChange={onSavePhoneToProfileChange ?? (() => {})}
+                    allowSaveToProfile={canSavePhoneToProfile}
+                    embedded
+                    audienceNote="publisher"
+                  />
+                </InlineFieldEditor>
+              ) : (
+                <>
+                  <PreviewPencilEditButton
+                    onClick={openPhoneEdit}
+                    ariaLabel={
+                      phoneDigitsForStorage(draft.contactWhatsApp)
+                        ? "Editar teléfono"
+                        : "Agregar teléfono"
+                    }
+                    className="absolute right-2 top-2 z-10 sm:right-2.5 sm:top-2.5"
+                  />
+                  <div className="min-w-0 pr-10">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                      Teléfono / móvil
                     </p>
-                  ) : phoneDigitsForStorage(draft.contactWhatsApp) && !draft.showWhatsApp ? (
-                    <>
-                      <p className="mt-0.5 text-sm text-muted sm:hidden">Guardado · oculto en el anuncio</p>
-                      <p className="mt-0.5 hidden break-words text-sm text-muted sm:block">
-                        Guardado · oculto en el anuncio ({formatMxPhoneDisplay(draft.contactWhatsApp)})
-                      </p>
-                      <p className="mt-0.5 font-mono text-base tabular-nums text-body sm:hidden">
+                    {phoneDigitsForStorage(draft.contactWhatsApp) && draft.showWhatsApp ? (
+                      <p className="mt-0.5 break-words font-mono text-base tabular-nums text-body sm:text-sm">
                         {formatMxPhoneDisplay(draft.contactWhatsApp)}
                       </p>
-                    </>
-                  ) : (
-                    <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={openHeaderEdit}
-                  className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-border bg-bg-light px-3 text-xs font-semibold text-primary transition hover:bg-surface-elevated sm:w-auto sm:border-0 sm:bg-transparent sm:px-2 sm:hover:underline"
-                >
-                  {phoneDigitsForStorage(draft.contactWhatsApp) ? "Editar" : "Agregar"}
-                </button>
-              </div>
+                    ) : phoneDigitsForStorage(draft.contactWhatsApp) && !draft.showWhatsApp ? (
+                      <>
+                        <p className="mt-0.5 text-sm text-muted sm:hidden">Guardado · oculto en el anuncio</p>
+                        <p className="mt-0.5 hidden break-words text-sm text-muted sm:block">
+                          Guardado · oculto en el anuncio ({formatMxPhoneDisplay(draft.contactWhatsApp)})
+                        </p>
+                        <p className="mt-0.5 font-mono text-base tabular-nums text-body sm:hidden">
+                          {formatMxPhoneDisplay(draft.contactWhatsApp)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}
@@ -1248,7 +1262,9 @@ export function EditableListingPreview({
         ) : galleryUrls.length ? (
           <ListingPhotoGallery urls={galleryUrls} />
         ) : (
-          <p className="text-sm text-muted">Aún no hay fotos. Usa Editar fotos para agregarlas.</p>
+          <p className="text-sm text-muted">
+            Aún no hay fotos. Usa el ícono de lápiz en Fotos para agregarlas.
+          </p>
         )}
       </PreviewSection>
 

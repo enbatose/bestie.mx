@@ -58,6 +58,8 @@ type Props = {
   isAssistedDraft?: boolean;
   /** Self-serve AI flow (not an admin outreach claim link). */
   isSelfServeAssistedDraft?: boolean;
+  savePhoneToProfile?: boolean;
+  onSavePhoneToProfileChange?: (next: boolean) => void;
   fieldConflicts?: Array<{ field: string; message: string }>;
   /** Pin Publicar / borrador actions in the shared fixed wizard footer (first-time publish only). */
   stickyFooterActions?: boolean;
@@ -85,6 +87,8 @@ export function PublishWizardReviewStep({
   onPhotoPickerOpen,
   isAssistedDraft = false,
   isSelfServeAssistedDraft = false,
+  savePhoneToProfile = false,
+  onSavePhoneToProfileChange,
   fieldConflicts = [],
   stickyFooterActions = false,
   onStepBack,
@@ -172,25 +176,23 @@ export function PublishWizardReviewStep({
       </>
     ) : isRoomOfProperty ? (
       <>
-        Solo estás cambiando esta recámara. Toca{" "}
-        <strong className="font-medium text-body">Editar</strong> en cada bloque para fotos, precio, descripción y
+        Solo estás cambiando esta recámara. Usa el ícono de lápiz en cada bloque para fotos, precio, descripción y
         más.
       </>
     ) : isLiveEdit ? (
       <>
-        Tu anuncio se ve como en la página publicada. Toca{" "}
-        <strong className="font-medium text-body">Editar</strong> en cada bloque para cambiar fotos, precio,
+        Tu anuncio se ve como en la página publicada. Usa el ícono de lápiz en cada bloque para cambiar fotos, precio,
         descripción y más.
       </>
     ) : isPropertyPreview ? (
       <>
-        Así se verá tu propiedad publicada. Toca <strong className="font-medium text-body">Editar</strong> en cada
-        sección. Usa <strong className="font-medium text-body">Editar esta recámara</strong> para ajustar cada cuarto.
+        Así se verá tu propiedad publicada. Usa el ícono de lápiz en cada sección y en cada recámara para ajustar el
+        contenido.
       </>
     ) : (
       <>
-        Así se verá tu anuncio publicado. Toca <strong className="font-medium text-body">Editar</strong> en cada
-        bloque para ajustar el contenido aquí mismo, sin salir de este paso.
+        Así se verá tu anuncio publicado. Usa el ícono de lápiz en cada bloque para ajustar el contenido aquí mismo,
+        sin salir de este paso.
       </>
     );
 
@@ -386,6 +388,8 @@ export function PublishWizardReviewStep({
         onEditingPhotosChange={onEditingPhotosChange}
         onPhotoPickerOpen={onPhotoPickerOpen}
         isAssistedDraft={isAssistedDraft && !isLiveEdit}
+        savePhoneToProfile={savePhoneToProfile}
+        onSavePhoneToProfileChange={onSavePhoneToProfileChange}
       />
 
       {isRoomOfProperty ? null : (

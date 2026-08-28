@@ -12,6 +12,7 @@ import { useDebouncedCommit } from "@/components/publish/useDebouncedCommit";
 import {
   cloneRoomDraft,
   InlineFieldEditor,
+  PreviewPencilEditButton,
   PreviewSection,
   ROOM_OCCUPANT_MAX,
   ROOM_PLAZAS_MAX,
@@ -453,13 +454,7 @@ export function EditableRoomModal({
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">{roomLabel}</p>
                 {!editingHeader && available ? (
-                  <button
-                    type="button"
-                    onClick={openHeaderEdit}
-                    className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                  >
-                    Editar encabezado
-                  </button>
+                  <PreviewPencilEditButton onClick={openHeaderEdit} ariaLabel="Editar encabezado" />
                 ) : null}
               </div>
 
@@ -615,7 +610,9 @@ export function EditableRoomModal({
                   ) : galleryUrls.length ? (
                     <ListingPhotoGallery urls={galleryUrls} />
                   ) : (
-                    <p className="text-sm text-muted">Aún no hay fotos. Usa Editar fotos para agregarlas.</p>
+                    <p className="text-sm text-muted">
+                      Aún no hay fotos. Usa el ícono de lápiz en Fotos para agregarlas.
+                    </p>
                   )}
                 </PreviewSection>
 

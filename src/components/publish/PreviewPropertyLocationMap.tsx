@@ -302,10 +302,10 @@ export function PreviewPropertyLocationMap({
             <button
               type="button"
               onClick={() => beginLocationEdit({ privacy: false })}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-xs font-semibold text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+              className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-surface/95 text-body shadow-sm backdrop-blur-sm transition hover:bg-surface-elevated"
+              aria-label="Editar ubicación"
             >
               <Pencil className="size-3.5" aria-hidden />
-              Editar ubicación
             </button>
           )}
         </div>

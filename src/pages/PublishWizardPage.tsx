@@ -3591,6 +3591,8 @@ export function PublishWizardPage() {
             }}
             apiOn={apiOn}
             profilePhoneE164={me?.phoneE164}
+            savePhoneToProfile={savePhoneToProfile}
+            onSavePhoneToProfileChange={setSavePhoneToProfile}
             publishBlockedReason={publishBlockedReason}
             actionErr={publishErr}
             submitInFlight={submitInFlight}
@@ -3795,6 +3797,8 @@ export function PublishWizardPage() {
             }}
               apiOn={apiOn}
               profilePhoneE164={me?.phoneE164}
+              savePhoneToProfile={savePhoneToProfile}
+              onSavePhoneToProfileChange={setSavePhoneToProfile}
               publishBlockedReason={publishBlockedReason}
               actionErr={publishErr}
               submitInFlight={submitInFlight}

@@ -9,6 +9,28 @@ export const ROOM_PLAZAS_MAX = 12;
 export const ROOM_STAY_MAX = 36;
 export const ROOM_OCCUPANT_MAX = 12;
 
+/** Icon-only pencil for editable preview blocks (wizard, AI, live edit). */
+export function PreviewPencilEditButton({
+  onClick,
+  ariaLabel,
+  className = "",
+}: {
+  onClick: () => void;
+  ariaLabel: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={`inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/5 text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${className}`.trim()}
+    >
+      <Pencil className="size-3.5" aria-hidden />
+    </button>
+  );
+}
+
 export function PreviewSection({
   title,
   subtitle,
@@ -33,16 +55,7 @@ export function PreviewSection({
       title={title}
       subtitle={subtitle}
       action={
-        onEdit ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-surface-elevated"
-          >
-            <Pencil className="size-3.5" aria-hidden />
-            {editLabel}
-          </button>
-        ) : undefined
+        onEdit ? <PreviewPencilEditButton onClick={onEdit} ariaLabel={editLabel} /> : undefined
       }
     >
       {children}
