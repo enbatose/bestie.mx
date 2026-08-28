@@ -36,5 +36,6 @@ test.describe("Publisher draft (never published)", () => {
     await expect(page.getByText(/tipo de espacio|recámara|propiedad|Continuar|Siguiente/i).first()).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
   });
 });

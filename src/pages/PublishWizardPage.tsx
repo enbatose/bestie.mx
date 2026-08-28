@@ -3612,7 +3612,11 @@ export function PublishWizardPage() {
 
   const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
   return (
-    <div className={`mx-auto px-3 py-4 sm:px-6 sm:py-10 ${isPublishStep ? "max-w-3xl" : "max-w-2xl"}`}>
+    <div
+      className={`mx-auto px-3 pt-4 sm:px-6 sm:py-10 ${
+        isPublishStep ? "max-w-3xl pb-4" : "max-w-2xl pb-24 sm:pb-10"
+      }`}
+    >
       {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
@@ -3795,7 +3799,7 @@ export function PublishWizardPage() {
           className={`${
             isPublishStep
               ? "mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center"
-              : "sticky bottom-0 z-[1100] -mx-4 mt-8 flex flex-col-reverse gap-3 border-t border-border bg-surface/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:mx-0 sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+              : "fixed inset-x-0 bottom-0 z-[1100] flex flex-col-reverse gap-3 border-t border-border bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:static sm:z-auto sm:mt-8 sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"
           } ${step > 0 ? "sm:justify-between" : "sm:justify-end"}`}
         >
           {step > 0 ? (
