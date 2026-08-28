@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Mobile layout — no horizontal overflow
 
+Full playbook (load when changing UI): `.cursor/skills/bestie-ui-layout/SKILL.md`.
+
 Bestie is used on 360px phones (Galaxy S8 / iPhone SE), not only 390–430px. A layout that looks centered on an S20 Ultra (412px) can still clip on an S8+ (360px). **Design and verify at 360px first.**
 
 ## The bug that keeps coming back
