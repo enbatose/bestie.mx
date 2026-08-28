@@ -22,8 +22,6 @@ type Props = {
   /** No outer border/padding — use inside an editable preview shell that already has chrome. */
   bare?: boolean;
   disabled?: boolean;
-  /** Seekers vs publishers privacy note. */
-  audienceNote?: "publisher" | "seeker" | "both";
 };
 
 const PUBLISHER_SAFETY_MOBILE = [
@@ -53,7 +51,6 @@ export function ListingPhoneCaptureFields({
   embedded = false,
   bare = false,
   disabled,
-  audienceNote = "publisher",
 }: Props) {
   const national =
     normalizeMxNationalDigits(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "").slice(0, 10);
@@ -62,6 +59,18 @@ export function ListingPhoneCaptureFields({
   const profileDigits = profilePhoneE164 ? phoneDigitsForStorage(profilePhoneE164) : null;
   const differsFromProfile = Boolean(postDigits && profileDigits && postDigits !== profileDigits);
   const noProfilePhone = !profileDigits;
+
+  const handleContactChange = (nextNational: string) => {
+    const hadDigits = Boolean(postDigits);
+    onContactChange(nextNational);
+    const nextDigits = phoneDigitsForStorage(
+      normalizeMxNationalDigits(nextNational) ??
+        nextNational.replace(/\D/g, "").slice(0, 10),
+    );
+    if (nextDigits && !hadDigits) {
+      onShowChange(true);
+    }
+  };
 
   return (
     <div
@@ -76,18 +85,11 @@ export function ListingPhoneCaptureFields({
       <PhoneNumberField
         id="listing-contact-phone"
         value={national}
-        onChange={onContactChange}
+        onChange={handleContactChange}
         disabled={disabled}
         optional
         className="min-w-0"
       />
-
-      {audienceNote === "publisher" || audienceNote === "both" ? (
-        <p className="text-xs leading-snug text-muted break-words">
-          En el anuncio solo se muestra si activas la opción de abajo. Quienes buscan roomie no ven tu
-          número en el perfil.
-        </p>
-      ) : null}
 
       <label className="flex min-w-0 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
         <input
@@ -99,13 +101,10 @@ export function ListingPhoneCaptureFields({
         />
         <span className="min-w-0 flex-1 break-words leading-snug">
           Mostrar este teléfono en la publicación
-          <span className="mt-0.5 block text-xs text-muted break-words">
-            Si lo ocultas, no aparece en el anuncio ni viaja en el HTML público (evita scrapers).
-          </span>
         </span>
       </label>
 
-      {allowSaveToProfile && postDigits && (noProfilePhone || differsFromProfile) ? (
+      {allowSaveToProfile && postDigits && noProfilePhone ? (
         <label className="flex min-w-0 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
           <input
             type="checkbox"
@@ -115,10 +114,23 @@ export function ListingPhoneCaptureFields({
             onChange={(e) => onSaveToProfileChange(e.target.checked)}
           />
           <span className="min-w-0 flex-1 break-words leading-snug">
-            {noProfilePhone
-              ? "Guardar también como teléfono de mi perfil"
-              : "Reemplazar el teléfono de mi perfil con este número"}
-            {profileNational && differsFromProfile ? (
+            Guardar también como teléfono de mi perfil
+          </span>
+        </label>
+      ) : null}
+
+      {allowSaveToProfile && postDigits && differsFromProfile ? (
+        <label className="flex min-w-0 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
+          <input
+            type="checkbox"
+            className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
+            checked={saveToProfile}
+            disabled={disabled}
+            onChange={(e) => onSaveToProfileChange(e.target.checked)}
+          />
+          <span className="min-w-0 flex-1 break-words leading-snug">
+            Reemplazar el teléfono de mi perfil con este número
+            {profileNational ? (
               <span className="mt-0.5 block break-all text-xs text-muted sm:break-normal">
                 Perfil actual: +52 {profileNational.slice(0, 2)} {profileNational.slice(2, 6)}{" "}
                 {profileNational.slice(6)}

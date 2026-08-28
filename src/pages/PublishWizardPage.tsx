@@ -2352,7 +2352,6 @@ export function PublishWizardPage() {
                 saveToProfile={savePhoneToProfile}
                 onSaveToProfileChange={setSavePhoneToProfile}
                 embedded
-                audienceNote="publisher"
               />
               <label className="block text-sm font-medium text-body">
                 Colonia o zona

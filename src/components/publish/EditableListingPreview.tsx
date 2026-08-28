@@ -1108,7 +1108,6 @@ export function EditableListingPreview({
                     onSaveToProfileChange={onSavePhoneToProfileChange ?? (() => {})}
                     allowSaveToProfile={canSavePhoneToProfile}
                     bare
-                    audienceNote="publisher"
                   />
                 </InlineFieldEditor>
               ) : (

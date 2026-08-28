@@ -481,7 +481,6 @@ export function AdminAssistedDraftPanel() {
               allowSaveToProfile={false}
               showPublisherSafety={false}
               embedded
-              audienceNote="publisher"
             />
           </div>
 
