@@ -59,8 +59,8 @@ export function PhoneNumberField({
   const preview = complete ? formatMxPhoneDisplay(`${MX_COUNTRY_CODE}${national}`) : null;
 
   return (
-    <div className={className}>
-      <label htmlFor={id} className="block text-sm font-medium text-body">
+    <div className={`min-w-0 max-w-full ${className}`.trim()}>
+      <label htmlFor={id} className="block text-sm font-medium text-body break-words">
         {label}
         {optional ? (
           <span className="ml-1 font-normal text-muted">(opcional)</span>
@@ -69,9 +69,9 @@ export function PhoneNumberField({
         )}
       </label>
       {showWhatsAppHint ? (
-        <p className="mt-1 flex items-start gap-1.5 text-xs leading-snug text-muted">
+        <p className="mt-1 flex min-w-0 items-start gap-1.5 text-xs leading-snug text-muted">
           <WhatsAppLogo className="mt-0.5 size-3.5 shrink-0 text-[#25D366]" />
-          <span>Idealmente el número que usas en WhatsApp.</span>
+          <span className="min-w-0 break-words">Idealmente el número que usas en WhatsApp.</span>
         </p>
       ) : null}
       <div className="mt-2 flex min-w-0 items-stretch gap-2">

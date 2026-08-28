@@ -77,21 +77,21 @@ export function InlineFieldEditor({
   saveLabel?: string;
 }) {
   return (
-    <div className="space-y-3">
-      <p className="text-xs font-medium text-muted">{label}</p>
-      {children}
+    <div className="min-w-0 max-w-full space-y-3">
+      <p className="text-xs font-medium text-muted break-words">{label}</p>
+      <div className="min-w-0 max-w-full">{children}</div>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={onSave}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg sm:w-auto"
         >
           {saveLabel}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body sm:w-auto"
         >
           Cancelar
         </button>

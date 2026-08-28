@@ -885,10 +885,10 @@ export function EditableListingPreview({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header
         id={PUBLISH_PREVIEW_HEADER_ID}
-        className={`scroll-mt-24 rounded-2xl border border-dashed p-5 ${
+        className={`min-w-0 max-w-full overflow-hidden scroll-mt-24 rounded-2xl border border-dashed p-4 sm:p-5 ${
           rentMissing || propertyRentMissing ? "border-error/60 bg-error/5" : "border-secondary/50 bg-secondary/5"
         }`}
       >
@@ -1088,7 +1088,7 @@ export function EditableListingPreview({
             {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
-            <div className="relative mt-3 rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
+            <div className="relative mt-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
               {editingPhone ? (
                 <InlineFieldEditor
                   label="Teléfono / móvil"
@@ -1107,7 +1107,7 @@ export function EditableListingPreview({
                     saveToProfile={savePhoneToProfile}
                     onSaveToProfileChange={onSavePhoneToProfileChange ?? (() => {})}
                     allowSaveToProfile={canSavePhoneToProfile}
-                    embedded
+                    bare
                     audienceNote="publisher"
                   />
                 </InlineFieldEditor>
