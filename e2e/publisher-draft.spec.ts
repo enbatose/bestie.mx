@@ -38,4 +38,26 @@ test.describe("Publisher draft (never published)", () => {
     });
     await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
   });
+
+  test("manual room wizard keeps navigation in viewport after switching from AI", async ({ page }) => {
+    await page.goto("/publicar");
+    await page.getByRole("button", { name: "Un cuarto o Loft" }).click();
+    await page.getByRole("button", { name: "Siguiente" }).click();
+    await expect(page.getByRole("button", { name: "Continuar" })).toBeInViewport();
+    await page.getByRole("button", { name: /Prefiero llenar los datos a mano/i }).click();
+    await expect(page.getByRole("heading", { name: /Dónde se ubica/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+  });
+
+  test("manual property wizard keeps navigation in viewport", async ({ page, browserName }) => {
+    test.skip(browserName !== "chromium", "Desktop viewport check");
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/publicar");
+    await page.getByRole("button", { name: /Propiedad con múltiples cuartos/i }).click();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+    await page.getByRole("button", { name: "Siguiente" }).click();
+    await page.getByRole("button", { name: /Prefiero llenar los datos a mano/i }).click();
+    await expect(page.getByRole("heading", { name: /Dónde se ubica/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeInViewport();
+  });
 });

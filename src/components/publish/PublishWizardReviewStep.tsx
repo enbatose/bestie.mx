@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, ChevronRight, Wand2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { PublishWizardActionBar } from "@/components/publish/PublishWizardActionBar";
 import { listingPublicPath } from "@/lib/listingReference";
 import { isListingRentMissing } from "@/lib/listingTags";
 import { isRoomAvailableForRent } from "@/lib/roomDisplay";
@@ -57,6 +59,10 @@ type Props = {
   /** Self-serve AI flow (not an admin outreach claim link). */
   isSelfServeAssistedDraft?: boolean;
   fieldConflicts?: Array<{ field: string; message: string }>;
+  /** Pin Publicar / borrador actions in the shared fixed wizard footer (first-time publish only). */
+  stickyFooterActions?: boolean;
+  onStepBack?: () => void;
+  showStepBack?: boolean;
 };
 
 export function PublishWizardReviewStep({
@@ -80,6 +86,9 @@ export function PublishWizardReviewStep({
   isAssistedDraft = false,
   isSelfServeAssistedDraft = false,
   fieldConflicts = [],
+  stickyFooterActions = false,
+  onStepBack,
+  showStepBack = false,
 }: Props) {
   const navigate = useNavigate();
   const [jumpToRoomIndex, setJumpToRoomIndex] = useState<number | null>(null);
@@ -187,6 +196,70 @@ export function PublishWizardReviewStep({
 
   const showRoomPicker = draft.postMode === "room" && draft.rooms.length > 1 && editScope !== "property";
   const showRoomFocusBanner = showRoomPicker && !isLiveEdit;
+
+  const publishActionButtons = (
+    <>
+      {apiOn ? (
+        <button
+          type="button"
+          disabled={submitInFlight !== null || nonRoomBlock}
+          title={nonRoomBlock ? (publishBlockedReason ?? undefined) : undefined}
+          onClick={attemptPublish}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50 sm:w-auto"
+        >
+          {hasRoomFieldIssues
+            ? roomSaveIssuesPrimaryLabel(draft, firstIncompleteRoom)
+            : primaryLabel}
+        </button>
+      ) : (
+        <span className="text-xs text-muted">
+          Sin API: configura <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code> para publicar.
+        </span>
+      )}
+      {apiOn && !isLiveEdit ? (
+        <button
+          type="button"
+          disabled={submitInFlight !== null}
+          onClick={onSaveDraft}
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-secondary/60 bg-surface px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/10 disabled:opacity-50 sm:w-auto"
+        >
+          {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
+        </button>
+      ) : null}
+      {isLiveEdit && cancelTo ? (
+        <Link
+          to={cancelTo}
+          className="inline-flex w-full min-h-11 items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
+        >
+          {cancelLabel}
+        </Link>
+      ) : null}
+    </>
+  );
+
+  const stickyFooter =
+    stickyFooterActions && !isLiveEdit
+      ? createPortal(
+          <PublishWizardActionBar
+            maxWidthClass="max-w-3xl"
+            className={showStepBack ? "sm:justify-between" : "sm:justify-end"}
+          >
+            {showStepBack && onStepBack ? (
+              <button
+                type="button"
+                onClick={onStepBack}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
+              >
+                Atrás
+              </button>
+            ) : null}
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+              {publishActionButtons}
+            </div>
+          </PublishWizardActionBar>,
+          document.body,
+        )
+      : null;
 
   return (
     <div className="space-y-6">
@@ -356,51 +429,20 @@ export function PublishWizardReviewStep({
           </p>
         ) : null}
 
-        <div
-          className={`flex flex-col gap-2 ${
-            publishBlockedReason || actionErr || rentMissing || draftSaved || hasRoomFieldIssues ? "mt-5" : ""
-          }`}
-        >
-          {apiOn ? (
-            <button
-              type="button"
-              disabled={submitInFlight !== null || nonRoomBlock}
-              title={nonRoomBlock ? (publishBlockedReason ?? undefined) : undefined}
-              onClick={attemptPublish}
-              className="w-full min-h-11 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition enabled:hover:brightness-110 disabled:opacity-50"
-            >
-              {hasRoomFieldIssues
-                ? roomSaveIssuesPrimaryLabel(draft, firstIncompleteRoom)
-                : primaryLabel}
-            </button>
-          ) : (
-            <span className="text-xs text-muted">
-              Sin API: configura <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code> para publicar.
-            </span>
-          )}
-          {apiOn && !isLiveEdit ? (
-            <button
-              type="button"
-              disabled={submitInFlight !== null}
-              onClick={onSaveDraft}
-              className="w-full min-h-11 rounded-full border border-secondary/60 bg-white px-5 py-2.5 text-sm font-semibold text-primary transition enabled:hover:bg-secondary/10 disabled:opacity-50"
-            >
-              {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
-            </button>
-          ) : null}
-          {isLiveEdit && cancelTo ? (
-            <Link
-              to={cancelTo}
-              className="inline-flex w-full min-h-11 items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated"
-            >
-              {cancelLabel}
-            </Link>
-          ) : null}
-        </div>
+        {stickyFooterActions && !isLiveEdit ? null : (
+          <div
+            className={`flex flex-col gap-2 ${
+              publishBlockedReason || actionErr || rentMissing || draftSaved || hasRoomFieldIssues ? "mt-5" : ""
+            }`}
+          >
+            {publishActionButtons}
+          </div>
+        )}
 
         {!isLiveEdit ? <PublishReviewDisclaimer /> : null}
       </section>
       )}
+      {stickyFooter}
     </div>
   );
 }

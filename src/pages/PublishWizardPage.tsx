@@ -24,6 +24,10 @@ import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import {
+  PUBLISH_WIZARD_FOOTER_PAD,
+  PublishWizardActionBar,
+} from "@/components/publish/PublishWizardActionBar";
+import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
   isListingsApiConfigured,
@@ -3611,11 +3615,27 @@ export function PublishWizardPage() {
   }
 
   const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
+  const wizardShellMaxWidth = isPublishStep ? "max-w-3xl" : "max-w-2xl";
+
+  function goWizardStepBack() {
+    setPublishErr(null);
+    void flushWizardAutosave();
+    track("publish_step_back", {
+      step_index: safeStep,
+      step_title: current.title,
+      mode: draft.postMode,
+      create_flow: createFlowRef.current,
+    });
+    const next = Math.max(0, safeStep - 1);
+    if (next === WIZARD_STEP_POST_MODE && !editingLiveProperty && !editPropertyId) {
+      setDraft((d) => forgetManualRoomCreateChoice(d));
+    }
+    setStep(next);
+  }
+
   return (
     <div
-      className={`mx-auto px-3 pt-4 sm:px-6 sm:py-10 ${
-        isPublishStep ? "max-w-3xl pb-4" : "max-w-2xl pb-24 sm:pb-10"
-      }`}
+      className={`mx-auto px-3 pt-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth} ${PUBLISH_WIZARD_FOOTER_PAD}`}
     >
       {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
@@ -3781,6 +3801,9 @@ export function PublishWizardPage() {
               onSaveDraft={() => void submitServerDraft()}
               onPublish={() => void submitPublish()}
               draftSaved={wizardDraftSaveNote === "saved"}
+              stickyFooterActions
+              showStepBack={step > 0}
+              onStepBack={goWizardStepBack}
             />
           ) : (
             current.body
@@ -3795,35 +3818,21 @@ export function PublishWizardPage() {
           <p className="mt-3 text-xs text-muted">Se volverá a armar el anuncio con lo que hay ahora.</p>
         ) : null}
 
-        <div
-          className={`${
-            isPublishStep
-              ? "mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center"
-              : "fixed inset-x-0 bottom-0 z-[1100] flex flex-col-reverse gap-3 border-t border-border bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:static sm:z-auto sm:mt-8 sm:flex-row sm:items-center sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"
-          } ${step > 0 ? "sm:justify-between" : "sm:justify-end"}`}
-        >
-          {step > 0 ? (
-            <button
-              type="button"
-              onClick={() => {
-                setPublishErr(null);
-                void flushWizardAutosave();
-                track("publish_step_back", { step_index: safeStep,
-                  step_title: current.title,
-                  mode: draft.postMode, create_flow: createFlowRef.current });
-                const next = Math.max(0, safeStep - 1);
-                if (next === WIZARD_STEP_POST_MODE && !editingLiveProperty && !editPropertyId) {
-                  setDraft((d) => forgetManualRoomCreateChoice(d));
-                }
-                setStep(next);
-              }}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
-            >
-              Atrás
-            </button>
-          ) : null}
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-            {!isPublishStep ? (
+        {!isPublishStep ? (
+          <PublishWizardActionBar
+            maxWidthClass={wizardShellMaxWidth}
+            className={step > 0 ? "sm:justify-between" : "sm:justify-end"}
+          >
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={goWizardStepBack}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
+              >
+                Atrás
+              </button>
+            ) : null}
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -3845,9 +3854,12 @@ export function PublishWizardPage() {
                   }
                   setPublishErr(null);
                   void flushWizardAutosave();
-                  track("publish_step_completed", { step_index: safeStep,
+                  track("publish_step_completed", {
+                    step_index: safeStep,
                     step_title: current.title,
-                    mode: draft.postMode, create_flow: createFlowRef.current });
+                    mode: draft.postMode,
+                    create_flow: createFlowRef.current,
+                  });
                   setStep((s) => Math.min(steps.length - 1, s + 1));
                 }}
                 disabled={submitInFlight !== null || aiComposeInFlight}
@@ -3859,9 +3871,9 @@ export function PublishWizardPage() {
                     : "Continuar"
                   : "Siguiente"}
               </button>
-            ) : null}
-          </div>
-        </div>
+            </div>
+          </PublishWizardActionBar>
+        ) : null}
       </div>
     </div>
   );
