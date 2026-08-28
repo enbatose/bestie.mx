@@ -3632,7 +3632,7 @@ export function PublishWizardPage() {
   }
 
   return (
-    <div className={`mx-auto min-w-0 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth}`}>
+    <div className={`mx-auto min-w-0 overflow-x-clip px-3 py-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth}`}>
       {apiOn && autosaveTimeLabel ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
@@ -3676,7 +3676,7 @@ export function PublishWizardPage() {
         </div>
       ) : null}
 
-      <div className="mt-4 min-w-0 overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <div className="mt-4 min-w-0 overflow-x-clip rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="relative">
           {/* Progress omits post-type selection; numbered steps start at ubicación. */}
           <div className="flex flex-col items-center">
