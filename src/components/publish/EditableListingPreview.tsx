@@ -35,6 +35,7 @@ import {
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { PublisherPhoneSafetyCallout } from "@/components/publish/PublisherPhoneSafetyCallout";
 import {
   roomDimensionWizardLabel,
 } from "@/lib/listingKeyLabels";
@@ -1151,6 +1152,12 @@ export function EditableListingPreview({
                         </span>
                       </span>
                     </label>
+                  ) : null}
+                  {phoneDigitsForStorage(
+                    normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ??
+                      phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10),
+                  ) && phoneDraft.showWhatsApp ? (
+                    <PublisherPhoneSafetyCallout dense />
                   ) : null}
                   {/* actions */}
                   <div className="flex min-w-0 gap-2 pt-1">

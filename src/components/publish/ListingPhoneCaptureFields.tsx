@@ -1,4 +1,5 @@
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { PublisherPhoneSafetyCallout } from "@/components/publish/PublisherPhoneSafetyCallout";
 import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 
 type Props = {
@@ -25,17 +26,6 @@ type Props = {
   /** Hide the inner phone field label when an outer section title already names the block. */
   showPhoneLabel?: boolean;
 };
-
-const PUBLISHER_SAFETY_MOBILE = [
-  "No compartas CLABE ni códigos OTP por WhatsApp/SMS.",
-  "Desconfía de comprobantes falsos o presión para apartar sin visita.",
-] as const;
-
-const PUBLISHER_SAFETY_DESKTOP = [
-  "No compartas CLABE, claves bancarias ni códigos OTP por SMS o WhatsApp.",
-  "Desconfía de comprobantes de pago falsos y de quien urge “apartar” el cuarto solo por mensaje.",
-  "Prefiere coordinar visitas con persona verificable; reporta intentos de fraude en Bestie.",
-] as const;
 
 /**
  * Optional listing phone block for publish wizard / editable preview (property-level only).
@@ -145,19 +135,7 @@ export function ListingPhoneCaptureFields({
       ) : null}
 
       {showPublisherSafety && postDigits && showWhatsApp ? (
-        <div className="min-w-0 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning-fg">
-          <p className="font-semibold">Prevención de fraude (publicar teléfono)</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-4 sm:hidden">
-            {PUBLISHER_SAFETY_MOBILE.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-          <ul className="mt-1.5 hidden list-disc space-y-1 pl-4 sm:block">
-            {PUBLISHER_SAFETY_DESKTOP.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-        </div>
+        <PublisherPhoneSafetyCallout />
       ) : null}
     </div>
   );

@@ -63,7 +63,7 @@ Tab strips that must scroll are the exception: the **same** node has `-mx-4 over
 `360 - 2*(px-3 + p-4 + p-4 + p-3)` ≈ **248px** of content. Do not wrap an already-padded block in another padded/ringed card.
 
 - Wizard Datos Generales: `ListingPhoneCaptureFields` `embedded`.
-- Preview pencil editor: compact field + checkboxes, `overflow-x-clip`. **Not** the full capture block (fraud copy stays on Datos Generales).
+- Preview pencil editor: compact field + checkboxes + **`PublisherPhoneSafetyCallout` (`dense`)** when “mostrar en publicación” is on. Fraud copy stays out of admin outreach extract form (`showPublisherSafety={false}` there only).
 - Preview edit affordance: `PreviewPencilEditButton` (top-right), not a large “Editar” bar.
 
 ### Flex children that must shrink
