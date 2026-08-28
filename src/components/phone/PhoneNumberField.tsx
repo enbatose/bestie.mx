@@ -20,6 +20,8 @@ type Props = {
   label?: string;
   optional?: boolean;
   error?: string | null;
+  /** When false, the visible label is omitted (use aria-label on the input). */
+  showLabel?: boolean;
 };
 
 function WhatsAppLogo({ className }: { className?: string }) {
@@ -45,6 +47,7 @@ export function PhoneNumberField({
   label = "Número de teléfono / móvil",
   optional = true,
   error = null,
+  showLabel = true,
 }: Props) {
   const national = useMemo(() => {
     const fromMx = normalizeMxNationalDigits(value);
@@ -60,23 +63,29 @@ export function PhoneNumberField({
 
   return (
     <div className={`min-w-0 max-w-full ${className}`.trim()}>
-      <label htmlFor={id} className="block text-sm font-medium text-body break-words">
-        {label}
-        {optional ? (
-          <span className="ml-1 font-normal text-muted">(opcional)</span>
-        ) : (
-          <span className="text-error"> *</span>
-        )}
-      </label>
+      {showLabel ? (
+        <label htmlFor={id} className="block text-sm font-medium text-body break-words">
+          {label}
+          {optional ? (
+            <span className="ml-1 font-normal text-muted">(opcional)</span>
+          ) : (
+            <span className="text-error"> *</span>
+          )}
+        </label>
+      ) : null}
       {showWhatsAppHint ? (
-        <p className="mt-1 flex min-w-0 items-start gap-1.5 text-xs leading-snug text-muted">
+        <p
+          className={`flex min-w-0 items-start gap-1.5 text-xs leading-snug text-muted ${
+            showLabel ? "mt-1" : ""
+          }`}
+        >
           <WhatsAppLogo className="mt-0.5 size-3.5 shrink-0 text-[#25D366]" />
           <span className="min-w-0 break-words">Idealmente el número que usas en WhatsApp.</span>
         </p>
       ) : null}
       <div className="mt-2 flex min-w-0 items-stretch gap-2">
         <div
-          className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-border bg-bg-light px-2.5 text-base font-semibold tabular-nums text-body sm:px-3 sm:text-sm"
+          className="inline-flex min-h-11 w-[3.25rem] shrink-0 items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:w-auto sm:px-3 sm:text-base"
           aria-label="Código de país México"
         >
           +{MX_COUNTRY_CODE}
@@ -90,6 +99,7 @@ export function PhoneNumberField({
           value={national}
           maxLength={MX_NATIONAL_DIGITS}
           placeholder="10 dígitos"
+          aria-label={showLabel ? undefined : label}
           onChange={(e) => {
             const next = digitsOnly(e.target.value).slice(0, MX_NATIONAL_DIGITS);
             onChange(next);

@@ -22,6 +22,8 @@ type Props = {
   /** No outer border/padding — use inside an editable preview shell that already has chrome. */
   bare?: boolean;
   disabled?: boolean;
+  /** Hide the inner phone field label when an outer section title already names the block. */
+  showPhoneLabel?: boolean;
 };
 
 const PUBLISHER_SAFETY_MOBILE = [
@@ -51,6 +53,7 @@ export function ListingPhoneCaptureFields({
   embedded = false,
   bare = false,
   disabled,
+  showPhoneLabel = true,
 }: Props) {
   const national =
     normalizeMxNationalDigits(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "").slice(0, 10);
@@ -88,47 +91,48 @@ export function ListingPhoneCaptureFields({
         onChange={handleContactChange}
         disabled={disabled}
         optional
+        showLabel={showPhoneLabel}
         className="min-w-0"
       />
 
-      <label className="flex min-w-0 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
+      <label className="grid min-w-0 cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-1 text-sm text-body">
         <input
           type="checkbox"
-          className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
+          className="mt-0.5 size-[1.125rem] shrink-0 rounded border-border accent-primary"
           checked={showWhatsApp}
           disabled={disabled || !postDigits}
           onChange={(e) => onShowChange(e.target.checked)}
         />
-        <span className="min-w-0 flex-1 break-words leading-snug">
+        <span className="min-w-0 break-words leading-snug">
           Mostrar este teléfono en la publicación
         </span>
       </label>
 
       {allowSaveToProfile && postDigits && noProfilePhone ? (
-        <label className="flex min-w-0 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
+        <label className="grid min-w-0 cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-1 text-sm text-body">
           <input
             type="checkbox"
-            className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
+            className="mt-0.5 size-[1.125rem] shrink-0 rounded border-border accent-primary"
             checked={saveToProfile}
             disabled={disabled}
             onChange={(e) => onSaveToProfileChange(e.target.checked)}
           />
-          <span className="min-w-0 flex-1 break-words leading-snug">
+          <span className="min-w-0 break-words leading-snug">
             Guardar también como teléfono de mi perfil
           </span>
         </label>
       ) : null}
 
       {allowSaveToProfile && postDigits && differsFromProfile ? (
-        <label className="flex min-w-0 cursor-pointer items-start gap-2.5 py-0.5 text-sm text-body">
+        <label className="grid min-w-0 cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-1 text-sm text-body">
           <input
             type="checkbox"
-            className="mt-1 size-4 shrink-0 rounded border-border accent-primary"
+            className="mt-0.5 size-[1.125rem] shrink-0 rounded border-border accent-primary"
             checked={saveToProfile}
             disabled={disabled}
             onChange={(e) => onSaveToProfileChange(e.target.checked)}
           />
-          <span className="min-w-0 flex-1 break-words leading-snug">
+          <span className="min-w-0 break-words leading-snug">
             Reemplazar el teléfono de mi perfil con este número
             {profileNational ? (
               <span className="mt-0.5 block break-all text-xs text-muted sm:break-normal">

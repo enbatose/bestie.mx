@@ -69,18 +69,20 @@ export function InlineFieldEditor({
   onSave,
   onCancel,
   saveLabel = "Guardar cambios",
+  labelClassName = "text-xs font-medium text-muted",
 }: {
   label: string;
   children: React.ReactNode;
   onSave: () => void;
   onCancel: () => void;
   saveLabel?: string;
+  labelClassName?: string;
 }) {
   return (
     <div className="min-w-0 max-w-full space-y-3">
-      <p className="text-xs font-medium text-muted break-words">{label}</p>
-      <div className="min-w-0 max-w-full">{children}</div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <p className={`break-words ${labelClassName}`}>{label}</p>
+      <div className="min-w-0 max-w-full overflow-hidden">{children}</div>
+      <div className="flex flex-col gap-2 border-t border-border/70 pt-3 sm:flex-row sm:flex-wrap sm:border-t-0 sm:pt-0">
         <button
           type="button"
           onClick={onSave}

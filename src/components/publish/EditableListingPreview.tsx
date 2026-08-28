@@ -1088,14 +1088,12 @@ export function EditableListingPreview({
             {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
-            <div className="relative mt-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
+            <div className="relative mt-3 min-w-0 max-w-full">
               {editingPhone ? (
-                <InlineFieldEditor
-                  label="Teléfono / móvil"
-                  onSave={savePhone}
-                  onCancel={() => setEditingPhone(false)}
-                  saveLabel="Listo"
-                >
+                <div className="min-w-0 max-w-full space-y-3 rounded-xl border border-primary/25 bg-surface p-3 ring-1 ring-primary/10 sm:p-3.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    Teléfono / móvil
+                  </p>
                   <ListingPhoneCaptureFields
                     contactWhatsApp={phoneDraft.contactWhatsApp}
                     showWhatsApp={phoneDraft.showWhatsApp}
@@ -1108,10 +1106,27 @@ export function EditableListingPreview({
                     onSaveToProfileChange={onSavePhoneToProfileChange ?? (() => {})}
                     allowSaveToProfile={canSavePhoneToProfile}
                     bare
+                    showPhoneLabel={false}
                   />
-                </InlineFieldEditor>
+                  <div className="flex flex-col gap-2 border-t border-border/70 pt-3">
+                    <button
+                      type="button"
+                      onClick={savePhone}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg"
+                    >
+                      Listo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPhone(false)}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold text-body"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
               ) : (
-                <>
+                <div className="relative overflow-hidden rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
                   <PreviewPencilEditButton
                     onClick={openPhoneEdit}
                     ariaLabel={
@@ -1143,7 +1158,7 @@ export function EditableListingPreview({
                       <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>
                     )}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </>

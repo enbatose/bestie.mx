@@ -22,7 +22,7 @@ export function ListingSection({
   return (
     <section
       id={id}
-      className={`rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 ${className}`.trim()}
+      className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5 ${className}`.trim()}
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -35,7 +35,7 @@ export function ListingSection({
         </div>
         {action ? <div className="max-w-[48%] shrink-0 sm:max-w-none">{action}</div> : null}
       </div>
-      <div className="mt-3">{children}</div>
+      <div className="mt-3 min-w-0 max-w-full">{children}</div>
     </section>
   );
 }

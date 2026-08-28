@@ -236,9 +236,9 @@ export function PublishWizardReviewStep({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {isRoomOfProperty ? null : (
-      <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-[15px] font-bold tracking-tight text-primary">{heading}</h3>
           {isAssistedDraft && !isLiveEdit ? (
@@ -365,7 +365,7 @@ export function PublishWizardReviewStep({
       />
 
       {isRoomOfProperty ? null : (
-      <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <section className="min-w-0 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-5">
         {rentMissing ||
         (isRentRequiredPublishError(actionErr) && firstRoomIndexMissingRent(draft) >= 0) ? (
           <MissingRentCallout
