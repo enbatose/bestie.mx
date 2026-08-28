@@ -87,6 +87,21 @@ export async function createDraftProperty(request: APIRequestContext): Promise<{
   return { propertyId };
 }
 
+/** Skip the post-login phone prompt so it cannot intercept clicks in CI. */
+export async function dismissPhonePromptViaApi(request: APIRequestContext): Promise<void> {
+  const res = await request.patch("/api/auth/me", { data: { dismissPhonePrompt: true } });
+  expect(res.ok(), await res.text()).toBeTruthy();
+}
+
+/** UI fallback when a logged-in page may still show the phone prompt. */
+export async function dismissCompleteProfileModalIfOpen(page: Page): Promise<void> {
+  const dialog = page.getByRole("dialog", { name: "Agrega tu teléfono" });
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole("button", { name: "Ahora no" }).click();
+    await expect(dialog).toBeHidden({ timeout: 15_000 });
+  }
+}
+
 export async function registerViaUi(page: Page, email: string, password: string, name: string) {
   await page.goto("/registro");
   await expect(page.getByRole("heading", { name: "Crear cuenta" })).toBeVisible();
@@ -98,6 +113,7 @@ export async function registerViaUi(page: Page, email: string, password: string,
   await expect(page).toHaveURL(/\/(verificar-correo|despues-de-entrar|perfil|mis-anuncios)(\?|$)/, {
     timeout: 20_000,
   });
+  await dismissPhonePromptViaApi(page.context().request);
 }
 
 export type RegisterApiResult = {
@@ -117,7 +133,9 @@ export async function registerViaApi(
     data: { email, password, displayName },
   });
   expect(res.ok(), await res.text()).toBeTruthy();
-  return (await res.json()) as RegisterApiResult;
+  const body = (await res.json()) as RegisterApiResult;
+  await dismissPhonePromptViaApi(request);
+  return body;
 }
 
 export async function loginViaApi(
@@ -129,6 +147,7 @@ export async function loginViaApi(
     data: { email, password },
   });
   expect(res.ok(), await res.text()).toBeTruthy();
+  await dismissPhonePromptViaApi(request);
 }
 
 export async function verifyEmailViaDevCode(

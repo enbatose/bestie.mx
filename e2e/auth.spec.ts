@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { registerViaUi, uniqueEmail } from "./helpers";
+import { dismissCompleteProfileModalIfOpen, registerViaUi, uniqueEmail } from "./helpers";
 
 test.describe("Auth email/password", () => {
   test("register → verify screen → logout → login", async ({ page }) => {
@@ -18,6 +18,7 @@ test.describe("Auth email/password", () => {
     // Wait past the "Cargando…" shell — a same-tick isVisible() on logout races
     // authMe() and then never sees the login form (CI flake on Mobile Chrome).
     await expect(logout.or(entrarHeading)).toBeVisible({ timeout: 15_000 });
+    await dismissCompleteProfileModalIfOpen(page);
     if (await logout.isVisible().catch(() => false)) {
       await logout.click();
     }

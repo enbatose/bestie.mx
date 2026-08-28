@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext, type BrowserContext, type Page } 
 import {
   acceptSafetyModal,
   createPublishedListing,
+  dismissCompleteProfileModalIfOpen,
   inboxRow,
   isMobileProject,
   newE2eContext,
@@ -61,6 +62,7 @@ test.describe("Messaging (isolated)", () => {
       await seeker.page.goto(publisher.listing.publicPath);
       await expect(seeker.page).toHaveURL(new RegExp(`/anuncio/${publisher.listing.publicSlug}$`));
       await expect(seeker.page.getByText("Contactar anunciante")).toBeVisible({ timeout: 20_000 });
+      await dismissCompleteProfileModalIfOpen(seeker.page);
 
       const box = seeker.page.getByLabel("Mensaje inicial");
       await expect(box).toBeVisible();
@@ -128,6 +130,7 @@ test.describe("Messaging (isolated)", () => {
       const publisher = await preparePublisher(pubCtx);
       await publisher.page.goto(publisher.listing.publicPath);
       await expect(publisher.page.getByText("Contactar anunciante")).toBeVisible({ timeout: 20_000 });
+      await dismissCompleteProfileModalIfOpen(publisher.page);
       await publisher.page.getByRole("button", { name: "Enviar mensaje" }).click();
       await expect(
         publisher.page.getByText("El usuario anunciante no puede abrir una conversación consigo mismo."),
