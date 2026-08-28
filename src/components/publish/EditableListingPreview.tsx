@@ -1090,7 +1090,7 @@ export function EditableListingPreview({
             ) : null}
             <div className="relative mt-3 min-w-0 max-w-full">
               {editingPhone ? (
-                <div className="min-w-0 max-w-full space-y-2.5 rounded-xl bg-surface p-3 ring-1 ring-primary/30">
+                <div className="min-w-0 max-w-full space-y-2.5 rounded-xl border border-primary/30 bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Teléfono / móvil
                   </p>

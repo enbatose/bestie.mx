@@ -5,6 +5,11 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Prevent any element from causing horizontal page scroll on mobile. */
+    overflow-x: clip;
+  }
+  body {
+    overflow-x: clip;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
