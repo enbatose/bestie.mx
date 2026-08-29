@@ -292,7 +292,7 @@ export async function publishAssistedDraftClaim(token: string): Promise<{ proper
     body: JSON.stringify(posthogSessionId ? { posthogSessionId } : {}),
   });
   const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string; message?: string };
-  if (!res.ok) throw new Error(j.message || j.error ?? `publish_${res.status}`);
+  if (!res.ok) throw new Error(j.message || j.error || `publish_${res.status}`);
   if (!j.propertyId) throw new Error("publish_bad_response");
   return { propertyId: j.propertyId };
 }
@@ -313,7 +313,7 @@ export async function requestAssistedDraftClaimOtp(
     error?: string;
     message?: string;
   };
-  if (!res.ok) throw new Error(j.message || j.error ?? `claim_otp_${res.status}`);
+  if (!res.ok) throw new Error(j.message || j.error || `claim_otp_${res.status}`);
   return { skipOtp: Boolean(j.skipOtp), ...(j.devCode ? { devCode: j.devCode } : {}) };
 }
 
@@ -329,7 +329,7 @@ export async function confirmAssistedDraftClaim(
     body: JSON.stringify(code ? { code } : {}),
   });
   const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string; message?: string };
-  if (!res.ok) throw new Error(j.message || j.error ?? `claim_confirm_${res.status}`);
+  if (!res.ok) throw new Error(j.message || j.error || `claim_confirm_${res.status}`);
   if (!j.propertyId) throw new Error("claim_confirm_bad_response");
   return { propertyId: j.propertyId };
 }
