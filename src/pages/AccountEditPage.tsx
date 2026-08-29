@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ProfilePhoneStatusBadge } from "@/components/account/ProfilePhoneStatusBadge";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { PasswordField } from "@/components/PasswordField";
 import {
@@ -393,7 +394,12 @@ export function AccountEditPage() {
             </p>
           ) : null}
           <div className="rounded-2xl border border-border bg-bg-light p-3 sm:p-4">
-            <h3 className="text-sm font-semibold text-body">Teléfono</h3>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-body">Teléfono</h3>
+              {currentPhoneE164 || nextPhoneE164 ? (
+                <ProfilePhoneStatusBadge verified={isPhoneVerified(me) && !phoneChanged} />
+              ) : null}
+            </div>
             <p className="mt-1 text-xs leading-snug text-muted">
               {isPublisher
                 ? "Tu número no se muestra automáticamente en tu perfil. Solo aparece en un anuncio si activas esa opción al publicarlo."

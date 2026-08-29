@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ProfilePhoneStatusBadge } from "@/components/account/ProfilePhoneStatusBadge";
 import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
-import { authMe, type AuthMe } from "@/lib/authApi";
+import { authMe, isPhoneVerified, type AuthMe } from "@/lib/authApi";
 import { formatMxPhoneDisplay } from "@/lib/mxPhone";
 
 export function ProfilePage() {
@@ -46,8 +47,10 @@ export function ProfilePage() {
     );
   }
 
+  const phoneVerified = isPhoneVerified(me);
+
   return (
-    <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
+    <div className="mx-auto w-full min-w-0 max-w-lg overflow-x-clip px-4 py-10 sm:py-14">
       <h1 className="text-2xl font-bold text-primary">Perfil</h1>
       <p className="mt-2 text-sm text-muted">
         Hola, <span className="font-medium text-body">{me.displayName}</span>. Aquí ves el estado de tu cuenta y tus
@@ -63,11 +66,18 @@ export function ProfilePage() {
       </div>
 
       <ul className="mt-6 space-y-3 rounded-2xl border border-border bg-surface p-4 text-sm">
-        <li className="flex min-w-0 items-center justify-between gap-2">
-          <span className="shrink-0 text-body">Teléfono / móvil</span>
-          <span className="min-w-0 truncate text-right tabular-nums text-muted">
-            {me.phoneE164 ? formatMxPhoneDisplay(me.phoneE164) : "—"}
-          </span>
+        <li className="flex min-w-0 items-start justify-between gap-3">
+          <span className="shrink-0 pt-0.5 text-body">Teléfono / móvil</span>
+          <div className="min-w-0 text-right">
+            <p className="min-w-0 truncate tabular-nums text-muted">
+              {me.phoneE164 ? formatMxPhoneDisplay(me.phoneE164) : "—"}
+            </p>
+            {me.phoneE164 ? (
+              <div className="mt-1.5 flex justify-end">
+                <ProfilePhoneStatusBadge verified={phoneVerified} verifyHref="/perfil/editar" />
+              </div>
+            ) : null}
+          </div>
         </li>
         <li className="flex min-w-0 items-center justify-between gap-2">
           <span className="shrink-0 text-body">Correo</span>
