@@ -115,8 +115,8 @@ export function PropertyRoomDetailModal({
             menCount={menCount}
             womenCount={womenCount}
             shareActions={shareActions}
+            reportActions={reportActions}
           />
-          {reportActions}
 
           {photos.length ? (
             <ListingPhotoCarousel

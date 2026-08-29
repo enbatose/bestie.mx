@@ -24,6 +24,7 @@ export function SingleRoomHeader({
   shareActions,
   title,
   phone,
+  reportActions,
 }: {
   listing: PropertyListing;
   menCount: number;
@@ -31,6 +32,7 @@ export function SingleRoomHeader({
   shareActions?: ReactNode;
   title?: string;
   phone?: ReactNode;
+  reportActions?: ReactNode;
 }) {
   return (
     <div className="min-w-0 space-y-1">
@@ -58,7 +60,12 @@ export function SingleRoomHeader({
       {(listing.depositMxn ?? 0) > 0 ? (
         <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
       ) : null}
-      {phone}
+      {phone || reportActions ? (
+        <div className="mt-3 flex w-full min-w-0 flex-wrap items-end gap-3">
+          <div className="min-w-0">{phone}</div>
+          {reportActions ? <div className="ml-auto shrink-0">{reportActions}</div> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -69,12 +76,14 @@ export function PropertyHeader({
   shareActions,
   tags,
   phone,
+  reportActions,
 }: {
   property: Property;
   availableRooms: Room[];
   shareActions?: ReactNode;
   tags?: readonly ListingTag[];
   phone?: ReactNode;
+  reportActions?: ReactNode;
 }) {
   const rents = availableRooms.map((room) => room.rentMxn).filter((rent) => rent > 0);
   const minRent = rents.length ? Math.min(...rents) : 0;
@@ -107,7 +116,12 @@ export function PropertyHeader({
         propertyKind={property.propertyKind}
         tags={tags}
       />
-      {phone}
+      {phone || reportActions ? (
+        <div className="mt-3 flex w-full min-w-0 flex-wrap items-end gap-3">
+          <div className="min-w-0">{phone}</div>
+          {reportActions ? <div className="ml-auto shrink-0">{reportActions}</div> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

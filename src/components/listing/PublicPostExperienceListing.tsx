@@ -236,7 +236,7 @@ export function PublicPostExperienceListing({
     />
   );
 
-  const reportRow = <div className="flex justify-end pt-1 sm:pt-0">{reportButton}</div>;
+  const reportRow = reportButton;
 
   const reportModal = (
     <ReportModal
@@ -344,9 +344,9 @@ export function PublicPostExperienceListing({
               shareActions={shareActions}
               tags={propertyTags}
               phone={<ListingHeroPhone listing={listing} viewer={contact.viewer} />}
+              reportActions={reportRow}
             />
           </div>
-          {reportRow}
         </header>
 
         <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
@@ -452,9 +452,9 @@ export function PublicPostExperienceListing({
             womenCount={womenCount}
             shareActions={shareActions}
             phone={<ListingHeroPhone listing={listing} viewer={contact.viewer} />}
+            reportActions={reportRow}
           />
         </div>
-        {reportRow}
       </header>
 
       <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
