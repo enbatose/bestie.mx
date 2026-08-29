@@ -89,6 +89,15 @@ describe("admin publish unclaimed outreach", () => {
     expect(patch.status).toBe(409);
     expect(patch.body.error).toBe("evidence_required");
 
+    const viaClaim = await agent.post(`/api/assisted-draft/claim/${token}/publish`).send({});
+    expect(viaClaim.status).toBe(409);
+    expect(viaClaim.body.error).toBe("evidence_required");
+    expect(String(viaClaim.body.message)).toMatch(/captura de consentimiento/i);
+    const stillDraft = db.prepare(`SELECT status FROM properties WHERE id = ?`).get(propertyId) as {
+      status: string;
+    };
+    expect(stillDraft.status).toBe("draft");
+
     const pub = await agent
       .post(`/api/admin/properties/${encodeURIComponent(propertyId)}/publish-unclaimed`)
       .field("note", "OK del grupo de FB")

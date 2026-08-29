@@ -76,6 +76,7 @@ describe("outreach listing claim preview", () => {
       .get(`/api/listings/${encodeURIComponent(roomId)}?claim=${token}`)
       .expect(200);
     expect(ok.body.claimPreview).toBe(true);
+    expect(ok.body.unclaimedAdminOutreach).toBe(true);
     expect(ok.body.hasDraftPhone).toBe(true);
     expect(ok.body.contactWhatsApp).toBe("");
     expect(ok.body.claimPhoneDisplay).toBe("523331112233");

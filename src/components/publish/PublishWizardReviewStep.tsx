@@ -17,6 +17,7 @@ import { EditableListingPreview } from "@/components/publish/EditableListingPrev
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { PublishReviewDisclaimer } from "@/components/publish/PublishReviewDisclaimer";
 import { RoomSaveIssuesCallout } from "@/components/publish/RoomSaveIssuesCallout";
+import { AdminConsentEvidenceForm } from "@/components/admin/AdminConsentEvidenceForm";
 import type { Draft } from "@/pages/PublishWizardPage";
 import type { ListingStatus } from "@/types/listing";
 
@@ -57,6 +58,10 @@ type Props = {
   isAssistedDraft?: boolean;
   /** Self-serve AI flow (not an admin outreach claim link). */
   isSelfServeAssistedDraft?: boolean;
+  /** Admin publishing an unclaimed outreach draft — consent screenshot instead of claim-publish. */
+  adminOutreachEvidence?: {
+    onPublish: (file: File, note?: string) => void;
+  } | null;
   savePhoneToProfile?: boolean;
   onSavePhoneToProfileChange?: (next: boolean) => void;
   fieldConflicts?: Array<{ field: string; message: string }>;
@@ -84,6 +89,7 @@ export function PublishWizardReviewStep({
   onPhotoPickerOpen,
   isAssistedDraft = false,
   isSelfServeAssistedDraft = false,
+  adminOutreachEvidence = null,
   savePhoneToProfile = false,
   onSavePhoneToProfileChange,
   fieldConflicts = [],
@@ -197,7 +203,19 @@ export function PublishWizardReviewStep({
 
   const publishActionButtons = (
     <>
-      {apiOn ? (
+      {adminOutreachEvidence ? (
+        <AdminConsentEvidenceForm
+          busy={submitInFlight !== null}
+          onPublish={(file, note) => {
+            if (hasRoomFieldIssues) {
+              openIncompleteRoom(firstIncompleteRoom, true);
+              return;
+            }
+            if (publishBlockedReason) return;
+            adminOutreachEvidence.onPublish(file, note);
+          }}
+        />
+      ) : apiOn ? (
         <button
           type="button"
           disabled={submitInFlight !== null || nonRoomBlock}
@@ -251,14 +269,23 @@ export function PublishWizardReviewStep({
 
         {isAssistedDraft && !isLiveEdit && !isSelfServeAssistedDraft ? (
           <div className="mt-2 space-y-2 text-sm leading-relaxed text-muted">
-            <p>
-              Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el anuncio
-              quedará bajo tu nombre.
-            </p>
-            <p>
-              Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
-              recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
-            </p>
+            {adminOutreachEvidence ? (
+              <p>
+                Este es un anuncio de crecimiento. Para publicarlo sin dueño, adjunta una captura de
+                consentimiento (no las fotos del anuncio). La evidencia no se muestra al público.
+              </p>
+            ) : (
+              <>
+                <p>
+                  Revisa los datos y edita lo que necesites. Al publicar se creará tu cuenta y el anuncio
+                  quedará bajo tu nombre.
+                </p>
+                <p>
+                  Se te pedirá tu correo electrónico al crear tu cuenta — ese será el canal por el que
+                  recibirás notificaciones de Bestie y mensajes de roomies interesados en tu anuncio.
+                </p>
+              </>
+            )}
           </div>
         ) : null}
 

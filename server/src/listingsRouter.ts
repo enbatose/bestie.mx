@@ -169,7 +169,7 @@ function listingOutreachFlags(
   db: DatabaseSync,
   propertyId: string,
   claimToken: string,
-): { claimPreview: boolean; hasDraftPhone: boolean; contactDisabled: boolean } {
+): { claimPreview: boolean; hasDraftPhone: boolean; contactDisabled: boolean; unclaimedAdminOutreach: boolean } {
   const prop = db
     .prepare(
       `SELECT assisted_draft, created_by_admin_id, contact_whatsapp, status FROM properties WHERE id = ?`,
@@ -195,6 +195,7 @@ function listingOutreachFlags(
     claimPreview: Boolean(claimToken) && String(prop?.status) === "draft",
     hasDraftPhone,
     contactDisabled: isOutreach && !claimed && String(prop?.status) === "published",
+    unclaimedAdminOutreach: isOutreach && !claimed && String(prop?.status) === "draft",
   };
 }
 
@@ -370,6 +371,7 @@ export function listingsRouter(db: DatabaseSync) {
           ? { claimPhoneDisplay: String(row.contact_whatsapp ?? "").replace(/\D/g, "") }
           : {}),
         ...(flags.contactDisabled ? { contactDisabled: true as const } : {}),
+        ...(flags.unclaimedAdminOutreach ? { unclaimedAdminOutreach: true as const } : {}),
       };
       res.json(payload);
       return;

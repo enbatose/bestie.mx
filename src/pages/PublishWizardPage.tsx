@@ -30,7 +30,7 @@ import {
   isListingsApiConfigured,
   updateProperty,
 } from "@/lib/listingsApi";
-import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
+import { adminPublishUnclaimed, authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { normalizeMxNationalDigits } from "@/lib/mxPhone";
 import { track } from "@/lib/analytics";
@@ -1012,6 +1012,7 @@ export function PublishWizardPage() {
   const [assistedDraftToken, setAssistedDraftToken] = useState<string | null>(
     () => assistedBoot?.token ?? null,
   );
+  const [unclaimedAdminOutreach, setUnclaimedAdminOutreach] = useState(false);
   const createFlow = resolvePublishCreateFlow(draft.roomCreateFlow, assistedDraftToken);
   const createFlowRef = useRef(createFlow);
   createFlowRef.current = createFlow;
@@ -1248,6 +1249,28 @@ export function PublishWizardPage() {
 
   const claimHydrateLock = useRef(false);
   const claimTokenParam = searchParams.get("borrador")?.trim() || "";
+  useEffect(() => {
+    const token = claimTokenParam || assistedDraftToken;
+    if (!token) {
+      setUnclaimedAdminOutreach(false);
+      return;
+    }
+    let cancelled = false;
+    void fetchAssistedDraftClaim(token)
+      .then((info) => {
+        if (cancelled) return;
+        setUnclaimedAdminOutreach(Boolean(info.unclaimedAdminOutreach));
+        if (info.propertyId) {
+          setServerSync((s) => (s.propertyId ? s : { ...s, propertyId: info.propertyId }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUnclaimedAdminOutreach(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assistedDraftToken, claimTokenParam]);
   useEffect(() => {
     const token = claimTokenParam || assistedDraftToken;
     if (!token) return;
@@ -3144,6 +3167,68 @@ export function PublishWizardPage() {
     }
   }
 
+  async function submitAdminOutreachWithEvidence(file: File, note?: string) {
+    setPublishErr(null);
+    const claimToken = assistedDraftTokenRef.current;
+    if (!claimToken) {
+      setPublishErr("No encontramos el borrador de crecimiento.");
+      return;
+    }
+    const blocked = getPublishBlockedReason(draftRef.current);
+    if (blocked) {
+      setPublishErr(blocked);
+      return;
+    }
+    setSubmitInFlight("publish");
+    try {
+      if (apiOn) {
+        const syncedDraft = await syncAssistedDraftClaimToServer(
+          claimToken,
+          draftRef.current,
+          serverSyncRef.current.roomIds,
+        );
+        setDraft(syncedDraft);
+        markAutosaveBaseline(syncedDraft, { touchUi: true });
+        rememberClaimSyncedDraft(claimToken, syncedDraft);
+      }
+      const propertyId = serverSyncRef.current.propertyId;
+      if (!propertyId) {
+        setPublishErr("No encontramos el anuncio para publicar con evidencia.");
+        setSubmitInFlight(null);
+        return;
+      }
+      const published = await adminPublishUnclaimed(propertyId, file, note);
+      clearAssistedDraftClaimSession(claimToken);
+      leaveWizardForSuccessRef.current = true;
+      autosaveGenerationRef.current += 1;
+      const claimedRoomId = firstNonEmptyId(...serverSyncRef.current.roomIds);
+      const claimedTitle =
+        (draftRef.current.postMode === "property"
+          ? draftRef.current.propertyTitle
+          : draftRef.current.rooms[0]?.title
+        )?.trim() || "Anuncio publicado";
+      navigate(
+        publishWizardSuccessPath({
+          scope:
+            draftRef.current.postMode === "property" || !claimedRoomId
+              ? "property"
+              : "room",
+          propertyId: published.propertyId,
+          roomId: claimedRoomId,
+        }),
+        {
+          replace: true,
+          flushSync: true,
+          state: withMyListingsReturn({ publishedTitle: claimedTitle }, myListingsReturnRef.current),
+        },
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo publicar.";
+      setPublishErr(msg);
+      setSubmitInFlight(null);
+    }
+  }
+
   async function submitPublish() {
     setPublishErr(null);
 
@@ -3180,6 +3265,12 @@ export function PublishWizardPage() {
         }
         setSubmitInFlight(null);
         openAuthModal(`/borrador/${claimToken}?publish=1`);
+        return;
+      }
+      if (me?.isAdmin && unclaimedAdminOutreach) {
+        setPublishErr(
+          "Adjunta una captura de consentimiento para publicar este anuncio de crecimiento.",
+        );
         return;
       }
       // Authed: sync, then publish via claim endpoint
@@ -3776,6 +3867,11 @@ export function PublishWizardPage() {
               onRoomIndexChange={setPreviewRoomIndex}
               isAssistedDraft={Boolean(assistedDraftToken)}
               isSelfServeAssistedDraft={Boolean(assistedDraftToken) && draft.roomCreateFlow === "ai"}
+              adminOutreachEvidence={
+                me?.isAdmin && unclaimedAdminOutreach
+                  ? { onPublish: (file, note) => void submitAdminOutreachWithEvidence(file, note) }
+                  : null
+              }
               fieldConflicts={aiConflicts}
               onDraftChange={(updater) => {
               setDraft((d) => {

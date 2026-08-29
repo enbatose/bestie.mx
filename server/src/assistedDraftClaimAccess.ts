@@ -9,6 +9,9 @@ export const CLAIM_ALREADY_CLAIMED_BY_OTHER_MESSAGE =
 export const CLAIM_PUBLISHER_TAKEN_MESSAGE =
   "Este anuncio ya está vinculado a otra cuenta. Entra con esa cuenta y ábrelo en Mis Anuncios.";
 
+export const ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE =
+  "Para publicar un anuncio de crecimiento sin dueño adjunta una captura de consentimiento (no uses las fotos del anuncio).";
+
 export type ClaimWriteBlock = {
   error: "already_claimed" | "already_claimed_by_other";
   status: 409;

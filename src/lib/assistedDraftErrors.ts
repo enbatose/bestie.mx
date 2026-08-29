@@ -8,6 +8,8 @@ const CLAIM_ERROR_MESSAGES: Record<string, string> = {
   publisher_taken:
     "Este anuncio ya está vinculado a otra cuenta. Entra con esa cuenta y ábrelo en Mis Anuncios.",
   not_draft: "Este anuncio ya no es un borrador.",
+  evidence_required:
+    "Para publicar un anuncio de crecimiento sin dueño adjunta una captura de consentimiento (no uses las fotos del anuncio).",
   expired: "Este enlace ya venció. Pide uno nuevo.",
   not_found: "No encontramos este borrador.",
   unauthorized: "Inicia sesión para continuar.",

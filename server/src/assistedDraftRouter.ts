@@ -35,6 +35,7 @@ import { claimPublishMissingRent } from "./claimPublishRent.js";
 import {
   CLAIM_PUBLISHER_TAKEN_MESSAGE,
   CLAIM_ALREADY_CLAIMED_BY_OTHER_MESSAGE,
+  ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE,
   claimWriteBlock,
 } from "./assistedDraftClaimAccess.js";
 import { resolveClaimSaveRoomTargets } from "./claimSaveRoomMatch.js";
@@ -47,6 +48,7 @@ import {
   evaluateOutreachClaimGate,
   findUserIdByVerifiedPhone,
   isRealListingPhone,
+  isUnclaimedAdminOutreach,
   listingPhoneToE164,
   setUserPhoneVerified,
 } from "./phoneAuth.js";
@@ -845,6 +847,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     ).all(row.property_id) as Record<string, unknown>[];
 
     const isClaimed = row.claimed_by_user_id != null;
+    const unclaimedAdminOutreach = isUnclaimedAdminOutreach(db, prop.id);
 
     const propImages = JSON.parse(prop.image_urls_json || "[]") as string[];
     const isRoomPost = prop.post_mode === "room";
@@ -858,6 +861,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     res.json({
       ok: true,
       isClaimed,
+      unclaimedAdminOutreach,
       source: isSelfServeCreator(row.created_by_admin_id) ? "self_serve" : "admin",
       propertyId: prop.id,
       listingPath,
@@ -1411,6 +1415,14 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       if (existingLink && existingLink.user_id !== userId) {
         res.status(409).json({ error: "publisher_taken", message: CLAIM_PUBLISHER_TAKEN_MESSAGE }); return;
+      }
+
+      if (isAdminUser(db, userId) && isUnclaimedAdminOutreach(db, row.property_id)) {
+        res.status(409).json({
+          error: "evidence_required",
+          message: ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE,
+        });
+        return;
       }
 
       const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as

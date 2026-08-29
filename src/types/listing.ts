@@ -230,6 +230,8 @@ export type PropertyListing = {
   claimPhoneDisplay?: string;
   /** In-app Contactar is off until an outreach post is assigned; phone reveal still works. */
   contactDisabled?: boolean;
+  /** Unclaimed admin-outreach draft — admin publish requires consent evidence. */
+  unclaimedAdminOutreach?: boolean;
   roomCustomName?: string;
   roomOccupancyStatus?: RoomOccupancyStatus;
   roomOccupantGender?: RoommateGenderPref;

@@ -10,6 +10,7 @@ import {
   type AdminPostStatus,
 } from "@/lib/authApi";
 import { AdminUserSupportLink } from "@/components/admin/AdminUserSupportLink";
+import { AdminConsentEvidenceForm } from "@/components/admin/AdminConsentEvidenceForm";
 import { adminSupportConversationPath } from "@/lib/adminSections";
 
 const STATUS_OPTIONS: { value: AdminPostStatus | "all" | "reported"; label: string }[] = [
@@ -561,7 +562,10 @@ function RowActions({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       {row.unclaimedOutreach ? (
-        <UnclaimedPublishForm row={row} busy={busy} onPublish={onUnclaimedPublish} />
+        <AdminConsentEvidenceForm
+          busy={busy}
+          onPublish={(file, note) => onUnclaimedPublish(row, file, note)}
+        />
       ) : null}
       {row.hasPublishEvidence && row.status === "published" ? (
         <a
@@ -616,53 +620,6 @@ function RowActions({
         </button>
       ) : null}
       </div>
-    </div>
-  );
-}
-
-function UnclaimedPublishForm({
-  row,
-  busy,
-  onPublish,
-}: {
-  row: AdminPostRow;
-  busy: boolean;
-  onPublish: (row: AdminPostRow, file: File, note?: string) => void | Promise<void>;
-}) {
-  const [file, setFile] = useState<File | null>(null);
-  const [note, setNote] = useState("");
-  return (
-    <div className="min-w-0 space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-2">
-      <p className="text-[11px] leading-snug text-body">
-        Publicar sin dueño: captura de consentimiento (no las fotos del anuncio). La evidencia no se
-        muestra al público.
-      </p>
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        disabled={busy}
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="block w-full min-w-0 text-[11px] text-body file:mr-2 file:rounded-full file:border-0 file:bg-primary/15 file:px-2 file:py-1 file:text-[11px] file:font-semibold file:text-primary"
-      />
-      <input
-        type="text"
-        value={note}
-        onChange={(e) => setNote(e.target.value.slice(0, 500))}
-        placeholder="Nota opcional"
-        disabled={busy}
-        size={10}
-        className="w-full min-w-0 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-body outline-none ring-accent focus:ring-2"
-      />
-      <button
-        type="button"
-        disabled={busy || !file}
-        onClick={() => {
-          if (file) void onPublish(row, file, note);
-        }}
-        className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-fg disabled:opacity-50"
-      >
-        {busy ? "…" : "Publicar sin dueño"}
-      </button>
     </div>
   );
 }

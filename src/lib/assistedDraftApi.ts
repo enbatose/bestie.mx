@@ -73,6 +73,7 @@ export type SelfServeImageInput = {
 
 export type AssistedDraftClaimInfo = {
   isClaimed: boolean;
+  unclaimedAdminOutreach?: boolean;
   source?: "admin" | "self_serve";
   propertyId: string;
   listingPath?: string;

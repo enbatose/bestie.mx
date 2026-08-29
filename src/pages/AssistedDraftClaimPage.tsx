@@ -49,6 +49,8 @@ export function AssistedDraftClaimPage() {
           setState({ phase: "already_claimed" });
         } else if (isRentRequiredPublishError(msg)) {
           navigate(`/borrador/${token}`, { replace: true });
+        } else if (/evidence_required|captura de consentimiento/i.test(msg)) {
+          navigate(`/publicar?borrador=${encodeURIComponent(token)}`, { replace: true });
         } else {
           setState({
             phase: "error",

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { AdminConsentEvidenceForm } from "@/components/admin/AdminConsentEvidenceForm";
 import {
   confirmAssistedDraftClaim,
   publishAssistedDraftClaim,
   requestAssistedDraftClaimOtp,
 } from "@/lib/assistedDraftApi";
+import { adminPublishUnclaimed } from "@/lib/authApi";
 import { listingPublicPath } from "@/lib/listingReference";
 import type { AuthMe } from "@/lib/authApi";
 import type { PropertyListing } from "@/types/listing";
@@ -27,6 +29,7 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
   const returnTo = `${listingPublicPath(listing.id)}?claim=${encodeURIComponent(claimToken)}`;
   const isAdmin = Boolean(viewer?.isAdmin);
   const needsAuth = viewer === null;
+  const adminNeedsEvidence = isAdmin && Boolean(listing.unclaimedAdminOutreach);
 
   const afterConfirm = async (action: "edit" | "publish") => {
     if (action === "edit") {
@@ -69,6 +72,18 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
     }
   };
 
+  const publishWithEvidence = async (file: File, note?: string) => {
+    setErr(null);
+    setBusy(true);
+    try {
+      await adminPublishUnclaimed(listing.propertyId, file, note);
+      window.location.assign(listingPublicPath(listing.id));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "No se pudo publicar.");
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="mb-4 min-w-0 rounded-2xl border border-primary/25 bg-primary/5 p-4">
       <p className="text-sm font-semibold text-primary">Este anuncio aún no está publicado</p>
@@ -76,9 +91,11 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
         Quien tenga el enlace puede verlo.
         {needsAuth
           ? " Inicia sesión para editarlo o publicarlo."
-          : isAdmin
-            ? " Editar no lo reclama. Publicar lo deja a tu nombre."
-            : " Editar o publicar lo deja a tu nombre."}
+          : adminNeedsEvidence
+            ? " Editar no lo reclama. Para publicarlo sin dueño, adjunta una captura de consentimiento."
+            : isAdmin
+              ? " Editar no lo reclama. Publicar lo deja a tu nombre."
+              : " Editar o publicar lo deja a tu nombre."}
       </p>
       {err ? (
         <p role="alert" className="mt-2 break-words text-sm text-error">
@@ -120,16 +137,22 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
         >
           {busy ? "…" : otpSent ? "Confirmar y editar" : "Editar"}
         </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void run("publish")}
-          className="inline-flex min-h-10 min-w-0 items-center rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:brightness-110 disabled:opacity-60"
-        >
-          {busy ? "…" : otpSent ? "Confirmar y publicar" : "Publicar"}
-        </button>
+        {adminNeedsEvidence ? null : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void run("publish")}
+            className="inline-flex min-h-10 min-w-0 items-center rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-fg hover:brightness-110 disabled:opacity-60"
+          >
+            {busy ? "…" : otpSent ? "Confirmar y publicar" : "Publicar"}
+          </button>
+        )}
       </div>
-      {isAdmin ? (
+      {adminNeedsEvidence ? (
+        <div className="mt-3">
+          <AdminConsentEvidenceForm busy={busy} onPublish={publishWithEvidence} />
+        </div>
+      ) : isAdmin ? (
         <p className="mt-2 text-xs leading-relaxed text-muted">
           ¿Publicar sin asignar dueño?{" "}
           <Link to="/admin/posts" className="font-semibold underline-offset-2 hover:underline">

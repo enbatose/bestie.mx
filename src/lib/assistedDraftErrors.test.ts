@@ -13,6 +13,10 @@ describe("assistedDraftUserMessage", () => {
     expect(assistedDraftUserMessage("already_claimed")).not.toBe("already_claimed");
   });
 
+  it("maps evidence_required for admin outreach publish", () => {
+    expect(assistedDraftUserMessage("evidence_required")).toMatch(/captura de consentimiento/i);
+  });
+
   it("maps a snake_case message the same as an error code", () => {
     expect(assistedDraftUserMessage(undefined, "already_claimed_by_other")).toMatch(/otra cuenta/i);
   });

@@ -26,6 +26,7 @@ import { listAdminUsers } from "./adminUsers.js";
 import { startAdminSupportConversation } from "./adminSupportStart.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
+import { ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE } from "./assistedDraftClaimAccess.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
 
@@ -126,8 +127,7 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
     if (st === "published" && cur.status === "draft" && isUnclaimedAdminOutreach(db, propertyId)) {
       res.status(409).json({
         error: "evidence_required",
-        message:
-          "Para publicar un anuncio de crecimiento sin dueño adjunta una captura de consentimiento (no uses las fotos del anuncio).",
+        message: ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE,
       });
       return;
     }
