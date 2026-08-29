@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 import { authMe, type AuthMe } from "@/lib/authApi";
+import { formatMxPhoneDisplay } from "@/lib/mxPhone";
 
 export function ProfilePage() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
@@ -54,9 +55,15 @@ export function ProfilePage() {
       </div>
 
       <ul className="mt-6 space-y-3 rounded-2xl border border-border bg-surface p-4 text-sm">
-        <li className="flex items-center justify-between gap-2">
-          <span className="text-body">Correo</span>
-          <span className="text-muted">{me.email ?? "—"}</span>
+        <li className="flex min-w-0 items-center justify-between gap-2">
+          <span className="shrink-0 text-body">Teléfono / móvil</span>
+          <span className="min-w-0 truncate text-right tabular-nums text-muted">
+            {me.phoneE164 ? formatMxPhoneDisplay(me.phoneE164) : "—"}
+          </span>
+        </li>
+        <li className="flex min-w-0 items-center justify-between gap-2">
+          <span className="shrink-0 text-body">Correo</span>
+          <span className="min-w-0 truncate text-right text-muted">{me.email ?? "—"}</span>
         </li>
       </ul>
 
