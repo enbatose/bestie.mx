@@ -78,6 +78,20 @@ describe("outreach listing claim preview", () => {
     expect(ok.body.claimPreview).toBe(true);
     expect(ok.body.hasDraftPhone).toBe(true);
     expect(ok.body.contactWhatsApp).toBe("");
+    expect(ok.body.claimPhoneDisplay).toBeUndefined();
     expect(ok.body.status).toBe("draft");
+  });
+
+  it("shows the draft phone to a signed-in viewer on the claim preview", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: "claim-preview-viewer@test.mx", password: "longenough1" })
+      .expect(201);
+    const signedIn = await agent
+      .get(`/api/listings/${encodeURIComponent(roomId)}?claim=${token}`)
+      .expect(200);
+    expect(signedIn.body.contactWhatsApp).toBe("");
+    expect(signedIn.body.claimPhoneDisplay).toBe("523331112233");
   });
 });

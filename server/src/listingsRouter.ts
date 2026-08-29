@@ -338,6 +338,11 @@ export function listingsRouter(db: DatabaseSync) {
         ...(flags.claimPreview ? { claimPreview: true as const } : {}),
         hasDraftPhone: flags.hasDraftPhone,
         ...(flags.contactDisabled ? { contactDisabled: true as const } : {}),
+        ...(flags.claimPreview &&
+        flags.hasDraftPhone &&
+        (Boolean(readAuthUserId(req)) || admin)
+          ? { claimPhoneDisplay: String(row.contact_whatsapp ?? "").replace(/\D/g, "") }
+          : {}),
       };
       res.json(payload);
       return;
