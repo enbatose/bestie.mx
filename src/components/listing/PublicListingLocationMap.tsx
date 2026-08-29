@@ -35,6 +35,7 @@ function ReadOnlyLocationMap({
       defaultCenter={[listing.lat, listing.lng]}
       defaultZoom={PUBLIC_LOCATION_MAP_ZOOM}
       preferDefaultView
+      showListingPopup={false}
       approximateAsCircle={isApproximateLocation}
       approximateCircleRadiusM={radiusMeters}
     />

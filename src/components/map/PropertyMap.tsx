@@ -42,6 +42,11 @@ type Props = {
   approximateCircleRadiusM?: number;
   /** Skip fly-to on selection (e.g. fixed preview maps). */
   disableSelectionSync?: boolean;
+  /**
+   * When false, pin/radius only — no listing summary popup.
+   * Use on the public post map: the visitor is already on that listing.
+   */
+  showListingPopup?: boolean;
   /** When set, listing popup links preserve search return context. */
   searchReturn?: SearchReturnContext;
   /** Portal pin-tied popup into this host (above map chrome such as filter rails). */
@@ -286,6 +291,7 @@ export function PropertyMap({
   approximateAsCircle = false,
   approximateCircleRadiusM = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
   disableSelectionSync = false,
+  showListingPopup = true,
   searchReturn,
   popupOverlayHostRef,
 }: Props) {
@@ -326,7 +332,7 @@ export function PropertyMap({
     ? "z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px] [&_.leaflet-top.leaflet-left]:left-auto [&_.leaflet-top.leaflet-left]:right-3 [&_.leaflet-top.leaflet-left]:top-auto [&_.leaflet-top.leaflet-left]:bottom-3 [&_.leaflet-top.leaflet-left_.leaflet-control]:m-0"
     : "z-0 h-[min(52vh,420px)] w-full min-h-[280px] bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]";
 
-  const usePinPopupOverlay = Boolean(popupOverlayHostRef);
+  const usePinPopupOverlay = showListingPopup && Boolean(popupOverlayHostRef);
 
   return (
     <div className={shell}>
@@ -375,7 +381,7 @@ export function PropertyMap({
           }
 
           const popupContent =
-            usePinPopupOverlay ? null : (
+            !showListingPopup || usePinPopupOverlay ? null : (
               <Popup autoPan={false} className="search-listing-popup">
                 <SearchListingCard
                   listing={l}
@@ -409,7 +415,7 @@ export function PropertyMap({
             listings={listings}
             getMarker={getMarker}
             suppressViewportUntilRef={suppressViewportBboxUntilRef}
-            openMarkerPopup={!usePinPopupOverlay}
+            openMarkerPopup={showListingPopup && !usePinPopupOverlay}
           />
         ) : null}
         {usePinPopupOverlay && popupOverlayHostRef ? (
