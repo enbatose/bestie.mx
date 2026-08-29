@@ -88,6 +88,17 @@ const PROP_MANUAL = "prp__bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const PROP_PUBLISHED_AI = "prp__cccccccc-cccc-cccc-cccc-cccccccccccc";
 const ROOM_AI = "11111111-1111-1111-1111-111111111111";
 
+function previewEditPath(propertyId: string, roomId?: string): string {
+  return adminPostEditPath({
+    propertyId,
+    postMode: "room",
+    status: "draft",
+    assistedDraft: true,
+    claimToken: null,
+    roomId: roomId ?? null,
+  });
+}
+
 describe("adminPostEditPath", () => {
   it("opens the preview editor for unclaimed AI drafts", () => {
     expect(
@@ -99,7 +110,7 @@ describe("adminPostEditPath", () => {
         claimToken: "claimtok123",
         roomId: ROOM_AI,
       }),
-    ).toBe(`/publicar?edit=${propertyReferenceCode(PROP_AI)}&room=${roomReferenceCode(ROOM_AI)}`);
+    ).toBe(previewEditPath(PROP_AI, ROOM_AI));
   });
 
   it("still uses the preview editor when an AI draft has no live claim token", () => {
@@ -111,7 +122,7 @@ describe("adminPostEditPath", () => {
         assistedDraft: true,
         claimToken: null,
       }),
-    ).toBe(`/publicar?edit=${propertyReferenceCode(PROP_AI)}`);
+    ).toBe(previewEditPath(PROP_AI));
   });
 
   it("keeps the preview editor for published or manual posts", () => {
@@ -123,7 +134,7 @@ describe("adminPostEditPath", () => {
         assistedDraft: true,
         claimToken: "stale",
       }),
-    ).toBe(`/publicar?edit=${propertyReferenceCode(PROP_PUBLISHED_AI)}`);
+    ).toBe(previewEditPath(PROP_PUBLISHED_AI));
     expect(
       adminPostEditPath({
         propertyId: PROP_MANUAL,
@@ -132,7 +143,7 @@ describe("adminPostEditPath", () => {
         assistedDraft: false,
         claimToken: null,
       }),
-    ).toBe(`/publicar?edit=${propertyReferenceCode(PROP_MANUAL)}`);
+    ).toBe(previewEditPath(PROP_MANUAL));
   });
 
   it("never puts a raw adraft_ id in ?edit=", () => {
@@ -145,7 +156,7 @@ describe("adminPostEditPath", () => {
         assistedDraft: true,
         claimToken: null,
       }),
-    ).toBe(`/publicar?edit=${propertyReferenceCode(legacyId)}`);
+    ).toBe(previewEditPath(legacyId));
   });
 });
 
@@ -184,16 +195,14 @@ describe("listAdminPosts AI origin", () => {
     expect(aiDraft?.assistedDraft).toBe(true);
     expect(aiDraft?.createOrigin).toBe("ai_admin");
     expect(aiDraft?.unclaimedOutreach).toBe(true);
-    expect(aiDraft?.editPath).toBe(
-      `/publicar?edit=${propertyReferenceCode(PROP_AI)}&room=${roomReferenceCode(ROOM_AI)}`,
-    );
+    expect(aiDraft?.editPath).toBe(previewEditPath(PROP_AI, ROOM_AI));
     expect(aiDraft?.viewPath).toBe(`/anuncio/${roomReferenceCode(ROOM_AI)}?claim=live-claim-token`);
     expect(manual?.assistedDraft).toBe(false);
     expect(manual?.createOrigin).toBe("manual");
-    expect(manual?.editPath).toBe(`/publicar?edit=${propertyReferenceCode(PROP_MANUAL)}`);
+    expect(manual?.editPath).toBe(previewEditPath(PROP_MANUAL));
     expect(aiPublished?.assistedDraft).toBe(true);
     expect(aiPublished?.createOrigin).toBe("ai_admin");
-    expect(aiPublished?.editPath).toBe(`/publicar?edit=${propertyReferenceCode(PROP_PUBLISHED_AI)}`);
+    expect(aiPublished?.editPath).toBe(previewEditPath(PROP_PUBLISHED_AI));
 
     const iaOnly = listAdminPosts(db, { q: "ia", status: "all", limit: 25, offset: 0 });
     expect(iaOnly.posts.map((p) => p.propertyId).sort()).toEqual(
@@ -250,9 +259,7 @@ describe("listAdminPosts AI origin", () => {
     expect(listed.posts).toHaveLength(1);
     expect(listed.posts[0]?.assistedDraft).toBe(true);
     expect(listed.posts[0]?.createOrigin).toBe("ai_admin");
-    expect(listed.posts[0]?.editPath).toBe(
-      `/publicar?edit=${propertyReferenceCode(legacyId)}&room=${roomReferenceCode("legacy-room-1")}`,
-    );
+    expect(listed.posts[0]?.editPath).toBe(previewEditPath(legacyId, "legacy-room-1"));
     expect(listed.posts[0]?.viewPath).toBe(
       `/anuncio/${roomReferenceCode("legacy-room-1")}?claim=legacy-claim`,
     );

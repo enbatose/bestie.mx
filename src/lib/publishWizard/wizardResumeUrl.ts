@@ -2,7 +2,7 @@
  * In-progress publish wizard identity in the URL.
  * Public share cards stay on `/anuncio/A…` and `/propiedad/P…` — this is only `/publicar`.
  */
-import { wizardPropertyEditCode, wizardRoomEditCode } from "@/lib/listingReference";
+import { PUBLISH_PREVIEW_EDITOR_QUERY, wizardPropertyEditCode, wizardRoomEditCode } from "@/lib/listingReference";
 
 export const WIZARD_PASO_QUERY = "paso";
 
@@ -50,6 +50,8 @@ export type ApplyWizardResumeSearchInput = {
   assistedDraftToken?: string | null;
   /** AI Datos before compose: autosave must not look like a live `?edit=` session. */
   clearEdit?: boolean;
+  /** Hub/admin Editar: keep `vista=1` so drafts open the pencil preview. */
+  previewEditor?: boolean;
 };
 
 export function applyWizardResumeSearchParams(
@@ -61,10 +63,18 @@ export function applyWizardResumeSearchParams(
   if (input.assistedDraftToken) {
     next.set("borrador", input.assistedDraftToken);
     next.delete("edit");
+    next.delete(PUBLISH_PREVIEW_EDITOR_QUERY);
   } else if (input.propertyId) {
     next.set("edit", wizardPropertyEditCode(input.propertyId));
   } else if (input.clearEdit) {
     next.delete("edit");
+    next.delete(PUBLISH_PREVIEW_EDITOR_QUERY);
+  }
+
+  if (input.previewEditor) {
+    next.set(PUBLISH_PREVIEW_EDITOR_QUERY, "1");
+  } else if (input.clearEdit) {
+    next.delete(PUBLISH_PREVIEW_EDITOR_QUERY);
   }
 
   if (input.roomId) {

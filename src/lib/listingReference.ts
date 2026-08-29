@@ -68,12 +68,20 @@ export function roomMatchesEditParam(roomId: string, roomParam: string): boolean
   return listingReferenceId(t) === listingReferenceId(roomId);
 }
 
-/** `/publicar?edit=P…` (optional `&room=A…`). */
+/** Hub / listing “Editar” — open the pencil preview, not the stepped wizard. Autosave must not set this. */
+export const PUBLISH_PREVIEW_EDITOR_QUERY = "vista";
+
+/** `/publicar?edit=P…&vista=1` (optional `&room=A…`). */
 export function publishWizardEditPath(propertyId: string, roomId?: string | null): string {
   const params = new URLSearchParams();
   params.set("edit", wizardPropertyEditCode(propertyId));
+  params.set(PUBLISH_PREVIEW_EDITOR_QUERY, "1");
   if (roomId) params.set("room", wizardRoomEditCode(roomId));
   return `/publicar?${params.toString()}`;
+}
+
+export function isPublishPreviewEditorQuery(params: URLSearchParams): boolean {
+  return params.get(PUBLISH_PREVIEW_EDITOR_QUERY) === "1";
 }
 
 /** First-time publish confirmation — separate from `/publicar?edit=` so reload does not reopen the editor. */

@@ -455,7 +455,7 @@ export function ListingPropertyCard({
                     {
                       key: "edit",
                       label: "Editar",
-                      to: `${editPath}&room=${encodeURIComponent(l.id)}`,
+                      to: publishWizardEditPath(propertyId, l.id),
                       state: returnState,
                       icon: <Pencil className="size-3.5 shrink-0" aria-hidden />,
                     } satisfies CardActionItem,

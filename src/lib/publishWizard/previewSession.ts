@@ -59,8 +59,8 @@ export function publishWizardLastStepIndex(
 }
 
 /**
- * Self-serve AI Datos → Verificar. Live published/paused edits stay on the long wizard.
- * In-progress drafts often get `?edit=` from autosave — that must not disable AI.
+ * Hub/admin Editar uses `?vista=1` so drafts open the pencil preview.
+ * In-progress drafts often get `?edit=` from autosave without `vista` — that must not disable AI.
  */
 export function isAiRoomCreateFlow(
   d: Pick<Draft, "roomCreateFlow">,

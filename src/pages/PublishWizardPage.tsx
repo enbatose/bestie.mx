@@ -37,7 +37,7 @@ import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
-import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam } from "@/lib/listingReference";
+import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam, isPublishPreviewEditorQuery } from "@/lib/listingReference";
 import {
   forgetManualRoomCreateChoice,
   isAiRoomCreateFlow,
@@ -970,6 +970,7 @@ export function PublishWizardPage() {
   const handoffToken = searchParams.get("handoff");
   const editPropertyId = searchParams.get("edit");
   const editListingId = searchParams.get("room");
+  const previewEditorIntent = isPublishPreviewEditorQuery(searchParams);
   const [editPostModeLock, setEditPostModeLock] = useState<Draft["postMode"] | null>(null);
   const handoffLock = useRef(false);
   const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
@@ -1540,7 +1541,16 @@ export function PublishWizardPage() {
             editListingId || nextDraft.postMode !== "property" ? "room" : "property";
           setLiveEditScope(scope);
           setUnclaimedAdminOutreach(Boolean(bundle.property.unclaimedAdminOutreach));
-          setStep(lastWizardStep(nextDraft));
+          const urlStep = readWizardPasoIndex(searchParams);
+          if (ps === "published" || ps === "paused" || isPublishPreviewEditorQuery(searchParams)) {
+            setStep(lastWizardStep(nextDraft));
+          } else if (urlStep != null) {
+            setStep(urlStep);
+          } else if (typeof bundle.property.wizardStep === "number") {
+            setStep(bundle.property.wizardStep);
+          } else {
+            setStep(lastWizardStep(nextDraft));
+          }
 
           if (ps === "published" || ps === "paused") {
             setHandoffBanner(
@@ -1567,7 +1577,7 @@ export function PublishWizardPage() {
           const session = await authMe();
           if (session?.id) didHydrateLocalForUserRef.current = session.id;
         } else if (!cancelled) {
-          setPublishErr("No se pudo abrir este anuncio. Vuelve a Posts e intenta de nuevo.");
+          setPublishErr("No se pudo abrir este anuncio. Vuelve atrás e intenta de nuevo.");
         }
       } catch (e) {
         if (!cancelled) {
@@ -1575,7 +1585,7 @@ export function PublishWizardPage() {
           const raw = e instanceof Error ? e.message : "";
           setPublishErr(
             raw.includes("property_http_400") || raw.includes("invalid_id")
-              ? "No se pudo abrir este anuncio. Vuelve a Posts e intenta de nuevo."
+              ? "No se pudo abrir este anuncio. Vuelve atrás e intenta de nuevo."
               : raw || "No se pudo cargar el borrador.",
           );
         }
@@ -1886,10 +1896,12 @@ export function PublishWizardPage() {
               : serverSync.propertyId,
           clearEdit: draft.roomCreateFlow === "ai" && !editingLiveProperty && !assistedDraftToken && !editPropertyId,
           stepIndex: step,
-          roomId: editingLiveProperty || editPropertyId
+          roomId: editingLiveProperty || previewEditorIntent || editPropertyId
             ? (editListingId || liveEditReturnListingId)
             : undefined,
           assistedDraftToken,
+          previewEditor:
+            previewEditorIntent || Boolean(editingLiveProperty) || fromAdminPosts,
         });
         return next.toString() === prev.toString() ? prev : next;
       },
@@ -1909,7 +1921,9 @@ export function PublishWizardPage() {
     editListingId,
     editPropertyId,
     editingLiveProperty,
+    fromAdminPosts,
     liveEditReturnListingId,
+    previewEditorIntent,
     serverSync.propertyId,
     setSearchParams,
     step,
@@ -1988,7 +2002,7 @@ export function PublishWizardPage() {
   }
 
   const aiRoomFlow = isAiRoomCreateFlow(draft, {
-    liveEdit: Boolean(editingLiveProperty),
+    liveEdit: Boolean(editingLiveProperty) || previewEditorIntent,
   });
 
   const steps = useMemo(
@@ -2968,7 +2982,10 @@ export function PublishWizardPage() {
   const showWizardProgress = safeStep >= WIZARD_FIRST_NUMBERED_STEP;
   const progressSteps = steps.slice(WIZARD_FIRST_NUMBERED_STEP);
   const showListingPreviewEditor =
-    Boolean(editPropertyId) && editBundleReady && Boolean(serverSync.propertyId);
+    Boolean(editPropertyId) &&
+    editBundleReady &&
+    Boolean(serverSync.propertyId) &&
+    (Boolean(editingLiveProperty) || previewEditorIntent || fromAdminPosts);
 
   useEffect(() => {
     if (safeStep !== WIZARD_FIRST_NUMBERED_STEP) {
@@ -3038,11 +3055,11 @@ export function PublishWizardPage() {
   }, [draft.postMode]);
 
   useEffect(() => {
-    if (editPropertyId) return;
+    if (previewEditorIntent || editingLiveProperty) return;
     const n = readWizardPasoIndex(searchParams);
     if (n == null) return;
     setStep(Math.min(n, maxStepIndex));
-  }, [searchParams, maxStepIndex, editPropertyId]);
+  }, [searchParams, maxStepIndex, previewEditorIntent, editingLiveProperty]);
 
   useLayoutEffect(() => {
     if (step !== safeStep) {

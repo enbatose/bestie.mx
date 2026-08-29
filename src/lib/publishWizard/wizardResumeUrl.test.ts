@@ -36,11 +36,22 @@ describe("wizardResumeUrl", () => {
   });
 
   it("drops edit during AI Datos before compose", () => {
-    const next = applyWizardResumeSearchParams(new URLSearchParams("edit=P550E8400&paso=2"), {
+    const next = applyWizardResumeSearchParams(new URLSearchParams("edit=P550E8400&vista=1&paso=2"), {
       clearEdit: true,
       stepIndex: 1,
     });
     expect(next.get("edit")).toBeNull();
     expect(next.get("paso")).toBe("2");
+    expect(next.get("vista")).toBeNull();
+  });
+
+  it("keeps vista=1 for hub preview edits", () => {
+    const next = applyWizardResumeSearchParams(new URLSearchParams("edit=P550E8400&vista=1"), {
+      propertyId: "prp__550e8400-e29b-41d4-a716-446655440000",
+      stepIndex: 5,
+      previewEditor: true,
+    });
+    expect(next.get("vista")).toBe("1");
+    expect(next.get("edit")).toBe("P550E8400");
   });
 });

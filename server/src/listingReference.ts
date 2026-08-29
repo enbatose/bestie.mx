@@ -48,3 +48,6 @@ export function isListingReferenceCode(param: string): boolean {
     LEGACY_PROPERTY_REF_PATTERN.test(t)
   );
 }
+
+/** Hub / listing “Editar” — open the pencil preview, not the stepped wizard. */
+export const PUBLISH_PREVIEW_EDITOR_QUERY = "vista";

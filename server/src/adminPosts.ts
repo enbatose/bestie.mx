@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   listingReferenceId,
   propertyReferenceCode,
+  PUBLISH_PREVIEW_EDITOR_QUERY,
   roomReferenceCode,
 } from "./listingReference.js";
 import { posthogReplayUrl } from "./vendorUsageLimits.js";
@@ -111,6 +112,7 @@ export function adminPostEditPath(opts: {
 }): string {
   const params = new URLSearchParams();
   params.set("edit", propertyReferenceCode(opts.propertyId));
+  params.set(PUBLISH_PREVIEW_EDITOR_QUERY, "1");
   if (opts.postMode === "room" && opts.roomId) {
     params.set("room", roomReferenceCode(opts.roomId));
   }

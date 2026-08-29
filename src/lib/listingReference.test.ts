@@ -33,10 +33,10 @@ describe("listingReference (client)", () => {
     expect(wizardPropertyEditCode("P550E8400")).toBe("P550E8400");
   });
 
-  it("builds wizard edit URLs with short ids", () => {
-    expect(publishWizardEditPath(`prp__${uuid}`)).toBe("/publicar?edit=P550E8400");
+  it("builds wizard edit URLs with short ids and preview intent", () => {
+    expect(publishWizardEditPath(`prp__${uuid}`)).toBe("/publicar?edit=P550E8400&vista=1");
     expect(publishWizardEditPath(`prp__${uuid}`, uuid)).toBe(
-      "/publicar?edit=P550E8400&room=A550E8400",
+      "/publicar?edit=P550E8400&vista=1&room=A550E8400",
     );
   });
 

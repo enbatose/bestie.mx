@@ -17,7 +17,7 @@ import {
   unblockPublisher,
 } from "./listingReports.js";
 import { startAdminSupportConversation } from "./adminSupportStart.js";
-import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
+import { propertyReferenceCode, PUBLISH_PREVIEW_EDITOR_QUERY, roomReferenceCode } from "./listingReference.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
 
 function jsonMw() {
@@ -59,7 +59,7 @@ export function adminReportsRouter(db: DatabaseSync) {
       postUrl = `${publicBaseUrl()}/anuncio/${roomReferenceCode(report.targetRoomId)}`;
     } else if (report.targetPropertyId) {
       postUrl = `${publicBaseUrl()}/propiedad/${propertyReferenceCode(report.targetPropertyId)}`;
-      editPath = `/publicar?edit=${encodeURIComponent(propertyReferenceCode(report.targetPropertyId))}`;
+      editPath = `/publicar?edit=${encodeURIComponent(propertyReferenceCode(report.targetPropertyId))}&${PUBLISH_PREVIEW_EDITOR_QUERY}=1`;
     }
     let propertyStatus: string | null = null;
     let pausedBy: string | null = null;
