@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ProfilePhoneStatusBadge } from "@/components/account/ProfilePhoneStatusBadge";
 import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
+import { VerifyPhoneOtpModal } from "@/components/phone/VerifyPhoneOtpModal";
 import { authMe, isPhoneVerified, type AuthMe } from "@/lib/authApi";
-import { formatMxPhoneDisplay } from "@/lib/mxPhone";
+import { formatMxPhoneDisplay, normalizeMxNationalDigits } from "@/lib/mxPhone";
 
 export function ProfilePage() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
+  const [verifyPhoneOpen, setVerifyPhoneOpen] = useState(false);
 
   const load = useCallback(async () => {
     setMe(await authMe().catch(() => null));
@@ -74,7 +76,10 @@ export function ProfilePage() {
             </p>
             {me.phoneE164 ? (
               <div className="mt-1.5 flex justify-end">
-                <ProfilePhoneStatusBadge verified={phoneVerified} verifyHref="/perfil/editar" />
+                <ProfilePhoneStatusBadge
+                  verified={phoneVerified}
+                  onVerifyClick={() => setVerifyPhoneOpen(true)}
+                />
               </div>
             ) : null}
           </div>
@@ -93,6 +98,16 @@ export function ProfilePage() {
           Editar datos
         </Link>
       </div>
+
+      <VerifyPhoneOtpModal
+        open={verifyPhoneOpen}
+        initialPhone={normalizeMxNationalDigits(me.phoneE164 ?? "") ?? ""}
+        onClose={() => setVerifyPhoneOpen(false)}
+        onVerified={async () => {
+          setVerifyPhoneOpen(false);
+          await load();
+        }}
+      />
     </div>
   );
 }

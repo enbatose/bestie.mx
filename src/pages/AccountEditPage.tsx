@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ProfilePhoneStatusBadge } from "@/components/account/ProfilePhoneStatusBadge";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { VerifyPhoneOtpModal } from "@/components/phone/VerifyPhoneOtpModal";
 import { PasswordField } from "@/components/PasswordField";
 import {
   authChangePassword,
   authCompletePasswordReset,
   authConsumePasswordReset,
   authMe,
-  authPhoneOtpRequest,
-  authPhoneVerify,
   authUpdateMe,
   isPhoneVerified,
   type AuthMe,
@@ -31,9 +30,7 @@ export function AccountEditPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [devCode, setDevCode] = useState<string | null>(null);
+  const [verifyPhoneOpen, setVerifyPhoneOpen] = useState(false);
   const [phoneNotifyOptIn, setPhoneNotifyOptIn] = useState(true);
   const [phoneMarketingOptIn, setPhoneMarketingOptIn] = useState(true);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -179,6 +176,21 @@ export function AccountEditPage() {
     displayNameChanged || emailChanged || phoneChanged || phoneNotifyChanged || phoneMarketingChanged;
   const phoneComplete = phone.trim().length === 0 || nextPhoneE164 != null;
 
+  const openVerifyPhone = () => {
+    setProfileErr(null);
+    if (!phone.trim() || !nextPhoneE164) {
+      setProfileErr("Completa un número válido de 10 dígitos.");
+      scrollProfileFeedback();
+      return;
+    }
+    if (phoneChanged && isPhoneVerified(me) && nextPhoneE164 !== currentPhoneE164 && !me.emailVerified) {
+      setProfileErr("Para cambiar tu teléfono de perfil primero agrega y verifica un correo.");
+      scrollProfileFeedback();
+      return;
+    }
+    setVerifyPhoneOpen(true);
+  };
+
   const scrollProfileFeedback = () => {
     window.requestAnimationFrame(() => {
       profileFeedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -209,29 +221,12 @@ export function AccountEditPage() {
       scrollProfileFeedback();
       return;
     }
+    if (phoneChanged && nextPhoneE164) {
+      openVerifyPhone();
+      return;
+    }
     setSavingProfile(true);
     try {
-      if (phoneChanged && nextPhoneE164) {
-        if (!otpSent) {
-          const r = await authPhoneOtpRequest(phone.trim());
-          setOtpSent(true);
-          setDevCode(r.devCode ?? null);
-          setProfileMsg("Te enviamos un código SMS. Escríbelo y guarda de nuevo.");
-          scrollProfileFeedback();
-          setSavingProfile(false);
-          return;
-        }
-        if (!/^\d{6}$/.test(otpCode.trim())) {
-          setProfileErr("Ingresa el código de 6 dígitos.");
-          scrollProfileFeedback();
-          setSavingProfile(false);
-          return;
-        }
-        await authPhoneVerify({ phone: phone.trim(), code: otpCode.trim() });
-        setOtpSent(false);
-        setOtpCode("");
-        setDevCode(null);
-      }
       const body: {
         displayName?: string;
         email?: string;
@@ -258,6 +253,48 @@ export function AccountEditPage() {
       } else {
         window.dispatchEvent(new Event("bestie:me-changed"));
         setProfileMsg("Datos actualizados.");
+      }
+      setCurrentPassword("");
+      await load();
+      scrollProfileFeedback();
+    } catch (x) {
+      setProfileErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+      scrollProfileFeedback();
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const onPhoneVerified = async () => {
+    setVerifyPhoneOpen(false);
+    setSavingProfile(true);
+    setProfileErr(null);
+    try {
+      const body: {
+        displayName?: string;
+        email?: string;
+        currentPassword?: string;
+        phoneNotifyOptIn?: boolean;
+        phoneMarketingOptIn?: boolean;
+      } = {};
+      if (displayNameChanged) body.displayName = displayName.trim();
+      if (emailChanged) {
+        body.email = email.trim().toLowerCase();
+        body.currentPassword = currentPassword;
+      }
+      if (phoneNotifyChanged) body.phoneNotifyOptIn = phoneNotifyOptIn;
+      if (phoneMarketingChanged) body.phoneMarketingOptIn = phoneMarketingOptIn;
+      if (Object.keys(body).length) {
+        const r = await authUpdateMe(body);
+        if (r.emailChanged) {
+          window.dispatchEvent(new Event("bestie:me-changed"));
+          navigate("/verificar-correo", { replace: true });
+          return;
+        }
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        setProfileMsg("Teléfono verificado. Datos actualizados.");
+      } else {
+        setProfileMsg("Teléfono verificado.");
       }
       setCurrentPassword("");
       await load();
@@ -397,41 +434,26 @@ export function AccountEditPage() {
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="text-sm font-semibold text-body">Teléfono</h3>
               {currentPhoneE164 || nextPhoneE164 ? (
-                <ProfilePhoneStatusBadge verified={isPhoneVerified(me) && !phoneChanged} />
+                <ProfilePhoneStatusBadge
+                  verified={isPhoneVerified(me) && !phoneChanged}
+                  onVerifyClick={openVerifyPhone}
+                />
               ) : null}
             </div>
             <p className="mt-1 text-xs leading-snug text-muted">
               {isPublisher
                 ? "Tu número no se muestra automáticamente en tu perfil. Solo aparece en un anuncio si activas esa opción al publicarlo."
-                : "Tu número no se muestra a otras personas en tu perfil. Si algún día publicas un anuncio, podrás decidir si mostrarlo ahí."}
+                : "Tu número no se muestra a otras personas en tu perfil. Si algún día publicas un anuncio, podrás decidir si mostrarlo ahí."}{" "}
+              {!(isPhoneVerified(me) && !phoneChanged)
+                ? "Toca Sin verificar para confirmarlo con un código SMS."
+                : null}
             </p>
             <PhoneNumberField
               id="account-phone"
               value={phone}
-              onChange={(next) => {
-                setPhone(next);
-                setOtpSent(false);
-                setOtpCode("");
-                setDevCode(null);
-              }}
+              onChange={(next) => setPhone(next)}
               className="mt-4"
             />
-            {otpSent ? (
-              <label className="mt-3 block text-sm font-medium text-body">
-                Código SMS
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  size={6}
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                />
-              </label>
-            ) : null}
-            {devCode ? <p className="mt-1 text-xs text-muted">Código de prueba (dev): {devCode}</p> : null}
             <div className="mt-4 space-y-2.5 sm:space-y-3">
               <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
                 <input
@@ -485,7 +507,7 @@ export function AccountEditPage() {
             disabled={savingProfile || !profileHasChanges || !phoneComplete}
             className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
           >
-            {savingProfile ? "Guardando…" : otpSent && phoneChanged ? "Verificar y guardar" : "Guardar cambios"}
+            {savingProfile ? "Guardando…" : phoneChanged ? "Verificar teléfono" : "Guardar cambios"}
           </button>
         </form>
       </section>
@@ -567,6 +589,13 @@ export function AccountEditPage() {
         </section>
       )}
     </div>
+
+    <VerifyPhoneOtpModal
+      open={verifyPhoneOpen}
+      initialPhone={phone}
+      onClose={() => setVerifyPhoneOpen(false)}
+      onVerified={() => void onPhoneVerified()}
+    />
 
     {passwordResetSuccessOpen ? (
       <div
