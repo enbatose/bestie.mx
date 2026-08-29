@@ -246,7 +246,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
         // Per-listing Open Graph for WhatsApp / Messenger / Facebook scrapers.
         // Base must match the request host so Dev images are not pointed at Prod.
-        const og = resolveListingShareOg(db, req.path, sharePreviewBaseUrl(req));
+        const og = resolveListingShareOg(db, req.path, sharePreviewBaseUrl(req), req.query);
         if (og) {
           try {
             const html = injectListingShareOg(readIndexHtml(), og);

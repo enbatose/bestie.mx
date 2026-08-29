@@ -1,7 +1,8 @@
 /**
  * Open Graph / social preview meta for shareable listing URLs.
  * WhatsApp, Messenger, and Facebook scrapers do not run the SPA — they need
- * listing-specific tags in the HTML served for `/anuncio/…` and `/propiedad/…`.
+ * listing-specific tags in the HTML served for `/anuncio/…`, `/propiedad/…`,
+ * and unpublished claim links (`/anuncio/…?claim=` and `/borrador/…`).
  */
 import type { DatabaseSync } from "node:sqlite";
 import {
@@ -17,6 +18,10 @@ import {
   roomReferenceCode,
 } from "./listingReference.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
+import {
+  lookupLiveClaimToken,
+  readClaimQueryParam,
+} from "./claimTokenLookup.js";
 import {
   resolvePropertyIdFromRouteParam,
   resolveRoomIdFromRouteParam,
@@ -35,6 +40,19 @@ export type ListingShareOgMeta = {
   imageUrl: string | null;
   /** Optional Offer / RealEstateListing JSON-LD for crawlers. */
   jsonLd?: unknown;
+  /** Claim / unpublished share links must not be indexed as public listings. */
+  noIndex?: boolean;
+};
+
+export type BuildShareOgOptions = {
+  url?: string;
+  includeJsonLd?: boolean;
+  noIndex?: boolean;
+};
+
+const CLAIM_SHARE_OG_OPTS: BuildShareOgOptions = {
+  includeJsonLd: false,
+  noIndex: true,
 };
 
 /** Trim at a word boundary when possible so previews don't cut mid-word. */
@@ -102,6 +120,7 @@ export function coverImageForPost(
 export function buildRoomShareOg(
   listing: PropertyListing,
   base: string = publicBaseUrl(),
+  opts?: BuildShareOgOptions,
 ): ListingShareOgMeta {
   const title = truncateOgText(
     (listing.propertyPostMode === "room"
@@ -120,39 +139,43 @@ export function buildRoomShareOg(
   const summary = (listing.summary ?? "").trim();
   if (summary) parts.push(summary);
 
-  const url = `${base}/anuncio/${roomReferenceCode(listing.id)}`;
+  const url = opts?.url ?? `${base}/anuncio/${roomReferenceCode(listing.id)}`;
   const description = truncateOgText(parts.join(" · "), OG_DESC_MAX);
   const imageUrl = coverImageForPost(base, listing, "room");
+  const includeJsonLd = opts?.includeJsonLd !== false;
   return {
     title,
     description,
     url,
     imageUrl,
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@type": "RealEstateListing",
-      name: title,
-      description,
-      url,
-      ...(imageUrl ? { image: imageUrl } : {}),
-      ...(Number.isFinite(listing.rentMxn) && listing.rentMxn > 0
-        ? {
-            offers: {
-              "@type": "Offer",
-              price: listing.rentMxn,
-              priceCurrency: "MXN",
-              availability: "https://schema.org/InStock",
-            },
-          }
-        : {}),
-      address: {
-        "@type": "PostalAddress",
-        addressLocality: listing.city || "Guadalajara",
-        addressRegion: "Jalisco",
-        addressCountry: "MX",
-        ...(listing.neighborhood ? { addressNeighborhood: listing.neighborhood } : {}),
-      },
-    },
+    noIndex: opts?.noIndex,
+    jsonLd: includeJsonLd
+      ? {
+          "@context": "https://schema.org",
+          "@type": "RealEstateListing",
+          name: title,
+          description,
+          url,
+          ...(imageUrl ? { image: imageUrl } : {}),
+          ...(Number.isFinite(listing.rentMxn) && listing.rentMxn > 0
+            ? {
+                offers: {
+                  "@type": "Offer",
+                  price: listing.rentMxn,
+                  priceCurrency: "MXN",
+                  availability: "https://schema.org/InStock",
+                },
+              }
+            : {}),
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: listing.city || "Guadalajara",
+            addressRegion: "Jalisco",
+            addressCountry: "MX",
+            ...(listing.neighborhood ? { addressNeighborhood: listing.neighborhood } : {}),
+          },
+        }
+      : undefined,
   };
 }
 
@@ -167,6 +190,7 @@ export function buildPropertyShareOg(
   propertyId: string,
   summary: string,
   base: string = publicBaseUrl(),
+  opts?: BuildShareOgOptions,
 ): ListingShareOgMeta {
   const title = truncateOgText(propertyTitle.trim() || "Propiedad en Bestie", OG_TITLE_MAX);
   const rents = availableRooms.map((r) => r.rentMxn).filter((n) => Number.isFinite(n) && n > 0);
@@ -181,7 +205,7 @@ export function buildPropertyShareOg(
   const sum = summary.trim();
   if (sum) parts.push(sum);
 
-  const url = `${base}/propiedad/${propertyReferenceCode(propertyId)}`;
+  const url = opts?.url ?? `${base}/propiedad/${propertyReferenceCode(propertyId)}`;
   const description = truncateOgText(parts.join(" · "), OG_DESC_MAX);
   const imageUrl = coverImageForPost(
     base,
@@ -189,37 +213,41 @@ export function buildPropertyShareOg(
     "property",
   );
   const minRent = rents.length ? Math.min(...rents) : null;
+  const includeJsonLd = opts?.includeJsonLd !== false;
   return {
     title,
     description,
     url,
     imageUrl,
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@type": "RealEstateListing",
-      name: title,
-      description,
-      url,
-      ...(imageUrl ? { image: imageUrl } : {}),
-      ...(minRent != null
-        ? {
-            offers: {
-              "@type": "AggregateOffer",
-              lowPrice: Math.min(...rents),
-              highPrice: Math.max(...rents),
-              priceCurrency: "MXN",
-              offerCount: n,
-            },
-          }
-        : {}),
-      address: {
-        "@type": "PostalAddress",
-        addressLocality: place.city || "Guadalajara",
-        addressRegion: "Jalisco",
-        addressCountry: "MX",
-        ...(place.neighborhood ? { addressNeighborhood: place.neighborhood } : {}),
-      },
-    },
+    noIndex: opts?.noIndex,
+    jsonLd: includeJsonLd
+      ? {
+          "@context": "https://schema.org",
+          "@type": "RealEstateListing",
+          name: title,
+          description,
+          url,
+          ...(imageUrl ? { image: imageUrl } : {}),
+          ...(minRent != null
+            ? {
+                offers: {
+                  "@type": "AggregateOffer",
+                  lowPrice: Math.min(...rents),
+                  highPrice: Math.max(...rents),
+                  priceCurrency: "MXN",
+                  offerCount: n,
+                },
+              }
+            : {}),
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: place.city || "Guadalajara",
+            addressRegion: "Jalisco",
+            addressCountry: "MX",
+            ...(place.neighborhood ? { addressNeighborhood: place.neighborhood } : {}),
+          },
+        }
+      : undefined,
   };
 }
 
@@ -237,14 +265,43 @@ function loadPublishedRoom(db: DatabaseSync, roomId: string): PropertyListing | 
   return joinRowToPropertyListing(row);
 }
 
+function loadClaimRoom(
+  db: DatabaseSync,
+  roomId: string,
+  propertyId: string,
+): PropertyListing | null {
+  const row = db
+    .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ? AND p.id = ?`)
+    .get(roomId, propertyId) as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return joinRowToPropertyListing(row);
+}
+
+function claimAnuncioUrl(base: string, listingId: string, token: string): string {
+  return `${base}/anuncio/${roomReferenceCode(listingId)}?claim=${encodeURIComponent(token)}`;
+}
+
+function roomShareOgForClaim(
+  listing: PropertyListing,
+  base: string,
+  token: string,
+): ListingShareOgMeta {
+  return buildRoomShareOg(listing, base, {
+    ...CLAIM_SHARE_OG_OPTS,
+    url: claimAnuncioUrl(base, listing.id, token),
+  });
+}
+
 function loadPropertyShareContext(
   db: DatabaseSync,
   propertyId: string,
+  mode: "published" | "claim" = "published",
 ): {
   propertyTitle: string;
   neighborhood: string;
   city: string;
   summary: string;
+  postMode: string;
   coverListing: PropertyListing;
   availableRooms: PropertyListing[];
 } | null {
@@ -265,15 +322,20 @@ function loadPropertyShareContext(
         post_mode: string | null;
       }
     | undefined;
-  if (!prop || String(prop.status) !== "published") return null;
+  if (!prop) return null;
+  if (mode === "published" && String(prop.status) !== "published") return null;
 
   const rows = db
     .prepare(
-      `${ROOM_PROPERTY_JOIN_SQL}
+      mode === "published"
+        ? `${ROOM_PROPERTY_JOIN_SQL}
        WHERE p.id = ?
          AND r.status = 'published'
          AND p.status = 'published'
          AND IFNULL(r.occupancy_status, 'available') != 'occupied'
+       ORDER BY r.sort_order ASC, r.rent_mxn ASC, r.id ASC`
+        : `${ROOM_PROPERTY_JOIN_SQL}
+       WHERE p.id = ?
        ORDER BY r.sort_order ASC, r.rent_mxn ASC, r.id ASC`,
     )
     .all(propertyId) as Record<string, unknown>[];
@@ -296,34 +358,27 @@ function loadPropertyShareContext(
     neighborhood: String(prop.neighborhood ?? ""),
     city: String(prop.city ?? ""),
     summary: String(prop.summary ?? ""),
+    postMode: String(prop.post_mode ?? "room"),
     coverListing,
     availableRooms,
   };
 }
 
-/** Resolve OG payload for a public path, or null to leave the SPA shell as-is. */
-export function resolveListingShareOg(
+function claimShareOgForProperty(
   db: DatabaseSync,
-  pathname: string,
-  base: string = publicBaseUrl(),
+  propertyId: string,
+  token: string,
+  base: string,
+  preferRoomId?: string | null,
 ): ListingShareOgMeta | null {
-  const anuncio = pathname.match(/^\/anuncio\/([^/]+)\/?$/i);
-  if (anuncio) {
-    const roomId = resolveRoomIdFromRouteParam(db, decodeURIComponent(anuncio[1]!));
-    if (!roomId) return null;
-    const listing = loadPublishedRoom(db, roomId);
-    if (!listing) return null;
-    // Property-mode rooms still get room-level OG when the URL is `/anuncio/…`
-    // (e.g. search / email deep links). Owner "Compartir" uses `/propiedad/…`.
-    return buildRoomShareOg(listing, base);
-  }
+  const ctx = loadPropertyShareContext(db, propertyId, "claim");
+  if (!ctx) return null;
+  const claimOpts: BuildShareOgOptions = { ...CLAIM_SHARE_OG_OPTS };
 
-  const propiedad = pathname.match(/^\/propiedad\/([^/]+)\/?$/i);
-  if (propiedad) {
-    const propertyId = resolvePropertyIdFromRouteParam(db, decodeURIComponent(propiedad[1]!));
-    if (!propertyId) return null;
-    const ctx = loadPropertyShareContext(db, propertyId);
-    if (!ctx) return null;
+  if (ctx.postMode === "property") {
+    const url = preferRoomId
+      ? claimAnuncioUrl(base, preferRoomId, token)
+      : `${base}/borrador/${encodeURIComponent(token)}`;
     return buildPropertyShareOg(
       ctx.propertyTitle,
       { neighborhood: ctx.neighborhood, city: ctx.city },
@@ -332,7 +387,69 @@ export function resolveListingShareOg(
       propertyId,
       ctx.summary,
       base,
+      { ...claimOpts, url },
     );
+  }
+
+  const listing =
+    (preferRoomId ? loadClaimRoom(db, preferRoomId, propertyId) : null) ?? ctx.coverListing;
+  return roomShareOgForClaim(listing, base, token);
+}
+
+/** Resolve OG payload for a public path, or null to leave the SPA shell as-is. */
+export function resolveListingShareOg(
+  db: DatabaseSync,
+  pathname: string,
+  base: string = publicBaseUrl(),
+  query?: unknown,
+): ListingShareOgMeta | null {
+  const claim = readClaimQueryParam(query);
+
+  const borrador = pathname.match(/^\/borrador\/([^/]+)\/?$/i);
+  if (borrador) {
+    const live = lookupLiveClaimToken(db, decodeURIComponent(borrador[1]!));
+    if (!live) return null;
+    return claimShareOgForProperty(db, live.propertyId, live.token, base);
+  }
+
+  const anuncio = pathname.match(/^\/anuncio\/([^/]+)\/?$/i);
+  if (anuncio) {
+    const roomId = resolveRoomIdFromRouteParam(db, decodeURIComponent(anuncio[1]!));
+    if (!roomId) return null;
+    const published = loadPublishedRoom(db, roomId);
+    if (published) {
+      // Property-mode rooms still get room-level OG when the URL is `/anuncio/…`
+      // (e.g. search / email deep links). Owner "Compartir" uses `/propiedad/…`.
+      return buildRoomShareOg(published, base);
+    }
+    if (!claim) return null;
+    const live = lookupLiveClaimToken(db, claim);
+    if (!live) return null;
+    const listing = loadClaimRoom(db, roomId, live.propertyId);
+    if (!listing) return null;
+    return roomShareOgForClaim(listing, base, live.token);
+  }
+
+  const propiedad = pathname.match(/^\/propiedad\/([^/]+)\/?$/i);
+  if (propiedad) {
+    const propertyId = resolvePropertyIdFromRouteParam(db, decodeURIComponent(propiedad[1]!));
+    if (!propertyId) return null;
+    const publishedCtx = loadPropertyShareContext(db, propertyId, "published");
+    if (publishedCtx) {
+      return buildPropertyShareOg(
+        publishedCtx.propertyTitle,
+        { neighborhood: publishedCtx.neighborhood, city: publishedCtx.city },
+        publishedCtx.availableRooms,
+        publishedCtx.coverListing,
+        propertyId,
+        publishedCtx.summary,
+        base,
+      );
+    }
+    if (!claim) return null;
+    const live = lookupLiveClaimToken(db, claim);
+    if (!live || live.propertyId !== propertyId) return null;
+    return claimShareOgForProperty(db, propertyId, live.token, base);
   }
 
   return null;
@@ -370,6 +487,9 @@ export function injectListingShareOg(html: string, meta: ListingShareOgMeta): st
   out = upsertMetaByName(out, "twitter:description", meta.description);
   if (meta.imageUrl) {
     out = upsertMetaByName(out, "twitter:image", meta.imageUrl);
+  }
+  if (meta.noIndex) {
+    out = upsertMetaByName(out, "robots", "noindex, nofollow");
   }
   if (meta.jsonLd != null) {
     out = upsertJsonLd(out, "listing", meta.jsonLd);

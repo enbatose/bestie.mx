@@ -204,7 +204,9 @@ export function TermsPage() {
           distinta de las fotos del anuncio y, si aplica, una nota corta). Esa evidencia se guarda
           internamente y <strong>no se muestra</strong> en el anuncio público ni al dueño posterior. Un
           anuncio de crecimiento publicado sin dueño deja deshabilitado el botón Contactar hasta que
-          alguien lo reclame; el teléfono del anuncio puede revelarse según las reglas habituales. La
+          alguien lo reclame; el teléfono del anuncio puede revelarse según las reglas habituales. Si
+          se comparte el enlace de reclamación, Facebook, WhatsApp u otras apps pueden mostrar una
+          vista previa con la foto de portada, el título, la zona y la renta (sin el teléfono). La
           información del borrador es orientativa y puede estar incompleta o contener errores de
           extracción; eres responsable de verificar, corregir y completar los datos antes de
           publicar. Los borradores del supuesto (i) que no sean reclamados ni publicados con evidencia

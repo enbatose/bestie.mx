@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DatabaseSync } from "node:sqlite";
 import sharp from "sharp";
+import { propertyHasUnexpiredClaimToken } from "./claimTokenLookup.js";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import {
   resolvePropertyIdFromRouteParam,
@@ -165,6 +166,21 @@ export async function composeBrandedShareImage(source: Buffer): Promise<Buffer> 
     .toBuffer();
 }
 
+function applyPropertyCoverImages(
+  listing: PropertyListing,
+  imageUrlsJson: string | null,
+): PropertyListing {
+  try {
+    const imgs = JSON.parse(String(imageUrlsJson ?? "[]")) as unknown;
+    if (Array.isArray(imgs) && imgs.length) {
+      listing.propertyImageUrls = imgs.map(String).filter(Boolean);
+    }
+  } catch {
+    /* keep join */
+  }
+  return listing;
+}
+
 function loadPublishedRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
   const row = db
     .prepare(
@@ -179,33 +195,43 @@ function loadPublishedRoom(db: DatabaseSync, roomId: string): PropertyListing | 
   return joinRowToPropertyListing(row);
 }
 
+/** Published room, or unpublished room whose property has a live claim token. */
+function loadShareOgRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
+  const published = loadPublishedRoom(db, roomId);
+  if (published) return published;
+  const row = db
+    .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
+    .get(roomId) as Record<string, unknown> | undefined;
+  if (!row) return null;
+  const listing = joinRowToPropertyListing(row);
+  if (!propertyHasUnexpiredClaimToken(db, listing.propertyId)) return null;
+  return listing;
+}
+
 function loadPropertyCoverListing(db: DatabaseSync, propertyId: string): PropertyListing | null {
   const prop = db
     .prepare(`SELECT id, status, image_urls_json FROM properties WHERE id = ?`)
     .get(propertyId) as { id: string; status: string; image_urls_json: string | null } | undefined;
-  if (!prop || String(prop.status) !== "published") return null;
+  if (!prop) return null;
+  const published = String(prop.status) === "published";
+  if (!published && !propertyHasUnexpiredClaimToken(db, propertyId)) return null;
 
   const rows = db
     .prepare(
-      `${ROOM_PROPERTY_JOIN_SQL}
+      published
+        ? `${ROOM_PROPERTY_JOIN_SQL}
        WHERE p.id = ?
          AND r.status = 'published'
          AND p.status = 'published'
          AND IFNULL(r.occupancy_status, 'available') != 'occupied'
+       ORDER BY r.sort_order ASC, r.rent_mxn ASC, r.id ASC`
+        : `${ROOM_PROPERTY_JOIN_SQL}
+       WHERE p.id = ?
        ORDER BY r.sort_order ASC, r.rent_mxn ASC, r.id ASC`,
     )
     .all(propertyId) as Record<string, unknown>[];
   if (!rows.length) return null;
-  const cover = joinRowToPropertyListing(rows[0]!);
-  try {
-    const imgs = JSON.parse(String(prop.image_urls_json ?? "[]")) as unknown;
-    if (Array.isArray(imgs) && imgs.length) {
-      cover.propertyImageUrls = imgs.map(String).filter(Boolean);
-    }
-  } catch {
-    /* keep join */
-  }
-  return cover;
+  return applyPropertyCoverImages(joinRowToPropertyListing(rows[0]!), prop.image_urls_json);
 }
 
 export type ShareOgImageRequest = {
@@ -222,7 +248,7 @@ export function resolveShareOgSourceFilename(
   if (req.kind === "anuncio") {
     const roomId = resolveRoomIdFromRouteParam(db, decodeURIComponent(ref));
     if (!roomId) return null;
-    const listing = loadPublishedRoom(db, roomId);
+    const listing = loadShareOgRoom(db, roomId);
     if (!listing) return null;
     return coverUploadFilename(listing, "room");
   }

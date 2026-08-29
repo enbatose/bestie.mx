@@ -243,4 +243,82 @@ describe("SPA static from API process", () => {
     expect(res.text).toContain(`og:image" content="https://dev.bestie.mx/api/share-og/propiedad/${pref}.jpg"`);
     expect(res.text).toContain(`og:url" content="https://dev.bestie.mx/propiedad/${pref}"`);
   });
+
+  it("GET /anuncio/:ref?claim= injects branded OG for unpublished claim links", async () => {
+    const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
+    const token = "ogclaimtoken1234567890abcdef";
+    const propertyId = "prp__aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1";
+    const roomId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1";
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO properties (
+        id, publisher_id, status, post_mode, title, city, neighborhood,
+        lat, lng, summary, contact_whatsapp, property_kind,
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json,
+        is_approximate_location, approximate_radius_m,
+        created_at, assisted_draft, created_by_admin_id
+      ) VALUES (
+        ?, ?, 'draft', 'room', 'Rento habitación OG claim', 'Guadalajara', 'Atlas',
+        20.67, -103.35, ?, '523316979814', 'house',
+        1, 1, 1, ?,
+        1, 200,
+        ?, 1, 'admin-og-claim'
+      )
+    `).run(
+      propertyId,
+      "orphan-pub-og-claim",
+      PROP_SUMMARY_OK,
+      JSON.stringify([TEST_LISTING_IMAGE_URL]),
+      now,
+    );
+    db.prepare(`
+      INSERT INTO rooms (
+        id, property_id, status, title, rent_mxn, rooms_available, tags_json,
+        roommate_gender_pref, age_min, age_max, summary, lodging_type,
+        available_from, minimal_stay_months, room_dimension,
+        aval_required, sublet_allowed, sort_order, deposit_mxn,
+        image_urls_json, created_at, updated_at
+      ) VALUES (
+        ?, ?, 'draft', '', 5500, 1, '[]',
+        'any', 18, 99, ?, 'private_room',
+        ?, 1, 'medium',
+        0, 0, 0, 0,
+        ?, ?, ?
+      )
+    `).run(roomId, propertyId, ROOM_SUMMARY_OK, now.slice(0, 10), JSON.stringify([TEST_LISTING_IMAGE_URL]), now, now);
+    db.prepare(`
+      INSERT INTO assisted_draft_claim_tokens (
+        token, property_id, created_by_admin_id, orphan_publisher_id,
+        expires_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(token, propertyId, "admin-og-claim", "orphan-pub-og-claim", Date.now() + 86_400_000, Date.now());
+
+    const ref = roomReferenceCode(roomId);
+    const withoutClaim = await request(app)
+      .get(`/anuncio/${encodeURIComponent(ref)}`)
+      .set("Host", "dev.bestie.mx")
+      .expect(200);
+    expect(withoutClaim.text).toContain("Bestie — bestie.mx");
+    expect(withoutClaim.text).not.toContain("Rento habitación OG claim");
+
+    const res = await request(app)
+      .get(`/anuncio/${encodeURIComponent(ref)}?claim=${token}`)
+      .set("Host", "dev.bestie.mx")
+      .expect(200);
+    expect(res.text).toContain("Rento habitación OG claim");
+    expect(res.text).toContain("5,500");
+    expect(res.text).toContain(`og:image" content="https://dev.bestie.mx/api/share-og/anuncio/${ref}.jpg"`);
+    expect(res.text).toContain(`og:url" content="https://dev.bestie.mx/anuncio/${ref}?claim=${token}"`);
+    expect(res.text).toContain('name="robots" content="noindex, nofollow"');
+    expect(res.text).not.toContain("application/ld+json");
+    expect(res.text).not.toContain("3316979814");
+    expect(res.text).not.toContain("Bestie — bestie.mx");
+
+    const borrador = await request(app)
+      .get(`/borrador/${encodeURIComponent(token)}`)
+      .set("Host", "dev.bestie.mx")
+      .expect(200);
+    expect(borrador.text).toContain("Rento habitación OG claim");
+    expect(borrador.text).toContain(`og:image" content="https://dev.bestie.mx/api/share-og/anuncio/${ref}.jpg"`);
+  });
 });

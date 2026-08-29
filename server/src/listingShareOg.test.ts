@@ -128,6 +128,23 @@ describe("listingShareOg helpers", () => {
     }
   });
 
+  it("injectListingShareOg can omit JSON-LD and mark claim links noindex", () => {
+    const html = `<!doctype html><html><head>
+<title>Bestie — bestie.mx</title>
+</head><body></body></html>`;
+    const out = injectListingShareOg(html, {
+      title: "Cuarto claim",
+      description: "5,500 MXN/mes · Atlas",
+      url: "https://www.bestie.mx/anuncio/AABCDEF12?claim=tok",
+      imageUrl: "https://www.bestie.mx/api/share-og/anuncio/AABCDEF12.jpg",
+      noIndex: true,
+    });
+    expect(out).toContain('name="robots" content="noindex, nofollow"');
+    expect(out).toContain("/api/share-og/anuncio/AABCDEF12.jpg");
+    expect(out).not.toContain("application/ld+json");
+    expect(out).not.toContain("3316979814");
+  });
+
   it("injectFacebookAppId is a no-op without FACEBOOK_APP_ID", () => {
     const html = "<html><head></head><body></body></html>";
     expect(injectFacebookAppId(html, null)).toBe(html);

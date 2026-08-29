@@ -277,7 +277,7 @@ export function ListingPhoneReveal({
     : undefined;
 
   return (
-    <div className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${className}`}>
+    <div className={`w-full max-w-full rounded-xl border border-border bg-surface p-3 sm:p-4 ${className}`}>
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Phone className="size-4" aria-hidden />

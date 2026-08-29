@@ -75,7 +75,7 @@ function ListingPlainContactPhone({ digits }: { digits: string }) {
   const d = digits.replace(/\D/g, "");
   if (!d) return null;
   return (
-    <div className="relative mt-3 min-w-0 overflow-hidden rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:px-3.5 sm:py-3">
+    <div className="relative mt-3 w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:w-fit sm:max-w-sm sm:self-start sm:px-3.5 sm:py-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Teléfono / móvil</p>
       <p className="mt-0.5 break-all font-mono text-base tabular-nums text-body sm:text-sm">
         {formatMxPhoneDisplay(digits)}
@@ -123,7 +123,7 @@ export function ListingHeroPhone({
         viewer={viewer}
         role={listing.viewerIsOwner ? "publisher" : "seeker"}
         compact
-        className="mt-3"
+        className="mt-3 w-full max-w-full sm:w-fit sm:max-w-sm sm:self-start"
       />
     );
   }
