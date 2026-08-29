@@ -68,6 +68,8 @@ export type AssistedDraftClaimInfo = {
   isClaimed: boolean;
   source?: "admin" | "self_serve";
   propertyId: string;
+  listingPath?: string;
+  hasDraftPhone?: boolean;
   property: {
     id: string;
     publisherId: string;
@@ -174,6 +176,7 @@ export async function selfComposeAssistedDraft(opts: {
     conflicts?: AssistedDraftConflict[];
     error?: string;
   };
+  if (res.status === 401) throw new Error("Inicia sesión para armar el anuncio.");
   if (res.status === 429) throw new Error("rate_limited");
   if (!res.ok) throw new Error(j.error ?? `compose_${res.status}`);
   if (!j.token) throw new Error("compose_bad_response");
@@ -288,8 +291,45 @@ export async function publishAssistedDraftClaim(token: string): Promise<{ proper
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(posthogSessionId ? { posthogSessionId } : {}),
   });
-  const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string };
-  if (!res.ok) throw new Error(j.error ?? `publish_${res.status}`);
+  const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string; message?: string };
+  if (!res.ok) throw new Error(j.message || j.error ?? `publish_${res.status}`);
   if (!j.propertyId) throw new Error("publish_bad_response");
+  return { propertyId: j.propertyId };
+}
+
+export async function requestAssistedDraftClaimOtp(
+  token: string,
+): Promise<{ skipOtp: boolean; devCode?: string }> {
+  const base = apiBase();
+  const res = await apiFetch(`${base}/api/assisted-draft/claim/${encodeURIComponent(token)}/otp`, {
+    method: "POST",
+    credentials: cred,
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    skipOtp?: boolean;
+    devCode?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) throw new Error(j.message || j.error ?? `claim_otp_${res.status}`);
+  return { skipOtp: Boolean(j.skipOtp), ...(j.devCode ? { devCode: j.devCode } : {}) };
+}
+
+export async function confirmAssistedDraftClaim(
+  token: string,
+  code?: string,
+): Promise<{ propertyId: string }> {
+  const base = apiBase();
+  const res = await apiFetch(`${base}/api/assisted-draft/claim/${encodeURIComponent(token)}/confirm`, {
+    method: "POST",
+    credentials: cred,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(code ? { code } : {}),
+  });
+  const j = (await res.json().catch(() => ({}))) as { propertyId?: string; error?: string; message?: string };
+  if (!res.ok) throw new Error(j.message || j.error ?? `claim_confirm_${res.status}`);
+  if (!j.propertyId) throw new Error("claim_confirm_bad_response");
   return { propertyId: j.propertyId };
 }

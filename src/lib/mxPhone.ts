@@ -41,6 +41,37 @@ export function phoneE164FromDigits(d: string): string {
   return `+${d}`;
 }
 
+/** Common listing-contact country codes (auth/profile stays MX-only). */
+export const LISTING_COUNTRY_OPTIONS = [
+  { dial: "52", label: "México", nationalLen: 10 },
+  { dial: "1", label: "EE.UU. / Canadá", nationalLen: 10 },
+  { dial: "34", label: "España", nationalLen: 9 },
+  { dial: "57", label: "Colombia", nationalLen: 10 },
+  { dial: "54", label: "Argentina", nationalLen: 10 },
+] as const;
+
+export type ListingCountryOption = (typeof LISTING_COUNTRY_OPTIONS)[number];
+
+export function parseListingPhoneParts(value: string): { dial: string; national: string; nationalLen: number } {
+  const d = digitsOnly(value);
+  const mx = normalizeMxNationalDigits(value);
+  if (mx) return { dial: MX_COUNTRY_CODE, national: mx, nationalLen: MX_NATIONAL_DIGITS };
+  const sorted = [...LISTING_COUNTRY_OPTIONS].sort((a, b) => b.dial.length - a.dial.length);
+  for (const opt of sorted) {
+    if (d.startsWith(opt.dial) && d.length > opt.dial.length) {
+      return {
+        dial: opt.dial,
+        national: d.slice(opt.dial.length).slice(0, opt.nationalLen),
+        nationalLen: opt.nationalLen,
+      };
+    }
+  }
+  if (d.length <= MX_NATIONAL_DIGITS) {
+    return { dial: MX_COUNTRY_CODE, national: d, nationalLen: MX_NATIONAL_DIGITS };
+  }
+  return { dial: MX_COUNTRY_CODE, national: d.slice(0, MX_NATIONAL_DIGITS), nationalLen: MX_NATIONAL_DIGITS };
+}
+
 export function parsePhoneInputToE164(input: string): string | null {
   const national = normalizeMxNationalDigits(input);
   if (national) return phoneE164FromDigits(national);

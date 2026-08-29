@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   digitsOnly,
   formatMxPhoneDisplay,
+  LISTING_COUNTRY_OPTIONS,
   MX_COUNTRY_CODE,
   MX_NATIONAL_DIGITS,
   normalizeMxNationalDigits,
+  parseListingPhoneParts,
   phoneDigitsForStorage,
 } from "@/lib/mxPhone";
 
@@ -22,6 +24,8 @@ type Props = {
   error?: string | null;
   /** When false, the visible label is omitted (use aria-label on the input). */
   showLabel?: boolean;
+  /** Listing contact only: tap +52 to pick another country. Auth/profile stay MX-locked. */
+  allowCountryChange?: boolean;
 };
 
 function WhatsAppLogo({ className }: { className?: string }) {
@@ -48,18 +52,36 @@ export function PhoneNumberField({
   optional = true,
   error = null,
   showLabel = true,
+  allowCountryChange = false,
 }: Props) {
+  const [countryOpen, setCountryOpen] = useState(false);
+  const parts = useMemo(() => parseListingPhoneParts(value), [value]);
   const national = useMemo(() => {
+    if (allowCountryChange) return parts.national;
     const fromMx = normalizeMxNationalDigits(value);
     if (fromMx) return fromMx;
     const d = digitsOnly(value);
     if (d.length <= MX_NATIONAL_DIGITS) return d;
     if (d.startsWith(MX_COUNTRY_CODE) && d.length >= 12) return d.slice(2, 12);
     return d.slice(0, MX_NATIONAL_DIGITS);
-  }, [value]);
+  }, [allowCountryChange, parts.national, value]);
 
-  const complete = national.length === MX_NATIONAL_DIGITS;
-  const preview = complete ? formatMxPhoneDisplay(`${MX_COUNTRY_CODE}${national}`) : null;
+  const nationalLen = allowCountryChange ? parts.nationalLen : MX_NATIONAL_DIGITS;
+  const dial = allowCountryChange ? parts.dial : MX_COUNTRY_CODE;
+  const complete = national.length === nationalLen;
+  const preview = complete
+    ? allowCountryChange
+      ? `+${dial} ${national}`
+      : formatMxPhoneDisplay(`${MX_COUNTRY_CODE}${national}`)
+    : null;
+
+  const commitNational = (nextNational: string) => {
+    if (allowCountryChange) {
+      onChange(`${dial}${nextNational}`);
+      return;
+    }
+    onChange(nextNational);
+  };
 
   return (
     <div className={`min-w-0 max-w-full ${className}`.trim()}>
@@ -84,12 +106,47 @@ export function PhoneNumberField({
         </p>
       ) : null}
       <div className="mt-2 flex min-w-0 items-stretch gap-2">
-        <div
-          className="inline-flex min-h-11 w-[3.25rem] shrink-0 items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:w-auto sm:px-3 sm:text-base"
-          aria-label="Código de país México"
-        >
-          +{MX_COUNTRY_CODE}
-        </div>
+        {allowCountryChange ? (
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setCountryOpen((o) => !o)}
+              className="inline-flex min-h-11 min-w-[3.25rem] items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:px-3 sm:text-base"
+              aria-label="Código de país"
+              aria-expanded={countryOpen}
+            >
+              +{dial}
+            </button>
+            {countryOpen ? (
+              <ul className="absolute left-0 z-20 mt-1 max-h-56 w-max min-w-[12rem] overflow-y-auto rounded-xl border border-border bg-surface py-1 shadow-lg">
+                {LISTING_COUNTRY_OPTIONS.map((opt) => (
+                  <li key={opt.dial}>
+                    <button
+                      type="button"
+                      className={`block w-full px-3 py-2 text-left text-sm ${
+                        opt.dial === dial ? "bg-primary/10 font-semibold text-primary" : "text-body hover:bg-surface-elevated"
+                      }`}
+                      onClick={() => {
+                        onChange(`${opt.dial}${national.slice(0, opt.nationalLen)}`);
+                        setCountryOpen(false);
+                      }}
+                    >
+                      +{opt.dial} · {opt.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : (
+          <div
+            className="inline-flex min-h-11 w-[3.25rem] shrink-0 items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:w-auto sm:px-3 sm:text-base"
+            aria-label="Código de país México"
+          >
+            +{MX_COUNTRY_CODE}
+          </div>
+        )}
         <input
           id={id}
           type="tel"
@@ -97,17 +154,21 @@ export function PhoneNumberField({
           autoComplete="tel-national"
           disabled={disabled}
           value={national}
-          maxLength={MX_NATIONAL_DIGITS}
-          size={MX_NATIONAL_DIGITS}
-          placeholder="10 dígitos"
+          maxLength={nationalLen}
+          size={Math.min(nationalLen, 12)}
+          placeholder={`${nationalLen} dígitos`}
           aria-label={showLabel ? undefined : label}
           onChange={(e) => {
-            const next = digitsOnly(e.target.value).slice(0, MX_NATIONAL_DIGITS);
-            onChange(next);
+            commitNational(digitsOnly(e.target.value).slice(0, nationalLen));
           }}
           onPaste={(e) => {
             e.preventDefault();
             const pasted = e.clipboardData.getData("text");
+            if (allowCountryChange) {
+              const stored = phoneDigitsForStorage(pasted) ?? digitsOnly(pasted);
+              onChange(stored);
+              return;
+            }
             const stored = phoneDigitsForStorage(pasted);
             if (stored?.startsWith(MX_COUNTRY_CODE) && stored.length === 12) {
               onChange(stored.slice(2));
@@ -127,7 +188,7 @@ export function PhoneNumberField({
       </div>
       <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] leading-snug text-muted sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
         <span className="min-w-0 break-words">
-          {national.length}/{MX_NATIONAL_DIGITS} dígitos
+          {national.length}/{nationalLen} dígitos
           {preview ? (
             <>
               <span className="hidden sm:inline">{` · ${preview}`}</span>
@@ -138,7 +199,7 @@ export function PhoneNumberField({
           ) : null}
         </span>
         {national.length > 0 && !complete ? (
-          <span className="text-warning-fg">Faltan {MX_NATIONAL_DIGITS - national.length}</span>
+          <span className="text-warning-fg">Faltan {nationalLen - national.length}</span>
         ) : null}
       </div>
       {error ? (

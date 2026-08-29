@@ -68,6 +68,7 @@ export type AuthMe = {
   id: string;
   email: string | null;
   phoneE164: string | null;
+  phoneVerified?: boolean;
   phoneNotifyOptIn: boolean;
   phoneMarketingOptIn: boolean;
   phonePromptDismissedAt: string | null;
@@ -86,6 +87,90 @@ export function needsEmailVerification(me: AuthMe): boolean {
   if (!me.email?.trim()) return false;
   if (me.accountStatus === "pending_validation") return true;
   return me.emailVerified === false;
+}
+
+export function isPhoneVerified(me: AuthMe): boolean {
+  return Boolean(me.phoneE164 && me.phoneVerified);
+}
+
+export function isPublisherAccount(me: AuthMe): boolean {
+  return (me.linkedPublisherIds?.length ?? 0) > 0;
+}
+
+/** Publishers: missing email or unverified/missing phone. Seekers: only if they already have an unverified phone. */
+export function needsProfileCompletion(me: AuthMe): boolean {
+  const publisher = isPublisherAccount(me);
+  const unverifiedPhone = Boolean(me.phoneE164) && !me.phoneVerified;
+  const missingPhone = publisher && !me.phoneE164;
+  const missingEmail = publisher && !me.email?.trim();
+  if (publisher) return missingPhone || unverifiedPhone || missingEmail;
+  return unverifiedPhone;
+}
+
+export async function authPhoneOtpRequest(
+  phone: string,
+  signal?: AbortSignal,
+): Promise<{ devCode?: string; resendAvailableIn?: number }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/phone/otp/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ phone }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+    devCode?: string;
+    resendAvailableIn?: number;
+  };
+  if (!res.ok) {
+    throw new Error(j.message || j.error || `otp_request_${res.status}`);
+  }
+  return { ...(j.devCode ? { devCode: j.devCode } : {}), resendAvailableIn: j.resendAvailableIn };
+}
+
+export async function authPhoneRegister(
+  body: { phone: string; code: string; password: string; displayName: string; profilePictureUrl?: string | null },
+  signal?: AbortSignal,
+): Promise<RegisterResult> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/phone/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  if (!res.ok) {
+    if (j.error === "phone_taken") {
+      throw new Error(j.message || "Ese número ya tiene una cuenta. Entra con teléfono y contraseña.");
+    }
+    throw new Error(j.message || j.error || `phone_register_${res.status}`);
+  }
+  const me = await authMe(signal);
+  if (!me) throw new Error("register_session_missing");
+  return { me };
+}
+
+export async function authPhoneVerify(
+  body: { phone: string; code: string },
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/phone/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  if (!res.ok) {
+    throw new Error(j.message || j.error || `phone_verify_${res.status}`);
+  }
 }
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {
@@ -131,7 +216,7 @@ export async function authRegister(
 }
 
 export async function authLogin(
-  body: { email: string; password: string },
+  body: { email?: string; phone?: string; password: string },
   signal?: AbortSignal,
 ): Promise<void> {
   const base = apiBase();
@@ -145,10 +230,10 @@ export async function authLogin(
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: string };
     if (j.error === "user_not_found") {
-      throw new Error("No existe una cuenta con ese correo (o estás pegándole a otra API / otra base).");
+      throw new Error("No existe una cuenta con esos datos.");
     }
     if (j.error === "invalid_password" || j.error === "invalid_credentials") {
-      throw new Error("Correo o contraseña incorrectos.");
+      throw new Error("Datos o contraseña incorrectos.");
     }
     if (j.error === "wa_only_account") {
       throw new Error(
@@ -519,8 +604,33 @@ export async function adminPatchPropertyStatus(
     body: JSON.stringify({ status }),
     signal,
   });
-  if (!res.ok) throw new Error(`admin_status_${res.status}`);
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    throw new Error(j.message || j.error || `admin_status_${res.status}`);
+  }
   return (await res.json()) as { propertyId: string; status: string };
+}
+
+export async function adminPublishUnclaimed(
+  propertyId: string,
+  file: File,
+  note?: string,
+  signal?: AbortSignal,
+): Promise<{ propertyId: string; status: string }> {
+  const base = apiBase();
+  const form = new FormData();
+  form.append("file", file);
+  if (note?.trim()) form.append("note", note.trim());
+  const res = await networkFetch(`${base}/api/admin/properties/${encodeURIComponent(propertyId)}/publish-unclaimed`, {
+    method: "POST",
+    credentials: cred,
+    headers: deviceHeaders(),
+    body: form,
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { propertyId?: string; status?: string; message?: string; error?: string };
+  if (!res.ok) throw new Error(j.message || j.error || `admin_publish_unclaimed_${res.status}`);
+  return { propertyId: j.propertyId ?? propertyId, status: j.status ?? "published" };
 }
 
 export type AdminPostStatus = "draft" | "published" | "paused" | "archived";
@@ -565,6 +675,8 @@ export type AdminPostRow = {
   reportReviewed?: boolean;
   reportConversationId?: string | null;
   reportCount?: number;
+  unclaimedOutreach?: boolean;
+  hasPublishEvidence?: boolean;
 };
 
 export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;

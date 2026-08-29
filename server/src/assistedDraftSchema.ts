@@ -13,6 +13,15 @@ export function ensureAssistedDraftSchema(db: DatabaseSync): void {
   if (!tableHasColumn(db, "properties", "created_by_admin_id")) {
     db.exec(`ALTER TABLE properties ADD COLUMN created_by_admin_id TEXT`);
   }
+  if (!tableHasColumn(db, "properties", "admin_publish_evidence_url")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN admin_publish_evidence_url TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "admin_publish_evidence_note")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN admin_publish_evidence_note TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "admin_publish_evidence_at")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN admin_publish_evidence_at TEXT`);
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS assisted_draft_claim_tokens (

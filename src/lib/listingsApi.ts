@@ -87,9 +87,11 @@ export async function fetchLocationSuggestions(
 export async function fetchListingByIdFromApi(
   id: string,
   signal?: AbortSignal,
+  claimToken?: string,
 ): Promise<FetchListingByIdResult> {
   const base = apiBase();
-  const res = await fetch(`${base}/api/listings/${encodeURIComponent(id)}`, {
+  const qs = claimToken?.trim() ? `?claim=${encodeURIComponent(claimToken.trim())}` : "";
+  const res = await fetch(`${base}/api/listings/${encodeURIComponent(id)}${qs}`, {
     signal,
     credentials: cred,
   });

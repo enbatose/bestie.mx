@@ -16,7 +16,7 @@ import { trackMetaEvent } from "@/lib/metaPixel";
  * Auth gates: *_auth_prompted / publish_auth_required / listing_auth_required
  */
 
-export type AnalyticsAuthMethod = "email" | "google" | "facebook";
+export type AnalyticsAuthMethod = "email" | "google" | "facebook" | "phone";
 
 export type AnalyticsLandingSurface = "home" | "city";
 

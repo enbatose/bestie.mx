@@ -5,7 +5,7 @@ import {
   listAdminPosts,
   resolveAdminPostCreateOrigin,
 } from "./adminPosts.js";
-import { propertyReferenceCode } from "./listingReference.js";
+import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
 import { SELF_SERVE_CREATOR_ID } from "./assistedDraftMerge.js";
 
 function setupDb(): DatabaseSync {
@@ -27,7 +27,8 @@ function setupDb(): DatabaseSync {
       feedback_comment TEXT,
       feedback_at TEXT,
       assisted_draft INTEGER NOT NULL DEFAULT 0,
-      created_by_admin_id TEXT
+      created_by_admin_id TEXT,
+      admin_publish_evidence_url TEXT
     );
     CREATE TABLE rooms (
       id TEXT PRIMARY KEY,
@@ -181,7 +182,8 @@ describe("listAdminPosts AI origin", () => {
 
     expect(aiDraft?.assistedDraft).toBe(true);
     expect(aiDraft?.createOrigin).toBe("ai_admin");
-    expect(aiDraft?.editPath).toBe("/borrador/live-claim-token");
+    expect(aiDraft?.unclaimedOutreach).toBe(true);
+    expect(aiDraft?.editPath).toBe(`/anuncio/${roomReferenceCode(ROOM_AI)}?claim=live-claim-token`);
     expect(manual?.assistedDraft).toBe(false);
     expect(manual?.createOrigin).toBe("manual");
     expect(manual?.editPath).toBe(`/publicar?edit=${propertyReferenceCode(PROP_MANUAL)}`);
@@ -244,7 +246,7 @@ describe("listAdminPosts AI origin", () => {
     expect(listed.posts).toHaveLength(1);
     expect(listed.posts[0]?.assistedDraft).toBe(true);
     expect(listed.posts[0]?.createOrigin).toBe("ai_admin");
-    expect(listed.posts[0]?.editPath).toBe("/borrador/legacy-claim");
+    expect(listed.posts[0]?.editPath).toBe(`/anuncio/${roomReferenceCode("legacy-room-1")}?claim=legacy-claim`);
   });
 
   it("labels self-serve AI as ia_user and filters ia admin vs ia usuario", () => {

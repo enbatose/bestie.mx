@@ -19,4 +19,7 @@ export function ensurePhoneConsentSchema(db: DatabaseSync): void {
   if (!usersHasColumn(db, "phone_prompt_dismissed_at")) {
     db.exec("ALTER TABLE users ADD COLUMN phone_prompt_dismissed_at TEXT");
   }
+  if (!usersHasColumn(db, "phone_verified_at")) {
+    db.exec("ALTER TABLE users ADD COLUMN phone_verified_at TEXT");
+  }
 }

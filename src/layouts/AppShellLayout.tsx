@@ -4,13 +4,13 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { HeaderMegaMenu } from "@/components/HeaderMegaMenu";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthModal } from "@/components/AuthModal";
-import { CompletaTuPerfilModal } from "@/components/CompletaTuPerfilModal";
+import { CompletaTuPerfilModal, profileNagStorageKey } from "@/components/CompletaTuPerfilModal";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
 import { FeedbackModalProvider } from "@/contexts/FeedbackModalContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { PostHogIdentify, PostHogPageViews } from "@/components/analytics/PostHogApp";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { analyticsHeartbeat, authMe, needsEmailVerification, type AuthMe } from "@/lib/authApi";
+import { analyticsHeartbeat, authMe, needsEmailVerification, needsProfileCompletion, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 import { Link } from "react-router-dom";
 import type { AppShellOutletContext } from "@/layouts/appShellOutletContext";
@@ -20,10 +20,22 @@ export function AppShellLayout() {
   const location = useLocation();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
+  const [profileNagSkipped, setProfileNagSkipped] = useState(false);
   const { rowRef, actionsRef, markOnly, iconGapPx } = useHeaderChromeFit(
     me?.id,
     me !== undefined,
   );
+  useEffect(() => {
+    if (!me?.id) {
+      setProfileNagSkipped(false);
+      return;
+    }
+    try {
+      setProfileNagSkipped(sessionStorage.getItem(profileNagStorageKey(me.id)) === "1");
+    } catch {
+      setProfileNagSkipped(false);
+    }
+  }, [me?.id]);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -95,7 +107,11 @@ export function AppShellLayout() {
   const isSearchPage = location.pathname === "/buscar" || location.pathname.startsWith("/buscar/");
   const showEmailVerificationBanner =
     me != null && needsEmailVerification(me) && location.pathname !== "/verificar-correo";
-  const showCompleteProfileModal = me != null && !me.phoneE164 && !me.phonePromptDismissedAt;
+  const showCompleteProfileModal =
+    me != null &&
+    needsProfileCompletion(me) &&
+    !profileNagSkipped &&
+    location.pathname !== "/verificar-correo";
 
   const outletContext: AppShellOutletContext = { me, refreshMe, unreadMessageCount: unread };
 
@@ -149,7 +165,10 @@ export function AppShellLayout() {
             open={showCompleteProfileModal}
             me={me}
             onSaved={() => void refreshMe()}
-            onDismissed={() => void refreshMe()}
+            onDismissed={() => {
+              setProfileNagSkipped(true);
+              void refreshMe();
+            }}
           />
         ) : null}
       </div>

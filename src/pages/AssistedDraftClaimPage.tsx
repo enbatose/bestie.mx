@@ -3,18 +3,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import {
-  activateAssistedDraftClaim,
-  fetchAssistedDraftClaim,
-  publishAssistedDraftClaim,
-} from "@/lib/assistedDraftApi";
-import { claimInfoToBundle } from "@/lib/assistedDraftClaim";
-import { draftFromPropertyBundle } from "@/pages/PublishWizardPage";
-import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
-import { writeAssistedDraftClaimSession, writeAssistedDraftClaimToken } from "@/lib/publishWizard/assistedDraftClaimSession";
+import { fetchAssistedDraftClaim, publishAssistedDraftClaim } from "@/lib/assistedDraftApi";
+import { listingPublicPath } from "@/lib/listingReference";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
-import { track } from "@/lib/analytics";
-import { createFlowFromAssistedSource } from "@/lib/publishCreateFlow";
 
 type PageState =
   | { phase: "loading" }
@@ -37,10 +28,9 @@ export function AssistedDraftClaimPage() {
     ensurePublishSessionRecording();
   }, []);
 
-  // ── Case 1: ?publish=1 — returning from auth, execute publish ────────────
   useEffect(() => {
     if (!autoPublish || !token) return;
-    if (me === undefined) return; // auth still loading
+    if (me === undefined) return;
     if (didPublish.current) return;
     if (!me) {
       openAuthModal(`/borrador/${token}?publish=1`);
@@ -67,7 +57,6 @@ export function AssistedDraftClaimPage() {
     })();
   }, [autoPublish, me, token, openAuthModal, navigate]);
 
-  // ── Case 2: no ?publish=1 — activate claim, build draft, redirect to wizard Step 6 ──
   useEffect(() => {
     if (autoPublish || !token || didActivate.current) return;
     didActivate.current = true;
@@ -78,33 +67,18 @@ export function AssistedDraftClaimPage() {
           setState({ phase: "already_claimed" });
           return;
         }
-        // Set the orphan publisher cookie (suppressed if already activated)
-        try {
-          await activateAssistedDraftClaim(token);
-        } catch {
-          // 409 already-activated is harmless
+        if (info.listingPath) {
+          navigate(info.listingPath, { replace: true });
+          return;
         }
-        // Build a wizard draft directly from claim data — avoids /api/properties/:id
-        // which rejects assisted-draft property IDs (adraft__ prefix).
-        const bundle = claimInfoToBundle(info);
-        const { draft, serverSync } = draftFromPropertyBundle(bundle);
-        const resumeStep = publishWizardLastStepIndex(draft.postMode);
-        const createFlow = createFlowFromAssistedSource(info.source);
-        track("publish_mode_selected", {
-          mode: draft.postMode === "property" ? "property" : "room",
-          create_flow: createFlow,
-        });
-        writeAssistedDraftClaimToken(token);
-        writeAssistedDraftClaimSession({ token, draft, serverSync, step: resumeStep });
-        navigate(`/publicar?borrador=${encodeURIComponent(token)}`, {
-          replace: true,
-          state: {
-            resumeDraft: draft,
-            resumeServerSync: serverSync,
-            resumeStep,
-            assistedDraftToken: token,
-          },
-        });
+        const roomId = info.rooms[0]?.id;
+        if (roomId) {
+          navigate(`${listingPublicPath(roomId)}?claim=${encodeURIComponent(token)}`, {
+            replace: true,
+          });
+          return;
+        }
+        setState({ phase: "error", message: "No pudimos abrir este anuncio." });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "not_found";
         setState({
@@ -123,7 +97,7 @@ export function AssistedDraftClaimPage() {
   if (state.phase === "loading") {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <p className="text-sm text-muted">Cargando borrador…</p>
+        <p className="text-sm text-muted">Cargando anuncio…</p>
       </div>
     );
   }
@@ -145,8 +119,8 @@ export function AssistedDraftClaimPage() {
       <div className="mx-auto max-w-2xl px-4 py-16">
         <div className="rounded-2xl border border-secondary/30 bg-secondary/5 p-6 text-center">
           <CheckCircle2 className="mx-auto mb-3 text-secondary" size={32} />
-          <p className="font-semibold text-body">Este borrador ya fue publicado.</p>
-          <p className="mt-1 text-sm text-muted">Busca tu anuncio en Mis Anuncios.</p>
+          <p className="font-semibold text-body">Este anuncio ya tiene dueño.</p>
+          <p className="mt-1 text-sm text-muted">Búscalo en Mis Anuncios si es tuyo.</p>
         </div>
       </div>
     );

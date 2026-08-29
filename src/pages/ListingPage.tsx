@@ -5,6 +5,7 @@ import {
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { ListingClaimActions } from "@/components/listing/ListingClaimActions";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
@@ -181,6 +182,10 @@ export function ListingPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const claimToken = useMemo(
+    () => new URLSearchParams(location.search).get("claim")?.trim() || "",
+    [location.search],
+  );
   const listingUpdated = Boolean(
     (location.state as { listingUpdated?: boolean } | null)?.listingUpdated,
   );
@@ -252,7 +257,7 @@ export function ListingPage() {
     setApiListing(undefined);
     setMissingReason(null);
     setApiErr(null);
-    fetchListingByIdFromApi(id, ac.signal)
+    fetchListingByIdFromApi(id, ac.signal, claimToken || undefined)
       .then((result: FetchListingByIdResult) => {
         if (result.kind === "found") {
           setApiListing(result.listing);
@@ -269,7 +274,7 @@ export function ListingPage() {
         setMissingReason(null);
       });
     return () => ac.abort();
-  }, [apiOn, id]);
+  }, [apiOn, id, claimToken]);
 
   const listing = apiOn ? (apiListing === undefined ? undefined : apiListing) : seedListing;
 
@@ -566,7 +571,7 @@ export function ListingPage() {
     listing.title.trim() ||
     "Anuncio";
 
-  const canContact = listingStatus === "published";
+  const canContact = listingStatus === "published" && !listing.contactDisabled;
   const stickyContactLabel = "Contactar";
 
   const ownerActions =
@@ -641,6 +646,9 @@ export function ListingPage() {
       ) : null}
 
       <div className="mt-6">
+        {listing.claimPreview && claimToken ? (
+          <ListingClaimActions listing={listing} claimToken={claimToken} viewer={viewer} />
+        ) : null}
         {isPropertyPost && propertyPack === undefined ? (
           <p className="text-sm text-muted">Cargando detalles de la propiedad…</p>
         ) : (

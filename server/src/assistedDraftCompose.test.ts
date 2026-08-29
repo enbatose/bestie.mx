@@ -30,7 +30,12 @@ describe("assisted draft self compose", () => {
   });
 
   it("creates available and occupied room stubs for a property compose", async () => {
-    const res = await request(app)
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: `compose-${Date.now()}@test.mx`, password: "longenough1", displayName: "Compose" })
+      .expect(201);
+    const res = await agent
       .post("/api/assisted-draft/self/compose")
       .send({
         city: "Guadalajara",
@@ -51,8 +56,21 @@ describe("assisted draft self compose", () => {
     expect(rooms.map((r) => r.occupancy_status)).toEqual(["available", "available", "occupied"]);
   });
 
-  it("rejects compose without text or infographic", async () => {
+  it("rejects compose without login", async () => {
     const res = await request(app)
+      .post("/api/assisted-draft/self/compose")
+      .send({ city: "Guadalajara", text: "Casa en Americana." })
+      .expect(401);
+    expect(res.body.error).toBe("unauthorized");
+  });
+
+  it("rejects compose without text or infographic", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: `compose-empty-${Date.now()}@test.mx`, password: "longenough1", displayName: "Compose" })
+      .expect(201);
+    const res = await agent
       .post("/api/assisted-draft/self/compose")
       .send({ city: "Guadalajara", photos: [] })
       .expect(400);

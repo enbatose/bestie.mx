@@ -222,6 +222,12 @@ export type PropertyListing = {
   updatedAt?: string;
   /** True when the authenticated session owns this listing (publisher cookie or linked account). */
   viewerIsOwner?: boolean;
+  /** True when the listing is shown via an outreach claim link (unpublished preview). */
+  claimPreview?: boolean;
+  /** True when the draft/listing stores a real contact phone (digits not returned). */
+  hasDraftPhone?: boolean;
+  /** In-app Contactar is off until an outreach post is assigned; phone reveal still works. */
+  contactDisabled?: boolean;
   roomCustomName?: string;
   roomOccupancyStatus?: RoomOccupancyStatus;
   roomOccupantGender?: RoommateGenderPref;

@@ -113,6 +113,7 @@ export function TermsPage() {
         <LegalList
           items={[
             "Debes ser mayor de edad (18 años cumplidos) y tener capacidad legal para contratar.",
+            "Puedes crear tu cuenta con un correo electrónico o con un celular mexicano (+52) verificado por SMS, más una contraseña. El número de perfil usado para entrar debe ser de México; los teléfonos de contacto en un anuncio pueden tener otro código de país y no se verifican por SMS.",
             "La información que proporciones debe ser veraz, exacta y estar actualizada.",
             "Eres responsable de la confidencialidad de tus credenciales y de toda actividad realizada desde tu cuenta.",
             "Debes notificarnos de inmediato a contacto@bestie.mx sobre cualquier uso no autorizado de tu cuenta.",
@@ -123,7 +124,7 @@ export function TermsPage() {
 
       <LegalSection id="acceso-terceros" index={5} title="Acceso con Google y Facebook">
         <p>
-          Puedes crear tu cuenta o iniciar sesión mediante proveedores de identidad de terceros como{" "}
+          Puedes crear tu cuenta o iniciar sesión mediante correo y contraseña, un celular mexicano verificado, o proveedores de identidad de terceros como{" "}
           <strong>Google</strong> y <strong>Facebook</strong>. Al hacerlo, autorizas a dichos
           proveedores a compartir con Bestie datos básicos de tu perfil (por ejemplo, nombre, dirección
           de correo electrónico, identificador de la cuenta y foto de perfil) para crear y autenticar tu
@@ -195,13 +196,19 @@ export function TermsPage() {
           contenido de una publicación pública de renta compartida en grupos de Facebook u otros
           canales públicos, y genera un borrador interno con un enlace de reclamación para el
           propietario; y (ii) cuando tú pegas el texto o un infográfico de tu propia publicación en el
-          flujo de publicar un cuarto o una propiedad. En ambos casos estos borradores{" "}
+          flujo de publicar un cuarto o una propiedad. En el supuesto (ii) estos borradores{" "}
           <strong>nunca se publican sin tu consentimiento expreso</strong>: revisas el contenido, lo
-          editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. La
+          editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. En el
+          supuesto (i), el borrador permanece inédito hasta que el propietario lo reclama, o, de
+          forma excepcional, hasta que un admin lo publica con evidencia de consentimiento (una captura
+          distinta de las fotos del anuncio y, si aplica, una nota corta). Esa evidencia se guarda
+          internamente y <strong>no se muestra</strong> en el anuncio público ni al dueño posterior. Un
+          anuncio de crecimiento publicado sin dueño deja deshabilitado el botón Contactar hasta que
+          alguien lo reclame; el teléfono del anuncio puede revelarse según las reglas habituales. La
           información del borrador es orientativa y puede estar incompleta o contener errores de
           extracción; eres responsable de verificar, corregir y completar los datos antes de
-          publicar. Los borradores del supuesto (i) que no sean reclamados se eliminan
-          automáticamente a los <strong>7 días</strong>.
+          publicar. Los borradores del supuesto (i) que no sean reclamados ni publicados con evidencia
+          se eliminan automáticamente a los <strong>7 días</strong>.
         </p>
         <p>
           <strong>Asistencia con inteligencia artificial.</strong> Cuando Bestie usa un modelo de IA
@@ -248,7 +255,8 @@ export function TermsPage() {
         <p>
           El Servicio se apoya en proveedores externos, por ejemplo: proveedores de inicio de sesión
           (Google, Facebook/Meta), mapas y teselas de terceros (por ejemplo, OpenStreetMap),
-          envío de correos electrónicos, infraestructura de alojamiento,
+          envío de correos electrónicos, envío de SMS de verificación a celulares mexicanos (SMS Masivos),
+          infraestructura de alojamiento,
           analítica de producto (PostHog), medición de anuncios (píxel de Meta / Facebook e Instagram Ads)
           y modelos de inteligencia artificial (Google Gemini) para
           extraer datos de un texto o infográfico que tú proporcionas al crear un anuncio de cuarto o de propiedad, y

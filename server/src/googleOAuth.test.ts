@@ -113,10 +113,11 @@ describe("Google OAuth", () => {
     expect(me.body.displayName).toBe("Google Tester");
     expect(me.body.signInMethod).toBe("google");
 
-    const phonePatch = await agent.patch("/api/auth/me").send({ phone: "3312345678" }).expect(200);
-    expect(phonePatch.body).toMatchObject({ ok: true, changed: true });
+    const otp = await agent.post("/api/auth/phone/otp/request").send({ phone: "3312345678" }).expect(200);
+    await agent.post("/api/auth/phone/verify").send({ phone: "3312345678", code: otp.body.devCode }).expect(200);
     const meWithPhone = await agent.get("/api/auth/me").expect(200);
     expect(meWithPhone.body.phoneE164).toBe("+523312345678");
+    expect(meWithPhone.body.phoneVerified).toBe(true);
 
     const namePatch = await agent.patch("/api/auth/me").send({ displayName: "Google Renamed" }).expect(200);
     expect(namePatch.body).toMatchObject({ ok: true, changed: true });

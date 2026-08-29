@@ -35,6 +35,17 @@ import { claimPublishMissingRent } from "./claimPublishRent.js";
 import { resolveClaimSaveRoomTargets } from "./claimSaveRoomMatch.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
+import { roomReferenceCode } from "./listingReference.js";
+import {
+  assignOutreachPostsForVerifiedPhone,
+  claimAssistedDraftForUser,
+  evaluateOutreachClaimGate,
+  findUserIdByVerifiedPhone,
+  isRealListingPhone,
+  listingPhoneToE164,
+  setUserPhoneVerified,
+} from "./phoneAuth.js";
+import { verifyPhoneOtp, requestPhoneOtp } from "./phoneOtp.js";
 import { isListingTag } from "./listingTags.js";
 import {
   clampAge,
@@ -579,9 +590,27 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         ) VALUES (?, ?, ?, ?, ?, ?)
       `).run(token, propertyId, adminId, orphanPublisherId, expiresAt, Date.now());
 
-      const claimUrl = `${publicWebOrigin()}/borrador/${token}`;
+      const claimUrl = `${publicWebOrigin()}/anuncio/${roomReferenceCode(roomId)}?claim=${encodeURIComponent(token)}`;
 
-      res.status(201).json({ ok: true, propertyId, roomId, claimUrl, token });
+      const listingE164 = listingPhoneToE164(phone.contactWhatsApp);
+      let assignedUserId: string | null = null;
+      if (listingE164) {
+        const existing = findUserIdByVerifiedPhone(db, listingE164);
+        if (existing) {
+          const assigned = assignOutreachPostsForVerifiedPhone(db, existing, listingE164);
+          if (assigned.assigned > 0) assignedUserId = existing;
+        }
+      }
+
+      res.status(201).json({
+        ok: true,
+        propertyId,
+        roomId,
+        claimUrl,
+        listingUrl: claimUrl,
+        token,
+        ...(assignedUserId ? { assignedUserId } : {}),
+      });
     },
   );
 
@@ -591,6 +620,11 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     express.json({ limit: "30mb" }),
     (req: Request, res: Response): void => {
       void (async () => {
+        const uid = readAuthUserId(req);
+        if (!uid) {
+          res.status(401).json({ error: "unauthorized", message: "Inicia sesión para armar el anuncio con IA." });
+          return;
+        }
         const lim = composeLimiter(composeRateLimitKey(req));
         if (!lim.ok) {
           res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
@@ -678,8 +712,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
             const canReuse =
               row &&
               Date.now() <= row.expires_at &&
-              row.claimed_by_user_id == null &&
-              isSelfServeCreator(row.created_by_admin_id);
+              isSelfServeCreator(row.created_by_admin_id) &&
+              (row.claimed_by_user_id == null || row.claimed_by_user_id === uid);
             if (!canReuse) {
               token = "";
             } else {
@@ -764,6 +798,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
             `).run(token, propertyId, SELF_SERVE_CREATOR_ID, orphanPublisherId, Date.now() + SELF_SERVE_CLAIM_TTL_MS, Date.now());
           }
 
+          claimAssistedDraftForUser(db, uid, propertyId);
+
           res.status(201).json({
             ok: true,
             token,
@@ -807,12 +843,20 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
     const propImages = JSON.parse(prop.image_urls_json || "[]") as string[];
     const isRoomPost = prop.post_mode === "room";
+    const firstRoomId = rooms[0]?.id != null ? String(rooms[0].id) : "";
+    const listingPath = firstRoomId
+      ? `/anuncio/${roomReferenceCode(firstRoomId)}?claim=${encodeURIComponent(token)}`
+      : `/borrador/${encodeURIComponent(token)}`;
+    const viewerId = readAuthUserId(req);
+    const revealPhone = Boolean(viewerId);
 
     res.json({
       ok: true,
       isClaimed,
       source: isSelfServeCreator(row.created_by_admin_id) ? "self_serve" : "admin",
       propertyId: prop.id,
+      listingPath,
+      hasDraftPhone: isRealListingPhone(prop.contact_whatsapp),
       property: {
         id: prop.id,
         publisherId: prop.publisher_id,
@@ -824,7 +868,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         lat: prop.lat,
         lng: prop.lng,
         summary: prop.summary,
-        contactWhatsApp: prop.contact_whatsapp,
+        contactWhatsApp: revealPhone ? prop.contact_whatsapp : "",
         propertyKind: prop.property_kind,
         bedroomsTotal: prop.bedrooms_total,
         bathrooms: prop.bathrooms,
@@ -892,6 +936,125 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       ).run(Date.now(), token);
 
       res.json({ ok: true, propertyId: row.property_id, publisherId: row.orphan_publisher_id });
+    },
+  );
+
+  r.post(
+    "/claim/:token/confirm",
+    express.json({ limit: "8kb" }),
+    (req: Request, res: Response): void => {
+      void (async () => {
+        const token = String(req.params.token ?? "").trim();
+        const userId = readAuthUserId(req);
+        if (!userId) {
+          res.status(401).json({ error: "unauthorized", message: "Inicia sesión para reclamar este anuncio." });
+          return;
+        }
+        if (!token) {
+          res.status(400).json({ error: "bad_token" });
+          return;
+        }
+        const row = db.prepare(`SELECT * FROM assisted_draft_claim_tokens WHERE token = ?`).get(token) as
+          | AssistedDraftClaimRow
+          | undefined;
+        if (!row) {
+          res.status(404).json({ error: "not_found" });
+          return;
+        }
+        if (Date.now() > row.expires_at) {
+          res.status(410).json({ error: "expired" });
+          return;
+        }
+        if (row.claimed_by_user_id != null && row.claimed_by_user_id !== userId) {
+          res.status(409).json({ error: "already_claimed_by_other" });
+          return;
+        }
+        const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as
+          | { contact_whatsapp: string | null }
+          | undefined;
+        const admin = isAdminUser(db, userId);
+        const gate = evaluateOutreachClaimGate(db, userId, prop?.contact_whatsapp, { isAdmin: admin });
+        if (!gate.ok) {
+          res.status(gate.status).json({ error: gate.error, message: gate.message });
+          return;
+        }
+        if (!gate.skipOtp) {
+          const code = typeof (req.body as { code?: unknown })?.code === "string" ? String((req.body as { code: string }).code).trim() : "";
+          if (!gate.listingE164 || !code) {
+            res.status(400).json({
+              error: "otp_required",
+              message: "Confirma el celular del anuncio con el código SMS.",
+            });
+            return;
+          }
+          const verified = await verifyPhoneOtp(db, gate.listingE164, code);
+          if (!verified.ok) {
+            res.status(400).json({ error: verified.error, message: "Código incorrecto o vencido." });
+            return;
+          }
+          setUserPhoneVerified(db, userId, gate.listingE164);
+        }
+        if (!admin) {
+          claimAssistedDraftForUser(db, userId, row.property_id);
+        }
+        issuePublisherCookie(res, row.orphan_publisher_id);
+        res.json({ ok: true, propertyId: row.property_id, skippedClaim: Boolean(admin) });
+      })();
+    },
+  );
+
+  r.post(
+    "/claim/:token/otp",
+    express.json({ limit: "4kb" }),
+    (req: Request, res: Response): void => {
+      void (async () => {
+        const token = String(req.params.token ?? "").trim();
+        const userId = readAuthUserId(req);
+        if (!userId) {
+          res.status(401).json({ error: "unauthorized" });
+          return;
+        }
+        const row = db.prepare(`SELECT * FROM assisted_draft_claim_tokens WHERE token = ?`).get(token) as
+          | AssistedDraftClaimRow
+          | undefined;
+        if (!row) {
+          res.status(404).json({ error: "not_found" });
+          return;
+        }
+        if (Date.now() > row.expires_at) {
+          res.status(410).json({ error: "expired" });
+          return;
+        }
+        const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as
+          | { contact_whatsapp: string | null }
+          | undefined;
+        const gate = evaluateOutreachClaimGate(db, userId, prop?.contact_whatsapp, {
+          isAdmin: isAdminUser(db, userId),
+        });
+        if (!gate.ok) {
+          res.status(gate.status).json({ error: gate.error, message: gate.message });
+          return;
+        }
+        if (gate.skipOtp) {
+          res.json({ ok: true, skipOtp: true });
+          return;
+        }
+        if (!gate.listingE164) {
+          res.status(400).json({ error: "otp_required" });
+          return;
+        }
+        const sent = await requestPhoneOtp(db, gate.listingE164);
+        if (!sent.ok) {
+          res.status(400).json({ error: sent.error, message: "No se pudo enviar el código." });
+          return;
+        }
+        res.json({
+          ok: true,
+          skipOtp: false,
+          ...(sent.devCode ? { devCode: sent.devCode } : {}),
+          resendAvailableIn: sent.resendAvailableIn,
+        });
+      })();
     },
   );
 
@@ -1226,6 +1389,24 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       if (existingLink && existingLink.user_id !== userId) {
         res.status(409).json({ error: "publisher_taken" }); return;
+      }
+
+      const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as
+        | { contact_whatsapp: string | null }
+        | undefined;
+      const gate = evaluateOutreachClaimGate(db, userId, prop?.contact_whatsapp, {
+        isAdmin: isAdminUser(db, userId),
+      });
+      if (!gate.ok) {
+        res.status(gate.status).json({ error: gate.error, message: gate.message });
+        return;
+      }
+      if (!gate.skipOtp) {
+        res.status(400).json({
+          error: "otp_required",
+          message: "Confirma el celular del anuncio con el código SMS antes de publicar.",
+        });
+        return;
       }
 
       const rentRows = db.prepare(

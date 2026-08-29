@@ -67,12 +67,16 @@ export function PrivacyPage() {
         <LegalList
           items={[
             <>
-              <strong>Datos de identificación y contacto:</strong> nombre o nombre para mostrar y
-              dirección de correo electrónico y número de teléfono móvil cuando decides agregarlo a tu perfil o a un anuncio.
+              <strong>Datos de identificación y contacto:</strong> nombre o nombre para mostrar,
+              dirección de correo electrónico y número de teléfono móvil. El teléfono de perfil
+              (identificador de cuenta) es un celular mexicano (+52) que verificas con un código SMS.
+              El teléfono de contacto de un anuncio puede ser de otro país y no se verifica; no se
+              muestra en la ficha pública (se revela, si el publicador lo activa, a quien inicia sesión).
             </>,
             <>
-              <strong>Datos de cuenta y autenticación:</strong> contraseña cifrada (solo cuentas con
-              correo/contraseña), fecha de verificación de correo, identificadores de tu sesión y, en su
+              <strong>Datos de cuenta y autenticación:</strong> contraseña cifrada (cuentas con
+              correo/contraseña o celular/contraseña), fecha de verificación de correo, fecha de
+              verificación de teléfono, identificadores de tu sesión y, en su
               caso, foto de perfil, así como tus preferencias de contacto telefónico (avisos/WhatsApp de Bestie, promociones) y el registro de si descartaste el recordatorio de completar tu perfil.
             </>,
             <>
@@ -90,7 +94,10 @@ export function PrivacyPage() {
               ayuda de IA a partir de datos estructurados del anuncio y editables por ti), la
               aceptación del aviso de seguridad al usar mensajes entre usuarios o al revelar el teléfono
               de un anuncio (fecha, versión del aviso y, en su caso, el hilo o anuncio que lo disparó) y tus
-              interacciones en la Plataforma.
+              interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño,
+              guardamos internamente la captura de consentimiento y una nota opcional; esa evidencia no
+              forma parte de las fotos del anuncio y no se muestra al público ni al dueño que lo reclame
+              después.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
@@ -132,8 +139,11 @@ export function PrivacyPage() {
               texto e imágenes) información ya publicada por terceros en grupos de Facebook u otros
               canales públicos de renta compartida, únicamente para crear un borrador interno y
               ofrecerle al propietario un enlace de reclamación. Ese borrador{" "}
-              <strong>no se publica</strong> hasta que el propietario lo reclame, revise y confirme.
-              Si no se reclama, se elimina automáticamente a los <strong>7 días</strong>. También
+              <strong>no se publica</strong> hasta que el propietario lo reclame, revise y confirme, o,
+              de forma excepcional, hasta que un admin lo publique con evidencia de consentimiento
+              (captura aparte y nota opcional, almacenadas internamente y nunca mostradas en el anuncio
+              público ni al dueño posterior). Si no se reclama ni se publica con evidencia, se elimina
+              automáticamente a los <strong>7 días</strong>. También
               puedes crear tú un borrador pegando el texto o un infográfico de tu propia publicación;
               en ese caso los datos salen de ti, no de un tercero.
             </>,
@@ -214,7 +224,7 @@ export function PrivacyPage() {
         </p>
         <LegalList
           items={[
-            "Crear, autenticar y administrar tu cuenta.",
+            "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, o reclamar un anuncio asociado a ese número.",
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
             "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
@@ -276,6 +286,7 @@ export function PrivacyPage() {
             "Proveedor de infraestructura y alojamiento de la aplicación.",
             "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
             "Proveedor de envío de correos electrónicos transaccionales.",
+            "Proveedor de envío de mensajes SMS de verificación (SMS Masivos) para códigos de un solo uso a celulares mexicanos (+52) al registrarte, verificar o cambiar el teléfono de perfil, o reclamar un anuncio cuyo contacto es ese número.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
             "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",

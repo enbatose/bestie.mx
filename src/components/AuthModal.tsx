@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
-import { authLogin, authRegister, needsEmailVerification, authMe } from "@/lib/authApi";
+import { authLogin, authRegister, authPhoneOtpRequest, authPhoneRegister, needsEmailVerification, authMe } from "@/lib/authApi";
+import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { identifyUser, track } from "@/lib/analytics";
 import {
@@ -16,6 +17,11 @@ export function AuthModal() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [method, setMethod] = useState<"email" | "phone">("email");
+  const [phone, setPhone] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -28,12 +34,18 @@ export function AuthModal() {
     setErr(null);
     setBusy(true);
     try {
-      await authLogin({ email: email.trim().toLowerCase(), password });
+      const looksPhone = method === "phone" || (!email.includes("@") && /^\d{10}$/.test(email.replace(/\D/g, "")));
+      if (looksPhone) {
+        await authLogin({ phone: method === "phone" ? phone : email, password });
+        track("user_logged_in", { method: "phone" });
+      } else {
+        await authLogin({ email: email.trim().toLowerCase(), password });
+        track("user_logged_in", { method: "email" });
+      }
       close();
       const me = await authMe().catch(() => null);
       if (me?.id) {
         identifyUser(me.id, { email: me.email, name: me.displayName, is_admin: me.isAdmin });
-        track("user_logged_in", { method: "email" });
       }
       window.dispatchEvent(new Event("bestie:me-changed"));
       window.location.assign(
@@ -51,6 +63,46 @@ export function AuthModal() {
     setErr(null);
     if (password !== passwordConfirm) {
       setErr("Las contraseñas no coinciden.");
+      return;
+    }
+    if (method === "phone") {
+      if (!displayName.trim()) {
+        setErr("Escribe un nombre para mostrar.");
+        return;
+      }
+      if (!otpSent) {
+        setBusy(true);
+        try {
+          const r = await authPhoneOtpRequest(phone);
+          setOtpSent(true);
+          setDevCode(r.devCode ?? null);
+        } catch (x) {
+          setErr(x instanceof Error ? x.message : "No se pudo enviar el código.");
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+      setBusy(true);
+      try {
+        const { me } = await authPhoneRegister({
+          phone,
+          code: otpCode.trim(),
+          password,
+          displayName: displayName.trim(),
+        });
+        if (me?.id) {
+          identifyUser(me.id, { email: me.email, name: me.displayName, is_admin: me.isAdmin });
+          track("user_signed_up", { method: "phone" });
+        }
+        close();
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        window.location.assign(await destinationAfterAuth(redirectTo, false));
+      } catch (x) {
+        setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     setBusy(true);
@@ -134,23 +186,60 @@ export function AuthModal() {
 
           {err ? <p className="mt-2 text-sm text-error">{err}</p> : null}
 
+          <div className="mt-3 flex rounded-full border border-border bg-bg-light p-0.5 text-xs font-semibold">
+            <button
+              type="button"
+              className={`flex-1 rounded-full py-1.5 ${method === "email" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+              onClick={() => {
+                setMethod("email");
+                setErr(null);
+                setOtpSent(false);
+              }}
+            >
+              Correo
+            </button>
+            <button
+              type="button"
+              className={`flex-1 rounded-full py-1.5 ${method === "phone" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+              onClick={() => {
+                setMethod("phone");
+                setErr(null);
+              }}
+            >
+              Celular
+            </button>
+          </div>
+
           <div className="mt-3">
             <SocialSignInButtons returnTo={socialReturnTo} onClick={close} />
           </div>
+          <AuthLegalConsent action={tab === "register" ? "registrarte" : "continuar"} />
           <AuthMethodDivider />
 
           {tab === "login" ? (
             <form className="mt-3 space-y-2.5" onSubmit={submitLogin}>
               <label className="block text-sm font-medium text-body">
-                Correo
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                />
+                {method === "phone" ? "Celular (+52)" : "Correo"}
+                {method === "phone" ? (
+                  <PhoneNumberField
+                    id="auth-modal-phone"
+                    value={phone}
+                    onChange={setPhone}
+                    optional={false}
+                    showWhatsAppHint={false}
+                    showLabel={false}
+                    className="mt-1"
+                  />
+                ) : (
+                  <input
+                    type="email"
+                    required={method === "email"}
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  />
+                )}
               </label>
               <label className="block text-sm font-medium text-body">
                 Contraseña
@@ -190,16 +279,42 @@ export function AuthModal() {
                   className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
                 />
               </label>
-              <label className="block text-sm font-medium leading-snug text-body">
-                Correo
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+              {method === "phone" ? (
+                <PhoneNumberField
+                  id="auth-modal-reg-phone"
+                  value={phone}
+                  onChange={setPhone}
+                  optional={false}
+                  showWhatsAppHint={false}
                 />
-              </label>
+              ) : (
+                <label className="block text-sm font-medium leading-snug text-body">
+                  Correo
+                  <input
+                    type="email"
+                    required={method === "email"}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+                  />
+                </label>
+              )}
+              {method === "phone" && otpSent ? (
+                <label className="block text-sm font-medium leading-snug text-body">
+                  Código SMS
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    size={6}
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+                  />
+                </label>
+              ) : null}
+              {devCode ? <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p> : null}
               <label className="block text-sm font-medium leading-snug text-body">
                 Contraseña (mín. 8)
                 <PasswordField
@@ -236,7 +351,7 @@ export function AuthModal() {
                 disabled={busy}
                 className="w-full rounded-full bg-primary py-2 text-sm font-semibold text-primary-fg disabled:opacity-50"
               >
-                {busy ? "Creando…" : "Crear cuenta"}
+                {busy ? "Creando…" : method === "phone" && !otpSent ? "Enviar código" : "Crear cuenta"}
               </button>
             </form>
           )}

@@ -35,6 +35,14 @@ import {
 import { registerGoogleOAuthRoutes } from "./googleOAuth.js";
 import { registerFacebookOAuthRoutes } from "./facebookOAuth.js";
 import { authSecret } from "./authSecret.js";
+import { requestPhoneOtp, verifyPhoneOtp } from "./phoneOtp.js";
+import {
+  createPhoneUser,
+  findUserIdByVerifiedPhone,
+  isPhoneVerifiedAt,
+  parseMxAuthPhone,
+  setUserPhoneVerified,
+} from "./phoneAuth.js";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 8;
@@ -107,15 +115,18 @@ function authUserPayload(u: {
   profile_picture_url: string | null;
   created_at: string;
   email_verified_at: string | null;
+  phone_verified_at?: string | null;
   password_hash: string;
   linkedPublisherIds: string[];
   isAdmin: boolean;
 }) {
   const emailVerified = u.email_verified_at != null && String(u.email_verified_at).trim() !== "";
+  const phoneVerified = isPhoneVerifiedAt(u.phone_verified_at);
   return {
     id: u.id,
     email: u.email,
     phoneE164: u.phone_e164,
+    phoneVerified,
     phoneNotifyOptIn: Number(u.phone_notify_opt_in) !== 0,
     phoneMarketingOptIn: Number(u.phone_marketing_opt_in) !== 0,
     phonePromptDismissedAt: u.phone_prompt_dismissed_at,
@@ -227,12 +238,14 @@ export function authRouter(db: DatabaseSync) {
   });
 
   r.post("/login", jsonMw(), (req: Request, res: Response) => {
-    const body = req.body as { email?: unknown; password?: unknown };
+    const body = req.body as { email?: unknown; phone?: unknown; password?: unknown };
     const rawEmail = typeof body.email === "string" ? body.email : "";
-    const emailCanonical = rawEmail ? canonicalLookupEmail(rawEmail) : "";
-    const emailDisplay = rawEmail ? displayStorageEmail(rawEmail) : "";
+    const rawPhone = typeof body.phone === "string" ? body.phone : "";
+    const mx = parseMxAuthPhone(rawPhone) ?? (rawEmail.includes("@") ? null : parseMxAuthPhone(rawEmail));
+    const emailCanonical = rawEmail && rawEmail.includes("@") ? canonicalLookupEmail(rawEmail) : "";
+    const emailDisplay = rawEmail && rawEmail.includes("@") ? displayStorageEmail(rawEmail) : "";
     const password = typeof body.password === "string" ? body.password : "";
-    const loginLim = loginLimiter(authRateKey(req, emailCanonical || "anon"));
+    const loginLim = loginLimiter(authRateKey(req, mx?.e164 || emailCanonical || "anon"));
     if (!loginLim.ok) {
       const retryAfterSec = Math.ceil(loginLim.retryAfterMs / 1000);
       res.status(429).set("Retry-After", String(retryAfterSec)).json({
@@ -242,11 +255,18 @@ export function authRouter(db: DatabaseSync) {
       });
       return;
     }
-    /** Match canonical (Gmail aliases) or stored display email; avoids legacy NULL-canonical rows comparing email to the wrong form. */
-    const row = db
-      .prepare("SELECT id, password_hash FROM users WHERE email_canonical = ? OR email = ?")
-      .get(emailCanonical, emailDisplay) as { id: string; password_hash: string } | undefined;
-    if (!row) {
+    const row = mx
+      ? (db
+          .prepare(
+            `SELECT id, password_hash, phone_verified_at FROM users WHERE phone_e164 = ?`,
+          )
+          .get(mx.e164) as { id: string; password_hash: string; phone_verified_at: string | null } | undefined)
+      : (db
+          .prepare("SELECT id, password_hash, phone_verified_at FROM users WHERE email_canonical = ? OR email = ?")
+          .get(emailCanonical, emailDisplay) as
+            | { id: string; password_hash: string; phone_verified_at: string | null }
+            | undefined);
+    if (!row || (mx && !isPhoneVerifiedAt(row.phone_verified_at))) {
       res.status(401).json({ error: "user_not_found" });
       return;
     }
@@ -342,34 +362,11 @@ export function authRouter(db: DatabaseSync) {
     }
 
     if (typeof body.phone === "string") {
-      const trimmedPhone = body.phone.trim();
-      if (!trimmedPhone) {
-        if (row.phone_e164 != null) {
-          sets.push("phone_e164 = ?");
-          params.push(null);
-        }
-      } else {
-        const digits = normalizeWhatsAppDigits(trimmedPhone);
-        if (!digits) {
-          res.status(400).json({ error: "invalid_phone", message: "Número inválido (usa 10 dígitos o +52…)." });
-          return;
-        }
-        const phoneE164 = phoneE164FromDigits(digits);
-        if (phoneE164 !== (row.phone_e164 ?? "")) {
-          const taken = db
-            .prepare("SELECT id FROM users WHERE phone_e164 = ? AND id != ?")
-            .get(phoneE164, uid) as { id: string } | undefined;
-          if (taken) {
-            res.status(409).json({
-              error: "phone_taken",
-              message: "Ese número ya está vinculado a otra cuenta.",
-            });
-            return;
-          }
-          sets.push("phone_e164 = ?");
-          params.push(phoneE164);
-        }
-      }
+      res.status(400).json({
+        error: "phone_otp_required",
+        message: "Para guardar o cambiar el teléfono de perfil debes verificarlo con un código SMS.",
+      });
+      return;
     }
 
     const nextPhoneNotifyOptIn = parseOptionalBoolean(body.phoneNotifyOptIn);
@@ -603,7 +600,7 @@ export function authRouter(db: DatabaseSync) {
     }
     const u = db
       .prepare(
-        "SELECT id, email, phone_e164, phone_notify_opt_in, phone_marketing_opt_in, phone_prompt_dismissed_at, display_name, profile_picture_url, created_at, email_verified_at, password_hash FROM users WHERE id = ?",
+        "SELECT id, email, phone_e164, phone_notify_opt_in, phone_marketing_opt_in, phone_prompt_dismissed_at, display_name, profile_picture_url, created_at, email_verified_at, phone_verified_at, password_hash FROM users WHERE id = ?",
       )
       .get(uid) as
       | {
@@ -617,6 +614,7 @@ export function authRouter(db: DatabaseSync) {
           profile_picture_url: string | null;
           created_at: string;
           email_verified_at: string | null;
+          phone_verified_at: string | null;
           password_hash: string;
         }
       | undefined;
@@ -744,6 +742,154 @@ export function authRouter(db: DatabaseSync) {
       return;
     }
     res.json({ ok: true, publisherId: pub });
+  });
+
+  r.post("/phone/otp/request", jsonMw(), async (req: Request, res: Response) => {
+    const body = req.body as { phone?: unknown };
+    const mx = typeof body.phone === "string" ? parseMxAuthPhone(body.phone) : null;
+    const lim = otpRequestLimiter(`${req.ip ?? "ip"}:${mx?.e164 ?? "anon"}`);
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    if (!mx) {
+      res.status(400).json({ error: "invalid_phone", message: "Usa un celular mexicano a 10 dígitos." });
+      return;
+    }
+    const uid = readAuthUserId(req);
+    const taken = findUserIdByVerifiedPhone(db, mx.e164);
+    if (taken && taken !== uid) {
+      res.status(409).json({
+        error: "phone_taken",
+        message: "Ese número ya tiene una cuenta. Entra con teléfono o correo y contraseña.",
+      });
+      return;
+    }
+    const sent = await requestPhoneOtp(db, mx.e164);
+    if (!sent.ok) {
+      const status = sent.retryAfterSec ? 429 : 400;
+      res.status(status).json({
+        error: sent.error,
+        retryAfterSec: sent.retryAfterSec,
+        message:
+          sent.error === "sms_not_configured"
+            ? "El envío de SMS no está configurado."
+            : "No se pudo enviar el código. Inténtalo de nuevo.",
+      });
+      return;
+    }
+    res.json({ ok: true, ...(sent.devCode ? { devCode: sent.devCode } : {}), resendAvailableIn: sent.resendAvailableIn });
+  });
+
+  r.post("/phone/register", jsonMw(), async (req: Request, res: Response) => {
+    const body = req.body as {
+      phone?: unknown;
+      code?: unknown;
+      password?: unknown;
+      displayName?: unknown;
+      profilePictureUrl?: unknown;
+    };
+    const mx = typeof body.phone === "string" ? parseMxAuthPhone(body.phone) : null;
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const displayName = typeof body.displayName === "string" ? body.displayName.trim().slice(0, 120) : "";
+    const picture = parseProfilePictureUrl(body.profilePictureUrl);
+    if (!mx) {
+      res.status(400).json({ error: "invalid_phone" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "password_too_short", message: "Usa al menos 8 caracteres." });
+      return;
+    }
+    if (!displayName) {
+      res.status(400).json({ error: "invalid_display_name" });
+      return;
+    }
+    const existing = findUserIdByVerifiedPhone(db, mx.e164);
+    if (existing) {
+      res.status(409).json({
+        error: "phone_taken",
+        message: "Ese número ya tiene una cuenta. Entra con teléfono y contraseña.",
+      });
+      return;
+    }
+    const verified = await verifyPhoneOtp(db, mx.e164, code);
+    if (!verified.ok) {
+      res.status(400).json({ error: verified.error });
+      return;
+    }
+    try {
+      const id = createPhoneUser(db, {
+        phoneE164: mx.e164,
+        passwordHash: hashPassword(password),
+        displayName,
+        profilePictureUrl: picture === undefined ? null : picture,
+      });
+      issueAuthCookie(res, id);
+      res.status(201).json({ ok: true, userId: id, phoneVerified: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("UNIQUE constraint failed")) {
+        res.status(409).json({ error: "phone_taken" });
+        return;
+      }
+      console.error("[auth] phone register failed:", msg);
+      res.status(500).json({ error: "register_failed" });
+    }
+  });
+
+  r.post("/phone/verify", jsonMw(), async (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const body = req.body as { phone?: unknown; code?: unknown };
+    const mx = typeof body.phone === "string" ? parseMxAuthPhone(body.phone) : null;
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    if (!mx) {
+      res.status(400).json({ error: "invalid_phone" });
+      return;
+    }
+    const me = db
+      .prepare("SELECT phone_e164, phone_verified_at, email, email_verified_at FROM users WHERE id = ?")
+      .get(uid) as {
+      phone_e164: string | null;
+      phone_verified_at: string | null;
+      email: string | null;
+      email_verified_at: string | null;
+    } | undefined;
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const currentVerified = isPhoneVerifiedAt(me.phone_verified_at) ? me.phone_e164 : null;
+    if (currentVerified && currentVerified !== mx.e164) {
+      const emailVerified = me.email_verified_at != null && String(me.email_verified_at).trim() !== "";
+      if (!me.email?.trim() || !emailVerified) {
+        res.status(400).json({
+          error: "verified_email_required",
+          message: "Para cambiar tu teléfono de perfil primero agrega y verifica un correo.",
+        });
+        return;
+      }
+    }
+    const taken = findUserIdByVerifiedPhone(db, mx.e164);
+    if (taken && taken !== uid) {
+      res.status(409).json({
+        error: "phone_taken",
+        message: "Ese número ya tiene una cuenta. Entra con esa cuenta.",
+      });
+      return;
+    }
+    const verified = await verifyPhoneOtp(db, mx.e164, code);
+    if (!verified.ok) {
+      res.status(400).json({ error: verified.error });
+      return;
+    }
+    setUserPhoneVerified(db, uid, mx.e164);
+    res.json({ ok: true, phoneVerified: true, phoneE164: mx.e164 });
   });
 
   r.post("/whatsapp/request", jsonMw(), (req: Request, res: Response) => {

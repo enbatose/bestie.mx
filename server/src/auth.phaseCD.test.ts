@@ -128,27 +128,52 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     await agent.patch("/api/auth/me").send({ profilePictureUrl: "https://evil.example/x.jpg" }).expect(400);
   });
 
-  it("PATCH /api/auth/me saves phone_e164 from phone string", async () => {
+  it("verifies profile phone via SMS OTP and rejects a number already verified on another account", async () => {
     const em = `edit-ph-${testId}@test.mx`;
     const agent = request.agent(app);
     await agent.post("/api/auth/register").send({ email: em, password: "longenough1" }).expect(201);
-    const r = await agent.patch("/api/auth/me").send({ phone: "3312345678" }).expect(200);
-    expect(r.body).toMatchObject({ ok: true, changed: true });
+    await agent.patch("/api/auth/me").send({ phone: "3312345678" }).expect(400);
+    const reqOtp = await agent.post("/api/auth/phone/otp/request").send({ phone: "3312345678" }).expect(200);
+    const code = reqOtp.body.devCode as string;
+    expect(code).toMatch(/^\d{6}$/);
+    await agent.post("/api/auth/phone/verify").send({ phone: "3312345678", code }).expect(200);
     const me = await agent.get("/api/auth/me").expect(200);
     expect(me.body.phoneE164).toBe("+523312345678");
-    const r2 = await agent.patch("/api/auth/me").send({ phone: "3312345678" }).expect(200);
-    expect(r2.body).toMatchObject({ ok: true, changed: false });
-  });
+    expect(me.body.phoneVerified).toBe(true);
 
-  it("PATCH /api/auth/me rejects phone already on another user", async () => {
     const em1 = `ph-a-${testId}@test.mx`;
     const em2 = `ph-b-${testId}@test.mx`;
     const a1 = request.agent(app);
     const a2 = request.agent(app);
     await a1.post("/api/auth/register").send({ email: em1, password: "longenough1" }).expect(201);
     await a2.post("/api/auth/register").send({ email: em2, password: "longenough1" }).expect(201);
-    await a1.patch("/api/auth/me").send({ phone: "5511112222" }).expect(200);
-    await a2.patch("/api/auth/me").send({ phone: "5511112222" }).expect(409);
+    const o1 = await a1.post("/api/auth/phone/otp/request").send({ phone: "5511112222" }).expect(200);
+    await a1.post("/api/auth/phone/verify").send({ phone: "5511112222", code: o1.body.devCode }).expect(200);
+    const o2 = await a2.post("/api/auth/phone/otp/request").send({ phone: "5511112222" }).expect(409);
+    expect(o2.body.error).toBe("phone_taken");
+  });
+
+  it("registers and logs in with phone + password after OTP", async () => {
+    const agent = request.agent(app);
+    const otp = await agent.post("/api/auth/phone/otp/request").send({ phone: "5587654321" }).expect(200);
+    await agent
+      .post("/api/auth/phone/register")
+      .send({
+        phone: "5587654321",
+        code: otp.body.devCode,
+        password: "longenough1",
+        displayName: "Ana Phone",
+      })
+      .expect(201);
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.phoneE164).toBe("+525587654321");
+    expect(me.body.phoneVerified).toBe(true);
+    expect(me.body.email).toBeNull();
+    expect(me.body.accountStatus).toBe("active");
+    await agent.post("/api/auth/logout").expect(200);
+    await agent.post("/api/auth/login").send({ phone: "5587654321", password: "longenough1" }).expect(200);
+    const me2 = await agent.get("/api/auth/me").expect(200);
+    expect(me2.body.displayName).toBe("Ana Phone");
   });
 
   it("PATCH /api/auth/me requires current password to change email", async () => {

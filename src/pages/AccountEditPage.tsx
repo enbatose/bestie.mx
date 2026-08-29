@@ -7,7 +7,10 @@ import {
   authCompletePasswordReset,
   authConsumePasswordReset,
   authMe,
+  authPhoneOtpRequest,
+  authPhoneVerify,
   authUpdateMe,
+  isPhoneVerified,
   type AuthMe,
 } from "@/lib/authApi";
 import { normalizeMxNationalDigits, parsePhoneInputToE164 } from "@/lib/mxPhone";
@@ -27,6 +30,9 @@ export function AccountEditPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [phoneNotifyOptIn, setPhoneNotifyOptIn] = useState(true);
   const [phoneMarketingOptIn, setPhoneMarketingOptIn] = useState(true);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -197,13 +203,38 @@ export function AccountEditPage() {
       scrollProfileFeedback();
       return;
     }
+    if (phoneChanged && isPhoneVerified(me) && nextPhoneE164 !== currentPhoneE164 && !me.emailVerified) {
+      setProfileErr("Para cambiar tu teléfono de perfil primero agrega y verifica un correo.");
+      scrollProfileFeedback();
+      return;
+    }
     setSavingProfile(true);
     try {
+      if (phoneChanged && nextPhoneE164) {
+        if (!otpSent) {
+          const r = await authPhoneOtpRequest(phone.trim());
+          setOtpSent(true);
+          setDevCode(r.devCode ?? null);
+          setProfileMsg("Te enviamos un código SMS. Escríbelo y guarda de nuevo.");
+          scrollProfileFeedback();
+          setSavingProfile(false);
+          return;
+        }
+        if (!/^\d{6}$/.test(otpCode.trim())) {
+          setProfileErr("Ingresa el código de 6 dígitos.");
+          scrollProfileFeedback();
+          setSavingProfile(false);
+          return;
+        }
+        await authPhoneVerify({ phone: phone.trim(), code: otpCode.trim() });
+        setOtpSent(false);
+        setOtpCode("");
+        setDevCode(null);
+      }
       const body: {
         displayName?: string;
         email?: string;
         currentPassword?: string;
-        phone?: string;
         phoneNotifyOptIn?: boolean;
         phoneMarketingOptIn?: boolean;
       } = {};
@@ -212,19 +243,21 @@ export function AccountEditPage() {
         body.email = email.trim().toLowerCase();
         body.currentPassword = currentPassword;
       }
-      if (phoneChanged) body.phone = phone.trim();
       if (phoneNotifyChanged) body.phoneNotifyOptIn = phoneNotifyOptIn;
       if (phoneMarketingChanged) body.phoneMarketingOptIn = phoneMarketingOptIn;
-      const r = await authUpdateMe(body);
-      if (r.emailChanged) {
+      if (Object.keys(body).length) {
+        const r = await authUpdateMe(body);
+        if (r.emailChanged) {
+          window.dispatchEvent(new Event("bestie:me-changed"));
+          navigate("/verificar-correo", { replace: true });
+          return;
+        }
         window.dispatchEvent(new Event("bestie:me-changed"));
-        navigate("/verificar-correo", { replace: true });
-        return;
-      }
-      if (r.changed) {
+        setProfileMsg(r.changed || phoneChanged ? "Datos actualizados." : "Sin cambios.");
+      } else {
         window.dispatchEvent(new Event("bestie:me-changed"));
+        setProfileMsg("Datos actualizados.");
       }
-      setProfileMsg(r.changed ? "Datos actualizados." : "Sin cambios.");
       setCurrentPassword("");
       await load();
       scrollProfileFeedback();
@@ -369,9 +402,30 @@ export function AccountEditPage() {
             <PhoneNumberField
               id="account-phone"
               value={phone}
-              onChange={setPhone}
+              onChange={(next) => {
+                setPhone(next);
+                setOtpSent(false);
+                setOtpCode("");
+                setDevCode(null);
+              }}
               className="mt-4"
             />
+            {otpSent ? (
+              <label className="mt-3 block text-sm font-medium text-body">
+                Código SMS
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  size={6}
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                />
+              </label>
+            ) : null}
+            {devCode ? <p className="mt-1 text-xs text-muted">Código de prueba (dev): {devCode}</p> : null}
             <div className="mt-4 space-y-2.5 sm:space-y-3">
               <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 text-sm text-body">
                 <input
@@ -425,7 +479,7 @@ export function AccountEditPage() {
             disabled={savingProfile || !profileHasChanges || !phoneComplete}
             className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
           >
-            {savingProfile ? "Guardando…" : "Guardar cambios"}
+            {savingProfile ? "Guardando…" : otpSent && phoneChanged ? "Verificar y guardar" : "Guardar cambios"}
           </button>
         </form>
       </section>

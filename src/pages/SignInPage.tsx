@@ -11,6 +11,7 @@ import {
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
+import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { identifyUser, resetAnalyticsUser, track } from "@/lib/analytics";
 import {
   destinationAfterAuth,
@@ -25,6 +26,8 @@ export function SignInPage() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
 
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [method, setMethod] = useState<"email" | "phone">("email");
   const [password, setPassword] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
 
@@ -62,7 +65,13 @@ export function SignInPage() {
     setMsg(null);
     setEmailBusy(true);
     try {
-      await authLogin({ email: email.trim().toLowerCase(), password });
+      if (method === "phone") {
+        await authLogin({ phone, password });
+        track("user_logged_in", { method: "phone" });
+      } else {
+        await authLogin({ email: email.trim().toLowerCase(), password });
+        track("user_logged_in", { method: "email" });
+      }
       await authLinkPublisher();
       setMsg("Sesión iniciada.");
       const session = await authMe().catch(() => null);
@@ -72,7 +81,6 @@ export function SignInPage() {
           name: session.displayName,
           is_admin: session.isAdmin,
         });
-        track("user_logged_in", { method: "email" });
       }
       await refreshMe();
       navigate(
@@ -153,7 +161,7 @@ export function SignInPage() {
         </p>
       ) : null}
       <p className="mt-2 text-sm text-muted">
-        Entra con Google o con correo y contraseña. La sesión usa cookies seguras con la API.
+        Entra con Google, correo o celular mexicano (+52) y contraseña.
       </p>
 
       <div className="mt-6">
@@ -170,16 +178,42 @@ export function SignInPage() {
       ) : null}
 
       <form className="mt-8 space-y-4" onSubmit={onEmailLogin}>
-        <label className="block text-sm font-medium text-body">
-          Correo
-          <input
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+        <div className="flex rounded-full border border-border bg-bg-light p-0.5 text-xs font-semibold">
+          <button
+            type="button"
+            className={`flex-1 rounded-full py-1.5 ${method === "email" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+            onClick={() => setMethod("email")}
+          >
+            Correo
+          </button>
+          <button
+            type="button"
+            className={`flex-1 rounded-full py-1.5 ${method === "phone" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+            onClick={() => setMethod("phone")}
+          >
+            Celular
+          </button>
+        </div>
+        {method === "phone" ? (
+          <PhoneNumberField
+            id="signin-phone"
+            value={phone}
+            onChange={setPhone}
+            optional={false}
+            showWhatsAppHint={false}
           />
-        </label>
+        ) : (
+          <label className="block text-sm font-medium text-body">
+            Correo
+            <input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+            />
+          </label>
+        )}
         <label className="block text-sm font-medium text-body">
           Contraseña
           <PasswordField

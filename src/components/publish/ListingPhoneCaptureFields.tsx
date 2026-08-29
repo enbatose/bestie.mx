@@ -1,6 +1,6 @@
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { PublisherPhoneSafetyCallout } from "@/components/publish/PublisherPhoneSafetyCallout";
-import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { normalizeMxNationalDigits, parseListingPhoneParts, phoneDigitsForStorage } from "@/lib/mxPhone";
 
 type Props = {
   /** National 10 digits or raw draft string. */
@@ -45,21 +45,18 @@ export function ListingPhoneCaptureFields({
   disabled,
   showPhoneLabel = true,
 }: Props) {
-  const national =
-    normalizeMxNationalDigits(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "").slice(0, 10);
+  const stored = phoneDigitsForStorage(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "");
+  const isMx = parseListingPhoneParts(stored).dial === "52" && Boolean(normalizeMxNationalDigits(stored) || stored.length === 12);
+  const postDigits = stored.length >= 10 ? stored : null;
   const profileNational = profilePhoneE164 ? normalizeMxNationalDigits(profilePhoneE164) : null;
-  const postDigits = phoneDigitsForStorage(national);
   const profileDigits = profilePhoneE164 ? phoneDigitsForStorage(profilePhoneE164) : null;
   const differsFromProfile = Boolean(postDigits && profileDigits && postDigits !== profileDigits);
   const noProfilePhone = !profileDigits;
 
-  const handleContactChange = (nextNational: string) => {
+  const handleContactChange = (next: string) => {
     const hadDigits = Boolean(postDigits);
-    onContactChange(nextNational);
-    const nextDigits = phoneDigitsForStorage(
-      normalizeMxNationalDigits(nextNational) ??
-        nextNational.replace(/\D/g, "").slice(0, 10),
-    );
+    onContactChange(next);
+    const nextDigits = phoneDigitsForStorage(next) ?? (next.replace(/\D/g, "").length >= 10 ? next.replace(/\D/g, "") : null);
     if (nextDigits && !hadDigits) {
       onShowChange(true);
     }
@@ -77,11 +74,12 @@ export function ListingPhoneCaptureFields({
     >
       <PhoneNumberField
         id="listing-contact-phone"
-        value={national}
+        value={stored}
         onChange={handleContactChange}
         disabled={disabled}
         optional
         showLabel={showPhoneLabel}
+        allowCountryChange
         className="min-w-0"
       />
 
@@ -98,7 +96,7 @@ export function ListingPhoneCaptureFields({
         </span>
       </label>
 
-      {allowSaveToProfile && postDigits && noProfilePhone ? (
+      {allowSaveToProfile && isMx && postDigits && noProfilePhone ? (
         <label className="grid min-w-0 cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-1 text-sm text-body">
           <input
             type="checkbox"
@@ -113,7 +111,7 @@ export function ListingPhoneCaptureFields({
         </label>
       ) : null}
 
-      {allowSaveToProfile && postDigits && differsFromProfile ? (
+      {allowSaveToProfile && isMx && postDigits && differsFromProfile ? (
         <label className="grid min-w-0 cursor-pointer grid-cols-[1.125rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-1 text-sm text-body">
           <input
             type="checkbox"

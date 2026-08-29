@@ -30,9 +30,9 @@ import {
   isListingsApiConfigured,
   updateProperty,
 } from "@/lib/listingsApi";
-import { authLinkPublisher, authMe, authUpdateMe, consumeHandoffToken } from "@/lib/authApi";
+import { authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
-import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { normalizeMxNationalDigits } from "@/lib/mxPhone";
 import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
@@ -3041,6 +3041,12 @@ export function PublishWizardPage() {
   );
 
   async function submitAiCompose() {
+    if (me === undefined) return;
+    if (!me) {
+      openAuthModal(window.location.pathname + window.location.search);
+      setPublishErr("Inicia sesión para armar el anuncio con IA. Después de entrar, el post queda a tu nombre.");
+      return;
+    }
     if (!aiSourceText.trim() && aiInfographics.length === 0) {
       setPublishErr(
         "Pega el texto de tu publicación o agrega un infográfico, poster o mapa. También puedes llenar los datos a mano.",
@@ -3295,17 +3301,6 @@ export function PublishWizardPage() {
       if (result.kind === "published") {
         track("publish_succeeded", { mode: draftRef.current.postMode,
           editing_live: Boolean(editingLiveProperty), create_flow: createFlowRef.current });
-        if (savePhoneToProfileRef.current) {
-          const digits = phoneDigitsForStorage(draftRef.current.contactWhatsApp);
-          if (digits) {
-            try {
-              await authUpdateMe({ phone: digits });
-              window.dispatchEvent(new Event("bestie:me-changed"));
-            } catch {
-              /* profile sync is best-effort; listing already published */
-            }
-          }
-        }
         const roomIdx = Math.min(
           previewRoomIndex,
           Math.max(0, draftRef.current.rooms.length - 1),

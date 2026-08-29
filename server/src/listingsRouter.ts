@@ -40,6 +40,8 @@ import {
   isDraftPlaceholderWhatsApp,
   normalizeWhatsAppDigits,
 } from "./validation.js";
+import { isRealListingPhone } from "./phoneAuth.js";
+import { isSelfServeCreator } from "./assistedDraftMerge.js";
 import type {
   ListingStatus,
   ListingTag,
@@ -155,6 +157,39 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
   return "listing_not_found";
 }
 
+function listingOutreachFlags(
+  db: DatabaseSync,
+  propertyId: string,
+  claimToken: string,
+): { claimPreview: boolean; hasDraftPhone: boolean; contactDisabled: boolean } {
+  const prop = db
+    .prepare(
+      `SELECT assisted_draft, created_by_admin_id, contact_whatsapp, status FROM properties WHERE id = ?`,
+    )
+    .get(propertyId) as
+    | {
+        assisted_draft: number | null;
+        created_by_admin_id: string | null;
+        contact_whatsapp: string | null;
+        status: string;
+      }
+    | undefined;
+  const hasDraftPhone = isRealListingPhone(prop?.contact_whatsapp);
+  const isOutreach =
+    Number(prop?.assisted_draft) === 1 && !isSelfServeCreator(prop?.created_by_admin_id);
+  const tok = db
+    .prepare(
+      `SELECT claimed_by_user_id FROM assisted_draft_claim_tokens WHERE property_id = ? ORDER BY created_at DESC LIMIT 1`,
+    )
+    .get(propertyId) as { claimed_by_user_id: string | null } | undefined;
+  const claimed = Boolean(tok?.claimed_by_user_id);
+  return {
+    claimPreview: Boolean(claimToken) && String(prop?.status) === "draft",
+    hasDraftPhone,
+    contactDisabled: isOutreach && !claimed && String(prop?.status) === "published",
+  };
+}
+
 export function listingsRouter(db: DatabaseSync) {
   const r = express.Router();
   const jsonMw = express.json({ limit: "512kb" });
@@ -243,6 +278,8 @@ export function listingsRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_id", reason: "invalid_id" satisfies PublicListingUnavailableReason });
       return;
     }
+    const claimToken =
+      typeof req.query.claim === "string" && req.query.claim.trim() ? req.query.claim.trim() : "";
     // Published listings must load for any visitor, including browsers that already
     // have a different `bestie_pub` cookie (otherwise only the owner's cookie path ran).
     const publishedRow = db
@@ -251,8 +288,22 @@ export function listingsRouter(db: DatabaseSync) {
 
     const publisherId = readPublisherIdFromRequest(req);
     const admin = isAdminRequest(db, req);
+    let claimRow: Record<string, unknown> | undefined;
+    if (!publishedRow && claimToken) {
+      const tok = db
+        .prepare(
+          `SELECT property_id, expires_at FROM assisted_draft_claim_tokens WHERE token = ?`,
+        )
+        .get(claimToken) as { property_id: string; expires_at: number } | undefined;
+      if (tok && Date.now() <= Number(tok.expires_at)) {
+        claimRow = db
+          .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ? AND p.id = ?`)
+          .get(roomId, tok.property_id) as Record<string, unknown> | undefined;
+      }
+    }
     const row =
       publishedRow ??
+      claimRow ??
       (admin
         ? (db
             .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
@@ -270,8 +321,8 @@ export function listingsRouter(db: DatabaseSync) {
       const listing = listingForPublic(joinRowToPropertyListing(row));
       const ownerPublisherId = String(row.publisher_id ?? "");
       const isOwner = Boolean(ownerPublisherId && viewerOwnsProperty(db, req, ownerPublisherId));
-      // Count public opens only (skip owner previews) for Mis Anuncios metrics.
-      if (publishedRow && !isOwner) {
+      // Count public opens only (skip owner previews and claim-link previews) for Mis Anuncios metrics.
+      if (publishedRow && !isOwner && !claimToken) {
         try {
           db.prepare(
             "UPDATE rooms SET views_count = COALESCE(views_count, 0) + 1 WHERE id = ?",
@@ -280,7 +331,14 @@ export function listingsRouter(db: DatabaseSync) {
           // Column may be missing on very old DBs mid-migrate; never block listing GET.
         }
       }
-      const payload = isOwner ? { ...listing, viewerIsOwner: true as const } : listing;
+      const flags = listingOutreachFlags(db, String(row.property_id ?? ""), claimToken);
+      const payload = {
+        ...listing,
+        ...(isOwner ? { viewerIsOwner: true as const } : {}),
+        ...(flags.claimPreview ? { claimPreview: true as const } : {}),
+        hasDraftPhone: flags.hasDraftPhone,
+        ...(flags.contactDisabled ? { contactDisabled: true as const } : {}),
+      };
       res.json(payload);
       return;
     }

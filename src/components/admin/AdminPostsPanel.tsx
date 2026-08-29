@@ -4,6 +4,7 @@ import {
   ADMIN_POSTS_PAGE_SIZES,
   adminListPosts,
   adminPatchPropertyStatus,
+  adminPublishUnclaimed,
   type AdminPostCreateOrigin,
   type AdminPostRow,
   type AdminPostStatus,
@@ -142,6 +143,22 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
   useEffect(() => {
     if (page !== safePage) setPage(safePage);
   }, [page, safePage]);
+
+  const publishUnclaimed = async (row: AdminPostRow, file: File, note?: string) => {
+    setBusyId(row.propertyId);
+    setActionNote(null);
+    onError(null);
+    try {
+      await adminPublishUnclaimed(row.propertyId, file, note);
+      setActionNote(`${row.shortId} → Publicado (sin dueño)`);
+      await load();
+      onStatusChanged?.();
+    } catch (x) {
+      onError(x instanceof Error ? x.message : "No se pudo publicar.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const setStatus = async (row: AdminPostRow, status: AdminPostStatus) => {
     setBusyId(row.propertyId);
@@ -392,6 +409,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                     row={row}
                     busy={busyId === row.propertyId}
                     onStatus={setStatus}
+                    onUnclaimedPublish={publishUnclaimed}
                   />
                 </td>
               </tr>
@@ -510,7 +528,12 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
               ) : null}
             </div>
             <div className="mt-3">
-              <RowActions row={row} busy={busyId === row.propertyId} onStatus={setStatus} />
+              <RowActions
+                row={row}
+                busy={busyId === row.propertyId}
+                onStatus={setStatus}
+                onUnclaimedPublish={publishUnclaimed}
+              />
             </div>
           </li>
         ))}
@@ -528,13 +551,29 @@ function RowActions({
   row,
   busy,
   onStatus,
+  onUnclaimedPublish,
 }: {
   row: AdminPostRow;
   busy: boolean;
   onStatus: (row: AdminPostRow, status: AdminPostStatus) => void;
+  onUnclaimedPublish: (row: AdminPostRow, file: File, note?: string) => void | Promise<void>;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex min-w-0 flex-col gap-2">
+      {row.unclaimedOutreach ? (
+        <UnclaimedPublishForm row={row} busy={busy} onPublish={onUnclaimedPublish} />
+      ) : null}
+      {row.hasPublishEvidence && row.status === "published" ? (
+        <a
+          href={`/api/admin/properties/${encodeURIComponent(row.propertyId)}/evidence`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+        >
+          Ver evidencia (solo admin)
+        </a>
+      ) : null}
+      <div className="flex flex-wrap gap-1.5">
       {row.status !== "paused" && row.status !== "archived" ? (
         <button
           type="button"
@@ -576,6 +615,54 @@ function RowActions({
           A borrador
         </button>
       ) : null}
+      </div>
+    </div>
+  );
+}
+
+function UnclaimedPublishForm({
+  row,
+  busy,
+  onPublish,
+}: {
+  row: AdminPostRow;
+  busy: boolean;
+  onPublish: (row: AdminPostRow, file: File, note?: string) => void | Promise<void>;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [note, setNote] = useState("");
+  return (
+    <div className="min-w-0 space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-2">
+      <p className="text-[11px] leading-snug text-body">
+        Publicar sin dueño: captura de consentimiento (no las fotos del anuncio). La evidencia no se
+        muestra al público.
+      </p>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={busy}
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        className="block w-full min-w-0 text-[11px] text-body file:mr-2 file:rounded-full file:border-0 file:bg-primary/15 file:px-2 file:py-1 file:text-[11px] file:font-semibold file:text-primary"
+      />
+      <input
+        type="text"
+        value={note}
+        onChange={(e) => setNote(e.target.value.slice(0, 500))}
+        placeholder="Nota opcional"
+        disabled={busy}
+        size={10}
+        className="w-full min-w-0 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-body outline-none ring-accent focus:ring-2"
+      />
+      <button
+        type="button"
+        disabled={busy || !file}
+        onClick={() => {
+          if (file) void onPublish(row, file, note);
+        }}
+        className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-fg disabled:opacity-50"
+      >
+        {busy ? "…" : "Publicar sin dueño"}
+      </button>
     </div>
   );
 }

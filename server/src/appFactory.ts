@@ -195,7 +195,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/reports", reportsRouter(db));
   app.use("/api/notifications", notificationsRouter(db));
   app.use("/api/saved-searches", savedSearchesRouter(db));
-  app.use("/api/admin", adminRouter(db));
+  app.use("/api/admin", adminRouter(db, { uploadDir }));
   app.use("/api/admin/reports", adminReportsRouter(db));
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));

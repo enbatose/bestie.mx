@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type NextFunction, type Request, type Response } from "express";
+import multer from "multer";
 import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
 import {
@@ -22,6 +25,9 @@ import { getAdminNavCounts } from "./adminNavCounts.js";
 import { listAdminUsers } from "./adminUsers.js";
 import { startAdminSupportConversation } from "./adminSupportStart.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
+import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
+import { resolveUploadDir } from "./dataPaths.js";
+import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -44,8 +50,21 @@ function parseAttachmentsJson(raw: unknown): MessageAttachment[] {
   }
 }
 
-export function adminRouter(db: DatabaseSync) {
+export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
   const r = express.Router();
+  const uploadDir = path.resolve(opts?.uploadDir ?? resolveUploadDir(undefined));
+  const evidenceUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 12 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const m = normalizeDeclaredImageMime(file.mimetype);
+      if (!m || m === "application/octet-stream" || m === "binary/octet-stream" || m.startsWith("image/")) {
+        cb(null, true);
+      } else {
+        cb(new Error("invalid_mimetype"));
+      }
+    },
+  });
 
   function requireAdmin(req: Request, res: Response, next: NextFunction): void {
     const uid = readAuthUserId(req);
@@ -104,6 +123,14 @@ export function adminRouter(db: DatabaseSync) {
       res.status(404).json({ error: "not_found" });
       return;
     }
+    if (st === "published" && cur.status === "draft" && isUnclaimedAdminOutreach(db, propertyId)) {
+      res.status(409).json({
+        error: "evidence_required",
+        message:
+          "Para publicar un anuncio de crecimiento sin dueño adjunta una captura de consentimiento (no uses las fotos del anuncio).",
+      });
+      return;
+    }
     const firstPublish = isFirstPropertyPublish(cur.status, cur.published_at, st);
     if (st === "published" && (cur.published_at == null || String(cur.published_at).trim() === "")) {
       db.prepare(`UPDATE properties SET status = ?, published_at = ?, paused_by = NULL WHERE id = ?`).run(
@@ -135,6 +162,121 @@ export function adminRouter(db: DatabaseSync) {
     }
     if (firstPublish) scheduleNotifyOpsNewPostPublished(db, propertyId);
     res.json({ ok: true, propertyId, status: st });
+  });
+
+  r.post(
+    "/properties/:id/publish-unclaimed",
+    (req: Request, res: Response, next: NextFunction) => {
+      evidenceUpload.single("file")(req, res, (err: unknown) => {
+        if (err) {
+          res.status(400).json({ error: "upload_failed", message: "No se pudo subir la captura." });
+          return;
+        }
+        next();
+      });
+    },
+    (req: Request, res: Response) => {
+      const rawId = String(req.params.id ?? "").trim();
+      const propertyId = resolveAdminPropertyIdFromParam(db, rawId);
+      if (!propertyId) {
+        res.status(400).json({ error: "invalid_id" });
+        return;
+      }
+      const cur = db
+        .prepare(`SELECT status FROM properties WHERE id = ?`)
+        .get(propertyId) as { status: string } | undefined;
+      if (!cur) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      if (cur.status !== "draft") {
+        res.status(409).json({ error: "not_draft", message: "Solo se puede publicar así un borrador." });
+        return;
+      }
+      if (!isUnclaimedAdminOutreach(db, propertyId)) {
+        res.status(409).json({
+          error: "not_unclaimed_outreach",
+          message: "Este anuncio ya tiene dueño o no es un borrador de crecimiento.",
+        });
+        return;
+      }
+      const f = req.file;
+      if (!f?.buffer?.length) {
+        res.status(400).json({
+          error: "file_required",
+          message: "Adjunta una captura de consentimiento (no uses las fotos del anuncio).",
+        });
+        return;
+      }
+      const mime = resolveUploadMime(f.mimetype, f.buffer);
+      if (!mime) {
+        res.status(400).json({
+          error: "invalid_mimetype",
+          message: "Formato de imagen no soportado. Usa JPG, PNG o WebP.",
+        });
+        return;
+      }
+      const ext = extForUploadMime(mime);
+      const name = `${randomUUID()}${ext}`;
+      const rel = `evidence/${name}`;
+      const destDir = path.join(uploadDir, "evidence");
+      fs.mkdirSync(destDir, { recursive: true });
+      const dest = path.join(destDir, name);
+      try {
+        fs.writeFileSync(dest, f.buffer);
+      } catch {
+        res.status(500).json({ error: "write_failed" });
+        return;
+      }
+      const noteRaw = typeof req.body?.note === "string" ? req.body.note : "";
+      const note = clampStr(noteRaw, 500).trim() || null;
+      const now = new Date().toISOString();
+      db.prepare(
+        `UPDATE properties
+         SET status = 'published', published_at = ?, paused_by = NULL,
+             admin_publish_evidence_url = ?, admin_publish_evidence_note = ?, admin_publish_evidence_at = ?
+         WHERE id = ?`,
+      ).run(now, rel, note, now, propertyId);
+      db.prepare(
+        `UPDATE rooms SET status = 'published', paused_by = NULL, updated_at = CURRENT_TIMESTAMP
+         WHERE property_id = ? AND status != 'archived'`,
+      ).run(propertyId);
+      scheduleNotifyOpsNewPostPublished(db, propertyId);
+      res.json({ ok: true, propertyId, status: "published" });
+    },
+  );
+
+  r.get("/properties/:id/evidence", (req: Request, res: Response) => {
+    const rawId = String(req.params.id ?? "").trim();
+    const propertyId = resolveAdminPropertyIdFromParam(db, rawId);
+    if (!propertyId) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const row = db
+      .prepare(`SELECT admin_publish_evidence_url FROM properties WHERE id = ?`)
+      .get(propertyId) as { admin_publish_evidence_url: string | null } | undefined;
+    const rel = row?.admin_publish_evidence_url?.trim() ?? "";
+    if (!rel.startsWith("evidence/")) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const filename = path.basename(rel);
+    const fp = path.resolve(uploadDir, "evidence", filename);
+    if (!fp.startsWith(path.resolve(uploadDir, "evidence")) || !fs.existsSync(fp)) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const lower = filename.toLowerCase();
+    const type = lower.endsWith(".png")
+      ? "image/png"
+      : lower.endsWith(".webp")
+        ? "image/webp"
+        : "image/jpeg";
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.type(type);
+    res.sendFile(fp);
   });
 
   r.get("/posts", (req: Request, res: Response) => {

@@ -71,6 +71,10 @@ export type AdminPostRow = {
   /** Admin Soporte conversation id for the report thread, if any. */
   reportConversationId: string | null;
   reportCount: number;
+  /** Admin outreach draft with an unclaimed claim token. */
+  unclaimedOutreach: boolean;
+  /** Internal consent screenshot exists (never shown on the public listing). */
+  hasPublishEvidence: boolean;
 };
 
 /** Resolve admin vs user AI origin from property + claim-token creator ids. */
@@ -108,9 +112,13 @@ export function adminPostEditPath(opts: {
   status: AdminPostStatus;
   assistedDraft: boolean;
   claimToken: string | null;
+  roomId?: string | null;
 }): string {
   const editCode = propertyReferenceCode(opts.propertyId);
   if (opts.assistedDraft && opts.status === "draft" && opts.claimToken) {
+    if (opts.roomId) {
+      return `/anuncio/${roomReferenceCode(opts.roomId)}?claim=${encodeURIComponent(opts.claimToken)}`;
+    }
     return `/borrador/${encodeURIComponent(opts.claimToken)}`;
   }
   if (opts.assistedDraft && opts.status === "draft") {
@@ -364,6 +372,7 @@ export function listAdminPosts(
         p.feedback_at,
         IFNULL(p.assisted_draft, 0) AS assisted_draft,
         p.created_by_admin_id AS created_by_admin_id,
+        p.admin_publish_evidence_url AS admin_publish_evidence_url,
         u.id AS user_id,
         u.email AS user_email,
         u.display_name AS user_display_name,
@@ -532,6 +541,7 @@ export function listAdminPosts(
         status,
         assistedDraft,
         claimToken,
+        roomId: primaryRoomId,
       }),
       primaryRoomId,
       messageThreadCount: Math.max(0, Math.floor(Number(row.message_thread_count) || 0)),
@@ -546,6 +556,10 @@ export function listAdminPosts(
           ? String(row.report_conversation_id).trim()
           : null,
       reportCount: Math.max(0, Math.floor(Number(row.report_count) || 0)),
+      unclaimedOutreach: createOrigin === "ai_admin" && status === "draft" && claimToken != null,
+      hasPublishEvidence: Boolean(
+        row.admin_publish_evidence_url != null && String(row.admin_publish_evidence_url).trim(),
+      ),
     };
   });
 

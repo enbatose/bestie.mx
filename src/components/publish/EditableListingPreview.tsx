@@ -1098,13 +1098,14 @@ export function EditableListingPreview({
                   {/* phone input — no label, no whatsapp hint; title above is enough */}
                   <PhoneNumberField
                     id="preview-contact-phone"
-                    value={normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10)}
-                    onChange={(national) => {
-                      const hadDigits = Boolean(phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10)));
-                      const nextDigits = phoneDigitsForStorage(normalizeMxNationalDigits(national) ?? national.replace(/\D/g, "").slice(0, 10));
+                    value={phoneDraft.contactWhatsApp}
+                    allowCountryChange
+                    onChange={(next) => {
+                      const hadDigits = Boolean(phoneDigitsForStorage(phoneDraft.contactWhatsApp));
+                      const nextDigits = phoneDigitsForStorage(next);
                       setPhoneDraft((p) => ({
                         ...p,
-                        contactWhatsApp: national,
+                        contactWhatsApp: next,
                         showWhatsApp: nextDigits && !hadDigits ? true : p.showWhatsApp,
                       }));
                     }}
