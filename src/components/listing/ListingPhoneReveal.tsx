@@ -25,6 +25,8 @@ type Props = {
   className?: string;
   /** Mobile vs desktop copy density. */
   compact?: boolean;
+  /** Hero: hug the number + Mostrar on desktop instead of stretching across the header. */
+  fit?: boolean;
 };
 
 const SEEKER_TIPS = [
@@ -154,6 +156,7 @@ export function ListingPhoneReveal({
   role = "seeker",
   className = "",
   compact = false,
+  fit = false,
   claimToken = null,
 }: Props) {
   const { openLogin } = useAuthModal();
@@ -277,19 +280,29 @@ export function ListingPhoneReveal({
     : undefined;
 
   return (
-    <div className={`w-full max-w-full rounded-xl border border-border bg-surface p-3 sm:p-4 ${className}`}>
+    <div
+      className={`max-w-full rounded-xl border border-border bg-surface p-3 sm:p-4 ${
+        fit ? "w-full sm:w-max sm:self-start" : "w-full"
+      } ${className}`}
+    >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Phone className="size-4" aria-hidden />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className={fit ? "min-w-0" : "min-w-0 flex-1"}>
           <p className="text-sm font-semibold text-body">Teléfono / móvil</p>
-          {compact ? (
+          {compact || fit ? (
             <p className="mt-0.5 text-xs leading-snug text-muted">
-              <span className="sm:hidden">Inicia sesión para verlo.</span>
-              <span className="hidden sm:inline">
-                Idealmente el número de WhatsApp. Inicia sesión para verlo y aceptar los términos.
-              </span>
+              {fit ? (
+                "Inicia sesión para verlo."
+              ) : (
+                <>
+                  <span className="sm:hidden">Inicia sesión para verlo.</span>
+                  <span className="hidden sm:inline">
+                    Idealmente el número de WhatsApp. Inicia sesión para verlo y aceptar los términos.
+                  </span>
+                </>
+              )}
             </p>
           ) : (
             <p className="mt-0.5 text-xs leading-snug text-muted">
