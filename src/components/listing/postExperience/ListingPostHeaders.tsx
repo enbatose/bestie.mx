@@ -23,7 +23,6 @@ export function SingleRoomHeader({
   womenCount,
   shareActions,
   title,
-  phone,
   reportActions,
 }: {
   listing: PropertyListing;
@@ -31,7 +30,6 @@ export function SingleRoomHeader({
   womenCount: number;
   shareActions?: ReactNode;
   title?: string;
-  phone?: ReactNode;
   reportActions?: ReactNode;
 }) {
   return (
@@ -60,12 +58,7 @@ export function SingleRoomHeader({
       {(listing.depositMxn ?? 0) > 0 ? (
         <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
       ) : null}
-      {phone || reportActions ? (
-        <div className="mt-3 flex w-full min-w-0 flex-col items-end gap-2 sm:ml-auto sm:w-max sm:max-w-full">
-          {phone}
-          {reportActions}
-        </div>
-      ) : null}
+      {reportActions ? <div className="mt-3 flex w-full min-w-0 justify-end">{reportActions}</div> : null}
     </div>
   );
 }
@@ -75,14 +68,12 @@ export function PropertyHeader({
   availableRooms,
   shareActions,
   tags,
-  phone,
   reportActions,
 }: {
   property: Property;
   availableRooms: Room[];
   shareActions?: ReactNode;
   tags?: readonly ListingTag[];
-  phone?: ReactNode;
   reportActions?: ReactNode;
 }) {
   const rents = availableRooms.map((room) => room.rentMxn).filter((rent) => rent > 0);
@@ -116,12 +107,7 @@ export function PropertyHeader({
         propertyKind={property.propertyKind}
         tags={tags}
       />
-      {phone || reportActions ? (
-        <div className="mt-3 flex w-full min-w-0 flex-col items-end gap-2 sm:ml-auto sm:w-max sm:max-w-full">
-          {phone}
-          {reportActions}
-        </div>
-      ) : null}
+      {reportActions ? <div className="mt-3 flex w-full min-w-0 justify-end">{reportActions}</div> : null}
     </div>
   );
 }

@@ -70,17 +70,41 @@ function WhatsAppMark({ className }: { className?: string }) {
   );
 }
 
+/** Same green as the listing hero header, without extra nested padding on 360px. */
+export const LISTING_PHONE_BAND_SHELL_CLASS =
+  "min-w-0 w-full overflow-x-clip rounded-2xl border border-secondary/50 bg-secondary/5 px-3 py-3 sm:p-5";
+
+function listingHasPublicPhone(listing: PropertyListing): boolean {
+  if (listing.claimPreview && listing.hasDraftPhone && listing.claimPhoneDisplay) return true;
+  return Boolean(listing.hasContactPhone);
+}
+
 /** Unpublished claim preview: number in the clear + call/WhatsApp (token-gated, not crawlable). */
-function ListingPlainContactPhone({ digits }: { digits: string }) {
+function ListingPlainContactPhone({ digits, layout = "card" }: { digits: string; layout?: "card" | "band" }) {
   const d = digits.replace(/\D/g, "");
   if (!d) return null;
+  const band = layout === "band";
   return (
-    <div className="relative w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:w-max sm:px-3.5 sm:py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Teléfono / móvil</p>
+    <div
+      className={
+        band
+          ? "flex w-full min-w-0 flex-col items-center text-center"
+          : "relative w-full min-w-0 max-w-full overflow-x-clip rounded-xl border border-border/80 bg-surface/80 px-3 py-2.5 sm:w-max sm:px-3.5 sm:py-3"
+      }
+    >
+      <p
+        className={
+          band
+            ? "text-sm font-semibold text-body"
+            : "text-[11px] font-semibold uppercase tracking-wide text-muted"
+        }
+      >
+        Teléfono / móvil
+      </p>
       <p className="mt-0.5 break-all font-mono text-base tabular-nums text-body sm:text-sm">
         {formatListingPhoneDisplay(digits)}
       </p>
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+      <div className={`mt-2 grid w-full min-w-0 grid-cols-2 gap-2 ${band ? "" : "sm:flex sm:flex-wrap"}`}>
         <a
           href={`tel:+${d}`}
           className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body hover:bg-surface-elevated"
@@ -102,17 +126,19 @@ function ListingPlainContactPhone({ digits }: { digits: string }) {
 }
 
 /**
- * Header phone: claim/unpublished shows digits; published listings stay masked until login.
+ * Claim/unpublished shows digits; published listings stay masked until login.
  */
 export function ListingHeroPhone({
   listing,
   viewer,
+  layout = "card",
 }: {
   listing: PropertyListing;
   viewer: AuthMe | null | undefined;
+  layout?: "card" | "band";
 }) {
   if (listing.claimPreview && listing.hasDraftPhone && listing.claimPhoneDisplay) {
-    return <ListingPlainContactPhone digits={listing.claimPhoneDisplay} />;
+    return <ListingPlainContactPhone digits={listing.claimPhoneDisplay} layout={layout} />;
   }
   if (listing.hasContactPhone) {
     return (
@@ -123,9 +149,25 @@ export function ListingHeroPhone({
         viewer={viewer}
         role={listing.viewerIsOwner ? "publisher" : "seeker"}
         compact
-        fit
+        layout={layout}
       />
     );
   }
   return null;
+}
+
+/** Full-width phone band under listing photos — same width as the gallery, header green. */
+export function ListingPostPhoneBand({
+  listing,
+  viewer,
+}: {
+  listing: PropertyListing;
+  viewer: AuthMe | null | undefined;
+}) {
+  if (!listingHasPublicPhone(listing)) return null;
+  return (
+    <div className={`mt-3 ${LISTING_PHONE_BAND_SHELL_CLASS}`}>
+      <ListingHeroPhone listing={listing} viewer={viewer} layout="band" />
+    </div>
+  );
 }

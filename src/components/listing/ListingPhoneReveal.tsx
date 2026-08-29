@@ -25,8 +25,8 @@ type Props = {
   className?: string;
   /** Mobile vs desktop copy density. */
   compact?: boolean;
-  /** Hero: hug the number + Mostrar on desktop instead of stretching across the header. */
-  fit?: boolean;
+  /** Full-width band under photos: centered copy, no inner white card. */
+  layout?: "card" | "band";
 };
 
 const SEEKER_TIPS = [
@@ -156,7 +156,7 @@ export function ListingPhoneReveal({
   role = "seeker",
   className = "",
   compact = false,
-  fit = false,
+  layout = "card",
   claimToken = null,
 }: Props) {
   const { openLogin } = useAuthModal();
@@ -278,44 +278,50 @@ export function ListingPhoneReveal({
   const waHref = revealed
     ? `https://wa.me/${revealed.replace(/\D/g, "")}`
     : undefined;
+  const band = layout === "band";
 
   return (
     <div
-      className={`max-w-full rounded-xl border border-border bg-surface p-3 sm:p-4 ${
-        fit ? "w-full sm:w-max" : "w-full"
+      className={`w-full min-w-0 max-w-full ${
+        band ? "" : "rounded-xl border border-border bg-surface p-3 sm:p-4"
       } ${className}`}
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <div className={band ? "flex flex-col items-center text-center" : "flex items-start gap-3"}>
+        <div
+          className={`${band ? "" : "mt-0.5"} flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary`}
+        >
           <Phone className="size-4" aria-hidden />
         </div>
-        <div className={fit ? "min-w-0" : "min-w-0 flex-1"}>
+        <div className={band ? "mt-2 w-full min-w-0" : "min-w-0 flex-1"}>
           <p className="text-sm font-semibold text-body">Teléfono / móvil</p>
-          {compact || fit ? (
+          {band ? (
             <p className="mt-0.5 text-xs leading-snug text-muted">
-              {fit ? (
-                "Inicia sesión para verlo."
-              ) : (
-                <>
-                  <span className="sm:hidden">Inicia sesión para verlo.</span>
-                  <span className="hidden sm:inline">
-                    Idealmente el número de WhatsApp. Inicia sesión para verlo y aceptar los términos.
-                  </span>
-                </>
-              )}
+              <span className="sm:hidden">Inicia sesión para verlo.</span>
+              <span className="hidden sm:inline">Inicia sesión para verlo y aceptar los términos.</span>
+            </p>
+          ) : compact ? (
+            <p className="mt-0.5 text-xs leading-snug text-muted">
+              <span className="sm:hidden">Inicia sesión para verlo.</span>
+              <span className="hidden sm:inline">
+                Idealmente el número de WhatsApp. Inicia sesión para verlo y aceptar los términos.
+              </span>
             </p>
           ) : (
             <p className="mt-0.5 text-xs leading-snug text-muted">
               Idealmente el número que usas en WhatsApp. Inicia sesión para verlo y aceptar los términos.
             </p>
           )}
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div
+            className={`mt-2 flex min-w-0 flex-col gap-2 ${
+              band ? "items-center" : "sm:flex-row sm:flex-wrap sm:items-center"
+            }`}
+          >
             <span className="break-all font-mono text-base tabular-nums text-body sm:text-sm">{display}</span>
             <button
               type="button"
               onClick={revealed ? () => setRevealed(null) : onEyeClick}
               disabled={busy || viewer === undefined}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border bg-bg-light px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50 sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50 sm:w-auto"
               aria-label={revealed ? "Ocultar teléfono" : "Mostrar teléfono"}
             >
               {revealed ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
@@ -328,7 +334,9 @@ export function ListingPhoneReveal({
             </button>
           </div>
           {revealed && (telHref || waHref) ? (
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <div
+              className={`mt-2 grid w-full min-w-0 grid-cols-2 gap-2 ${band ? "" : "sm:flex sm:flex-wrap"}`}
+            >
               {telHref ? (
                 <a
                   href={telHref}
@@ -350,7 +358,9 @@ export function ListingPhoneReveal({
               ) : null}
             </div>
           ) : null}
-          {err ? <p className="mt-2 text-xs text-error">{err}</p> : null}
+          {err ? (
+            <p className={`mt-2 text-xs text-error ${band ? "text-center" : ""}`}>{err}</p>
+          ) : null}
         </div>
       </div>
       <PhoneRevealSafetyModal

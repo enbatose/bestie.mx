@@ -7,7 +7,7 @@ import { reportListing, reportProperty } from "@/lib/reportsApi";
 import { propertyReferenceCode, roomReferenceCode } from "@/lib/listingReference";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
-import { LISTING_HERO_SHELL_CLASS, ListingHeroPhone } from "@/components/listing/PublicListingHeader";
+import { LISTING_HERO_SHELL_CLASS, ListingPostPhoneBand } from "@/components/listing/PublicListingHeader";
 import { PostExperienceContactSection } from "@/components/listing/postExperience/PostExperienceContactSection";
 import { PropertyRoomDetailModal } from "@/components/listing/postExperience/PropertyRoomDetailModal";
 import { PropertyRoomsOfferSection } from "@/components/listing/postExperience/PropertyRoomsOfferSection";
@@ -343,14 +343,16 @@ export function PublicPostExperienceListing({
               availableRooms={availableRooms}
               shareActions={shareActions}
               tags={propertyTags}
-              phone={<ListingHeroPhone listing={listing} viewer={contact.viewer} />}
               reportActions={reportRow}
             />
           </div>
         </header>
 
         <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-          <ListingSection title="Fotos">{photosBlock}</ListingSection>
+          <ListingSection title="Fotos">
+            {photosBlock}
+            <ListingPostPhoneBand listing={listing} viewer={contact.viewer} />
+          </ListingSection>
 
           <ListingKeyLabelsGrid items={buildPropertyKeyLabels(propertyTags, availableRooms)} />
 
@@ -451,14 +453,16 @@ export function PublicPostExperienceListing({
             menCount={menCount}
             womenCount={womenCount}
             shareActions={shareActions}
-            phone={<ListingHeroPhone listing={listing} viewer={contact.viewer} />}
             reportActions={reportRow}
           />
         </div>
       </header>
 
       <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <ListingSection title="Fotos">{photosBlock}</ListingSection>
+        <ListingSection title="Fotos">
+          {photosBlock}
+          <ListingPostPhoneBand listing={listing} viewer={contact.viewer} />
+        </ListingSection>
 
         <ListingKeyLabelsGrid items={buildSingleRoomKeyLabels(listing)} />
 
