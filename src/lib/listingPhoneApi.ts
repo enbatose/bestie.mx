@@ -42,14 +42,17 @@ export async function postPhoneRevealSafetyAcknowledgment(body: {
 
 export async function fetchListingContactPhone(
   listingId: string,
-  signal?: AbortSignal,
+  options?: { claimToken?: string | null; signal?: AbortSignal },
 ): Promise<{ phoneDigits: string; e164: string }> {
+  const params = new URLSearchParams();
+  if (options?.claimToken) params.set("claim", options.claimToken);
+  const qs = params.toString();
   const res = await fetch(
-    `${apiBase()}/api/listings/${encodeURIComponent(listingId)}/contact-phone`,
+    `${apiBase()}/api/listings/${encodeURIComponent(listingId)}/contact-phone${qs ? `?${qs}` : ""}`,
     {
       credentials: cred,
       headers: deviceHeaders(),
-      signal,
+      signal: options?.signal,
     },
   );
   const j = (await res.json().catch(() => ({}))) as {

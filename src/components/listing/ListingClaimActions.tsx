@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { ListingPhoneReveal } from "@/components/listing/ListingPhoneReveal";
 import {
   confirmAssistedDraftClaim,
   publishAssistedDraftClaim,
   requestAssistedDraftClaimOtp,
 } from "@/lib/assistedDraftApi";
 import { listingPublicPath } from "@/lib/listingReference";
-import { formatMxPhoneDisplay } from "@/lib/mxPhone";
 import type { AuthMe } from "@/lib/authApi";
 import type { PropertyListing } from "@/types/listing";
 
@@ -28,7 +28,7 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
   const returnTo = `${listingPublicPath(listing.id)}?claim=${encodeURIComponent(claimToken)}`;
   const isAdmin = Boolean(viewer?.isAdmin);
   const needsAuth = viewer === null;
-  const phoneLabel = listing.claimPhoneDisplay ? formatMxPhoneDisplay(listing.claimPhoneDisplay) : null;
+  const showPhoneReveal = Boolean(listing.hasDraftPhone);
 
   const afterConfirm = async (action: "edit" | "publish") => {
     if (action === "edit") {
@@ -82,15 +82,17 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
             ? " Editar no lo reclama. Publicar lo deja a tu nombre."
             : " Editar o publicar lo deja a tu nombre."}
       </p>
-      {phoneLabel ? (
-        <p className="mt-3 min-w-0">
-          <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Teléfono / móvil
-          </span>
-          <span className="mt-0.5 block break-all font-mono text-sm tabular-nums text-body">{phoneLabel}</span>
-        </p>
-      ) : listing.hasDraftPhone && needsAuth ? (
-        <p className="mt-2 text-xs text-muted">El teléfono se muestra al iniciar sesión.</p>
+      {showPhoneReveal ? (
+        <ListingPhoneReveal
+          listingId={listing.id}
+          propertyId={listing.propertyId}
+          hasContactPhone
+          viewer={viewer}
+          claimToken={claimToken}
+          role="publisher"
+          compact
+          className="mt-3"
+        />
       ) : null}
       {err ? (
         <p role="alert" className="mt-2 break-words text-sm text-error">

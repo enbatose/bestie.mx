@@ -13,6 +13,8 @@ type BaseProps = {
   propertyId?: string;
   hasContactPhone?: boolean;
   phoneRevealRole?: "seeker" | "publisher";
+  /** Claim-link draft: hide the empty Contactar block (phone lives in the claim banner). */
+  hideWhenUnavailable?: boolean;
   msgBusy: boolean;
   msgErr: string | null;
   onSend: () => void;
@@ -45,12 +47,32 @@ function sendLabel(viewer: AuthMe | null | undefined, msgBusy: boolean): string 
 
 export function PostExperienceContactSection(props: Props) {
   const { canContact, messagingOn, viewer, msgBusy, msgErr, onSend } = props;
+  const phoneOnly =
+    !canContact && Boolean(props.hasContactPhone && props.listingId) && !props.hideWhenUnavailable;
 
-  if (!canContact) {
+  if (!canContact && !phoneOnly) {
+    if (props.hideWhenUnavailable) return null;
     return (
       <ListingSection title="Contactar anunciante">
         <p className="text-sm text-muted">Este anuncio no acepta contacto en este momento.</p>
       </ListingSection>
+    );
+  }
+
+  if (phoneOnly) {
+    return (
+      <div id={props.mode === "property" ? "property-contact" : "contacto"} className="scroll-mt-24">
+        <ListingSection title="Contactar anunciante">
+          <ListingPhoneReveal
+            listingId={props.listingId!}
+            propertyId={props.propertyId}
+            viewer={viewer}
+            hasContactPhone={props.hasContactPhone}
+            role={props.phoneRevealRole ?? "seeker"}
+            compact={props.mode === "single"}
+          />
+        </ListingSection>
+      </div>
     );
   }
 

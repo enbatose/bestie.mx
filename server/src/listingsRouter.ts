@@ -40,7 +40,7 @@ import {
   isDraftPlaceholderWhatsApp,
   normalizeWhatsAppDigits,
 } from "./validation.js";
-import { isRealListingPhone } from "./phoneAuth.js";
+import { isRealListingPhone, listingPhoneToE164 } from "./phoneAuth.js";
 import { isSelfServeCreator } from "./assistedDraftMerge.js";
 import type {
   ListingStatus,
@@ -157,6 +157,14 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
   return "listing_not_found";
 }
 
+function contactPhonePayload(stored: unknown): { phoneDigits: string; e164: string } | null {
+  const digits = normalizeWhatsAppDigits(String(stored ?? ""));
+  if (!digits || isDraftPlaceholderWhatsApp(digits)) return null;
+  const e164 = listingPhoneToE164(String(stored ?? ""));
+  if (!e164) return null;
+  return { phoneDigits: digits, e164 };
+}
+
 function listingOutreachFlags(
   db: DatabaseSync,
   propertyId: string,
@@ -256,20 +264,41 @@ export function listingsRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_id" });
       return;
     }
-    const row = db
+    const claimToken =
+      typeof req.query.claim === "string" && req.query.claim.trim() ? req.query.claim.trim() : "";
+
+    const publishedRow = db
       .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
       .get(roomId) as Record<string, unknown> | undefined;
-    if (!row || !propertyHasPublicPhone(row.show_whatsapp, row.contact_whatsapp)) {
-      res.status(404).json({ error: "phone_unavailable" });
-      return;
+    if (publishedRow && propertyHasPublicPhone(publishedRow.show_whatsapp, publishedRow.contact_whatsapp)) {
+      const payload = contactPhonePayload(publishedRow.contact_whatsapp);
+      if (payload) {
+        res.json(payload);
+        return;
+      }
     }
-    const digits = normalizeWhatsAppDigits(String(row.contact_whatsapp ?? ""));
-    if (!digits || isDraftPlaceholderWhatsApp(digits)) {
-      res.status(404).json({ error: "phone_unavailable" });
-      return;
+
+    if (claimToken) {
+      const tok = db
+        .prepare(
+          `SELECT property_id, expires_at FROM assisted_draft_claim_tokens WHERE token = ?`,
+        )
+        .get(claimToken) as { property_id: string; expires_at: number } | undefined;
+      if (tok && Date.now() <= Number(tok.expires_at)) {
+        const claimRow = db
+          .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ? AND p.id = ?`)
+          .get(roomId, tok.property_id) as Record<string, unknown> | undefined;
+        if (claimRow && isRealListingPhone(String(claimRow.contact_whatsapp ?? ""))) {
+          const payload = contactPhonePayload(claimRow.contact_whatsapp);
+          if (payload) {
+            res.json(payload);
+            return;
+          }
+        }
+      }
     }
-    const e164 = digits.startsWith("52") ? `+${digits}` : digits.length === 10 ? `+52${digits}` : `+${digits}`;
-    res.json({ phoneDigits: digits, e164 });
+
+    res.status(404).json({ error: "phone_unavailable" });
   });
 
   r.get("/:id", (req: Request, res: Response) => {
@@ -338,11 +367,6 @@ export function listingsRouter(db: DatabaseSync) {
         ...(flags.claimPreview ? { claimPreview: true as const } : {}),
         hasDraftPhone: flags.hasDraftPhone,
         ...(flags.contactDisabled ? { contactDisabled: true as const } : {}),
-        ...(flags.claimPreview &&
-        flags.hasDraftPhone &&
-        (Boolean(readAuthUserId(req)) || admin)
-          ? { claimPhoneDisplay: String(row.contact_whatsapp ?? "").replace(/\D/g, "") }
-          : {}),
       };
       res.json(payload);
       return;

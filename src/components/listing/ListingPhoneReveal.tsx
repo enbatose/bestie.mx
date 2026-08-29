@@ -18,6 +18,8 @@ type Props = {
   /** When false / missing, render nothing. */
   hasContactPhone?: boolean;
   viewer: AuthMe | null | undefined;
+  /** Claim-link preview: fetch digits via the token (drafts are not on the published contact-phone path). */
+  claimToken?: string | null;
   /** Prefer seeker tips unless the viewer owns the listing. */
   role?: PhoneRevealSafetyRole;
   className?: string;
@@ -152,6 +154,7 @@ export function ListingPhoneReveal({
   role = "seeker",
   className = "",
   compact = false,
+  claimToken = null,
 }: Props) {
   const { openLogin } = useAuthModal();
   const [revealed, setRevealed] = useState<string | null>(null);
@@ -202,7 +205,7 @@ export function ListingPhoneReveal({
     setBusy(true);
     setErr(null);
     try {
-      const res = await fetchListingContactPhone(listingId);
+      const res = await fetchListingContactPhone(listingId, { claimToken });
       setRevealed(res.phoneDigits);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo mostrar el teléfono.";
@@ -217,7 +220,7 @@ export function ListingPhoneReveal({
     } finally {
       setBusy(false);
     }
-  }, [ensureRevealQuery, listingId, openLogin]);
+  }, [ensureRevealQuery, listingId, openLogin, claimToken]);
 
   useEffect(() => {
     if (!hasContactPhone || !viewer || revealed) return;

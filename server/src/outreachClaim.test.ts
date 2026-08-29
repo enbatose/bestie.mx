@@ -82,7 +82,7 @@ describe("outreach listing claim preview", () => {
     expect(ok.body.status).toBe("draft");
   });
 
-  it("shows the draft phone to a signed-in viewer on the claim preview", async () => {
+  it("does not put phone digits in the listing JSON for signed-in viewers", async () => {
     const agent = request.agent(app);
     await agent
       .post("/api/auth/register")
@@ -92,6 +92,22 @@ describe("outreach listing claim preview", () => {
       .get(`/api/listings/${encodeURIComponent(roomId)}?claim=${token}`)
       .expect(200);
     expect(signedIn.body.contactWhatsApp).toBe("");
-    expect(signedIn.body.claimPhoneDisplay).toBe("523331112233");
+    expect(signedIn.body.claimPhoneDisplay).toBeUndefined();
+    expect(signedIn.body.hasDraftPhone).toBe(true);
+  });
+
+  it("reveals the draft phone after login and safety ack when the claim token is present", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post("/api/auth/register")
+      .send({ email: "claim-preview-phone@test.mx", password: "longenough1" })
+      .expect(201);
+    await agent.post("/api/listings/phone-reveal/ack").send({ role: "publisher" }).expect(200);
+    const noClaim = await agent.get(`/api/listings/${encodeURIComponent(roomId)}/contact-phone`).expect(404);
+    expect(noClaim.body.error).toBe("phone_unavailable");
+    const revealed = await agent
+      .get(`/api/listings/${encodeURIComponent(roomId)}/contact-phone?claim=${token}`)
+      .expect(200);
+    expect(revealed.body.phoneDigits).toBe("523331112233");
   });
 });

@@ -368,6 +368,7 @@ export function PublicPostExperienceListing({
           propertyId={share.propertyId}
           hasContactPhone={listing.hasContactPhone}
           phoneRevealRole={listing.viewerIsOwner ? "publisher" : "seeker"}
+          hideWhenUnavailable={Boolean(listing.claimPreview)}
           msgBusy={contact.msgBusy}
           msgErr={contact.msgErr}
           message={propertyMessage}
@@ -465,6 +466,7 @@ export function PublicPostExperienceListing({
         propertyId={listing.propertyId}
         hasContactPhone={listing.hasContactPhone}
         phoneRevealRole={listing.viewerIsOwner ? "publisher" : "seeker"}
+        hideWhenUnavailable={Boolean(listing.claimPreview)}
         msgBusy={contact.msgBusy}
         msgErr={contact.msgErr}
         message={singleMessage}
