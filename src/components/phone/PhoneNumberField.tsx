@@ -310,12 +310,6 @@ export function PhoneNumberField({
           aria-describedby={error ? `${id ?? "phone"}-err` : undefined}
         />
       </div>
-      {allowCountryChange ? (
-        <p className="mt-1 text-[11px] leading-snug text-muted">
-          El código de la izquierda no se escribe otra vez. Solo los dígitos locales
-          {dial === MX_COUNTRY_CODE ? " (10 para México)" : ""}.
-        </p>
-      ) : null}
       <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] leading-snug text-muted sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
         <span className="min-w-0 break-words">
           {shownNational.length}/{nationalLen} dígitos
