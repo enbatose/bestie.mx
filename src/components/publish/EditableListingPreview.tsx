@@ -33,7 +33,7 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
-import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { formatListingPhoneDisplay, formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { PublisherPhoneSafetyCallout } from "@/components/publish/PublisherPhoneSafetyCallout";
 import {
@@ -1091,7 +1091,7 @@ export function EditableListingPreview({
             ) : null}
             <div className="relative mt-3 min-w-0 max-w-full">
               {editingPhone ? (
-                <div className="min-w-0 max-w-full overflow-x-clip space-y-2.5 rounded-xl border border-primary/30 bg-surface p-3">
+                <div className="min-w-0 max-w-full space-y-2.5 rounded-xl border border-primary/30 bg-surface p-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
                     Teléfono / móvil
                   </p>
@@ -1119,7 +1119,7 @@ export function EditableListingPreview({
                       type="checkbox"
                       className="size-[1.125rem] rounded border-border accent-primary"
                       checked={phoneDraft.showWhatsApp}
-                      disabled={!phoneDigitsForStorage(normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ?? phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10))}
+                      disabled={!phoneDigitsForStorage(phoneDraft.contactWhatsApp)}
                       onChange={(e) => setPhoneDraft((p) => ({ ...p, showWhatsApp: e.target.checked }))}
                     />
                     <span className="min-w-0 break-words leading-snug">Mostrar en la publicación</span>
@@ -1154,10 +1154,7 @@ export function EditableListingPreview({
                       </span>
                     </label>
                   ) : null}
-                  {phoneDigitsForStorage(
-                    normalizeMxNationalDigits(phoneDraft.contactWhatsApp) ??
-                      phoneDraft.contactWhatsApp.replace(/\D/g, "").slice(0, 10),
-                  ) && phoneDraft.showWhatsApp ? (
+                  {phoneDigitsForStorage(phoneDraft.contactWhatsApp) && phoneDraft.showWhatsApp ? (
                     <PublisherPhoneSafetyCallout dense />
                   ) : null}
                   {/* actions */}
@@ -1195,12 +1192,12 @@ export function EditableListingPreview({
                     </p>
                     {phoneDigitsForStorage(draft.contactWhatsApp) && draft.showWhatsApp ? (
                       <p className="mt-0.5 break-all font-mono text-base tabular-nums text-body sm:text-sm">
-                        {formatMxPhoneDisplay(draft.contactWhatsApp)}
+                        {formatListingPhoneDisplay(draft.contactWhatsApp)}
                       </p>
                     ) : phoneDigitsForStorage(draft.contactWhatsApp) && !draft.showWhatsApp ? (
                       <p className="mt-0.5 text-sm text-muted">
                         Guardado · oculto
-                        <span className="hidden sm:inline"> ({formatMxPhoneDisplay(draft.contactWhatsApp)})</span>
+                        <span className="hidden sm:inline"> ({formatListingPhoneDisplay(draft.contactWhatsApp)})</span>
                       </p>
                     ) : (
                       <p className="mt-0.5 text-sm text-muted">Sin teléfono · opcional</p>

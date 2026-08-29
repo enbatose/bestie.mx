@@ -1,5 +1,7 @@
 /** MX phone helpers — mirrors server `normalizeWhatsAppDigits` / E.164 rules. */
 
+import { listingDialsLongestFirst, nationalLenForDial } from "@/lib/listingCallingCodes";
+
 /** Mexico country calling code (default). */
 export const MX_COUNTRY_CODE = "52";
 
@@ -31,45 +33,70 @@ export function normalizeMxNationalDigits(s: string): string | null {
   else if (n.startsWith("045") && n.length === 13) n = n.slice(3);
   else if (n.startsWith("044") && n.length === 13) n = n.slice(3);
   else if (n.startsWith("01") && n.length === 12) n = n.slice(2);
+  // Country code leaked into a 10-digit field (LADA 52 does not exist).
+  if (n.length === 10 && n.startsWith(MX_COUNTRY_CODE)) return null;
   if (n.length === 10) return n;
   return null;
 }
 
 export function phoneE164FromDigits(d: string): string {
+  const mx = normalizeMxNationalDigits(d);
+  if (mx) return `+52${mx}`;
   if (d.startsWith("52") && d.length >= 12) return `+${d}`;
-  if (d.length === 10) return `+52${d}`;
+  if (d.length === 10) return d.startsWith("52") ? `+${d}` : `+52${d}`;
   return `+${d}`;
 }
 
-/** Common listing-contact country codes (auth/profile stays MX-only). */
-export const LISTING_COUNTRY_OPTIONS = [
-  { dial: "52", label: "México", nationalLen: 10 },
-  { dial: "1", label: "EE.UU. / Canadá", nationalLen: 10 },
-  { dial: "34", label: "España", nationalLen: 9 },
-  { dial: "57", label: "Colombia", nationalLen: 10 },
-  { dial: "54", label: "Argentina", nationalLen: 10 },
-] as const;
-
-export type ListingCountryOption = (typeof LISTING_COUNTRY_OPTIONS)[number];
-
-export function parseListingPhoneParts(value: string): { dial: string; national: string; nationalLen: number } {
+export function parseListingPhoneParts(value: string): {
+  dial: string;
+  national: string;
+  nationalLen: number;
+} {
   const d = digitsOnly(value);
-  const mx = normalizeMxNationalDigits(value);
-  if (mx) return { dial: MX_COUNTRY_CODE, national: mx, nationalLen: MX_NATIONAL_DIGITS };
-  const sorted = [...LISTING_COUNTRY_OPTIONS].sort((a, b) => b.dial.length - a.dial.length);
-  for (const opt of sorted) {
-    if (d.startsWith(opt.dial) && d.length > opt.dial.length) {
-      return {
-        dial: opt.dial,
-        national: d.slice(opt.dial.length).slice(0, opt.nationalLen),
-        nationalLen: opt.nationalLen,
-      };
+  const mxLen = MX_NATIONAL_DIGITS;
+
+  if (d.startsWith("521") && d.length === 13) {
+    return { dial: MX_COUNTRY_CODE, national: d.slice(3), nationalLen: mxLen };
+  }
+
+  if (d.startsWith("52") && d.length === 12) {
+    const rest = d.slice(2);
+    if (rest.startsWith(MX_COUNTRY_CODE)) {
+      return { dial: MX_COUNTRY_CODE, national: rest.slice(2).slice(0, mxLen), nationalLen: mxLen };
     }
+    return { dial: MX_COUNTRY_CODE, national: rest, nationalLen: mxLen };
   }
-  if (d.length <= MX_NATIONAL_DIGITS) {
-    return { dial: MX_COUNTRY_CODE, national: d, nationalLen: MX_NATIONAL_DIGITS };
+
+  if (d.length === 10) {
+    if (d.startsWith(MX_COUNTRY_CODE)) {
+      return { dial: MX_COUNTRY_CODE, national: d.slice(2), nationalLen: mxLen };
+    }
+    return { dial: MX_COUNTRY_CODE, national: d, nationalLen: mxLen };
   }
-  return { dial: MX_COUNTRY_CODE, national: d.slice(0, MX_NATIONAL_DIGITS), nationalLen: MX_NATIONAL_DIGITS };
+
+  if (d.length < 10) {
+    if (d.startsWith("52") && d.length > 2) {
+      return { dial: MX_COUNTRY_CODE, national: d.slice(2), nationalLen: mxLen };
+    }
+    return { dial: MX_COUNTRY_CODE, national: d, nationalLen: mxLen };
+  }
+
+  const prefixMatch = matchListingDialPrefix(d);
+  if (prefixMatch) return prefixMatch;
+
+  return { dial: MX_COUNTRY_CODE, national: d.slice(0, mxLen), nationalLen: mxLen };
+}
+
+function matchListingDialPrefix(d: string): { dial: string; national: string; nationalLen: number } | null {
+  if (!d) return null;
+  for (const dial of listingDialsLongestFirst()) {
+    if (!d.startsWith(dial) || d.length <= dial.length) continue;
+    const nationalLen = nationalLenForDial(dial);
+    const national = d.slice(dial.length).slice(0, nationalLen);
+    if (!national) continue;
+    return { dial, national, nationalLen };
+  }
+  return null;
 }
 
 export function parsePhoneInputToE164(input: string): string | null {
@@ -132,4 +159,17 @@ export function formatMxPhoneDisplay(digitsOrE164: string): string {
   }
   // 33 1234 5678 style (2+4+4) — works for major LADAs; still readable for 3-digit LADAs.
   return `+52 ${national.slice(0, 2)} ${national.slice(2, 6)} ${national.slice(6)}`;
+}
+
+/** Listing contact (may be non-MX). Does not treat a leaked `52` as LADA. */
+export function formatListingPhoneDisplay(digitsOrE164: string): string {
+  const mx = normalizeMxNationalDigits(digitsOrE164);
+  if (mx) return formatMxPhoneDisplay(mx);
+  const p = parseListingPhoneParts(digitsOrE164);
+  if (!p.dial && !p.national) return "";
+  if (p.dial === MX_COUNTRY_CODE && p.national.length === MX_NATIONAL_DIGITS) {
+    return formatMxPhoneDisplay(`${MX_COUNTRY_CODE}${p.national}`);
+  }
+  if (!p.national) return `+${p.dial}`;
+  return `+${p.dial} ${p.national}`;
 }

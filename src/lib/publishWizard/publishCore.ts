@@ -317,7 +317,7 @@ export function contactStepInvalidReason(d: Draft): string | null {
   if (!raw) return null;
   const digits = phoneDigitsForStorage(raw);
   if (!digits) {
-    return "Número inválido. Usa 10 dígitos (México) o +52 seguido de 10 dígitos.";
+    return "Número inválido. Para México usa 10 dígitos; para otro país elige el código y los dígitos locales.";
   }
   if (d.showWhatsApp && !digits) {
     return "Agrega un número válido o desactiva mostrar el teléfono en el anuncio.";

@@ -1,8 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  filterListingCallingCodes,
+  listingCallingCodeOptions,
+  nationalLenForDial,
+} from "@/lib/listingCallingCodes";
 import {
   digitsOnly,
   formatMxPhoneDisplay,
-  LISTING_COUNTRY_OPTIONS,
   MX_COUNTRY_CODE,
   MX_NATIONAL_DIGITS,
   normalizeMxNationalDigits,
@@ -39,7 +44,124 @@ function WhatsAppLogo({ className }: { className?: string }) {
   );
 }
 
-/** Controlled MX phone input: fixed +52 + exactly 10 national digits. */
+function ListingCountryCodePicker({
+  dial,
+  disabled,
+  onSelect,
+}: {
+  dial: string;
+  disabled?: boolean;
+  onSelect: (dial: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const options = useMemo(() => listingCallingCodeOptions(), []);
+  const filtered = useMemo(() => filterListingCallingCodes(options, query), [options, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const width = Math.min(288, Math.max(240, window.innerWidth - 24));
+      const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
+      setPos({ top: r.bottom + 4, left, width });
+    };
+    place();
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex min-h-11 min-w-[3.25rem] items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:px-3 sm:text-base"
+        aria-label="Código de país"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        +{dial}
+      </button>
+      {open && pos
+        ? createPortal(
+            <div
+              ref={panelRef}
+              className="fixed z-[1850] overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
+              style={{ top: pos.top, left: pos.left, width: pos.width }}
+              role="listbox"
+              aria-label="País o código"
+            >
+              <div className="border-b border-border p-2">
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar país o código"
+                  autoComplete="off"
+                  className="min-h-11 w-full rounded-lg border border-border bg-bg-light px-3 text-base text-body outline-none ring-accent focus:ring-2 sm:min-h-9 sm:text-sm"
+                  autoFocus
+                />
+              </div>
+              <ul className="max-h-56 overflow-y-auto py-1">
+                {filtered.length === 0 ? (
+                  <li className="px-3 py-2 text-sm text-muted">Sin coincidencias</li>
+                ) : (
+                  filtered.map((opt) => (
+                    <li key={`${opt.iso}-${opt.dial}`}>
+                      <button
+                        type="button"
+                        className={`block w-full px-3 py-2 text-left text-sm ${
+                          opt.dial === dial
+                            ? "bg-primary/10 font-semibold text-primary"
+                            : "text-body hover:bg-surface-elevated"
+                        }`}
+                        onClick={() => {
+                          onSelect(opt.dial);
+                          setOpen(false);
+                        }}
+                      >
+                        +{opt.dial} · {opt.label}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
+/** Controlled phone input: MX-locked, or listing contact with a searchable country prefix. */
 export function PhoneNumberField({
   id,
   value,
@@ -54,30 +176,51 @@ export function PhoneNumberField({
   showLabel = true,
   allowCountryChange = false,
 }: Props) {
-  const [countryOpen, setCountryOpen] = useState(false);
-  const parts = useMemo(() => parseListingPhoneParts(value), [value]);
-  const national = useMemo(() => {
-    if (allowCountryChange) return parts.national;
-    const fromMx = normalizeMxNationalDigits(value);
-    if (fromMx) return fromMx;
-    const d = digitsOnly(value);
-    if (d.length <= MX_NATIONAL_DIGITS) return d;
-    if (d.startsWith(MX_COUNTRY_CODE) && d.length >= 12) return d.slice(2, 12);
-    return d.slice(0, MX_NATIONAL_DIGITS);
-  }, [allowCountryChange, parts.national, value]);
+  const parsed = useMemo(() => parseListingPhoneParts(value), [value]);
+  const lastEmitRef = useRef<string | null>(null);
+  const [dial, setDial] = useState(parsed.dial);
+  const [national, setNational] = useState(parsed.national);
 
-  const nationalLen = allowCountryChange ? parts.nationalLen : MX_NATIONAL_DIGITS;
-  const dial = allowCountryChange ? parts.dial : MX_COUNTRY_CODE;
-  const complete = national.length === nationalLen;
+  useEffect(() => {
+    if (lastEmitRef.current === value) return;
+    const p = parseListingPhoneParts(value);
+    setDial(p.dial);
+    setNational(p.national);
+  }, [value]);
+
+  const nationalLen = allowCountryChange ? nationalLenForDial(dial) : MX_NATIONAL_DIGITS;
+  const shownNational = allowCountryChange
+    ? national.slice(0, nationalLen)
+    : (() => {
+        const fromMx = normalizeMxNationalDigits(value);
+        if (fromMx) return fromMx;
+        const d = digitsOnly(value);
+        if (d.length <= MX_NATIONAL_DIGITS) return d;
+        if (d.startsWith(MX_COUNTRY_CODE) && d.length >= 12) return d.slice(2, 12);
+        return d.slice(0, MX_NATIONAL_DIGITS);
+      })();
+
+  const complete = allowCountryChange
+    ? dial === MX_COUNTRY_CODE
+      ? shownNational.length === MX_NATIONAL_DIGITS
+      : shownNational.length >= 8 && shownNational.length <= nationalLen
+    : shownNational.length === MX_NATIONAL_DIGITS;
   const preview = complete
     ? allowCountryChange
-      ? `+${dial} ${national}`
-      : formatMxPhoneDisplay(`${MX_COUNTRY_CODE}${national}`)
+      ? `+${dial} ${shownNational}`
+      : formatMxPhoneDisplay(`${MX_COUNTRY_CODE}${shownNational}`)
     : null;
+
+  const emit = (nextDial: string, nextNational: string) => {
+    const next = `${nextDial}${nextNational}`;
+    lastEmitRef.current = next;
+    onChange(next);
+  };
 
   const commitNational = (nextNational: string) => {
     if (allowCountryChange) {
-      onChange(`${dial}${nextNational}`);
+      setNational(nextNational);
+      emit(dial, nextNational);
       return;
     }
     onChange(nextNational);
@@ -107,38 +250,16 @@ export function PhoneNumberField({
       ) : null}
       <div className="mt-2 flex min-w-0 items-stretch gap-2">
         {allowCountryChange ? (
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => setCountryOpen((o) => !o)}
-              className="inline-flex min-h-11 min-w-[3.25rem] items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:px-3 sm:text-base"
-              aria-label="Código de país"
-              aria-expanded={countryOpen}
-            >
-              +{dial}
-            </button>
-            {countryOpen ? (
-              <ul className="absolute left-0 z-20 mt-1 max-h-56 w-max min-w-[12rem] overflow-y-auto rounded-xl border border-border bg-surface py-1 shadow-lg">
-                {LISTING_COUNTRY_OPTIONS.map((opt) => (
-                  <li key={opt.dial}>
-                    <button
-                      type="button"
-                      className={`block w-full px-3 py-2 text-left text-sm ${
-                        opt.dial === dial ? "bg-primary/10 font-semibold text-primary" : "text-body hover:bg-surface-elevated"
-                      }`}
-                      onClick={() => {
-                        onChange(`${opt.dial}${national.slice(0, opt.nationalLen)}`);
-                        setCountryOpen(false);
-                      }}
-                    >
-                      +{opt.dial} · {opt.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+          <ListingCountryCodePicker
+            dial={dial}
+            disabled={disabled}
+            onSelect={(nextDial) => {
+              const nextNational = national.slice(0, nationalLenForDial(nextDial));
+              setDial(nextDial);
+              setNational(nextNational);
+              emit(nextDial, nextNational);
+            }}
+          />
         ) : (
           <div
             className="inline-flex min-h-11 w-[3.25rem] shrink-0 items-center justify-center rounded-xl border border-border bg-bg-light px-2 text-sm font-semibold tabular-nums text-body sm:w-auto sm:px-3 sm:text-base"
@@ -153,7 +274,7 @@ export function PhoneNumberField({
           inputMode="numeric"
           autoComplete="tel-national"
           disabled={disabled}
-          value={national}
+          value={shownNational}
           maxLength={nationalLen}
           size={Math.min(nationalLen, 12)}
           placeholder={`${nationalLen} dígitos`}
@@ -166,7 +287,10 @@ export function PhoneNumberField({
             const pasted = e.clipboardData.getData("text");
             if (allowCountryChange) {
               const stored = phoneDigitsForStorage(pasted) ?? digitsOnly(pasted);
-              onChange(stored);
+              const p = parseListingPhoneParts(stored);
+              setDial(p.dial);
+              setNational(p.national);
+              emit(p.dial, p.national);
               return;
             }
             const stored = phoneDigitsForStorage(pasted);
@@ -182,13 +306,19 @@ export function PhoneNumberField({
             // even when ancestors have min-w-0. text-base avoids iOS focus zoom.
             "min-h-11 w-0 min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-base tabular-nums text-body outline-none ring-accent focus:ring-2 disabled:opacity-50 sm:text-sm"
           }
-          aria-invalid={Boolean(error) || (national.length > 0 && !complete)}
+          aria-invalid={Boolean(error) || (shownNational.length > 0 && !complete)}
           aria-describedby={error ? `${id ?? "phone"}-err` : undefined}
         />
       </div>
+      {allowCountryChange ? (
+        <p className="mt-1 text-[11px] leading-snug text-muted">
+          El código de la izquierda no se escribe otra vez. Solo los dígitos locales
+          {dial === MX_COUNTRY_CODE ? " (10 para México)" : ""}.
+        </p>
+      ) : null}
       <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] leading-snug text-muted sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
         <span className="min-w-0 break-words">
-          {national.length}/{nationalLen} dígitos
+          {shownNational.length}/{nationalLen} dígitos
           {preview ? (
             <>
               <span className="hidden sm:inline">{` · ${preview}`}</span>
@@ -198,8 +328,13 @@ export function PhoneNumberField({
             </>
           ) : null}
         </span>
-        {national.length > 0 && !complete ? (
-          <span className="text-warning-fg">Faltan {nationalLen - national.length}</span>
+        {shownNational.length > 0 && !complete ? (
+          <span className="text-warning-fg">
+            Faltan{" "}
+            {allowCountryChange && dial !== MX_COUNTRY_CODE
+              ? Math.max(0, 8 - shownNational.length)
+              : nationalLen - shownNational.length}
+          </span>
         ) : null}
       </div>
       {error ? (

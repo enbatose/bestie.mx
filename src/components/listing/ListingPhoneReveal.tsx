@@ -10,7 +10,7 @@ import {
   postPhoneRevealSafetyAcknowledgment,
   type PhoneRevealSafetyRole,
 } from "@/lib/listingPhoneApi";
-import { formatMxPhoneDisplay, maskedMxPhoneHint } from "@/lib/mxPhone";
+import { formatListingPhoneDisplay, maskedMxPhoneHint } from "@/lib/mxPhone";
 
 type Props = {
   listingId: string;
@@ -268,7 +268,7 @@ export function ListingPhoneReveal({
     }
   };
 
-  const display = revealed ? formatMxPhoneDisplay(revealed) : maskedMxPhoneHint();
+  const display = revealed ? formatListingPhoneDisplay(revealed) : maskedMxPhoneHint();
   const telHref = revealed
     ? `tel:+${revealed.replace(/\D/g, "")}`
     : undefined;
