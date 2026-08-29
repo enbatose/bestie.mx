@@ -432,6 +432,7 @@ export function PublicPostExperienceListing({
         {reportModal}
       </div>
     );
+  }
 
   const singleSecondaryTags = listing.tags.filter((tag) => !KEY_LABEL_ROOM_TAG_SLUGS.has(tag));
 
