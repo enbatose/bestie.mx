@@ -61,9 +61,9 @@ export function SingleRoomHeader({
         <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
       ) : null}
       {phone || reportActions ? (
-        <div className="mt-3 flex w-full min-w-0 flex-wrap items-end gap-3">
-          <div className="min-w-0">{phone}</div>
-          {reportActions ? <div className="ml-auto shrink-0">{reportActions}</div> : null}
+        <div className="mt-3 flex w-full min-w-0 flex-col items-end gap-2 sm:ml-auto sm:w-max sm:max-w-full">
+          {phone}
+          {reportActions}
         </div>
       ) : null}
     </div>
@@ -117,9 +117,9 @@ export function PropertyHeader({
         tags={tags}
       />
       {phone || reportActions ? (
-        <div className="mt-3 flex w-full min-w-0 flex-wrap items-end gap-3">
-          <div className="min-w-0">{phone}</div>
-          {reportActions ? <div className="ml-auto shrink-0">{reportActions}</div> : null}
+        <div className="mt-3 flex w-full min-w-0 flex-col items-end gap-2 sm:ml-auto sm:w-max sm:max-w-full">
+          {phone}
+          {reportActions}
         </div>
       ) : null}
     </div>

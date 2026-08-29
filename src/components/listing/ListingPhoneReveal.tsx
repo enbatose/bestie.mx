@@ -282,7 +282,7 @@ export function ListingPhoneReveal({
   return (
     <div
       className={`max-w-full rounded-xl border border-border bg-surface p-3 sm:p-4 ${
-        fit ? "w-full sm:w-max sm:self-start" : "w-full"
+        fit ? "w-full sm:w-max" : "w-full"
       } ${className}`}
     >
       <div className="flex items-start gap-3">
