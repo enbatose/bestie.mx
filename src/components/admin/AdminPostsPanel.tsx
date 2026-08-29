@@ -387,9 +387,10 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                     </Link>
                     <Link
                       to={row.editPath}
+                      state={{ fromAdminPosts: true }}
                       className="text-muted underline-offset-2 hover:underline"
                     >
-                      {row.assistedDraft && row.status === "draft" ? "Vista previa IA" : "Editor"}
+                      Editar
                     </Link>
                     {row.posthogReplayUrl ? (
                       <a
@@ -513,9 +514,10 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
               </Link>
               <Link
                 to={row.editPath}
+                state={{ fromAdminPosts: true }}
                 className="rounded-full border border-border px-3 py-1.5 font-semibold text-body"
               >
-                {row.assistedDraft && row.status === "draft" ? "Vista previa IA" : "Editor"}
+                Editar
               </Link>
               {row.posthogReplayUrl ? (
                 <a

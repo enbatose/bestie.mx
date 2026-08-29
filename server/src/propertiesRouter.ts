@@ -5,6 +5,7 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
+import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { resolvePropertyIdFromRouteParam, resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
@@ -665,6 +666,8 @@ export function propertiesRouter(db: DatabaseSync) {
     if (!owner) {
       // Never expose publisherId on public reads — it was usable as a forgeable ownership credential.
       delete (property as { publisherId?: string }).publisherId;
+    } else if (isUnclaimedAdminOutreach(db, propertyId)) {
+      property.unclaimedAdminOutreach = true;
     }
     const rooms = roomRows.map(rowToRoom);
     const payload: PropertyWithRooms = { property, rooms };

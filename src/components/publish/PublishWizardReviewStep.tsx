@@ -24,12 +24,14 @@ import type { ListingStatus } from "@/types/listing";
 export type LiveEditScope = "property" | "room";
 
 type LiveEditContext = {
-  status: Extract<ListingStatus, "published" | "paused">;
+  status: Extract<ListingStatus, "published" | "paused" | "draft">;
   returnListingId?: string | null;
   /** When set, Cancelar returns to Mis Anuncios instead of the public listing. */
   myListingsRestorePath?: string | null;
   /** Pass through so the public listing can still offer Volver a Mis anuncios. */
   myListingsReturnState?: unknown;
+  /** When set, Cancelar returns to Admin → Posts. */
+  adminPostsRestorePath?: string | null;
   /** Property-card vs room-row entry from Mis Anuncios. */
   scope?: LiveEditScope;
 };
@@ -105,12 +107,21 @@ export function PublishWizardReviewStep({
   const returnListingId = liveEdit?.returnListingId ?? null;
   const myListingsRestorePath = liveEdit?.myListingsRestorePath ?? null;
   const myListingsReturnState = liveEdit?.myListingsReturnState;
+  const adminPostsRestorePath = liveEdit?.adminPostsRestorePath ?? null;
   const cancelTo = myListingsRestorePath
     ? myListingsRestorePath
-    : returnListingId
-      ? listingPublicPath(returnListingId)
-      : null;
-  const cancelLabel = myListingsRestorePath ? "Volver a Mis anuncios" : "Cancelar";
+    : adminPostsRestorePath
+      ? adminPostsRestorePath
+      : liveEdit?.status === "draft"
+        ? null
+        : returnListingId
+          ? listingPublicPath(returnListingId)
+          : null;
+  const cancelLabel = myListingsRestorePath
+    ? "Volver a Mis anuncios"
+    : adminPostsRestorePath
+      ? "Volver a Posts"
+      : "Cancelar";
   const primaryLabel =
     submitInFlight === "publish"
       ? "Guardando…"
@@ -181,6 +192,11 @@ export function PublishWizardReviewStep({
         Solo estás cambiando esta recámara. Usa el ícono de lápiz en cada bloque para fotos, precio, descripción y
         más.
       </>
+    ) : isLiveEdit && liveEdit.status === "draft" ? (
+      <>
+        Así se verá tu anuncio publicado. Usa el ícono de lápiz en cada bloque para cambiar fotos, precio,
+        descripción y más.
+      </>
     ) : isLiveEdit ? (
       <>
         Tu anuncio se ve como en la página publicada. Usa el ícono de lápiz en cada bloque para cambiar fotos, precio,
@@ -232,7 +248,7 @@ export function PublishWizardReviewStep({
           Sin API: configura <code className="rounded bg-surface-elevated px-1">VITE_API_URL</code> para publicar.
         </span>
       )}
-      {apiOn && !isLiveEdit ? (
+      {apiOn && (!isLiveEdit || liveEdit.status === "draft") ? (
         <button
           type="button"
           disabled={submitInFlight !== null}
@@ -326,7 +342,7 @@ export function PublishWizardReviewStep({
           </button>
         ) : null}
 
-        {isLiveEdit && returnListingId ? (
+        {isLiveEdit && liveEdit.status !== "draft" && returnListingId ? (
           <Link
             to={listingPublicPath(returnListingId)}
             state={myListingsReturnState}

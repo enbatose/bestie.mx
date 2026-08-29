@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { AdminConsentEvidenceForm } from "@/components/admin/AdminConsentEvidenceForm";
 import {
@@ -8,7 +8,7 @@ import {
   requestAssistedDraftClaimOtp,
 } from "@/lib/assistedDraftApi";
 import { adminPublishUnclaimed } from "@/lib/authApi";
-import { listingPublicPath } from "@/lib/listingReference";
+import { listingPublicPath, publishWizardEditPath } from "@/lib/listingReference";
 import type { AuthMe } from "@/lib/authApi";
 import type { PropertyListing } from "@/types/listing";
 
@@ -20,6 +20,7 @@ type Props = {
 
 export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
   const { openLogin } = useAuthModal();
+  const navigate = useNavigate();
   const [otpSent, setOtpSent] = useState(false);
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -47,7 +48,9 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
       return;
     }
     if (isAdmin && action === "edit") {
-      window.location.assign(`/publicar?borrador=${encodeURIComponent(claimToken)}`);
+      navigate(publishWizardEditPath(listing.propertyId, listing.id), {
+        state: { fromAdminPosts: true },
+      });
       return;
     }
     setBusy(true);

@@ -96,11 +96,6 @@ export function resolveAdminPostCreateOrigin(opts: {
   return "ai_admin";
 }
 
-/** 1-based `paso` for the wizard review step (`publishWizardLastStepIndex` + 1). */
-function wizardReviewPaso(postMode: "room" | "property"): number {
-  return postMode === "property" ? 5 : 6;
-}
-
 /** Legacy outreach drafts used `adraft_<hex>` (sometimes `prp__adraft_…`). */
 export function isAssistedDraftPropertyId(propertyId: string): boolean {
   return /(?:^|__)adraft_/i.test(propertyId.trim());
@@ -114,17 +109,12 @@ export function adminPostEditPath(opts: {
   claimToken: string | null;
   roomId?: string | null;
 }): string {
-  const editCode = propertyReferenceCode(opts.propertyId);
-  if (opts.assistedDraft && opts.status === "draft" && opts.claimToken) {
-    if (opts.roomId) {
-      return `/anuncio/${roomReferenceCode(opts.roomId)}?claim=${encodeURIComponent(opts.claimToken)}`;
-    }
-    return `/borrador/${encodeURIComponent(opts.claimToken)}`;
+  const params = new URLSearchParams();
+  params.set("edit", propertyReferenceCode(opts.propertyId));
+  if (opts.postMode === "room" && opts.roomId) {
+    params.set("room", roomReferenceCode(opts.roomId));
   }
-  if (opts.assistedDraft && opts.status === "draft") {
-    return `/publicar?edit=${encodeURIComponent(editCode)}&paso=${wizardReviewPaso(opts.postMode)}`;
-  }
-  return `/publicar?edit=${encodeURIComponent(editCode)}`;
+  return `/publicar?${params.toString()}`;
 }
 
 export type AdminPostsListResult = {
@@ -485,10 +475,6 @@ export function listAdminPosts(
         ? roomReferenceCode(primaryRoomId)
         : propertyReferenceCode(propertyId);
 
-    const viewPath =
-      postMode === "room" && primaryRoomId
-        ? `/anuncio/${roomReferenceCode(primaryRoomId)}`
-        : `/propiedad/${propertyReferenceCode(propertyId)}`;
     const claimToken =
       row.claim_token != null && String(row.claim_token).trim()
         ? String(row.claim_token).trim()
@@ -497,6 +483,14 @@ export function listAdminPosts(
       Number(row.assisted_draft) === 1 ||
       Number(row.has_claim_history) === 1 ||
       isAssistedDraftPropertyId(propertyId);
+    const viewPath =
+      status === "draft" && claimToken && postMode === "room" && primaryRoomId
+        ? `/anuncio/${roomReferenceCode(primaryRoomId)}?claim=${encodeURIComponent(claimToken)}`
+        : status === "draft" && claimToken
+          ? `/borrador/${encodeURIComponent(claimToken)}`
+          : postMode === "room" && primaryRoomId
+            ? `/anuncio/${roomReferenceCode(primaryRoomId)}`
+            : `/propiedad/${propertyReferenceCode(propertyId)}`;
     const createdByAdminId =
       row.created_by_admin_id != null && String(row.created_by_admin_id).trim()
         ? String(row.created_by_admin_id).trim()

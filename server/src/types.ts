@@ -91,6 +91,10 @@ export type Property = {
   streetViewPov?: StreetViewPov;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  /** 0-based publish wizard step when the listing is still a draft. */
+  wizardStep?: number | null;
+  /** Owner/admin GET only — unclaimed admin-outreach draft needs consent evidence to publish. */
+  unclaimedAdminOutreach?: boolean;
   rooms?: Room[];
 };
 

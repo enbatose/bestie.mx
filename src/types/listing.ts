@@ -95,6 +95,8 @@ export type Property = {
   occupiedByMenCount?: number | null;
   /** 0-based publish wizard step when the listing is still a draft. */
   wizardStep?: number | null;
+  /** Owner/admin GET only — unclaimed admin-outreach draft needs consent evidence to publish. */
+  unclaimedAdminOutreach?: boolean;
   /** Rooms on the property (populated when loading `PropertyWithRooms`). */
   rooms?: Room[];
 };

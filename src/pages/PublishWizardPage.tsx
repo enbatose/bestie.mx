@@ -68,6 +68,7 @@ import {
   readMyListingsReturn,
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
+import { adminSectionPath } from "@/lib/adminSections";
 import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
 import { FacebookMark } from "@/components/FacebookMark";
 import { AiRoomCreateStep } from "@/components/publish/AiRoomCreateStep";
@@ -655,18 +656,6 @@ function wizardHasMinimumFieldsForAutosave(d: Draft): boolean {
   return true;
 }
 
-function resumeStepForDraft(draft: Draft): number {
-  if (locationStepInvalidReason(draft)) return 1;
-
-  if (propertyGeneralStepInvalidReason(draft)) return 2;
-
-  if (validateRoomsForSubmit(draft)) return 3;
-
-  if (draft.postMode === "room" && photosStepInvalidReason(draft)) return 4;
-
-  return draft.postMode === "property" ? 4 : 5;
-}
-
 function pickCity(city: string): (typeof CITIES)[number] {
   return (CITIES as readonly string[]).includes(city) ? (city as (typeof CITIES)[number]) : "Guadalajara";
 }
@@ -950,17 +939,29 @@ export function PublishWizardPage() {
     () => readMyListingsReturn(location.state),
     [location.state],
   );
+  const locationFromAdminPosts = Boolean(
+    location.state &&
+      typeof location.state === "object" &&
+      (location.state as { fromAdminPosts?: unknown }).fromAdminPosts === true,
+  );
   /** Rewriting the URL to drop ?edit/?room clears history state, so remember where we came from. */
   const [myListingsReturn, setMyListingsReturn] = useState(locationMyListingsReturn);
+  const [fromAdminPosts, setFromAdminPosts] = useState(locationFromAdminPosts);
   useEffect(() => {
     if (locationMyListingsReturn) setMyListingsReturn(locationMyListingsReturn);
   }, [locationMyListingsReturn]);
+  useEffect(() => {
+    if (locationFromAdminPosts) setFromAdminPosts(true);
+  }, [locationFromAdminPosts]);
   const myListingsRestorePath = useMemo(
     () => (myListingsReturn ? buildMyListingsRestorePath(myListingsReturn) : null),
     [myListingsReturn],
   );
+  const adminPostsRestorePath = fromAdminPosts ? adminSectionPath("property") : null;
   const myListingsReturnRef = useRef(myListingsReturn);
   myListingsReturnRef.current = myListingsReturn;
+  const fromAdminPostsRef = useRef(fromAdminPosts);
+  fromAdminPostsRef.current = fromAdminPosts;
   const { openAuthModal } = useAuthModal();
   const { me } = useAppShellOutlet();
   const [savePhoneToProfile, setSavePhoneToProfile] = useState(false);
@@ -1115,9 +1116,13 @@ export function PublishWizardPage() {
     const search = params.toString();
     navigate(`${location.pathname}${search ? `?${search}` : ""}`, {
       replace: true,
-      state: withMyListingsReturn(null, myListingsReturn) ?? null,
+      state:
+        withMyListingsReturn(
+          fromAdminPosts ? { fromAdminPosts: true } : null,
+          myListingsReturn,
+        ) ?? null,
     });
-  }, [location.pathname, location.search, location.state, myListingsReturn, navigate]);
+  }, [location.pathname, location.search, location.state, fromAdminPosts, myListingsReturn, navigate]);
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -1252,7 +1257,7 @@ export function PublishWizardPage() {
   useEffect(() => {
     const token = claimTokenParam || assistedDraftToken;
     if (!token) {
-      setUnclaimedAdminOutreach(false);
+      if (!editPropertyId) setUnclaimedAdminOutreach(false);
       return;
     }
     let cancelled = false;
@@ -1270,7 +1275,7 @@ export function PublishWizardPage() {
     return () => {
       cancelled = true;
     };
-  }, [assistedDraftToken, claimTokenParam]);
+  }, [assistedDraftToken, claimTokenParam, editPropertyId]);
   useEffect(() => {
     const token = claimTokenParam || assistedDraftToken;
     if (!token) return;
@@ -1413,7 +1418,11 @@ export function PublishWizardPage() {
       },
       {
         replace: true,
-        state: withMyListingsReturn(null, myListingsReturnRef.current) ?? null,
+        state:
+          withMyListingsReturn(
+            fromAdminPostsRef.current ? { fromAdminPosts: true } : null,
+            myListingsReturnRef.current,
+          ) ?? null,
       },
     );
   }, [editPropertyId, setSearchParams]);
@@ -1530,17 +1539,8 @@ export function PublishWizardPage() {
           const scope: "property" | "room" =
             editListingId || nextDraft.postMode !== "property" ? "room" : "property";
           setLiveEditScope(scope);
-
-          const urlStep = readWizardPasoIndex(searchParams);
-          if (ps === "published" || ps === "paused") {
-            setStep(lastWizardStep(nextDraft));
-          } else if (urlStep != null) {
-            setStep(urlStep);
-          } else if (typeof bundle.property.wizardStep === "number") {
-            setStep(bundle.property.wizardStep);
-          } else {
-            setStep(resumeStepForDraft(nextDraft));
-          }
+          setUnclaimedAdminOutreach(Boolean(bundle.property.unclaimedAdminOutreach));
+          setStep(lastWizardStep(nextDraft));
 
           if (ps === "published" || ps === "paused") {
             setHandoffBanner(
@@ -1561,11 +1561,13 @@ export function PublishWizardPage() {
               updatedAt: Date.now(),
             });
           } else {
-            setHandoffBanner("Borrador cargado para editar.");
+            setHandoffBanner(null);
             clearLiveEditSession();
           }
           const session = await authMe();
           if (session?.id) didHydrateLocalForUserRef.current = session.id;
+        } else if (!cancelled) {
+          setPublishErr("No se pudo abrir este anuncio. Vuelve a Posts e intenta de nuevo.");
         }
       } catch (e) {
         if (!cancelled) {
@@ -1573,7 +1575,7 @@ export function PublishWizardPage() {
           const raw = e instanceof Error ? e.message : "";
           setPublishErr(
             raw.includes("property_http_400") || raw.includes("invalid_id")
-              ? "No se pudo abrir este borrador. Vuelve a Posts y usa Vista previa IA."
+              ? "No se pudo abrir este anuncio. Vuelve a Posts e intenta de nuevo."
               : raw || "No se pudo cargar el borrador.",
           );
         }
@@ -1879,12 +1881,12 @@ export function PublishWizardPage() {
       (prev) => {
         const next = applyWizardResumeSearchParams(prev, {
           propertyId:
-            assistedDraftToken || (draft.roomCreateFlow === "ai" && !editingLiveProperty)
+            assistedDraftToken || (draft.roomCreateFlow === "ai" && !editingLiveProperty && !editPropertyId)
               ? null
               : serverSync.propertyId,
-          clearEdit: draft.roomCreateFlow === "ai" && !editingLiveProperty && !assistedDraftToken,
+          clearEdit: draft.roomCreateFlow === "ai" && !editingLiveProperty && !assistedDraftToken && !editPropertyId,
           stepIndex: step,
-          roomId: editingLiveProperty
+          roomId: editingLiveProperty || editPropertyId
             ? (editListingId || liveEditReturnListingId)
             : undefined,
           assistedDraftToken,
@@ -1893,7 +1895,11 @@ export function PublishWizardPage() {
       },
       {
         replace: true,
-        state: withMyListingsReturn(null, myListingsReturnRef.current) ?? null,
+        state:
+          withMyListingsReturn(
+            fromAdminPostsRef.current ? { fromAdminPosts: true } : null,
+            myListingsReturnRef.current,
+          ) ?? null,
       },
     );
   }, [
@@ -1901,6 +1907,7 @@ export function PublishWizardPage() {
     claimAwaitingPayload,
     draft.roomCreateFlow,
     editListingId,
+    editPropertyId,
     editingLiveProperty,
     liveEditReturnListingId,
     serverSync.propertyId,
@@ -2960,7 +2967,8 @@ export function PublishWizardPage() {
   const isPublishStep = current.title === "Revisar y publicar";
   const showWizardProgress = safeStep >= WIZARD_FIRST_NUMBERED_STEP;
   const progressSteps = steps.slice(WIZARD_FIRST_NUMBERED_STEP);
-  const isLiveListingEdit = Boolean(editingLiveProperty);
+  const showListingPreviewEditor =
+    Boolean(editPropertyId) && editBundleReady && Boolean(serverSync.propertyId);
 
   useEffect(() => {
     if (safeStep !== WIZARD_FIRST_NUMBERED_STEP) {
@@ -3030,10 +3038,11 @@ export function PublishWizardPage() {
   }, [draft.postMode]);
 
   useEffect(() => {
+    if (editPropertyId) return;
     const n = readWizardPasoIndex(searchParams);
     if (n == null) return;
     setStep(Math.min(n, maxStepIndex));
-  }, [searchParams, maxStepIndex]);
+  }, [searchParams, maxStepIndex, editPropertyId]);
 
   useLayoutEffect(() => {
     if (step !== safeStep) {
@@ -3169,19 +3178,15 @@ export function PublishWizardPage() {
 
   async function submitAdminOutreachWithEvidence(file: File, note?: string) {
     setPublishErr(null);
-    const claimToken = assistedDraftTokenRef.current;
-    if (!claimToken) {
-      setPublishErr("No encontramos el borrador de crecimiento.");
-      return;
-    }
     const blocked = getPublishBlockedReason(draftRef.current);
     if (blocked) {
       setPublishErr(blocked);
       return;
     }
+    const claimToken = assistedDraftTokenRef.current;
     setSubmitInFlight("publish");
     try {
-      if (apiOn) {
+      if (apiOn && claimToken) {
         const syncedDraft = await syncAssistedDraftClaimToServer(
           claimToken,
           draftRef.current,
@@ -3190,6 +3195,17 @@ export function PublishWizardPage() {
         setDraft(syncedDraft);
         markAutosaveBaseline(syncedDraft, { touchUi: true });
         rememberClaimSyncedDraft(claimToken, syncedDraft);
+      } else if (apiOn) {
+        const synced = await syncDraftToServer(
+          draftRef.current,
+          serverSyncRef.current,
+          meRef.current?.phoneE164,
+          { wizardStep: step },
+        );
+        serverSyncRef.current = synced.serverSync;
+        setServerSync(synced.serverSync);
+        setDraft(synced.draft);
+        markAutosaveBaseline(synced.draft, { touchUi: true });
       }
       const propertyId = serverSyncRef.current.propertyId;
       if (!propertyId) {
@@ -3198,9 +3214,13 @@ export function PublishWizardPage() {
         return;
       }
       const published = await adminPublishUnclaimed(propertyId, file, note);
-      clearAssistedDraftClaimSession(claimToken);
+      if (claimToken) clearAssistedDraftClaimSession(claimToken);
       leaveWizardForSuccessRef.current = true;
       autosaveGenerationRef.current += 1;
+      if (fromAdminPostsRef.current) {
+        navigate(adminSectionPath("property"), { replace: true, flushSync: true });
+        return;
+      }
       const claimedRoomId = firstNonEmptyId(...serverSyncRef.current.roomIds);
       const claimedTitle =
         (draftRef.current.postMode === "property"
@@ -3219,7 +3239,13 @@ export function PublishWizardPage() {
         {
           replace: true,
           flushSync: true,
-          state: withMyListingsReturn({ publishedTitle: claimedTitle }, myListingsReturnRef.current),
+          state: withMyListingsReturn(
+            {
+              publishedTitle: claimedTitle,
+              ...(fromAdminPostsRef.current ? { fromAdminPosts: true } : {}),
+            },
+            myListingsReturnRef.current,
+          ),
         },
       );
     } catch (e) {
@@ -3378,6 +3404,13 @@ export function PublishWizardPage() {
       return;
     }
 
+    if (me?.isAdmin && unclaimedAdminOutreach) {
+      setPublishErr(
+        "Adjunta una captura de consentimiento para publicar este anuncio de crecimiento.",
+      );
+      return;
+    }
+
     setSubmitInFlight("publish");
     try {
       const result = await publishDraftFromWizard({
@@ -3419,6 +3452,13 @@ export function PublishWizardPage() {
               listingRepublished: editingLiveProperty.status === "paused",
             },
           });
+          return;
+        }
+
+        if (fromAdminPostsRef.current) {
+          clearLiveEditSession();
+          clearWizardResumeSnapshot();
+          navigate(adminSectionPath("property"), { replace: true, flushSync: true });
           return;
         }
 
@@ -3604,11 +3644,17 @@ export function PublishWizardPage() {
     );
   }
 
-  if (isLiveListingEdit && editingLiveProperty) {
+  if (showListingPreviewEditor) {
     const reviewRoomIndex = Math.min(previewRoomIndex, Math.max(0, draft.rooms.length - 1));
     const returnListingId =
       liveEditReturnListingId ?? serverSync.roomIds[reviewRoomIndex] ?? null;
     const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
+    const previewReturnPath = myListingsRestorePath ?? adminPostsRestorePath;
+    const previewReturnLabel = myListingsRestorePath
+      ? undefined
+      : adminPostsRestorePath
+        ? "Volver a Posts"
+        : undefined;
 
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
@@ -3620,9 +3666,13 @@ export function PublishWizardPage() {
             saving={autosaveNote === "saving"}
           />
         ) : null}
-        {myListingsRestorePath ? (
+        {previewReturnPath ? (
           <div className="mb-4">
-            <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+            <MyListingsReturnLink
+              to={previewReturnPath}
+              placement="top"
+              {...(previewReturnLabel ? { label: previewReturnLabel } : {})}
+            />
           </div>
         ) : null}
         <h1 className="text-2xl font-bold tracking-tight text-primary">
@@ -3684,13 +3734,19 @@ export function PublishWizardPage() {
             initialEditingPhotos={liveEditEditingPhotos}
             onEditingPhotosChange={setLiveEditEditingPhotos}
             onPhotoPickerOpen={() => persistLiveEditSession({ editingPhotos: true })}
+            adminOutreachEvidence={
+              me?.isAdmin && unclaimedAdminOutreach
+                ? { onPublish: (file, note) => void submitAdminOutreachWithEvidence(file, note) }
+                : null
+            }
             liveEdit={{
-              status: editingLiveProperty.status,
+              status: editingLiveProperty?.status ?? "draft",
               returnListingId,
               myListingsRestorePath,
               myListingsReturnState: myListingsReturn
                 ? { myListingsReturn }
                 : undefined,
+              adminPostsRestorePath,
               scope: liveEditScope ?? "room",
             }}
           />
@@ -3731,6 +3787,10 @@ export function PublishWizardPage() {
       {myListingsRestorePath ? (
         <div className="mb-4">
           <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
+        </div>
+      ) : adminPostsRestorePath ? (
+        <div className="mb-4">
+          <MyListingsReturnLink to={adminPostsRestorePath} placement="top" label="Volver a Posts" />
         </div>
       ) : null}
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
