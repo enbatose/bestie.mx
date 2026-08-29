@@ -6,6 +6,8 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
+import { AUTH_COOKIE, signAuthToken } from "./jwtSession.js";
+import { claimAssistedDraftForUser } from "./phoneAuth.js";
 
 describe("assisted draft claim save", () => {
   let dir: string;
@@ -160,5 +162,109 @@ describe("assisted draft claim save", () => {
       { rentMxn: 5400, occupancyStatus: "available" },
       { rentMxn: 0, occupancyStatus: "occupied" },
     ]);
+  });
+});
+
+describe("assisted draft claim save after claim", () => {
+  let dir: string;
+  let dbPath: string;
+  let db: DatabaseSync;
+  let app: ReturnType<typeof createApp>;
+  const prevSecret = process.env.AUTH_JWT_SECRET;
+  const token = "claimtokenclaimed1234567890abcdef";
+  const propertyId = "prp__adraft_testclaimed01";
+  const roomId = "adraft_room__testclaimed01";
+  const ownerId = "user-claim-owner-save-01";
+  const otherId = "user-claim-other-save-01";
+
+  beforeAll(() => {
+    process.env.AUTH_JWT_SECRET = "test-secret-claim-save-claimedxx";
+    dir = mkdtempSync(join(tmpdir(), "bestie-adraft-claimed-"));
+    dbPath = join(dir, "test.db");
+    db = openDb(dbPath);
+    app = createApp(db, { databaseLabel: "test.db", databasePath: dbPath });
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO users (id, email, email_canonical, password_hash, display_name, email_verified_at, created_at)
+       VALUES (?, 'claim-owner@example.com', 'claim-owner@example.com', 'x', 'Owner', datetime('now'), datetime('now'))`,
+    ).run(ownerId);
+    db.prepare(
+      `INSERT INTO users (id, email, email_canonical, password_hash, display_name, email_verified_at, created_at)
+       VALUES (?, 'claim-other@example.com', 'claim-other@example.com', 'x', 'Other', datetime('now'), datetime('now'))`,
+    ).run(otherId);
+    db.prepare(`
+      INSERT INTO properties (
+        id, publisher_id, status, post_mode, title, city, neighborhood,
+        lat, lng, summary, contact_whatsapp, property_kind,
+        bedrooms_total, bathrooms, show_whatsapp, image_urls_json,
+        is_approximate_location, approximate_radius_m,
+        created_at, assisted_draft, created_by_admin_id
+      ) VALUES (
+        ?, ?, 'draft', 'room', 'Habitación reclamada', 'Guadalajara', 'Americana',
+        20.67, -103.35, '', '', 'house',
+        1, 1, 0, '[]',
+        1, 200,
+        ?, 1, 'admin-test'
+      )
+    `).run(propertyId, "orphan-pub-claimed", now);
+    db.prepare(`
+      INSERT INTO rooms (
+        id, property_id, status, title, rent_mxn, rooms_available, tags_json,
+        roommate_gender_pref, age_min, age_max, summary, lodging_type,
+        available_from, minimal_stay_months, room_dimension,
+        aval_required, sublet_allowed, sort_order, deposit_mxn,
+        image_urls_json, created_at, updated_at
+      ) VALUES (
+        ?, ?, 'draft', '', 0, 1, '[]',
+        'any', 18, 99, '', 'private_room',
+        ?, 1, 'medium',
+        0, 0, 0, 0,
+        '[]', ?, ?
+      )
+    `).run(roomId, propertyId, now.slice(0, 10), now, now);
+    db.prepare(`
+      INSERT INTO assisted_draft_claim_tokens (
+        token, property_id, created_by_admin_id, orphan_publisher_id,
+        expires_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(token, propertyId, "admin-test", "orphan-pub-claimed", Date.now() + 86_400_000, Date.now());
+    claimAssistedDraftForUser(db, ownerId, propertyId);
+  });
+
+  afterAll(() => {
+    process.env.AUTH_JWT_SECRET = prevSecret;
+    db.close();
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* Windows */
+    }
+  });
+
+  it("lets the claiming user keep saving (self-serve compose already claims the token)", async () => {
+    const auth = signAuthToken(ownerId, 3600);
+    await request(app)
+      .put(`/api/assisted-draft/claim/${token}`)
+      .set("Cookie", `${AUTH_COOKIE}=${encodeURIComponent(auth)}`)
+      .send({
+        property: { title: "Depa amueblado en Colonia Americana" },
+        rooms: [{ id: roomId, rentMxn: 4600 }],
+      })
+      .expect(200);
+  });
+
+  it("returns Spanish copy when another account already claimed the draft", async () => {
+    const auth = signAuthToken(otherId, 3600);
+    const res = await request(app)
+      .put(`/api/assisted-draft/claim/${token}`)
+      .set("Cookie", `${AUTH_COOKIE}=${encodeURIComponent(auth)}`)
+      .send({
+        property: { title: "No debe guardar" },
+        rooms: [{ id: roomId, rentMxn: 9999 }],
+      })
+      .expect(409);
+    expect(res.body.error).toBe("already_claimed_by_other");
+    expect(String(res.body.message)).toMatch(/otra cuenta/i);
+    expect(String(res.body.message)).toMatch(/teléfono/i);
   });
 });

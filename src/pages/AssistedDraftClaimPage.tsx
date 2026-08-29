@@ -4,7 +4,9 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { fetchAssistedDraftClaim, publishAssistedDraftClaim } from "@/lib/assistedDraftApi";
+import { isAlreadyClaimedByOtherError } from "@/lib/assistedDraftErrors";
 import { listingPublicPath } from "@/lib/listingReference";
+import { isRentRequiredPublishError } from "@/lib/publishWizard/roomWizardValidation";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 
 type PageState =
@@ -43,9 +45,9 @@ export function AssistedDraftClaimPage() {
         setState({ phase: "published", propertyId });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "publish_error";
-        if (msg === "already_claimed_by_other") {
+        if (isAlreadyClaimedByOtherError(msg)) {
           setState({ phase: "already_claimed" });
-        } else if (msg === "rent_required") {
+        } else if (isRentRequiredPublishError(msg)) {
           navigate(`/borrador/${token}`, { replace: true });
         } else {
           setState({

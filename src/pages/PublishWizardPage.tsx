@@ -139,6 +139,7 @@ import {
 import {
   firstRoomIndexMissingRent,
   firstRoomIndexWithIssues,
+  isRentRequiredPublishError,
   rentRequiredPublishMessage,
   roomPreviewOptionLabel,
 } from "@/lib/publishWizard/roomWizardValidation";
@@ -1282,7 +1283,7 @@ export function PublishWizardPage() {
           /* already activated */
         }
         const info = await fetchAssistedDraftClaim(token);
-        if (cancelled || info.isClaimed) return;
+        if (cancelled) return;
         const mapped = draftFromPropertyBundle(claimInfoToBundle(info));
         const nextDraft: Draft = applyProfilePhoneIfMissing(
           {
@@ -3222,7 +3223,7 @@ export function PublishWizardPage() {
       } catch (e) {
         const msg = e instanceof Error ? e.message : "No se pudo publicar.";
         setPublishErr(
-          msg === "rent_required"
+          isRentRequiredPublishError(msg)
             ? firstRoomIndexMissingRent(draftRef.current) >= 0
               ? rentRequiredPublishMessage(draftRef.current.postMode)
               : "No se pudieron guardar los precios de las recámaras. Intenta publicar de nuevo."

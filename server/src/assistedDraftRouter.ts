@@ -32,6 +32,11 @@ import {
   SELF_SERVE_MAX_TEXT_CHARS,
 } from "./assistedDraftLimits.js";
 import { claimPublishMissingRent } from "./claimPublishRent.js";
+import {
+  CLAIM_PUBLISHER_TAKEN_MESSAGE,
+  CLAIM_ALREADY_CLAIMED_BY_OTHER_MESSAGE,
+  claimWriteBlock,
+} from "./assistedDraftClaimAccess.js";
 import { resolveClaimSaveRoomTargets } from "./claimSaveRoomMatch.js";
 import { extForUploadMime, normalizeDeclaredImageMime } from "./imageMime.js";
 import { publicWebOrigin } from "./handoffTokens.js";
@@ -924,8 +929,13 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       if (!row) { res.status(404).json({ error: "not_found" }); return; }
       if (Date.now() > row.expires_at) { res.status(410).json({ error: "expired" }); return; }
-      if (row.claimed_by_user_id != null) {
-        res.status(409).json({ error: "already_claimed" }); return;
+      const activateBlocked = claimWriteBlock(row.claimed_by_user_id, readAuthUserId(req));
+      if (activateBlocked) {
+        res.status(activateBlocked.status).json({
+          error: activateBlocked.error,
+          message: activateBlocked.message,
+        });
+        return;
       }
 
       // Set the orphan publisher cookie so the user can edit as that publisher
@@ -966,7 +976,10 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           return;
         }
         if (row.claimed_by_user_id != null && row.claimed_by_user_id !== userId) {
-          res.status(409).json({ error: "already_claimed_by_other" });
+          res.status(409).json({
+            error: "already_claimed_by_other",
+            message: CLAIM_ALREADY_CLAIMED_BY_OTHER_MESSAGE,
+          });
           return;
         }
         const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as
@@ -1072,8 +1085,13 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       if (!row) { res.status(404).json({ error: "not_found" }); return; }
       if (Date.now() > row.expires_at) { res.status(410).json({ error: "expired" }); return; }
-      if (row.claimed_by_user_id != null) {
-        res.status(409).json({ error: "already_claimed" }); return;
+      const saveBlocked = claimWriteBlock(row.claimed_by_user_id, readAuthUserId(req));
+      if (saveBlocked) {
+        res.status(saveBlocked.status).json({
+          error: saveBlocked.error,
+          message: saveBlocked.message,
+        });
+        return;
       }
 
       const prop = db.prepare(
@@ -1083,7 +1101,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         res.status(404).json({ error: "property_not_found" }); return;
       }
       if (prop.status !== "draft") {
-        res.status(409).json({ error: "not_draft" }); return;
+        res.status(409).json({ error: "not_draft", message: "Este anuncio ya no es un borrador." }); return;
       }
 
       const body = req.body as {
@@ -1377,7 +1395,11 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       // If already claimed by this same user, idempotent OK
       if (row.claimed_by_user_id != null && row.claimed_by_user_id !== userId) {
-        res.status(409).json({ error: "already_claimed_by_other" }); return;
+        res.status(409).json({
+          error: "already_claimed_by_other",
+          message: CLAIM_ALREADY_CLAIMED_BY_OTHER_MESSAGE,
+        });
+        return;
       }
 
       const orphanPub = row.orphan_publisher_id;
@@ -1388,7 +1410,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       ).get(orphanPub) as { user_id: string } | undefined;
 
       if (existingLink && existingLink.user_id !== userId) {
-        res.status(409).json({ error: "publisher_taken" }); return;
+        res.status(409).json({ error: "publisher_taken", message: CLAIM_PUBLISHER_TAKEN_MESSAGE }); return;
       }
 
       const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as
@@ -1413,7 +1435,10 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         `SELECT rent_mxn, occupancy_status FROM rooms WHERE property_id = ?`
       ).all(row.property_id) as { rent_mxn: number; occupancy_status?: string }[];
       if (claimPublishMissingRent(rentRows)) {
-        res.status(400).json({ error: "rent_required" });
+        res.status(400).json({
+          error: "rent_required",
+          message: "Falta el precio de renta. No se puede publicar en 0 MXN / mes.",
+        });
         return;
       }
 
