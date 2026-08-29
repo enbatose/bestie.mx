@@ -127,7 +127,7 @@ export async function registerViaUi(page: Page, email: string, password: string,
   await page.goto("/registro");
   await expect(page.getByRole("heading", { name: "Crear cuenta" })).toBeVisible();
   await page.getByLabel("Nombre para mostrar").fill(name);
-  await page.getByLabel("Correo").fill(email);
+  await page.getByLabel("Correo o celular").fill(email);
   await page.locator('input[name="password"]').fill(password);
   await page.locator('input[name="password_confirm"]').fill(password);
   await page.getByRole("button", { name: "Registrarme" }).click();

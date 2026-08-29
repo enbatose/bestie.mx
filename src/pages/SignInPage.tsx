@@ -11,8 +11,9 @@ import {
   needsEmailVerification,
   type AuthMe,
 } from "@/lib/authApi";
-import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { AuthIdentifierField } from "@/components/auth/AuthIdentifierField";
 import { identifyUser, resetAnalyticsUser, track } from "@/lib/analytics";
+import { AUTH_IDENTIFIER_INVALID_MESSAGE, classifyAuthIdentifier } from "@/lib/authIdentifier";
 import {
   destinationAfterAuth,
   oauthReturnToFor,
@@ -25,9 +26,7 @@ export function SignInPage() {
   const navigate = useNavigate();
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
 
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [method, setMethod] = useState<"email" | "phone">("email");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
 
@@ -63,13 +62,18 @@ export function SignInPage() {
     e.preventDefault();
     setErr(null);
     setMsg(null);
+    const id = classifyAuthIdentifier(identifier);
+    if (id.kind === "undetermined") {
+      setErr(AUTH_IDENTIFIER_INVALID_MESSAGE);
+      return;
+    }
     setEmailBusy(true);
     try {
-      if (method === "phone") {
-        await authLogin({ phone, password });
+      if (id.kind === "phone") {
+        await authLogin({ phone: id.phone, password });
         track("user_logged_in", { method: "phone" });
       } else {
-        await authLogin({ email: email.trim().toLowerCase(), password });
+        await authLogin({ email: id.email, password });
         track("user_logged_in", { method: "email" });
       }
       await authLinkPublisher();
@@ -105,7 +109,7 @@ export function SignInPage() {
 
   if (me === undefined) {
     return (
-      <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
+      <div className="mx-auto w-full min-w-0 max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
         <p className="text-sm text-muted">Cargando…</p>
       </div>
     );
@@ -113,7 +117,7 @@ export function SignInPage() {
 
   if (me) {
     return (
-      <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
+      <div className="mx-auto w-full min-w-0 max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tu cuenta</h1>
         <p className="mt-2 text-sm text-muted">
           <span className="font-medium text-body">{me.displayName}</span>
@@ -153,7 +157,7 @@ export function SignInPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
+    <div className="mx-auto w-full min-w-0 max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Entrar</h1>
       {registrationNotice ? (
         <p className="mt-3 rounded-xl border border-secondary/40 bg-secondary/10 p-3 text-xs text-body">
@@ -178,49 +182,14 @@ export function SignInPage() {
       ) : null}
 
       <form className="mt-8 space-y-4" onSubmit={onEmailLogin}>
-        <div className="flex rounded-full border border-border bg-bg-light p-0.5 text-xs font-semibold">
-          <button
-            type="button"
-            className={`flex-1 rounded-full py-1.5 ${method === "email" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-            onClick={() => setMethod("email")}
-          >
-            Correo
-          </button>
-          <button
-            type="button"
-            className={`flex-1 rounded-full py-1.5 ${method === "phone" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-            onClick={() => setMethod("phone")}
-          >
-            Celular
-          </button>
-        </div>
-        {method === "phone" ? (
-          <PhoneNumberField
-            id="signin-phone"
-            value={phone}
-            onChange={setPhone}
-            optional={false}
-            showWhatsAppHint={false}
-          />
-        ) : (
-          <label className="block text-sm font-medium text-body">
-            Correo
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-            />
-          </label>
-        )}
+        <AuthIdentifierField id="signin-identifier" value={identifier} onChange={setIdentifier} />
         <label className="block text-sm font-medium text-body">
           Contraseña
           <PasswordField
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+            className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
           />
         </label>
         <p className="text-right text-sm">

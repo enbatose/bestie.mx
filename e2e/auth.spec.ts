@@ -23,7 +23,7 @@ test.describe("Auth email/password", () => {
       await logout.click();
     }
     await expect(entrarHeading).toBeVisible({ timeout: 15_000 });
-    await page.getByLabel("Correo").fill(email);
+    await page.getByLabel("Correo o celular").fill(email);
     await page.locator('input[autocomplete="current-password"], input[type="password"]').first().fill(password);
     await page.getByRole("button", { name: "Entrar" }).click();
 

@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
+import { AuthIdentifierField } from "@/components/auth/AuthIdentifierField";
 import { authLogin, authRegister, authPhoneOtpRequest, authPhoneRegister, needsEmailVerification, authMe } from "@/lib/authApi";
-import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { identifyUser, track } from "@/lib/analytics";
+import {
+  AUTH_IDENTIFIER_INVALID_MESSAGE,
+  classifyAuthIdentifier,
+} from "@/lib/authIdentifier";
 import {
   destinationAfterAuth,
   oauthReturnToFor,
@@ -14,14 +18,13 @@ import {
 
 export function AuthModal() {
   const { open, tab, redirectTo, close, openLogin, openRegister } = useAuthModal();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [method, setMethod] = useState<"email" | "phone">("email");
-  const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpForPhone, setOtpForPhone] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,18 +33,35 @@ export function AuthModal() {
   if (!open) return null;
 
   const socialReturnTo = oauthReturnToFor(redirectTo);
+  const classified = classifyAuthIdentifier(identifier);
+  const isPhone = classified.kind === "phone";
+
+  const onIdentifierChange = (next: string) => {
+    setIdentifier(next);
+    const nextClass = classifyAuthIdentifier(next);
+    if (otpSent && (nextClass.kind !== "phone" || nextClass.phone !== otpForPhone)) {
+      setOtpSent(false);
+      setOtpCode("");
+      setDevCode(null);
+      setOtpForPhone(null);
+    }
+  };
 
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    const id = classifyAuthIdentifier(identifier);
+    if (id.kind === "undetermined") {
+      setErr(AUTH_IDENTIFIER_INVALID_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
-      const looksPhone = method === "phone" || (!email.includes("@") && /^\d{10}$/.test(email.replace(/\D/g, "")));
-      if (looksPhone) {
-        await authLogin({ phone: method === "phone" ? phone : email, password });
+      if (id.kind === "phone") {
+        await authLogin({ phone: id.phone, password });
         track("user_logged_in", { method: "phone" });
       } else {
-        await authLogin({ email: email.trim().toLowerCase(), password });
+        await authLogin({ email: id.email, password });
         track("user_logged_in", { method: "email" });
       }
       close();
@@ -67,7 +87,12 @@ export function AuthModal() {
       setErr("Las contraseñas no coinciden.");
       return;
     }
-    if (method === "phone") {
+    const id = classifyAuthIdentifier(identifier);
+    if (id.kind === "undetermined") {
+      setErr(AUTH_IDENTIFIER_INVALID_MESSAGE);
+      return;
+    }
+    if (id.kind === "phone") {
       if (!displayName.trim()) {
         setErr("Escribe un nombre para mostrar.");
         return;
@@ -75,8 +100,9 @@ export function AuthModal() {
       if (!otpSent) {
         setBusy(true);
         try {
-          const r = await authPhoneOtpRequest(phone);
+          const r = await authPhoneOtpRequest(id.phone);
           setOtpSent(true);
+          setOtpForPhone(id.phone);
           setDevCode(r.devCode ?? null);
         } catch (x) {
           setErr(x instanceof Error ? x.message : "No se pudo enviar el código.");
@@ -88,7 +114,7 @@ export function AuthModal() {
       setBusy(true);
       try {
         const { me } = await authPhoneRegister({
-          phone,
+          phone: id.phone,
           code: otpCode.trim(),
           password,
           displayName: displayName.trim(),
@@ -111,7 +137,7 @@ export function AuthModal() {
     setBusy(true);
     try {
       const { me } = await authRegister({
-        email: email.trim().toLowerCase(),
+        email: id.email,
         password,
         displayName: displayName.trim() || undefined,
       });
@@ -145,11 +171,11 @@ export function AuthModal() {
     >
       <div className="flex min-h-[100dvh] w-full flex-col items-center justify-center">
         <div
-          className="mx-auto w-full max-w-md rounded-2xl border border-border bg-surface p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900 sm:p-5"
+          className="mx-auto w-full min-w-0 max-w-md rounded-2xl border border-border bg-surface p-4 shadow-xl dark:border-slate-600 dark:bg-slate-900 sm:p-5"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 id="auth-modal-title" className="text-lg font-bold leading-tight text-primary">
+            <h2 id="auth-modal-title" className="min-w-0 break-words text-lg font-bold leading-tight text-primary">
               {tab === "login" ? "Iniciar sesión" : "Regístrate"}
             </h2>
             <button
@@ -162,10 +188,10 @@ export function AuthModal() {
             </button>
           </div>
 
-          <div className="mt-3 flex rounded-full border border-border bg-bg-light p-0.5 text-sm font-semibold">
+          <div className="mt-3 flex min-w-0 rounded-full border border-border bg-bg-light p-0.5 text-sm font-semibold">
             <button
               type="button"
-              className={`flex-1 rounded-full py-1.5 ${tab === "login" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+              className={`min-w-0 flex-1 rounded-full py-1.5 ${tab === "login" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
               onClick={() => {
                 openLogin();
                 setErr(null);
@@ -176,7 +202,7 @@ export function AuthModal() {
             </button>
             <button
               type="button"
-              className={`flex-1 rounded-full py-1.5 ${tab === "register" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
+              className={`min-w-0 flex-1 rounded-full py-1.5 ${tab === "register" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
               onClick={() => {
                 openRegister();
                 setErr(null);
@@ -189,30 +215,6 @@ export function AuthModal() {
 
           {err ? <p className="mt-2 text-sm text-error">{err}</p> : null}
 
-          <div className="mt-3 flex rounded-full border border-border bg-bg-light p-0.5 text-xs font-semibold">
-            <button
-              type="button"
-              className={`flex-1 rounded-full py-1.5 ${method === "email" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-              onClick={() => {
-                setMethod("email");
-                setErr(null);
-                setOtpSent(false);
-              }}
-            >
-              Correo
-            </button>
-            <button
-              type="button"
-              className={`flex-1 rounded-full py-1.5 ${method === "phone" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-              onClick={() => {
-                setMethod("phone");
-                setErr(null);
-              }}
-            >
-              Celular
-            </button>
-          </div>
-
           <div className="mt-3">
             <SocialSignInButtons returnTo={socialReturnTo} onClick={close} />
           </div>
@@ -221,37 +223,15 @@ export function AuthModal() {
 
           {tab === "login" ? (
             <form className="mt-3 space-y-2.5" onSubmit={submitLogin}>
-              <label className="block text-sm font-medium text-body">
-                {method === "phone" ? "Celular (+52)" : "Correo"}
-                {method === "phone" ? (
-                  <PhoneNumberField
-                    id="auth-modal-phone"
-                    value={phone}
-                    onChange={setPhone}
-                    optional={false}
-                    showWhatsAppHint={false}
-                    showLabel={false}
-                    className="mt-1"
-                  />
-                ) : (
-                  <input
-                    type="email"
-                    required={method === "email"}
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                  />
-                )}
-              </label>
-              <label className="block text-sm font-medium text-body">
+              <AuthIdentifierField id="auth-modal-identifier" value={identifier} onChange={onIdentifierChange} />
+              <label className="block min-w-0 text-sm font-medium text-body">
                 Contraseña
                 <PasswordField
                   required
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-1 w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
                 />
               </label>
               <p className="text-right text-xs">
@@ -273,46 +253,27 @@ export function AuthModal() {
             </form>
           ) : (
             <form className="mt-3 space-y-2" onSubmit={submitRegister}>
-              <label className="block text-sm font-medium leading-snug text-body">
+              <label className="block min-w-0 text-sm font-medium leading-snug text-body">
                 Nombre
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 py-1.5 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
                 />
               </label>
-              {method === "phone" ? (
-                <>
-                  <PhoneNumberField
-                    id="auth-modal-reg-phone"
-                    value={phone}
-                    onChange={setPhone}
-                    optional={false}
-                    showWhatsAppHint={false}
-                  />
-                  <ProfilePictureUpload
-                    displayName={displayName.trim() || "Bestie"}
-                    profilePictureUrl={profilePictureUrl}
-                    onUpdated={setProfilePictureUrl}
-                    saveToAccount={false}
-                    compact
-                  />
-                </>
-              ) : (
-                <label className="block text-sm font-medium leading-snug text-body">
-                  Correo
-                  <input
-                    type="email"
-                    required={method === "email"}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
-                  />
-                </label>
-              )}
-              {method === "phone" && otpSent ? (
-                <label className="block text-sm font-medium leading-snug text-body">
+              <AuthIdentifierField id="auth-modal-reg-identifier" value={identifier} onChange={onIdentifierChange} />
+              {isPhone ? (
+                <ProfilePictureUpload
+                  displayName={displayName.trim() || "Bestie"}
+                  profilePictureUrl={profilePictureUrl}
+                  onUpdated={setProfilePictureUrl}
+                  saveToAccount={false}
+                  compact
+                />
+              ) : null}
+              {isPhone && otpSent ? (
+                <label className="block min-w-0 text-sm font-medium leading-snug text-body">
                   Código SMS
                   <input
                     type="text"
@@ -322,12 +283,12 @@ export function AuthModal() {
                     maxLength={6}
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+                    className="mt-0.5 w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 py-1.5 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
                   />
                 </label>
               ) : null}
               {devCode ? <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p> : null}
-              <label className="block text-sm font-medium leading-snug text-body">
+              <label className="block min-w-0 text-sm font-medium leading-snug text-body">
                 Contraseña (mín. 8)
                 <PasswordField
                   required
@@ -341,10 +302,10 @@ export function AuthModal() {
                   }}
                   onCopy={(e) => e.preventDefault()}
                   onCut={(e) => e.preventDefault()}
-                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 py-1.5 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
                 />
               </label>
-              <label className="block text-sm font-medium leading-snug text-body">
+              <label className="block min-w-0 text-sm font-medium leading-snug text-body">
                 Confirmar contraseña
                 <PasswordField
                   required
@@ -355,7 +316,7 @@ export function AuthModal() {
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   onPaste={(e) => e.preventDefault()}
                   onDrop={(e) => e.preventDefault()}
-                  className="mt-0.5 w-full rounded-xl border border-border bg-bg-light px-3 py-1.5 text-sm text-body outline-none ring-accent focus:ring-2"
+                  className="mt-0.5 w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 py-1.5 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
                 />
               </label>
               <button
@@ -363,7 +324,7 @@ export function AuthModal() {
                 disabled={busy}
                 className="w-full rounded-full bg-primary py-2 text-sm font-semibold text-primary-fg disabled:opacity-50"
               >
-                {busy ? "Creando…" : method === "phone" && !otpSent ? "Enviar código" : "Crear cuenta"}
+                {busy ? "Creando…" : isPhone && !otpSent ? "Enviar código" : "Crear cuenta"}
               </button>
             </form>
           )}

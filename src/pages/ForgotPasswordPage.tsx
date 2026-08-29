@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
-import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { AuthIdentifierField } from "@/components/auth/AuthIdentifierField";
 import {
   authForgotPassword,
   authMe,
@@ -9,61 +9,50 @@ import {
   authPhonePasswordResetRequest,
   needsEmailVerification,
 } from "@/lib/authApi";
+import { AUTH_IDENTIFIER_INVALID_MESSAGE, classifyAuthIdentifier } from "@/lib/authIdentifier";
 import { destinationAfterAuth } from "@/lib/postLoginRedirect";
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
-  const [method, setMethod] = useState<"email" | "phone">("email");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpForPhone, setOtpForPhone] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  const [sentEmail, setSentEmail] = useState<string | null>(null);
   const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
+
+  const classified = classifyAuthIdentifier(identifier);
+  const isPhone = classified.kind === "phone";
+
+  const onIdentifierChange = (next: string) => {
+    setIdentifier(next);
+    const nextClass = classifyAuthIdentifier(next);
+    if (otpSent && (nextClass.kind !== "phone" || nextClass.phone !== otpForPhone)) {
+      setOtpSent(false);
+      setOtpCode("");
+      setDevCode(null);
+      setOtpForPhone(null);
+    }
+  };
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-md px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-14">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Recuperar contraseña</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">
-        Usa el correo o el celular mexicano verificado de tu cuenta. Con correo te enviamos un enlace;
-        con celular, un código SMS.
+        Escribe el correo o el celular mexicano verificado de tu cuenta. Con correo te enviamos un
+        enlace; con celular, un código SMS.
       </p>
 
-      <div className="mt-6 flex rounded-full border border-border bg-bg-light p-0.5 text-xs font-semibold">
-        <button
-          type="button"
-          className={`flex-1 rounded-full py-1.5 ${method === "email" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-          onClick={() => {
-            setMethod("email");
-            setErr(null);
-            setOtpSent(false);
-          }}
-        >
-          Correo
-        </button>
-        <button
-          type="button"
-          className={`flex-1 rounded-full py-1.5 ${method === "phone" ? "bg-surface text-primary shadow-sm" : "text-muted"}`}
-          onClick={() => {
-            setMethod("phone");
-            setErr(null);
-            setSent(false);
-          }}
-        >
-          Celular
-        </button>
-      </div>
-
-      {method === "email" && sent ? (
+      {sentEmail ? (
         <div className="mt-6 rounded-xl border border-secondary/40 bg-secondary/10 p-4 text-sm text-body">
           <p className="font-medium">Revisa tu correo</p>
           <p className="mt-2">
-            Si hay una cuenta con <span className="font-medium">{email.trim().toLowerCase()}</span>, enviamos un
+            Si hay una cuenta con <span className="font-medium">{sentEmail}</span>, enviamos un
             enlace para restablecer la contraseña. Revisa también spam o promociones.
           </p>
           {devResetUrl ? (
@@ -85,12 +74,18 @@ export function ForgotPasswordPage() {
             onSubmit={async (e) => {
               e.preventDefault();
               setErr(null);
+              const id = classifyAuthIdentifier(identifier);
+              if (id.kind === "undetermined") {
+                setErr(AUTH_IDENTIFIER_INVALID_MESSAGE);
+                return;
+              }
               setBusy(true);
               try {
-                if (method === "phone") {
+                if (id.kind === "phone") {
                   if (!otpSent) {
-                    const r = await authPhonePasswordResetRequest(phone);
+                    const r = await authPhonePasswordResetRequest(id.phone);
                     setOtpSent(true);
+                    setOtpForPhone(id.phone);
                     setDevCode(r.devCode ?? null);
                     return;
                   }
@@ -99,7 +94,7 @@ export function ForgotPasswordPage() {
                     return;
                   }
                   await authPhonePasswordResetComplete({
-                    phone,
+                    phone: id.phone,
                     code: otpCode.trim(),
                     newPassword,
                   });
@@ -111,8 +106,8 @@ export function ForgotPasswordPage() {
                   );
                   return;
                 }
-                const r = await authForgotPassword(email.trim().toLowerCase());
-                setSent(true);
+                const r = await authForgotPassword(id.email);
+                setSentEmail(id.email);
                 if (r.devResetUrl) setDevResetUrl(r.devResetUrl);
               } catch (x) {
                 setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
@@ -121,75 +116,57 @@ export function ForgotPasswordPage() {
               }
             }}
           >
-            {method === "phone" ? (
+            <AuthIdentifierField id="reset-identifier" value={identifier} onChange={onIdentifierChange} />
+            {isPhone && otpSent ? (
               <>
-                <PhoneNumberField
-                  id="reset-phone"
-                  value={phone}
-                  onChange={setPhone}
-                  optional={false}
-                  showWhatsAppHint={false}
-                />
-                {otpSent ? (
-                  <>
-                    <label className="block text-sm font-medium text-body">
-                      Código SMS
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        size={6}
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                      />
-                    </label>
-                    {devCode ? <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p> : null}
-                    <label className="block text-sm font-medium text-body">
-                      Nueva contraseña
-                      <PasswordField
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                        value={newPassword}
-                        onChange={(e) => {
-                          setNewPassword(e.target.value);
-                          setPasswordConfirm("");
-                        }}
-                        className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                      />
-                    </label>
-                    <label className="block text-sm font-medium text-body">
-                      Confirmar contraseña
-                      <PasswordField
-                        required
-                        minLength={8}
-                        autoComplete="off"
-                        value={passwordConfirm}
-                        onChange={(e) => setPasswordConfirm(e.target.value)}
-                        className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                      />
-                    </label>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted">
-                    Si el número está verificado en una cuenta con contraseña, te enviamos un código SMS.
-                  </p>
-                )}
+                <label className="block min-w-0 text-sm font-medium text-body">
+                  Código SMS
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    size={6}
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+                  />
+                </label>
+                {devCode ? <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p> : null}
+                <label className="block min-w-0 text-sm font-medium text-body">
+                  Nueva contraseña
+                  <PasswordField
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setPasswordConfirm("");
+                    }}
+                    className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+                  />
+                </label>
+                <label className="block min-w-0 text-sm font-medium text-body">
+                  Confirmar contraseña
+                  <PasswordField
+                    required
+                    minLength={8}
+                    autoComplete="off"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+                  />
+                </label>
               </>
+            ) : isPhone ? (
+              <p className="text-xs text-muted">
+                Si el número está verificado en una cuenta con contraseña, te enviamos un código SMS.
+              </p>
             ) : (
-              <label className="block text-sm font-medium text-body">
-                Correo de la cuenta
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
-                />
-              </label>
+              <p className="text-xs text-muted">
+                Si el valor es un correo, te enviamos un enlace. Si es un celular de 10 dígitos, un código SMS.
+              </p>
             )}
             <button
               type="submit"
@@ -198,11 +175,13 @@ export function ForgotPasswordPage() {
             >
               {busy
                 ? "Enviando…"
-                : method === "phone"
+                : isPhone
                   ? otpSent
                     ? "Cambiar contraseña"
                     : "Enviar código"
-                  : "Enviar enlace"}
+                  : classified.kind === "email"
+                    ? "Enviar enlace"
+                    : "Continuar"}
             </button>
           </form>
         </>
