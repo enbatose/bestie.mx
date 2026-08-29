@@ -6,7 +6,14 @@ import { sendWhatsAppOtpTemplate } from "./whatsappMeta.js";
 import { recordWhatsAppOtpSend } from "./usageAnalytics.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { issueAuthCookie, clearAuthCookie, readAuthUserId } from "./jwtSession.js";
-import { isAdminUser, waOnlyPasswordPlaceholder, isWaOnlyPasswordHash, isGoogleOAuthPasswordHash, isFacebookOAuthPasswordHash } from "./adminAuth.js";
+import {
+  isAdminUser,
+  waOnlyPasswordPlaceholder,
+  isWaOnlyPasswordHash,
+  isGoogleOAuthPasswordHash,
+  isFacebookOAuthPasswordHash,
+  signInMethodFromPasswordHash,
+} from "./adminAuth.js";
 import { createPublishHandoff } from "./handoffTokens.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest, issuePublisherCookie } from "./session.js";
 import { canonicalLookupEmail, displayStorageEmail } from "./authEmail.js";
@@ -100,6 +107,7 @@ function authUserPayload(u: {
   profile_picture_url: string | null;
   created_at: string;
   email_verified_at: string | null;
+  password_hash: string;
   linkedPublisherIds: string[];
   isAdmin: boolean;
 }) {
@@ -118,6 +126,7 @@ function authUserPayload(u: {
     isAdmin: u.isAdmin,
     emailVerified,
     accountStatus: userAccountStatus(u.email, u.email_verified_at),
+    signInMethod: signInMethodFromPasswordHash(u.password_hash),
   };
 }
 
@@ -594,7 +603,7 @@ export function authRouter(db: DatabaseSync) {
     }
     const u = db
       .prepare(
-        "SELECT id, email, phone_e164, phone_notify_opt_in, phone_marketing_opt_in, phone_prompt_dismissed_at, display_name, profile_picture_url, created_at, email_verified_at FROM users WHERE id = ?",
+        "SELECT id, email, phone_e164, phone_notify_opt_in, phone_marketing_opt_in, phone_prompt_dismissed_at, display_name, profile_picture_url, created_at, email_verified_at, password_hash FROM users WHERE id = ?",
       )
       .get(uid) as
       | {
@@ -608,6 +617,7 @@ export function authRouter(db: DatabaseSync) {
           profile_picture_url: string | null;
           created_at: string;
           email_verified_at: string | null;
+          password_hash: string;
         }
       | undefined;
     if (!u) {

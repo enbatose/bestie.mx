@@ -78,6 +78,8 @@ export type AuthMe = {
   isAdmin?: boolean;
   emailVerified?: boolean;
   accountStatus?: "active" | "pending_validation";
+  /** How the user signs in — drives which profile fields are editable here. */
+  signInMethod?: "email" | "google" | "facebook" | "phone";
 };
 
 export function needsEmailVerification(me: AuthMe): boolean {

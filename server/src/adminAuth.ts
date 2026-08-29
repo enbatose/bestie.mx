@@ -35,6 +35,15 @@ export function isOAuthOnlyPasswordHash(stored: string): boolean {
   return isWaOnlyPasswordHash(stored) || isGoogleOAuthPasswordHash(stored) || isFacebookOAuthPasswordHash(stored);
 }
 
+export type SignInMethod = "email" | "google" | "facebook" | "phone";
+
+export function signInMethodFromPasswordHash(stored: string): SignInMethod {
+  if (isGoogleOAuthPasswordHash(stored)) return "google";
+  if (isFacebookOAuthPasswordHash(stored)) return "facebook";
+  if (isWaOnlyPasswordHash(stored)) return "phone";
+  return "email";
+}
+
 export function parseAdminEmails(): Set<string> {
   const set = new Set<string>();
   for (const builtin of BUILTIN_ADMIN_EMAILS) {

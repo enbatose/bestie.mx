@@ -10,12 +10,13 @@ import {
   authUpdateMe,
   type AuthMe,
 } from "@/lib/authApi";
-import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { normalizeMxNationalDigits, parsePhoneInputToE164 } from "@/lib/mxPhone";
 
 export function AccountEditPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const passwordSectionRef = useRef<HTMLElement | null>(null);
+  const profileFeedbackRef = useRef<HTMLParagraphElement | null>(null);
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [resetMode, setResetMode] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
@@ -153,30 +154,47 @@ export function AccountEditPage() {
 
   /** Legacy accounts created without email (e.g. former OTP) cannot change password here. */
   const isPhoneOnlyAccount = !me.email && Boolean(me.phoneE164);
+  const signInMethod = me.signInMethod ?? "email";
+  const isGoogleAccount = signInMethod === "google";
+  const isFacebookAccount = signInMethod === "facebook";
+  const isOAuthAccount = isGoogleAccount || isFacebookAccount;
+  const isEmailPasswordAccount = signInMethod === "email";
   const isPublisher = me.linkedPublisherIds.length > 0;
-  const emailChanged = email.trim().toLowerCase() !== (me.email ?? "").toLowerCase();
+  const emailChanged = !isOAuthAccount && email.trim().toLowerCase() !== (me.email ?? "").toLowerCase();
   const displayNameChanged = displayName.trim() !== (me.displayName ?? "").trim();
-  const nextPhoneDigits = phone.trim() ? phoneDigitsForStorage(phone) : null;
-  const currentPhoneDigits = me.phoneE164 ? phoneDigitsForStorage(me.phoneE164) : null;
-  const phoneChanged = nextPhoneDigits !== currentPhoneDigits;
+  const nextPhoneE164 = phone.trim() ? parsePhoneInputToE164(phone) : null;
+  const currentPhoneE164 = me.phoneE164 ?? null;
+  const phoneChanged = nextPhoneE164 !== currentPhoneE164;
   const phoneNotifyChanged = phoneNotifyOptIn !== me.phoneNotifyOptIn;
   const phoneMarketingChanged = phoneMarketingOptIn !== me.phoneMarketingOptIn;
-  const requiresPasswordForEmail = emailChanged && !isPhoneOnlyAccount;
+  const requiresPasswordForEmail = emailChanged && isEmailPasswordAccount;
+  const profileHasChanges =
+    displayNameChanged || emailChanged || phoneChanged || phoneNotifyChanged || phoneMarketingChanged;
+  const phoneComplete = phone.trim().length === 0 || nextPhoneE164 != null;
+
+  const scrollProfileFeedback = () => {
+    window.requestAnimationFrame(() => {
+      profileFeedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  };
 
   const onSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileMsg(null);
     setProfileErr(null);
-    if (!displayNameChanged && !emailChanged && !phoneChanged && !phoneNotifyChanged && !phoneMarketingChanged) {
+    if (!profileHasChanges) {
       setProfileMsg("No hay cambios para guardar.");
+      scrollProfileFeedback();
       return;
     }
     if (requiresPasswordForEmail && !currentPassword) {
       setProfileErr("Ingresa tu contraseña actual para confirmar el cambio de correo.");
+      scrollProfileFeedback();
       return;
     }
-    if (phone.trim() && !nextPhoneDigits) {
+    if (phone.trim() && !nextPhoneE164) {
       setProfileErr("Completa un número válido de 10 dígitos.");
+      scrollProfileFeedback();
       return;
     }
     setSavingProfile(true);
@@ -192,7 +210,7 @@ export function AccountEditPage() {
       if (displayNameChanged) body.displayName = displayName.trim();
       if (emailChanged) {
         body.email = email.trim().toLowerCase();
-        if (!isPhoneOnlyAccount) body.currentPassword = currentPassword;
+        body.currentPassword = currentPassword;
       }
       if (phoneChanged) body.phone = phone.trim();
       if (phoneNotifyChanged) body.phoneNotifyOptIn = phoneNotifyOptIn;
@@ -203,11 +221,16 @@ export function AccountEditPage() {
         navigate("/verificar-correo", { replace: true });
         return;
       }
+      if (r.changed) {
+        window.dispatchEvent(new Event("bestie:me-changed"));
+      }
       setProfileMsg(r.changed ? "Datos actualizados." : "Sin cambios.");
       setCurrentPassword("");
       await load();
+      scrollProfileFeedback();
     } catch (x) {
       setProfileErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+      scrollProfileFeedback();
     } finally {
       setSavingProfile(false);
     }
@@ -249,7 +272,7 @@ export function AccountEditPage() {
 
   return (
     <>
-    <div className="mx-auto max-w-lg px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:py-14">
+    <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:py-14">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-primary">Editar cuenta</h1>
         <button
@@ -263,7 +286,11 @@ export function AccountEditPage() {
       <p className="mt-2 text-sm text-muted">
         {resetMode
           ? "Elige una contraseña nueva para tu cuenta."
-          : "Actualiza el nombre para mostrar, el correo y tu contraseña."}
+          : isGoogleAccount
+            ? "Actualiza tu nombre para mostrar y tu teléfono. El correo lo administra Google."
+            : isFacebookAccount
+              ? "Actualiza tu nombre para mostrar y tu teléfono. El correo lo administra Facebook."
+              : "Actualiza el nombre para mostrar, el correo y tu contraseña."}
       </p>
 
       {resetErr ? (
@@ -280,10 +307,20 @@ export function AccountEditPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Datos de la cuenta</h2>
 
         {profileMsg ? (
-          <p className="mt-4 rounded-xl border border-border bg-bg-light p-3 text-sm text-body">{profileMsg}</p>
+          <p
+            ref={profileFeedbackRef}
+            className="mt-4 rounded-xl border border-border bg-bg-light p-3 text-sm text-body"
+          >
+            {profileMsg}
+          </p>
         ) : null}
         {profileErr ? (
-          <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{profileErr}</p>
+          <p
+            ref={profileFeedbackRef}
+            className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error"
+          >
+            {profileErr}
+          </p>
         ) : null}
 
         <form className="mt-5 space-y-4" onSubmit={onSaveProfile}>
@@ -299,14 +336,29 @@ export function AccountEditPage() {
           </label>
           <label className="block text-sm font-medium text-body">
             Correo
+            {isOAuthAccount ? (
+              <span className="ml-1 font-normal text-muted">
+                ({isGoogleAccount ? "Google" : "Facebook"})
+              </span>
+            ) : null}
             <input
               type="email"
               autoComplete="email"
               value={email}
               onChange={(ev) => setEmail(ev.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
+              readOnly={isOAuthAccount}
+              aria-readonly={isOAuthAccount}
+              className={`mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 ${
+                isOAuthAccount ? "cursor-default bg-bg-light text-muted" : ""
+              }`}
             />
           </label>
+          {isOAuthAccount ? (
+            <p className="text-xs text-muted">
+              Para cambiar el correo de acceso, actualízalo en tu cuenta de {isGoogleAccount ? "Google" : "Facebook"}.
+              Aquí puedes editar tu nombre, teléfono y preferencias de contacto.
+            </p>
+          ) : null}
           <div className="rounded-2xl border border-border bg-bg-light p-3 sm:p-4">
             <h3 className="text-sm font-semibold text-body">Teléfono</h3>
             <p className="mt-1 text-xs leading-snug text-muted">
@@ -370,10 +422,7 @@ export function AccountEditPage() {
           ) : null}
           <button
             type="submit"
-            disabled={
-              savingProfile ||
-              (!displayNameChanged && !emailChanged && !phoneChanged && !phoneNotifyChanged && !phoneMarketingChanged)
-            }
+            disabled={savingProfile || !profileHasChanges || !phoneComplete}
             className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
           >
             {savingProfile ? "Guardando…" : "Guardar cambios"}
@@ -382,7 +431,7 @@ export function AccountEditPage() {
       </section>
       ) : null}
 
-      {!isPhoneOnlyAccount ? (
+      {!isPhoneOnlyAccount && isEmailPasswordAccount ? (
         <section
           ref={passwordSectionRef}
           className={`rounded-2xl border border-border bg-surface p-5 ${resetMode ? "mt-0" : "mt-8"}`}
@@ -441,6 +490,13 @@ export function AccountEditPage() {
               {savingPassword ? "Actualizando…" : resetMode ? "Guardar nueva contraseña" : "Cambiar contraseña"}
             </button>
           </form>
+        </section>
+      ) : isOAuthAccount ? (
+        <section className="mt-8 rounded-2xl border border-border bg-surface p-5 text-sm text-body">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Contraseña</h2>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Entras con {isGoogleAccount ? "Google" : "Facebook"}; no hay contraseña de Bestie que cambiar aquí.
+          </p>
         </section>
       ) : (
         <section className="mt-8 rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm text-warning-fg">

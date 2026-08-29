@@ -15,6 +15,14 @@ export function ProfilePage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const onMeChanged = () => {
+      void load();
+    };
+    window.addEventListener("bestie:me-changed", onMeChanged);
+    return () => window.removeEventListener("bestie:me-changed", onMeChanged);
+  }, [load]);
+
   if (me === undefined) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
