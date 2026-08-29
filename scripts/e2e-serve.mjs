@@ -47,6 +47,9 @@ const env = {
   RATE_LIMIT_POST_LISTINGS_MAX: "10000",
   RATE_LIMIT_LOGIN_MAX: "10000",
   RATE_LIMIT_REGISTER_MAX: "10000",
+  // Isolated E2E runs NODE_ENV=production; expose dev OTP/email codes like local test stacks.
+  SMSMASIVOS_DEV_RETURN: "1",
+  EMAIL_VERIFICATION_DEV_RETURN: "1",
   // HTTP localhost cannot store Secure cookies; keep sessions working for E2E.
   TEST_DISABLE_SECURE_COOKIE: "1",
 };
