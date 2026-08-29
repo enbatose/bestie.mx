@@ -113,9 +113,9 @@ export function TermsPage() {
         <LegalList
           items={[
             "Debes ser mayor de edad (18 años cumplidos) y tener capacidad legal para contratar.",
-            "Puedes crear tu cuenta con un correo electrónico o con un celular mexicano (+52) verificado por SMS, más una contraseña. El número de perfil usado para entrar debe ser de México; los teléfonos de contacto en un anuncio pueden tener otro código de país y no se verifican por SMS.",
+            "Puedes crear tu cuenta con un correo electrónico o con un celular mexicano (+52) verificado por SMS, más una contraseña. En el registro por celular puedes agregar una foto de perfil opcional. El número de perfil usado para entrar debe ser de México; los teléfonos de contacto en un anuncio pueden tener otro código de país y no se verifican por SMS.",
             "La información que proporciones debe ser veraz, exacta y estar actualizada.",
-            "Eres responsable de la confidencialidad de tus credenciales y de toda actividad realizada desde tu cuenta.",
+            "Eres responsable de la confidencialidad de tus credenciales y de toda actividad realizada desde tu cuenta. Puedes restablecer la contraseña con un enlace al correo de la cuenta o con un código SMS al celular mexicano verificado.",
             "Debes notificarnos de inmediato a contacto@bestie.mx sobre cualquier uso no autorizado de tu cuenta.",
             "Una persona no puede mantener cuentas duplicadas ni suplantar la identidad de terceros.",
           ]}

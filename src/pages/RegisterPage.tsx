@@ -4,6 +4,7 @@ import { PasswordField } from "@/components/PasswordField";
 import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { authRegister, authPhoneOtpRequest, authPhoneRegister, needsEmailVerification } from "@/lib/authApi";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 import { identifyUser, track } from "@/lib/analytics";
 import { POST_LOGIN_RESOLVE_PATH, resolvePostLoginPath } from "@/lib/postLoginRedirect";
 
@@ -18,6 +19,7 @@ export function RegisterPage() {
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -94,6 +96,7 @@ export function RegisterPage() {
                 code: otpCode.trim(),
                 password,
                 displayName: displayName.trim(),
+                profilePictureUrl: profilePictureUrl || undefined,
               });
               if (me?.id) {
                 identifyUser(me.id, {
@@ -147,13 +150,22 @@ export function RegisterPage() {
           />
         </label>
         {method === "phone" ? (
-          <PhoneNumberField
-            id="register-phone"
-            value={phone}
-            onChange={setPhone}
-            optional={false}
-            showWhatsAppHint={false}
-          />
+          <>
+            <PhoneNumberField
+              id="register-phone"
+              value={phone}
+              onChange={setPhone}
+              optional={false}
+              showWhatsAppHint={false}
+            />
+            <ProfilePictureUpload
+              displayName={displayName.trim() || "Bestie"}
+              profilePictureUrl={profilePictureUrl}
+              onUpdated={setProfilePictureUrl}
+              saveToAccount={false}
+              compact
+            />
+          </>
         ) : (
           <label className="block text-sm font-medium text-body">
             Correo

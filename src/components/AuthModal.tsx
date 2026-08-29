@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PasswordField } from "@/components/PasswordField";
 import { authLogin, authRegister, authPhoneOtpRequest, authPhoneRegister, needsEmailVerification, authMe } from "@/lib/authApi";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
+import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
 import { AuthLegalConsent, AuthMethodDivider, SocialSignInButtons } from "@/components/GoogleSignInButton";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { identifyUser, track } from "@/lib/analytics";
@@ -22,6 +23,7 @@ export function AuthModal() {
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -90,6 +92,7 @@ export function AuthModal() {
           code: otpCode.trim(),
           password,
           displayName: displayName.trim(),
+          profilePictureUrl: profilePictureUrl || undefined,
         });
         if (me?.id) {
           identifyUser(me.id, { email: me.email, name: me.displayName, is_admin: me.isAdmin });
@@ -280,13 +283,22 @@ export function AuthModal() {
                 />
               </label>
               {method === "phone" ? (
-                <PhoneNumberField
-                  id="auth-modal-reg-phone"
-                  value={phone}
-                  onChange={setPhone}
-                  optional={false}
-                  showWhatsAppHint={false}
-                />
+                <>
+                  <PhoneNumberField
+                    id="auth-modal-reg-phone"
+                    value={phone}
+                    onChange={setPhone}
+                    optional={false}
+                    showWhatsAppHint={false}
+                  />
+                  <ProfilePictureUpload
+                    displayName={displayName.trim() || "Bestie"}
+                    profilePictureUrl={profilePictureUrl}
+                    onUpdated={setProfilePictureUrl}
+                    saveToAccount={false}
+                    compact
+                  />
+                </>
               ) : (
                 <label className="block text-sm font-medium leading-snug text-body">
                   Correo

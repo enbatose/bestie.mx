@@ -224,13 +224,13 @@ export function PrivacyPage() {
         </p>
         <LegalList
           items={[
-            "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, o reclamar un anuncio asociado a ese número.",
+            "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña de una cuenta con celular verificado, o reclamar un anuncio asociado a ese número.",
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
             "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
             "Moderar el blog: revisar comentarios reportados y gestionar contenido inapropiado en los artículos.",
             "Moderar anuncios y conversaciones: revisar reportes de usuarios, pausar o retirar publicaciones y restringir cuentas que incumplan las reglas.",
-            "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña, notificaciones del servicio).",
+            "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña por correo o por SMS, notificaciones del servicio).",
             "Enviar, si agregas tu teléfono y mantienes activa la preferencia correspondiente, comunicaciones transaccionales por SMS o WhatsApp relacionadas con tu cuenta, soporte, actividad en la Plataforma o seguimiento operativo del Servicio.",
             "Enviarte correos de aviso cuando tengas mensajes nuevos en Bestie (como máximo uno cada 3 horas; el correo no incluye el contenido de los mensajes). Si en ese periodo también se crearon notificaciones en la app, podemos resumirlas en el mismo correo.",
             "Prevenir fraudes, abusos y garantizar la seguridad de la Plataforma.",
@@ -286,7 +286,7 @@ export function PrivacyPage() {
             "Proveedor de infraestructura y alojamiento de la aplicación.",
             "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
             "Proveedor de envío de correos electrónicos transaccionales.",
-            "Proveedor de envío de mensajes SMS de verificación (SMS Masivos) para códigos de un solo uso a celulares mexicanos (+52) al registrarte, verificar o cambiar el teléfono de perfil, o reclamar un anuncio cuyo contacto es ese número.",
+            "Proveedor de envío de mensajes SMS de verificación (SMS Masivos) para códigos de un solo uso a celulares mexicanos (+52) al registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña, o reclamar un anuncio cuyo contacto es ese número.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
             "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",

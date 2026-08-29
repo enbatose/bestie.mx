@@ -12,6 +12,7 @@ import {
   isWaOnlyPasswordHash,
   isGoogleOAuthPasswordHash,
   isFacebookOAuthPasswordHash,
+  isOAuthOnlyPasswordHash,
   signInMethodFromPasswordHash,
 } from "./adminAuth.js";
 import { createPublishHandoff } from "./handoffTokens.js";
@@ -523,6 +524,100 @@ export function authRouter(db: DatabaseSync) {
       payload.devResetUrl = result.devResetUrl;
     }
     res.json(payload);
+  });
+
+  /** Request an SMS OTP to reset the password of a verified +52 account (always 200 — no enumeration). */
+  r.post("/phone/password-reset/request", jsonMw(), async (req: Request, res: Response) => {
+    const body = req.body as { phone?: unknown };
+    const mx = typeof body.phone === "string" ? parseMxAuthPhone(body.phone) : null;
+    const lim = forgotPasswordLimiter(`${req.ip ?? "ip"}:phone:${mx?.e164 ?? "anon"}`);
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const payload: Record<string, unknown> = {
+      ok: true,
+      message: "Si hay una cuenta con ese celular, enviamos un código SMS.",
+    };
+    if (!mx) {
+      res.status(400).json({ error: "invalid_phone", message: "Usa un celular mexicano a 10 dígitos." });
+      return;
+    }
+    const userId = findUserIdByVerifiedPhone(db, mx.e164);
+    if (userId) {
+      const user = db
+        .prepare("SELECT password_hash FROM users WHERE id = ?")
+        .get(userId) as { password_hash: string } | undefined;
+      if (user && !isOAuthOnlyPasswordHash(user.password_hash)) {
+        const sent = await requestPhoneOtp(db, mx.e164);
+        if (!sent.ok) {
+          const status = sent.retryAfterSec ? 429 : 400;
+          res.status(status).json({
+            error: sent.error,
+            retryAfterSec: sent.retryAfterSec,
+            message:
+              sent.error === "sms_not_configured"
+                ? "El envío de SMS no está configurado."
+                : "No se pudo enviar el código. Inténtalo de nuevo.",
+          });
+          return;
+        }
+        if (sent.devCode) payload.devCode = sent.devCode;
+        if (sent.resendAvailableIn != null) payload.resendAvailableIn = sent.resendAvailableIn;
+      }
+    }
+    res.json(payload);
+  });
+
+  /** Verify the SMS and set a new password for that +52 account. */
+  r.post("/phone/password-reset/complete", jsonMw(), async (req: Request, res: Response) => {
+    const body = req.body as { phone?: unknown; code?: unknown; newPassword?: unknown };
+    const mx = typeof body.phone === "string" ? parseMxAuthPhone(body.phone) : null;
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    const next = typeof body.newPassword === "string" ? body.newPassword : "";
+    if (!mx) {
+      res.status(400).json({ error: "invalid_phone", message: "Usa un celular mexicano a 10 dígitos." });
+      return;
+    }
+    if (next.length < 8) {
+      res.status(400).json({ error: "password_too_short", message: "Usa al menos 8 caracteres." });
+      return;
+    }
+    const verified = await verifyPhoneOtp(db, mx.e164, code);
+    if (!verified.ok) {
+      res.status(400).json({
+        error: verified.error,
+        message: verified.error === "invalid_code" ? "Código incorrecto." : "No se pudo verificar el código.",
+      });
+      return;
+    }
+    const userId = findUserIdByVerifiedPhone(db, mx.e164);
+    if (!userId) {
+      res.status(400).json({ error: "invalid_code", message: "Código incorrecto." });
+      return;
+    }
+    const user = db
+      .prepare("SELECT id, password_hash FROM users WHERE id = ?")
+      .get(userId) as { id: string; password_hash: string } | undefined;
+    if (!user) {
+      res.status(400).json({ error: "invalid_code" });
+      return;
+    }
+    if (isWaOnlyPasswordHash(user.password_hash)) {
+      res.status(400).json({ error: "wa_only_account" });
+      return;
+    }
+    if (isGoogleOAuthPasswordHash(user.password_hash)) {
+      res.status(400).json({ error: "google_only_account" });
+      return;
+    }
+    if (isFacebookOAuthPasswordHash(user.password_hash)) {
+      res.status(400).json({ error: "facebook_only_account" });
+      return;
+    }
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(next), user.id);
+    issueAuthCookie(res, user.id);
+    res.json({ ok: true });
   });
 
   /** Validate a reset token from the email link and start a session for the account. */

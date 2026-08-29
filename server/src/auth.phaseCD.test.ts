@@ -176,6 +176,58 @@ describe("Phase C/D — auth, handoff, groups, admin, compliance", () => {
     expect(me2.body.displayName).toBe("Ana Phone");
   });
 
+  it("phone register accepts an optional profile picture", async () => {
+    const agent = request.agent(app);
+    const otp = await agent.post("/api/auth/phone/otp/request").send({ phone: "5577001100" }).expect(200);
+    const pic = "/api/uploads/bbbbbbbb-cccc-dddd-eeee-ffffffffffff.jpg";
+    await agent
+      .post("/api/auth/phone/register")
+      .send({
+        phone: "5577001100",
+        code: otp.body.devCode,
+        password: "longenough1",
+        displayName: "Con Foto",
+        profilePictureUrl: pic,
+      })
+      .expect(201);
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.profilePictureUrl).toBe(pic);
+  });
+
+  it("resets a phone account password with SMS OTP", async () => {
+    const agent = request.agent(app);
+    const otp = await agent.post("/api/auth/phone/otp/request").send({ phone: "5566001100" }).expect(200);
+    await agent
+      .post("/api/auth/phone/register")
+      .send({
+        phone: "5566001100",
+        code: otp.body.devCode,
+        password: "longenough1",
+        displayName: "Reset Phone",
+      })
+      .expect(201);
+    await agent.post("/api/auth/logout").expect(200);
+
+    const unknown = await request(app)
+      .post("/api/auth/phone/password-reset/request")
+      .send({ phone: "5500000000" })
+      .expect(200);
+    expect(unknown.body.ok).toBe(true);
+    expect(unknown.body.devCode).toBeUndefined();
+
+    const resetReq = await request(app)
+      .post("/api/auth/phone/password-reset/request")
+      .send({ phone: "5566001100" })
+      .expect(200);
+    expect(resetReq.body.devCode).toMatch(/^\d{6}$/);
+    await request(app)
+      .post("/api/auth/phone/password-reset/complete")
+      .send({ phone: "5566001100", code: resetReq.body.devCode, newPassword: "resetlongenough1" })
+      .expect(200);
+    await request(app).post("/api/auth/login").send({ phone: "5566001100", password: "longenough1" }).expect(401);
+    await request(app).post("/api/auth/login").send({ phone: "5566001100", password: "resetlongenough1" }).expect(200);
+  });
+
   it("PATCH /api/auth/me requires current password to change email", async () => {
     const em1 = `edit-em1-${testId}@test.mx`;
     const em2 = `edit.em2-${testId}@gmail.com`;

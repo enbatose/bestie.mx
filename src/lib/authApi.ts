@@ -406,6 +406,59 @@ export async function authForgotPassword(
   return j.devResetUrl ? { devResetUrl: j.devResetUrl } : {};
 }
 
+export async function authPhonePasswordResetRequest(
+  phone: string,
+  signal?: AbortSignal,
+): Promise<{ devCode?: string }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/phone/password-reset/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify({ phone }),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+    devCode?: string;
+  };
+  if (!res.ok) {
+    if (j.error === "rate_limited") {
+      throw new Error("Espera un momento antes de volver a intentarlo.");
+    }
+    throw new Error(j.message || j.error || `phone_reset_request_${res.status}`);
+  }
+  return j.devCode ? { devCode: j.devCode } : {};
+}
+
+export async function authPhonePasswordResetComplete(
+  body: { phone: string; code: string; newPassword: string },
+  signal?: AbortSignal,
+): Promise<void> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/phone/password-reset/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  if (!res.ok) {
+    if (j.error === "password_too_short") {
+      throw new Error("La nueva contraseña debe tener al menos 8 caracteres.");
+    }
+    if (j.error === "google_only_account") {
+      throw new Error("Esta cuenta entra con Google. No tiene contraseña de Bestie que restablecer.");
+    }
+    if (j.error === "facebook_only_account") {
+      throw new Error("Esta cuenta entra con Facebook. No tiene contraseña de Bestie que restablecer.");
+    }
+    throw new Error(j.message || j.error || `phone_reset_complete_${res.status}`);
+  }
+}
+
 export async function authConsumePasswordReset(token: string, signal?: AbortSignal): Promise<void> {
   const base = apiBase();
   const res = await networkFetch(`${base}/api/auth/password-reset/consume`, {

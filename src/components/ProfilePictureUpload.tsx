@@ -9,9 +9,18 @@ type Props = {
   displayName: string;
   profilePictureUrl?: string | null;
   onUpdated: (profilePictureUrl: string | null) => void;
+  /** When false, only uploads; does not PATCH /me (phone register). */
+  saveToAccount?: boolean;
+  compact?: boolean;
 };
 
-export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated }: Props) {
+export function ProfilePictureUpload({
+  displayName,
+  profilePictureUrl,
+  onUpdated,
+  saveToAccount = true,
+  compact = false,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -27,10 +36,12 @@ export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated
       if (inputRef.current) inputRef.current.value = "";
       const prepared = await prepareListingImage(durable);
       const url = await uploadListingImage(prepared.outFile);
-      await authUpdateMe({ profilePictureUrl: url });
+      if (saveToAccount) {
+        await authUpdateMe({ profilePictureUrl: url });
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        setMsg("Foto de perfil actualizada.");
+      }
       onUpdated(url);
-      window.dispatchEvent(new Event("bestie:me-changed"));
-      setMsg("Foto de perfil actualizada.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
@@ -44,10 +55,12 @@ export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated
     setMsg(null);
     setBusy(true);
     try {
-      await authUpdateMe({ profilePictureUrl: null });
+      if (saveToAccount) {
+        await authUpdateMe({ profilePictureUrl: null });
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        setMsg("Foto de perfil eliminada.");
+      }
       onUpdated(null);
-      window.dispatchEvent(new Event("bestie:me-changed"));
-      setMsg("Foto de perfil eliminada.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "No se pudo quitar la foto.");
     } finally {
@@ -56,26 +69,32 @@ export function ProfilePictureUpload({ displayName, profilePictureUrl, onUpdated
   };
 
   return (
-    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-      <UserAvatar displayName={displayName} profilePictureUrl={profilePictureUrl} size="lg" />
+    <div
+      className={
+        compact
+          ? "flex min-w-0 items-center gap-3"
+          : "flex flex-col items-start gap-4 sm:flex-row sm:items-center"
+      }
+    >
+      <UserAvatar displayName={displayName} profilePictureUrl={profilePictureUrl} size={compact ? "md" : "lg"} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-body">Foto de perfil</p>
-        <p className="mt-1 text-xs text-muted">JPG, PNG o WebP. Máximo 5 MB.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <p className="text-sm font-medium text-body">Foto de perfil {compact ? "(opcional)" : ""}</p>
+        {compact ? null : <p className="mt-1 text-xs text-muted">JPG, PNG o WebP. Máximo 5 MB.</p>}
+        <div className={`flex flex-wrap gap-2 ${compact ? "mt-1" : "mt-3"}`}>
           <button
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-60"
+            className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
           >
-            {busy ? "Guardando…" : profilePictureUrl ? "Cambiar foto" : "Subir foto"}
+            {busy ? "Subiendo…" : profilePictureUrl ? "Cambiar foto" : "Subir foto"}
           </button>
           {profilePictureUrl ? (
             <button
               type="button"
               disabled={busy}
               onClick={() => void onRemove()}
-              className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-muted transition hover:bg-surface-elevated disabled:opacity-60"
+              className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-surface-elevated disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
             >
               Quitar
             </button>
