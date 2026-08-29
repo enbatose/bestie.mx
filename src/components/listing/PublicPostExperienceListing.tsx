@@ -7,6 +7,7 @@ import { reportListing, reportProperty } from "@/lib/reportsApi";
 import { propertyReferenceCode, roomReferenceCode } from "@/lib/listingReference";
 import { ListingKeyLabelsGrid } from "@/components/listing/postExperience/ListingKeyLabelsGrid";
 import { PropertyHeader, SingleRoomHeader } from "@/components/listing/postExperience/ListingPostHeaders";
+import { LISTING_HERO_SHELL_CLASS, ListingHeroPhone } from "@/components/listing/PublicListingHeader";
 import { PostExperienceContactSection } from "@/components/listing/postExperience/PostExperienceContactSection";
 import { PropertyRoomDetailModal } from "@/components/listing/postExperience/PropertyRoomDetailModal";
 import { PropertyRoomsOfferSection } from "@/components/listing/postExperience/PropertyRoomsOfferSection";
@@ -327,20 +328,31 @@ export function PublicPostExperienceListing({
     };
 
     return (
-      <section id="property-post-top" className="scroll-mt-24 space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <ListingTopActions
-          searchRestorePath={searchRestorePath}
-          myListingsRestorePath={myListingsRestorePath}
-          ownerActions={ownerActions}
-        />
-        {statusBadge}
+      <div id="property-post-top" className="scroll-mt-24 space-y-6">
+        <header className={LISTING_HERO_SHELL_CLASS}>
+          <ListingTopActions
+            searchRestorePath={searchRestorePath}
+            myListingsRestorePath={myListingsRestorePath}
+            ownerActions={ownerActions}
+          />
+          {statusBadge ? <div className="mt-3">{statusBadge}</div> : null}
 
-        <PropertyHeader property={property} availableRooms={availableRooms} shareActions={shareActions} />
-        {reportRow}
+          <div className="mt-3">
+            <PropertyHeader
+              property={property}
+              availableRooms={availableRooms}
+              shareActions={shareActions}
+              tags={propertyTags}
+              phone={<ListingHeroPhone listing={listing} viewer={contact.viewer} />}
+            />
+          </div>
+          {reportRow}
+        </header>
 
-        <ListingSection title="Fotos">{photosBlock}</ListingSection>
+        <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <ListingSection title="Fotos">{photosBlock}</ListingSection>
 
-        <ListingKeyLabelsGrid items={buildPropertyKeyLabels(propertyTags, availableRooms)} />
+          <ListingKeyLabelsGrid items={buildPropertyKeyLabels(propertyTags, availableRooms)} />
 
         <ListingSection title="Descripción" titleMuted>
           <p className="text-sm font-semibold leading-relaxed text-body">
@@ -366,9 +378,8 @@ export function PublicPostExperienceListing({
           viewer={contact.viewer}
           listingId={listing.id}
           propertyId={share.propertyId}
-          hasContactPhone={listing.hasContactPhone}
-          phoneRevealRole={listing.viewerIsOwner ? "publisher" : "seeker"}
-          hideWhenUnavailable={Boolean(listing.claimPreview)}
+          hasContactPhone={false}
+          hideWhenUnavailable={Boolean(listing.claimPreview || listing.contactDisabled)}
           msgBusy={contact.msgBusy}
           msgErr={contact.msgErr}
           message={propertyMessage}
@@ -388,6 +399,7 @@ export function PublicPostExperienceListing({
           searchRestorePath={searchRestorePath}
           myListingsRestorePath={myListingsRestorePath}
         />
+        </section>
 
         {expandedRoom ? (
           <PropertyRoomDetailModal
@@ -418,68 +430,72 @@ export function PublicPostExperienceListing({
           />
         ) : null}
         {reportModal}
-      </section>
+      </div>
     );
-  }
 
   const singleSecondaryTags = listing.tags.filter((tag) => !KEY_LABEL_ROOM_TAG_SLUGS.has(tag));
 
   return (
-    <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-      <ListingTopActions
-        searchRestorePath={searchRestorePath}
-        myListingsRestorePath={myListingsRestorePath}
-        ownerActions={ownerActions}
-      />
-      {statusBadge}
+    <div className="space-y-6">
+      <header className={LISTING_HERO_SHELL_CLASS}>
+        <ListingTopActions
+          searchRestorePath={searchRestorePath}
+          myListingsRestorePath={myListingsRestorePath}
+          ownerActions={ownerActions}
+        />
+        {statusBadge ? <div className="mt-3">{statusBadge}</div> : null}
+        <div className="mt-3">
+          <SingleRoomHeader
+            listing={listing}
+            menCount={menCount}
+            womenCount={womenCount}
+            shareActions={shareActions}
+            phone={<ListingHeroPhone listing={listing} viewer={contact.viewer} />}
+          />
+        </div>
+        {reportRow}
+      </header>
 
-      <SingleRoomHeader
-        listing={listing}
-        menCount={menCount}
-        womenCount={womenCount}
-        shareActions={shareActions}
-      />
-      {reportRow}
+      <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <ListingSection title="Fotos">{photosBlock}</ListingSection>
 
-      <ListingSection title="Fotos">{photosBlock}</ListingSection>
+        <ListingKeyLabelsGrid items={buildSingleRoomKeyLabels(listing)} />
 
-      <ListingKeyLabelsGrid items={buildSingleRoomKeyLabels(listing)} />
+        <ListingSection title="Descripción" titleMuted>
+          <p className="text-sm font-semibold leading-relaxed text-body">
+            {listing.summary.trim() || <span className="italic text-muted">Sin descripción de la recámara.</span>}
+          </p>
+        </ListingSection>
 
-      <ListingSection title="Descripción" titleMuted>
-        <p className="text-sm font-semibold leading-relaxed text-body">
-          {listing.summary.trim() || <span className="italic text-muted">Sin descripción de la recámara.</span>}
-        </p>
-      </ListingSection>
+        <RoomSecondaryTagSections tags={singleSecondaryTags} />
 
-      <RoomSecondaryTagSections tags={singleSecondaryTags} />
+        <ListingSection title="Mapa y Street View">
+          <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
+        </ListingSection>
 
-      <ListingSection title="Mapa y Street View">
-        <PublicListingLocationMap listing={listing} isApproximateLocation={isApproximateLocation} />
-      </ListingSection>
+        <PostExperienceContactSection
+          mode="single"
+          canContact={contact.canContact}
+          messagingOn={contact.messagingOn}
+          viewer={contact.viewer}
+          listingId={listing.id}
+          propertyId={listing.propertyId}
+          hasContactPhone={false}
+          hideWhenUnavailable={Boolean(listing.claimPreview || listing.contactDisabled)}
+          msgBusy={contact.msgBusy}
+          msgErr={contact.msgErr}
+          message={singleMessage}
+          onMessageChange={setSingleMessage}
+          onSend={() => contact.onSendSingle(singleMessage)}
+        />
 
-      <PostExperienceContactSection
-        mode="single"
-        canContact={contact.canContact}
-        messagingOn={contact.messagingOn}
-        viewer={contact.viewer}
-        listingId={listing.id}
-        propertyId={listing.propertyId}
-        hasContactPhone={listing.hasContactPhone}
-        phoneRevealRole={listing.viewerIsOwner ? "publisher" : "seeker"}
-        hideWhenUnavailable={Boolean(listing.claimPreview)}
-        msgBusy={contact.msgBusy}
-        msgErr={contact.msgErr}
-        message={singleMessage}
-        onMessageChange={setSingleMessage}
-        onSend={() => contact.onSendSingle(singleMessage)}
-      />
-
-      <ListingBottomReturn
-        searchRestorePath={searchRestorePath}
-        myListingsRestorePath={myListingsRestorePath}
-      />
+        <ListingBottomReturn
+          searchRestorePath={searchRestorePath}
+          myListingsRestorePath={myListingsRestorePath}
+        />
+      </section>
       {reportModal}
-    </section>
+    </div>
   );
 }
 

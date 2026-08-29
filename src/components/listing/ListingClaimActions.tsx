@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { ListingPhoneReveal } from "@/components/listing/ListingPhoneReveal";
 import {
   confirmAssistedDraftClaim,
   publishAssistedDraftClaim,
@@ -28,7 +27,6 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
   const returnTo = `${listingPublicPath(listing.id)}?claim=${encodeURIComponent(claimToken)}`;
   const isAdmin = Boolean(viewer?.isAdmin);
   const needsAuth = viewer === null;
-  const showPhoneReveal = Boolean(listing.hasDraftPhone);
 
   const afterConfirm = async (action: "edit" | "publish") => {
     if (action === "edit") {
@@ -82,18 +80,6 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
             ? " Editar no lo reclama. Publicar lo deja a tu nombre."
             : " Editar o publicar lo deja a tu nombre."}
       </p>
-      {showPhoneReveal ? (
-        <ListingPhoneReveal
-          listingId={listing.id}
-          propertyId={listing.propertyId}
-          hasContactPhone
-          viewer={viewer}
-          claimToken={claimToken}
-          role="publisher"
-          compact
-          className="mt-3"
-        />
-      ) : null}
       {err ? (
         <p role="alert" className="mt-2 break-words text-sm text-error">
           {err}{" "}

@@ -366,6 +366,9 @@ export function listingsRouter(db: DatabaseSync) {
         ...(isOwner ? { viewerIsOwner: true as const } : {}),
         ...(flags.claimPreview ? { claimPreview: true as const } : {}),
         hasDraftPhone: flags.hasDraftPhone,
+        ...(flags.claimPreview && flags.hasDraftPhone
+          ? { claimPhoneDisplay: String(row.contact_whatsapp ?? "").replace(/\D/g, "") }
+          : {}),
         ...(flags.contactDisabled ? { contactDisabled: true as const } : {}),
       };
       res.json(payload);

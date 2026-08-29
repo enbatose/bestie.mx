@@ -591,8 +591,11 @@ export function ListingPage() {
       </Link>
     ) : null;
 
-  const statusBadge =
-    listingStatus !== "published" ? (
+  const statusBadge = listing.claimPreview ? (
+    <span className="inline-flex rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-warning-fg">
+      Vista previa · Borrador
+    </span>
+  ) : listingStatus !== "published" ? (
       <span
         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
           listingStatus === "paused"

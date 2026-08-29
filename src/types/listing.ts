@@ -224,8 +224,10 @@ export type PropertyListing = {
   viewerIsOwner?: boolean;
   /** True when the listing is shown via an outreach claim link (unpublished preview). */
   claimPreview?: boolean;
-  /** True when the draft/listing stores a real contact phone (digits not in the listing JSON). */
+  /** True when the draft stores a real contact phone. Claim previews may include `claimPhoneDisplay`. */
   hasDraftPhone?: boolean;
+  /** Token-gated unpublished preview only — not on public published listing JSON. */
+  claimPhoneDisplay?: string;
   /** In-app Contactar is off until an outreach post is assigned; phone reveal still works. */
   contactDisabled?: boolean;
   roomCustomName?: string;

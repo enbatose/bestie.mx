@@ -69,7 +69,7 @@ describe("outreach listing claim preview", () => {
     }
   });
 
-  it("GET /api/listings/:id serves a draft when claim token matches and does not leak the phone", async () => {
+  it("GET /api/listings/:id serves a draft when claim token matches and shows the phone (unpublished)", async () => {
     await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
 
     const ok = await request(app)
@@ -78,11 +78,11 @@ describe("outreach listing claim preview", () => {
     expect(ok.body.claimPreview).toBe(true);
     expect(ok.body.hasDraftPhone).toBe(true);
     expect(ok.body.contactWhatsApp).toBe("");
-    expect(ok.body.claimPhoneDisplay).toBeUndefined();
+    expect(ok.body.claimPhoneDisplay).toBe("523331112233");
     expect(ok.body.status).toBe("draft");
   });
 
-  it("does not put phone digits in the listing JSON for signed-in viewers", async () => {
+  it("does not put the phone on contactWhatsApp even for signed-in viewers", async () => {
     const agent = request.agent(app);
     await agent
       .post("/api/auth/register")
@@ -92,7 +92,7 @@ describe("outreach listing claim preview", () => {
       .get(`/api/listings/${encodeURIComponent(roomId)}?claim=${token}`)
       .expect(200);
     expect(signedIn.body.contactWhatsApp).toBe("");
-    expect(signedIn.body.claimPhoneDisplay).toBeUndefined();
+    expect(signedIn.body.claimPhoneDisplay).toBe("523331112233");
     expect(signedIn.body.hasDraftPhone).toBe(true);
   });
 
