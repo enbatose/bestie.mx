@@ -87,19 +87,40 @@ export async function createDraftProperty(request: APIRequestContext): Promise<{
   return { propertyId };
 }
 
-/** Skip the post-login phone prompt so it cannot intercept clicks in CI. */
+/** Skip the legacy server-side phone prompt flag (session dismiss handles the modal UI). */
 export async function dismissPhonePromptViaApi(request: APIRequestContext): Promise<void> {
   const res = await request.patch("/api/auth/me", { data: { dismissPhonePrompt: true } });
   expect(res.ok(), await res.text()).toBeTruthy();
 }
 
-/** UI fallback when a logged-in page may still show the phone prompt. */
+/** Unique 10-digit MX mobile for isolated E2E OTP flows. */
+export function uniqueMxPhone(area = "33"): string {
+  const tail = `${Date.now()}${Math.floor(Math.random() * 1000)}`.replace(/\D/g, "").slice(-8);
+  return `${area}${tail}`.slice(0, 10);
+}
+
+/** Verify a profile phone via dev OTP so publisher nag modals stay closed in CI. */
+export async function verifyPhoneViaDevOtp(request: APIRequestContext, phone: string): Promise<void> {
+  const otpReq = await request.post("/api/auth/phone/otp/request", { data: { phone } });
+  expect(otpReq.ok(), await otpReq.text()).toBeTruthy();
+  const { devCode } = (await otpReq.json()) as { devCode?: string };
+  expect(devCode, "E2E phone OTP requires devCode from server").toBeTruthy();
+  const verify = await request.post("/api/auth/phone/verify", { data: { phone, code: devCode } });
+  expect(verify.ok(), await verify.text()).toBeTruthy();
+}
+
+/** UI fallback when a logged-in page may still show the profile completion modal. */
 export async function dismissCompleteProfileModalIfOpen(page: Page): Promise<void> {
-  const dialog = page.getByRole("dialog", { name: "Agrega tu teléfono" });
+  const dialog = page.locator('[role="dialog"][aria-labelledby="complete-profile-title"]');
   if (await dialog.isVisible().catch(() => false)) {
     await dialog.getByRole("button", { name: "Ahora no" }).click();
     await expect(dialog).toBeHidden({ timeout: 15_000 });
   }
+}
+
+/** Message thread send button (avoid matching profile modal "Enviar código"). */
+export async function clickMessagesSendButton(page: Page): Promise<void> {
+  await page.locator("form:has(#msg-body)").getByRole("button", { name: "Enviar", exact: true }).click();
 }
 
 export async function registerViaUi(page: Page, email: string, password: string, name: string) {

@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 import {
   acceptSafetyModal,
+  clickMessagesSendButton,
   createPublishedListing,
   dismissCompleteProfileModalIfOpen,
   inboxRow,
@@ -8,8 +9,10 @@ import {
   newE2eContext,
   registerViaApi,
   uniqueEmail,
+  uniqueMxPhone,
   unreadCount,
   verifyEmailViaDevCode,
+  verifyPhoneViaDevOtp,
 } from "./helpers";
 
 test.describe.configure({ timeout: 90_000 });
@@ -26,6 +29,7 @@ async function preparePublisher(
   await verifyEmailViaDevCode(request, registered.devCode);
   const linked = await request.post("/api/auth/link-publisher");
   expect(linked.ok(), await linked.text()).toBeTruthy();
+  await verifyPhoneViaDevOtp(request, uniqueMxPhone());
   const listing = await createPublishedListing(request);
   return { page, request, email, listing };
 }
@@ -91,6 +95,7 @@ test.describe("Messaging (isolated)", () => {
       expect(pubInbox?.unreadCount).toBeGreaterThanOrEqual(1);
 
       await publisher.page.goto(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+      await dismissCompleteProfileModalIfOpen(publisher.page);
       await acceptSafetyModal(publisher.page, {
         expectTip: "No compartas CLABE",
       });
@@ -101,7 +106,7 @@ test.describe("Messaging (isolated)", () => {
 
       const reply = `recibido-${token}`;
       await publisher.page.locator("#msg-body").fill(reply);
-      await publisher.page.getByRole("button", { name: "Enviar" }).click();
+      await clickMessagesSendButton(publisher.page);
       await expect(publisher.page.getByRole("article").getByText(reply)).toBeVisible({ timeout: 15_000 });
 
       expect(await unreadCount(seeker.request)).toBeGreaterThanOrEqual(1);

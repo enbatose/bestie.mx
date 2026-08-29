@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { acceptSafetyModal, loginViaApi, newE2eContext, roomPublicSlug } from "./helpers";
+import { acceptSafetyModal, clickMessagesSendButton, dismissCompleteProfileModalIfOpen, loginViaApi, newE2eContext, roomPublicSlug } from "./helpers";
 
 /**
  * Authenticated messaging against a deployed origin.
@@ -56,6 +56,7 @@ test.describe("Live messaging (fixture accounts)", () => {
 
       const pubPage = await pubCtx.newPage();
       await pubPage.goto(`/mensajes?c=${encodeURIComponent(conversationId)}`);
+      await dismissCompleteProfileModalIfOpen(pubPage);
       const dialog = pubPage.getByRole("dialog", { name: "Protégete al chatear" });
       if (await dialog.isVisible().catch(() => false)) {
         await acceptSafetyModal(pubPage);
@@ -64,7 +65,7 @@ test.describe("Live messaging (fixture accounts)", () => {
 
       const reply = `ok-${token}`;
       await pubPage.locator("#msg-body").fill(reply);
-      await pubPage.getByRole("button", { name: "Enviar" }).click();
+      await clickMessagesSendButton(pubPage);
       await expect(pubPage.getByRole("article").getByText(reply)).toBeVisible({ timeout: 15_000 });
 
       await seekPage.reload();
