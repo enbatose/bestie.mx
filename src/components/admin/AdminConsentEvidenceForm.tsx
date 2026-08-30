@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ImagePlus, Trash2 } from "lucide-react";
 
 type Props = {
   busy: boolean;
@@ -7,9 +8,34 @@ type Props = {
   submitLabel?: string;
 };
 
+const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+
+/** How many evidence forms are on screen — a single form can take Ctrl+V without a click. */
+let mountedConsentForms = 0;
+
+function imageFileFromClipboard(data: DataTransfer | null): File | null {
+  if (!data) return null;
+  const fromItems = Array.from(data.items ?? [])
+    .filter((item) => iTypeIsImage(item.type))
+    .map((item) => item.getAsFile())
+    .find((file): file is File => file != null);
+  if (fromItems) return fromItems;
+  return Array.from(data.files ?? []).find((file) => iTypeIsImage(file.type)) ?? null;
+}
+
+function iTypeIsImage(type: string): boolean {
+  return type.startsWith("image/");
+}
+
+function firstImageFile(files: FileList | File[] | null | undefined): File | null {
+  if (!files) return null;
+  return Array.from(files).find((file) => iTypeIsImage(file.type)) ?? null;
+}
+
 /**
  * Consent screenshot + optional note for publishing unclaimed admin-outreach drafts.
  * Evidence is stored privately — never as listing photos.
+ * Accepts file picker, drag-and-drop, or clipboard paste (Ctrl+V).
  */
 export function AdminConsentEvidenceForm({
   busy,
@@ -17,20 +43,139 @@ export function AdminConsentEvidenceForm({
   submitLabel = "Publicar sin dueño",
 }: Props) {
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [pointerOver, setPointerOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const zoneRef = useRef<HTMLDivElement>(null);
+
+  const applyFile = useCallback((next: File | null) => {
+    setFile(next);
+  }, []);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    mountedConsentForms += 1;
+    return () => {
+      mountedConsentForms -= 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (busy) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      const zone = zoneRef.current;
+      const inZone = Boolean(zone && target && zone.contains(target));
+      const zoneFocused = Boolean(
+        zone && (document.activeElement === zone || zone.contains(document.activeElement)),
+      );
+      const soleForm = mountedConsentForms <= 1;
+      if (!inZone && !zoneFocused && !pointerOver && !soleForm) return;
+      const next = imageFileFromClipboard(event.clipboardData);
+      if (!next) return;
+      event.preventDefault();
+      applyFile(next);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [applyFile, busy, pointerOver]);
+
   return (
-    <div className="min-w-0 space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+    <div className="min-w-0 space-y-2 overflow-x-clip rounded-xl border border-primary/20 bg-primary/5 p-3">
       <p className="text-xs leading-snug text-body">
         Publicar sin dueño: adjunta una captura de consentimiento (no las fotos del anuncio). La
         evidencia no se muestra al público.
       </p>
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        disabled={busy}
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="block w-full min-w-0 text-xs text-body file:mr-2 file:rounded-full file:border-0 file:bg-primary/15 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-primary"
-      />
+      <div
+        ref={zoneRef}
+        tabIndex={0}
+        role="region"
+        aria-label="Captura de consentimiento"
+        onMouseEnter={() => setPointerOver(true)}
+        onMouseLeave={() => setPointerOver(false)}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragging(false);
+          const next = firstImageFile(event.dataTransfer.files);
+          if (next) applyFile(next);
+        }}
+        className={`min-w-0 rounded-xl border-2 border-dashed p-3 outline-none transition ${
+          dragging ? "border-secondary bg-secondary/5" : "border-border bg-bg-light"
+        }`}
+      >
+        {file && previewUrl ? (
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="relative min-w-0 overflow-x-clip rounded-lg border border-border bg-surface">
+              <img
+                src={previewUrl}
+                alt="Vista previa de la captura de consentimiento"
+                className="mx-auto max-h-40 w-full max-w-full object-contain"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                aria-label="Quitar captura"
+                onClick={() => applyFile(null)}
+                className="absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full bg-black/70 text-white disabled:opacity-50"
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+              </button>
+            </div>
+            <p className="min-w-0 break-all text-center text-[11px] text-muted">{file.name}</p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border bg-surface px-3 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
+            >
+              Cambiar archivo
+            </button>
+          </div>
+        ) : (
+          <div className="flex w-full min-w-0 flex-col items-center gap-2 px-2 py-4 text-muted">
+            <ImagePlus className="size-6 opacity-50" aria-hidden />
+            <p className="text-center text-xs leading-snug">
+              Pega una captura (Ctrl+V) o suéltala aquí
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex min-h-11 w-full max-w-xs items-center justify-center rounded-full border border-border bg-surface px-3 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
+            >
+              Seleccionar archivo
+            </button>
+          </div>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPT}
+          disabled={busy}
+          className="sr-only"
+          onChange={(event) => {
+            applyFile(firstImageFile(event.target.files));
+            event.target.value = "";
+          }}
+        />
+      </div>
       <input
         type="text"
         value={note}
