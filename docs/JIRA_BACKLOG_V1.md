@@ -1,5 +1,7 @@
 # Jira backlog — Bestie v1 (from PRODUCT_V1 + repo gap analysis)
 
+Historical import notes. Work is **not** tracked in Jira anymore; do not create or update tickets from this file.
+
 Use this in **Jira Cloud** or **Jira Data Center** to create a **Project** (Jira does not use “Space”; that is **Confluence**). Suggested project: **Bestie** · type **Scrum** or **Kanban** · key e.g. **BEST**.
 
 **How to create the container**

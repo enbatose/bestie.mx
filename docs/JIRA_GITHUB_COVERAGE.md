@@ -1,12 +1,8 @@
-# BES (Jira) ↔ GitHub `main` coverage
+# BES (Jira) ↔ GitHub `main` coverage (historical)
 
 **Canonical repo:** [github.com/enbatose/bestie.mx](https://github.com/enbatose/bestie.mx) · branch **`main`**.
 
-This file is the source of truth for which **BES** issues reflect **merged application code** in this repository. Operational-only tasks (inbox monitoring, etc.) are noted separately.
-
-## Rule
-
-Per [`.cursor/rules/bestie-jira.mdc`](https://github.com/enbatose/bestie.mx/blob/main/.cursor/rules/bestie-jira.mdc), an issue should be **Done** in Jira only after scope is implemented here, committed, and merged to `main`.
+Work is **not** tracked in Jira anymore. This file is a snapshot of how BES issues once mapped to merged code. Do not create, comment on, or transition Jira tickets as part of implementation or production promotes.
 
 ## Shipped on `main` (evidence in repo)
 
@@ -38,7 +34,3 @@ Representative **merge themes** on `main`: Phase A API hardening + map; Phase B 
 | Key | Notes |
 |-----|--------|
 | **BES-29** | Anonymous publisher cookie exists (`session.js`); full “spike” doc vs WhatsApp OTP slice may still belong in backlog until explicitly closed with artifacts. |
-
-## Maintenance
-
-When you merge work for a BES issue: (1) add or update rows above, (2) put **`BES-nnn`** in the merge commit subject or body, (3) transition the Jira issue to **Done** after push to `main`.
