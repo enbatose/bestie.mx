@@ -35,7 +35,7 @@ import { adminPublishUnclaimed, authLinkPublisher, authMe, consumeHandoffToken }
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { normalizeMxNationalDigits } from "@/lib/mxPhone";
 import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
-import { applyDraftHidePricing, draftHidePricingContactOk } from "@/lib/listingPricing";
+import { applyDraftHidePricing, draftHidePricingContactOk, hidePricingContactRequired } from "@/lib/listingPricing";
 import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
@@ -2424,11 +2424,7 @@ export function PublishWizardPage() {
                 onContactChange={(national) =>
                   setDraft((d) => ({ ...d, contactWhatsApp: national }))
                 }
-                onShowChange={(show) => {
-                  if (!show && draft.hidePricing && unclaimedAdminOutreach) return;
-                  setDraft((d) => ({ ...d, showWhatsApp: show }));
-                }}
-                lockShowWhatsApp={draft.hidePricing && unclaimedAdminOutreach}
+                onShowChange={(show) => setDraft((d) => ({ ...d, showWhatsApp: show }))}
                 profilePhoneE164={me?.phoneE164}
                 saveToProfile={savePhoneToProfile}
                 onSaveToProfileChange={setSavePhoneToProfile}
@@ -2632,9 +2628,12 @@ export function PublishWizardPage() {
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
               onHidePricingChange={(hide) =>
-                setDraft((d) => applyDraftHidePricing(d, hide, !unclaimedAdminOutreach))
+                setDraft((d) =>
+                  applyDraftHidePricing(d, hide, { hasChat: !unclaimedAdminOutreach, requireContact: false }),
+                )
               }
               hasChat={!unclaimedAdminOutreach}
+              requireContact={false}
               apiOn={apiOn}
             />
           ) : (
@@ -2733,9 +2732,17 @@ export function PublishWizardPage() {
                     <div className="sm:col-span-2">
                       <HidePricingToggle
                         hidePricing={Boolean(draft.hidePricing)}
-                        contactOk={draftHidePricingContactOk(draft, !unclaimedAdminOutreach)}
+                        contactOk={draftHidePricingContactOk(draft, {
+                          hasChat: !unclaimedAdminOutreach,
+                          requireContact: false,
+                        })}
                         onChange={(hide) =>
-                          setDraft((d) => applyDraftHidePricing(d, hide, !unclaimedAdminOutreach))
+                          setDraft((d) =>
+                            applyDraftHidePricing(d, hide, {
+                              hasChat: !unclaimedAdminOutreach,
+                              requireContact: false,
+                            }),
+                          )
                         }
                       />
                     </div>
@@ -3124,9 +3131,10 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
+  const hidePricingHasChat = !(Boolean(me?.isAdmin) && unclaimedAdminOutreach);
   const publishBlockedReason = useMemo(
-    () => getPublishBlockedReason(draft, { hasChat: !unclaimedAdminOutreach }),
-    [draft, unclaimedAdminOutreach],
+    () => getPublishBlockedReason(draft, { hasChat: hidePricingHasChat }),
+    [draft, hidePricingHasChat],
   );
 
   const currentAiComposeSnapshot = useMemo(
@@ -3251,7 +3259,7 @@ export function PublishWizardPage() {
 
   async function submitAdminOutreachWithEvidence(file: File, note?: string) {
     setPublishErr(null);
-    const blocked = getPublishBlockedReason(draftRef.current, { hasChat: !unclaimedAdminOutreach });
+    const blocked = getPublishBlockedReason(draftRef.current, { hasChat: false });
     if (blocked) {
       setPublishErr(blocked);
       return;
@@ -3337,7 +3345,7 @@ export function PublishWizardPage() {
         setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
         return;
       }
-      const blocked = getPublishBlockedReason(draftRef.current, { hasChat: !unclaimedAdminOutreach });
+      const blocked = getPublishBlockedReason(draftRef.current, { hasChat: hidePricingHasChat });
       if (blocked) {
         setPublishErr(blocked);
         return;
@@ -3428,7 +3436,7 @@ export function PublishWizardPage() {
     const skipRoomValidation = Boolean(editingLiveProperty) && liveEditScope === "room";
     const blocked = getPublishBlockedReason(draftRef.current, {
       skipRoomValidation,
-      hasChat: !unclaimedAdminOutreach,
+      hasChat: hidePricingHasChat,
     });
     if (blocked) {
       setPublishErr(blocked);
@@ -3805,6 +3813,7 @@ export function PublishWizardPage() {
                 : null
             }
             hasChat={!unclaimedAdminOutreach}
+            requireContact={hidePricingContactRequired(editingLiveProperty?.status)}
             liveEdit={{
               status: editingLiveProperty?.status ?? "draft",
               returnListingId,
@@ -3997,6 +4006,7 @@ export function PublishWizardPage() {
                   : null
               }
               hasChat={!unclaimedAdminOutreach}
+              requireContact={false}
               fieldConflicts={aiConflicts}
               onDraftChange={(updater) => {
               setDraft((d) => {

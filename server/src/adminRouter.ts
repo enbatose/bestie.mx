@@ -25,7 +25,13 @@ import { getAdminNavCounts } from "./adminNavCounts.js";
 import { listAdminUsers } from "./adminUsers.js";
 import { startAdminSupportConversation } from "./adminSupportStart.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
-import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
+import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
+import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
+import {
+  HIDE_PRICING_CONTACT_MESSAGE,
+  hidePricingContactRequired,
+  resolveShowWhatsappForHidePricing,
+} from "./listingPricing.js";
 import { ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE } from "./assistedDraftClaimAccess.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
@@ -183,8 +189,10 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
         return;
       }
       const cur = db
-        .prepare(`SELECT status FROM properties WHERE id = ?`)
-        .get(propertyId) as { status: string } | undefined;
+        .prepare(`SELECT status, hide_pricing, show_whatsapp, contact_whatsapp FROM properties WHERE id = ?`)
+        .get(propertyId) as
+        | { status: string; hide_pricing: number | null; show_whatsapp: number | null; contact_whatsapp: string | null }
+        | undefined;
       if (!cur) {
         res.status(404).json({ error: "not_found" });
         return;
@@ -199,6 +207,26 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
           message: "Este anuncio ya tiene dueño o no es un borrador de crecimiento.",
         });
         return;
+      }
+      if (hidePricingContactRequired("published") && Number(cur.hide_pricing) === 1) {
+        const showNow = cur.show_whatsapp === 0 ? 0 : 1;
+        const hidePricingShow = resolveShowWhatsappForHidePricing({
+          hidePricing: true,
+          showWhatsapp: showNow,
+          hasPublicPhone: propertyHasPublicPhone(showNow, cur.contact_whatsapp),
+          hasChat: false,
+          hasStoredPhone: isRealListingPhone(cur.contact_whatsapp),
+        });
+        if (!hidePricingShow.ok) {
+          res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
+          return;
+        }
+        if (hidePricingShow.showWhatsapp !== showNow) {
+          db.prepare(`UPDATE properties SET show_whatsapp = ? WHERE id = ?`).run(
+            hidePricingShow.showWhatsapp,
+            propertyId,
+          );
+        }
       }
       const f = req.file;
       if (!f?.buffer?.length) {

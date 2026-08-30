@@ -33,26 +33,39 @@ export function draftHasPublicListingPhone(draft: {
   return Boolean(draft.showWhatsApp) && draftHasRealListingPhone(draft.contactWhatsApp);
 }
 
-/** Toggle is allowed if chat exists, a public phone exists, or a stored phone can be shown. */
+/** Seekers only need a contact path on a live listing — drafts may hide prices freely. */
+export function hidePricingContactRequired(status: string | null | undefined): boolean {
+  return status === "published";
+}
+
+export type HidePricingContactOpts = {
+  hasChat: boolean;
+  /** When false (drafts), hide-pricing does not need phone or Bestie chat. */
+  requireContact?: boolean;
+};
+
+/** Toggle is allowed if the listing is a draft, or chat/phone can cover consultar $. */
 export function draftHidePricingContactOk(
   draft: { showWhatsApp?: boolean; contactWhatsApp?: string | null },
-  hasChat: boolean,
+  opts: HidePricingContactOpts,
 ): boolean {
+  if (opts.requireContact === false) return true;
   return (
-    hidePricingContactAllowed(draftHasPublicListingPhone(draft), hasChat) ||
+    hidePricingContactAllowed(draftHasPublicListingPhone(draft), opts.hasChat) ||
     draftHasRealListingPhone(draft.contactWhatsApp)
   );
 }
 
 /**
- * Turn hide-pricing on/off. Unclaimed outreach has no Bestie chat, so a stored-but-hidden
- * phone is revealed on the listing so seekers can consultar $.
+ * Turn hide-pricing on/off. On a published listing with no Bestie chat, a stored-but-hidden
+ * phone is revealed so seekers can consultar $. Drafts only flip the flag.
  */
 export function applyDraftHidePricing<
   T extends { hidePricing?: boolean; showWhatsApp?: boolean; contactWhatsApp?: string },
->(draft: T, hide: boolean, hasChat: boolean): T {
+>(draft: T, hide: boolean, opts: HidePricingContactOpts): T {
   if (!hide) return { ...draft, hidePricing: false };
-  if (hidePricingContactAllowed(draftHasPublicListingPhone(draft), hasChat)) {
+  if (opts.requireContact === false) return { ...draft, hidePricing: true };
+  if (hidePricingContactAllowed(draftHasPublicListingPhone(draft), opts.hasChat)) {
     return { ...draft, hidePricing: true };
   }
   if (draftHasRealListingPhone(draft.contactWhatsApp)) {

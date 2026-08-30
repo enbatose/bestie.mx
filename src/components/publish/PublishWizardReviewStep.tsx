@@ -68,6 +68,8 @@ type Props = {
   } | null;
   /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
   hasChat?: boolean;
+  /** When false, hide-pricing is allowed with no phone and no chat (drafts). */
+  requireContact?: boolean;
   savePhoneToProfile?: boolean;
   onSavePhoneToProfileChange?: (next: boolean) => void;
   fieldConflicts?: Array<{ field: string; message: string }>;
@@ -97,6 +99,7 @@ export function PublishWizardReviewStep({
   isSelfServeAssistedDraft = false,
   adminOutreachEvidence = null,
   hasChat = true,
+  requireContact = false,
   savePhoneToProfile = false,
   onSavePhoneToProfileChange,
   fieldConflicts = [],
@@ -422,6 +425,7 @@ export function PublishWizardReviewStep({
         savePhoneToProfile={savePhoneToProfile}
         onSavePhoneToProfileChange={onSavePhoneToProfileChange}
         hasChat={hasChat}
+        requireContact={requireContact}
       />
 
       {isRoomOfProperty ? null : (

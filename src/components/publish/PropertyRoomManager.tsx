@@ -59,6 +59,8 @@ type Props = {
   onHidePricingChange: (hide: boolean) => void;
   /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
   hasChat?: boolean;
+  /** When false, hide-pricing is allowed with no phone and no chat (drafts). */
+  requireContact?: boolean;
   apiOn?: boolean;
 };
 
@@ -598,6 +600,7 @@ export function PropertyRoomManager({
   apiOn = false,
   onHidePricingChange,
   hasChat = true,
+  requireContact = false,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
   const rentCount = propertyRentRoomCount(draft);
@@ -664,7 +667,7 @@ export function PropertyRoomManager({
         <div className="mt-4">
           <HidePricingToggle
             hidePricing={Boolean(draft.hidePricing)}
-            contactOk={draftHidePricingContactOk(draft, hasChat)}
+            contactOk={draftHidePricingContactOk(draft, { hasChat, requireContact })}
             onChange={onHidePricingChange}
           />
         </div>

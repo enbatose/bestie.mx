@@ -3,6 +3,7 @@ import {
   applyDraftHidePricing,
   draftHasRealListingPhone,
   draftHidePricingContactOk,
+  hidePricingContactRequired,
   interleaveHiddenPricingListings,
   interleaveHiddenPricingListingsStable,
   isPricingHidden,
@@ -39,6 +40,14 @@ describe("interleaveHiddenPricingListings", () => {
   });
 });
 
+describe("hidePricingContactRequired", () => {
+  it("is only required on published listings", () => {
+    expect(hidePricingContactRequired("draft")).toBe(false);
+    expect(hidePricingContactRequired("paused")).toBe(false);
+    expect(hidePricingContactRequired("published")).toBe(true);
+  });
+});
+
 describe("isPricingHidden", () => {
   it("is true only when the flag is set", () => {
     expect(isPricingHidden(undefined)).toBe(false);
@@ -53,25 +62,41 @@ describe("applyDraftHidePricing", () => {
     expect(draftHasRealListingPhone("3329306218")).toBe(true);
   });
 
-  it("allows hide-pricing via Bestie chat without a phone", () => {
-    const next = applyDraftHidePricing({ hidePricing: false, showWhatsApp: false, contactWhatsApp: "" }, true, true);
-    expect(next).toEqual({ hidePricing: true, showWhatsApp: false, contactWhatsApp: "" });
-    expect(draftHidePricingContactOk({ showWhatsApp: false, contactWhatsApp: "" }, true)).toBe(true);
+  it("allows hide-pricing on a draft with no phone and no chat", () => {
+    const draft = { hidePricing: false, showWhatsApp: false, contactWhatsApp: "" };
+    expect(applyDraftHidePricing(draft, true, { hasChat: false, requireContact: false })).toEqual({
+      hidePricing: true,
+      showWhatsApp: false,
+      contactWhatsApp: "",
+    });
+    expect(draftHidePricingContactOk(draft, { hasChat: false, requireContact: false })).toBe(true);
   });
 
-  it("reveals a stored phone when unclaimed outreach has no chat", () => {
+  it("allows hide-pricing via Bestie chat without a phone", () => {
+    const next = applyDraftHidePricing(
+      { hidePricing: false, showWhatsApp: false, contactWhatsApp: "" },
+      true,
+      { hasChat: true },
+    );
+    expect(next).toEqual({ hidePricing: true, showWhatsApp: false, contactWhatsApp: "" });
+    expect(draftHidePricingContactOk({ showWhatsApp: false, contactWhatsApp: "" }, { hasChat: true })).toBe(
+      true,
+    );
+  });
+
+  it("reveals a stored phone on a published listing with no chat", () => {
     const next = applyDraftHidePricing(
       { hidePricing: false, showWhatsApp: false, contactWhatsApp: "3329306218" },
       true,
-      false,
+      { hasChat: false, requireContact: true },
     );
     expect(next.hidePricing).toBe(true);
     expect(next.showWhatsApp).toBe(true);
   });
 
-  it("does not enable hide-pricing without phone or chat", () => {
+  it("does not enable hide-pricing on a published listing without phone or chat", () => {
     const draft = { hidePricing: false, showWhatsApp: false, contactWhatsApp: "" };
-    expect(applyDraftHidePricing(draft, true, false)).toEqual(draft);
-    expect(draftHidePricingContactOk(draft, false)).toBe(false);
+    expect(applyDraftHidePricing(draft, true, { hasChat: false, requireContact: true })).toEqual(draft);
+    expect(draftHidePricingContactOk(draft, { hasChat: false, requireContact: true })).toBe(false);
   });
 });

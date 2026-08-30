@@ -9,6 +9,7 @@ import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
 import {
   hidePricingContactAllowed,
+  hidePricingContactRequired,
   HIDE_PRICING_CONTACT_MESSAGE,
   redactHiddenPublicRooms,
   resolveShowWhatsappForHidePricing,
@@ -1309,18 +1310,20 @@ export function propertiesRouter(db: DatabaseSync) {
       patch.hidePricing !== undefined
         ? optBool(patch.hidePricing) === true
         : Number(prop.hide_pricing) === 1;
-    const hidePricingShow = resolveShowWhatsappForHidePricing({
-      hidePricing: nextHidePricing,
-      showWhatsapp: nextShowWhatsapp,
-      hasPublicPhone: propertyHasPublicPhone(nextShowWhatsapp, nextWa),
-      hasChat: !isUnclaimedAdminOutreach(db, propertyId),
-      hasStoredPhone: isRealListingPhone(nextWa),
-    });
-    if (!hidePricingShow.ok) {
-      res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
-      return;
+    if (hidePricingContactRequired(nextStatus)) {
+      const hidePricingShow = resolveShowWhatsappForHidePricing({
+        hidePricing: nextHidePricing,
+        showWhatsapp: nextShowWhatsapp,
+        hasPublicPhone: propertyHasPublicPhone(nextShowWhatsapp, nextWa),
+        hasChat: !isUnclaimedAdminOutreach(db, propertyId),
+        hasStoredPhone: isRealListingPhone(nextWa),
+      });
+      if (!hidePricingShow.ok) {
+        res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
+        return;
+      }
+      nextShowWhatsapp = hidePricingShow.showWhatsapp;
     }
-    nextShowWhatsapp = hidePricingShow.showWhatsapp;
 
     const nextImageUrlsJson =
       patch.imageUrls !== undefined

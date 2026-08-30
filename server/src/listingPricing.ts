@@ -11,6 +11,11 @@ export function hidePricingContactAllowed(hasPhone: boolean, hasChat: boolean): 
   return hasPhone || hasChat;
 }
 
+/** Seekers only need a contact path on a live listing — drafts may hide prices freely. */
+export function hidePricingContactRequired(status: string | null | undefined): boolean {
+  return status === "published";
+}
+
 /**
  * Unclaimed outreach has no Bestie chat. If hide-pricing is on and a real phone is stored
  * but not shown, show it so seekers can consultar $. Returns null when the patch is invalid.

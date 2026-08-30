@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { resolveShowWhatsappForHidePricing } from "./listingPricing.js";
+import { hidePricingContactRequired, resolveShowWhatsappForHidePricing } from "./listingPricing.js";
+
+describe("hidePricingContactRequired", () => {
+  it("is only required on published listings", () => {
+    expect(hidePricingContactRequired("draft")).toBe(false);
+    expect(hidePricingContactRequired("paused")).toBe(false);
+    expect(hidePricingContactRequired("published")).toBe(true);
+  });
+});
 
 describe("resolveShowWhatsappForHidePricing", () => {
   it("leaves show-whatsapp unchanged when prices stay visible", () => {

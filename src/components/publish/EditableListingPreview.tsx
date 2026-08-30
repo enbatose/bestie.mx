@@ -173,6 +173,8 @@ type Props = {
   onSavePhoneToProfileChange?: (next: boolean) => void;
   /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
   hasChat?: boolean;
+  /** When false, hide-pricing is allowed with no phone and no chat (drafts). */
+  requireContact?: boolean;
 };
 
 function propertyRentRangeLabel(rooms: readonly RoomDraft[], hidePricing: boolean): string | null {
@@ -416,6 +418,7 @@ export function EditableListingPreview({
   savePhoneToProfile = false,
   onSavePhoneToProfileChange,
   hasChat = true,
+  requireContact = false,
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
@@ -621,7 +624,7 @@ export function EditableListingPreview({
         contactWhatsApp: phoneDraft.contactWhatsApp,
         showWhatsApp: phoneDraft.showWhatsApp,
       };
-      if (next.hidePricing && !hasChat && draftHasRealListingPhone(next.contactWhatsApp)) {
+      if (requireContact && next.hidePricing && !hasChat && draftHasRealListingPhone(next.contactWhatsApp)) {
         return { ...next, showWhatsApp: true };
       }
       return next;
@@ -969,8 +972,10 @@ export function EditableListingPreview({
               <div className="mt-3">
                 <HidePricingToggle
                   hidePricing={draft.hidePricing}
-                  contactOk={draftHidePricingContactOk(draft, hasChat)}
-                  onChange={(next) => onDraftChange((d) => applyDraftHidePricing(d, next, hasChat))}
+                  contactOk={draftHidePricingContactOk(draft, { hasChat, requireContact })}
+                  onChange={(next) =>
+                    onDraftChange((d) => applyDraftHidePricing(d, next, { hasChat, requireContact }))
+                  }
                 />
               </div>
               </>
@@ -1031,8 +1036,10 @@ export function EditableListingPreview({
               <div className="mt-2 space-y-3">
                 <HidePricingToggle
                   hidePricing={draft.hidePricing}
-                  contactOk={draftHidePricingContactOk(draft, hasChat)}
-                  onChange={(next) => onDraftChange((d) => applyDraftHidePricing(d, next, hasChat))}
+                  contactOk={draftHidePricingContactOk(draft, { hasChat, requireContact })}
+                  onChange={(next) =>
+                    onDraftChange((d) => applyDraftHidePricing(d, next, { hasChat, requireContact }))
+                  }
                 />
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
@@ -1121,8 +1128,10 @@ export function EditableListingPreview({
               <div className="mt-3">
                 <HidePricingToggle
                   hidePricing={draft.hidePricing}
-                  contactOk={draftHidePricingContactOk(draft, hasChat)}
-                  onChange={(next) => onDraftChange((d) => applyDraftHidePricing(d, next, hasChat))}
+                  contactOk={draftHidePricingContactOk(draft, { hasChat, requireContact })}
+                  onChange={(next) =>
+                    onDraftChange((d) => applyDraftHidePricing(d, next, { hasChat, requireContact }))
+                  }
                 />
               </div>
             ) : null}
@@ -1170,10 +1179,13 @@ export function EditableListingPreview({
                       type="checkbox"
                       className="size-[1.125rem] rounded border-border accent-primary"
                       checked={phoneDraft.showWhatsApp}
-                      disabled={!phoneDigitsForStorage(phoneDraft.contactWhatsApp) || (draft.hidePricing && !hasChat)}
+                      disabled={
+                        !phoneDigitsForStorage(phoneDraft.contactWhatsApp) ||
+                        (requireContact && draft.hidePricing && !hasChat)
+                      }
                       onChange={(e) => {
                         const next = e.target.checked;
-                        if (!next && draft.hidePricing && !hasChat) return;
+                        if (!next && requireContact && draft.hidePricing && !hasChat) return;
                         setPhoneDraft((p) => ({ ...p, showWhatsApp: next }));
                       }}
                     />
