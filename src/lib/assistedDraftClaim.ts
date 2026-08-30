@@ -29,6 +29,7 @@ export function claimInfoToBundle(info: AssistedDraftClaimInfo): PropertyWithRoo
       bedroomsTotal: p.bedroomsTotal,
       bathrooms: p.bathrooms,
       showWhatsApp: p.showWhatsApp,
+      hidePricing: Boolean(p.hidePricing),
       imageUrls: p.imageUrls,
       isApproximateLocation: p.isApproximateLocation,
       approximateRadiusMeters: p.approximateRadiusMeters,

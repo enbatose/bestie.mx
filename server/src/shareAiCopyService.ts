@@ -22,6 +22,7 @@ type PropRow = {
   neighborhood: string;
   summary: string;
   property_kind: string | null;
+  hide_pricing: number | null;
   share_ai_text: string | null;
   share_ai_text_user_edited: number | null;
 };
@@ -57,7 +58,7 @@ function loadProperty(db: DatabaseSync, propertyId: string): PropRow | null {
     (db
       .prepare(
         `SELECT id, publisher_id, status, post_mode, title, city, neighborhood, summary, property_kind,
-                share_ai_text, share_ai_text_user_edited
+                hide_pricing, share_ai_text, share_ai_text_user_edited
          FROM properties WHERE id = ?`,
       )
       .get(propertyId) as PropRow | undefined) ?? null
@@ -98,7 +99,10 @@ export function buildPropertyFacts(
   const prop = loadProperty(db, propertyId);
   if (!prop) return null;
   const rooms = loadRoomsForProperty(db, propertyId).filter(isAvailableRoom);
-  const rents = rooms.map((r) => r.rent_mxn).filter((n) => Number.isFinite(n) && n > 0);
+  const hidePricing = Number(prop.hide_pricing) === 1;
+  const rents = hidePricing
+    ? []
+    : rooms.map((r) => r.rent_mxn).filter((n) => Number.isFinite(n) && n > 0);
   const tagSet = new Set<string>();
   for (const r of rooms) for (const t of parseTags(r.tags_json)) tagSet.add(t);
   const base = baseUrl.replace(/\/+$/, "");
@@ -114,13 +118,14 @@ export function buildPropertyFacts(
     ageMin: rooms[0]?.age_min ?? null,
     ageMax: rooms[0]?.age_max ?? null,
     lodgingType: null,
+    hidePricing: hidePricing || undefined,
     rentMxn: null,
     rentMinMxn: rents.length ? Math.min(...rents) : null,
     rentMaxMxn: rents.length ? Math.max(...rents) : null,
     availableRoomCount: rooms.length,
     rooms: rooms.map((r) => ({
       title: r.title,
-      rentMxn: r.rent_mxn,
+      rentMxn: hidePricing ? 0 : r.rent_mxn,
       lodgingType: r.lodging_type,
       tags: parseTags(r.tags_json),
       summary: r.summary ?? "",
@@ -138,6 +143,7 @@ export function buildRoomFacts(
   if (!room) return null;
   const prop = loadProperty(db, room.property_id);
   if (!prop) return null;
+  const hidePricing = Number(prop.hide_pricing) === 1;
   const tags = parseTags(room.tags_json);
   const base = baseUrl.replace(/\/+$/, "");
   return {
@@ -152,14 +158,15 @@ export function buildRoomFacts(
     ageMin: room.age_min,
     ageMax: room.age_max,
     lodgingType: room.lodging_type,
-    rentMxn: room.rent_mxn,
+    hidePricing: hidePricing || undefined,
+    rentMxn: hidePricing ? null : room.rent_mxn,
     rentMinMxn: null,
     rentMaxMxn: null,
     availableRoomCount: 1,
     rooms: [
       {
         title: room.title,
-        rentMxn: room.rent_mxn,
+        rentMxn: hidePricing ? 0 : room.rent_mxn,
         lodgingType: room.lodging_type,
         tags,
         summary: room.summary ?? "",

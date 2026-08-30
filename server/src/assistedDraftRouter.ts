@@ -269,6 +269,7 @@ type PropertyRow = {
   bedrooms_total: number;
   bathrooms: number;
   show_whatsapp: number;
+  hide_pricing: number;
   image_urls_json: string;
   is_approximate_location: number;
   approximate_radius_m: number | null;
@@ -882,6 +883,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         bedroomsTotal: prop.bedrooms_total,
         bathrooms: prop.bathrooms,
         showWhatsApp: prop.show_whatsapp === 1,
+        hidePricing: Number(prop.hide_pricing) === 1,
         imageUrls: propImages,
         isApproximateLocation: prop.is_approximate_location === 1,
         approximateRadiusMeters: prop.approximate_radius_m ?? undefined,
@@ -1133,6 +1135,10 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           : propertyPatch.showWhatsApp
             ? 1
             : 0;
+      const nextHidePricing =
+        propertyPatch.hidePricing === undefined
+          ? Number(prop.hide_pricing) === 1
+          : Boolean(propertyPatch.hidePricing);
       const nextContactWhatsApp =
         propertyPatch.contactWhatsApp !== undefined
           ? storedContactWhatsApp(nextShowWhatsapp === 1, String(propertyPatch.contactWhatsApp ?? ""))
@@ -1185,7 +1191,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
 
       db.prepare(`
         UPDATE properties SET
-          title = ?, neighborhood = ?, summary = ?, contact_whatsapp = ?, show_whatsapp = ?, property_kind = ?,
+          title = ?, neighborhood = ?, summary = ?, contact_whatsapp = ?, show_whatsapp = ?, hide_pricing = ?, property_kind = ?,
           bedrooms_total = ?, bathrooms = ?,
           occupied_by_women = COALESCE(?, occupied_by_women),
           occupied_by_men = COALESCE(?, occupied_by_men),
@@ -1199,6 +1205,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         nextSummary,
         nextContactWhatsApp,
         nextShowWhatsapp,
+        nextHidePricing ? 1 : 0,
         nextKind,
         nextBedrooms,
         nextBathrooms,
@@ -1425,8 +1432,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         return;
       }
 
-      const prop = db.prepare(`SELECT contact_whatsapp FROM properties WHERE id = ?`).get(row.property_id) as
-        | { contact_whatsapp: string | null }
+      const prop = db.prepare(`SELECT contact_whatsapp, hide_pricing FROM properties WHERE id = ?`).get(row.property_id) as
+        | { contact_whatsapp: string | null; hide_pricing?: number }
         | undefined;
       const gate = evaluateOutreachClaimGate(db, userId, prop?.contact_whatsapp, {
         isAdmin: isAdminUser(db, userId),
@@ -1446,7 +1453,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const rentRows = db.prepare(
         `SELECT rent_mxn, occupancy_status FROM rooms WHERE property_id = ?`
       ).all(row.property_id) as { rent_mxn: number; occupancy_status?: string }[];
-      if (claimPublishMissingRent(rentRows)) {
+      if (claimPublishMissingRent(rentRows, Number(prop?.hide_pricing) === 1)) {
         res.status(400).json({
           error: "rent_required",
           message: "Falta el precio de renta. No se puede publicar en 0 MXN / mes.",

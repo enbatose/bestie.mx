@@ -136,9 +136,11 @@ export function PublishWizardReviewStep({
   /** Numbered recámara chrome is for a room inside a property post, not a single-room listing. */
   const isRoomOfProperty = editScope === "room" && draft.postMode === "property";
   const isPropertyPreview = draft.postMode === "property" && editScope !== "room";
-  const rentMissing = isPropertyPreview
-    ? draft.rooms.some((r) => isRoomAvailableForRent(r) && isListingRentMissing(r.rentMxn))
-    : isListingRentMissing(activeRoom?.rentMxn);
+  const rentMissing =
+    !draft.hidePricing &&
+    (isPropertyPreview
+      ? draft.rooms.some((r) => isRoomAvailableForRent(r) && isListingRentMissing(r.rentMxn))
+      : isListingRentMissing(activeRoom?.rentMxn));
   const rentOnlyBlock =
     rentMissing &&
     Boolean(publishBlockedReason) &&

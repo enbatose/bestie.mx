@@ -69,4 +69,8 @@ describe("collapseSearchListings", () => {
     expect(formatSearchListingRent({ rentMxn: 5000 }, money)).toContain("5");
     expect(formatSearchListingRent({ rentMxn: 5000, rentMxnMax: 7500 }, money)).toMatch(/5.*–.*7/);
   });
+
+  it("formats hidden pricing as Consultar $", () => {
+    expect(formatSearchListingRent({ rentMxn: 0, hidePricing: true }, money)).toBe("Consultar $");
+  });
 });

@@ -94,6 +94,7 @@ export type AssistedDraftClaimInfo = {
     bedroomsTotal: number;
     bathrooms: number;
     showWhatsApp: boolean;
+    hidePricing?: boolean;
     imageUrls: string[];
     isApproximateLocation: boolean;
     approximateRadiusMeters?: number;
@@ -215,6 +216,7 @@ export type AssistedDraftClaimSaveBody = {
     bedroomsTotal?: number;
     bathrooms?: number;
     showWhatsApp?: boolean;
+    hidePricing?: boolean;
     occupiedByWomenCount?: number | null;
     occupiedByMenCount?: number | null;
     isApproximateLocation?: boolean;

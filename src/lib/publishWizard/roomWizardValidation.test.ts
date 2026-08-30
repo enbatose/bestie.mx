@@ -70,6 +70,7 @@ function sampleDraft(overrides: Partial<Draft> = {}): Draft {
     legalAccepted: false,
     isApproximateLocation: false,
     approximateRadiusMeters: 200,
+    hidePricing: false,
     ...overrides,
   };
 }
@@ -162,6 +163,15 @@ describe("firstRoomIndexMissingRent", () => {
       rooms: [sampleRoom({ rentMxn: 8200 })],
     });
     expect(firstRoomIndexMissingRent(draft)).toBe(-1);
+  });
+
+  it("skips rent when hidePricing is on", () => {
+    const draft = sampleDraft({
+      hidePricing: true,
+      rooms: [sampleRoom({ rentMxn: 0 })],
+    });
+    expect(firstRoomIndexMissingRent(draft)).toBe(-1);
+    expect(formatRoomsValidationMessage(draft)).toBeNull();
   });
 });
 

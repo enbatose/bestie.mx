@@ -163,19 +163,21 @@ export function ListingRoomDetailsGrid({
   postMode,
   roomCount,
   propertyTags,
+  hidePricing = false,
 }: {
   room: ListingRoomDetailsInput;
   postMode: "room" | "property";
   roomCount: number;
   /** Property-scope “Se permite” tags (single-room preview keeps them off the room draft). */
   propertyTags?: readonly ListingTag[];
+  hidePricing?: boolean;
 }) {
   const lodgingKey =
     postMode === "room" && room.lodgingType === "whole_home"
       ? "private_room"
       : (room.lodgingType ?? "private_room");
 
-  const showPricing = shouldShowRoomPriceInDetails(postMode, roomCount);
+  const showPricing = !hidePricing && shouldShowRoomPriceInDetails(postMode, roomCount);
   const stats: StatProps[] = [];
 
   if (showPricing) {

@@ -97,3 +97,32 @@ describe("parseFilters extended", () => {
     expect(filterListings(rows, f).map((r) => r.id)).toEqual(["ok"]);
   });
 });
+
+describe("filterListings hidePricing", () => {
+  it("includes hidden-price listings when budget is default", () => {
+    const rows = [
+      baseListing({ id: "priced", rentMxn: 8000 }),
+      baseListing({ id: "hidden", rentMxn: 15000, hidePricing: true }),
+    ];
+    const f = parseFilters(new URLSearchParams());
+    expect(filterListings(rows, f).map((r) => r.id).sort()).toEqual(["hidden", "priced"]);
+  });
+
+  it("excludes hidden-price listings when a max budget is set", () => {
+    const rows = [
+      baseListing({ id: "priced", rentMxn: 4000 }),
+      baseListing({ id: "hidden", rentMxn: 1000, hidePricing: true }),
+    ];
+    const f = parseFilters(new URLSearchParams({ max: "8000" }));
+    expect(filterListings(rows, f).map((r) => r.id)).toEqual(["priced"]);
+  });
+
+  it("excludes hidden-price listings when only a min budget is set", () => {
+    const rows = [
+      baseListing({ id: "priced", rentMxn: 9000 }),
+      baseListing({ id: "hidden", rentMxn: 20000, hidePricing: true }),
+    ];
+    const f = parseFilters(new URLSearchParams({ min: "1000" }));
+    expect(filterListings(rows, f).map((r) => r.id)).toEqual(["priced"]);
+  });
+});

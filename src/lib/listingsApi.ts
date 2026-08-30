@@ -149,6 +149,8 @@ export type PublishBundlePayload = {
     bathrooms?: number;
     /** Default true — show phone/WhatsApp on the public listing when true. */
     showWhatsApp?: boolean;
+    /** Hide rent and deposit on public surfaces. */
+    hidePricing?: boolean;
     imageUrls?: string[];
     isApproximateLocation?: boolean;
     approximateRadiusMeters?: number;
@@ -238,6 +240,7 @@ export type CreateDraftPropertyPayload = {
   bedroomsTotal?: number;
   bathrooms?: number;
   showWhatsApp?: boolean;
+  hidePricing?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
   approximateRadiusMeters?: number;
@@ -290,6 +293,7 @@ export type UpdatePropertyPayload = {
   bedroomsTotal?: number;
   bathrooms?: number;
   showWhatsApp?: boolean;
+  hidePricing?: boolean;
   imageUrls?: string[];
   isApproximateLocation?: boolean;
   approximateRadiusMeters?: number;

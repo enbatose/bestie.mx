@@ -24,4 +24,10 @@ describe("claimPublishMissingRent", () => {
   it("rejects an empty room list", () => {
     expect(claimPublishMissingRent([])).toBe(true);
   });
+
+  it("skips rent when hidePricing is on", () => {
+    expect(
+      claimPublishMissingRent([{ rent_mxn: 0, occupancy_status: "available" }], true),
+    ).toBe(false);
+  });
 });

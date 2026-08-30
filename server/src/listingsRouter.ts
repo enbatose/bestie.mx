@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
+import { redactHiddenPublicPricing } from "./listingPricing.js";
 import { isListingTag } from "./listingTags.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
@@ -109,7 +110,7 @@ type PublicListingUnavailableReason =
 
 function listingForPublic(l: PropertyListing): PropertyListing {
   const { publisherId: _p, viewsCount: _v, inquiryCount: _i, ...rest } = l;
-  return rest;
+  return redactHiddenPublicPricing(rest);
 }
 
 function rateLimitKey(req: Request): string {
@@ -207,7 +208,7 @@ export function listingsRouter(db: DatabaseSync) {
     const mark = req.originalUrl.indexOf("?");
     const qs = mark >= 0 ? req.originalUrl.slice(mark + 1) : "";
     const filters = parseFilters(new URLSearchParams(qs));
-    const sql = `${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} ORDER BY r.rent_mxn ASC, r.id ASC`;
+    const sql = `${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} ORDER BY CASE WHEN IFNULL(p.hide_pricing, 0) != 0 THEN 1 ELSE 0 END, r.rent_mxn ASC, r.id ASC`;
     const rows = db.prepare(sql).all() as Record<string, unknown>[];
     const all = rows.map(joinRowToPropertyListing).map(listingForPublic);
     res.json(filterListings(all, filters));
@@ -576,7 +577,7 @@ export function listingsRouter(db: DatabaseSync) {
     const created = db
       .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
       .get(roomId) as Record<string, unknown>;
-    res.status(201).json(listingForPublic(joinRowToPropertyListing(created)));
+    res.status(201).json(joinRowToPropertyListing(created));
   });
 
   r.patch("/:id", jsonMw, (req: Request, res: Response) => {
@@ -638,7 +639,7 @@ export function listingsRouter(db: DatabaseSync) {
         });
       }
     }
-    res.json(listingForPublic(joinRowToPropertyListing(updated)));
+    res.json(joinRowToPropertyListing(updated));
   });
 
   return r;

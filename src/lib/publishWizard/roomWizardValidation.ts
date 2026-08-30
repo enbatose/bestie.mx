@@ -94,7 +94,7 @@ export function collectRoomFieldIssueDetails(
     });
   }
 
-  if (!Number.isFinite(room.rentMxn) || room.rentMxn <= 0) {
+  if (!d.hidePricing && (!Number.isFinite(room.rentMxn) || room.rentMxn <= 0)) {
     issues.push({
       id: "rent",
       section: "header",
@@ -188,6 +188,7 @@ export function firstRoomIndexWithIssues(d: Draft): number {
 
 /** First available room with no publishable monthly rent, or -1. */
 export function firstRoomIndexMissingRent(d: Draft): number {
+  if (d.hidePricing) return -1;
   return d.rooms.findIndex((room) => isRoomAvailableForRent(room) && isListingRentMissing(room.rentMxn));
 }
 

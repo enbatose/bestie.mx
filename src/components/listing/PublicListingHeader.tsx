@@ -166,7 +166,7 @@ export function ListingPostPhoneBand({
 }) {
   if (!listingHasPublicPhone(listing)) return null;
   return (
-    <div className={`mt-3 ${LISTING_PHONE_BAND_SHELL_CLASS}`}>
+    <div id="contacto-telefono" className={`mt-3 scroll-mt-24 ${LISTING_PHONE_BAND_SHELL_CLASS}`}>
       <ListingHeroPhone listing={listing} viewer={viewer} layout="band" />
     </div>
   );

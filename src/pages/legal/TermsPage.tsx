@@ -95,7 +95,7 @@ export function TermsPage() {
             "Guardar un teléfono móvil en tu perfil y, si publicas, decidir si ese número puede revelarse a personas interesadas en un anuncio específico.",
             "Generar (con ayuda de inteligencia artificial) un texto sugerido para que compartas tu anuncio en redes o mensajería; puedes revisarlo y editarlo antes de enviarlo. Ese texto no forma parte de la ficha pública del anuncio ni de su vista previa al compartir el enlace.",
             "Administrar la disponibilidad de una propiedad y sus recámaras; al pausar una propiedad desde Mis anuncios, sus recámaras disponibles se marcan como ocupadas para retirarlas de la búsqueda. En publicaciones de propiedad, cada recámara se ofrece o se retira según su estado disponible/ocupada.",
-            "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características.",
+            "Buscar y filtrar anuncios por ciudad, ubicación en mapa, precio y características. Algunos anuncios no muestran renta ni depósito: aparecen como Consultar $ y se omiten cuando ajustas un rango de precio distinto al predeterminado.",
             "Contactar a otros usuarios mediante el chat directo en Bestie u otros canales habilitados.",
             "Crear y administrar un perfil de usuario.",
             "Escribir a Soporte de Bestie desde un chat directo en la app (sección Contacto) o desde el botón de ayuda en el mapa de búsqueda, para comentarios, preguntas sobre el producto o solicitudes, con la posibilidad de adjuntar imágenes. Este chat requiere iniciar sesión y las respuestas pueden tardar hasta 48 horas. Cuando tengas mensajes nuevos (incluido Soporte o Feedback), podemos enviarte un correo de aviso (como máximo uno cada 3 horas), sin incluir el contenido de los mensajes.",
@@ -206,7 +206,7 @@ export function TermsPage() {
           anuncio de crecimiento publicado sin dueño deja deshabilitado el botón Contactar hasta que
           alguien lo reclame; el teléfono del anuncio puede revelarse según las reglas habituales. Si
           se comparte el enlace de reclamación, Facebook, WhatsApp u otras apps pueden mostrar una
-          vista previa con la foto de portada, el título, la zona y la renta (sin el teléfono). La
+          vista previa con la foto de portada, el título, la zona y, si el anuncio muestra precio, la renta (sin el teléfono). Si quien publica oculta renta y depósito, la vista previa no incluye esos montos. La
           información del borrador es orientativa y puede estar incompleta o contener errores de
           extracción; eres responsable de verificar, corregir y completar los datos antes de
           publicar. Los borradores del supuesto (i) que no sean reclamados ni publicados con evidencia

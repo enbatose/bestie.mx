@@ -22,8 +22,10 @@ type Props = {
   onImageError?: (url: string) => void;
   onReportPhoto?: (index: number, url: string) => void;
   onContact: () => void;
+  onPhone?: () => void;
   onClose: () => void;
   viewerIsOwner?: boolean;
+  hasMessaging?: boolean;
 };
 
 export function PropertyRoomDetailModal({
@@ -38,8 +40,10 @@ export function PropertyRoomDetailModal({
   onImageError,
   onReportPhoto,
   onContact,
+  onPhone,
   onClose,
   viewerIsOwner = false,
+  hasMessaging = false,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [selfContactNotice, setSelfContactNotice] = useState<string | null>(null);
@@ -84,6 +88,7 @@ export function PropertyRoomDetailModal({
     propertyKind: property.propertyKind,
     propertyBedroomsTotal: property.bedroomsTotal,
     propertyBathrooms: property.bathrooms,
+    hidePricing: Boolean(property.hidePricing || listingForHeader.hidePricing),
   };
 
   const modal = (
@@ -116,6 +121,15 @@ export function PropertyRoomDetailModal({
             womenCount={womenCount}
             shareActions={shareActions}
             reportActions={reportActions}
+            hasMessaging={hasMessaging}
+            onScrollToPhone={() => {
+              onClose();
+              window.setTimeout(() => (onPhone ?? onContact)(), 150);
+            }}
+            onScrollToMessage={() => {
+              onClose();
+              window.setTimeout(() => onContact(), 150);
+            }}
           />
 
           {photos.length ? (
@@ -127,7 +141,7 @@ export function PropertyRoomDetailModal({
             />
           ) : null}
 
-          <ListingKeyLabelsGrid items={buildRoomKeyLabels(room)} />
+          <ListingKeyLabelsGrid items={buildRoomKeyLabels(room, Boolean(property.hidePricing || listingForHeader.hidePricing))} />
 
           <div>
             <h4 className="text-sm font-semibold text-muted">Descripción</h4>

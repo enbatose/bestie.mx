@@ -7,6 +7,7 @@ import {
 } from "@/lib/listingKeyLabels";
 import { formatRoomAvailableFrom } from "@/lib/listingTags";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { CONSULTAR_RENT_LABEL } from "@/lib/listingPricing";
 import type { Room } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -20,6 +21,7 @@ type Props = {
   availableRooms: readonly Room[];
   onOpenRoom: (room: Room) => void;
   onViewPropertyDetails: () => void;
+  hidePricing?: boolean;
 };
 
 function roomCoverSrc(room: Room): string | null {
@@ -32,6 +34,7 @@ export function PropertyRoomsOfferSection({
   availableRooms,
   onOpenRoom,
   onViewPropertyDetails,
+  hidePricing = false,
 }: Props) {
   return (
     <div className="space-y-6">
@@ -69,7 +72,9 @@ export function PropertyRoomsOfferSection({
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-body">{roomLabel}</p>
                       <p className="mt-1 text-sm text-muted">
-                        {money.format(room.rentMxn)} / mes - {roomDimensionWizardLabel(room.roomDimension)}
+                        {hidePricing
+                          ? `${CONSULTAR_RENT_LABEL} · ${roomDimensionWizardLabel(room.roomDimension)}`
+                          : `${money.format(room.rentMxn)} / mes - ${roomDimensionWizardLabel(room.roomDimension)}`}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <span className="rounded-full border border-border bg-surface px-2 py-1 text-xs font-medium text-body">

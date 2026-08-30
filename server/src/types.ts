@@ -82,6 +82,8 @@ export type Property = {
   bathrooms: number;
   /** When false, WhatsApp must not be shown publicly. */
   showWhatsApp: boolean;
+  /** When true, public surfaces hide rent and deposit. */
+  hidePricing?: boolean;
   /** Gallery paths from `POST /api/uploads` (same-origin `/api/uploads/...`). */
   imageUrls?: string[];
   commonAreaPhotos?: string[];
@@ -155,6 +157,8 @@ export type PropertyListing = {
   propertyBedroomsTotal: number;
   propertyBathrooms: number;
   showWhatsApp: boolean;
+  /** When true, public UI must hide rent/deposit. */
+  hidePricing?: boolean;
   /** Public: phone can be revealed after login; digits never in listing JSON. */
   hasContactPhone?: boolean;
   title: string;

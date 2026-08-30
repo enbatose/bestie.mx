@@ -6,6 +6,12 @@ import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
 import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
+import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
+import {
+  hidePricingContactAllowed,
+  HIDE_PRICING_CONTACT_MESSAGE,
+  redactHiddenPublicRooms,
+} from "./listingPricing.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { resolvePropertyIdFromRouteParam, resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import {
@@ -199,6 +205,7 @@ function rowToProperty(row: Record<string, unknown>): Property {
         : 1,
     bathrooms: row.bathrooms != null && Number.isFinite(Number(row.bathrooms)) ? Number(row.bathrooms) : 1,
     showWhatsApp,
+    ...(Number(row.hide_pricing) === 1 ? { hidePricing: true as const } : {}),
     ...(pk ? { propertyKind: pk } : {}),
     ...(imageUrls.length ? { imageUrls, commonAreaPhotos: imageUrls } : {}),
     ...(row.is_approximate_location ? { isApproximateLocation: true } : {}),
@@ -469,6 +476,12 @@ export function propertiesRouter(db: DatabaseSync) {
     const bedTotal = clampBedroomsTotal(Number((p as { bedroomsTotal?: unknown }).bedroomsTotal ?? 1));
     const bathTotal = clampBathrooms(Number((p as { bathrooms?: unknown }).bathrooms ?? 1));
     const showWhatsappInt = showPublicPub ? 1 : 0;
+    const hidePricingPub = optBool((p as { hidePricing?: unknown }).hidePricing) === true;
+    const hasPhonePub = propertyHasPublicPhone(showWhatsappInt, contactStoredPub);
+    if (hidePricingPub && !hidePricingContactAllowed(hasPhonePub, true)) {
+      res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
+      return;
+    }
 
     const publisherId = getOrCreatePublisherId(req, res);
     if (!publisherLinkedToUser(db, publisherId, userId)) {
@@ -498,9 +511,9 @@ export function propertiesRouter(db: DatabaseSync) {
     const insertProp = db.prepare(`
       INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
+        bedrooms_total, bathrooms, show_whatsapp, hide_pricing, image_urls_json, is_approximate_location, approximate_radius_m,
         occupied_by_women, occupied_by_men, street_view_pov_json, created_at, published_at, posthog_session_id
-      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const createdAt = new Date().toISOString();
     const insertRoom = db.prepare(`
@@ -536,6 +549,7 @@ export function propertiesRouter(db: DatabaseSync) {
         bedTotal,
         bathTotal,
         showWhatsappInt,
+        hidePricingPub ? 1 : 0,
         propImagesJson,
         isApproxPub ? 1 : 0,
         approxRadiusPub,
@@ -571,6 +585,9 @@ export function propertiesRouter(db: DatabaseSync) {
           if (!title || !minimalRoomSummaryOk(summary)) throw new Error("bad_room_text");
         }
         const rentMxn = clampRentMxn(Number(rm.rentMxn ?? 0));
+        if (occFields.occupancyStatus !== "occupied" && !hidePricingPub && rentMxn <= 0) {
+          throw new Error("bad_rent");
+        }
         const roomsAvailable = clampRoomsAvailable(Number(rm.roomsAvailable ?? 1));
         const ageMin = clampAge(Number(rm.ageMin ?? 18), 18);
         const ageMax = clampAge(Number(rm.ageMax ?? 99), 99);
@@ -670,7 +687,10 @@ export function propertiesRouter(db: DatabaseSync) {
       property.unclaimedAdminOutreach = true;
     }
     const rooms = roomRows.map(rowToRoom);
-    const payload: PropertyWithRooms = { property, rooms };
+    const payload: PropertyWithRooms = {
+      property,
+      rooms: owner ? rooms : redactHiddenPublicRooms(rooms, Boolean(property.hidePricing)),
+    };
     res.json(payload);
   });
 
@@ -741,9 +761,9 @@ export function propertiesRouter(db: DatabaseSync) {
     db.prepare(
       `INSERT INTO properties (
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp, property_kind,
-        bedrooms_total, bathrooms, show_whatsapp, image_urls_json, is_approximate_location, approximate_radius_m,
+        bedrooms_total, bathrooms, show_whatsapp, hide_pricing, image_urls_json, is_approximate_location, approximate_radius_m,
         occupied_by_women, occupied_by_men, street_view_pov_json, created_at, wizard_step, posthog_session_id
-      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       propertyId,
       publisherId,
@@ -759,6 +779,7 @@ export function propertiesRouter(db: DatabaseSync) {
       bed,
       bath,
       showInt,
+      optBool((body as { hidePricing?: unknown }).hidePricing) === true ? 1 : 0,
       draftPropImagesJson,
       (() => {
         const isApprox = Boolean(optBool(body.isApproximateLocation));
@@ -1147,6 +1168,7 @@ export function propertiesRouter(db: DatabaseSync) {
       bedroomsTotal?: unknown;
       bathrooms?: unknown;
       showWhatsApp?: unknown;
+      hidePricing?: unknown;
       imageUrls?: unknown;
       isApproximateLocation?: unknown;
       approximateRadiusMeters?: unknown;
@@ -1282,6 +1304,16 @@ export function propertiesRouter(db: DatabaseSync) {
         ? clampBathrooms(patch.bathrooms)
         : clampBathrooms(Number(prop.bathrooms ?? 1));
     const nextShowWhatsapp = nextShowWhatsappEarly ? 1 : 0;
+    const nextHidePricing =
+      patch.hidePricing !== undefined
+        ? optBool(patch.hidePricing) === true
+        : Number(prop.hide_pricing) === 1;
+    const hasPhoneNext = propertyHasPublicPhone(nextShowWhatsapp, nextWa);
+    const hasChatNext = !isUnclaimedAdminOutreach(db, propertyId);
+    if (nextHidePricing && !hidePricingContactAllowed(hasPhoneNext, hasChatNext)) {
+      res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
+      return;
+    }
 
     const nextImageUrlsJson =
       patch.imageUrls !== undefined
@@ -1418,7 +1450,7 @@ export function propertiesRouter(db: DatabaseSync) {
         post_mode = ?,
         title = ?, summary = ?, city = ?, neighborhood = ?, lat = ?, lng = ?,
         contact_whatsapp = ?, property_kind = ?,
-        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, image_urls_json = ?, is_approximate_location = ?,
+        bedrooms_total = ?, bathrooms = ?, show_whatsapp = ?, hide_pricing = ?, image_urls_json = ?, is_approximate_location = ?,
         approximate_radius_m = ?,
         occupied_by_women = ?, occupied_by_men = ?, street_view_pov_json = ?,
         wizard_step = ?, posthog_session_id = ?, published_at = ?
@@ -1438,6 +1470,7 @@ export function propertiesRouter(db: DatabaseSync) {
       nextBed,
       nextBath,
       nextShowWhatsapp,
+      nextHidePricing ? 1 : 0,
       nextImageUrlsJson,
       nextIsApprox,
       nextApproxRadius,

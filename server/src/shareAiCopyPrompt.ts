@@ -19,6 +19,8 @@ export type ShareAiListingFacts = {
   ageMin: number | null;
   ageMax: number | null;
   lodgingType: string | null;
+  /** When true, omit rent amounts in prompts and templates. */
+  hidePricing?: boolean;
   rentMxn: number | null;
   rentMinMxn: number | null;
   rentMaxMxn: number | null;
@@ -283,17 +285,20 @@ export function isShareBulletLine(line: string): boolean {
 /** Deterministic fallback when Gemini is unavailable. */
 export function buildTemplateShareCopy(facts: ShareAiListingFacts): string {
   const place = [facts.neighborhood, facts.city].filter(Boolean).join(", ") || "Guadalajara";
+  const hidePricing = Boolean(facts.hidePricing);
   const lines: string[] = [];
   if (facts.scope === "property") {
     lines.push(`Revisa mi propiedad en ${place} ${SHARE_AI_HOME_EMOJI}`);
     lines.push("");
     const n = facts.availableRoomCount;
     const rentBit =
-      facts.rentMinMxn != null && facts.rentMaxMxn != null
-        ? facts.rentMinMxn === facts.rentMaxMxn
-          ? formatRent(facts.rentMinMxn)
-          : `desde ${formatRent(facts.rentMinMxn)}`
-        : null;
+      hidePricing
+        ? null
+        : facts.rentMinMxn != null && facts.rentMaxMxn != null
+          ? facts.rentMinMxn === facts.rentMaxMxn
+            ? formatRent(facts.rentMinMxn)
+            : `desde ${formatRent(facts.rentMinMxn)}`
+          : null;
     lines.push(
       `Publico en Bestie: ${n === 1 ? "1 cuarto disponible" : `${n} cuartos disponibles`}${
         rentBit ? ` (${rentBit})` : ""
@@ -303,7 +308,7 @@ export function buildTemplateShareCopy(facts: ShareAiListingFacts): string {
     lines.push(`Revisa mi cuarto en ${place} ${SHARE_AI_HOME_EMOJI}`);
     lines.push("");
     const lodging = lodgingLabel(facts.lodgingType) ?? "Recámara";
-    const rent = facts.rentMxn != null ? formatRent(facts.rentMxn) : null;
+    const rent = !hidePricing && facts.rentMxn != null ? formatRent(facts.rentMxn) : null;
     lines.push(
       `Estoy buscando roomie para ${lodging.toLowerCase()}${rent ? ` · ${rent}` : ""}. Buena vibra y ubicación en GDL.`,
     );
@@ -335,6 +340,7 @@ Reglas estrictas:
 - No uses hashtags.
 - Emojis permitidos: un ${SHARE_AI_HOME_EMOJI} opcional en la primera línea; en viñetas usa el emoji que ya viene en cada tag del JSON (ej. "\u{1F4F6} Internet"); en la última línea el permalink con ${SHARE_AI_LINK_EMOJI} al inicio. No uses viñetas con "•" ni "-".
 - Longitud (CRÍTICO): el cuerpo SIN el permalink debe quedar en ~${SHARE_AI_BODY_TARGET} caracteres o menos, y NUNCA superar maxBodyChars del JSON. El mensaje final con permalink ≤ ${SHARE_AI_TEXT_MAX}. Prefiere corto y completo; un mensaje truncado a mitad de frase es un fallo.
+- Si hidePricing es true, no menciones montos de renta ni depósito. Indica que el precio se consulta con quien publica.
 - Estructura: gancho corto → 2–3 frases con zona/renta/tipo (sin rellenar) → como máximo ${SHARE_AI_MAX_BULLETS} viñetas con emoji (copia tags del JSON tal cual) → CTA breve fijo: "Fotos y detalles en Bestie:" → última línea exactamente: "${SHARE_AI_LINK_EMOJI} " + permalink del JSON.
 - Si hay muchos tags, elige los ${SHARE_AI_MAX_BULLETS} más útiles; no listes todos.
 - Responde SOLO con el texto del mensaje, sin comillas ni markdown.`;
@@ -349,9 +355,10 @@ export function buildShareAiUserPrompt(facts: ShareAiListingFacts): string {
     summary: sanitizeShareAiFactText(facts.summary, 220),
     propertyKind: facts.propertyKind,
     lodgingType: lodgingLabel(facts.lodgingType),
-    rentMxn: facts.rentMxn,
-    rentMinMxn: facts.rentMinMxn,
-    rentMaxMxn: facts.rentMaxMxn,
+    hidePricing: Boolean(facts.hidePricing) || undefined,
+    rentMxn: facts.hidePricing ? null : facts.rentMxn,
+    rentMinMxn: facts.hidePricing ? null : facts.rentMinMxn,
+    rentMaxMxn: facts.hidePricing ? null : facts.rentMaxMxn,
     availableRoomCount: facts.availableRoomCount,
     /** Already formatted as "emoji + label" — paste these lines as bullets. */
     tags: tagBulletLines(facts.tags, 10),
@@ -360,7 +367,7 @@ export function buildShareAiUserPrompt(facts: ShareAiListingFacts): string {
       facts.ageMin != null && facts.ageMax != null ? `${facts.ageMin}–${facts.ageMax}` : null,
     rooms: facts.rooms.slice(0, 6).map((r) => ({
       title: sanitizeShareAiFactText(r.title, 80),
-      rentMxn: r.rentMxn,
+      ...(facts.hidePricing ? {} : { rentMxn: r.rentMxn }),
       lodgingType: lodgingLabel(r.lodgingType),
       tags: tagBulletLines(r.tags, 8),
       summary: sanitizeShareAiFactText(r.summary, 100),

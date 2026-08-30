@@ -110,6 +110,7 @@ export function PublicListingContent({
         <ListingSeekerFitCard
           rentMxn={listing.rentMxn}
           depositMxn={depositMxn}
+          hidePricing={Boolean(listing.hidePricing)}
           postMode={postMode}
           lodgingType={listing.lodgingType}
           roomDimension={listing.roomDimension}

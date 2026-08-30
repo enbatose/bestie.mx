@@ -1,4 +1,5 @@
 import type { PropertyListing } from "@/types/listing";
+import { CONSULTAR_RENT_LABEL, isPricingHidden } from "@/lib/listingPricing";
 
 /**
  * Search/map show one row per published room from the API. Collapse
@@ -56,6 +57,7 @@ function collapsePropertyGroup(group: PropertyListing[]): PropertyListing {
 
   return {
     ...head,
+    hidePricing: group.some((listing) => listing.hidePricing) || undefined,
     // Stable map/list selection key = property (one pin).
     id: head.propertyId,
     title,
@@ -73,9 +75,10 @@ function collapsePropertyGroup(group: PropertyListing[]): PropertyListing {
 
 /** Format search-card rent: single price or min–max range. */
 export function formatSearchListingRent(
-  listing: Pick<PropertyListing, "rentMxn" | "rentMxnMax">,
+  listing: Pick<PropertyListing, "rentMxn" | "rentMxnMax" | "hidePricing">,
   money: Intl.NumberFormat,
 ): string {
+  if (isPricingHidden(listing)) return CONSULTAR_RENT_LABEL;
   const max = listing.rentMxnMax;
   if (max != null && max > listing.rentMxn) {
     return `${money.format(listing.rentMxn)} – ${money.format(max)}`;

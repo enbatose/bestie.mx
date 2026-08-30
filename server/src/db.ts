@@ -192,6 +192,12 @@ function migratePropertyApproximateLocation(db: DatabaseSync): void {
   }
 }
 
+function migratePropertyHidePricing(db: DatabaseSync): void {
+  if (!tableHasColumn(db, "properties", "hide_pricing")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN hide_pricing INTEGER NOT NULL DEFAULT 0`);
+  }
+}
+
 function migratePropertyOccupantCounts(db: DatabaseSync): void {
   if (!tableHasColumn(db, "properties", "occupied_by_women")) {
     db.exec(`ALTER TABLE properties ADD COLUMN occupied_by_women INTEGER`);
@@ -356,6 +362,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
       bedrooms_total INTEGER NOT NULL DEFAULT 1,
       bathrooms REAL NOT NULL DEFAULT 1,
       show_whatsapp INTEGER NOT NULL DEFAULT 1,
+      hide_pricing INTEGER NOT NULL DEFAULT 0,
       image_urls_json TEXT NOT NULL DEFAULT '[]',
       is_approximate_location INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -402,6 +409,7 @@ function ensurePhaseBSchema(db: DatabaseSync): void {
   migrateImageUrlsJson(db);
   migratePropertyPostMode(db);
   migratePropertyApproximateLocation(db);
+  migratePropertyHidePricing(db);
   migratePropertyOccupantCounts(db);
   migratePropertyStreetViewPov(db);
   migratePropertyAdminTracking(db);

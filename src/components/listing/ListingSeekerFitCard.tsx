@@ -22,6 +22,7 @@ import {
   roomDimensionHintLabel,
   roomDimensionPreviewLabel,
 } from "@/lib/listingTags";
+import { CONSULTAR_RENT_LABEL } from "@/lib/listingPricing";
 import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -85,6 +86,7 @@ export function ListingSeekerFitCard({
   ageMax,
   occupiedByWomenCount,
   occupiedByMenCount,
+  hidePricing = false,
 }: {
   rentMxn: number;
   depositMxn: number;
@@ -100,17 +102,18 @@ export function ListingSeekerFitCard({
   ageMax: number;
   occupiedByWomenCount?: number | null;
   occupiedByMenCount?: number | null;
+  hidePricing?: boolean;
 }) {
   const lodgingKey =
     postMode === "room" && lodgingType === "whole_home" ? "private_room" : (lodgingType ?? "private_room");
 
   const occupants = occupantsPlainLabel(occupiedByMenCount, occupiedByWomenCount);
 
-  const items: FitItem[] = [
-    { icon: DollarSign, label: "Renta mensual", value: money.format(rentMxn), highlight: true },
-  ];
+  const items: FitItem[] = hidePricing
+    ? [{ icon: DollarSign, label: "Renta mensual", value: CONSULTAR_RENT_LABEL, highlight: true }]
+    : [{ icon: DollarSign, label: "Renta mensual", value: money.format(rentMxn), highlight: true }];
 
-  if (depositMxn > 0) {
+  if (!hidePricing && depositMxn > 0) {
     items.push({ icon: Wallet, label: "Depósito", value: money.format(depositMxn) });
   }
 

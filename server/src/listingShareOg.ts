@@ -27,6 +27,7 @@ import {
   resolveRoomIdFromRouteParam,
 } from "./resolveListingRouteId.js";
 import { coverUploadFilename, shareOgImagePublicPath } from "./shareOgImage.js";
+import { CONSULTAR_RENT_LABEL } from "./listingPricing.js";
 import type { PropertyListing } from "./types.js";
 
 /** Facebook-oriented limits (WhatsApp truncates earlier; FB is the longer of the two). */
@@ -65,7 +66,8 @@ export function truncateOgText(text: string, max: number): string {
   return `${base.replace(/[.,;:!?¿¡\s]+$/u, "")}…`;
 }
 
-function formatRentMxn(n: number): string {
+function formatRentMxn(n: number, hidePricing?: boolean): string {
+  if (hidePricing) return CONSULTAR_RENT_LABEL;
   return `$${Math.round(n).toLocaleString("es-MX")} MXN/mes`;
 }
 
@@ -130,7 +132,7 @@ export function buildRoomShareOg(
     OG_TITLE_MAX,
   );
 
-  const parts: string[] = [formatRentMxn(listing.rentMxn)];
+  const parts: string[] = [formatRentMxn(listing.rentMxn, listing.hidePricing)];
   const place = placeLine(listing);
   if (place) parts.push(place);
   if (listing.lodgingType === "private_room") parts.push("Recámara privada");
@@ -157,7 +159,7 @@ export function buildRoomShareOg(
           description,
           url,
           ...(imageUrl ? { image: imageUrl } : {}),
-          ...(Number.isFinite(listing.rentMxn) && listing.rentMxn > 0
+          ...(Number.isFinite(listing.rentMxn) && listing.rentMxn > 0 && !listing.hidePricing
             ? {
                 offers: {
                   "@type": "Offer",
@@ -193,10 +195,14 @@ export function buildPropertyShareOg(
   opts?: BuildShareOgOptions,
 ): ListingShareOgMeta {
   const title = truncateOgText(propertyTitle.trim() || "Propiedad en Bestie", OG_TITLE_MAX);
-  const rents = availableRooms.map((r) => r.rentMxn).filter((n) => Number.isFinite(n) && n > 0);
+  const hidePricing = availableRooms.some((r) => r.hidePricing);
+  const rents = hidePricing
+    ? []
+    : availableRooms.map((r) => r.rentMxn).filter((n) => Number.isFinite(n) && n > 0);
   const n = availableRooms.length;
   const parts: string[] = [];
-  if (rents.length) {
+  if (hidePricing) parts.push(CONSULTAR_RENT_LABEL);
+  else if (rents.length) {
     parts.push(formatRentRange(Math.min(...rents), Math.max(...rents)));
   }
   parts.push(n === 1 ? "1 cuarto disponible" : `${n} cuartos disponibles`);

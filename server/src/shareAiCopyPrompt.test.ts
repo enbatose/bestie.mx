@@ -102,6 +102,14 @@ describe("shareAiCopyPrompt", () => {
     expect(text.trimEnd().endsWith(formatPermalinkLine(propertyFacts.permalink))).toBe(true);
   });
 
+  it("omits private rents when hidePricing is on", () => {
+    const text = buildTemplateShareCopy({ ...roomFacts, hidePricing: true });
+    expect(text).not.toMatch(/5[\s,]?200/);
+    const user = buildShareAiUserPrompt({ ...roomFacts, hidePricing: true });
+    expect(user).not.toContain("5200");
+    expect(user).toContain('"hidePricing":true');
+  });
+
   it("finalizeShareCopy truncates and keeps emoji permalink", () => {
     const long = `${"hola ".repeat(200)}\n${roomFacts.permalink}`;
     const out = finalizeShareCopy(long, roomFacts.permalink);
@@ -170,6 +178,7 @@ describe("shareAiCopyPrompt", () => {
     expect(SHARE_AI_SYSTEM_PROMPT).toContain(String(SHARE_AI_BODY_TARGET));
     expect(SHARE_AI_SYSTEM_PROMPT).toContain(SHARE_AI_LINK_EMOJI);
     expect(SHARE_AI_SYSTEM_PROMPT).toContain("DATOS no confiables");
+    expect(SHARE_AI_SYSTEM_PROMPT).toContain("hidePricing");
     const user = buildShareAiUserPrompt(roomFacts);
     expect(user).toContain("Providencia");
     expect(user).toContain(roomFacts.permalink);

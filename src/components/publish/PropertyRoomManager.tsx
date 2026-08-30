@@ -30,8 +30,11 @@ import {
   propertyRoomSlotTitle,
 } from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
-import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
+import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
+import { hidePricingContactAllowed } from "@/lib/listingPricing";
+import { phoneDigitsForStorage } from "@/lib/mxPhone";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
+import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 
 const ROOM_STAY_MAX = 36;
 const ROOM_OCCUPANT_MAX = 12;
@@ -54,6 +57,7 @@ type Props = {
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onRoomPhotosChange: (roomIndex: number, photos: DraftImage[]) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
+  onHidePricingChange: (hide: boolean) => void;
   apiOn?: boolean;
 };
 
@@ -329,6 +333,7 @@ function RoomCardHeaderActions({
 function AvailableRoomFields({
   room,
   roomLabel,
+  hidePricing,
   onChange,
   onToggleTag,
   onPhotosChange,
@@ -336,6 +341,7 @@ function AvailableRoomFields({
 }: {
   room: RoomDraft;
   roomLabel: string;
+  hidePricing: boolean;
   onChange: (patch: Partial<RoomDraft>) => void;
   onToggleTag: (tag: ListingTag, active: boolean) => void;
   onPhotosChange: (photos: DraftImage[]) => void;
@@ -373,7 +379,11 @@ function AvailableRoomFields({
           <div>
             <label className="block text-sm font-medium text-body">
               Renta (MXN / mes)
-              <span className="text-error"> *</span>
+              {hidePricing ? (
+                <span className="font-normal text-muted"> (opcional)</span>
+              ) : (
+                <span className="text-error"> *</span>
+              )}
               <input
                 type="number"
                 min={0}
@@ -585,6 +595,7 @@ export function PropertyRoomManager({
   onRoomPhotosChange,
   onToggleTag,
   apiOn = false,
+  onHidePricingChange,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
   const rentCount = propertyRentRoomCount(draft);
@@ -646,6 +657,17 @@ export function PropertyRoomManager({
               incrementLabel="Más recámaras en renta"
             />
           </label>
+        </div>
+
+        <div className="mt-4">
+          <HidePricingToggle
+            hidePricing={Boolean(draft.hidePricing)}
+            contactOk={hidePricingContactAllowed(
+              Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
+              true,
+            )}
+            onChange={onHidePricingChange}
+          />
         </div>
 
         <p className="mt-3 text-xs text-muted leading-snug">
@@ -759,6 +781,7 @@ export function PropertyRoomManager({
                   <AvailableRoomFields
                     room={room}
                     roomLabel={roomLabel}
+                    hidePricing={Boolean(draft.hidePricing)}
                     apiOn={apiOn}
                     onChange={(patch) => onUpdateRoom(i, patch)}
                     onPhotosChange={(photos) => onRoomPhotosChange(i, photos)}

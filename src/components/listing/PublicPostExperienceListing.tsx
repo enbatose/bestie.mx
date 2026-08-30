@@ -267,6 +267,16 @@ export function PublicPostExperienceListing({
     document.getElementById("property-available-rooms")?.scrollIntoView({ behavior: "auto", block: "start" });
   }, [focusedRoomId, isPropertyPost]);
 
+  const scrollToPhone = useCallback(() => {
+    document.getElementById("contacto-telefono")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const scrollToMessage = useCallback(() => {
+    document
+      .getElementById("contacto-mensaje")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const scrollToPropertyPostTop = useCallback(() => {
     document.getElementById("property-post-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
@@ -344,6 +354,11 @@ export function PublicPostExperienceListing({
               shareActions={shareActions}
               tags={propertyTags}
               reportActions={reportRow}
+              hidePricing={Boolean(property.hidePricing || listing.hidePricing)}
+              hasContactPhone={Boolean(listing.hasContactPhone || listing.hasDraftPhone)}
+              hasMessaging={Boolean(contact.canContact && contact.messagingOn)}
+              onScrollToPhone={scrollToPhone}
+              onScrollToMessage={scrollToMessage}
             />
           </div>
         </header>
@@ -365,6 +380,7 @@ export function PublicPostExperienceListing({
         <PropertyRoomsOfferSection
           occupiedRooms={occupiedRooms}
           availableRooms={availableRooms}
+          hidePricing={Boolean(property.hidePricing || listing.hidePricing)}
           onOpenRoom={openRoom}
           onViewPropertyDetails={scrollToPropertyPostTop}
         />
@@ -413,6 +429,8 @@ export function PublicPostExperienceListing({
             failedImageUrls={failedImageUrls}
             onImageError={onImageError}
             onContact={() => contactFromExpandedRoom(expandedRoom)}
+            onPhone={scrollToPhone}
+            hasMessaging={Boolean(contact.canContact && contact.messagingOn)}
             onClose={closeExpandedRoom}
             viewerIsOwner={Boolean(listing.viewerIsOwner)}
             onReportPhoto={onReportPhoto}
@@ -454,6 +472,9 @@ export function PublicPostExperienceListing({
             womenCount={womenCount}
             shareActions={shareActions}
             reportActions={reportRow}
+            hasMessaging={Boolean(contact.canContact && contact.messagingOn)}
+            onScrollToPhone={scrollToPhone}
+            onScrollToMessage={scrollToMessage}
           />
         </div>
       </header>

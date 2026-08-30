@@ -12,6 +12,7 @@ import {
   roomDisplayName,
 } from "@/lib/roomDisplay";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { CONSULTAR_RENT_LABEL } from "@/lib/listingPricing";
 import type { Room } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -26,6 +27,7 @@ type Props = {
   commonAreaUrls: readonly string[];
   failedImageUrls?: ReadonlySet<string>;
   onImageError?: (url: string) => void;
+  hidePricing?: boolean;
 };
 
 export function PropertyPublicRoomsSection({
@@ -34,6 +36,7 @@ export function PropertyPublicRoomsSection({
   commonAreaUrls,
   failedImageUrls,
   onImageError,
+  hidePricing = false,
 }: Props) {
   const highlightRef = useRef<HTMLDivElement | null>(null);
 
@@ -91,7 +94,9 @@ export function PropertyPublicRoomsSection({
                   </div>
                   {available ? (
                     <>
-                      <p className="mt-2 text-lg font-bold text-primary">{money.format(room.rentMxn)} / mes</p>
+                      <p className="mt-2 text-lg font-bold text-primary">
+                        {hidePricing ? CONSULTAR_RENT_LABEL : `${money.format(room.rentMxn)} / mes`}
+                      </p>
                       {photos.length ? (
                         <div className="mt-3">
                           <ListingPhotoCarousel

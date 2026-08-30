@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { ListingHeaderBadges } from "@/components/listing/PublicListingHeader";
-import {
-  listingHeroPriceLabel,
-} from "@/lib/listingTags";
+import { listingHeroPriceLabel } from "@/lib/listingTags";
+import { ListingHiddenPricing } from "@/components/listing/ListingHiddenPricing";
+import { isPricingHidden } from "@/lib/listingPricing";
 import type { ListingTag, Property, PropertyListing, Room } from "@/types/listing";
 
 const money = new Intl.NumberFormat("es-MX", {
@@ -24,6 +24,9 @@ export function SingleRoomHeader({
   shareActions,
   title,
   reportActions,
+  hasMessaging = false,
+  onScrollToPhone,
+  onScrollToMessage,
 }: {
   listing: PropertyListing;
   menCount: number;
@@ -31,7 +34,11 @@ export function SingleRoomHeader({
   shareActions?: ReactNode;
   title?: string;
   reportActions?: ReactNode;
+  hasMessaging?: boolean;
+  onScrollToPhone?: () => void;
+  onScrollToMessage?: () => void;
 }) {
+  const hidePricing = isPricingHidden(listing);
   return (
     <div className="min-w-0 space-y-1">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -43,7 +50,16 @@ export function SingleRoomHeader({
         </div>
         {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
-      <p className="mt-2 text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
+      {hidePricing ? (
+        <ListingHiddenPricing
+          hasPhone={Boolean(listing.hasContactPhone || listing.hasDraftPhone)}
+          hasMessaging={hasMessaging}
+          onPhone={() => onScrollToPhone?.()}
+          onMessage={() => onScrollToMessage?.()}
+        />
+      ) : (
+        <p className="mt-2 text-2xl font-bold text-body">{listingHeroPriceLabel(listing.rentMxn)}</p>
+      )}
       <ListingHeaderBadges
         postMode="room"
         roommateGenderPref={listing.roommateGenderPref}
@@ -55,7 +71,7 @@ export function SingleRoomHeader({
         propertyKind={listing.propertyKind}
         tags={listing.tags}
       />
-      {(listing.depositMxn ?? 0) > 0 ? (
+      {!hidePricing && (listing.depositMxn ?? 0) > 0 ? (
         <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
       ) : null}
       {reportActions ? <div className="mt-3 flex w-full min-w-0 justify-end">{reportActions}</div> : null}
@@ -69,17 +85,28 @@ export function PropertyHeader({
   shareActions,
   tags,
   reportActions,
+  hidePricing = false,
+  hasContactPhone = false,
+  hasMessaging = false,
+  onScrollToPhone,
+  onScrollToMessage,
 }: {
   property: Property;
   availableRooms: Room[];
   shareActions?: ReactNode;
   tags?: readonly ListingTag[];
   reportActions?: ReactNode;
+  hidePricing?: boolean;
+  hasContactPhone?: boolean;
+  hasMessaging?: boolean;
+  onScrollToPhone?: () => void;
+  onScrollToMessage?: () => void;
 }) {
   const rents = availableRooms.map((room) => room.rentMxn).filter((rent) => rent > 0);
   const minRent = rents.length ? Math.min(...rents) : 0;
   const maxRent = rents.length ? Math.max(...rents) : 0;
   const firstAvailable = availableRooms[0];
+  const showHidden = hidePricing || Boolean(property.hidePricing);
 
   return (
     <div className="min-w-0 space-y-1">
@@ -92,11 +119,20 @@ export function PropertyHeader({
         </div>
         {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
       </div>
-      <p className="mt-2 text-2xl font-bold text-body">
-        {rents.length > 1
-          ? `${money.format(minRent)} – ${money.format(maxRent)} / mes`
-          : listingHeroPriceLabel(minRent)}
-      </p>
+      {showHidden ? (
+        <ListingHiddenPricing
+          hasPhone={hasContactPhone}
+          hasMessaging={hasMessaging}
+          onPhone={() => onScrollToPhone?.()}
+          onMessage={() => onScrollToMessage?.()}
+        />
+      ) : (
+        <p className="mt-2 text-2xl font-bold text-body">
+          {rents.length > 1
+            ? `${money.format(minRent)} – ${money.format(maxRent)} / mes`
+            : listingHeroPriceLabel(minRent)}
+        </p>
+      )}
       <ListingHeaderBadges
         postMode="property"
         roommateGenderPref={firstAvailable?.roommateGenderPref ?? "any"}

@@ -144,8 +144,11 @@ export function permitidoKeyLabels(tags: readonly ListingTag[]): KeyLabelItem[] 
 }
 
 export function buildSingleRoomKeyLabels(listing: PropertyListing): KeyLabelItem[] {
-  return [
-    { icon: DollarSign, title: "Depósito", value: money.format(listing.depositMxn ?? 0) },
+  const items: KeyLabelItem[] = [];
+  if (!listing.hidePricing) {
+    items.push({ icon: DollarSign, title: "Depósito", value: money.format(listing.depositMxn ?? 0) });
+  }
+  items.push(
     { icon: UserCheck, title: "Preferencia de género", value: genderPrefLabel(listing.roommateGenderPref) },
     {
       icon: Calendar,
@@ -166,12 +169,16 @@ export function buildSingleRoomKeyLabels(listing: PropertyListing): KeyLabelItem
     { icon: Car, title: KEY_LABEL_ESTACIONAMIENTO_INCLUIDO, value: yesNo(listing.tags.includes("estacionamiento")) },
     ...permitidoKeyLabels(listing.tags),
     { icon: Sparkles, title: "Ideal para", value: idealParaKeyLabel(listing.tags) },
-  ];
+  );
+  return items;
 }
 
-export function buildRoomKeyLabels(room: Room): KeyLabelItem[] {
-  return [
-    { icon: DollarSign, title: "Depósito", value: money.format(room.depositMxn ?? 0) },
+export function buildRoomKeyLabels(room: Room, hidePricing = false): KeyLabelItem[] {
+  const items: KeyLabelItem[] = [];
+  if (!hidePricing) {
+    items.push({ icon: DollarSign, title: "Depósito", value: money.format(room.depositMxn ?? 0) });
+  }
+  items.push(
     { icon: UserCheck, title: "Preferencia de género", value: genderPrefLabel(room.roommateGenderPref) },
     {
       icon: Calendar,
@@ -192,7 +199,8 @@ export function buildRoomKeyLabels(room: Room): KeyLabelItem[] {
     { icon: Car, title: KEY_LABEL_ESTACIONAMIENTO_INCLUIDO, value: yesNo(room.tags.includes("estacionamiento")) },
     ...permitidoKeyLabels(room.tags),
     { icon: Sparkles, title: "Ideal para", value: idealParaKeyLabel(room.tags) },
-  ];
+  );
+  return items;
 }
 
 export function buildPropertyKeyLabels(

@@ -88,13 +88,15 @@ function initialDraft(listing: PropertyListing): Draft {
 }
 
 /** Mirrors `collectRoomFieldIssues` for available rooms so the modal gate matches publish. */
-function missingFields(d: Draft): string[] {
+function missingFields(d: Draft, hidePricing = false): string[] {
   const issues: string[] = [];
   if (!d.customName.trim()) issues.push("Título de la recámara");
   if (!d.lodgingType) issues.push("Tipo de recámara");
   if (!d.roomDimension) issues.push("Tamaño de la recámara");
-  const rent = Number(d.rentMxn);
-  if (!Number.isFinite(rent) || rent <= 0) issues.push("Renta (MXN / mes)");
+  if (!hidePricing) {
+    const rent = Number(d.rentMxn);
+    if (!Number.isFinite(rent) || rent <= 0) issues.push("Renta (MXN / mes)");
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.availableFrom.trim())) issues.push("Disponible desde");
   if (d.minimalStayMonths < 1) issues.push("Estancia mínima (meses)");
   if (!d.roommateGenderPref) issues.push("Preferencia de convivencia");
@@ -111,7 +113,7 @@ function missingFields(d: Draft): string[] {
 
 /** True when the stored room already has everything needed to be offered for rent. */
 export function roomReadyToOffer(listing: PropertyListing): boolean {
-  return missingFields(initialDraft(listing)).length === 0;
+  return missingFields(initialDraft(listing), Boolean(listing.hidePricing)).length === 0;
 }
 
 /**
@@ -143,7 +145,7 @@ export function RoomActivationModal({
   const apiOn = isListingsApiConfigured();
 
   const patch = (next: Partial<Draft>) => setDraft((prev) => ({ ...prev, ...next }));
-  const issues = missingFields(draft);
+  const issues = missingFields(draft, Boolean(listing.hidePricing));
   const complete = issues.length === 0;
 
   useEffect(() => {
@@ -259,7 +261,11 @@ export function RoomActivationModal({
                 <div>
                   <label className="block text-sm font-medium text-body">
                     Renta (MXN / mes)
-                    <span className="text-error"> *</span>
+                    {listing.hidePricing ? (
+                      <span className="font-normal text-muted"> (opcional)</span>
+                    ) : (
+                      <span className="text-error"> *</span>
+                    )}
                     <input
                       type="number"
                       min={0}

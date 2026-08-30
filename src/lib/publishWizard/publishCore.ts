@@ -488,6 +488,7 @@ export function buildAssistedDraftClaimSaveBody(
       bedroomsTotal: draft.propertyBedroomsTotal,
       bathrooms: effectiveWizardPropertyBathrooms(draft),
       showWhatsApp: draft.showWhatsApp,
+      hidePricing: Boolean(draft.hidePricing),
       occupiedByWomenCount: occupantTotals.occupiedByWomenCount,
       occupiedByMenCount: occupantTotals.occupiedByMenCount,
       isApproximateLocation: draft.isApproximateLocation,
@@ -586,6 +587,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
+        hidePricing: Boolean(draft.hidePricing),
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         approximateRadiusMeters: draft.isApproximateLocation
@@ -636,6 +638,7 @@ export async function syncDraftToServer(
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
+        hidePricing: Boolean(draft.hidePricing),
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         approximateRadiusMeters: draft.isApproximateLocation
@@ -735,6 +738,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
+        hidePricing: Boolean(draft.hidePricing),
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         approximateRadiusMeters: draft.isApproximateLocation
@@ -766,6 +770,7 @@ export async function publishDraftFromWizard(opts: {
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
         showWhatsApp: contact.showWhatsApp,
+        hidePricing: Boolean(draft.hidePricing),
         ...propertyImagePatch(draft),
         isApproximateLocation: draft.isApproximateLocation,
         approximateRadiusMeters: draft.isApproximateLocation
@@ -783,7 +788,11 @@ export async function publishDraftFromWizard(opts: {
         const fields = roomApiFieldsFromDraft(draft, r, i);
         return {
           ...fields,
-          rentMxn: isRoomAvailableForRent(r) ? Math.max(1, fields.rentMxn) : 0,
+          rentMxn: isRoomAvailableForRent(r)
+            ? draft.hidePricing
+              ? Math.max(0, fields.rentMxn)
+              : Math.max(1, fields.rentMxn)
+            : 0,
         };
       }),
     });

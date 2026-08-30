@@ -236,8 +236,11 @@ export function filterListings(listings: PropertyListing[], f: SearchFilters): P
     if (!isAvailableForSearch(l)) return false;
     const haystack = `${l.city} ${l.neighborhood} ${l.title} ${l.summary}`.toLowerCase();
     if (q && !haystack.includes(q)) return false;
-    if (f.budgetMin != null && l.rentMxn < f.budgetMin) return false;
-    if (f.budgetMax != null && l.rentMxn > f.budgetMax) return false;
+    if (f.budgetMin != null || f.budgetMax != null) {
+      if (l.hidePricing) return false;
+      if (f.budgetMin != null && l.rentMxn < f.budgetMin) return false;
+      if (f.budgetMax != null && l.rentMxn > f.budgetMax) return false;
+    }
     if (f.tags.length && !f.tags.every((t) => listingSatisfiesTagFilter(l.tags, t))) return false;
     if (!matchesPref(l, f.pref)) return false;
     if (!matchesAge(l, f.age, f.ageMin, f.ageMax)) return false;

@@ -144,7 +144,7 @@ export function PrivacyPage() {
               (captura aparte y nota opcional, almacenadas internamente y nunca mostradas en el anuncio
               público ni al dueño posterior). Si se comparte el enlace de reclamación, Facebook, WhatsApp
               u otras apps de mensajería pueden mostrar una vista previa con la foto de portada, el
-              título, la zona y la renta (sin el teléfono ni otros datos de contacto). Si no se reclama ni se publica con evidencia, se elimina
+              título, la zona y, si el anuncio muestra precio, la renta (sin el teléfono ni otros datos de contacto). Si quien publica oculta renta y depósito, la vista previa no incluye esos montos. Si no se reclama ni se publica con evidencia, se elimina
               automáticamente a los <strong>7 días</strong>. También
               puedes crear tú un borrador pegando el texto o un infográfico de tu propia publicación;
               en ese caso los datos salen de ti, no de un tercero.

@@ -14,6 +14,7 @@ import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
 import { collapseSearchListings } from "@/lib/collapseSearchListings";
+import { interleaveHiddenPricingListingsStable } from "@/lib/listingPricing";
 import { findMetroCity, resolveMetroCity } from "@/lib/metroCities";
 import {
   filterListings,
@@ -218,7 +219,10 @@ export function SearchPage() {
   }, [apiOn, apiListings, normalizedFilters]);
 
   /** One card/pin per property-mode post; room-mode stays one per room. */
-  const searchListings = useMemo(() => collapseSearchListings(filtered), [filtered]);
+  const searchListings = useMemo(
+    () => interleaveHiddenPricingListingsStable(collapseSearchListings(filtered)),
+    [filtered],
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get(SEARCH_SELECTED_PARAM));
   const [advancedOpen, setAdvancedOpen] = useState(false);

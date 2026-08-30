@@ -11,6 +11,8 @@ import {
 import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from "@/components/listing/PublicListingHeader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
+import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
+import { CONSULTAR_RENT_LABEL, hidePricingContactAllowed } from "@/lib/listingPricing";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { useDebouncedCommit } from "@/components/publish/useDebouncedCommit";
 import { ListingTagChips } from "@/components/listing/ListingTagChips";
@@ -166,7 +168,8 @@ type Props = {
   onSavePhoneToProfileChange?: (next: boolean) => void;
 };
 
-function propertyRentRangeLabel(rooms: readonly RoomDraft[]): string | null {
+function propertyRentRangeLabel(rooms: readonly RoomDraft[], hidePricing: boolean): string | null {
+  if (hidePricing) return CONSULTAR_RENT_LABEL;
   const rents = rooms
     .filter((room) => isRoomAvailableForRent(room))
     .map((room) => room.rentMxn)
@@ -222,7 +225,7 @@ function RoomPreviewCard({
     draftRoomImageUrls(draft, index)[0] ??
     null;
   const issues = collectRoomFieldIssues(draft, room, index);
-  const rentMissing = available && isListingRentMissing(room.rentMxn);
+  const rentMissing = !draft.hidePricing && available && isListingRentMissing(room.rentMxn);
   const occupantSummary = available ? null : occupiedRoomOccupantSummary(room);
 
   // Gender pref quick-attribute
@@ -279,7 +282,9 @@ function RoomPreviewCard({
                 </button>
               ) : (
                 <p className="mt-1 text-sm text-muted">
-                  {money.format(room.rentMxn)} / mes · {roomDimensionWizardLabel(room.roomDimension)}
+                  {draft.hidePricing
+                    ? `${CONSULTAR_RENT_LABEL} · ${roomDimensionWizardLabel(room.roomDimension)}`
+                    : `${money.format(room.rentMxn)} / mes · ${roomDimensionWizardLabel(room.roomDimension)}`}
                 </p>
               )}
 
@@ -766,11 +771,12 @@ export function EditableListingPreview({
       lodgingType: room.lodgingType,
       propertyKind: draft.propertyKind,
     });
-  const rentMissing = showRoomBlocks && isListingRentMissing(room.rentMxn);
+  const rentMissing = showRoomBlocks && !draft.hidePricing && isListingRentMissing(room.rentMxn);
   const propertyRentMissing =
+    !draft.hidePricing &&
     isPropertyPreview &&
     draft.rooms.some((r) => isRoomAvailableForRent(r) && isListingRentMissing(r.rentMxn));
-  const propertyPriceLabel = isPropertyPreview ? propertyRentRangeLabel(draft.rooms) : null;
+  const propertyPriceLabel = isPropertyPreview ? propertyRentRangeLabel(draft.rooms, draft.hidePricing) : null;
   const firstAvailableRoom =
     draft.rooms.find((r) => isRoomAvailableForRent(r)) ?? room;
   const canSavePhoneToProfile = Boolean(onSavePhoneToProfileChange);
@@ -927,6 +933,7 @@ export function EditableListingPreview({
             onCancel={() => setEditingHeader(false)}
           >
             {headerUsesPropertyFields ? (
+              <>
               <label className="block text-sm font-medium text-body">
                 Título de la propiedad
                 <input
@@ -945,6 +952,17 @@ export function EditableListingPreview({
                   className="mt-1"
                 />
               </label>
+              <div className="mt-3">
+                <HidePricingToggle
+                  hidePricing={draft.hidePricing}
+                  contactOk={hidePricingContactAllowed(
+                    Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
+                    true,
+                  )}
+                  onChange={(next) => onDraftChange((d) => ({ ...d, hidePricing: next }))}
+                />
+              </div>
+              </>
             ) : (
               <label className="block text-sm font-medium text-body">
                 Título del anuncio
@@ -999,10 +1017,23 @@ export function EditableListingPreview({
               </>
             ) : null}
             {!headerUsesPropertyFields ? (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 space-y-3">
+                <HidePricingToggle
+                  hidePricing={draft.hidePricing}
+                  contactOk={hidePricingContactAllowed(
+                    Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
+                    true,
+                  )}
+                  onChange={(next) => onDraftChange((d) => ({ ...d, hidePricing: next }))}
+                />
+              <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
                   Renta (MXN / mes)
-                  <span className="text-error"> *</span>
+                  {draft.hidePricing ? (
+                    <span className="font-normal text-muted"> (opcional)</span>
+                  ) : (
+                    <span className="text-error"> *</span>
+                  )}
                   <input
                     id={PUBLISH_PREVIEW_RENT_INPUT_ID}
                     type="number"
@@ -1016,7 +1047,7 @@ export function EditableListingPreview({
                       }))
                     }
                     className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-base sm:text-sm ${
-                      isListingRentMissing(headerDraft.rentMxn)
+                      !draft.hidePricing && isListingRentMissing(headerDraft.rentMxn)
                         ? "border border-error ring-1 ring-error/40"
                         : "border border-border"
                     }`}
@@ -1039,6 +1070,7 @@ export function EditableListingPreview({
                     className={WIZARD_FIELD_CONTROL_CLASS}
                   />
                 </label>
+              </div>
               </div>
             ) : null}
           </InlineFieldEditor>
@@ -1071,9 +1103,23 @@ export function EditableListingPreview({
                 <div className="mt-3">
                   <MissingRentCallout onEdit={editingHeader ? undefined : openHeaderEdit} />
                 </div>
+              ) : draft.hidePricing ? (
+                <p className="mt-2 text-2xl font-bold text-body">{CONSULTAR_RENT_LABEL}</p>
               ) : (
                 <ListingHeroPrice rentMxn={listing.rentMxn} />
               )
+            ) : null}
+            {!editingHeader ? (
+              <div className="mt-3">
+                <HidePricingToggle
+                  hidePricing={draft.hidePricing}
+                  contactOk={hidePricingContactAllowed(
+                    Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
+                    true,
+                  )}
+                  onChange={(next) => onDraftChange((d) => ({ ...d, hidePricing: next }))}
+                />
+              </div>
             ) : null}
             <ListingHeaderBadges
               postMode={draft.postMode}
@@ -1086,7 +1132,7 @@ export function EditableListingPreview({
               propertyKind={draft.propertyKind}
               tags={draft.propertyTags}
             />
-            {!isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
+            {!draft.hidePricing && !isPropertyPreview && !isPropertyScope && (listing.depositMxn ?? 0) > 0 ? (
               <p className="mt-2 text-sm text-muted">Depósito · {money.format(listing.depositMxn ?? 0)}</p>
             ) : null}
             <div className="relative mt-3 min-w-0 max-w-full">
@@ -1747,6 +1793,7 @@ export function EditableListingPreview({
             postMode={draft.postMode}
             roomCount={draft.rooms.length}
             propertyTags={draft.propertyTags}
+            hidePricing={draft.hidePricing}
           />
         )}
       </PreviewSection>

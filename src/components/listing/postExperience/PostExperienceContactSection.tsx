@@ -79,7 +79,7 @@ export function PostExperienceContactSection(props: Props) {
   return (
     <div id={props.mode === "property" ? "property-contact" : "contacto"} className="scroll-mt-24">
       <ListingSection title="Contactar anunciante">
-        <div className="rounded-xl border border-border bg-bg-light p-4">
+        <div id="contacto-mensaje" className="scroll-mt-24 rounded-xl border border-border bg-bg-light p-4">
           {props.mode === "property" ? (
             <>
               <p className="text-sm font-medium text-body">¿Qué cuartos te interesan?</p>
@@ -125,7 +125,7 @@ export function PostExperienceContactSection(props: Props) {
           )}
 
           {props.hasContactPhone && props.listingId ? (
-            <div className="mt-4">
+            <div id="contacto-telefono" className="mt-4 scroll-mt-24">
               <ListingPhoneReveal
                 listingId={props.listingId}
                 propertyId={props.propertyId}

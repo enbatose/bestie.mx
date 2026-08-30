@@ -32,7 +32,9 @@ import {
 } from "@/lib/listingsApi";
 import { adminPublishUnclaimed, authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
-import { normalizeMxNationalDigits } from "@/lib/mxPhone";
+import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
+import { hidePricingContactAllowed } from "@/lib/listingPricing";
 import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
@@ -294,6 +296,7 @@ function normalizePersistedDraft(d: Draft): Draft {
     commonAreaPhotos: normalizeDraftImages(migrated.commonAreaPhotos ?? migrated.propertyImageUrls ?? []),
     rooms: rooms.length ? rooms : [defaultRoom()],
     roomImageUrls: roomImageUrls.slice(0, rooms.length || 1),
+    hidePricing: Boolean((migrated as { hidePricing?: unknown }).hidePricing),
     approximateRadiusMeters: clampApproximateRadiusMeters(
       (migrated as { approximateRadiusMeters?: unknown }).approximateRadiusMeters,
     ),
@@ -392,6 +395,8 @@ export type Draft = {
   occupiedByMenCount: number | null;
   /** When true, show WhatsApp on the public listing. */
   showWhatsApp: boolean;
+  /** Hide rent and deposit on public surfaces (property-level). */
+  hidePricing: boolean;
   useCustomMapPin: boolean;
   customLat: string;
   customLng: string;
@@ -474,6 +479,7 @@ const defaultDraft = (): Draft => ({
   occupiedByWomenCount: 0,
   occupiedByMenCount: 0,
   showWhatsApp: true,
+  hidePricing: false,
   useCustomMapPin: false,
   customLat: "",
   customLng: "",
@@ -842,6 +848,7 @@ export function draftFromPropertyBundle(bundle: PropertyWithRooms): { draft: Dra
         ? Math.max(0, Math.floor(Number(p.occupiedByMenCount)))
         : 0,
     showWhatsApp: p.showWhatsApp,
+    hidePricing: Boolean((p as { hidePricing?: unknown }).hidePricing),
     useCustomMapPin: usePin,
     customLat: usePin ? String(p.lat) : "",
     customLng: usePin ? String(p.lng) : "",
@@ -2595,6 +2602,7 @@ export function PublishWizardPage() {
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
+              onHidePricingChange={(hide) => setDraft((d) => ({ ...d, hidePricing: hide }))}
               apiOn={apiOn}
             />
           ) : (
@@ -2690,11 +2698,25 @@ export function PublishWizardPage() {
                         )}
                       </select>
                     </label>
+                    <div className="sm:col-span-2">
+                      <HidePricingToggle
+                        hidePricing={Boolean(draft.hidePricing)}
+                        contactOk={hidePricingContactAllowed(
+                          Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
+                          true,
+                        )}
+                        onChange={(hide) => setDraft((d) => ({ ...d, hidePricing: hide }))}
+                      />
+                    </div>
                     <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
                       <div>
                         <label className="block text-sm font-medium text-body">
                           Renta (MXN / mes)
-                          <span className="text-error"> *</span>
+                          {draft.hidePricing ? (
+                            <span className="font-normal text-muted"> (opcional)</span>
+                          ) : (
+                            <span className="text-error"> *</span>
+                          )}
                           <input
                             type="number"
                             min={0}

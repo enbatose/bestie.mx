@@ -82,6 +82,11 @@ export type Property = {
   bathrooms: number;
   /** When false, do not show WhatsApp on the public listing. */
   showWhatsApp: boolean;
+  /**
+   * When true, public surfaces hide rent and deposit (`Consultar $`).
+   * Owner APIs still return the stored amounts.
+   */
+  hidePricing?: boolean;
   imageUrls?: string[];
   /** Shared-area / facade photos for property posts (same storage as `imageUrls`). */
   commonAreaPhotos?: string[];
@@ -187,6 +192,8 @@ export type PropertyListing = {
   propertyBedroomsTotal?: number;
   propertyBathrooms?: number;
   showWhatsApp?: boolean;
+  /** True when public UI must hide rent/deposit. */
+  hidePricing?: boolean;
   /** True when a phone can be revealed after login (digits not in payload). */
   hasContactPhone?: boolean;
   roomsAvailable: number;

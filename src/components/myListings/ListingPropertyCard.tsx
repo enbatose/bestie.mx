@@ -21,6 +21,7 @@ import {
   formatRentMxn,
   listingThumbSrc,
 } from "@/components/myListings/listingFormat";
+import { HiddenPricingBadge } from "@/components/listing/ListingHiddenPricing";
 import { PublisherMetricChips } from "@/components/myListings/PublisherMetricChips";
 import { ShareAiCopyModal } from "@/components/share/ShareAiCopyModal";
 import {
@@ -310,6 +311,7 @@ export function ListingPropertyCard({
                     {formatRentMxn(first.rentMxn)}
                   </span>
                 ) : null}
+                {first.hidePricing ? <HiddenPricingBadge /> : null}
                 <PublisherMetricChips
                   viewsCount={first.viewsCount}
                   inquiryCount={first.inquiryCount}
@@ -521,6 +523,7 @@ export function ListingPropertyCard({
                             {formatRentMxn(l.rentMxn)}
                           </span>
                         ) : null}
+                        {l.hidePricing ? <HiddenPricingBadge /> : null}
                         <PublisherMetricChips
                           viewsCount={l.viewsCount}
                           inquiryCount={l.inquiryCount}

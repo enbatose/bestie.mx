@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import { ListingRoomDetailsGrid } from "@/components/listing/ListingPropertySummaryGrid";
+import { CONSULTAR_RENT_LABEL } from "@/lib/listingPricing";
 import { ListingHeroPrice } from "@/components/listing/PublicListingHeader";
 import { RoomOnOffToggle, RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
@@ -225,7 +226,7 @@ export function EditableRoomModal({
   });
 
   const available = isRoomAvailableForRent(localRoom);
-  const rentMissing = available && isListingRentMissing(localRoom.rentMxn);
+  const rentMissing = available && !draft.hidePricing && isListingRentMissing(localRoom.rentMxn);
   const roomSlotTitle = propertyRoomSlotTitle(roomIndex + 1);
   const roomLabel =
     draft.postMode === "property"
@@ -508,7 +509,11 @@ export function EditableRoomModal({
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label className="block text-sm font-medium text-body">
                         Renta (MXN / mes)
-                        <span className="text-error"> *</span>
+                        {draft.hidePricing ? (
+                          <span className="font-normal text-muted"> (opcional)</span>
+                        ) : (
+                          <span className="text-error"> *</span>
+                        )}
                         <input
                           id={PUBLISH_PREVIEW_RENT_INPUT_ID}
                           type="number"
@@ -522,7 +527,7 @@ export function EditableRoomModal({
                             }))
                           }
                           className={`mt-1 w-full rounded-lg bg-surface px-3 py-2 text-base sm:text-sm ${
-                            isListingRentMissing(headerDraft.rentMxn)
+                            !draft.hidePricing && isListingRentMissing(headerDraft.rentMxn)
                               ? "border border-error ring-1 ring-error/40"
                               : "border border-border"
                           }`}
@@ -558,6 +563,8 @@ export function EditableRoomModal({
                       <div className="mt-3">
                         <MissingRentCallout onEdit={openHeaderEdit} />
                       </div>
+                    ) : draft.hidePricing ? (
+                      <p className="mt-2 text-2xl font-bold text-body">{CONSULTAR_RENT_LABEL}</p>
                     ) : (
                       <ListingHeroPrice rentMxn={localRoom.rentMxn} />
                     )
@@ -567,7 +574,7 @@ export function EditableRoomModal({
                       onChange={(patch) => setLocalRoom((r) => ({ ...r, ...patch }))}
                     />
                   )}
-                  {available && localRoom.depositMxn > 0 ? (
+                  {available && !draft.hidePricing && localRoom.depositMxn > 0 ? (
                     <p className="mt-2 text-sm text-muted">
                       Depósito · {money.format(localRoom.depositMxn)}
                     </p>
@@ -771,6 +778,7 @@ export function EditableRoomModal({
                       room={detailsRoom}
                       postMode={draft.postMode}
                       roomCount={draft.rooms.length}
+                      hidePricing={draft.hidePricing}
                     />
                   )}
                 </PreviewSection>

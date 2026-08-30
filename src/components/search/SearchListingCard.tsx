@@ -4,6 +4,7 @@ import { listingCardQuickAttributes } from "@/components/search/searchQuickAttri
 import { quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { listingCardSubtitle, listingCardTitle } from "@/lib/listingKeyLabels";
 import { formatSearchListingRent } from "@/lib/collapseSearchListings";
+import { isPricingHidden } from "@/lib/listingPricing";
 import { listingCoverImageUrl } from "@/lib/listingImageUrls";
 import type { PropertyListing } from "@/types/listing";
 
@@ -40,7 +41,10 @@ function rentLabel(listing: PropertyListing): string {
 }
 
 function popupAriaLabel(listing: PropertyListing, title: string): string {
-  return `${popupCtaLabel(listing)}: ${title}, ${rentLabel(listing)} al mes en ${listing.neighborhood}`;
+  const rent = rentLabel(listing);
+  return isPricingHidden(listing)
+    ? `${popupCtaLabel(listing)}: ${title}, ${rent} en ${listing.neighborhood}`
+    : `${popupCtaLabel(listing)}: ${title}, ${rent} al mes en ${listing.neighborhood}`;
 }
 
 function ListingCardThumb({ listing, className }: { listing: PropertyListing; className: string }) {
@@ -106,9 +110,11 @@ function SearchListingPopupCard({
           <div className="min-w-0 flex-1 pr-5">
             <h2 className="line-clamp-2 text-xs font-semibold leading-snug text-primary">{title}</h2>
             <p className="mt-0.5 truncate text-[11px] text-muted">{listing.neighborhood}</p>
-            <p className="mt-1 text-sm font-bold leading-none text-body">
+            <p className="mt-1 text-sm font-bold leading-snug text-body">
               {rentLabel(listing)}
-              <span className="ml-0.5 text-[10px] font-normal text-muted">/ mes</span>
+              {isPricingHidden(listing) ? null : (
+                <span className="ml-0.5 text-[10px] font-normal text-muted">/ mes</span>
+              )}
             </p>
             {pills.length ? (
               <div className="mt-1 flex flex-wrap gap-1">
@@ -226,7 +232,9 @@ function SearchListingSidebarCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h2 className="min-w-0 text-sm font-semibold leading-snug text-primary sm:text-base">{title}</h2>
-            <p className="shrink-0 text-xs font-semibold text-body sm:text-sm">{rentLabel(listing)}</p>
+            <p className="min-w-0 max-w-[46%] shrink-0 break-words text-right text-xs font-semibold leading-snug text-body sm:text-sm">
+              {rentLabel(listing)}
+            </p>
           </div>
           <p className="mt-0.5 text-xs text-muted sm:text-sm">{subtitle}</p>
           <p className="mt-2 line-clamp-2 text-xs text-muted sm:text-sm">{listing.summary}</p>
