@@ -1,3 +1,5 @@
+import { phoneDigitsForStorage } from "@/lib/mxPhone";
+
 /** Public compact label when rent/deposit are hidden. */
 export const CONSULTAR_RENT_LABEL = "Consultar $";
 
@@ -7,12 +9,56 @@ export const HIDE_PRICING_DISCLAIMER = "Consulta renta y depósito con quien pub
 export const HIDE_PRICING_CONTACT_MESSAGE =
   "Para ocultar el precio necesitas un teléfono en el anuncio o mensajes en Bestie.";
 
+/** Stored when the publisher omitted a real phone (`0000000000000`). */
+const LISTING_PHONE_PLACEHOLDER = /^0+$/;
+
 export function isPricingHidden(value: { hidePricing?: boolean } | null | undefined): boolean {
   return Boolean(value?.hidePricing);
 }
 
 export function hidePricingContactAllowed(hasPhone: boolean, hasChat: boolean): boolean {
   return hasPhone || hasChat;
+}
+
+export function draftHasRealListingPhone(contactWhatsApp?: string | null): boolean {
+  const digits = phoneDigitsForStorage(String(contactWhatsApp ?? ""));
+  if (!digits || LISTING_PHONE_PLACEHOLDER.test(digits)) return false;
+  return true;
+}
+
+export function draftHasPublicListingPhone(draft: {
+  showWhatsApp?: boolean;
+  contactWhatsApp?: string | null;
+}): boolean {
+  return Boolean(draft.showWhatsApp) && draftHasRealListingPhone(draft.contactWhatsApp);
+}
+
+/** Toggle is allowed if chat exists, a public phone exists, or a stored phone can be shown. */
+export function draftHidePricingContactOk(
+  draft: { showWhatsApp?: boolean; contactWhatsApp?: string | null },
+  hasChat: boolean,
+): boolean {
+  return (
+    hidePricingContactAllowed(draftHasPublicListingPhone(draft), hasChat) ||
+    draftHasRealListingPhone(draft.contactWhatsApp)
+  );
+}
+
+/**
+ * Turn hide-pricing on/off. Unclaimed outreach has no Bestie chat, so a stored-but-hidden
+ * phone is revealed on the listing so seekers can consultar $.
+ */
+export function applyDraftHidePricing<
+  T extends { hidePricing?: boolean; showWhatsApp?: boolean; contactWhatsApp?: string },
+>(draft: T, hide: boolean, hasChat: boolean): T {
+  if (!hide) return { ...draft, hidePricing: false };
+  if (hidePricingContactAllowed(draftHasPublicListingPhone(draft), hasChat)) {
+    return { ...draft, hidePricing: true };
+  }
+  if (draftHasRealListingPhone(draft.contactWhatsApp)) {
+    return { ...draft, hidePricing: true, showWhatsApp: true };
+  }
+  return draft;
 }
 
 /** FNV-1a 32-bit — stable seed from listing ids so shuffle is not per React render. */

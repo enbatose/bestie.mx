@@ -31,8 +31,7 @@ import {
 } from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
-import { hidePricingContactAllowed } from "@/lib/listingPricing";
-import { phoneDigitsForStorage } from "@/lib/mxPhone";
+import { draftHidePricingContactOk } from "@/lib/listingPricing";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
 
@@ -58,6 +57,8 @@ type Props = {
   onRoomPhotosChange: (roomIndex: number, photos: DraftImage[]) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
   onHidePricingChange: (hide: boolean) => void;
+  /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
+  hasChat?: boolean;
   apiOn?: boolean;
 };
 
@@ -596,6 +597,7 @@ export function PropertyRoomManager({
   onToggleTag,
   apiOn = false,
   onHidePricingChange,
+  hasChat = true,
 }: Props) {
   const totalBedrooms = Math.max(1, propertyBedroomsTotal);
   const rentCount = propertyRentRoomCount(draft);
@@ -662,10 +664,7 @@ export function PropertyRoomManager({
         <div className="mt-4">
           <HidePricingToggle
             hidePricing={Boolean(draft.hidePricing)}
-            contactOk={hidePricingContactAllowed(
-              Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
-              true,
-            )}
+            contactOk={draftHidePricingContactOk(draft, hasChat)}
             onChange={onHidePricingChange}
           />
         </div>

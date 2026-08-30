@@ -25,6 +25,8 @@ type Props = {
   disabled?: boolean;
   /** Hide the inner phone field label when an outer section title already names the block. */
   showPhoneLabel?: boolean;
+  /** Keep the number public (unclaimed hide-pricing has no Bestie chat). */
+  lockShowWhatsApp?: boolean;
 };
 
 /**
@@ -44,6 +46,7 @@ export function ListingPhoneCaptureFields({
   bare = false,
   disabled,
   showPhoneLabel = true,
+  lockShowWhatsApp = false,
 }: Props) {
   const stored = phoneDigitsForStorage(contactWhatsApp) ?? contactWhatsApp.replace(/\D/g, "");
   const isMx = parseListingPhoneParts(stored).dial === "52" && Boolean(normalizeMxNationalDigits(stored) || stored.length === 12);
@@ -88,8 +91,11 @@ export function ListingPhoneCaptureFields({
           type="checkbox"
           className="mt-0.5 size-[1.125rem] shrink-0 rounded border-border accent-primary"
           checked={showWhatsApp}
-          disabled={disabled || !postDigits}
-          onChange={(e) => onShowChange(e.target.checked)}
+          disabled={disabled || !postDigits || lockShowWhatsApp}
+          onChange={(e) => {
+            if (lockShowWhatsApp && !e.target.checked) return;
+            onShowChange(e.target.checked);
+          }}
         />
         <span className="min-w-0 break-words leading-snug">
           Mostrar este teléfono en la publicación

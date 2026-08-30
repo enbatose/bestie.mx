@@ -479,6 +479,14 @@ export async function updateProperty(
   return (await res.json()) as Property;
 }
 
+/** Strip `update_property_http_400: ` so UI can show the Spanish server message. */
+export function listingsHttpErrorMessage(err: unknown, fallback = "No se pudo guardar."): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  if (!raw.trim()) return fallback;
+  const m = raw.match(/^[a-z0-9_]+_http_\d+:\s*(.+)$/i);
+  return (m?.[1] ?? raw).trim();
+}
+
 export async function fetchPropertyWithRooms(
   propertyId: string,
   signal?: AbortSignal,

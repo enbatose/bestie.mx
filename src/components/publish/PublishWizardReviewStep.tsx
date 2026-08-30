@@ -66,6 +66,8 @@ type Props = {
   adminOutreachEvidence?: {
     onPublish: (file: File, note?: string) => void;
   } | null;
+  /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
+  hasChat?: boolean;
   savePhoneToProfile?: boolean;
   onSavePhoneToProfileChange?: (next: boolean) => void;
   fieldConflicts?: Array<{ field: string; message: string }>;
@@ -94,6 +96,7 @@ export function PublishWizardReviewStep({
   isAssistedDraft = false,
   isSelfServeAssistedDraft = false,
   adminOutreachEvidence = null,
+  hasChat = true,
   savePhoneToProfile = false,
   onSavePhoneToProfileChange,
   fieldConflicts = [],
@@ -418,6 +421,7 @@ export function PublishWizardReviewStep({
         isAssistedDraft={isAssistedDraft && !isLiveEdit}
         savePhoneToProfile={savePhoneToProfile}
         onSavePhoneToProfileChange={onSavePhoneToProfileChange}
+        hasChat={hasChat}
       />
 
       {isRoomOfProperty ? null : (

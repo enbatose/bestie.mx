@@ -71,6 +71,8 @@ import {
   storedContactWhatsApp,
   validLatLng,
 } from "./validation.js";
+import { HIDE_PRICING_CONTACT_MESSAGE, resolveShowWhatsappForHidePricing } from "./listingPricing.js";
+import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
 
 import {
   ADMIN_OUTREACH_CLAIM_TTL_MS,
@@ -1129,7 +1131,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         asTrimmedString(propertyPatch.summary) != null
           ? clampStr(String(propertyPatch.summary), SUMMARY_MAX_LEN)
           : prop.summary;
-      const nextShowWhatsapp =
+      let nextShowWhatsapp =
         propertyPatch.showWhatsApp === undefined
           ? (prop.show_whatsapp === 0 ? 0 : 1)
           : propertyPatch.showWhatsApp
@@ -1143,6 +1145,18 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         propertyPatch.contactWhatsApp !== undefined
           ? storedContactWhatsApp(nextShowWhatsapp === 1, String(propertyPatch.contactWhatsApp ?? ""))
           : String(prop.contact_whatsapp ?? "");
+      const hidePricingShow = resolveShowWhatsappForHidePricing({
+        hidePricing: nextHidePricing,
+        showWhatsapp: nextShowWhatsapp,
+        hasPublicPhone: propertyHasPublicPhone(nextShowWhatsapp, nextContactWhatsApp),
+        hasChat: false,
+        hasStoredPhone: isRealListingPhone(nextContactWhatsApp),
+      });
+      if (!hidePricingShow.ok) {
+        res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
+        return;
+      }
+      nextShowWhatsapp = hidePricingShow.showWhatsapp;
       const kindRaw = propertyPatch.propertyKind;
       const nextKind =
         kindRaw === "house" || kindRaw === "apartment" || kindRaw === "loft"

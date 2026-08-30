@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyDraftHidePricing,
+  draftHasRealListingPhone,
+  draftHidePricingContactOk,
   interleaveHiddenPricingListings,
   interleaveHiddenPricingListingsStable,
   isPricingHidden,
@@ -41,5 +44,34 @@ describe("isPricingHidden", () => {
     expect(isPricingHidden(undefined)).toBe(false);
     expect(isPricingHidden({})).toBe(false);
     expect(isPricingHidden({ hidePricing: true })).toBe(true);
+  });
+});
+
+describe("applyDraftHidePricing", () => {
+  it("treats placeholder digits as no phone", () => {
+    expect(draftHasRealListingPhone("0000000000000")).toBe(false);
+    expect(draftHasRealListingPhone("3329306218")).toBe(true);
+  });
+
+  it("allows hide-pricing via Bestie chat without a phone", () => {
+    const next = applyDraftHidePricing({ hidePricing: false, showWhatsApp: false, contactWhatsApp: "" }, true, true);
+    expect(next).toEqual({ hidePricing: true, showWhatsApp: false, contactWhatsApp: "" });
+    expect(draftHidePricingContactOk({ showWhatsApp: false, contactWhatsApp: "" }, true)).toBe(true);
+  });
+
+  it("reveals a stored phone when unclaimed outreach has no chat", () => {
+    const next = applyDraftHidePricing(
+      { hidePricing: false, showWhatsApp: false, contactWhatsApp: "3329306218" },
+      true,
+      false,
+    );
+    expect(next.hidePricing).toBe(true);
+    expect(next.showWhatsApp).toBe(true);
+  });
+
+  it("does not enable hide-pricing without phone or chat", () => {
+    const draft = { hidePricing: false, showWhatsApp: false, contactWhatsApp: "" };
+    expect(applyDraftHidePricing(draft, true, false)).toEqual(draft);
+    expect(draftHidePricingContactOk(draft, false)).toBe(false);
   });
 });

@@ -28,13 +28,14 @@ import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
   isListingsApiConfigured,
+  listingsHttpErrorMessage,
   updateProperty,
 } from "@/lib/listingsApi";
 import { adminPublishUnclaimed, authLinkPublisher, authMe, consumeHandoffToken } from "@/lib/authApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
-import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { normalizeMxNationalDigits } from "@/lib/mxPhone";
 import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
-import { hidePricingContactAllowed } from "@/lib/listingPricing";
+import { applyDraftHidePricing, draftHidePricingContactOk } from "@/lib/listingPricing";
 import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
@@ -131,7 +132,6 @@ import {
   showWizardPropertyBathroomsField,
   validateRoomsForSubmit,
   validateWizardStepByTitle,
-  wizardContactDigits,
   publishDraftFromWizard,
   syncAssistedDraftClaimToServer,
   syncDraftToServer,
@@ -227,19 +227,21 @@ function WizardAutosaveIndicator({
   flashKey,
   showRing,
   saving,
+  error,
 }: {
   lastSavedAt: number | null;
   flashKey: number;
   showRing: boolean;
   saving: boolean;
+  error?: string | null;
 }) {
   const timeLabel = formatAutosaveTime(lastSavedAt);
-  if (!timeLabel) return null;
+  if (!timeLabel && !error) return null;
   const ringOn = saving || showRing;
   return (
     <div className="pointer-events-none fixed right-4 top-[72px] z-50" aria-live="polite">
-      <div className="relative inline-flex rounded-full">
-        {ringOn ? (
+      <div className="relative inline-flex max-w-[min(100vw-2rem,20rem)] rounded-full">
+        {ringOn && !error ? (
           <svg
             key={saving ? "saving" : flashKey}
             className="pointer-events-none absolute inset-0 h-full w-full"
@@ -267,9 +269,17 @@ function WizardAutosaveIndicator({
             />
           </svg>
         ) : null}
-        <div className="relative z-10 m-[2px] inline-flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-medium text-body shadow-sm">
-          <CloudCheck className="size-3.5" aria-hidden />
-          {saving ? "Guardando…" : `Auto-guardado ${timeLabel}`}
+        <div
+          className={`relative z-10 m-[2px] inline-flex min-w-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium shadow-sm ${
+            error
+              ? "border-error/40 bg-error/10 text-error"
+              : "border-secondary/40 bg-secondary/10 text-body"
+          }`}
+        >
+          <CloudCheck className="size-3.5 shrink-0" aria-hidden />
+          <span className="min-w-0 break-words">
+            {saving ? "Guardando…" : error ? error : `Auto-guardado ${timeLabel}`}
+          </span>
         </div>
       </div>
     </div>
@@ -1051,6 +1061,7 @@ export function PublishWizardPage() {
   const [wizardDraftSaveNote, setWizardDraftSaveNote] = useState<"idle" | "saved">("idle");
   const [publishErr, setPublishErr] = useState<string | null>(null);
   const [autosaveNote, setAutosaveNote] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [autosaveErr, setAutosaveErr] = useState<string | null>(null);
   const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const [autosaveFlashKey, setAutosaveFlashKey] = useState(0);
   const [showAutosaveRing, setShowAutosaveRing] = useState(false);
@@ -1781,6 +1792,7 @@ export function PublishWizardPage() {
 
     try {
       setAutosaveNote("saving");
+      setAutosaveErr(null);
       if (claimToken) {
         const syncedDraft = await syncAssistedDraftClaimToServer(
           claimToken,
@@ -1830,9 +1842,10 @@ export function PublishWizardPage() {
         setAutosaveNote((n) => (n === "saved" ? "idle" : n));
       }, 2000);
       return synced.serverSync;
-    } catch {
+    } catch (e) {
       if (generation === autosaveGenerationRef.current) {
         setAutosaveNote("error");
+        setAutosaveErr(listingsHttpErrorMessage(e));
       }
       return null;
     }
@@ -2411,7 +2424,11 @@ export function PublishWizardPage() {
                 onContactChange={(national) =>
                   setDraft((d) => ({ ...d, contactWhatsApp: national }))
                 }
-                onShowChange={(show) => setDraft((d) => ({ ...d, showWhatsApp: show }))}
+                onShowChange={(show) => {
+                  if (!show && draft.hidePricing && unclaimedAdminOutreach) return;
+                  setDraft((d) => ({ ...d, showWhatsApp: show }));
+                }}
+                lockShowWhatsApp={draft.hidePricing && unclaimedAdminOutreach}
                 profilePhoneE164={me?.phoneE164}
                 saveToProfile={savePhoneToProfile}
                 onSaveToProfileChange={setSavePhoneToProfile}
@@ -2614,7 +2631,10 @@ export function PublishWizardPage() {
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
-              onHidePricingChange={(hide) => setDraft((d) => ({ ...d, hidePricing: hide }))}
+              onHidePricingChange={(hide) =>
+                setDraft((d) => applyDraftHidePricing(d, hide, !unclaimedAdminOutreach))
+              }
+              hasChat={!unclaimedAdminOutreach}
               apiOn={apiOn}
             />
           ) : (
@@ -2713,11 +2733,10 @@ export function PublishWizardPage() {
                     <div className="sm:col-span-2">
                       <HidePricingToggle
                         hidePricing={Boolean(draft.hidePricing)}
-                        contactOk={hidePricingContactAllowed(
-                          Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
-                          true,
-                        )}
-                        onChange={(hide) => setDraft((d) => ({ ...d, hidePricing: hide }))}
+                        contactOk={draftHidePricingContactOk(draft, !unclaimedAdminOutreach)}
+                        onChange={(hide) =>
+                          setDraft((d) => applyDraftHidePricing(d, hide, !unclaimedAdminOutreach))
+                        }
                       />
                     </div>
                     <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
@@ -3105,7 +3124,10 @@ export function PublishWizardPage() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [step]);
 
-  const publishBlockedReason = useMemo(() => getPublishBlockedReason(draft), [draft]);
+  const publishBlockedReason = useMemo(
+    () => getPublishBlockedReason(draft, { hasChat: !unclaimedAdminOutreach }),
+    [draft, unclaimedAdminOutreach],
+  );
 
   const currentAiComposeSnapshot = useMemo(
     () =>
@@ -3229,7 +3251,7 @@ export function PublishWizardPage() {
 
   async function submitAdminOutreachWithEvidence(file: File, note?: string) {
     setPublishErr(null);
-    const blocked = getPublishBlockedReason(draftRef.current);
+    const blocked = getPublishBlockedReason(draftRef.current, { hasChat: !unclaimedAdminOutreach });
     if (blocked) {
       setPublishErr(blocked);
       return;
@@ -3300,8 +3322,7 @@ export function PublishWizardPage() {
         },
       );
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "No se pudo publicar.";
-      setPublishErr(msg);
+      setPublishErr(listingsHttpErrorMessage(e, "No se pudo publicar."));
       setSubmitInFlight(null);
     }
   }
@@ -3316,7 +3337,7 @@ export function PublishWizardPage() {
         setPublishErr("Comprobando tu sesión… intenta de nuevo en un momento.");
         return;
       }
-      const blocked = getPublishBlockedReason(draftRef.current);
+      const blocked = getPublishBlockedReason(draftRef.current, { hasChat: !unclaimedAdminOutreach });
       if (blocked) {
         setPublishErr(blocked);
         return;
@@ -3389,7 +3410,7 @@ export function PublishWizardPage() {
           },
         );
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "No se pudo publicar.";
+        const msg = listingsHttpErrorMessage(e, "No se pudo publicar.");
         setPublishErr(
           isRentRequiredPublishError(msg)
             ? firstRoomIndexMissingRent(draftRef.current) >= 0
@@ -3405,7 +3426,10 @@ export function PublishWizardPage() {
     // When saving a single room of an already-published property, skip the cross-room
     // validation so that incomplete sibling rooms don't block saving this room's edits.
     const skipRoomValidation = Boolean(editingLiveProperty) && liveEditScope === "room";
-    const blocked = getPublishBlockedReason(draftRef.current, { skipRoomValidation });
+    const blocked = getPublishBlockedReason(draftRef.current, {
+      skipRoomValidation,
+      hasChat: !unclaimedAdminOutreach,
+    });
     if (blocked) {
       setPublishErr(blocked);
       track("publish_failed", { mode: draftRef.current.postMode,
@@ -3559,7 +3583,7 @@ export function PublishWizardPage() {
           reason: result.message.slice(0, 120), create_flow: createFlowRef.current });
       }
     } catch (e) {
-      setPublishErr(e instanceof Error ? e.message : "No se pudo publicar.");
+      setPublishErr(listingsHttpErrorMessage(e, "No se pudo publicar."));
       track("publish_failed", { mode: draftRef.current.postMode,
         reason: e instanceof Error ? e.message.slice(0, 120) : "unknown", create_flow: createFlowRef.current });
     } finally {
@@ -3702,12 +3726,13 @@ export function PublishWizardPage() {
     const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
     return (
       <div className="mx-auto w-full min-w-0 max-w-3xl overflow-x-clip px-4 py-8 sm:px-6 sm:py-10">
-        {apiOn && autosaveTimeLabel ? (
+        {apiOn && (autosaveTimeLabel || autosaveNote === "error") ? (
           <WizardAutosaveIndicator
             lastSavedAt={lastAutosavedAt}
             flashKey={autosaveFlashKey}
             showRing={showAutosaveRing}
             saving={autosaveNote === "saving"}
+            error={autosaveNote === "error" ? autosaveErr : null}
           />
         ) : null}
         <PublishWizardReturnLinks
@@ -3779,6 +3804,7 @@ export function PublishWizardPage() {
                 ? { onPublish: (file, note) => void submitAdminOutreachWithEvidence(file, note) }
                 : null
             }
+            hasChat={!unclaimedAdminOutreach}
             liveEdit={{
               status: editingLiveProperty?.status ?? "draft",
               returnListingId,
@@ -3817,12 +3843,13 @@ export function PublishWizardPage() {
 
   return (
     <div className={`mx-auto w-full min-w-0 overflow-x-clip px-3 py-4 sm:px-6 sm:py-10 ${wizardShellMaxWidth}`}>
-      {apiOn && autosaveTimeLabel ? (
+      {apiOn && (autosaveTimeLabel || autosaveNote === "error") ? (
         <WizardAutosaveIndicator
           lastSavedAt={lastAutosavedAt}
           flashKey={autosaveFlashKey}
           showRing={showAutosaveRing}
           saving={autosaveNote === "saving"}
+          error={autosaveNote === "error" ? autosaveErr : null}
         />
       ) : null}
       <PublishWizardReturnLinks
@@ -3969,6 +3996,7 @@ export function PublishWizardPage() {
                   ? { onPublish: (file, note) => void submitAdminOutreachWithEvidence(file, note) }
                   : null
               }
+              hasChat={!unclaimedAdminOutreach}
               fieldConflicts={aiConflicts}
               onDraftChange={(updater) => {
               setDraft((d) => {

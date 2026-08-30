@@ -12,7 +12,12 @@ import { ListingHeaderBadges, ListingHeroPrice, publicListingHeaderTitle } from 
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { MissingRentCallout } from "@/components/publish/MissingRentCallout";
 import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
-import { CONSULTAR_RENT_LABEL, hidePricingContactAllowed } from "@/lib/listingPricing";
+import {
+  CONSULTAR_RENT_LABEL,
+  applyDraftHidePricing,
+  draftHasRealListingPhone,
+  draftHidePricingContactOk,
+} from "@/lib/listingPricing";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { useDebouncedCommit } from "@/components/publish/useDebouncedCommit";
 import { ListingTagChips } from "@/components/listing/ListingTagChips";
@@ -166,6 +171,8 @@ type Props = {
   /** Persist listing phone to profile on publish/save (review step + live edit). */
   savePhoneToProfile?: boolean;
   onSavePhoneToProfileChange?: (next: boolean) => void;
+  /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
+  hasChat?: boolean;
 };
 
 function propertyRentRangeLabel(rooms: readonly RoomDraft[], hidePricing: boolean): string | null {
@@ -408,6 +415,7 @@ export function EditableListingPreview({
   isAssistedDraft: _isAssistedDraft = false,
   savePhoneToProfile = false,
   onSavePhoneToProfileChange,
+  hasChat = true,
 }: Props) {
   const listing = useMemo(
     () => draftToListingPreview(draft, roomIndex, profilePhoneE164),
@@ -607,11 +615,17 @@ export function EditableListingPreview({
   };
 
   const savePhone = () => {
-    onDraftChange((d) => ({
-      ...d,
-      contactWhatsApp: phoneDraft.contactWhatsApp,
-      showWhatsApp: phoneDraft.showWhatsApp,
-    }));
+    onDraftChange((d) => {
+      const next = {
+        ...d,
+        contactWhatsApp: phoneDraft.contactWhatsApp,
+        showWhatsApp: phoneDraft.showWhatsApp,
+      };
+      if (next.hidePricing && !hasChat && draftHasRealListingPhone(next.contactWhatsApp)) {
+        return { ...next, showWhatsApp: true };
+      }
+      return next;
+    });
     setEditingPhone(false);
   };
 
@@ -955,11 +969,8 @@ export function EditableListingPreview({
               <div className="mt-3">
                 <HidePricingToggle
                   hidePricing={draft.hidePricing}
-                  contactOk={hidePricingContactAllowed(
-                    Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
-                    true,
-                  )}
-                  onChange={(next) => onDraftChange((d) => ({ ...d, hidePricing: next }))}
+                  contactOk={draftHidePricingContactOk(draft, hasChat)}
+                  onChange={(next) => onDraftChange((d) => applyDraftHidePricing(d, next, hasChat))}
                 />
               </div>
               </>
@@ -1020,11 +1031,8 @@ export function EditableListingPreview({
               <div className="mt-2 space-y-3">
                 <HidePricingToggle
                   hidePricing={draft.hidePricing}
-                  contactOk={hidePricingContactAllowed(
-                    Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
-                    true,
-                  )}
-                  onChange={(next) => onDraftChange((d) => ({ ...d, hidePricing: next }))}
+                  contactOk={draftHidePricingContactOk(draft, hasChat)}
+                  onChange={(next) => onDraftChange((d) => applyDraftHidePricing(d, next, hasChat))}
                 />
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-body">
@@ -1113,11 +1121,8 @@ export function EditableListingPreview({
               <div className="mt-3">
                 <HidePricingToggle
                   hidePricing={draft.hidePricing}
-                  contactOk={hidePricingContactAllowed(
-                    Boolean(draft.showWhatsApp && phoneDigitsForStorage(draft.contactWhatsApp)),
-                    true,
-                  )}
-                  onChange={(next) => onDraftChange((d) => ({ ...d, hidePricing: next }))}
+                  contactOk={draftHidePricingContactOk(draft, hasChat)}
+                  onChange={(next) => onDraftChange((d) => applyDraftHidePricing(d, next, hasChat))}
                 />
               </div>
             ) : null}
@@ -1165,8 +1170,12 @@ export function EditableListingPreview({
                       type="checkbox"
                       className="size-[1.125rem] rounded border-border accent-primary"
                       checked={phoneDraft.showWhatsApp}
-                      disabled={!phoneDigitsForStorage(phoneDraft.contactWhatsApp)}
-                      onChange={(e) => setPhoneDraft((p) => ({ ...p, showWhatsApp: e.target.checked }))}
+                      disabled={!phoneDigitsForStorage(phoneDraft.contactWhatsApp) || (draft.hidePricing && !hasChat)}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        if (!next && draft.hidePricing && !hasChat) return;
+                        setPhoneDraft((p) => ({ ...p, showWhatsApp: next }));
+                      }}
                     />
                     <span className="min-w-0 break-words leading-snug">Mostrar en la publicación</span>
                   </label>

@@ -11,6 +11,26 @@ export function hidePricingContactAllowed(hasPhone: boolean, hasChat: boolean): 
   return hasPhone || hasChat;
 }
 
+/**
+ * Unclaimed outreach has no Bestie chat. If hide-pricing is on and a real phone is stored
+ * but not shown, show it so seekers can consultar $. Returns null when the patch is invalid.
+ */
+export function resolveShowWhatsappForHidePricing(opts: {
+  hidePricing: boolean;
+  showWhatsapp: number;
+  hasPublicPhone: boolean;
+  hasChat: boolean;
+  hasStoredPhone: boolean;
+}): { ok: true; showWhatsapp: number } | { ok: false } {
+  const show = opts.showWhatsapp ? 1 : 0;
+  if (!opts.hidePricing) return { ok: true, showWhatsapp: show };
+  if (hidePricingContactAllowed(opts.hasPublicPhone, opts.hasChat)) {
+    return { ok: true, showWhatsapp: show };
+  }
+  if (opts.hasStoredPhone) return { ok: true, showWhatsapp: 1 };
+  return { ok: false };
+}
+
 export function redactHiddenPublicPricing<
   T extends { hidePricing?: boolean; rentMxn: number; depositMxn?: number; rentMxnMax?: number },
 >(listing: T): T {

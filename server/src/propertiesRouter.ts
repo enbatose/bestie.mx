@@ -5,12 +5,13 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
-import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
+import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
 import {
   hidePricingContactAllowed,
   HIDE_PRICING_CONTACT_MESSAGE,
   redactHiddenPublicRooms,
+  resolveShowWhatsappForHidePricing,
 } from "./listingPricing.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { resolvePropertyIdFromRouteParam, resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
@@ -1222,6 +1223,7 @@ export function propertiesRouter(db: DatabaseSync) {
     const nextWaRaw =
       typeof patch.contactWhatsApp === "string" ? patch.contactWhatsApp : String(prop.contact_whatsapp);
     const nextWa = storedContactWhatsApp(nextShowWhatsappEarly, nextWaRaw);
+    let nextShowWhatsapp = nextShowWhatsappEarly ? 1 : 0;
     const nextPk = patch.propertyKind != null ? optPropertyKind(patch.propertyKind) : optPropertyKind(prop.property_kind);
 
     if (!nextTitle || !nextCity || !nextHood) {
@@ -1303,17 +1305,22 @@ export function propertiesRouter(db: DatabaseSync) {
       typeof patch.bathrooms === "number"
         ? clampBathrooms(patch.bathrooms)
         : clampBathrooms(Number(prop.bathrooms ?? 1));
-    const nextShowWhatsapp = nextShowWhatsappEarly ? 1 : 0;
     const nextHidePricing =
       patch.hidePricing !== undefined
         ? optBool(patch.hidePricing) === true
         : Number(prop.hide_pricing) === 1;
-    const hasPhoneNext = propertyHasPublicPhone(nextShowWhatsapp, nextWa);
-    const hasChatNext = !isUnclaimedAdminOutreach(db, propertyId);
-    if (nextHidePricing && !hidePricingContactAllowed(hasPhoneNext, hasChatNext)) {
+    const hidePricingShow = resolveShowWhatsappForHidePricing({
+      hidePricing: nextHidePricing,
+      showWhatsapp: nextShowWhatsapp,
+      hasPublicPhone: propertyHasPublicPhone(nextShowWhatsapp, nextWa),
+      hasChat: !isUnclaimedAdminOutreach(db, propertyId),
+      hasStoredPhone: isRealListingPhone(nextWa),
+    });
+    if (!hidePricingShow.ok) {
       res.status(400).json({ error: "hide_pricing_contact", message: HIDE_PRICING_CONTACT_MESSAGE });
       return;
     }
+    nextShowWhatsapp = hidePricingShow.showWhatsapp;
 
     const nextImageUrlsJson =
       patch.imageUrls !== undefined

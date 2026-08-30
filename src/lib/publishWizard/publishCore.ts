@@ -26,6 +26,7 @@ import type { PublishWizardServerSync } from "@/lib/publishWizard/previewSession
 import { publishWizardLastStepIndex } from "@/lib/publishWizard/previewSession";
 import { capturePublishPosthogSessionId } from "@/lib/posthog";
 import { phoneDigitsForStorage } from "@/lib/mxPhone";
+import { draftHasPublicListingPhone, HIDE_PRICING_CONTACT_MESSAGE } from "@/lib/listingPricing";
 import {
   saveAssistedDraftClaim,
   type AssistedDraftClaimSaveBody,
@@ -110,10 +111,10 @@ function stepPrefix(stepIndex: number, section: string, message: string): string
   return `Paso ${Math.max(1, stepIndex)} · ${section}: ${message}`;
 }
 
-export function wizardContactDigits(contactWhatsApp: string, showPublic: boolean): string {
-  if (!showPublic) return DRAFT_WA_PLACEHOLDER;
+export function wizardContactDigits(contactWhatsApp: string, _showPublic?: boolean): string {
   const d = normalizeWhatsApp(contactWhatsApp);
-  return d.length >= 10 ? d : DRAFT_WA_PLACEHOLDER;
+  if (d.length >= 10 && !/^0+$/.test(d)) return d;
+  return DRAFT_WA_PLACEHOLDER;
 }
 
 export function showWizardPropertyBathroomsField(d: Draft): boolean {
@@ -423,7 +424,7 @@ export function validateRoomsForSubmit(d: Draft): string | null {
 
 export function getPublishBlockedReason(
   draft: Draft,
-  opts?: { skipRoomValidation?: boolean },
+  opts?: { skipRoomValidation?: boolean; hasChat?: boolean },
 ): string | null {
   const locationErr = locationStepInvalidReason(draft);
   if (locationErr) return `Paso · Ubicación: ${locationErr}`;
@@ -438,6 +439,11 @@ export function getPublishBlockedReason(
 
   const photosErr = publishPhotosInvalidReason(draft);
   if (photosErr) return `Paso · Fotos: ${photosErr}`;
+
+  const hasChat = opts?.hasChat !== false;
+  if (draft.hidePricing && !draftHasPublicListingPhone(draft) && !hasChat) {
+    return HIDE_PRICING_CONTACT_MESSAGE;
+  }
 
   return null;
 }
@@ -733,7 +739,7 @@ export async function publishDraftFromWizard(opts: {
         neighborhood,
         lat,
         lng,
-        contactWhatsApp: contact.showWhatsApp ? digits : "",
+        contactWhatsApp: digits,
         propertyKind: draft.propertyKind,
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
@@ -765,7 +771,7 @@ export async function publishDraftFromWizard(opts: {
         lat,
         lng,
         summary: draft.propertySummary.trim(),
-        contactWhatsApp: contact.showWhatsApp ? digits : "",
+        contactWhatsApp: digits,
         propertyKind: draft.propertyKind,
         bedroomsTotal: draft.propertyBedroomsTotal,
         bathrooms: effectiveWizardPropertyBathrooms(draft),
