@@ -37,3 +37,32 @@ export function MyListingsReturnLink({
     </Link>
   );
 }
+
+/** Chrome above `/publicar` — keep Posts/Mis Anuncios and optionally the outreach claim draft. */
+export function PublishWizardReturnLinks({
+  myListingsRestorePath,
+  adminPostsRestorePath,
+  claimDraftReturnPath,
+}: {
+  myListingsRestorePath?: string | null;
+  adminPostsRestorePath?: string | null;
+  claimDraftReturnPath?: string | null;
+}) {
+  const links: { to: string; label: string }[] = [];
+  if (claimDraftReturnPath) {
+    links.push({ to: claimDraftReturnPath, label: "Volver al borrador" });
+  }
+  if (myListingsRestorePath) {
+    links.push({ to: myListingsRestorePath, label: "Volver a Mis anuncios" });
+  } else if (adminPostsRestorePath) {
+    links.push({ to: adminPostsRestorePath, label: "Volver a Posts" });
+  }
+  if (!links.length) return null;
+  return (
+    <div className="mb-4 flex min-w-0 flex-wrap gap-2">
+      {links.map((link) => (
+        <MyListingsReturnLink key={`${link.label}:${link.to}`} to={link.to} placement="top" label={link.label} />
+      ))}
+    </div>
+  );
+}

@@ -9,6 +9,7 @@ import {
 } from "@/lib/assistedDraftApi";
 import { adminPublishUnclaimed } from "@/lib/authApi";
 import { listingPublicPath, publishWizardEditPath } from "@/lib/listingReference";
+import { listingClaimPreviewPath } from "@/lib/publishWizardNavState";
 import type { AuthMe } from "@/lib/authApi";
 import type { PropertyListing } from "@/types/listing";
 
@@ -49,7 +50,10 @@ export function ListingClaimActions({ listing, claimToken, viewer }: Props) {
     }
     if (isAdmin && action === "edit") {
       navigate(publishWizardEditPath(listing.propertyId, listing.id), {
-        state: { fromAdminPosts: true },
+        state: {
+          fromAdminPosts: true,
+          claimDraftReturnPath: listingClaimPreviewPath(listing.id, claimToken),
+        },
       });
       return;
     }

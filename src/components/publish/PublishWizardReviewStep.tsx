@@ -32,6 +32,8 @@ type LiveEditContext = {
   myListingsReturnState?: unknown;
   /** When set, Cancelar returns to Admin → Posts. */
   adminPostsRestorePath?: string | null;
+  /** Outreach claim draft (`/anuncio/A…?claim=`). Shown in addition to Posts. */
+  claimDraftReturnPath?: string | null;
   /** Property-card vs room-row entry from Mis Anuncios. */
   scope?: LiveEditScope;
 };
@@ -108,6 +110,7 @@ export function PublishWizardReviewStep({
   const myListingsRestorePath = liveEdit?.myListingsRestorePath ?? null;
   const myListingsReturnState = liveEdit?.myListingsReturnState;
   const adminPostsRestorePath = liveEdit?.adminPostsRestorePath ?? null;
+  const claimDraftReturnPath = liveEdit?.claimDraftReturnPath ?? null;
   const cancelTo = myListingsRestorePath
     ? myListingsRestorePath
     : adminPostsRestorePath
@@ -259,6 +262,14 @@ export function PublishWizardReviewStep({
         >
           {submitInFlight === "draft" ? "Guardando…" : "Guardar como borrador"}
         </button>
+      ) : null}
+      {isLiveEdit && claimDraftReturnPath ? (
+        <Link
+          to={claimDraftReturnPath}
+          className="inline-flex w-full min-h-11 items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-body transition hover:bg-surface-elevated sm:w-auto"
+        >
+          Volver al borrador
+        </Link>
       ) : null}
       {isLiveEdit && cancelTo ? (
         <Link

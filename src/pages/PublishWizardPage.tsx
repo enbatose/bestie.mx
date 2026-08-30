@@ -71,7 +71,8 @@ import {
   withMyListingsReturn,
 } from "@/lib/myListingsReturn";
 import { adminSectionPath } from "@/lib/adminSections";
-import { MyListingsReturnLink } from "@/components/myListings/MyListingsReturnLink";
+import { PublishWizardReturnLinks } from "@/components/myListings/MyListingsReturnLink";
+import { publishWizardNavPatch, readClaimDraftReturnPath } from "@/lib/publishWizardNavState";
 import { FacebookMark } from "@/components/FacebookMark";
 import { AiRoomCreateStep } from "@/components/publish/AiRoomCreateStep";
 import { toComposeImages, hydrateLocalImagesForCompose, type AiLocalImage } from "@/components/publish/AiImageDropZone";
@@ -954,12 +955,20 @@ export function PublishWizardPage() {
   /** Rewriting the URL to drop ?edit/?room clears history state, so remember where we came from. */
   const [myListingsReturn, setMyListingsReturn] = useState(locationMyListingsReturn);
   const [fromAdminPosts, setFromAdminPosts] = useState(locationFromAdminPosts);
+  const locationClaimDraftReturnPath = useMemo(
+    () => readClaimDraftReturnPath(location.state),
+    [location.state],
+  );
+  const [claimDraftReturnPath, setClaimDraftReturnPath] = useState(locationClaimDraftReturnPath);
   useEffect(() => {
     if (locationMyListingsReturn) setMyListingsReturn(locationMyListingsReturn);
   }, [locationMyListingsReturn]);
   useEffect(() => {
     if (locationFromAdminPosts) setFromAdminPosts(true);
   }, [locationFromAdminPosts]);
+  useEffect(() => {
+    if (locationClaimDraftReturnPath) setClaimDraftReturnPath(locationClaimDraftReturnPath);
+  }, [locationClaimDraftReturnPath]);
   const myListingsRestorePath = useMemo(
     () => (myListingsReturn ? buildMyListingsRestorePath(myListingsReturn) : null),
     [myListingsReturn],
@@ -969,6 +978,20 @@ export function PublishWizardPage() {
   myListingsReturnRef.current = myListingsReturn;
   const fromAdminPostsRef = useRef(fromAdminPosts);
   fromAdminPostsRef.current = fromAdminPosts;
+  const claimDraftReturnPathRef = useRef(claimDraftReturnPath);
+  claimDraftReturnPathRef.current = claimDraftReturnPath;
+
+  function currentWizardLocationState() {
+    return (
+      withMyListingsReturn(
+        publishWizardNavPatch({
+          fromAdminPosts: fromAdminPostsRef.current,
+          claimDraftReturnPath: claimDraftReturnPathRef.current,
+        }),
+        myListingsReturnRef.current,
+      ) ?? null
+    );
+  }
   const { openAuthModal } = useAuthModal();
   const { me } = useAppShellOutlet();
   const [savePhoneToProfile, setSavePhoneToProfile] = useState(false);
@@ -1124,13 +1147,9 @@ export function PublishWizardPage() {
     const search = params.toString();
     navigate(`${location.pathname}${search ? `?${search}` : ""}`, {
       replace: true,
-      state:
-        withMyListingsReturn(
-          fromAdminPosts ? { fromAdminPosts: true } : null,
-          myListingsReturn,
-        ) ?? null,
+      state: currentWizardLocationState(),
     });
-  }, [location.pathname, location.search, location.state, fromAdminPosts, myListingsReturn, navigate]);
+  }, [location.pathname, location.search, location.state, fromAdminPosts, claimDraftReturnPath, myListingsReturn, navigate]);
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -1426,11 +1445,7 @@ export function PublishWizardPage() {
       },
       {
         replace: true,
-        state:
-          withMyListingsReturn(
-            fromAdminPostsRef.current ? { fromAdminPosts: true } : null,
-            myListingsReturnRef.current,
-          ) ?? null,
+        state: currentWizardLocationState(),
       },
     );
   }, [editPropertyId, setSearchParams]);
@@ -1914,11 +1929,7 @@ export function PublishWizardPage() {
       },
       {
         replace: true,
-        state:
-          withMyListingsReturn(
-            fromAdminPostsRef.current ? { fromAdminPosts: true } : null,
-            myListingsReturnRef.current,
-          ) ?? null,
+        state: currentWizardLocationState(),
       },
     );
   }, [
@@ -1929,6 +1940,7 @@ export function PublishWizardPage() {
     editPropertyId,
     editingLiveProperty,
     fromAdminPosts,
+    claimDraftReturnPath,
     liveEditReturnListingId,
     previewEditorIntent,
     serverSync.propertyId,
@@ -3688,15 +3700,8 @@ export function PublishWizardPage() {
     const returnListingId =
       liveEditReturnListingId ?? serverSync.roomIds[reviewRoomIndex] ?? null;
     const autosaveTimeLabel = formatAutosaveTime(lastAutosavedAt);
-    const previewReturnPath = myListingsRestorePath ?? adminPostsRestorePath;
-    const previewReturnLabel = myListingsRestorePath
-      ? undefined
-      : adminPostsRestorePath
-        ? "Volver a Posts"
-        : undefined;
-
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full min-w-0 max-w-3xl overflow-x-clip px-4 py-8 sm:px-6 sm:py-10">
         {apiOn && autosaveTimeLabel ? (
           <WizardAutosaveIndicator
             lastSavedAt={lastAutosavedAt}
@@ -3705,15 +3710,11 @@ export function PublishWizardPage() {
             saving={autosaveNote === "saving"}
           />
         ) : null}
-        {previewReturnPath ? (
-          <div className="mb-4">
-            <MyListingsReturnLink
-              to={previewReturnPath}
-              placement="top"
-              {...(previewReturnLabel ? { label: previewReturnLabel } : {})}
-            />
-          </div>
-        ) : null}
+        <PublishWizardReturnLinks
+          myListingsRestorePath={myListingsRestorePath}
+          adminPostsRestorePath={adminPostsRestorePath}
+          claimDraftReturnPath={claimDraftReturnPath}
+        />
         <h1 className="text-2xl font-bold tracking-tight text-primary">
           {draft.postMode === "room"
             ? "Editar anuncio"
@@ -3786,6 +3787,7 @@ export function PublishWizardPage() {
                 ? { myListingsReturn }
                 : undefined,
               adminPostsRestorePath,
+              claimDraftReturnPath,
               scope: liveEditScope ?? "room",
             }}
           />
@@ -3823,15 +3825,11 @@ export function PublishWizardPage() {
           saving={autosaveNote === "saving"}
         />
       ) : null}
-      {myListingsRestorePath ? (
-        <div className="mb-4">
-          <MyListingsReturnLink to={myListingsRestorePath} placement="top" />
-        </div>
-      ) : adminPostsRestorePath ? (
-        <div className="mb-4">
-          <MyListingsReturnLink to={adminPostsRestorePath} placement="top" label="Volver a Posts" />
-        </div>
-      ) : null}
+      <PublishWizardReturnLinks
+        myListingsRestorePath={myListingsRestorePath}
+        adminPostsRestorePath={adminPostsRestorePath}
+        claimDraftReturnPath={claimDraftReturnPath}
+      />
       <h1 className="text-2xl font-bold tracking-tight text-primary">Publicar</h1>
 
       {safeStep === WIZARD_STEP_POST_MODE && me === null ? (
