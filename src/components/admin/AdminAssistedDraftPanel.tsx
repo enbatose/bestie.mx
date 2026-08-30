@@ -6,7 +6,18 @@ import {
   type AssistedDraftExtraction,
 } from "@/lib/assistedDraftApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
-import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage, whatsAppMeHref } from "@/lib/mxPhone";
+
+function WhatsAppMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.86 9.86 0 0 0 12.04 2zm0 1.82c2.17 0 4.21.85 5.75 2.38a8.08 8.08 0 0 1 2.37 5.75c0 4.48-3.65 8.12-8.12 8.12-1.42 0-2.8-.36-4.02-1.05l-.29-.17-3.12.82.83-3.04-.19-.31a8.1 8.1 0 0 1-1.24-4.37c0-4.48 3.65-8.13 8.13-8.13zm4.52 10.52c-.2-.1-1.18-.58-1.36-.65-.18-.07-.31-.1-.44.1-.13.2-.5.65-.62.78-.11.13-.23.15-.43.05-.2-.1-.84-.31-1.6-.99-.59-.53-.99-1.18-1.1-1.38-.12-.2-.01-.3.09-.4.09-.09.2-.23.3-.35.1-.12.13-.2.2-.33.07-.13.03-.25-.02-.35-.05-.1-.44-1.06-.6-1.45-.16-.38-.32-.33-.44-.33h-.38c-.13 0-.34.05-.52.25-.18.2-.68.67-.68 1.63s.7 1.89.8 2.02c.1.13 1.37 2.1 3.32 2.94.46.2.83.32 1.11.41.47.15.89.13 1.23.08.37-.06 1.18-.48 1.35-.95.17-.47.17-.87.12-.95-.05-.08-.18-.13-.38-.23z"
+      />
+    </svg>
+  );
+}
 
 const CITIES = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
 
@@ -272,6 +283,7 @@ export function AdminAssistedDraftPanel() {
 
   const [creating, setCreating] = useState(false);
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [claimWhatsAppHref, setClaimWhatsAppHref] = useState<string | null>(null);
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [outreachPhone, setOutreachPhone] = useState("");
@@ -296,6 +308,7 @@ export function AdminAssistedDraftPanel() {
     setExtractErr(null);
     setExtraction(null);
     setClaimUrl(null);
+    setClaimWhatsAppHref(null);
     try {
       const result = await adminExtractAssistedDraft({
         text: text.trim() || undefined,
@@ -327,6 +340,7 @@ export function AdminAssistedDraftPanel() {
         infographicPhotos: infographicImages.map(({ mimeType, data }) => ({ mimeType, data })),
       });
       setClaimUrl(result.claimUrl);
+      setClaimWhatsAppHref(digits ? whatsAppMeHref(digits) : null);
     } catch (e) {
       setCreateErr(e instanceof Error ? e.message : "Error al crear el borrador.");
     } finally {
@@ -351,6 +365,7 @@ export function AdminAssistedDraftPanel() {
     setPhotoImages([]);
     setExtraction(null);
     setClaimUrl(null);
+    setClaimWhatsAppHref(null);
     setExtractErr(null);
     setCreateErr(null);
   };
@@ -533,19 +548,30 @@ export function AdminAssistedDraftPanel() {
           <p className="mt-2 text-xs text-muted">
             Envía este enlace al propietario por WhatsApp o mensaje directo. Si no se reclama, el borrador se elimina automáticamente a los 7 días.
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-4 flex min-w-0 flex-wrap gap-2">
             <a
               href={claimUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-medium text-body hover:bg-surface-elevated"
+              className="inline-flex min-h-11 min-w-0 items-center justify-center rounded-full border border-border bg-surface px-4 py-2 text-xs font-medium text-body hover:bg-surface-elevated"
             >
               Ver borrador
             </a>
+            {claimWhatsAppHref ? (
+              <a
+                href={claimWhatsAppHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-2 text-xs font-medium text-body hover:bg-[#25D366]/15"
+              >
+                <WhatsAppMark className="size-3.5 text-[#25D366]" />
+                WhatsApp
+              </a>
+            ) : null}
             <button
               type="button"
               onClick={handleReset}
-              className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-medium text-muted hover:bg-surface-elevated"
+              className="inline-flex min-h-11 min-w-0 items-center justify-center rounded-full border border-border bg-surface px-4 py-2 text-xs font-medium text-muted hover:bg-surface-elevated"
             >
               Crear otro
             </button>

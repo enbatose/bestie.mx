@@ -113,6 +113,13 @@ export function phoneDigitsForStorage(input: string): string | null {
   return normalizeWhatsAppDigits(input);
 }
 
+/** Chat URL for a stored listing/contact number (`https://wa.me/+523329306218`). */
+export function whatsAppMeHref(digitsOrE164: string): string | null {
+  const digits = phoneDigitsForStorage(digitsOrE164);
+  if (!digits) return null;
+  return `https://wa.me/+${digits}`;
+}
+
 /**
  * First plausible MX cellphone in free text / OCR paste.
  * Prefers labeled lines (WhatsApp / cel / tel), else first 10-digit run.

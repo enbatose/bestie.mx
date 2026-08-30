@@ -4,6 +4,7 @@ import {
   normalizeMxNationalDigits,
   parseListingPhoneParts,
   phoneDigitsForStorage,
+  whatsAppMeHref,
 } from "@/lib/mxPhone";
 
 describe("mxPhone", () => {
@@ -47,5 +48,11 @@ describe("mxPhone", () => {
   it("extracts the first labeled or bare phone from paste text", () => {
     const text = "Renta 4500\nWhatsApp: 33-9876-5432\nOtro 5511112222";
     expect(extractFirstMxPhoneFromText(text)).toBe("523398765432");
+  });
+
+  it("builds a wa.me chat URL with a leading plus", () => {
+    expect(whatsAppMeHref("3329306218")).toBe("https://wa.me/+523329306218");
+    expect(whatsAppMeHref("+52 33 2930 6218")).toBe("https://wa.me/+523329306218");
+    expect(whatsAppMeHref("")).toBeNull();
   });
 });
