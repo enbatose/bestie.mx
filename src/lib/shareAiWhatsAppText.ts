@@ -11,6 +11,9 @@ const WHATSAPP_SAFE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["\u{2744}\uFE0F", "\u{2744}"], // ❄️ → ❄
   ["\u{2668}\uFE0F", "\u{2668}"], // ♨️ → ♨
   ["\u{1F517}", "\u{27A1}"], // 🔗 → ➡
+  ["\u{1F310}", "\u{27A1}"], // 🌐 → ➡ (admin outreach “Tu anuncio”)
+  ["\u{1F4DD}", "\u{270E}"], // 📝 → ✎
+  ["\u{270C}\uFE0F", "\u{270C}"], // ✌️ → ✌
   ["\u{1F3E0}", "\u{2605}"], // 🏠 → ★
   ["\u{1F3E1}", "\u{2605}"], // 🏡 → ★
   ["\u{1F4F6}", "\u{26A1}"], // 📶 → ⚡
