@@ -26,7 +26,7 @@ export function adminOutreachWhatsAppMessage(opts: {
     "",
     "Si quieres editarlo o administrarlo tú, inicia sesión en Bestie con este mismo número de teléfono y ve el menú Mis Anuncios 📱",
     "",
-    "Gracias.",
+    "¡Saludos!",
   ].join("\n");
 }
 
