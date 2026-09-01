@@ -28,7 +28,7 @@ export function adminOutreachWhatsAppMessage(opts: {
     "",
     "Si prefieres que no esté en Bestie, responde BAJA y la retiramos.",
     "",
-    "¡Saludos ✌!",
+    "¡Saludos! ✌",
   ].join("\n");
 }
 

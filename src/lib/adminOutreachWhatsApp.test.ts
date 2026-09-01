@@ -20,7 +20,7 @@ describe("adminOutreachWhatsAppMessage", () => {
     expect(msg).toContain("Regístrate en bestie.mx");
     expect(msg).toContain("Mis Anuncios");
     expect(msg).toContain("BAJA");
-    expect(msg).toContain("¡Saludos ✌!");
+    expect(msg).toContain("¡Saludos! ✌");
   });
 
   it("omits the name when blank", () => {
@@ -60,6 +60,6 @@ describe("adminOutreachWhatsAppHref", () => {
     );
     expect(href).toContain(encodeURIComponent("🌐"));
     expect(href).toContain(encodeURIComponent("📝"));
-    expect(href).toContain(encodeURIComponent("¡Saludos ✌!"));
+    expect(href).toContain(encodeURIComponent("¡Saludos! ✌"));
   });
 });
