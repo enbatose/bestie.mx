@@ -144,7 +144,7 @@ export async function adminCreateAssistedDraft(opts: {
   infographicPhotos?: Array<{ mimeType: string; data: string }>;
   /** When false, store phone on the draft but keep it hidden on the listing. Default true. */
   showWhatsApp?: boolean;
-}): Promise<{ claimUrl: string; propertyId: string }> {
+}): Promise<{ claimUrl: string; listingUrl: string; propertyId: string; roomId: string }> {
   const base = apiBase();
   const res = await apiFetch(`${base}/api/assisted-draft/admin/create`, {
     method: "POST",
@@ -152,10 +152,21 @@ export async function adminCreateAssistedDraft(opts: {
     credentials: cred,
     body: JSON.stringify(opts),
   });
-  const j = (await res.json().catch(() => ({}))) as { claimUrl?: string; propertyId?: string; error?: string };
+  const j = (await res.json().catch(() => ({}))) as {
+    claimUrl?: string;
+    listingUrl?: string;
+    propertyId?: string;
+    roomId?: string;
+    error?: string;
+  };
   if (!res.ok) throw new Error(j.error ?? `create_${res.status}`);
-  if (!j.claimUrl) throw new Error("create_bad_response");
-  return { claimUrl: j.claimUrl, propertyId: j.propertyId ?? "" };
+  if (!j.claimUrl || !j.listingUrl || !j.roomId) throw new Error("create_bad_response");
+  return {
+    claimUrl: j.claimUrl,
+    listingUrl: j.listingUrl,
+    propertyId: j.propertyId ?? "",
+    roomId: j.roomId,
+  };
 }
 
 /** Public: extract Facebook text/infographic + create or replace a self-serve draft. */

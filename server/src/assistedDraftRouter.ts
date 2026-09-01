@@ -599,6 +599,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       `).run(token, propertyId, adminId, orphanPublisherId, expiresAt, Date.now());
 
       const claimUrl = `${publicWebOrigin()}/anuncio/${roomReferenceCode(roomId)}?claim=${encodeURIComponent(token)}`;
+      const listingUrl = `${publicWebOrigin()}/anuncio/${roomReferenceCode(roomId)}`;
 
       const listingE164 = listingPhoneToE164(phone.contactWhatsApp);
       let assignedUserId: string | null = null;
@@ -615,7 +616,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         propertyId,
         roomId,
         claimUrl,
-        listingUrl: claimUrl,
+        listingUrl,
         token,
         ...(assignedUserId ? { assignedUserId } : {}),
       });

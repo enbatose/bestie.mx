@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Check, ImagePlus, Trash2, Wand2, Link2 } from "lucide-react";
 import {
   adminExtractAssistedDraft,
@@ -6,7 +6,11 @@ import {
   type AssistedDraftExtraction,
 } from "@/lib/assistedDraftApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
-import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage, whatsAppMeHref } from "@/lib/mxPhone";
+import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
+import {
+  adminOutreachWhatsAppHref,
+  adminOutreachWhatsAppMessage,
+} from "@/lib/adminOutreachWhatsApp";
 
 function WhatsAppMark({ className }: { className?: string }) {
   return (
@@ -283,11 +287,13 @@ export function AdminAssistedDraftPanel() {
 
   const [creating, setCreating] = useState(false);
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
-  const [claimWhatsAppHref, setClaimWhatsAppHref] = useState<string | null>(null);
+  const [listingUrl, setListingUrl] = useState<string | null>(null);
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedListingUrl, setCopiedListingUrl] = useState(false);
   const [outreachPhone, setOutreachPhone] = useState("");
   const [outreachShowPhone, setOutreachShowPhone] = useState(true);
+  const [publisherName, setPublisherName] = useState("");
 
   useEffect(() => {
     if (!extraction) {
@@ -308,7 +314,7 @@ export function AdminAssistedDraftPanel() {
     setExtractErr(null);
     setExtraction(null);
     setClaimUrl(null);
-    setClaimWhatsAppHref(null);
+    setListingUrl(null);
     try {
       const result = await adminExtractAssistedDraft({
         text: text.trim() || undefined,
@@ -340,7 +346,7 @@ export function AdminAssistedDraftPanel() {
         infographicPhotos: infographicImages.map(({ mimeType, data }) => ({ mimeType, data })),
       });
       setClaimUrl(result.claimUrl);
-      setClaimWhatsAppHref(digits ? whatsAppMeHref(digits) : null);
+      setListingUrl(result.listingUrl);
     } catch (e) {
       setCreateErr(e instanceof Error ? e.message : "Error al crear el borrador.");
     } finally {
@@ -359,15 +365,36 @@ export function AdminAssistedDraftPanel() {
     }
   };
 
+  const handleCopyListingUrl = async () => {
+    if (!listingUrl) return;
+    try {
+      await navigator.clipboard.writeText(listingUrl);
+      setCopiedListingUrl(true);
+      setTimeout(() => setCopiedListingUrl(false), 2500);
+    } catch {
+      // fallback: select text
+    }
+  };
+
+  const outreachWhatsAppHref = useMemo(() => {
+    if (!listingUrl || !outreachPhone.trim()) return null;
+    const message = adminOutreachWhatsAppMessage({
+      publisherName,
+      listingUrl,
+    });
+    return adminOutreachWhatsAppHref(outreachPhone, message);
+  }, [listingUrl, outreachPhone, publisherName]);
+
   const handleReset = () => {
     setText("");
     setInfographicImages([]);
     setPhotoImages([]);
     setExtraction(null);
     setClaimUrl(null);
-    setClaimWhatsAppHref(null);
+    setListingUrl(null);
     setExtractErr(null);
     setCreateErr(null);
+    setPublisherName("");
   };
 
   return (
@@ -480,6 +507,23 @@ export function AdminAssistedDraftPanel() {
 
           <div className="space-y-2">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Nombre del publicador en Facebook (opcional)
+            </h4>
+            <p className="text-xs text-muted">
+              Cómo aparece en el post de Facebook. Se usa en el mensaje de WhatsApp de aviso (Regla 6).
+            </p>
+            <input
+              type="text"
+              value={publisherName}
+              onChange={(e) => setPublisherName(e.target.value)}
+              placeholder="Ej. María, Carlos…"
+              maxLength={80}
+              className="w-full max-w-md rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
               Teléfono del anuncio (opcional)
             </h4>
             <p className="text-xs text-muted">
@@ -527,26 +571,63 @@ export function AdminAssistedDraftPanel() {
       )}
 
       {/* Claim URL result */}
-      {claimUrl && (
+      {claimUrl && listingUrl && (
         <div className="rounded-2xl border border-secondary/40 bg-secondary/5 p-5">
           <div className="mb-3 flex items-center gap-2">
             <Check size={18} className="text-secondary" />
-            <p className="text-sm font-semibold text-body">Borrador creado — enlace listo para compartir</p>
+            <p className="text-sm font-semibold text-body">Borrador creado — listo para publicar y avisar</p>
           </div>
+
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+            Enlace público del anuncio (para WhatsApp)
+          </p>
           <div className="flex items-center gap-2 rounded-xl border border-border bg-surface p-3">
+            <span className="min-w-0 flex-1 truncate font-mono text-xs text-body">{listingUrl}</span>
+            <button
+              type="button"
+              onClick={() => void handleCopyListingUrl()}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-body hover:bg-surface-elevated"
+              aria-label="Copiar enlace público"
+            >
+              {copiedListingUrl ? <Check size={14} className="text-secondary" /> : <Copy size={14} />}
+              {copiedListingUrl ? "Copiado" : "Copiar"}
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted">
+            Enlace de reclamación (admin)
+          </p>
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-surface p-3">
             <span className="min-w-0 flex-1 truncate font-mono text-xs text-body">{claimUrl}</span>
             <button
               type="button"
               onClick={() => void handleCopy()}
               className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-body hover:bg-surface-elevated"
-              aria-label="Copiar enlace"
+              aria-label="Copiar enlace de reclamación"
             >
               {copied ? <Check size={14} className="text-secondary" /> : <Copy size={14} />}
               {copied ? "Copiado" : "Copiar"}
             </button>
           </div>
-          <p className="mt-2 text-xs text-muted">
-            Envía este enlace al propietario por WhatsApp o mensaje directo. Si no se reclama, el borrador se elimina automáticamente a los 7 días.
+
+          <div className="mt-4 space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
+              Nombre del publicador en Facebook (opcional)
+            </label>
+            <input
+              type="text"
+              value={publisherName}
+              onChange={(e) => setPublisherName(e.target.value)}
+              placeholder="Ej. María, Carlos…"
+              maxLength={80}
+              className="w-full max-w-md rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
+            />
+          </div>
+
+          <p className="mt-3 text-xs text-muted">
+            Publica el anuncio en Bestie antes de enviar el WhatsApp: el enlace público solo funciona cuando
+            el anuncio está en línea. El botón de WhatsApp abre el chat con el mensaje listo; tú confirmas el
+            envío. Si no se reclama, el borrador se elimina a los 7 días.
           </p>
           <div className="mt-4 flex min-w-0 flex-wrap gap-2">
             <a
@@ -557,17 +638,25 @@ export function AdminAssistedDraftPanel() {
             >
               Ver borrador
             </a>
-            {claimWhatsAppHref ? (
+            {outreachWhatsAppHref ? (
               <a
-                href={claimWhatsAppHref}
+                href={outreachWhatsAppHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-4 py-2 text-xs font-medium text-body hover:bg-[#25D366]/15"
               >
                 <WhatsAppMark className="size-3.5 text-[#25D366]" />
-                WhatsApp
+                WhatsApp con mensaje
               </a>
-            ) : null}
+            ) : outreachPhone.trim() ? (
+              <span className="inline-flex min-h-11 items-center px-1 text-xs text-muted">
+                Teléfono inválido para WhatsApp
+              </span>
+            ) : (
+              <span className="inline-flex min-h-11 items-center px-1 text-xs text-muted">
+                Agrega un teléfono para WhatsApp
+              </span>
+            )}
             <button
               type="button"
               onClick={handleReset}
