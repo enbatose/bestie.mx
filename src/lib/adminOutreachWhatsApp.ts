@@ -15,7 +15,7 @@ export function adminOutreachWhatsAppMessage(opts: {
   return [
     greeting,
     "",
-    "Somos del equipo de Bestie MX 🏠 (roomies en Guadalajara).",
+    "Somos del equipo de Bestie MX 🏠, roomies en Guadalajara: publicar, buscar cuarto y mensajear es gratuito y lo seguirá siendo.",
     "",
     `Según las reglas del grupo de Facebook «${FB_OUTREACH_GROUP_NAME}», creamos un anuncio en Bestie con la información y fotos de tu publicación para darte más visibilidad.`,
     "",
