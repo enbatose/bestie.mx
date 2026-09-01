@@ -190,27 +190,54 @@ export function TermsPage() {
           incumpla estos Términos o la ley, sin que ello genere responsabilidad para el Titular.
         </p>
         <p>
-          <strong>Borradores asistidos.</strong> Bestie puede crear borradores de anuncios de dos
-          formas: (i) como parte de sus actividades de crecimiento, cuando el Titular o su equipo
-          captura de forma <strong>manual</strong> (por ejemplo, copiar y pegar texto e imágenes) el
-          contenido de una publicación pública de renta compartida en grupos de Facebook u otros
-          canales públicos, y genera un borrador interno con un enlace de reclamación para el
-          propietario; y (ii) cuando tú pegas el texto o un infográfico de tu propia publicación en el
-          flujo de publicar un cuarto o una propiedad. En el supuesto (ii) estos borradores{" "}
-          <strong>nunca se publican sin tu consentimiento expreso</strong>: revisas el contenido, lo
-          editas si lo deseas y, al publicarlo, asumes la plena responsabilidad sobre el anuncio. En el
-          supuesto (i), el borrador permanece inédito hasta que el propietario lo reclama, o, de
-          forma excepcional, hasta que un admin lo publica con evidencia de consentimiento (una captura
-          distinta de las fotos del anuncio y, si aplica, una nota corta). Esa evidencia se guarda
-          internamente y <strong>no se muestra</strong> en el anuncio público ni al dueño posterior. Un
-          anuncio de crecimiento publicado sin dueño deja deshabilitado el botón Contactar hasta que
-          alguien lo reclame; el teléfono del anuncio puede revelarse según las reglas habituales. Si
-          se comparte el enlace de reclamación, Facebook, WhatsApp u otras apps pueden mostrar una
-          vista previa con la foto de portada, el título, la zona y, si el anuncio muestra precio, la renta (sin el teléfono). Si quien publica oculta renta y depósito, la vista previa no incluye esos montos. La
-          información del borrador es orientativa y puede estar incompleta o contener errores de
-          extracción; eres responsable de verificar, corregir y completar los datos antes de
-          publicar. Los borradores del supuesto (i) que no sean reclamados ni publicados con evidencia
-          se eliminan automáticamente a los <strong>7 días</strong>.
+          <strong>Borradores asistidos y republicación desde Facebook.</strong> Bestie puede armar
+          anuncios de dos maneras: (i) cuando tú pegas el texto o un infográfico de tu propia
+          publicación en el flujo de publicar un cuarto o una propiedad; y (ii) como parte de las
+          actividades de crecimiento del Titular o su equipo a partir de publicaciones en canales
+          públicos de renta compartida. En el supuesto (i) el borrador{" "}
+          <strong>nunca se publica sin tu consentimiento expreso</strong>: revisas el contenido, lo
+          editas si lo deseas y, al confirmarlo, asumes la plena responsabilidad del anuncio.
+        </p>
+        <p>
+          En el supuesto (ii), cuando una publicación proviene del grupo de Facebook{" "}
+          <em>Busco Roomies, Comparto Depa, Renta de Cuartos Guadalajara, Roomie GDL</em> (
+          <a
+            href="https://www.facebook.com/groups/829477243867011"
+            className="font-semibold text-primary underline-offset-2 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            facebook.com/groups/829477243867011
+          </a>
+          ) y está sujeta a la <strong>Regla 6 — Visibilidad en Bestie.mx</strong> de ese grupo, el
+          equipo de Bestie puede capturar de forma <strong>manual</strong> (copiar y pegar texto,
+          precio, zona, fotos, infografías y teléfono) la información de ofertas{" "}
+          <strong>nuevas</strong> publicadas después de la vigencia de dicha regla,{" "}
+          <strong>únicamente si el post incluye un número de teléfono</strong>, y publicarla en
+          Bestie para ampliar su visibilidad. Al publicar en el grupo con esa regla vigente,
+          autorizas esa republicación. Bestie te avisará por WhatsApp al número que publicaste;
+          puedes pedir la baja respondiendo <strong>BAJA</strong> o reclamar el anuncio iniciando
+          sesión en Bestie con el <strong>mismo número de celular</strong> para editarlo, pausarlo o
+          archivarlo. Los anuncios republicados de este modo pueden mostrarse como cualquier otro
+          anuncio público; hasta que alguien los reclame, el chat interno de Bestie puede permanecer
+          deshabilitado y el teléfono puede mostrarse según las reglas habituales del anuncio. La
+          información extraída es orientativa y puede contener errores; eres responsable de
+          verificarla al reclamar. Los anuncios pueden caducar o desactivarse tras un periodo de
+          inactividad que Bestie defina para mantener la oferta actualizada. Esta modalidad{" "}
+          <strong>no aplica</strong> a publicaciones del grupo anteriores a la Regla 6.
+        </p>
+        <p>
+          En el supuesto (ii), para otros canales públicos de renta compartida{" "}
+          <strong>sin</strong> una regla de grupo equivalente, el equipo puede crear un{" "}
+          <strong>borrador interno</strong> con enlace de reclamación; ese borrador permanece
+          inédito hasta que el propietario lo reclama, o, de forma excepcional, hasta que un admin lo
+          publica con evidencia de consentimiento (captura aparte y nota opcional, almacenadas
+          internamente y nunca mostradas en el anuncio). Si no se reclama ni se publica con evidencia,
+          el borrador se elimina a los <strong>7 días</strong>. Si se comparte un enlace de
+          reclamación, Facebook, WhatsApp u otras apps pueden mostrar una vista previa con foto de
+          portada, título, zona y, si el anuncio muestra precio, la renta (sin el teléfono ni otros
+          datos de contacto). Si quien publica oculta renta y depósito, la vista previa no incluye
+          esos montos.
         </p>
         <p>
           <strong>Asistencia con inteligencia artificial.</strong> Cuando Bestie usa un modelo de IA

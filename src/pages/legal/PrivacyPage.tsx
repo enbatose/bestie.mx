@@ -94,9 +94,10 @@ export function PrivacyPage() {
               ayuda de IA a partir de datos estructurados del anuncio y editables por ti), la
               aceptación del aviso de seguridad al usar mensajes entre usuarios o al revelar el teléfono
               de un anuncio (fecha, versión del aviso y, en su caso, el hilo o anuncio que lo disparó) y tus
-              interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño,
-              guardamos internamente la captura de consentimiento y una nota opcional; esa evidencia no
-              forma parte de las fotos del anuncio y no se muestra al público ni al dueño que lo reclame
+              interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño
+              fuera de la republicación autorizada por reglas de un grupo de Facebook, guardamos
+              internamente la captura de consentimiento y una nota opcional; esa evidencia no forma
+              parte de las fotos del anuncio y no se muestra al público ni al dueño que lo reclame
               después.
             </>,
             <>
@@ -134,20 +135,24 @@ export function PrivacyPage() {
               Servicio.
             </>,
             <>
-              <strong>De publicaciones públicas (borradores asistidos de crecimiento):</strong> el
-              Titular o su equipo puede capturar de forma <strong>manual</strong> (copiar y pegar
-              texto e imágenes) información ya publicada por terceros en grupos de Facebook u otros
-              canales públicos de renta compartida, únicamente para crear un borrador interno y
-              ofrecerle al propietario un enlace de reclamación. Ese borrador{" "}
-              <strong>no se publica</strong> hasta que el propietario lo reclame, revise y confirme, o,
-              de forma excepcional, hasta que un admin lo publique con evidencia de consentimiento
-              (captura aparte y nota opcional, almacenadas internamente y nunca mostradas en el anuncio
-              público ni al dueño posterior). Si se comparte el enlace de reclamación, Facebook, WhatsApp
-              u otras apps de mensajería pueden mostrar una vista previa con la foto de portada, el
-              título, la zona y, si el anuncio muestra precio, la renta (sin el teléfono ni otros datos de contacto). Si quien publica oculta renta y depósito, la vista previa no incluye esos montos. Si no se reclama ni se publica con evidencia, se elimina
-              automáticamente a los <strong>7 días</strong>. También
-              puedes crear tú un borrador pegando el texto o un infográfico de tu propia publicación;
-              en ese caso los datos salen de ti, no de un tercero.
+              <strong>De publicaciones públicas (crecimiento y republicación):</strong> el Titular o su
+              equipo puede capturar de forma <strong>manual</strong> (copiar y pegar texto, precio,
+              zona, fotos, infografías y teléfono) información ya publicada por terceros en canales
+              públicos de renta compartida. En el grupo de Facebook{" "}
+              <em>Busco Roomies, Comparto Depa, Renta de Cuartos Guadalajara, Roomie GDL</em>, cuando
+              aplica la <strong>Regla 6 — Visibilidad en Bestie.mx</strong>, podemos republicar en
+              Bestie ofertas <strong>nuevas</strong> que incluyan teléfono, conforme a esa regla; te
+              avisamos por WhatsApp y puedes pedir la baja o reclamar el anuncio con el mismo celular.
+              En otros canales sin regla equivalente, el tratamiento habitual es un borrador interno
+              con enlace de reclamación que <strong>no se publica</strong> hasta que el propietario lo
+              reclama o, excepcionalmente, hasta que un admin lo publique con evidencia de
+              consentimiento (captura aparte y nota opcional, almacenadas internamente y nunca
+              mostradas en el anuncio). Los borradores no reclamados ni publicados con evidencia se
+              eliminan a los <strong>7 días</strong>. Si se comparte un enlace de reclamación o un
+              anuncio republicado, Facebook, WhatsApp u otras apps pueden mostrar una vista previa con
+              foto de portada, título, zona y, si aplica, renta (sin teléfono ni otros datos de
+              contacto). También puedes crear tú un borrador pegando el texto o un infográfico de tu
+              propia publicación; en ese caso los datos salen de ti, no de un tercero.
             </>,
           ]}
         />
