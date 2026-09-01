@@ -422,6 +422,27 @@ export function AdminAssistedDraftPanel() {
         </select>
       </div>
 
+      <div>
+        <label
+          htmlFor="admin-outreach-publisher-name"
+          className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted"
+        >
+          Nombre del publicador en Facebook (opcional)
+        </label>
+        <p className="mb-2 text-xs text-muted">
+          Como aparece en el post de Facebook. Se usa en el mensaje de WhatsApp de aviso.
+        </p>
+        <input
+          id="admin-outreach-publisher-name"
+          type="text"
+          value={publisherName}
+          onChange={(e) => setPublisherName(e.target.value)}
+          placeholder="Ej. María, Carlos…"
+          maxLength={80}
+          className="w-full max-w-md rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
+        />
+      </div>
+
       {/* Zone 1: Text */}
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-body">
@@ -504,23 +525,6 @@ export function AdminAssistedDraftPanel() {
           </div>
 
           <ExtractionPreview ext={extraction} />
-
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Nombre del publicador en Facebook (opcional)
-            </h4>
-            <p className="text-xs text-muted">
-              Cómo aparece en el post de Facebook. Se usa en el mensaje de WhatsApp de aviso (Regla 6).
-            </p>
-            <input
-              type="text"
-              value={publisherName}
-              onChange={(e) => setPublisherName(e.target.value)}
-              placeholder="Ej. María, Carlos…"
-              maxLength={80}
-              className="w-full max-w-md rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
-            />
-          </div>
 
           <div className="space-y-2">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -610,21 +614,7 @@ export function AdminAssistedDraftPanel() {
             </button>
           </div>
 
-          <div className="mt-4 space-y-2">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
-              Nombre del publicador en Facebook (opcional)
-            </label>
-            <input
-              type="text"
-              value={publisherName}
-              onChange={(e) => setPublisherName(e.target.value)}
-              placeholder="Ej. María, Carlos…"
-              maxLength={80}
-              className="w-full max-w-md rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          <p className="mt-3 text-xs text-muted">
+          <p className="mt-4 text-xs text-muted">
             Publica el anuncio en Bestie antes de enviar el WhatsApp: el enlace público solo funciona cuando
             el anuncio está en línea. El botón de WhatsApp abre el chat con el mensaje listo; tú confirmas el
             envío. Si no se reclama, el borrador se elimina a los 7 días.
