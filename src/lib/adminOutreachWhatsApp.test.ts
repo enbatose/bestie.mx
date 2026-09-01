@@ -10,6 +10,7 @@ describe("adminOutreachWhatsAppMessage", () => {
     const msg = adminOutreachWhatsAppMessage({
       publisherName: "María",
       listingUrl: "https://www.bestie.mx/anuncio/A12345678",
+      contactPhone: "+52 33 1863 2070",
     });
     expect(msg).toContain("Hola María,");
     expect(msg).toContain("roomie/cuarto");
@@ -17,10 +18,18 @@ describe("adminOutreachWhatsAppMessage", () => {
     expect(msg).toContain("🌐 Tu anuncio:");
     expect(msg).toContain("https://www.bestie.mx/anuncio/A12345678");
     expect(msg).toContain("¿Quieres editarla o quitarla tú? 📝");
-    expect(msg).toContain("Regístrate en bestie.mx");
+    expect(msg).toContain("Regístrate en bestie.mx con este número 3318632070 y búscala en Mis Anuncios.");
+    expect(msg).not.toContain("+52");
     expect(msg).toContain("Mis Anuncios");
     expect(msg).toContain("BAJA");
     expect(msg).toContain("¡Saludos! ✌");
+  });
+
+  it("falls back when contact phone is missing", () => {
+    const msg = adminOutreachWhatsAppMessage({
+      listingUrl: "https://www.bestie.mx/anuncio/A12345678",
+    });
+    expect(msg).toContain("con este mismo celular y búscala");
   });
 
   it("omits the name when blank", () => {

@@ -1,17 +1,28 @@
-import { phoneDigitsForStorage } from "@/lib/mxPhone";
+import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 
 /** Facebook group covered by Regla 6 — Visibilidad en Bestie.mx */
 export const FB_OUTREACH_GROUP_NAME =
   "Busco Roomies, Comparto Depa, Renta de Cuartos Guadalajara, Roomie GDL";
 
+/** 10-digit MX mobile for outreach copy (e.g. 3318632070), no +52. */
+export function adminOutreachContactPhoneDisplay(raw: string): string | null {
+  return normalizeMxNationalDigits(raw);
+}
+
 /** Colorful emoji OK in prefill via api.whatsapp.com (not wa.me). */
 export function adminOutreachWhatsAppMessage(opts: {
   publisherName?: string;
   listingUrl: string;
+  /** Listing / outreach phone — shown as 10 national digits in the register line. */
+  contactPhone?: string;
 }): string {
   const name = opts.publisherName?.trim();
   const greeting = name ? `Hola ${name},` : "Hola,";
   const url = opts.listingUrl.trim();
+  const phoneDisplay = adminOutreachContactPhoneDisplay(opts.contactPhone ?? "");
+  const registerLine = phoneDisplay
+    ? `Regístrate en bestie.mx con este número ${phoneDisplay} y búscala en Mis Anuncios.`
+    : "Regístrate en bestie.mx con este mismo celular y búscala en Mis Anuncios.";
 
   return [
     greeting,
@@ -24,7 +35,7 @@ export function adminOutreachWhatsAppMessage(opts: {
     "En Bestie MX publicar, buscar cuarto y mensajear es gratuito — y lo seguirá siendo.",
     "",
     "¿Quieres editarla o quitarla tú? 📝",
-    "Regístrate en bestie.mx con este mismo celular y búscala en Mis Anuncios.",
+    registerLine,
     "",
     "Si prefieres que no esté en Bestie, responde BAJA y la retiramos.",
     "",

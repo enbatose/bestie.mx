@@ -381,6 +381,7 @@ export function AdminAssistedDraftPanel() {
     const message = adminOutreachWhatsAppMessage({
       publisherName,
       listingUrl,
+      contactPhone: outreachPhone,
     });
     return adminOutreachWhatsAppHref(outreachPhone, message);
   }, [listingUrl, outreachPhone, publisherName]);
