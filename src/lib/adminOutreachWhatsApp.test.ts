@@ -42,7 +42,7 @@ describe("adminOutreachWhatsAppPrefillText", () => {
     );
     expect(safe).toContain("🌐 Tu anuncio:");
     expect(safe).toContain("¿Quieres editarla o quitarla tú? 📝");
-    expect(safe).toContain("¡Saludos ✌!");
+    expect(safe).toContain("¡Saludos! ✌");
     expect(safe).not.toContain("✌️");
     expect(safe).not.toContain("✎");
     expect(safe).not.toContain("➡");
