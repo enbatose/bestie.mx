@@ -4,7 +4,7 @@ import { phoneDigitsForStorage } from "@/lib/mxPhone";
 export const FB_OUTREACH_GROUP_NAME =
   "Busco Roomies, Comparto Depa, Renta de Cuartos Guadalajara, Roomie GDL";
 
-/** Colorful emojis for readability in code; remapped to BMP before WhatsApp URL prefill. */
+/** Colorful emoji OK in prefill via api.whatsapp.com (not wa.me). */
 export function adminOutreachWhatsAppMessage(opts: {
   publisherName?: string;
   listingUrl: string;
@@ -33,7 +33,7 @@ export function adminOutreachWhatsAppMessage(opts: {
 }
 
 /**
- * api.whatsapp.com keeps astral emoji (📝); only normalize ✌️ → ✌ so the closing line renders.
+ * api.whatsapp.com keeps astral emoji (🌐 📝); only normalize ✌️ → ✌ for the closing line.
  */
 export function adminOutreachWhatsAppPrefillText(message: string): string {
   return message.replaceAll("\u{270C}\uFE0F", "\u{270C}");
@@ -41,7 +41,7 @@ export function adminOutreachWhatsAppPrefillText(message: string): string {
 
 /**
  * Opens WhatsApp with prefilled message (user must tap Send).
- * Uses api.whatsapp.com (not wa.me) and BMP-safe emoji so compose does not show �.
+ * Uses api.whatsapp.com (not wa.me) so UTF-8 emoji survive in the compose box.
  */
 export function adminOutreachWhatsAppHref(phoneDigits: string, message: string): string | null {
   const digits = phoneDigitsForStorage(phoneDigits);

@@ -40,10 +40,12 @@ describe("adminOutreachWhatsAppPrefillText", () => {
         listingUrl: "https://www.bestie.mx/anuncio/A12345678",
       }),
     );
+    expect(safe).toContain("🌐 Tu anuncio:");
     expect(safe).toContain("¿Quieres editarla o quitarla tú? 📝");
     expect(safe).toContain("¡Saludos ✌!");
     expect(safe).not.toContain("✌️");
     expect(safe).not.toContain("✎");
+    expect(safe).not.toContain("➡");
   });
 });
 
@@ -56,6 +58,7 @@ describe("adminOutreachWhatsAppHref", () => {
     expect(href).toMatch(
       /^https:\/\/api\.whatsapp\.com\/send\?phone=523329306218&text=/,
     );
+    expect(href).toContain(encodeURIComponent("🌐"));
     expect(href).toContain(encodeURIComponent("📝"));
     expect(href).toContain(encodeURIComponent("¡Saludos ✌!"));
   });
