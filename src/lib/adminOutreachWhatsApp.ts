@@ -17,16 +17,16 @@ export function adminOutreachWhatsAppMessage(opts: {
     "",
     "Somos del equipo de Bestie MX 🏠 (roomies en Guadalajara).",
     "",
-    `Según las reglas del grupo de Facebook «${FB_OUTREACH_GROUP_NAME}», creamos un anuncio 🌐 en Bestie con la información y fotos de tu publicación para darte más visibilidad.`,
+    `Según las reglas del grupo de Facebook «${FB_OUTREACH_GROUP_NAME}», creamos un anuncio en Bestie con la información y fotos de tu publicación para darte más visibilidad.`,
     "",
-    "Tu anuncio:",
+    "🌐Tu anuncio:",
     url,
     "",
     "Si no quieres que esté en Bestie, responde BAJA y lo quitamos.",
     "",
     "Si quieres editarlo o administrarlo tú, inicia sesión en Bestie con este mismo número de teléfono y ve el menú Mis Anuncios 📱",
     "",
-    "¡Saludos! ✌️🤟",
+    "¡Saludos✌️! ",
   ].join("\n");
 }
 
