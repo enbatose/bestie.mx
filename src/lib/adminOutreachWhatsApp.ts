@@ -1,5 +1,4 @@
 import { phoneDigitsForStorage } from "@/lib/mxPhone";
-import { toWhatsAppSafeShareText } from "@/lib/shareAiWhatsAppText";
 
 /** Facebook group covered by Regla 6 — Visibilidad en Bestie.mx */
 export const FB_OUTREACH_GROUP_NAME =
@@ -29,13 +28,15 @@ export function adminOutreachWhatsAppMessage(opts: {
     "",
     "Si prefieres que no esté en Bestie, responde BAJA y la retiramos.",
     "",
-    "¡Saludos ✌️!",
+    "¡Saludos ✌!",
   ].join("\n");
 }
 
-/** Text safe for WhatsApp prefill (BMP symbols — survives wa.me / api redirect). */
+/**
+ * api.whatsapp.com keeps astral emoji (📝); only normalize ✌️ → ✌ so the closing line renders.
+ */
 export function adminOutreachWhatsAppPrefillText(message: string): string {
-  return toWhatsAppSafeShareText(message);
+  return message.replaceAll("\u{270C}\uFE0F", "\u{270C}");
 }
 
 /**

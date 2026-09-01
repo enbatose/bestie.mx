@@ -20,7 +20,7 @@ describe("adminOutreachWhatsAppMessage", () => {
     expect(msg).toContain("Regístrate en bestie.mx");
     expect(msg).toContain("Mis Anuncios");
     expect(msg).toContain("BAJA");
-    expect(msg).toContain("¡Saludos ✌️!");
+    expect(msg).toContain("¡Saludos ✌!");
   });
 
   it("omits the name when blank", () => {
@@ -33,24 +33,22 @@ describe("adminOutreachWhatsAppMessage", () => {
 });
 
 describe("adminOutreachWhatsAppPrefillText", () => {
-  it("remaps colorful emoji to BMP symbols", () => {
+  it("keeps colorful memo emoji and fixes peace sign variation selector", () => {
     const safe = adminOutreachWhatsAppPrefillText(
       adminOutreachWhatsAppMessage({
         publisherName: "María",
         listingUrl: "https://www.bestie.mx/anuncio/A12345678",
       }),
     );
-    expect(safe).toContain("➡ Tu anuncio:");
-    expect(safe).toContain("¿Quieres editarla o quitarla tú? ✎");
+    expect(safe).toContain("¿Quieres editarla o quitarla tú? 📝");
     expect(safe).toContain("¡Saludos ✌!");
-    expect(safe).not.toContain("🌐");
-    expect(safe).not.toContain("📝");
     expect(safe).not.toContain("✌️");
+    expect(safe).not.toContain("✎");
   });
 });
 
 describe("adminOutreachWhatsAppHref", () => {
-  it("uses api.whatsapp.com with BMP-safe text", () => {
+  it("uses api.whatsapp.com with UTF-8 emoji in text param", () => {
     const msg = adminOutreachWhatsAppMessage({
       listingUrl: "https://www.bestie.mx/anuncio/A12345678",
     });
@@ -58,7 +56,7 @@ describe("adminOutreachWhatsAppHref", () => {
     expect(href).toMatch(
       /^https:\/\/api\.whatsapp\.com\/send\?phone=523329306218&text=/,
     );
-    expect(href).toContain(encodeURIComponent("➡"));
-    expect(href).not.toMatch(/%F0%9F/);
+    expect(href).toContain(encodeURIComponent("📝"));
+    expect(href).toContain(encodeURIComponent("¡Saludos ✌!"));
   });
 });
