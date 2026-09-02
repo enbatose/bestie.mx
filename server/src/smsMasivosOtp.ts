@@ -35,6 +35,10 @@ function nationalFromE164(phoneE164: string): string | null {
   return null;
 }
 
+export function smsMasivosNationalNumber(phoneE164: string): string | null {
+  return nationalFromE164(phoneE164);
+}
+
 function expirationInTenMinutes(): string {
   const d = new Date(Date.now() + 10 * 60 * 1000);
   const p = (n: number) => String(n).padStart(2, "0");
@@ -119,6 +123,48 @@ export async function smsMasivosVerifyOtp(phoneE164: string, code: string): Prom
     }
     if (status === 409) {
       return { ok: true };
+    }
+    const error =
+      (typeof json.error === "string" && json.error) ||
+      (typeof json.message === "string" && json.message) ||
+      `smsmasivos_http_${status}`;
+    return { ok: false, error, httpStatus: status };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "smsmasivos_network" };
+  }
+}
+
+export type SmsMasivosSmsResult =
+  | { ok: true; sandbox: boolean }
+  | { ok: false; error: string; httpStatus?: number };
+
+/** Transactional SMS (not OTP). Used for ARCO cancelación when the account has no email. */
+export async function smsMasivosSendSms(
+  phoneE164: string,
+  message: string,
+): Promise<SmsMasivosSmsResult> {
+  if (!smsMasivosConfigured()) {
+    return { ok: false, error: "smsmasivos_not_configured" };
+  }
+  const phone_number = nationalFromE164(phoneE164);
+  if (!phone_number) {
+    return { ok: false, error: "invalid_mx_phone" };
+  }
+  const text = message.trim().slice(0, 1600);
+  if (!text) {
+    return { ok: false, error: "empty_message" };
+  }
+  const sandbox = smsMasivosSandboxEnabled();
+  const payload: Record<string, unknown> = {
+    numbers: phone_number,
+    message: text,
+    country_code: "52",
+  };
+  if (sandbox) payload.sandbox = 1;
+  try {
+    const { status, json } = await postJson("/sms/send", payload);
+    if (status >= 200 && status < 300 && json.success !== false) {
+      return { ok: true, sandbox };
     }
     const error =
       (typeof json.error === "string" && json.error) ||

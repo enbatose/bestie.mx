@@ -692,6 +692,7 @@ export type ArcoPriorErasure = {
   createdAt: string;
   source: string;
   confirmationEmailSent: boolean;
+  confirmationSmsSent: boolean;
 };
 
 export type ArcoSearchHit = {
@@ -705,7 +706,9 @@ export type ArcoEraseReceipt = {
   userId: string;
   counts: ArcoEraseCounts;
   confirmationEmailSent: boolean;
+  confirmationSmsSent: boolean;
   confirmationEmailMasked: string | null;
+  confirmationPhoneLast4: string | null;
   whatsappMessage: string;
   logId: string;
 };

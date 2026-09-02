@@ -68,6 +68,7 @@ export type ArcoPriorErasure = {
   createdAt: string;
   source: string;
   confirmationEmailSent: boolean;
+  confirmationSmsSent: boolean;
 };
 
 export type ArcoSearchHit = {
@@ -86,6 +87,8 @@ export type ArcoEraseResult = {
   counts: ArcoEraseCounts;
   confirmationEmailTo: string | null;
   confirmationEmailMasked: string | null;
+  confirmationPhoneE164: string | null;
+  confirmationPhoneLast4: string | null;
   displayName: string;
   whatsappMessage: string;
   logId: string;
@@ -492,6 +495,26 @@ export function searchArcoTargets(db: DatabaseSync, qRaw: string): ArcoSearchRes
       listingCount: listingsForPublishers(db, publisherIdsForUser(db, id)).length,
     });
   };
+  const pushPriorsByHash = (column: "email_hash" | "phone_hash", hash: string) => {
+    if (!tableExists(db, "arco_erasure_log") || !hash) return;
+    const sql =
+      column === "email_hash"
+        ? `SELECT id, created_at, source, confirmation_email_sent, confirmation_sms_sent
+           FROM arco_erasure_log WHERE email_hash = ? ORDER BY created_at DESC LIMIT 5`
+        : `SELECT id, created_at, source, confirmation_email_sent, confirmation_sms_sent
+           FROM arco_erasure_log WHERE phone_hash = ? ORDER BY created_at DESC LIMIT 5`;
+    const logs = db.prepare(sql).all(hash) as {
+      id: string;
+      created_at: string;
+      source: string;
+      confirmation_email_sent: number;
+      confirmation_sms_sent: number;
+    }[];
+    for (const l of logs) {
+      if (priorErasures.some((p) => p.id === l.id)) continue;
+      priorErasures.push(mapArcoLogRow(l));
+    }
+  };
 
   pushUser(q);
 
@@ -501,29 +524,7 @@ export function searchArcoTargets(db: DatabaseSync, qRaw: string): ArcoSearchRes
       .prepare(`SELECT id FROM users WHERE email_canonical = ? OR lower(trim(IFNULL(email, ''))) = ? LIMIT 5`)
       .all(canon, q.trim().toLowerCase()) as { id: string }[];
     for (const r of byCanon) pushUser(r.id);
-
-    if (tableExists(db, "arco_erasure_log")) {
-      const hash = hashArcoIdentifier(canon);
-      const logs = db
-        .prepare(
-          `SELECT id, created_at, source, confirmation_email_sent
-           FROM arco_erasure_log WHERE email_hash = ? ORDER BY created_at DESC LIMIT 5`,
-        )
-        .all(hash) as {
-        id: string;
-        created_at: string;
-        source: string;
-        confirmation_email_sent: number;
-      }[];
-      for (const l of logs) {
-        priorErasures.push({
-          id: l.id,
-          createdAt: l.created_at,
-          source: l.source,
-          confirmationEmailSent: Boolean(l.confirmation_email_sent),
-        });
-      }
-    }
+    pushPriorsByHash("email_hash", hashArcoIdentifier(canon));
   }
 
   const digits = q.replace(/\D/g, "");
@@ -535,16 +536,39 @@ export function searchArcoTargets(db: DatabaseSync, qRaw: string): ArcoSearchRes
       )
       .all(e164 ? `+${e164}` : `__never__`, `%${digits.slice(-10)}`) as { id: string }[];
     for (const r of phoneRows) pushUser(r.id);
+    if (e164) {
+      pushPriorsByHash("phone_hash", hashArcoIdentifier(`+${e164}`));
+      const last10 = e164.slice(-10);
+      if (last10.length === 10) {
+        pushPriorsByHash("phone_hash", hashArcoIdentifier(`+52${last10}`));
+      }
+    }
   }
 
   return { users, priorErasures };
+}
+
+function mapArcoLogRow(l: {
+  id: string;
+  created_at: string;
+  source: string;
+  confirmation_email_sent: number;
+  confirmation_sms_sent: number;
+}): ArcoPriorErasure {
+  return {
+    id: l.id,
+    createdAt: l.created_at,
+    source: l.source,
+    confirmationEmailSent: Boolean(l.confirmation_email_sent),
+    confirmationSmsSent: Boolean(l.confirmation_sms_sent),
+  };
 }
 
 export function listRecentArcoErasures(db: DatabaseSync, limit = 20): ArcoPriorErasure[] {
   if (!tableExists(db, "arco_erasure_log")) return [];
   const rows = db
     .prepare(
-      `SELECT id, created_at, source, confirmation_email_sent
+      `SELECT id, created_at, source, confirmation_email_sent, confirmation_sms_sent
        FROM arco_erasure_log ORDER BY created_at DESC LIMIT ?`,
     )
     .all(Math.min(50, Math.max(1, limit))) as {
@@ -552,17 +576,17 @@ export function listRecentArcoErasures(db: DatabaseSync, limit = 20): ArcoPriorE
     created_at: string;
     source: string;
     confirmation_email_sent: number;
+    confirmation_sms_sent: number;
   }[];
-  return rows.map((l) => ({
-    id: l.id,
-    createdAt: l.created_at,
-    source: l.source,
-    confirmationEmailSent: Boolean(l.confirmation_email_sent),
-  }));
+  return rows.map(mapArcoLogRow);
 }
 
 export function markArcoConfirmationEmailSent(db: DatabaseSync, logId: string, sent: boolean): void {
   db.prepare(`UPDATE arco_erasure_log SET confirmation_email_sent = ? WHERE id = ?`).run(sent ? 1 : 0, logId);
+}
+
+export function markArcoConfirmationSmsSent(db: DatabaseSync, logId: string, sent: boolean): void {
+  db.prepare(`UPDATE arco_erasure_log SET confirmation_sms_sent = ? WHERE id = ?`).run(sent ? 1 : 0, logId);
 }
 
 export function eraseUserForArco(
@@ -736,8 +760,8 @@ export function eraseUserForArco(
     db.prepare(
       `INSERT INTO arco_erasure_log (
          id, user_id, email_hash, phone_hash, admin_user_id, source, reason, counts_json,
-         confirmation_email_sent, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+         confirmation_email_sent, confirmation_sms_sent, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)`,
     ).run(
       logId,
       userId,
@@ -765,6 +789,9 @@ export function eraseUserForArco(
     counts,
     confirmationEmailTo: capturedEmail,
     confirmationEmailMasked: capturedEmail ? maskEmail(capturedEmail) : null,
+    confirmationPhoneE164: capturedEmail ? null : capturedPhone,
+    confirmationPhoneLast4:
+      !capturedEmail && capturedPhone && capturedPhone.length >= 4 ? capturedPhone.slice(-4) : null,
     displayName,
     whatsappMessage: buildArcoWhatsAppConfirmation(firstName(displayName) || displayName),
     logId,

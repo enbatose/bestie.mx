@@ -293,7 +293,7 @@ export function PrivacyPage() {
             "Proveedor de infraestructura y alojamiento de la aplicación.",
             "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
             "Proveedor de envío de correos electrónicos transaccionales.",
-            "Proveedor de envío de mensajes SMS de verificación (SMS Masivos) para códigos de un solo uso a celulares mexicanos (+52) al registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña, o reclamar un anuncio cuyo contacto es ese número.",
+            "Proveedor de envío de mensajes SMS (SMS Masivos) a celulares mexicanos (+52): códigos de un solo uso al registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña, o reclamar un anuncio cuyo contacto es ese número; y un SMS transaccional de confirmación cuando atendemos una solicitud ARCO de cancelación de una cuenta que no tiene correo electrónico.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
             "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",
@@ -357,8 +357,11 @@ export function PrivacyPage() {
         <p>
           Una vez recibida tu solicitud, eliminaremos o anonimizaremos los datos personales asociados a
           tu cuenta, salvo aquellos que debamos conservar por obligaciones legales o fiscales. Te
-          confirmaremos por correo (o por el mismo medio en que nos escribiste) cuando la solicitud haya
-          sido atendida.
+          confirmaremos por el canal que tengamos en la cuenta: si hay correo electrónico, enviamos un
+          correo de confirmación (con copia oculta a <LegalMail />, únicamente como evidencia de que
+          atendimos la solicitud, no con fines de mercadotecnia). Si la cuenta se registró solo con
+          celular y no hay correo, enviamos un SMS transaccional a ese número a través de SMS Masivos.
+          No usamos WhatsApp como canal automático de confirmación ARCO.
         </p>
         <p>
           La cancelación incluye, según corresponda: tu cuenta y credenciales; nombre, correo, teléfono y
@@ -366,7 +369,8 @@ export function PrivacyPage() {
           identificadores de inicio de sesión con Google o Facebook; y los mensajes que hayas enviado.
           Los chats con otras personas no se destruyen: tu lado se sustituye por “Usuario eliminado” para
           no borrar la correspondencia de quien conversó contigo. Conservamos un registro interno{" "}
-          <em>bloqueado</em> de que procesamos la solicitud (sin tu correo ni teléfono en claro) para
+          <em>bloqueado</em> de que procesamos la solicitud (sin tu correo ni teléfono en claro) y, cuando
+          la confirmación va por correo, una copia de ese mismo mensaje en el buzón de <LegalMail />, para
           acreditar el cumplimiento de tus derechos ARCO.
         </p>
       </LegalSection>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildArcoErasureEmail, buildArcoWhatsAppConfirmation } from "./arcoErasureEmail.js";
+import { buildArcoErasureEmail, buildArcoSmsConfirmation, buildArcoWhatsAppConfirmation, ARCO_CONFIRMATION_BCC } from "./arcoErasureEmail.js";
 
 describe("arcoErasureEmail", () => {
   it("names ARCO and LFPDPPP, and invites the person back", () => {
@@ -11,6 +11,8 @@ describe("arcoErasureEmail", () => {
     expect(mail.html).toContain("Acceso, Rectificación, Cancelación y Oposición");
     expect(mail.html).toContain("tenerte de vuelta");
     expect(mail.text).toContain("cuenta nueva");
+    expect(mail.html).toContain("contacto@bestie.mx");
+    expect(mail.text).toContain("contacto@bestie.mx");
     expect(mail.tags?.some((t) => t.name === "category" && t.value === "arco_erasure")).toBe(true);
   });
 
@@ -20,5 +22,17 @@ describe("arcoErasureEmail", () => {
     expect(text).toContain("ARCO");
     expect(text).toContain("LFPDPPP");
     expect(text).toContain("cuenta nueva");
+  });
+
+  it("keeps the SMS confirmation short and ARCO-named", () => {
+    const sms = buildArcoSmsConfirmation();
+    expect(sms).toContain("ARCO");
+    expect(sms).toContain("LFPDPPP");
+    expect(sms).toContain("bestie.mx");
+    expect(sms.length).toBeLessThan(320);
+  });
+
+  it("BCC goes to the operator inbox", () => {
+    expect(ARCO_CONFIRMATION_BCC).toBe("contacto@bestie.mx");
   });
 });

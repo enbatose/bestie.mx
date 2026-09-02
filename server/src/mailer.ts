@@ -372,10 +372,17 @@ export type SendTransactionalEmailOpts = {
   /** Inbox snippet (also embedded as HTML preheader by templates). */
   previewText?: string;
   replyTo?: string | string[];
+  bcc?: string | string[];
   tags?: { name: string; value: string }[];
   /** Extra SMTP/Resend headers (e.g. List-Unsubscribe). */
   headers?: Record<string, string>;
 };
+
+function normalizeAddressList(raw: string | string[] | undefined): string[] {
+  if (!raw) return [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  return list.map((s) => s.trim()).filter((s) => s.includes("@"));
+}
 
 async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts): Promise<boolean> {
   const key = getResendApiKey();
@@ -386,6 +393,9 @@ async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts):
       ? opts.replyTo
       : [opts.replyTo]
     : undefined;
+  const bcc = normalizeAddressList(opts.bcc).filter(
+    (addr) => addr.toLowerCase() !== opts.to.trim().toLowerCase(),
+  );
   const { data, error } = await resend.emails.send({
     from,
     to: opts.to,
@@ -393,6 +403,7 @@ async function sendViaResendApi(from: string, opts: SendTransactionalEmailOpts):
     html: opts.html,
     ...(opts.text ? { text: opts.text } : {}),
     ...(replyTo?.length ? { replyTo } : {}),
+    ...(bcc.length ? { bcc } : {}),
     ...(opts.tags?.length ? { tags: opts.tags } : {}),
     ...(opts.headers ? { headers: opts.headers } : {}),
   });
@@ -428,6 +439,9 @@ export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): 
         ? opts.replyTo.join(", ")
         : opts.replyTo
       : undefined;
+    const bcc = normalizeAddressList(opts.bcc).filter(
+      (addr) => addr.toLowerCase() !== opts.to.trim().toLowerCase(),
+    );
     await t.sendMail({
       from,
       to: opts.to,
@@ -435,6 +449,7 @@ export async function sendTransactionalEmail(opts: SendTransactionalEmailOpts): 
       html: opts.html,
       ...(opts.text ? { text: opts.text } : {}),
       ...(replyTo ? { replyTo } : {}),
+      ...(bcc.length ? { bcc: bcc.join(", ") } : {}),
       ...(opts.headers ? { headers: opts.headers } : {}),
     });
     recordEmailSent({ tags: opts.tags, channel: "smtp" });

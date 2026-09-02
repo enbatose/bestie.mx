@@ -156,6 +156,7 @@ describe("ARCO user erasure", () => {
       reason: "Solicitud ARCO Alexa",
     });
     expect(result.confirmationEmailTo).toBe("alexa.castelao@gmail.com");
+    expect(result.confirmationPhoneE164).toBeNull();
     expect(result.whatsappMessage).toContain("ARCO");
     expect(result.counts.properties).toBe(1);
 
@@ -202,5 +203,33 @@ describe("ARCO user erasure", () => {
       .prepare(`SELECT email_hash FROM arco_erasure_log WHERE id = ?`)
       .get(result.logId) as { email_hash: string };
     expect(log.email_hash).toBe(expectedHash);
+  });
+
+  it("returns a phone SMS target when the account has no email", () => {
+    const phoneOnlyId = randomUUID();
+    db.prepare(
+      `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at)
+       VALUES (?, NULL, NULL, ?, 'x', ?, ?, NULL)`,
+    ).run(phoneOnlyId, "+523398765432", "Phone Only", now);
+
+    const preview = previewArcoErasure(db, phoneOnlyId, adminId);
+    expect(preview?.user.email).toBeNull();
+    expect(preview?.confirmHint).toContain(phoneOnlyId);
+
+    const result = eraseUserForArco(db, {
+      userId: phoneOnlyId,
+      adminUserId: adminId,
+      emailConfirm: phoneOnlyId,
+      source: "admin",
+    });
+    expect(result.confirmationEmailTo).toBeNull();
+    expect(result.confirmationPhoneE164).toBe("+523398765432");
+    expect(result.confirmationPhoneLast4).toBe("5432");
+
+    const gone = db.prepare(`SELECT 1 AS x FROM users WHERE id = ?`).get(phoneOnlyId) as { x: number } | undefined;
+    expect(gone).toBeUndefined();
+    const after = searchArcoTargets(db, "3398765432");
+    expect(after.users).toHaveLength(0);
+    expect(after.priorErasures.some((p) => p.id === result.logId)).toBe(true);
   });
 });

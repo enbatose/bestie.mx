@@ -26,6 +26,26 @@ function formatWhen(iso: string): string {
   return d.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
 }
 
+function receiptConfirmationCopy(receipt: ArcoEraseReceipt): string {
+  if (receipt.confirmationEmailSent) {
+    return `El correo de confirmación ya se envió a ${receipt.confirmationEmailMasked} (copia oculta a contacto@bestie.mx).`;
+  }
+  if (receipt.confirmationSmsSent) {
+    return `El SMS de confirmación ya se envió al celular terminado en ${receipt.confirmationPhoneLast4}.`;
+  }
+  if (receipt.confirmationEmailMasked) {
+    return `No se pudo enviar el correo a ${receipt.confirmationEmailMasked}. Copia el texto de abajo y confírmalo por el canal en que te escribieron.`;
+  }
+  if (receipt.confirmationPhoneLast4) {
+    return `No se pudo enviar el SMS al celular terminado en ${receipt.confirmationPhoneLast4}. Copia el texto de abajo y confírmalo por el canal en que te escribieron.`;
+  }
+  return "No había correo ni celular en la cuenta. Copia el texto de abajo y confírmalo por el canal en que te escribieron.";
+}
+
+function autoNotifySucceeded(receipt: ArcoEraseReceipt): boolean {
+  return receipt.confirmationEmailSent || receipt.confirmationSmsSent;
+}
+
 type Props = {
   onError: (message: string | null) => void;
 };
@@ -146,8 +166,10 @@ export function AdminArcoPanel({ onError }: Props) {
         <h2 className="text-lg font-semibold text-body">Baja ARCO</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           Cancelación de cuenta y huella digital (LFPDPPP). Busca por correo, teléfono o id. Revisa el
-          inventario y escribe el correo para confirmar. Los chats con otras personas se conservan como
-          “Usuario eliminado”; los de Soporte se borran.
+          inventario y escribe el correo (o el id, si no hay correo) para confirmar. Si la cuenta tiene
+          correo, confirmamos por correo (con copia oculta a contacto@bestie.mx). Si solo hay celular,
+          enviamos un SMS. Los chats con otras personas se conservan como “Usuario eliminado”; los de
+          Soporte se borran.
         </p>
         <form onSubmit={(e) => void runSearch(e)} className="mt-4 min-w-0">
           <label className="text-sm font-medium text-body" htmlFor="arco-search">
@@ -214,6 +236,13 @@ export function AdminArcoPanel({ onError }: Props) {
             {preview.oauthProviders.length > 0 ? (
               <p className="mt-1 text-xs text-muted">OAuth: {preview.oauthProviders.join(", ")}</p>
             ) : null}
+            <p className="mt-2 text-xs leading-relaxed text-muted">
+              {preview.user.email
+                ? "Confirmación automática: correo, con copia oculta a contacto@bestie.mx."
+                : preview.user.phoneLast4
+                  ? `Confirmación automática: SMS al celular …${preview.user.phoneLast4} (no WhatsApp).`
+                  : "Sin correo ni celular: no podremos notificar automáticamente."}
+            </p>
           </div>
 
           <ul className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
@@ -296,12 +325,7 @@ export function AdminArcoPanel({ onError }: Props) {
         <div className="min-w-0 space-y-3 rounded-2xl border border-secondary/40 bg-secondary/10 p-4">
           <h3 className="text-base font-semibold text-body">Solicitud ARCO completada</h3>
           <p className="text-sm leading-relaxed text-body">
-            La cancelación quedó registrada conforme a la LFPDPPP.{" "}
-            {receipt.confirmationEmailSent
-              ? `El correo de confirmación ya se envió a ${receipt.confirmationEmailMasked}. No hace falta copiar nada más.`
-              : receipt.confirmationEmailMasked
-                ? `No se pudo enviar el correo a ${receipt.confirmationEmailMasked}. Copia el texto de abajo y confírmalo por el canal en que te escribieron.`
-                : "No había correo en la cuenta. Copia el texto de abajo y confírmalo por el canal en que te escribieron."}
+            La cancelación quedó registrada conforme a la LFPDPPP. {receiptConfirmationCopy(receipt)}
           </p>
           <ul className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
             <CountTile label="Anuncios" value={receipt.counts.properties} />
@@ -310,30 +334,30 @@ export function AdminArcoPanel({ onError }: Props) {
             <CountTile label="Chats conservados" value={receipt.counts.listingConversationsKept} />
             <CountTile label="Chats Bestie" value={receipt.counts.supportConversationsDeleted} />
           </ul>
-          {!receipt.confirmationEmailSent || source === "whatsapp" ? (
+          {(!autoNotifySucceeded(receipt) || source === "whatsapp") ? (
             <div className="min-w-0 space-y-2 border-t border-border/80 pt-3">
               <p className="text-sm font-medium text-body">
-                {receipt.confirmationEmailSent
+                {autoNotifySucceeded(receipt)
                   ? "Texto opcional para WhatsApp"
-                  : "Texto para confirmar por WhatsApp"}
+                  : "Texto para confirmar por el canal de la solicitud"}
               </p>
               <p className="text-xs leading-relaxed text-muted">
-                {receipt.confirmationEmailSent
-                  ? "El correo legal ya salió. Esto solo sirve si la persona pidió la baja por WhatsApp y quieres contestarle en ese chat."
-                  : "Pégalo en el chat o correo donde te pidieron la baja."}
+                {autoNotifySucceeded(receipt)
+                  ? "El correo o SMS legal ya salió. Esto solo sirve si la persona pidió la baja por WhatsApp y quieres contestarle en ese chat."
+                  : "Pégalo en el chat o correo donde te pidieron la baja. No enviamos WhatsApp automático."}
               </p>
               <textarea
                 id="arco-wa"
                 readOnly
                 value={receipt.whatsappMessage}
-                rows={receipt.confirmationEmailSent ? 4 : 6}
+                rows={autoNotifySucceeded(receipt) ? 4 : 6}
                 className="w-full min-w-0 rounded-xl border border-border bg-surface p-3 text-sm leading-relaxed text-body"
               />
               <button
                 type="button"
                 onClick={() => void copyWhatsApp()}
                 className={
-                  receipt.confirmationEmailSent
+                  autoNotifySucceeded(receipt)
                     ? "min-h-11 w-full rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body hover:bg-surface-elevated"
                     : "min-h-11 w-full rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg hover:brightness-110"
                 }
@@ -353,6 +377,7 @@ export function AdminArcoPanel({ onError }: Props) {
               <li key={row.id} className="px-4 py-2 text-xs text-muted">
                 {formatWhen(row.createdAt)} · {row.source}
                 {row.confirmationEmailSent ? " · correo enviado" : ""}
+                {row.confirmationSmsSent ? " · SMS enviado" : ""}
               </li>
             ))}
           </ul>

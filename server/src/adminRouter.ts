@@ -28,11 +28,17 @@ import {
   eraseUserForArco,
   listRecentArcoErasures,
   markArcoConfirmationEmailSent,
+  markArcoConfirmationSmsSent,
   previewArcoErasure,
   searchArcoTargets,
 } from "./arcoErasure.js";
-import { buildArcoErasureEmail } from "./emails/arcoErasureEmail.js";
+import {
+  ARCO_CONFIRMATION_BCC,
+  buildArcoErasureEmail,
+  buildArcoSmsConfirmation,
+} from "./emails/arcoErasureEmail.js";
 import { sendTransactionalEmail } from "./mailer.js";
+import { smsMasivosSendSms } from "./smsMasivosOtp.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
@@ -688,6 +694,7 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
         uploadDir,
       });
       let confirmationEmailSent = false;
+      let confirmationSmsSent = false;
       if (result.confirmationEmailTo) {
         const mail = buildArcoErasureEmail({ displayName: result.displayName });
         confirmationEmailSent = await sendTransactionalEmail({
@@ -697,15 +704,25 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
           text: mail.text,
           previewText: mail.previewText,
           tags: mail.tags,
+          bcc: ARCO_CONFIRMATION_BCC,
         });
         markArcoConfirmationEmailSent(db, result.logId, confirmationEmailSent);
+      } else if (result.confirmationPhoneE164) {
+        const sms = await smsMasivosSendSms(result.confirmationPhoneE164, buildArcoSmsConfirmation());
+        confirmationSmsSent = sms.ok;
+        if (!sms.ok) {
+          console.warn(`[arco] confirmation SMS failed: ${sms.error}`);
+        }
+        markArcoConfirmationSmsSent(db, result.logId, confirmationSmsSent);
       }
       res.json({
         ok: true,
         userId: result.userId,
         counts: result.counts,
         confirmationEmailSent,
+        confirmationSmsSent,
         confirmationEmailMasked: result.confirmationEmailMasked,
+        confirmationPhoneLast4: result.confirmationPhoneLast4,
         whatsappMessage: result.whatsappMessage,
         logId: result.logId,
       });

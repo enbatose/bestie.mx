@@ -14,6 +14,9 @@ export type ArcoErasureEmailPayload = {
   displayName?: string;
 };
 
+/** Operator inbox copy of ARCO confirmations — blocked evidence of fulfillment, not marketing. */
+export const ARCO_CONFIRMATION_BCC = "contacto@bestie.mx";
+
 export function buildArcoWhatsAppConfirmation(displayName?: string): string {
   const name = displayName?.trim().split(/\s+/)[0];
   const hello = name ? `Hola ${name}` : "Hola";
@@ -22,6 +25,14 @@ export function buildArcoWhatsAppConfirmation(displayName?: string): string {
     `asociados, conforme a tu solicitud ARCO prevista en la LFPDPPP (Ley Federal de Protección de ` +
     `Datos Personales en Posesión de los Particulares). Si más adelante buscas roomie otra vez, ` +
     `con gusto te recibimos: solo crea una cuenta nueva, siempre es gratis. ¡Éxito con tu nuevo hogar!`
+  );
+}
+
+/** Compact SMS for phone-only accounts (no email). Keep well under 3 segments. */
+export function buildArcoSmsConfirmation(): string {
+  return (
+    "Bestie: tu solicitud ARCO (cancelacion de datos, LFPDPPP) ya fue atendida. " +
+    "Eliminamos tu cuenta y datos personales. Si buscas roomie otra vez, crea una cuenta nueva en bestie.mx (gratis)."
   );
 }
 
@@ -50,8 +61,9 @@ export function buildArcoErasureEmail(payload: ArcoErasureEmailPayload): BuiltTr
       La cuenta ya no existe y no podrás iniciar sesión con ella.
     </p>
     <p style="margin:0 0 14px;font-size:14px;line-height:1.55;color:${B.muted};">
-      Conservamos únicamente un registro interno <em>bloqueado</em> de que procesamos esta solicitud
-      (sin tu correo ni teléfono en claro), para acreditar el cumplimiento de la ley.
+      Conservamos un registro interno <em>bloqueado</em> de que procesamos esta solicitud
+      (sin tu correo ni teléfono en claro) y una copia de este mismo correo en
+      ${escapeHtml(ARCO_CONFIRMATION_BCC)}, únicamente para acreditar que te respondimos.
       Copias de respaldo de la base de datos se eliminan al rotar, en un plazo máximo de unas ocho semanas.
     </p>
     <p style="margin:0 0 18px;font-size:14px;line-height:1.55;color:${B.muted};">
@@ -77,7 +89,7 @@ export function buildArcoErasureEmail(payload: ArcoErasureEmailPayload): BuiltTr
     "",
     "Qué se eliminó: tu cuenta de Bestie, anuncios y fotografías, datos de perfil, búsquedas guardadas, mensajes que enviaste y el resto de los datos personales asociados. La cuenta ya no existe.",
     "",
-    "Conservamos únicamente un registro interno bloqueado de que procesamos esta solicitud (sin tu correo ni teléfono en claro), como lo permite la ley. Los respaldos rotan en un plazo máximo de unas ocho semanas.",
+    "Conservamos un registro interno bloqueado de que procesamos esta solicitud (sin tu correo ni teléfono en claro) y una copia de este mismo correo en contacto@bestie.mx, únicamente para acreditar que te respondimos. Los respaldos rotan en un plazo máximo de unas ocho semanas.",
     "",
     "Siempre nos da gusto tenerte de vuelta. Si más adelante buscas roomie otra vez, crea una cuenta nueva en bestie.mx — publicar sigue siendo gratis.",
     "",

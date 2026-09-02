@@ -284,7 +284,8 @@ export function TermsPage() {
         <p>
           El Servicio se apoya en proveedores externos, por ejemplo: proveedores de inicio de sesión
           (Google, Facebook/Meta), mapas y teselas de terceros (por ejemplo, OpenStreetMap),
-          envío de correos electrónicos, envío de SMS de verificación a celulares mexicanos (SMS Masivos),
+          envío de correos electrónicos, envío de SMS de verificación y de confirmación transaccional a
+          celulares mexicanos (SMS Masivos),
           infraestructura de alojamiento,
           analítica de producto (PostHog), medición de anuncios (píxel de Meta / Facebook e Instagram Ads)
           y modelos de inteligencia artificial (Google Gemini) para
@@ -318,7 +319,8 @@ export function TermsPage() {
           momento escribiendo a <LegalMail />. Atenderemos esa solicitud como ejercicio del derecho de
           <strong>cancelación</strong> (derechos ARCO) previsto en la LFPDPPP: eliminaremos o
           anonimizaremos tus datos personales asociados a la cuenta, con las excepciones de conservación
-          descritas en el Aviso de Privacidad, y te confirmaremos cuando haya quedado atendida.
+          descritas en el Aviso de Privacidad, y te confirmaremos por correo o, si la cuenta no tiene
+          correo, por SMS, cuando haya quedado atendida.
         </p>
       </LegalSection>
 
