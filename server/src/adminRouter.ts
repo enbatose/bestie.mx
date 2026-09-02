@@ -24,6 +24,15 @@ import { listAdminPosts } from "./adminPosts.js";
 import { getAdminNavCounts } from "./adminNavCounts.js";
 import { listAdminUsers } from "./adminUsers.js";
 import { startAdminSupportConversation } from "./adminSupportStart.js";
+import {
+  eraseUserForArco,
+  listRecentArcoErasures,
+  markArcoConfirmationEmailSent,
+  previewArcoErasure,
+  searchArcoTargets,
+} from "./arcoErasure.js";
+import { buildArcoErasureEmail } from "./emails/arcoErasureEmail.js";
+import { sendTransactionalEmail } from "./mailer.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
@@ -42,6 +51,7 @@ function jsonMw() {
 
 const supportReplyLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 const supportStartLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 20 });
+const arcoEraseLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 8 });
 
 function isoNow(): string {
   return new Date().toISOString();
@@ -614,6 +624,114 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
     ).run(mid, id, adminId, body, now, attachments.length > 0 ? JSON.stringify(attachments) : null);
     db.prepare(`UPDATE conversations SET updated_at = ? WHERE id = ?`).run(now, id);
     res.status(201).json({ id: mid, createdAt: now });
+  });
+
+  r.get("/arco/search", (req: Request, res: Response) => {
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    res.json(searchArcoTargets(db, q));
+  });
+
+  r.get("/arco/log", (_req: Request, res: Response) => {
+    res.json({ erasures: listRecentArcoErasures(db, 30) });
+  });
+
+  r.get("/arco/users/:id/preview", (req: Request, res: Response) => {
+    const adminId = readAuthUserId(req);
+    if (!adminId) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const id = String(req.params.id ?? "").trim();
+    if (!id || id.length > 120) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const preview = previewArcoErasure(db, id, adminId);
+    if (!preview) {
+      res.status(404).json({ error: "not_found", message: "No encontramos esa cuenta." });
+      return;
+    }
+    res.json(preview);
+  });
+
+  r.post("/arco/users/:id/erase", jsonMw(), async (req: Request, res: Response) => {
+    const lim = arcoEraseLimiter(req.ip ?? "ip");
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const adminId = readAuthUserId(req);
+    if (!adminId) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const id = String(req.params.id ?? "").trim();
+    if (!id || id.length > 120) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const body = req.body as { emailConfirm?: unknown; reason?: unknown; source?: unknown };
+    const emailConfirm = typeof body.emailConfirm === "string" ? body.emailConfirm : "";
+    const reason = typeof body.reason === "string" ? body.reason : "";
+    const sourceRaw = typeof body.source === "string" ? body.source.trim() : "admin";
+    const source =
+      sourceRaw === "email" || sourceRaw === "facebook" || sourceRaw === "whatsapp" || sourceRaw === "admin"
+        ? sourceRaw
+        : "admin";
+    try {
+      const result = eraseUserForArco(db, {
+        userId: id,
+        adminUserId: adminId,
+        emailConfirm,
+        reason,
+        source,
+        uploadDir,
+      });
+      let confirmationEmailSent = false;
+      if (result.confirmationEmailTo) {
+        const mail = buildArcoErasureEmail({ displayName: result.displayName });
+        confirmationEmailSent = await sendTransactionalEmail({
+          to: result.confirmationEmailTo,
+          subject: mail.subject,
+          html: mail.html,
+          text: mail.text,
+          previewText: mail.previewText,
+          tags: mail.tags,
+        });
+        markArcoConfirmationEmailSent(db, result.logId, confirmationEmailSent);
+      }
+      res.json({
+        ok: true,
+        userId: result.userId,
+        counts: result.counts,
+        confirmationEmailSent,
+        confirmationEmailMasked: result.confirmationEmailMasked,
+        whatsappMessage: result.whatsappMessage,
+        logId: result.logId,
+      });
+    } catch (err) {
+      const code = err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
+      if (code === "not_found") {
+        res.status(404).json({ error: "not_found", message: "No encontramos esa cuenta." });
+        return;
+      }
+      if (code === "forbidden") {
+        res.status(403).json({
+          error: "forbidden",
+          message: err instanceof Error ? err.message : "No se puede eliminar esta cuenta.",
+        });
+        return;
+      }
+      if (code === "confirm_mismatch") {
+        res.status(400).json({
+          error: "confirm_mismatch",
+          message: "El correo (o id) de confirmación no coincide.",
+        });
+        return;
+      }
+      console.error("[arco-erase]", err instanceof Error ? err.message : err);
+      res.status(500).json({ error: "erase_failed", message: "No se pudo completar la eliminación." });
+    }
   });
 
   /** Explicitly forbidden: never add an impersonation route. */

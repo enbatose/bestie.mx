@@ -3,6 +3,7 @@ export type AdminNavCountKey = (typeof ADMIN_NAV_COUNT_KEYS)[number];
 
 export const ADMIN_SECTIONS = [
   { id: "users", slug: "usuarios", label: "Usuarios", countKey: "verifiedUsers", inNav: true },
+  { id: "arco", slug: "arco", label: "ARCO", inNav: true },
   { id: "property", slug: "posts", label: "Posts", countKey: "publishedPosts", inNav: true },
   { id: "soporte", slug: "soporte", label: "Soporte", countKey: "unreadSupportMessages", inNav: true },
   { id: "outreach", slug: "outreach", label: "Outreach", inNav: true },
@@ -30,6 +31,11 @@ export function parseAdminSectionSlug(slug: string | undefined): AdminSectionId 
 export function adminSupportConversationPath(conversationId: string): string {
   const id = conversationId.trim();
   return id ? `/admin/soporte?c=${encodeURIComponent(id)}` : "/admin/soporte";
+}
+
+export function adminArcoUserPath(userId: string): string {
+  const id = userId.trim();
+  return id ? `/admin/arco?u=${encodeURIComponent(id)}` : "/admin/arco";
 }
 
 export function adminBlogArticlePath(articleId: string): string {

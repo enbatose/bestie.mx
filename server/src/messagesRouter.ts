@@ -4,6 +4,7 @@ import express, { type Request, type Response } from "express";
 import { readAuthUserId } from "./jwtSession.js";
 import { isAdminUser } from "./adminAuth.js";
 import {
+  DELETED_USER_ID,
   FEEDBACK_BOT_USER_ID,
   SUPPORT_BOT_USER_ID,
   isSystemMessagingBot,
@@ -88,6 +89,13 @@ function assertMember(db: DatabaseSync, conversationId: string, userId: string):
   const r = db
     .prepare(`SELECT 1 as x FROM conversation_participants WHERE conversation_id = ? AND user_id = ?`)
     .get(conversationId, userId) as { x: number } | undefined;
+  return Boolean(r);
+}
+
+function conversationHasDeletedPeer(db: DatabaseSync, conversationId: string): boolean {
+  const r = db
+    .prepare(`SELECT 1 AS x FROM conversation_participants WHERE conversation_id = ? AND user_id = ?`)
+    .get(conversationId, DELETED_USER_ID) as { x: number } | undefined;
   return Boolean(r);
 }
 
@@ -707,6 +715,13 @@ export function messagesRouter(db: DatabaseSync) {
     }
     if (!assertMember(db, id, me)) {
       res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (conversationHasDeletedPeer(db, id)) {
+      res.status(410).json({
+        error: "peer_deleted",
+        message: "Esta conversación ya no está disponible.",
+      });
       return;
     }
     const kind = conversationKind(db, id);

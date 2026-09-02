@@ -10,6 +10,11 @@ export const FEEDBACK_BOT_USER_ID = "feedback-bestie";
 export const FEEDBACK_BOT_DISPLAY_NAME = "Feedback de Bestie";
 const FEEDBACK_BOT_EMAIL = "feedback-sistema@bestie.mx";
 
+/** Placeholder peer after ARCO cancelación so remaining users keep their inbox threads. */
+export const DELETED_USER_ID = "deleted-bestie";
+export const DELETED_USER_DISPLAY_NAME = "Usuario eliminado";
+const DELETED_USER_EMAIL = "eliminado-sistema@bestie.mx";
+
 /** Not a valid scrypt hash — any login attempt against this account fails `verifyPassword`. */
 const SYSTEM_BOT_PASSWORD_MARKER = "system-support-account-no-login";
 
@@ -20,7 +25,8 @@ export function isSystemMessagingBot(userId: string): boolean {
     userId === SUPPORT_BOT_USER_ID ||
     userId === FEEDBACK_BOT_USER_ID ||
     userId === "blog-bestie" ||
-    userId === "report-bestie"
+    userId === "report-bestie" ||
+    userId === DELETED_USER_ID
   );
 }
 
@@ -79,6 +85,16 @@ function ensureFeedbackBotUser(db: DatabaseSync): void {
   ensureSystemBotUser(db, FEEDBACK_BOT_USER_ID, FEEDBACK_BOT_EMAIL, FEEDBACK_BOT_DISPLAY_NAME);
 }
 
+/** Seeds the ARCO tombstone account so remaining chats keep a counterpart after erase. */
+function ensureDeletedUserBot(db: DatabaseSync): void {
+  ensureSystemBotUser(db, DELETED_USER_ID, DELETED_USER_EMAIL, DELETED_USER_DISPLAY_NAME);
+  db.prepare(`UPDATE users SET display_name = ? WHERE id = ? AND display_name != ?`).run(
+    DELETED_USER_DISPLAY_NAME,
+    DELETED_USER_ID,
+    DELETED_USER_DISPLAY_NAME,
+  );
+}
+
 /** In-app 1:1 messaging (listing threads + support/feedback chats), read receipts, and attachments. */
 export function ensureMessagingSchema(db: DatabaseSync): void {
   db.exec(`
@@ -116,5 +132,6 @@ export function ensureMessagingSchema(db: DatabaseSync): void {
   migrateMessageDeliveredAt(db);
   ensureSupportBotUser(db);
   ensureFeedbackBotUser(db);
+  ensureDeletedUserBot(db);
 }
 

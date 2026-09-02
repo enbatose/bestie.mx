@@ -644,6 +644,125 @@ export async function adminListUsers(
   };
 }
 
+export type ArcoEraseCounts = {
+  properties: number;
+  rooms: number;
+  photos: number;
+  listingConversationsKept: number;
+  supportConversationsDeleted: number;
+  messagesTombstoned: number;
+  savedSearches: number;
+  blogComments: number;
+  reportsAnonymized: number;
+  clientEvents: number;
+  oauthIdentities: number;
+};
+
+export type ArcoListingPreview = {
+  propertyId: string;
+  title: string;
+  status: string;
+  city: string;
+  neighborhood: string;
+  roomCount: number;
+};
+
+export type ArcoUserPreview = {
+  id: string;
+  email: string | null;
+  phoneLast4: string | null;
+  displayName: string;
+  createdAt: string;
+  emailVerified: boolean;
+  role: AdminUserRole;
+};
+
+export type ArcoPreview = {
+  user: ArcoUserPreview;
+  canErase: boolean;
+  cannotEraseReason: string | null;
+  confirmHint: string;
+  listings: ArcoListingPreview[];
+  oauthProviders: string[];
+  counts: ArcoEraseCounts;
+};
+
+export type ArcoPriorErasure = {
+  id: string;
+  createdAt: string;
+  source: string;
+  confirmationEmailSent: boolean;
+};
+
+export type ArcoSearchHit = {
+  user: ArcoUserPreview;
+  canErase: boolean;
+  listingCount: number;
+};
+
+export type ArcoEraseReceipt = {
+  ok: true;
+  userId: string;
+  counts: ArcoEraseCounts;
+  confirmationEmailSent: boolean;
+  confirmationEmailMasked: string | null;
+  whatsappMessage: string;
+  logId: string;
+};
+
+export async function adminArcoSearch(
+  q: string,
+  signal?: AbortSignal,
+): Promise<{ users: ArcoSearchHit[]; priorErasures: ArcoPriorErasure[] }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/arco/search?q=${encodeURIComponent(q)}`, {
+    credentials: cred,
+    signal,
+  });
+  if (!res.ok) throw new Error(`admin_arco_search_${res.status}`);
+  return (await res.json()) as { users: ArcoSearchHit[]; priorErasures: ArcoPriorErasure[] };
+}
+
+export async function adminArcoPreview(userId: string, signal?: AbortSignal): Promise<ArcoPreview> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/arco/users/${encodeURIComponent(userId)}/preview`, {
+    credentials: cred,
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(j.message || `admin_arco_preview_${res.status}`);
+  }
+  return (await res.json()) as ArcoPreview;
+}
+
+export async function adminArcoErase(
+  userId: string,
+  opts: { emailConfirm: string; reason?: string; source?: string },
+  signal?: AbortSignal,
+): Promise<ArcoEraseReceipt> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/arco/users/${encodeURIComponent(userId)}/erase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(opts),
+    signal,
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    throw new Error(j.message || j.error || `admin_arco_erase_${res.status}`);
+  }
+  return (await res.json()) as ArcoEraseReceipt;
+}
+
+export async function adminArcoLog(signal?: AbortSignal): Promise<{ erasures: ArcoPriorErasure[] }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/admin/arco/log`, { credentials: cred, signal });
+  if (!res.ok) throw new Error(`admin_arco_log_${res.status}`);
+  return (await res.json()) as { erasures: ArcoPriorErasure[] };
+}
+
 export async function adminPatchPropertyStatus(
   propertyId: string,
   status: "draft" | "published" | "paused" | "archived",

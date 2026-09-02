@@ -315,7 +315,10 @@ export function TermsPage() {
           Podemos suspender o cancelar tu cuenta o el acceso al Servicio, total o parcialmente, si
           incumples estos Términos, la ley, o si tu conducta daña a la comunidad o a la Plataforma.
           También puedes dejar de usar el Servicio y solicitar la eliminación de tu cuenta en cualquier
-          momento escribiendo a <LegalMail />.
+          momento escribiendo a <LegalMail />. Atenderemos esa solicitud como ejercicio del derecho de
+          <strong>cancelación</strong> (derechos ARCO) previsto en la LFPDPPP: eliminaremos o
+          anonimizaremos tus datos personales asociados a la cuenta, con las excepciones de conservación
+          descritas en el Aviso de Privacidad, y te confirmaremos cuando haya quedado atendida.
         </p>
       </LegalSection>
 

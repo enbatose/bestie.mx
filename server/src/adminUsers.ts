@@ -3,7 +3,7 @@ import { isAdminEmail, parseAdminEmails } from "./adminAuth.js";
 import { BLOG_BOT_USER_ID } from "./blogReports.js";
 import { REPORT_BOT_USER_ID } from "./listingReports.js";
 import { isUserEmailVerified, userAccountStatus } from "./emailVerification.js";
-import { FEEDBACK_BOT_USER_ID, isSystemMessagingBot, SUPPORT_BOT_USER_ID } from "./messagingSchema.js";
+import { FEEDBACK_BOT_USER_ID, isSystemMessagingBot, SUPPORT_BOT_USER_ID, DELETED_USER_ID } from "./messagingSchema.js";
 
 export const ADMIN_USER_SEGMENTS = ["real", "pending", "staff", "all"] as const;
 export type AdminUserSegment = (typeof ADMIN_USER_SEGMENTS)[number];
@@ -37,7 +37,7 @@ export type AdminUsersListResult = {
 };
 
 /** Support, feedback, and blog bots. Keep in sync with `isSystemMessagingBot`. */
-const SYSTEM_BOT_IDS = [SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, BLOG_BOT_USER_ID, REPORT_BOT_USER_ID] as const;
+const SYSTEM_BOT_IDS = [SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID, BLOG_BOT_USER_ID, REPORT_BOT_USER_ID, DELETED_USER_ID] as const;
 
 export function parseAdminUserSegment(raw: unknown): AdminUserSegment {
   const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";

@@ -39,6 +39,7 @@ import { AdminReportActions } from "@/components/admin/AdminReportActions";
 import { AdminFraudReportChecklist } from "@/components/admin/AdminFraudReportChecklist";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
 import { AdminBlogPanel } from "@/components/admin/AdminBlogPanel";
+import { AdminArcoPanel } from "@/components/admin/AdminArcoPanel";
 import { ADMIN_DEFAULT_PATH, ADMIN_NAV_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
 
 function monthOptions(count = 12): string[] {
@@ -410,6 +411,8 @@ export function AdminPage() {
       </div>
 
       {tab === "users" ? <AdminUsersPanel onError={clearErr} /> : null}
+
+      {tab === "arco" ? <AdminArcoPanel onError={clearErr} /> : null}
 
       {tab === "cities" ? (
         <div className="mt-6 space-y-3">

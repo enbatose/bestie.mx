@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   adminListUsers,
   type AdminUserCounts,
@@ -6,6 +7,7 @@ import {
   type AdminUserSegment,
 } from "@/lib/authApi";
 import { AdminUserSupportLink } from "@/components/admin/AdminUserSupportLink";
+import { adminArcoUserPath } from "@/lib/adminSections";
 
 const USER_SUBTABS: { id: AdminUserSegment; label: string }[] = [
   { id: "real", label: "Usuarios" },
@@ -146,6 +148,14 @@ export function AdminUsersPanel({ onError }: Props) {
                       Sin correo
                     </span>
                   )}
+                  {u.role === "user" ? (
+                    <Link
+                      to={adminArcoUserPath(u.id)}
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-error hover:bg-error/5"
+                    >
+                      ARCO
+                    </Link>
+                  ) : null}
                 </div>
                 {u.role === "system" ? (
                   <div className="ph-no-capture text-xs text-muted">

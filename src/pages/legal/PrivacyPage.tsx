@@ -357,7 +357,17 @@ export function PrivacyPage() {
         <p>
           Una vez recibida tu solicitud, eliminaremos o anonimizaremos los datos personales asociados a
           tu cuenta, salvo aquellos que debamos conservar por obligaciones legales o fiscales. Te
-          confirmaremos por correo cuando la solicitud haya sido atendida.
+          confirmaremos por correo (o por el mismo medio en que nos escribiste) cuando la solicitud haya
+          sido atendida.
+        </p>
+        <p>
+          La cancelación incluye, según corresponda: tu cuenta y credenciales; nombre, correo, teléfono y
+          foto de perfil; anuncios, recámaras y fotografías; búsquedas guardadas; comentarios en el blog;
+          identificadores de inicio de sesión con Google o Facebook; y los mensajes que hayas enviado.
+          Los chats con otras personas no se destruyen: tu lado se sustituye por “Usuario eliminado” para
+          no borrar la correspondencia de quien conversó contigo. Conservamos un registro interno{" "}
+          <em>bloqueado</em> de que procesamos la solicitud (sin tu correo ni teléfono en claro) para
+          acreditar el cumplimiento de tus derechos ARCO.
         </p>
       </LegalSection>
 
@@ -366,7 +376,9 @@ export function PrivacyPage() {
           Conservamos tus datos personales mientras mantengas una cuenta activa y por el tiempo
           necesario para cumplir las finalidades descritas, así como los plazos legales, contables y
           fiscales aplicables. Cuando ya no sean necesarios, los eliminaremos o anonimizaremos de forma
-          segura.
+          segura. Las copias de respaldo de la base de datos se rotan (aproximadamente 14 copias diarias
+          y 8 semanales) y dejan de contener datos cancelados al cumplirse esa rotación, a más tardar
+          en torno a ocho semanas.
         </p>
       </LegalSection>
 

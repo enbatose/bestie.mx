@@ -53,6 +53,7 @@ describe("admin user segments", () => {
     expect(classifyAdminUserRole(SUPPORT_BOT_USER_ID, "soporte-sistema@bestie.mx")).toBe("system");
     expect(classifyAdminUserRole(FEEDBACK_BOT_USER_ID, "feedback-sistema@bestie.mx")).toBe("system");
     expect(classifyAdminUserRole(BLOG_BOT_USER_ID, "blog-sistema@bestie.mx")).toBe("system");
+    expect(classifyAdminUserRole("deleted-bestie", "eliminado-sistema@bestie.mx")).toBe("system");
     expect(classifyAdminUserRole("u-admin", "ops@test.mx")).toBe("admin");
     expect(classifyAdminUserRole("u-real", "ana@test.mx")).toBe("user");
     process.env.ADMIN_EMAILS = prevAdmin;
@@ -87,6 +88,7 @@ describe("admin user segments", () => {
     expect(staffIds).toContain(SUPPORT_BOT_USER_ID);
     expect(staffIds).toContain(FEEDBACK_BOT_USER_ID);
     expect(staffIds).toContain(BLOG_BOT_USER_ID);
+    expect(staffIds).toContain("deleted-bestie");
     expect(staff.users.find((u) => u.id === "u-admin")?.role).toBe("admin");
     expect(staff.users.find((u) => u.id === SUPPORT_BOT_USER_ID)?.role).toBe("system");
     expect(staff.users.find((u) => u.id === BLOG_BOT_USER_ID)?.role).toBe("system");
