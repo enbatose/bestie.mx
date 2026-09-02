@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Copy, Check, ImagePlus, Trash2, Wand2, Link2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Copy, Check, ImagePlus, Trash2, Wand2, Link2, AlertTriangle } from "lucide-react";
 import {
   adminExtractAssistedDraft,
   adminCreateAssistedDraft,
+  adminOutreachDuplicateCheck,
   type AssistedDraftExtraction,
+  type OutreachDuplicateAccount,
+  type OutreachDuplicateCheck,
+  type OutreachDuplicateListing,
 } from "@/lib/assistedDraftApi";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
@@ -11,6 +15,7 @@ import {
   adminOutreachWhatsAppHref,
   adminOutreachWhatsAppMessage,
 } from "@/lib/adminOutreachWhatsApp";
+import { adminArcoUserPath } from "@/lib/adminSections";
 
 function WhatsAppMark({ className }: { className?: string }) {
   return (
@@ -62,6 +67,104 @@ function ConfidenceBadge({ c, label }: { c: number | undefined; label: string })
       <span className={confColor(c)}>{label}</span>
       <span className="opacity-60">{pct}%</span>
     </span>
+  );
+}
+
+const EMPTY_DUP_CHECK: OutreachDuplicateCheck = {
+  facebookMatches: [],
+  phoneListings: [],
+  phoneAccount: null,
+};
+
+function looksLikeSourceUrl(raw: string): boolean {
+  const t = raw.trim();
+  if (t.length < 8) return false;
+  return /^https?:\/\//i.test(t) || /facebook\.com|fb\.com|fb\.watch/i.test(t);
+}
+
+function listingStatusLabel(status: string): string {
+  if (status === "published") return "Publicado";
+  if (status === "paused") return "Pausado";
+  if (status === "archived") return "Archivado";
+  if (status === "pending_review") return "En revisión";
+  return "Borrador";
+}
+
+function shortEsDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function DuplicateListingRows({ listings }: { listings: OutreachDuplicateListing[] }) {
+  return (
+    <ul className="mt-2 min-w-0 space-y-1.5">
+      {listings.map((row) => (
+        <li key={row.propertyId} className="min-w-0 text-sm text-warning-fg">
+          <span className="break-words font-medium">{row.title}</span>
+          <span className="text-warning-fg/80">
+            {" · "}
+            {[row.city, listingStatusLabel(row.status), row.claimed ? "Reclamado" : null, shortEsDate(row.createdAt)]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+          {row.listingPath ? (
+            <>
+              {" "}
+              <a
+                href={row.listingPath}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline underline-offset-2"
+              >
+                Ver
+              </a>
+            </>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DuplicateAccountLine({ account }: { account: OutreachDuplicateAccount }) {
+  return (
+    <p className="mt-2 min-w-0 break-words text-sm text-warning-fg">
+      <span className="font-medium">{account.displayName}</span>
+      {account.email ? <span className="text-warning-fg/80"> · {account.email}</span> : null}
+      <span className="text-warning-fg/80">
+        {account.phoneVerified ? " · celular verificado" : " · celular en perfil, sin verificar"}
+      </span>
+      {" "}
+      <a
+        href={adminArcoUserPath(account.userId)}
+        className="font-semibold underline underline-offset-2"
+      >
+        Ver en ARCO
+      </a>
+    </p>
+  );
+}
+
+function OutreachDupBanner({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      role="status"
+      className="mt-2 min-w-0 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-warning-fg"
+    >
+      <p className="flex min-w-0 items-start gap-2 text-sm font-semibold">
+        <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+        <span className="min-w-0 break-words">{title}</span>
+      </p>
+      {children}
+    </div>
   );
 }
 
@@ -294,6 +397,8 @@ export function AdminAssistedDraftPanel() {
   const [outreachPhone, setOutreachPhone] = useState("");
   const [outreachShowPhone, setOutreachShowPhone] = useState(true);
   const [publisherName, setPublisherName] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [dupCheck, setDupCheck] = useState<OutreachDuplicateCheck>(EMPTY_DUP_CHECK);
 
   useEffect(() => {
     if (!extraction) {
@@ -305,6 +410,36 @@ export function AdminAssistedDraftPanel() {
     setOutreachPhone(national);
     setOutreachShowPhone(Boolean(national));
   }, [extraction]);
+
+  useEffect(() => {
+    if (claimUrl) return;
+    const url = facebookUrl.trim();
+    const phoneDigits = outreachPhone.trim() ? phoneDigitsForStorage(outreachPhone) : null;
+    const shouldCheckUrl = looksLikeSourceUrl(url);
+    const shouldCheckPhone = Boolean(phoneDigits);
+    if (!shouldCheckUrl && !shouldCheckPhone) {
+      setDupCheck(EMPTY_DUP_CHECK);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const result = await adminOutreachDuplicateCheck({
+            ...(shouldCheckUrl ? { sourceFacebookUrl: url } : {}),
+            ...(shouldCheckPhone && phoneDigits ? { phone: phoneDigits } : {}),
+          });
+          if (!cancelled) setDupCheck(result);
+        } catch {
+          /* keep last successful check */
+        }
+      })();
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [facebookUrl, outreachPhone, claimUrl]);
 
   const hasInput = text.trim() || infographicImages.length > 0;
 
@@ -344,6 +479,7 @@ export function AdminAssistedDraftPanel() {
         showWhatsApp: outreachShowPhone && Boolean(digits),
         photos: photoImages.map(({ mimeType, data }) => ({ mimeType, data })),
         infographicPhotos: infographicImages.map(({ mimeType, data }) => ({ mimeType, data })),
+        ...(facebookUrl.trim() ? { sourceFacebookUrl: facebookUrl.trim() } : {}),
       });
       setClaimUrl(result.claimUrl);
       setListingUrl(result.listingUrl);
@@ -396,6 +532,8 @@ export function AdminAssistedDraftPanel() {
     setExtractErr(null);
     setCreateErr(null);
     setPublisherName("");
+    setFacebookUrl("");
+    setDupCheck(EMPTY_DUP_CHECK);
   };
 
   return (
@@ -421,6 +559,35 @@ export function AdminAssistedDraftPanel() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+      </div>
+
+      <div className="min-w-0">
+        <label
+          htmlFor="admin-outreach-facebook-url"
+          className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted"
+        >
+          Enlace del post de Facebook
+        </label>
+        <p className="mb-2 text-xs text-muted">
+          Pega el enlace de la publicación de la que copias los datos. Te avisamos si ya armamos un
+          anuncio de ese mismo post.
+        </p>
+        <input
+          id="admin-outreach-facebook-url"
+          type="text"
+          inputMode="url"
+          value={facebookUrl}
+          onChange={(e) => setFacebookUrl(e.target.value)}
+          placeholder="https://www.facebook.com/groups/…/posts/…"
+          maxLength={2048}
+          className="w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body placeholder:text-muted focus:border-accent focus:outline-none"
+        />
+        {claimUrl || dupCheck.facebookMatches.length === 0 ? null : (
+          <OutreachDupBanner title="Ya creamos un anuncio de este post de Facebook">
+            <DuplicateListingRows listings={dupCheck.facebookMatches} />
+            <p className="mt-1.5 text-xs text-warning-fg/80">Puedes generar de todos modos si es a propósito.</p>
+          </OutreachDupBanner>
+        )}
       </div>
 
       <div>
@@ -546,6 +713,22 @@ export function AdminAssistedDraftPanel() {
               showPublisherSafety={false}
               embedded
             />
+            {dupCheck.phoneListings.length > 0 ? (
+              <OutreachDupBanner title="Ya creamos un anuncio con este teléfono">
+                <DuplicateListingRows listings={dupCheck.phoneListings} />
+              </OutreachDupBanner>
+            ) : null}
+            {dupCheck.phoneAccount ? (
+              <OutreachDupBanner
+                title={
+                  dupCheck.phoneAccount.phoneVerified
+                    ? "Este teléfono ya está ligado a una cuenta"
+                    : "Este teléfono ya está en una cuenta (aún no verificado)"
+                }
+              >
+                <DuplicateAccountLine account={dupCheck.phoneAccount} />
+              </OutreachDupBanner>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-3 pt-2">
@@ -566,6 +749,13 @@ export function AdminAssistedDraftPanel() {
               Limpiar
             </button>
           </div>
+          {dupCheck.facebookMatches.length > 0 ||
+          dupCheck.phoneListings.length > 0 ||
+          dupCheck.phoneAccount ? (
+            <p className="text-xs text-muted">
+              Hay avisos de duplicado arriba. Generar enlace no los bloquea.
+            </p>
+          ) : null}
 
           {createErr && (
             <div className="rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">

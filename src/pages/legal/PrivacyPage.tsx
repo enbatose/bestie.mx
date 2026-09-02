@@ -98,7 +98,9 @@ export function PrivacyPage() {
               fuera de la republicación autorizada por reglas de un grupo de Facebook, guardamos
               internamente la captura de consentimiento y una nota opcional; esa evidencia no forma
               parte de las fotos del anuncio y no se muestra al público ni al dueño que lo reclame
-              después.
+              después. En borradores de crecimiento también guardamos internamente el enlace de la
+              publicación de Facebook de origen, para no republicar el mismo post; ese enlace no se
+              muestra en el anuncio público ni al dueño que lo reclame.
             </>,
             <>
               <strong>Datos técnicos y de uso:</strong> identificadores técnicos, cookies, tipo de
@@ -147,7 +149,8 @@ export function PrivacyPage() {
               con enlace de reclamación que <strong>no se publica</strong> hasta que el propietario lo
               reclama o, excepcionalmente, hasta que un admin lo publique con evidencia de
               consentimiento (captura aparte y nota opcional, almacenadas internamente y nunca
-              mostradas en el anuncio). Los borradores no reclamados ni publicados con evidencia se
+              mostradas en el anuncio). Guardamos internamente el enlace de la publicación de origen
+              para evitar duplicados; no se muestra en el anuncio. Los borradores no reclamados ni publicados con evidencia se
               eliminan a los <strong>7 días</strong>. Si se comparte un enlace de reclamación o un
               anuncio republicado, Facebook, WhatsApp u otras apps pueden mostrar una vista previa con
               foto de portada, título, zona y, si aplica, renta (sin teléfono ni otros datos de

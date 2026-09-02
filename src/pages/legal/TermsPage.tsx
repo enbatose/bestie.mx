@@ -211,7 +211,8 @@ export function TermsPage() {
           </a>
           ) y está sujeta a la <strong>Regla 6 — Visibilidad en Bestie.mx</strong> de ese grupo, el
           equipo de Bestie puede capturar de forma <strong>manual</strong> (copiar y pegar texto,
-          precio, zona, fotos, infografías y teléfono) la información de ofertas{" "}
+          precio, zona, fotos, infografías, teléfono y el enlace de la publicación, este último de
+          uso interno para no duplicar el mismo post) la información de ofertas{" "}
           <strong>nuevas</strong> publicadas después de la vigencia de dicha regla,{" "}
           <strong>únicamente si el post incluye un número de teléfono</strong>, y publicarla en
           Bestie para ampliar su visibilidad. Al publicar en el grupo con esa regla vigente,

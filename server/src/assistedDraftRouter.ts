@@ -76,6 +76,8 @@ import {
   ADMIN_OUTREACH_CLAIM_TTL_MS,
   SELF_SERVE_CLAIM_TTL_MS,
 } from "./assistedDraftPurge.js";
+import { normalizeSourceFacebookUrl } from "./facebookPostUrl.js";
+import { checkOutreachDuplicates } from "./outreachDuplicateCheck.js";
 
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CLAIM_SAVE_OCCUPANT_MAX = 50;
@@ -440,6 +442,20 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
     },
   );
 
+  // ── Admin: duplicate check (Facebook post URL + phone) ───────────────────
+  r.post(
+    "/admin/duplicate-check",
+    requireAdmin,
+    express.json({ limit: "32kb" }),
+    (req: Request, res: Response): void => {
+      const body = req.body as { sourceFacebookUrl?: unknown; phone?: unknown };
+      const sourceFacebookUrl =
+        typeof body.sourceFacebookUrl === "string" ? body.sourceFacebookUrl : "";
+      const phone = typeof body.phone === "string" ? body.phone : "";
+      res.json({ ok: true, ...checkOutreachDuplicates(db, { sourceFacebookUrl, phone }) });
+    },
+  );
+
   // ── Admin: create assisted draft + claim token ────────────────────────────
   r.post(
     "/admin/create",
@@ -453,6 +469,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         photos?: Array<{ mimeType: string; data: string }>;
         infographicPhotos?: Array<{ mimeType: string; data: string }>;
         showWhatsApp?: boolean;
+        sourceFacebookUrl?: string;
       };
 
       const city = typeof body.city === "string" && body.city.trim() ? body.city.trim() : "Guadalajara";
@@ -504,6 +521,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const summary = "";
       const propertyKind = ext.propertyKind ?? null;
       const phone = assistedDraftPhoneFields(ext, showPhone);
+      const sourceFb =
+        typeof body.sourceFacebookUrl === "string" ? normalizeSourceFacebookUrl(body.sourceFacebookUrl) : null;
 
       // Room-mode gallery lives on the room; mirror onto the property for API/OG.
       const imageUrlsJson = JSON.stringify(photoUrls);
@@ -514,13 +533,15 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
           lat, lng, summary, contact_whatsapp, property_kind,
           bedrooms_total, bathrooms, show_whatsapp, image_urls_json,
           is_approximate_location, approximate_radius_m,
-          created_at, assisted_draft, created_by_admin_id
+          created_at, assisted_draft, created_by_admin_id,
+          source_facebook_url, source_facebook_key
         ) VALUES (
           @id, @publisherId, 'draft', 'room', @title, @city, @neighborhood,
           @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
           1, 1, @showWhatsApp, @imageUrlsJson,
           @isApproximate, @approximateRadius,
-          @createdAt, 1, @adminId
+          @createdAt, 1, @adminId,
+          @sourceFacebookUrl, @sourceFacebookKey
         )
       `).run({
         id: propertyId,
@@ -539,6 +560,8 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         approximateRadius,
         createdAt: now,
         adminId,
+        sourceFacebookUrl: sourceFb?.url ?? null,
+        sourceFacebookKey: sourceFb?.key ?? null,
       });
 
       // Room-level fields

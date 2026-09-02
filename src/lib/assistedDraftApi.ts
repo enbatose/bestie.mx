@@ -144,6 +144,8 @@ export async function adminCreateAssistedDraft(opts: {
   infographicPhotos?: Array<{ mimeType: string; data: string }>;
   /** When false, store phone on the draft but keep it hidden on the listing. Default true. */
   showWhatsApp?: boolean;
+  /** Facebook post the admin is copying from — stored for duplicate warnings. */
+  sourceFacebookUrl?: string;
 }): Promise<{ claimUrl: string; listingUrl: string; propertyId: string; roomId: string }> {
   const base = apiBase();
   const res = await apiFetch(`${base}/api/assisted-draft/admin/create`, {
@@ -166,6 +168,51 @@ export async function adminCreateAssistedDraft(opts: {
     listingUrl: j.listingUrl,
     propertyId: j.propertyId ?? "",
     roomId: j.roomId,
+  };
+}
+
+export type OutreachDuplicateListing = {
+  propertyId: string;
+  title: string;
+  city: string;
+  status: string;
+  createdAt: string | null;
+  listingPath: string | null;
+  assistedDraft: boolean;
+  claimed: boolean;
+};
+
+export type OutreachDuplicateAccount = {
+  userId: string;
+  displayName: string;
+  email: string | null;
+  phoneVerified: boolean;
+};
+
+export type OutreachDuplicateCheck = {
+  facebookMatches: OutreachDuplicateListing[];
+  phoneListings: OutreachDuplicateListing[];
+  phoneAccount: OutreachDuplicateAccount | null;
+};
+
+/** Admin: warn if this Facebook post or phone was already used. */
+export async function adminOutreachDuplicateCheck(opts: {
+  sourceFacebookUrl?: string;
+  phone?: string;
+}): Promise<OutreachDuplicateCheck> {
+  const base = apiBase();
+  const res = await apiFetch(`${base}/api/assisted-draft/admin/duplicate-check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: cred,
+    body: JSON.stringify(opts),
+  });
+  const j = (await res.json().catch(() => ({}))) as Partial<OutreachDuplicateCheck> & { error?: string };
+  if (!res.ok) throw new Error(j.error ?? `duplicate_check_${res.status}`);
+  return {
+    facebookMatches: Array.isArray(j.facebookMatches) ? j.facebookMatches : [],
+    phoneListings: Array.isArray(j.phoneListings) ? j.phoneListings : [],
+    phoneAccount: j.phoneAccount ?? null,
   };
 }
 

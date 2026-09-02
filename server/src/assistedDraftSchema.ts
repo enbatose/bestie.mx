@@ -22,6 +22,13 @@ export function ensureAssistedDraftSchema(db: DatabaseSync): void {
   if (!tableHasColumn(db, "properties", "admin_publish_evidence_at")) {
     db.exec(`ALTER TABLE properties ADD COLUMN admin_publish_evidence_at TEXT`);
   }
+  if (!tableHasColumn(db, "properties", "source_facebook_url")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN source_facebook_url TEXT`);
+  }
+  if (!tableHasColumn(db, "properties", "source_facebook_key")) {
+    db.exec(`ALTER TABLE properties ADD COLUMN source_facebook_key TEXT`);
+  }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_properties_source_facebook_key ON properties(source_facebook_key)`);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS assisted_draft_claim_tokens (
