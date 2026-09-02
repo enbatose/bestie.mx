@@ -65,6 +65,47 @@ describe("collapseSearchListings", () => {
     expect(rows[1]!.rentMxnMax).toBeUndefined();
   });
 
+  it("keeps a room photo when a property-mode post has no property cover", () => {
+    const rows = collapseSearchListings([
+      room({
+        id: "r1",
+        propertyId: "prp__efb392e2",
+        rentMxn: 10_000,
+        propertyImageUrls: undefined,
+        roomImageUrls: ["/api/uploads/8d98d445-b4c1-4386-94b9-054405faa27e.jpg"],
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.id).toBe("prp__efb392e2");
+    expect(rows[0]!.propertyImageUrls).toBeUndefined();
+    expect(rows[0]!.roomImageUrls).toEqual([
+      "/api/uploads/8d98d445-b4c1-4386-94b9-054405faa27e.jpg",
+    ]);
+  });
+
+  it("falls back to another room photo when the cheapest room has none", () => {
+    const rows = collapseSearchListings([
+      room({
+        id: "r-cheap",
+        propertyId: "prp__2",
+        rentMxn: 4000,
+        propertyImageUrls: undefined,
+        roomImageUrls: undefined,
+      }),
+      room({
+        id: "r-photo",
+        propertyId: "prp__2",
+        rentMxn: 8000,
+        propertyImageUrls: undefined,
+        roomImageUrls: ["/api/uploads/room-cover.jpg"],
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.roomImageUrls).toEqual(["/api/uploads/room-cover.jpg"]);
+  });
+
   it("formats single and ranged rents", () => {
     expect(formatSearchListingRent({ rentMxn: 5000 }, money)).toContain("5");
     expect(formatSearchListingRent({ rentMxn: 5000, rentMxnMax: 7500 }, money)).toMatch(/5.*–.*7/);

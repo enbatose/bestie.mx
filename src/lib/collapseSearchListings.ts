@@ -41,6 +41,14 @@ export function collapseSearchListings(listings: readonly PropertyListing[]): Pr
   return ordered;
 }
 
+function firstRoomImageUrls(group: readonly PropertyListing[]): string[] {
+  for (const listing of group) {
+    const urls = listing.roomImageUrls;
+    if (urls?.length) return urls;
+  }
+  return [];
+}
+
 function collapsePropertyGroup(group: PropertyListing[]): PropertyListing {
   const sorted = [...group].sort((a, b) => a.rentMxn - b.rentMxn);
   const head = sorted[0]!;
@@ -48,6 +56,7 @@ function collapsePropertyGroup(group: PropertyListing[]): PropertyListing {
   const minRent = rents.length ? Math.min(...rents) : head.rentMxn;
   const maxRent = rents.length ? Math.max(...rents) : head.rentMxn;
   const title = head.propertyTitle?.trim() || head.title;
+  const propertyImageUrls = head.propertyImageUrls ?? [];
 
   // Union tags across available rooms so quick-attribute chips stay useful.
   const tagSet = new Set<string>();
@@ -66,8 +75,9 @@ function collapsePropertyGroup(group: PropertyListing[]): PropertyListing {
     rentMxnMax: maxRent > minRent ? maxRent : undefined,
     roomsAvailable: sorted.length,
     tags: [...tagSet] as PropertyListing["tags"],
-    // Prefer property cover; drop room-only photos so the card thumb is the property.
-    roomImageUrls: [],
+    // Prefer property cover. If the publisher only attached photos to rooms,
+    // keep one so search/map cards match the listing-page fallback.
+    roomImageUrls: propertyImageUrls.length ? [] : firstRoomImageUrls(sorted),
     // Card blurb is the property description, not a single room's summary.
     summary: head.propertySummary?.trim() || head.summary,
   };
