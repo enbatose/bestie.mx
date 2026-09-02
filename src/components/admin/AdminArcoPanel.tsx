@@ -41,7 +41,7 @@ export function AdminArcoPanel({ onError }: Props) {
   const [receipt, setReceipt] = useState<ArcoEraseReceipt | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [reason, setReason] = useState("Solicitud ARCO de cancelación");
-  const [source, setSource] = useState("whatsapp");
+  const [source, setSource] = useState("email");
   const [searching, setSearching] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -264,8 +264,8 @@ export function AdminArcoPanel({ onError }: Props) {
                 onChange={(e) => setSource(e.target.value)}
                 className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-border bg-bg-light px-3 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
               >
-                <option value="whatsapp">WhatsApp</option>
                 <option value="email">Correo</option>
+                <option value="whatsapp">WhatsApp</option>
                 <option value="facebook">Facebook</option>
                 <option value="admin">Otro (admin)</option>
               </select>
@@ -298,10 +298,10 @@ export function AdminArcoPanel({ onError }: Props) {
           <p className="text-sm leading-relaxed text-body">
             La cancelación quedó registrada conforme a la LFPDPPP.{" "}
             {receipt.confirmationEmailSent
-              ? `Enviamos el correo de confirmación a ${receipt.confirmationEmailMasked}.`
+              ? `El correo de confirmación ya se envió a ${receipt.confirmationEmailMasked}. No hace falta copiar nada más.`
               : receipt.confirmationEmailMasked
-                ? `No se pudo enviar el correo a ${receipt.confirmationEmailMasked}; usa el mensaje de WhatsApp.`
-                : "No había correo en la cuenta; usa el mensaje de WhatsApp."}
+                ? `No se pudo enviar el correo a ${receipt.confirmationEmailMasked}. Copia el texto de abajo y confírmalo por el canal en que te escribieron.`
+                : "No había correo en la cuenta. Copia el texto de abajo y confírmalo por el canal en que te escribieron."}
           </p>
           <ul className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
             <CountTile label="Anuncios" value={receipt.counts.properties} />
@@ -310,23 +310,38 @@ export function AdminArcoPanel({ onError }: Props) {
             <CountTile label="Chats conservados" value={receipt.counts.listingConversationsKept} />
             <CountTile label="Chats Bestie" value={receipt.counts.supportConversationsDeleted} />
           </ul>
-          <label className="block text-sm font-medium text-body" htmlFor="arco-wa">
-            Mensaje para WhatsApp
-          </label>
-          <textarea
-            id="arco-wa"
-            readOnly
-            value={receipt.whatsappMessage}
-            rows={6}
-            className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface p-3 text-sm leading-relaxed text-body"
-          />
-          <button
-            type="button"
-            onClick={() => void copyWhatsApp()}
-            className="min-h-11 w-full rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg hover:brightness-110"
-          >
-            {copied ? "Copiado" : "Copiar mensaje"}
-          </button>
+          {!receipt.confirmationEmailSent || source === "whatsapp" ? (
+            <div className="min-w-0 space-y-2 border-t border-border/80 pt-3">
+              <p className="text-sm font-medium text-body">
+                {receipt.confirmationEmailSent
+                  ? "Texto opcional para WhatsApp"
+                  : "Texto para confirmar por WhatsApp"}
+              </p>
+              <p className="text-xs leading-relaxed text-muted">
+                {receipt.confirmationEmailSent
+                  ? "El correo legal ya salió. Esto solo sirve si la persona pidió la baja por WhatsApp y quieres contestarle en ese chat."
+                  : "Pégalo en el chat o correo donde te pidieron la baja."}
+              </p>
+              <textarea
+                id="arco-wa"
+                readOnly
+                value={receipt.whatsappMessage}
+                rows={receipt.confirmationEmailSent ? 4 : 6}
+                className="w-full min-w-0 rounded-xl border border-border bg-surface p-3 text-sm leading-relaxed text-body"
+              />
+              <button
+                type="button"
+                onClick={() => void copyWhatsApp()}
+                className={
+                  receipt.confirmationEmailSent
+                    ? "min-h-11 w-full rounded-full border border-border bg-surface px-5 text-sm font-semibold text-body hover:bg-surface-elevated"
+                    : "min-h-11 w-full rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg hover:brightness-110"
+                }
+              >
+                {copied ? "Copiado" : "Copiar texto"}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

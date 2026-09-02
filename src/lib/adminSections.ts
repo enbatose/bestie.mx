@@ -3,12 +3,12 @@ export type AdminNavCountKey = (typeof ADMIN_NAV_COUNT_KEYS)[number];
 
 export const ADMIN_SECTIONS = [
   { id: "users", slug: "usuarios", label: "Usuarios", countKey: "verifiedUsers", inNav: true },
-  { id: "arco", slug: "arco", label: "ARCO", inNav: true },
   { id: "property", slug: "posts", label: "Posts", countKey: "publishedPosts", inNav: true },
   { id: "soporte", slug: "soporte", label: "Soporte", countKey: "unreadSupportMessages", inNav: true },
   { id: "outreach", slug: "outreach", label: "Outreach", inNav: true },
   { id: "blog", slug: "blog", label: "Blog", inNav: true },
   { id: "analytics", slug: "metricas", label: "Métricas", inNav: true },
+  { id: "arco", slug: "arco", label: "ARCO", inNav: true },
   { id: "cities", slug: "ciudades", label: "Ciudades", inNav: false },
 ] as const;
 

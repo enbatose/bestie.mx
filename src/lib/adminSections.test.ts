@@ -17,12 +17,12 @@ describe("adminSections", () => {
     expect(adminSectionPath("analytics")).toBe("/admin/metricas");
     expect(ADMIN_NAV_SECTIONS.map((s) => s.slug)).toEqual([
       "usuarios",
-      "arco",
       "posts",
       "soporte",
       "outreach",
       "blog",
       "metricas",
+      "arco",
     ]);
     expect(ADMIN_SECTIONS.map((s) => s.slug)).toContain("ciudades");
     expect(parseAdminSectionSlug("ciudades")).toBe("cities");
