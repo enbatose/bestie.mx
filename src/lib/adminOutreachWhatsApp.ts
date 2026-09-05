@@ -4,6 +4,10 @@ import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone"
 export const FB_OUTREACH_GROUP_NAME =
   "Busco Roomies, Comparto Depa, Renta de Cuartos Guadalajara, Roomie GDL";
 
+/** Short lockup for WhatsApp outreach (ellipsis skips the middle of the full group title). */
+export const FB_OUTREACH_GROUP_NAME_SHORT =
+  "Busco Roomies, Comparto Depa...Roomie GDL";
+
 /** 10-digit MX mobile for outreach copy (e.g. 3318632070), no +52. */
 export function adminOutreachContactPhoneDisplay(raw: string): string | null {
   return normalizeMxNationalDigits(raw);
@@ -27,7 +31,7 @@ export function adminOutreachWhatsAppMessage(opts: {
   return [
     greeting,
     "",
-    "Vimos tu publicación de roomie/cuarto en el grupo de Facebook de Guadalajara. Según las reglas del grupo, la republicamos en Bestie para que más personas la vean fuera de Facebook.",
+    `Vimos tu publicación de roomie/cuarto en el grupo _${FB_OUTREACH_GROUP_NAME_SHORT}_ de FB. Según las reglas del grupo, la republicamos en Bestie para que más personas la vean fuera de Facebook.`,
     "",
     "🌐 Tu anuncio:",
     url,
