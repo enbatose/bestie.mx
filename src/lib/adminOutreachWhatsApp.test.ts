@@ -15,7 +15,7 @@ describe("adminOutreachWhatsAppMessage", () => {
     expect(msg).toContain("Hola María,");
     expect(msg).toContain("roomie/cuarto");
     expect(msg).toContain(
-      "grupo _Busco Roomies, Comparto Depa...Roomie GDL_ de FB",
+      "grupo _Busco Roomies, Comparto Depa...Roomie GDL_.",
     );
     expect(msg).toContain("🌐 Tu anuncio:");
     expect(msg).toContain("https://www.bestie.mx/anuncio/A12345678");

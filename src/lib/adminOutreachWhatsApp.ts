@@ -31,7 +31,7 @@ export function adminOutreachWhatsAppMessage(opts: {
   return [
     greeting,
     "",
-    `Vimos tu publicación de roomie/cuarto en el grupo _${FB_OUTREACH_GROUP_NAME_SHORT}_ de FB. Según las reglas del grupo, la republicamos en Bestie para que más personas la vean fuera de Facebook.`,
+    `Vimos tu publicación de roomie/cuarto en el grupo _${FB_OUTREACH_GROUP_NAME_SHORT}_. Según las reglas del grupo, la republicamos en Bestie para que más personas la vean fuera de Facebook.`,
     "",
     "🌐 Tu anuncio:",
     url,
