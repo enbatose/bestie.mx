@@ -16,10 +16,12 @@ import {
   adminOutreachWhatsAppMessage,
 } from "@/lib/adminOutreachWhatsApp";
 import { adminArcoUserPath } from "@/lib/adminSections";
+import { uploadListingImage } from "@/lib/listingsApi";
 import {
   PREPARE_IMAGE_FAIL_MESSAGE,
   fileToPreparedImagePayload,
   isProbablyImageFile,
+  preparedPayloadToFile,
 } from "@/lib/prepareListingImage";
 import { useClipboardImagePaste } from "@/hooks/useClipboardImagePaste";
 
@@ -413,6 +415,7 @@ export function AdminAssistedDraftPanel() {
   const [extractErr, setExtractErr] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
+  const [createBusyLabel, setCreateBusyLabel] = useState("Generando…");
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
   const [listingUrl, setListingUrl] = useState<string | null>(null);
   const [createErr, setCreateErr] = useState<string | null>(null);
@@ -492,7 +495,18 @@ export function AdminAssistedDraftPanel() {
     if (!extraction) return;
     setCreating(true);
     setCreateErr(null);
+    setCreateBusyLabel("Generando…");
     try {
+      const gallery = [...photoImages, ...infographicImages];
+      const photoUrls: string[] = [];
+      for (let i = 0; i < gallery.length; i++) {
+        setCreateBusyLabel(
+          gallery.length === 1 ? "Subiendo foto…" : `Subiendo foto ${i + 1}/${gallery.length}…`,
+        );
+        const file = await preparedPayloadToFile(gallery[i]!, `foto-${i + 1}`);
+        photoUrls.push(await uploadListingImage(file));
+      }
+      setCreateBusyLabel("Generando enlace…");
       const digits = outreachPhone.trim() ? phoneDigitsForStorage(outreachPhone) : null;
       const result = await adminCreateAssistedDraft({
         city,
@@ -501,8 +515,7 @@ export function AdminAssistedDraftPanel() {
           contactPhone: digits ?? undefined,
         },
         showWhatsApp: outreachShowPhone && Boolean(digits),
-        photos: photoImages.map(({ mimeType, data }) => ({ mimeType, data })),
-        infographicPhotos: infographicImages.map(({ mimeType, data }) => ({ mimeType, data })),
+        photoUrls,
         ...(facebookUrl.trim() ? { sourceFacebookUrl: facebookUrl.trim() } : {}),
       });
       setClaimUrl(result.claimUrl);
@@ -511,6 +524,7 @@ export function AdminAssistedDraftPanel() {
       setCreateErr(e instanceof Error ? e.message : "Error al crear el borrador.");
     } finally {
       setCreating(false);
+      setCreateBusyLabel("Generando…");
     }
   };
 
@@ -763,7 +777,7 @@ export function AdminAssistedDraftPanel() {
               className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40"
             >
               <Link2 size={16} />
-              {creating ? "Generando…" : "Generar enlace"}
+              {creating ? createBusyLabel : "Generar enlace"}
             </button>
             <button
               type="button"

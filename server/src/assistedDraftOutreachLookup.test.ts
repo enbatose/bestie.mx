@@ -124,6 +124,24 @@ describe("admin outreach duplicate check", () => {
     expect(stored.hide_pricing).toBe(0);
   });
 
+  it("attaches already-uploaded photo URLs without a base64 body", async () => {
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" });
+    await agent.post("/api/auth/login").send({ email: bossEmail, password: "longenough1" }).expect(200);
+
+    const photoUrl = "/api/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg";
+    const created = await agent.post("/api/assisted-draft/admin/create").send({
+      city: "Guadalajara",
+      extraction: { propertyTitle: "Cuarto con fotos" },
+      photoUrls: [photoUrl],
+    });
+    expect(created.status).toBe(201);
+    const stored = db
+      .prepare(`SELECT image_urls_json FROM properties WHERE id = ?`)
+      .get(created.body.propertyId) as { image_urls_json: string };
+    expect(JSON.parse(stored.image_urls_json)).toEqual([photoUrl]);
+  });
+
   it("rejects duplicate-check without admin", async () => {
     const res = await request(app).post("/api/assisted-draft/admin/duplicate-check").send({
       phone: "3312348888",

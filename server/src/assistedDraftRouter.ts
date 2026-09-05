@@ -466,8 +466,9 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const body = req.body as {
         city?: string;
         extraction?: AssistedDraftExtraction;
-        photos?: Array<{ mimeType: string; data: string }>;
-        infographicPhotos?: Array<{ mimeType: string; data: string }>;
+        photos?: ImageInput[];
+        infographicPhotos?: ImageInput[];
+        photoUrls?: unknown;
         showWhatsApp?: boolean;
         sourceFacebookUrl?: string;
       };
@@ -476,16 +477,17 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       const ext = body.extraction ?? {};
       const showPhone = body.showWhatsApp !== false;
 
-      // Upload photos
-      const photoUrls: string[] = [];
-      const allPhotoInputs = [
-        ...(body.photos ?? []),
-        ...(body.infographicPhotos ?? []),
-      ];
-      for (const img of allPhotoInputs) {
-        const url = saveBase64Image(img.data, img.mimeType, resolvedUploadDir);
-        if (url) photoUrls.push(url);
+      const urlInputs: ImageInput[] = [];
+      if (Array.isArray(body.photoUrls)) {
+        for (const raw of body.photoUrls) {
+          if (typeof raw === "string" && raw.trim()) urlInputs.push({ url: raw.trim() });
+        }
       }
+      const photoUrls = resolveImageUrls(
+        [...urlInputs, ...(body.photos ?? []), ...(body.infographicPhotos ?? [])],
+        resolvedUploadDir,
+        SELF_SERVE_MAX_PHOTOS + SELF_SERVE_MAX_INFOGRAPHICS,
+      );
 
       // Determine location
       const loc = ext.location;

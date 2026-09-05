@@ -140,6 +140,8 @@ export async function adminExtractAssistedDraft(
 export async function adminCreateAssistedDraft(opts: {
   city: string;
   extraction: AssistedDraftExtraction;
+  /** Prefer already-uploaded `/api/uploads/…` paths so the create JSON stays small. */
+  photoUrls?: string[];
   photos?: Array<{ mimeType: string; data: string }>;
   infographicPhotos?: Array<{ mimeType: string; data: string }>;
   /** When false, store phone on the draft but keep it hidden on the listing. Default true. */
@@ -161,6 +163,9 @@ export async function adminCreateAssistedDraft(opts: {
     roomId?: string;
     error?: string;
   };
+  if (res.status === 413) {
+    throw new Error("Las fotos son demasiado pesadas para un solo envío. Recarga e intenta de nuevo.");
+  }
   if (!res.ok) throw new Error(j.error ?? `create_${res.status}`);
   if (!j.claimUrl || !j.listingUrl || !j.roomId) throw new Error("create_bad_response");
   return {

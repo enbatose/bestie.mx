@@ -408,3 +408,23 @@ export async function fileToPreparedImagePayload(file: File): Promise<PreparedIm
   const mimeType = header.split(":")[1]?.split(";")[0] || outFile.type || "image/jpeg";
   return { mimeType, data, preview };
 }
+
+/** Rebuild a File from in-memory preview/base64 so it can go through `POST /api/uploads`. */
+export async function preparedPayloadToFile(
+  payload: { mimeType?: string; data?: string; preview?: string },
+  name = "foto.jpg",
+): Promise<File> {
+  const mimeType = payload.mimeType || "image/jpeg";
+  const src =
+    payload.preview && payload.preview.startsWith("data:")
+      ? payload.preview
+      : payload.data
+        ? `data:${mimeType};base64,${payload.data}`
+        : "";
+  if (!src) throw new Error(PREPARE_IMAGE_EMPTY_MESSAGE);
+  const blob = await (await fetch(src)).blob();
+  if (!blob.size) throw new Error(PREPARE_IMAGE_EMPTY_MESSAGE);
+  const ext = mimeType.includes("webp") ? "webp" : mimeType.includes("png") ? "png" : "jpg";
+  const fileName = /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${ext}`;
+  return new File([blob], fileName, { type: blob.type || mimeType });
+}
