@@ -21,6 +21,7 @@ import {
   fileToPreparedImagePayload,
   isProbablyImageFile,
 } from "@/lib/prepareListingImage";
+import { useClipboardImagePaste } from "@/hooks/useClipboardImagePaste";
 
 function WhatsAppMark({ className }: { className?: string }) {
   return (
@@ -201,9 +202,18 @@ function ImageDropZone({
     [images, onImages],
   );
 
+  const { zoneRef, zonePasteProps } = useClipboardImagePaste({
+    enabled: !busy,
+    onFiles: (files) => {
+      void addFiles(files);
+    },
+  });
+
   return (
     <div
-      className={`relative rounded-xl border-2 border-dashed transition ${dragging ? "border-secondary bg-secondary/5" : "border-border bg-bg-light"} p-4`}
+      ref={zoneRef}
+      {...zonePasteProps}
+      className={`relative rounded-xl border-2 border-dashed p-4 outline-none transition focus-visible:ring-2 focus-visible:ring-accent/40 ${dragging ? "border-secondary bg-secondary/5" : "border-border bg-bg-light"}`}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={async (e) => {
@@ -211,15 +221,6 @@ function ImageDropZone({
         setDragging(false);
         await addFiles(e.dataTransfer.files);
       }}
-      onPaste={async (e) => {
-        const items = Array.from(e.clipboardData?.items ?? []).filter((i) =>
-          i.type.startsWith("image/"),
-        );
-        if (!items.length) return;
-        const files = items.map((i) => i.getAsFile()).filter((f): f is File => f != null);
-        await addFiles(files);
-      }}
-      tabIndex={0}
       role="region"
       aria-label={label}
     >

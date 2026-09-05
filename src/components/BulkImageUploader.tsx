@@ -12,6 +12,8 @@ import {
 } from "@/lib/prepareListingImage";
 import { classifyImageError, sampleImageHead, type ImageUploadSource } from "@/lib/imageUploadDiagnostics";
 import { isFilePermissionError, persistPickedFiles } from "@/lib/persistPickedFile";
+import { isClipboardImageFile } from "@/lib/clipboardImages";
+import { useClipboardImagePaste } from "@/hooks/useClipboardImagePaste";
 import { markPhotoPickerIntent, clearPhotoPickerIntent } from "@/lib/publishWizard/liveEditSession";
 import {
   appendDraftImageUrl,
@@ -258,6 +260,25 @@ export function BulkImageUploader({
     [apiOn, maxCount, onBatchComplete, onImagesChange, remaining],
   );
 
+  const ingestDroppedOrPasted = useCallback(
+    (files: File[], source: ImageUploadSource) => {
+      void (async () => {
+        try {
+          const durable = files.length ? await persistPickedFiles(files) : [];
+          void addFiles(durable, source);
+        } catch (err) {
+          setErr(friendlyUploadError(err));
+        }
+      })();
+    },
+    [addFiles],
+  );
+
+  const { zoneRef, zonePasteProps } = useClipboardImagePaste({
+    enabled: remaining > 0 && !busy,
+    onFiles: (files) => ingestDroppedOrPasted(files, "paste"),
+  });
+
   const pickAndAdd = useCallback(
     (source: ImageUploadSource) => (e: ChangeEvent<HTMLInputElement>) => {
       const input = e.target;
@@ -308,7 +329,13 @@ export function BulkImageUploader({
   );
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div
+      ref={zoneRef}
+      {...zonePasteProps}
+      role="region"
+      aria-label={title}
+      className="rounded-2xl border border-border bg-surface p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-body">{title}</h3>
@@ -357,20 +384,13 @@ export function BulkImageUploader({
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          const files = Array.from(e.dataTransfer.files ?? []).filter(
-            (f) => f.type.startsWith("image/") || /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)$/i.test(f.name),
-          );
-          void (async () => {
-            try {
-              const durable = files.length ? await persistPickedFiles(files) : [];
-              void addFiles(durable, "drop");
-            } catch (dropErr) {
-              setErr(friendlyUploadError(dropErr));
-            }
-          })();
+          const files = Array.from(e.dataTransfer.files ?? []).filter(isClipboardImageFile);
+          ingestDroppedOrPasted(files, "drop");
         }}
       >
-        <p className="text-xs text-muted">Arrastra y suelta aquí para subir en bloque. Toca la estrella para elegir la portada.</p>
+        <p className="text-xs text-muted">
+          Pega (Ctrl+V), arrastra y suelta, o usa Subir fotos. Toca la estrella para elegir la portada.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {images.map((img, ix) => (
             <div

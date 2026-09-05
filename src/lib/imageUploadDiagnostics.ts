@@ -1,7 +1,7 @@
 import { sniffImageMime } from "@/lib/imageMime";
 import { isFilePermissionError } from "@/lib/persistPickedFile";
 
-export type ImageUploadSource = "gallery" | "camera" | "drop" | "unknown";
+export type ImageUploadSource = "gallery" | "camera" | "drop" | "paste" | "unknown";
 export type ImageDecodePath = "bitmap" | "objectUrl" | "fileReader" | "heic2any" | "skipped" | "unknown";
 
 export type ImageErrorCode =

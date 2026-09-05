@@ -4,6 +4,7 @@ import {
   PREPARE_IMAGE_FAIL_MESSAGE,
   prepareListingImageForUpload,
 } from "@/lib/prepareListingImage";
+import { imageFilesFromClipboard } from "@/lib/clipboardImages";
 
 type Props = {
   busy: boolean;
@@ -17,23 +18,9 @@ const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 /** How many evidence forms are on screen — a single form can take Ctrl+V without a click. */
 let mountedConsentForms = 0;
 
-function imageFileFromClipboard(data: DataTransfer | null): File | null {
-  if (!data) return null;
-  const fromItems = Array.from(data.items ?? [])
-    .filter((item) => iTypeIsImage(item.type))
-    .map((item) => item.getAsFile())
-    .find((file): file is File => file != null);
-  if (fromItems) return fromItems;
-  return Array.from(data.files ?? []).find((file) => iTypeIsImage(file.type)) ?? null;
-}
-
-function iTypeIsImage(type: string): boolean {
-  return type.startsWith("image/");
-}
-
 function firstImageFile(files: FileList | File[] | null | undefined): File | null {
   if (!files) return null;
-  return Array.from(files).find((file) => iTypeIsImage(file.type)) ?? null;
+  return Array.from(files).find((file) => file.type.startsWith("image/")) ?? null;
 }
 
 /**
@@ -112,7 +99,7 @@ export function AdminConsentEvidenceForm({
       );
       const soleForm = mountedConsentForms <= 1;
       if (!inZone && !zoneFocused && !pointerOver && !soleForm) return;
-      const next = imageFileFromClipboard(event.clipboardData);
+      const next = imageFilesFromClipboard(event.clipboardData)[0] ?? null;
       if (!next) return;
       event.preventDefault();
       applyFile(next);

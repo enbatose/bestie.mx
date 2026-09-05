@@ -5,6 +5,7 @@ import {
   fileToPreparedImagePayload,
   isProbablyImageFile,
 } from "@/lib/prepareListingImage";
+import { useClipboardImagePaste } from "@/hooks/useClipboardImagePaste";
 
 export type AiLocalImage = {
   mimeType: string;
@@ -105,9 +106,18 @@ export function AiImageDropZone({
     [images, onImages, remaining],
   );
 
+  const { zoneRef, zonePasteProps } = useClipboardImagePaste({
+    enabled: remaining > 0 && !busy,
+    onFiles: (files) => {
+      void addFiles(files);
+    },
+  });
+
   return (
     <div
-      className={`relative rounded-xl border-2 border-dashed p-4 transition ${
+      ref={zoneRef}
+      {...zonePasteProps}
+      className={`relative rounded-xl border-2 border-dashed p-4 outline-none transition focus-visible:ring-2 focus-visible:ring-accent/40 ${
         dragging ? "border-secondary bg-secondary/5" : "border-border bg-bg-light"
       }`}
       onDragOver={(e) => {
@@ -120,13 +130,6 @@ export function AiImageDropZone({
         setDragging(false);
         void addFiles(e.dataTransfer.files);
       }}
-      onPaste={(e) => {
-        const items = Array.from(e.clipboardData?.items ?? []).filter((i) => i.type.startsWith("image/"));
-        if (!items.length) return;
-        const files = items.map((i) => i.getAsFile()).filter((f): f is File => f != null);
-        void addFiles(files);
-      }}
-      tabIndex={0}
       role="region"
       aria-label={label}
     >
