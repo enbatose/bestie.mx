@@ -16,6 +16,11 @@ import {
   adminOutreachWhatsAppMessage,
 } from "@/lib/adminOutreachWhatsApp";
 import { adminArcoUserPath } from "@/lib/adminSections";
+import {
+  PREPARE_IMAGE_FAIL_MESSAGE,
+  fileToPreparedImagePayload,
+  isProbablyImageFile,
+} from "@/lib/prepareListingImage";
 
 function WhatsAppMark({ className }: { className?: string }) {
   return (
@@ -28,25 +33,9 @@ function WhatsAppMark({ className }: { className?: string }) {
   );
 }
 
-const CITIES = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
-
 type ImageItem = { mimeType: string; data: string; preview: string };
 
-async function fileToBase64(file: File): Promise<ImageItem> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const idx = result.indexOf(",");
-      const header = result.slice(0, idx);
-      const data = result.slice(idx + 1);
-      const mimeType = header.split(":")[1]?.split(";")[0] ?? "image/jpeg";
-      resolve({ mimeType, data, preview: result });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+const CITIES = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
 
 function confColor(c: number | undefined): string {
   if (!c || c < 60) return "text-muted";
@@ -181,14 +170,33 @@ function ImageDropZone({
   hint: string;
 }) {
   const [dragging, setDragging] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const busyRef = useRef(false);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
-      const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      if (busyRef.current) return;
+      const arr = Array.from(files).filter(isProbablyImageFile);
       if (!arr.length) return;
-      const converted = await Promise.all(arr.map(fileToBase64));
-      onImages([...images, ...converted]);
+      busyRef.current = true;
+      setErr(null);
+      const next: ImageItem[] = [];
+      try {
+        for (let i = 0; i < arr.length; i++) {
+          setBusy(arr.length === 1 ? "Optimizando foto…" : `Optimizando ${i + 1}/${arr.length}…`);
+          try {
+            next.push(await fileToPreparedImagePayload(arr[i]!));
+          } catch (e) {
+            setErr(e instanceof Error ? e.message : PREPARE_IMAGE_FAIL_MESSAGE);
+          }
+        }
+        if (next.length) onImages([...images, ...next]);
+      } finally {
+        busyRef.current = false;
+        setBusy(null);
+      }
     },
     [images, onImages],
   );
@@ -217,11 +225,22 @@ function ImageDropZone({
     >
       <p className="mb-1 text-sm font-semibold text-body">{label}</p>
       <p className="mb-3 text-xs text-muted">{hint}</p>
+      {busy ? (
+        <p className="mb-3 text-xs font-medium text-body" role="status">
+          {busy}
+        </p>
+      ) : null}
+      {err ? (
+        <p className="mb-3 min-w-0 break-words text-xs text-error" role="alert">
+          {err}
+        </p>
+      ) : null}
 
       {images.length === 0 ? (
         <button
           type="button"
-          className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-surface py-6 text-muted hover:bg-surface-elevated"
+          disabled={Boolean(busy)}
+          className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-surface py-6 text-muted hover:bg-surface-elevated disabled:opacity-50"
           onClick={() => fileInputRef.current?.click()}
         >
           <ImagePlus size={24} className="opacity-50" />
@@ -244,7 +263,8 @@ function ImageDropZone({
           ))}
           <button
             type="button"
-            className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted hover:bg-surface-elevated"
+            disabled={Boolean(busy)}
+            className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted hover:bg-surface-elevated disabled:opacity-50"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Agregar más imágenes"
           >
@@ -258,6 +278,7 @@ function ImageDropZone({
         type="file"
         multiple
         accept="image/*"
+        disabled={Boolean(busy)}
         className="sr-only"
         onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ""; }}
       />

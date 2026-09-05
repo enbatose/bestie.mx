@@ -14,6 +14,7 @@ import type {
 } from "@/types/listing";
 import { apiBase } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
+import { prepareListingImageForUpload } from "@/lib/prepareListingImage";
 
 /** Always true on Railway (same-origin `/api`); set `VITE_API_URL` only for local dev against another port. */
 export function isListingsApiConfigured(): boolean {
@@ -424,9 +425,10 @@ export async function addDraftRoomToProperty(
 }
 
 export async function uploadListingImage(file: File, signal?: AbortSignal): Promise<string> {
+  const uploadFile = await prepareListingImageForUpload(file);
   const base = apiBase();
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", uploadFile);
   const res = await fetch(`${base}/api/uploads`, {
     method: "POST",
     headers: { ...deviceHeaders() },

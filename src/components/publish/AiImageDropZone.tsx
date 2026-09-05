@@ -1,5 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import { Camera, ImagePlus, Trash2 } from "lucide-react";
+import {
+  PREPARE_IMAGE_FAIL_MESSAGE,
+  fileToPreparedImagePayload,
+  isProbablyImageFile,
+} from "@/lib/prepareListingImage";
 
 export type AiLocalImage = {
   mimeType: string;
@@ -7,22 +12,6 @@ export type AiLocalImage = {
   preview: string;
   url?: string;
 };
-
-async function fileToLocalImage(file: File): Promise<AiLocalImage> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const idx = result.indexOf(",");
-      const header = result.slice(0, idx);
-      const data = result.slice(idx + 1);
-      const mimeType = header.split(":")[1]?.split(";")[0] ?? "image/jpeg";
-      resolve({ mimeType, data, preview: result });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export function toComposeImages(images: AiLocalImage[]) {
   return images.map((img) =>
@@ -34,34 +23,35 @@ export function toComposeImages(images: AiLocalImage[]) {
 
 /** Fetch URL-only images (Autopoblar `/admin-seed/…`) so compose can persist `/api/uploads/…`. */
 export async function hydrateLocalImagesForCompose(images: AiLocalImage[]): Promise<AiLocalImage[]> {
-  return Promise.all(
-    images.map(async (img) => {
-      if (img.data) return img;
-      if (img.url?.startsWith("/api/uploads/")) return img;
-      const src = img.preview || img.url;
-      if (!src) return img;
-      try {
-        const res = await fetch(src);
-        if (!res.ok) return img;
-        const blob = await res.blob();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        const idx = dataUrl.indexOf(",");
-        if (idx < 0) return img;
-        return {
-          ...img,
-          mimeType: blob.type || img.mimeType || "image/jpeg",
-          data: dataUrl.slice(idx + 1),
-        };
-      } catch {
-        return img;
+  const out: AiLocalImage[] = [];
+  for (const img of images) {
+    if (img.data) {
+      out.push(img);
+      continue;
+    }
+    if (img.url?.startsWith("/api/uploads/")) {
+      out.push(img);
+      continue;
+    }
+    const src = img.preview || img.url;
+    if (!src) {
+      out.push(img);
+      continue;
+    }
+    try {
+      const res = await fetch(src);
+      if (!res.ok) {
+        out.push(img);
+        continue;
       }
-    }),
-  );
+      const blob = await res.blob();
+      const file = new File([blob], "foto.jpg", { type: blob.type || "image/jpeg" });
+      out.push(await fileToPreparedImagePayload(file));
+    } catch {
+      out.push(img);
+    }
+  }
+  return out;
 }
 
 type Props = {
@@ -82,19 +72,35 @@ export function AiImageDropZone({
   showCamera = false,
 }: Props) {
   const [dragging, setDragging] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const busyRef = useRef(false);
   const remaining = Math.max(0, maxCount - images.length);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
-      if (remaining <= 0) return;
-      const arr = Array.from(files)
-        .filter((f) => f.type.startsWith("image/"))
-        .slice(0, remaining);
+      if (remaining <= 0 || busyRef.current) return;
+      const arr = Array.from(files).filter(isProbablyImageFile).slice(0, remaining);
       if (!arr.length) return;
-      const converted = await Promise.all(arr.map(fileToLocalImage));
-      onImages([...images, ...converted]);
+      busyRef.current = true;
+      setErr(null);
+      const next: AiLocalImage[] = [];
+      try {
+        for (let i = 0; i < arr.length; i++) {
+          setBusy(arr.length === 1 ? "Optimizando foto…" : `Optimizando ${i + 1}/${arr.length}…`);
+          try {
+            next.push(await fileToPreparedImagePayload(arr[i]!));
+          } catch (e) {
+            setErr(e instanceof Error ? e.message : PREPARE_IMAGE_FAIL_MESSAGE);
+          }
+        }
+        if (next.length) onImages([...images, ...next]);
+      } finally {
+        busyRef.current = false;
+        setBusy(null);
+      }
     },
     [images, onImages, remaining],
   );
@@ -126,12 +132,23 @@ export function AiImageDropZone({
     >
       <p className="mb-1 text-sm font-semibold text-body">{label}</p>
       <p className="mb-3 text-xs text-muted">{hint}</p>
+      {busy ? (
+        <p className="mb-3 text-xs font-medium text-body" role="status">
+          {busy}
+        </p>
+      ) : null}
+      {err ? (
+        <p className="mb-3 min-w-0 break-words text-xs text-error" role="alert">
+          {err}
+        </p>
+      ) : null}
 
       {images.length === 0 ? (
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-surface py-6 text-muted hover:bg-surface-elevated"
+            disabled={Boolean(busy)}
+            className="flex w-full flex-col items-center gap-2 rounded-lg border border-border bg-surface py-6 text-muted hover:bg-surface-elevated disabled:opacity-50"
             onClick={() => fileInputRef.current?.click()}
           >
             <ImagePlus size={24} className="opacity-50" />
@@ -140,7 +157,8 @@ export function AiImageDropZone({
           {showCamera ? (
             <button
               type="button"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated"
+              disabled={Boolean(busy)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
               onClick={() => cameraInputRef.current?.click()}
             >
               <Camera size={16} aria-hidden />
@@ -166,7 +184,8 @@ export function AiImageDropZone({
           {remaining > 0 ? (
             <button
               type="button"
-              className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted hover:bg-surface-elevated"
+              disabled={Boolean(busy)}
+              className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted hover:bg-surface-elevated disabled:opacity-50"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Agregar más imágenes"
             >
@@ -181,6 +200,7 @@ export function AiImageDropZone({
         type="file"
         multiple={maxCount > 1}
         accept="image/*"
+        disabled={Boolean(busy)}
         className="sr-only"
         onChange={(e) => {
           if (e.target.files) void addFiles(e.target.files);
@@ -193,6 +213,7 @@ export function AiImageDropZone({
           type="file"
           accept="image/*"
           capture="environment"
+          disabled={Boolean(busy)}
           className="sr-only"
           onChange={(e) => {
             if (e.target.files) void addFiles(e.target.files);

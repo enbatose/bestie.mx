@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
+import {
+  PREPARE_IMAGE_FAIL_MESSAGE,
+  prepareListingImageForUpload,
+} from "@/lib/prepareListingImage";
 
 type Props = {
   busy: boolean;
@@ -47,11 +51,36 @@ export function AdminConsentEvidenceForm({
   const [note, setNote] = useState("");
   const [dragging, setDragging] = useState(false);
   const [pointerOver, setPointerOver] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [prepareErr, setPrepareErr] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
+  const prepareGenRef = useRef(0);
 
   const applyFile = useCallback((next: File | null) => {
-    setFile(next);
+    if (!next) {
+      prepareGenRef.current += 1;
+      setFile(null);
+      setPrepareErr(null);
+      setPreparing(false);
+      return;
+    }
+    const gen = ++prepareGenRef.current;
+    setPreparing(true);
+    setPrepareErr(null);
+    void (async () => {
+      try {
+        const compressed = await prepareListingImageForUpload(next);
+        if (gen !== prepareGenRef.current) return;
+        setFile(compressed);
+      } catch (e) {
+        if (gen !== prepareGenRef.current) return;
+        setFile(null);
+        setPrepareErr(e instanceof Error ? e.message : PREPARE_IMAGE_FAIL_MESSAGE);
+      } finally {
+        if (gen === prepareGenRef.current) setPreparing(false);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -73,7 +102,7 @@ export function AdminConsentEvidenceForm({
 
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
-      if (busy) return;
+      if (busy || preparing) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, [contenteditable='true']")) return;
       const zone = zoneRef.current;
@@ -90,7 +119,7 @@ export function AdminConsentEvidenceForm({
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [applyFile, busy, pointerOver]);
+  }, [applyFile, busy, pointerOver, preparing]);
 
   return (
     <div className="min-w-0 space-y-2 overflow-x-clip rounded-xl border border-primary/20 bg-primary/5 p-3">
@@ -98,6 +127,16 @@ export function AdminConsentEvidenceForm({
         Publicar sin dueño: adjunta una captura de consentimiento (no las fotos del anuncio). La
         evidencia no se muestra al público.
       </p>
+      {preparing ? (
+        <p className="text-xs font-medium text-body" role="status">
+          Optimizando captura…
+        </p>
+      ) : null}
+      {prepareErr ? (
+        <p className="min-w-0 break-words text-xs text-error" role="alert">
+          {prepareErr}
+        </p>
+      ) : null}
       <div
         ref={zoneRef}
         tabIndex={0}
@@ -113,6 +152,7 @@ export function AdminConsentEvidenceForm({
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
+          if (busy || preparing) return;
           const next = firstImageFile(event.dataTransfer.files);
           if (next) applyFile(next);
         }}
@@ -130,7 +170,7 @@ export function AdminConsentEvidenceForm({
               />
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || preparing}
                 aria-label="Quitar captura"
                 onClick={() => applyFile(null)}
                 className="absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full bg-black/70 text-white disabled:opacity-50"
@@ -141,7 +181,7 @@ export function AdminConsentEvidenceForm({
             <p className="min-w-0 break-all text-center text-[11px] text-muted">{file.name}</p>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || preparing}
               onClick={() => fileInputRef.current?.click()}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border bg-surface px-3 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
             >
@@ -156,7 +196,7 @@ export function AdminConsentEvidenceForm({
             </p>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || preparing}
               onClick={() => fileInputRef.current?.click()}
               className="inline-flex min-h-11 w-full max-w-xs items-center justify-center rounded-full border border-border bg-surface px-3 text-xs font-semibold text-body hover:bg-surface-elevated disabled:opacity-50"
             >
@@ -168,7 +208,7 @@ export function AdminConsentEvidenceForm({
           ref={fileInputRef}
           type="file"
           accept={ACCEPT}
-          disabled={busy}
+          disabled={busy || preparing}
           className="sr-only"
           onChange={(event) => {
             applyFile(firstImageFile(event.target.files));
@@ -181,19 +221,19 @@ export function AdminConsentEvidenceForm({
         value={note}
         onChange={(e) => setNote(e.target.value.slice(0, 500))}
         placeholder="Nota opcional"
-        disabled={busy}
+        disabled={busy || preparing}
         size={10}
         className="w-full min-w-0 rounded-lg border border-border bg-surface px-2 py-2 text-sm text-body outline-none ring-accent focus:ring-2"
       />
       <button
         type="button"
-        disabled={busy || !file}
+        disabled={busy || preparing || !file}
         onClick={() => {
           if (file) void onPublish(file, note);
         }}
         className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50 sm:w-auto"
       >
-        {busy ? "…" : submitLabel}
+        {busy || preparing ? "…" : submitLabel}
       </button>
     </div>
   );

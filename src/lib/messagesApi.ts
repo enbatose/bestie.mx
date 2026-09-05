@@ -1,5 +1,7 @@
 import { deviceHeaders } from "@/lib/deviceFingerprint";
 import { apiBase } from "@/lib/apiBase";
+import { uploadListingImage } from "@/lib/listingsApi";
+import { prepareListingImageForUpload } from "@/lib/prepareListingImage";
 
 const cred: RequestCredentials = "include";
 
@@ -292,29 +294,12 @@ export async function postConversationMessage(
 
 /** Uploads a message attachment (image) and returns its metadata for `postConversationMessage`/`startSupportConversation`. */
 export async function uploadMessageAttachment(file: File, signal?: AbortSignal): Promise<MessageAttachment> {
-  const base = apiBase();
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`${base}/api/uploads`, {
-    method: "POST",
-    headers: { ...deviceHeaders() },
-    credentials: cred,
-    body: form,
-    signal,
-  });
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const j = (await res.json()) as { error?: string; message?: string };
-      detail = j.message ? `: ${j.message}` : j.error ? `: ${j.error}` : "";
-    } catch {
-      /* ignore */
-    }
-    throw new Error(`upload_http_${res.status}${detail}`);
-  }
-  const j = (await res.json()) as { url?: string };
-  if (typeof j.url !== "string" || !j.url.startsWith("/api/uploads/")) {
-    throw new Error("upload_bad_response");
-  }
-  return { url: j.url, mimeType: file.type, size: file.size, filename: file.name };
+  const uploadFile = await prepareListingImageForUpload(file);
+  const url = await uploadListingImage(uploadFile, signal);
+  return {
+    url,
+    mimeType: uploadFile.type || "image/jpeg",
+    size: uploadFile.size,
+    filename: uploadFile.name,
+  };
 }

@@ -106,8 +106,8 @@ export function AttachmentPicker({
           error = "Solo se permiten imágenes (JPG, PNG, WEBP o GIF).";
           continue;
         }
-        if (file.size > ATTACHMENT_MAX_SIZE_BYTES) {
-          error = "Cada imagen debe pesar máximo 5 MB.";
+        if (file.size > 12 * 1024 * 1024) {
+          error = "La imagen supera el máximo de 12 MB.";
           continue;
         }
         const converted = await prepareListingImage(file);

@@ -1,5 +1,6 @@
 import { apiBase } from "@/lib/apiBase";
 import { deviceHeaders } from "@/lib/deviceFingerprint";
+import { prepareListingImageForUpload } from "@/lib/prepareListingImage";
 
 const cred: RequestCredentials = "include";
 
@@ -793,8 +794,9 @@ export async function adminPublishUnclaimed(
   signal?: AbortSignal,
 ): Promise<{ propertyId: string; status: string }> {
   const base = apiBase();
+  const uploadFile = await prepareListingImageForUpload(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", uploadFile);
   if (note?.trim()) form.append("note", note.trim());
   const res = await networkFetch(`${base}/api/admin/properties/${encodeURIComponent(propertyId)}/publish-unclaimed`, {
     method: "POST",

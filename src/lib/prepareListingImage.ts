@@ -6,8 +6,56 @@ import {
   sniffImageMime,
 } from "@/lib/imageMime";
 import type { ImageDecodePath } from "@/lib/imageUploadDiagnostics";
+import { persistPickedFile } from "@/lib/persistPickedFile";
 
 const MAX_EDGE = 1920;
+
+/** Files already run through `prepareListingImage` — skip a second JPEG encode. */
+const preparedListingFiles = new WeakSet<File>();
+
+export function isPreparedListingImage(file: File): boolean {
+  return preparedListingFiles.has(file);
+}
+
+export type PreparedImagePayload = {
+  mimeType: string;
+  data: string;
+  preview: string;
+};
+
+function alreadyPreparedResult(file: File): PreparedListingImage {
+  return {
+    outFile: file,
+    inputW: 0,
+    inputH: 0,
+    outputW: 0,
+    outputH: 0,
+    skipped: true,
+    outputType: file.type || "image/jpeg",
+    diagnostics: {
+      declaredMime: file.type || "unknown",
+      sniffedMime: null,
+      decodePath: "skipped",
+      heicConverted: false,
+    },
+  };
+}
+
+export function isProbablyImageFile(file: File): boolean {
+  return !file.type || file.type.startsWith("image/");
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string" && reader.result.startsWith("data:")) resolve(reader.result);
+      else reject(new Error("filereader_bad_result"));
+    };
+    reader.onerror = () => reject(new Error("filereader_failed"));
+    reader.readAsDataURL(blob);
+  });
+}
 
 export const PREPARE_IMAGE_HEIC_MESSAGE =
   "Esta foto está en formato HEIC/HEIF (común en iPhone). Guárdala como JPG o PNG, o toma la foto desde la cámara de Bestie.";
@@ -280,6 +328,8 @@ async function decodeWithHeicFallback(
 
 /** Normalize, optionally recompress, and return an API-safe upload File. */
 export async function prepareListingImage(file: File): Promise<PreparedListingImage> {
+  if (preparedListingFiles.has(file)) return alreadyPreparedResult(file);
+
   const typed = await ensureTypedImageFile(file);
   const heicLike = isHeicLikeMime(typed.type);
   const head = await typed.slice(0, 64).arrayBuffer().catch(() => null);
@@ -320,6 +370,7 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
     decoded.draw(ctx, outputW, outputH);
 
     const encoded = await encodeCanvas(canvas, baseName(source.name));
+    preparedListingFiles.add(encoded.file);
     return {
       outFile: encoded.file,
       inputW,
@@ -338,4 +389,22 @@ export async function prepareListingImage(file: File): Promise<PreparedListingIm
   } finally {
     decoded.close();
   }
+}
+
+/** Persist picker bytes if needed, then compress. Safe to call twice on the same File. */
+export async function prepareListingImageForUpload(file: File): Promise<File> {
+  if (preparedListingFiles.has(file)) return file;
+  const durable = await persistPickedFile(file);
+  return (await prepareListingImage(durable)).outFile;
+}
+
+/** Compress a picked/pasted photo into JSON-safe base64 (outreach + AI compose). */
+export async function fileToPreparedImagePayload(file: File): Promise<PreparedImagePayload> {
+  const outFile = await prepareListingImageForUpload(file);
+  const preview = await blobToDataUrl(outFile);
+  const idx = preview.indexOf(",");
+  const header = preview.slice(0, idx);
+  const data = preview.slice(idx + 1);
+  const mimeType = header.split(":")[1]?.split(";")[0] || outFile.type || "image/jpeg";
+  return { mimeType, data, preview };
 }
