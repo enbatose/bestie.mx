@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { claimPublishMissingRent } from "./claimPublishRent.js";
+import { claimPublishMissingRent, outreachHidePricingForMissingRent } from "./claimPublishRent.js";
 
 describe("claimPublishMissingRent", () => {
   it("does not require rent on occupied rooms when available rooms have prices", () => {
@@ -29,5 +29,17 @@ describe("claimPublishMissingRent", () => {
     expect(
       claimPublishMissingRent([{ rent_mxn: 0, occupancy_status: "available" }], true),
     ).toBe(false);
+  });
+});
+
+describe("outreachHidePricingForMissingRent", () => {
+  it("turns hide-pricing on when AI extracted no monthly rent", () => {
+    expect(outreachHidePricingForMissingRent(undefined)).toBe(true);
+    expect(outreachHidePricingForMissingRent(0)).toBe(true);
+    expect(outreachHidePricingForMissingRent(null)).toBe(true);
+  });
+
+  it("leaves hide-pricing off when a real rent was extracted", () => {
+    expect(outreachHidePricingForMissingRent(5500)).toBe(false);
   });
 });

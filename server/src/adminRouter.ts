@@ -48,6 +48,7 @@ import {
   resolveShowWhatsappForHidePricing,
 } from "./listingPricing.js";
 import { ADMIN_OUTREACH_EVIDENCE_REQUIRED_MESSAGE } from "./assistedDraftClaimAccess.js";
+import { claimPublishMissingRent, RENT_REQUIRED_PUBLISH_MESSAGE } from "./claimPublishRent.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
 
@@ -243,6 +244,16 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
             propertyId,
           );
         }
+      }
+      const rentRows = db
+        .prepare(`SELECT rent_mxn, occupancy_status FROM rooms WHERE property_id = ? AND status != 'archived'`)
+        .all(propertyId) as { rent_mxn: number; occupancy_status?: string }[];
+      if (claimPublishMissingRent(rentRows, Number(cur.hide_pricing) === 1)) {
+        res.status(400).json({
+          error: "rent_required",
+          message: RENT_REQUIRED_PUBLISH_MESSAGE,
+        });
+        return;
       }
       const f = req.file;
       if (!f?.buffer?.length) {

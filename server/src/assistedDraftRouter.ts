@@ -31,7 +31,7 @@ import {
   SELF_SERVE_MAX_PHOTOS,
   SELF_SERVE_MAX_TEXT_CHARS,
 } from "./assistedDraftLimits.js";
-import { claimPublishMissingRent } from "./claimPublishRent.js";
+import { claimPublishMissingRent, outreachHidePricingForMissingRent, RENT_REQUIRED_PUBLISH_MESSAGE } from "./claimPublishRent.js";
 import {
   CLAIM_PUBLISHER_TAKEN_MESSAGE,
   CLAIM_ALREADY_CLAIMED_BY_OTHER_MESSAGE,
@@ -527,18 +527,33 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       // Room-mode gallery lives on the room; mirror onto the property for API/OG.
       const imageUrlsJson = JSON.stringify(photoUrls);
 
+      // Room-level fields
+      const rentMxn = ext.rentMxn ?? 0;
+      const hidePricing = outreachHidePricingForMissingRent(rentMxn);
+      const depositMxn = ext.depositMxn ?? 0;
+      const roommateGenderPref = ext.roommateGenderPref ?? "any";
+      const ageMin = ext.ageMin ?? DEFAULT_LISTING_AGE_MIN;
+      const ageMax = ext.ageMax ?? DEFAULT_LISTING_AGE_MAX;
+      const lodgingType = ext.lodgingType ?? "private_room";
+      const availableFrom = ext.availableFrom ?? now.slice(0, 10);
+      const minimalStayMonths = ext.minimalStayMonths ?? 1;
+      const roomDimension = ext.roomDimension ?? "medium";
+      const roomSummary = ext.roomSummary ?? "";
+      const tags = ext.tags ?? [];
+      const tagsJson = JSON.stringify(tags);
+
       db.prepare(`
         INSERT INTO properties (
           id, publisher_id, status, post_mode, title, city, neighborhood,
           lat, lng, summary, contact_whatsapp, property_kind,
-          bedrooms_total, bathrooms, show_whatsapp, image_urls_json,
+          bedrooms_total, bathrooms, show_whatsapp, hide_pricing, image_urls_json,
           is_approximate_location, approximate_radius_m,
           created_at, assisted_draft, created_by_admin_id,
           source_facebook_url, source_facebook_key
         ) VALUES (
           @id, @publisherId, 'draft', 'room', @title, @city, @neighborhood,
           @lat, @lng, @summary, @contactWhatsApp, @propertyKind,
-          1, 1, @showWhatsApp, @imageUrlsJson,
+          1, 1, @showWhatsApp, @hidePricing, @imageUrlsJson,
           @isApproximate, @approximateRadius,
           @createdAt, 1, @adminId,
           @sourceFacebookUrl, @sourceFacebookKey
@@ -555,6 +570,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         contactWhatsApp: phone.contactWhatsApp,
         propertyKind,
         showWhatsApp: phone.showWhatsApp,
+        hidePricing: hidePricing ? 1 : 0,
         imageUrlsJson,
         isApproximate,
         approximateRadius,
@@ -563,20 +579,6 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
         sourceFacebookUrl: sourceFb?.url ?? null,
         sourceFacebookKey: sourceFb?.key ?? null,
       });
-
-      // Room-level fields
-      const rentMxn = ext.rentMxn ?? 0;
-      const depositMxn = ext.depositMxn ?? 0;
-      const roommateGenderPref = ext.roommateGenderPref ?? "any";
-      const ageMin = ext.ageMin ?? DEFAULT_LISTING_AGE_MIN;
-      const ageMax = ext.ageMax ?? DEFAULT_LISTING_AGE_MAX;
-      const lodgingType = ext.lodgingType ?? "private_room";
-      const availableFrom = ext.availableFrom ?? now.slice(0, 10);
-      const minimalStayMonths = ext.minimalStayMonths ?? 1;
-      const roomDimension = ext.roomDimension ?? "medium";
-      const roomSummary = ext.roomSummary ?? "";
-      const tags = ext.tags ?? [];
-      const tagsJson = JSON.stringify(tags);
 
       db.prepare(`
         INSERT INTO rooms (
@@ -1480,7 +1482,7 @@ export function assistedDraftRouter(db: DatabaseSync, uploadDir: string) {
       if (claimPublishMissingRent(rentRows, Number(prop?.hide_pricing) === 1)) {
         res.status(400).json({
           error: "rent_required",
-          message: "Falta el precio de renta. No se puede publicar en 0 MXN / mes.",
+          message: RENT_REQUIRED_PUBLISH_MESSAGE,
         });
         return;
       }

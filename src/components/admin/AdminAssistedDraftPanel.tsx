@@ -362,7 +362,9 @@ function ExtractionPreview({
         <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2">
           <span className="mt-0.5 text-warning-fg text-sm font-medium">⚠</span>
           <p className="text-xs text-warning-fg">
-            No se encontró el precio de renta. El usuario deberá ingresarlo antes de publicar.
+            No se encontró el precio de renta. Al generar el enlace se activará “No mostrar renta ni
+            depósito” (Consultar $). El dueño puede reclamar el anuncio y agregar el precio, o dejarlo
+            oculto.
           </p>
         </div>
       )}

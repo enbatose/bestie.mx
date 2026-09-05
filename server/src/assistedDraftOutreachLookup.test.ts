@@ -64,14 +64,18 @@ describe("admin outreach duplicate check", () => {
     expect(created.body.propertyId).toBeTruthy();
 
     const stored = db
-      .prepare(`SELECT source_facebook_url, source_facebook_key, contact_whatsapp FROM properties WHERE id = ?`)
+      .prepare(
+        `SELECT source_facebook_url, source_facebook_key, contact_whatsapp, hide_pricing FROM properties WHERE id = ?`,
+      )
       .get(created.body.propertyId) as {
       source_facebook_url: string | null;
       source_facebook_key: string | null;
       contact_whatsapp: string;
+      hide_pricing: number;
     };
     expect(stored.source_facebook_key).toBe("post:1234567890123456");
     expect(stored.source_facebook_url).not.toContain("rdid");
+    expect(stored.hide_pricing).toBe(1);
 
     const samePost = await agent.post("/api/assisted-draft/admin/duplicate-check").send({
       sourceFacebookUrl: "https://m.facebook.com/groups/829477243867011/permalink/1234567890123456/",
@@ -98,6 +102,26 @@ describe("admin outreach duplicate check", () => {
       phoneVerified: true,
     });
     expect(tied.body.phoneListings).toHaveLength(0);
+  });
+
+  it("leaves hide-pricing off when AI extracted a monthly rent", async () => {
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({ email: bossEmail, password: "longenough1" });
+    await agent.post("/api/auth/login").send({ email: bossEmail, password: "longenough1" }).expect(200);
+
+    const created = await agent.post("/api/assisted-draft/admin/create").send({
+      city: "Guadalajara",
+      extraction: {
+        propertyTitle: "Cuarto con renta",
+        neighborhood: "Americana",
+        rentMxn: 5500,
+      },
+    });
+    expect(created.status).toBe(201);
+    const stored = db
+      .prepare(`SELECT hide_pricing FROM properties WHERE id = ?`)
+      .get(created.body.propertyId) as { hide_pricing: number };
+    expect(stored.hide_pricing).toBe(0);
   });
 
   it("rejects duplicate-check without admin", async () => {
