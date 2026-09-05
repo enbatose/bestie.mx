@@ -515,9 +515,10 @@ describe("Phase B API hardening", () => {
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "paused" }).expect(200);
 
-    const pausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
-    expect((pausedRes.body as { error?: string }).error).toBe("not_found");
-    expect((pausedRes.body as { reason?: string }).reason).toBe("listing_paused");
+    const pausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(200);
+    expect((pausedRes.body as { status?: string }).status).toBe("paused");
+    const pausedCatalog = await request(app).get("/api/listings").expect(200);
+    expect((pausedCatalog.body as { id: string }[]).some((l) => l.id === roomId)).toBe(false);
 
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/listings/${encodeURIComponent(roomId)}`).send({ status: "archived" }).expect(200);
@@ -525,6 +526,8 @@ describe("Phase B API hardening", () => {
     const archivedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
     expect((archivedRes.body as { error?: string }).error).toBe("not_found");
     expect((archivedRes.body as { reason?: string }).reason).toBe("listing_archived");
+    const archivedOwnerRes = await agent.get(`/api/listings/${encodeURIComponent(roomId)}`).expect(404);
+    expect((archivedOwnerRes.body as { reason?: string }).reason).toBe("listing_archived");
 
     const r3 = await agent
       .post(`/api/properties/${encodeURIComponent(propertyId)}/rooms`)
@@ -546,10 +549,12 @@ describe("Phase B API hardening", () => {
     await agent.patch(`/api/listings/${encodeURIComponent(roomId2)}`).send({ status: "published" }).expect(200);
     await agent.patch(`/api/properties/${encodeURIComponent(propertyId)}`).send({ status: "paused" }).expect(200);
 
-    const propertyPausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId2)}`).expect(404);
-    expect((propertyPausedRes.body as { error?: string }).error).toBe("not_found");
-    // Pausing the property cascades room status to paused, so `publicUnavailableReason` hits listing_paused first.
-    expect((propertyPausedRes.body as { reason?: string }).reason).toBe("listing_paused");
+    const propertyPausedRes = await request(app).get(`/api/listings/${encodeURIComponent(roomId2)}`).expect(200);
+    expect((propertyPausedRes.body as { status?: string }).status).toBe("paused");
+    const propertyPausedAnon = await request(app)
+      .get(`/api/properties/${encodeURIComponent(propertyId)}`)
+      .expect(200);
+    expect((propertyPausedAnon.body as { property?: { status?: string } }).property?.status).toBe("paused");
   });
 
   it("GET /api/listings/:id returns another publisher's published room when viewer has bestie_pub", async () => {

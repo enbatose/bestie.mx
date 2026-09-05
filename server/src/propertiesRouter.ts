@@ -652,7 +652,7 @@ export function propertiesRouter(db: DatabaseSync) {
     });
   });
 
-  /** Public: property + published rooms only. Owner cookie: all rooms for that property. */
+  /** Public: published or paused property + those rooms. Owner cookie: all rooms (including drafts/archived) for wizard / Mis anuncios. */
   r.get("/:id", (req: Request, res: Response) => {
     const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
     if (!propertyId) {
@@ -671,12 +671,14 @@ export function propertiesRouter(db: DatabaseSync) {
     const pubOwns = publisherId != null && String(propRow.publisher_id) === publisherId;
     const owner = pubOwns || isAdminRequest(db, req);
 
+    const publicProperty =
+      String(propRow.status) === "published" || String(propRow.status) === "paused";
     const roomSql = owner
       ? "SELECT * FROM rooms WHERE property_id = ? ORDER BY sort_order ASC, id ASC"
-      : "SELECT * FROM rooms WHERE property_id = ? AND status = 'published' ORDER BY sort_order ASC, id ASC";
+      : "SELECT * FROM rooms WHERE property_id = ? AND status IN ('published', 'paused') ORDER BY sort_order ASC, id ASC";
     const roomRows = db.prepare(roomSql).all(propertyId) as Record<string, unknown>[];
 
-    if (!owner && String(propRow.status) !== "published") {
+    if (!owner && !publicProperty) {
       res.status(404).json({ error: "not_found" });
       return;
     }

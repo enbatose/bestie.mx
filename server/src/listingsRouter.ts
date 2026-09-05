@@ -7,7 +7,11 @@ import { isListingTag } from "./listingTags.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { canWritePropertyByRequest, isAdminRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
-import { PUBLISHED_JOIN_WHERE } from "./publishedListingsQuery.js";
+import {
+  DIRECT_LINK_JOIN_WHERE,
+  isListingJoinRowArchived,
+  PUBLISHED_JOIN_WHERE,
+} from "./publishedListingsQuery.js";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import { scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
@@ -145,12 +149,12 @@ function publicUnavailableReasonForRow(row: Record<string, unknown> | undefined)
   const roomStatus = String(row.status ?? "");
   // Never confirm drafts to anonymous callers — treat as not found.
   if (roomStatus === "draft") return "listing_not_found";
-  if (roomStatus === "paused" || roomStatus === "pending_review") return "listing_paused";
+  // Paused rooms are served on the direct-link path; pending_review stays opaque.
+  if (roomStatus === "pending_review") return "listing_not_found";
   if (roomStatus === "archived") return "listing_archived";
 
   const propertyStatus = String(row.property_status ?? "");
-  if (propertyStatus === "draft") return "listing_not_found";
-  if (propertyStatus === "paused" || propertyStatus === "pending_review") return "property_paused";
+  if (propertyStatus === "draft" || propertyStatus === "pending_review") return "listing_not_found";
   if (propertyStatus === "archived") return "property_archived";
 
   if (String(row.occupancy_status ?? "available") === "occupied") return "listing_occupied";
@@ -311,16 +315,22 @@ export function listingsRouter(db: DatabaseSync) {
     }
     const claimToken =
       typeof req.query.claim === "string" && req.query.claim.trim() ? req.query.claim.trim() : "";
-    // Published listings must load for any visitor, including browsers that already
-    // have a different `bestie_pub` cookie (otherwise only the owner's cookie path ran).
-    const publishedRow = db
-      .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE} AND r.id = ?`)
+    // Published *or paused* listings load for any visitor with the URL.
+    // Archived listings stay hidden even from the owner/admin cookie path.
+    const directRow = db
+      .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${DIRECT_LINK_JOIN_WHERE} AND r.id = ?`)
       .get(roomId) as Record<string, unknown> | undefined;
+    const publishedRow =
+      directRow &&
+      String(directRow.status ?? "") === "published" &&
+      String(directRow.property_status ?? "") === "published"
+        ? directRow
+        : undefined;
 
     const publisherId = readPublisherIdFromRequest(req);
     const admin = isAdminRequest(db, req);
     let claimRow: Record<string, unknown> | undefined;
-    if (!publishedRow && claimToken) {
+    if (!directRow && claimToken) {
       const tok = db
         .prepare(
           `SELECT property_id, expires_at FROM assisted_draft_claim_tokens WHERE token = ?`,
@@ -330,24 +340,25 @@ export function listingsRouter(db: DatabaseSync) {
         claimRow = db
           .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ? AND p.id = ?`)
           .get(roomId, tok.property_id) as Record<string, unknown> | undefined;
+        if (isListingJoinRowArchived(claimRow)) claimRow = undefined;
       }
     }
-    const row =
-      publishedRow ??
-      claimRow ??
-      (admin
+    const ownerOrAdminRow = (): Record<string, unknown> | undefined => {
+      const raw = admin
         ? (db
             .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
             .get(roomId) as Record<string, unknown> | undefined)
-        : undefined) ??
-      (publisherId
-        ? (db
-            .prepare(
-              `${ROOM_PROPERTY_JOIN_SQL}
-               WHERE r.id = ? AND p.publisher_id = ?`,
-            )
-            .get(roomId, publisherId) as Record<string, unknown> | undefined)
-        : undefined);
+        : publisherId
+          ? (db
+              .prepare(
+                `${ROOM_PROPERTY_JOIN_SQL}
+                 WHERE r.id = ? AND p.publisher_id = ?`,
+              )
+              .get(roomId, publisherId) as Record<string, unknown> | undefined)
+          : undefined;
+      return isListingJoinRowArchived(raw) ? undefined : raw;
+    };
+    const row = directRow ?? claimRow ?? ownerOrAdminRow();
     if (row) {
       const listing = listingForPublic(joinRowToPropertyListing(row));
       const ownerPublisherId = String(row.publisher_id ?? "");

@@ -82,7 +82,10 @@ function sortRooms(rooms: readonly Room[]): Room[] {
   return [...rooms].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-function publishedRooms(rooms: readonly Room[]): Room[] {
+function publicOfferRooms(rooms: readonly Room[], propertyStatus?: string): Room[] {
+  if (propertyStatus === "paused") {
+    return sortRooms(rooms.filter((room) => room.status === "published" || room.status === "paused"));
+  }
   return sortRooms(rooms.filter((room) => room.status === "published"));
 }
 
@@ -184,7 +187,7 @@ export function PublicPostExperienceListing({
   }, []);
 
   const property = propertyPack?.property;
-  const allRooms = propertyPack ? publishedRooms(propertyPack.rooms) : [];
+  const allRooms = propertyPack ? publicOfferRooms(propertyPack.rooms, propertyPack.property.status) : [];
   const occupiedRooms = allRooms.filter((room) => !isRoomAvailableForRent(room));
   const availableRooms = allRooms.filter((room) => isRoomAvailableForRent(room));
   const propertyTags = useMemo(() => mergePropertyScopeTagsFromRooms(allRooms), [allRooms]);

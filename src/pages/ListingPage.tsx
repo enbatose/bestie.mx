@@ -107,10 +107,10 @@ function unavailableCopy(reason: ListingUnavailableReason | null): {
     case "listing_paused":
       return {
         title: "Este anuncio está pausado",
-        lead: "La publicación fue detenida temporalmente y por eso no se muestra en público.",
+        lead: "La publicación fue detenida temporalmente y por eso no aparece en la búsqueda.",
         bullets: [
           "La persona que publicó el anuncio lo pausó desde su panel.",
-          "Mientras esté pausado, el enlace no puede abrirse para visitantes.",
+          "Quien tenga el enlace directo puede seguir abriéndolo y lo verá marcado como pausado.",
         ],
         help: "Si el anuncio es tuyo, puedes volver a activarlo desde Mis anuncios.",
       };
@@ -260,6 +260,13 @@ export function ListingPage() {
     fetchListingByIdFromApi(id, ac.signal, claimToken || undefined)
       .then((result: FetchListingByIdResult) => {
         if (result.kind === "found") {
+          if (result.listing.status === "archived" || result.listing.propertyStatus === "archived") {
+            setApiListing(null);
+            setMissingReason(
+              result.listing.status === "archived" ? "listing_archived" : "property_archived",
+            );
+            return;
+          }
           setApiListing(result.listing);
           setMissingReason(null);
           return;

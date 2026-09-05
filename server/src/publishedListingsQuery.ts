@@ -3,8 +3,19 @@ import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.j
 import { redactHiddenPublicPricing } from "./listingPricing.js";
 import type { PropertyListing } from "./types.js";
 
-/** Room is searchable / contactable / shareable only when both statuses are published and not occupied. */
+/** Room is searchable / contactable / sitemap-listed only when both statuses are published and not occupied. */
 export const PUBLISHED_JOIN_WHERE = ` WHERE r.status = 'published' AND p.status = 'published' AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
+
+/**
+ * Direct `/anuncio/:id` (and OG for that URL) may load paused listings.
+ * Archived, draft, pending-review, and occupied stay hidden even with the URL.
+ */
+export const DIRECT_LINK_JOIN_WHERE = ` WHERE r.status IN ('published', 'paused') AND p.status IN ('published', 'paused') AND IFNULL(r.occupancy_status, 'available') != 'occupied' `;
+
+export function isListingJoinRowArchived(row: Record<string, unknown> | undefined): boolean {
+  if (!row) return false;
+  return String(row.status ?? "") === "archived" || String(row.property_status ?? "") === "archived";
+}
 
 function listingForPublic(l: PropertyListing): PropertyListing {
   const { publisherId: _p, viewsCount: _v, inquiryCount: _i, ...rest } = l;

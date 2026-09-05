@@ -13,6 +13,7 @@ import {
   upsertTitle,
 } from "./htmlMeta.js";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
+import { DIRECT_LINK_JOIN_WHERE } from "./publishedListingsQuery.js";
 import {
   propertyReferenceCode,
   roomReferenceCode,
@@ -257,15 +258,9 @@ export function buildPropertyShareOg(
   };
 }
 
-function loadPublishedRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
+function loadDirectLinkRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
   const row = db
-    .prepare(
-      `${ROOM_PROPERTY_JOIN_SQL}
-       WHERE r.id = ?
-         AND r.status = 'published'
-         AND p.status = 'published'
-         AND IFNULL(r.occupancy_status, 'available') != 'occupied'`,
-    )
+    .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${DIRECT_LINK_JOIN_WHERE} AND r.id = ?`)
     .get(roomId) as Record<string, unknown> | undefined;
   if (!row) return null;
   return joinRowToPropertyListing(row);
@@ -329,16 +324,15 @@ function loadPropertyShareContext(
       }
     | undefined;
   if (!prop) return null;
-  if (mode === "published" && String(prop.status) !== "published") return null;
+  if (mode === "published") {
+    const st = String(prop.status);
+    if (st !== "published" && st !== "paused") return null;
+  }
 
   const rows = db
     .prepare(
       mode === "published"
-        ? `${ROOM_PROPERTY_JOIN_SQL}
-       WHERE p.id = ?
-         AND r.status = 'published'
-         AND p.status = 'published'
-         AND IFNULL(r.occupancy_status, 'available') != 'occupied'
+        ? `${ROOM_PROPERTY_JOIN_SQL} ${DIRECT_LINK_JOIN_WHERE} AND p.id = ?
        ORDER BY r.sort_order ASC, r.rent_mxn ASC, r.id ASC`
         : `${ROOM_PROPERTY_JOIN_SQL}
        WHERE p.id = ?
@@ -422,17 +416,22 @@ export function resolveListingShareOg(
   if (anuncio) {
     const roomId = resolveRoomIdFromRouteParam(db, decodeURIComponent(anuncio[1]!));
     if (!roomId) return null;
-    const published = loadPublishedRoom(db, roomId);
-    if (published) {
+    const direct = loadDirectLinkRoom(db, roomId);
+    if (direct) {
       // Property-mode rooms still get room-level OG when the URL is `/anuncio/…`
       // (e.g. search / email deep links). Owner "Compartir" uses `/propiedad/…`.
-      return buildRoomShareOg(published, base);
+      const paused = direct.status === "paused" || direct.propertyStatus === "paused";
+      return buildRoomShareOg(
+        direct,
+        base,
+        paused ? { includeJsonLd: false, noIndex: true } : undefined,
+      );
     }
     if (!claim) return null;
     const live = lookupLiveClaimToken(db, claim);
     if (!live) return null;
     const listing = loadClaimRoom(db, roomId, live.propertyId);
-    if (!listing) return null;
+    if (!listing || listing.status === "archived" || listing.propertyStatus === "archived") return null;
     return roomShareOgForClaim(listing, base, live.token);
   }
 
@@ -442,6 +441,9 @@ export function resolveListingShareOg(
     if (!propertyId) return null;
     const publishedCtx = loadPropertyShareContext(db, propertyId, "published");
     if (publishedCtx) {
+      const paused = publishedCtx.availableRooms.some(
+        (r) => r.status === "paused" || r.propertyStatus === "paused",
+      );
       return buildPropertyShareOg(
         publishedCtx.propertyTitle,
         { neighborhood: publishedCtx.neighborhood, city: publishedCtx.city },
@@ -450,6 +452,7 @@ export function resolveListingShareOg(
         propertyId,
         publishedCtx.summary,
         base,
+        paused ? { includeJsonLd: false, noIndex: true } : undefined,
       );
     }
     if (!claim) return null;

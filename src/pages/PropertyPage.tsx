@@ -106,7 +106,13 @@ export function PropertyPage() {
     setPropertyPack(undefined);
     setErr(null);
     fetchPropertyWithRooms(id, ac.signal)
-      .then((pack) => setPropertyPack(pack))
+      .then((pack) => {
+        if (!pack || pack.property.status === "archived") {
+          setPropertyPack(null);
+          return;
+        }
+        setPropertyPack(pack);
+      })
       .catch((e: unknown) => {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setPropertyPack(null);
@@ -242,7 +248,13 @@ export function PropertyPage() {
     );
   }
 
-  if (!propertyPack || propertyPack.property.postMode !== "property" || !listing || !entryRoom) {
+  if (
+    !propertyPack ||
+    propertyPack.property.status === "archived" ||
+    propertyPack.property.postMode !== "property" ||
+    !listing ||
+    !entryRoom
+  ) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <h1 className="text-xl font-semibold text-body">No es posible abrir esta propiedad</h1>
@@ -275,6 +287,12 @@ export function PropertyPage() {
   const propertySummary = property.summary.trim();
   const breadcrumbTitle = property.title.trim() || "Propiedad";
   const canContact = property.status === "published";
+  const statusBadge =
+    property.status === "paused" || listing.status === "paused" ? (
+      <span className="inline-flex rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-body">
+        Pausado
+      </span>
+    ) : null;
   const sharePath = listingSharePath(listing, true);
   const availableRents = propertyPack.rooms
     .filter((r) => r.status === "published" && isRoomAvailableForRent(r))
@@ -346,6 +364,7 @@ export function PropertyPage() {
             });
           }}
           ownerActions={ownerActions}
+          statusBadge={statusBadge}
           searchRestorePath={searchRestorePath}
           myListingsRestorePath={myListingsRestorePath}
           share={{

@@ -9,6 +9,7 @@ import type { DatabaseSync } from "node:sqlite";
 import sharp from "sharp";
 import { propertyHasUnexpiredClaimToken } from "./claimTokenLookup.js";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
+import { DIRECT_LINK_JOIN_WHERE, isListingJoinRowArchived } from "./publishedListingsQuery.js";
 import {
   resolvePropertyIdFromRouteParam,
   resolveRoomIdFromRouteParam,
@@ -181,28 +182,22 @@ function applyPropertyCoverImages(
   return listing;
 }
 
-function loadPublishedRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
+function loadDirectLinkRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
   const row = db
-    .prepare(
-      `${ROOM_PROPERTY_JOIN_SQL}
-       WHERE r.id = ?
-         AND r.status = 'published'
-         AND p.status = 'published'
-         AND IFNULL(r.occupancy_status, 'available') != 'occupied'`,
-    )
+    .prepare(`${ROOM_PROPERTY_JOIN_SQL} ${DIRECT_LINK_JOIN_WHERE} AND r.id = ?`)
     .get(roomId) as Record<string, unknown> | undefined;
   if (!row) return null;
   return joinRowToPropertyListing(row);
 }
 
-/** Published room, or unpublished room whose property has a live claim token. */
+/** Direct-link room, or unpublished room whose property has a live claim token. */
 function loadShareOgRoom(db: DatabaseSync, roomId: string): PropertyListing | null {
-  const published = loadPublishedRoom(db, roomId);
-  if (published) return published;
+  const direct = loadDirectLinkRoom(db, roomId);
+  if (direct) return direct;
   const row = db
     .prepare(`${ROOM_PROPERTY_JOIN_SQL} WHERE r.id = ?`)
     .get(roomId) as Record<string, unknown> | undefined;
-  if (!row) return null;
+  if (!row || isListingJoinRowArchived(row)) return null;
   const listing = joinRowToPropertyListing(row);
   if (!propertyHasUnexpiredClaimToken(db, listing.propertyId)) return null;
   return listing;
@@ -213,17 +208,14 @@ function loadPropertyCoverListing(db: DatabaseSync, propertyId: string): Propert
     .prepare(`SELECT id, status, image_urls_json FROM properties WHERE id = ?`)
     .get(propertyId) as { id: string; status: string; image_urls_json: string | null } | undefined;
   if (!prop) return null;
-  const published = String(prop.status) === "published";
-  if (!published && !propertyHasUnexpiredClaimToken(db, propertyId)) return null;
+  if (String(prop.status) === "archived") return null;
+  const shareable = String(prop.status) === "published" || String(prop.status) === "paused";
+  if (!shareable && !propertyHasUnexpiredClaimToken(db, propertyId)) return null;
 
   const rows = db
     .prepare(
-      published
-        ? `${ROOM_PROPERTY_JOIN_SQL}
-       WHERE p.id = ?
-         AND r.status = 'published'
-         AND p.status = 'published'
-         AND IFNULL(r.occupancy_status, 'available') != 'occupied'
+      shareable
+        ? `${ROOM_PROPERTY_JOIN_SQL} ${DIRECT_LINK_JOIN_WHERE} AND p.id = ?
        ORDER BY r.sort_order ASC, r.rent_mxn ASC, r.id ASC`
         : `${ROOM_PROPERTY_JOIN_SQL}
        WHERE p.id = ?
