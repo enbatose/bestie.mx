@@ -24,7 +24,7 @@ export type GdlSeekerCampaign = {
 };
 
 /** Bump when the JPEG changes so WhatsApp / Facebook recrawl the preview. */
-export const CAMPAIGN_OG_IMAGE_VERSION = "3";
+export const CAMPAIGN_OG_IMAGE_VERSION = "4";
 export const CAMPAIGN_OG_IMAGE_EDGE = 1200;
 
 function roomsWord(n: number): string {
