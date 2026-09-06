@@ -9,8 +9,6 @@ import {
   textLinkHtml,
 } from "./emailLayout.js";
 
-export const NEW_POST_OPS_EMAIL = "contacto@bestie.mx";
-
 export type NewPostPublishedEmailPayload = {
   title: string;
   city: string;

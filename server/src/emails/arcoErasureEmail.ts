@@ -14,7 +14,11 @@ export type ArcoErasureEmailPayload = {
   displayName?: string;
 };
 
-/** Operator inbox copy of ARCO confirmations — blocked evidence of fulfillment, not marketing. */
+/**
+ * Bestie inbox copy of ARCO confirmations (Resend receiving for contacto@).
+ * Kept as BCC evidence of fulfillment — not marketing, and not Gmail-forwarded
+ * (inbound skip when From is @bestie.mx).
+ */
 export const ARCO_CONFIRMATION_BCC = "contacto@bestie.mx";
 
 export function buildArcoWhatsAppConfirmation(displayName?: string): string {

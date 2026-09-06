@@ -122,9 +122,37 @@ export function matchesInboundAddress(
   return recipients.some((recipient) => normalizeEmailAddress(recipient) === normalizedTarget);
 }
 
-/** True when any recipient should be forwarded to the contact inbox (contacto@ only). */
-export function shouldForwardInbound(recipients: string[] | undefined): boolean {
-  return matchesInboundAddress(recipients, CONTACT_INBOUND_ADDRESS);
+/** True when the address is on bestie.mx (no-reply, contacto, any subdomain). */
+export function isBestieOwnedAddress(value: string | undefined): boolean {
+  if (!value) return false;
+  const email = normalizeEmailAddress(value);
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  const host = email.slice(at + 1);
+  return host === "bestie.mx" || host.endsWith(".bestie.mx");
+}
+
+/**
+ * Forward external mail to contacto@ → Gmail.
+ * Do not forward Bestie-originated mail (ops alerts, ARCO BCC): those stay in the
+ * Resend contacto@ inbox as the Bestie evidence copy and must not consume a second send.
+ */
+export function shouldForwardInbound(
+  recipients: string[] | undefined,
+  from?: string,
+): boolean {
+  if (!matchesInboundAddress(recipients, CONTACT_INBOUND_ADDRESS)) return false;
+  if (isBestieOwnedAddress(from)) return false;
+  return true;
+}
+
+export function inboundReceivedDimension(
+  recipients: string[] | undefined,
+  from?: string,
+): string {
+  if (!matchesInboundAddress(recipients, CONTACT_INBOUND_ADDRESS)) return "inbound_other";
+  if (isBestieOwnedAddress(from)) return "contacto_bestie_outbound";
+  return "contacto_forward";
 }
 
 async function probeSpfDns(): Promise<void> {
@@ -364,10 +392,10 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
     console.log(`[resend] ${parts.join(" ")}`);
 
     if (event.type === "email.received") {
-      recordEmailReceived(shouldForwardInbound(to) ? "contacto_forward" : "inbound_other");
+      recordEmailReceived(inboundReceivedDimension(to, from));
     }
 
-    if (event.type === "email.received" && emailId && shouldForwardInbound(to)) {
+    if (event.type === "email.received" && emailId && shouldForwardInbound(to, from)) {
       try {
         const apiKey = getResendReceivingApiKey();
         if (!apiKey) throw new Error("receiving_key_missing");
@@ -380,9 +408,15 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
         return;
       }
     } else if (event.type === "email.received" && emailId) {
-      console.log(
-        `[resend] email.received not forwarded (only ${CONTACT_INBOUND_ADDRESS} is forwarded) email_id=${emailId} to=${(to ?? []).join(",")}`,
-      );
+      if (matchesInboundAddress(to, CONTACT_INBOUND_ADDRESS) && isBestieOwnedAddress(from)) {
+        console.log(
+          `[resend] email.received kept in ${CONTACT_INBOUND_ADDRESS} (no Gmail forward for @bestie.mx From) email_id=${emailId} from=${from}`,
+        );
+      } else {
+        console.log(
+          `[resend] email.received not forwarded (only ${CONTACT_INBOUND_ADDRESS} is forwarded) email_id=${emailId} to=${(to ?? []).join(",")}`,
+        );
+      }
     }
 
     res.status(200).json({ ok: true });

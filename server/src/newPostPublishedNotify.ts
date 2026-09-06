@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { posthogReplayUrl } from "./vendorUsageLimits.js";
-import { buildNewPostPublishedEmail, NEW_POST_OPS_EMAIL } from "./emails/newPostPublishedEmail.js";
+import { buildNewPostPublishedEmail } from "./emails/newPostPublishedEmail.js";
+import { resolveContactForwardTo } from "./resendWebhook.js";
 import { sendTransactionalEmail } from "./mailer.js";
 import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
 import { isProductionPublicSite, publicBaseUrl } from "./publicBaseUrl.js";
@@ -100,7 +101,7 @@ export async function notifyOpsNewPostPublished(db: DatabaseSync, propertyId: st
   }
   const mail = buildNewPostPublishedEmail(payload);
   return sendTransactionalEmail({
-    to: NEW_POST_OPS_EMAIL,
+    to: resolveContactForwardTo(),
     subject: mail.subject,
     html: mail.html,
     text: mail.text,
@@ -110,7 +111,7 @@ export async function notifyOpsNewPostPublished(db: DatabaseSync, propertyId: st
   });
 }
 
-/** Fire-and-forget first-publish alert to contacto@bestie.mx. */
+/** Fire-and-forget first-publish alert to ops Gmail (not contacto@ — that inbound-loops). */
 export function scheduleNotifyOpsNewPostPublished(db: DatabaseSync, propertyId: string): void {
   void notifyOpsNewPostPublished(db, propertyId).catch((e) => {
     console.error(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNewPostPublishedEmail, NEW_POST_OPS_EMAIL } from "./newPostPublishedEmail.js";
+import { buildNewPostPublishedEmail } from "./newPostPublishedEmail.js";
 
 describe("newPostPublishedEmail", () => {
   it("includes post link, replay link, and ops category", () => {
@@ -13,7 +13,6 @@ describe("newPostPublishedEmail", () => {
       publisherEmail: "ana@test.mx",
       shortId: "AABCDEF12",
     });
-    expect(NEW_POST_OPS_EMAIL).toBe("contacto@bestie.mx");
     expect(mail.subject).toContain("Cuarto en Americana");
     expect(mail.html).toContain("https://www.bestie.mx/anuncio/AABCDEF12");
     expect(mail.html).toContain("https://us.posthog.com/project/517444/replay/sess-1");

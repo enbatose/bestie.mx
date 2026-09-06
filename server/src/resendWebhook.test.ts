@@ -4,6 +4,8 @@ import {
   DEFAULT_CONTACT_FORWARD_TO,
   getResendInboundDiagnostics,
   getResendReceivingApiKey,
+  inboundReceivedDimension,
+  isBestieOwnedAddress,
   matchesInboundAddress,
   normalizeEmailAddress,
   resolveContactForwardFrom,
@@ -35,6 +37,28 @@ describe("resendWebhook inbound routing", () => {
     expect(shouldForwardInbound(["support@bestie.mx"])).toBe(false);
     expect(shouldForwardInbound(["random@bestie.mx"])).toBe(false);
     expect(shouldForwardInbound(["someone@gmail.com"])).toBe(false);
+  });
+
+  it("does not Gmail-forward Bestie-originated mail to contacto@", () => {
+    expect(isBestieOwnedAddress("no-reply@bestie.mx")).toBe(true);
+    expect(isBestieOwnedAddress("Bestie MX <no-reply@bestie.mx>")).toBe(true);
+    expect(isBestieOwnedAddress("contacto@bestie.mx")).toBe(true);
+    expect(isBestieOwnedAddress("ops@mail.bestie.mx")).toBe(true);
+    expect(isBestieOwnedAddress("notbestie.mx")).toBe(false);
+    expect(isBestieOwnedAddress("eve@evilbestie.mx")).toBe(false);
+    expect(isBestieOwnedAddress("tommieofd@gmail.com")).toBe(false);
+
+    expect(shouldForwardInbound(["contacto@bestie.mx"], "no-reply@bestie.mx")).toBe(false);
+    expect(
+      shouldForwardInbound(["contacto@bestie.mx"], "Bestie MX <no-reply@bestie.mx>"),
+    ).toBe(false);
+    expect(shouldForwardInbound(["contacto@bestie.mx"], "user@gmail.com")).toBe(true);
+    expect(inboundReceivedDimension(["contacto@bestie.mx"], "no-reply@bestie.mx")).toBe(
+      "contacto_bestie_outbound",
+    );
+    expect(inboundReceivedDimension(["contacto@bestie.mx"], "user@gmail.com")).toBe(
+      "contacto_forward",
+    );
   });
 
   it("defaults forward target and from address", () => {

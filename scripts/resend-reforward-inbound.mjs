@@ -5,6 +5,9 @@
  * Use when Facebook/Meta validation mail landed in Resend but the webhook forward
  * failed (e.g. missing RESEND_RECEIVING_API_KEY) or Gmail never showed the forward.
  *
+ * Skips mail whose From is @bestie.mx (ops alerts, ARCO BCC evidence) — those stay
+ * in the Resend contacto@ inbox and must not be sent again.
+ *
  * Composes a NEW message (fetches the original body via GET /emails/receiving/:id,
  * then sends with `emails.send`) instead of Resend's raw `emails.receiving.forward` —
  * that raw forward hides the real external sender behind `Bestie Contacto
@@ -60,8 +63,18 @@ function normalizeEmail(value) {
   return (angle?.[1] ?? trimmed).trim().toLowerCase();
 }
 
-function shouldForward(toList) {
-  return (toList ?? []).some((t) => normalizeEmail(t) === CONTACT);
+function isBestieFrom(from) {
+  const email = normalizeEmail(from);
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  const host = email.slice(at + 1);
+  return host === "bestie.mx" || host.endsWith(".bestie.mx");
+}
+
+function shouldForward(toList, from) {
+  if (!(toList ?? []).some((t) => normalizeEmail(t) === CONTACT)) return false;
+  if (isBestieFrom(from)) return false;
+  return true;
 }
 
 function escapeHtml(value) {
@@ -135,7 +148,12 @@ let matched = 0;
 let forwarded = 0;
 for (const row of rows) {
   const to = row.to ?? [];
-  if (!shouldForward(to)) continue;
+  if (!shouldForward(to, row.from)) {
+    if ((to ?? []).some((t) => normalizeEmail(t) === CONTACT) && isBestieFrom(row.from)) {
+      console.log(`\nskip ${row.id} (@bestie.mx From, kept in contacto@)`);
+    }
+    continue;
+  }
   if (metaOnly && !META_FROM_RE.test(String(row.from ?? ""))) continue;
   matched += 1;
   const id = row.id;

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { isFirstPropertyPublish, notifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import * as mailer from "./mailer.js";
+import { resolveContactForwardTo } from "./resendWebhook.js";
 
 const PUBLIC_URL_KEYS = ["PUBLIC_BASE_URL", "SITE_URL", "WEB_ORIGIN", "PUBLIC_WEB_ORIGIN"] as const;
 const prevPublicUrl: Record<string, string | undefined> = {};
@@ -67,7 +68,7 @@ describe("new post published notify", () => {
     expect(isFirstPropertyPublish("draft", null, "paused")).toBe(false);
   });
 
-  it("emails contacto with post and replay URLs", async () => {
+  it("emails ops Gmail with post and replay URLs", async () => {
     process.env.PUBLIC_WEB_ORIGIN = "https://www.bestie.mx";
     const send = vi.spyOn(mailer, "sendTransactionalEmail").mockResolvedValue(true);
     const db = setupDb();
@@ -86,7 +87,7 @@ describe("new post published notify", () => {
     expect(ok).toBe(true);
     expect(send).toHaveBeenCalledTimes(1);
     const args = send.mock.calls[0]![0];
-    expect(args.to).toBe("contacto@bestie.mx");
+    expect(args.to).toBe(resolveContactForwardTo());
     expect(args.html).toContain("/anuncio/");
     expect(args.html).toContain("sess-xyz");
     expect(args.tags?.some((t) => t.value === "new_post_alert")).toBe(true);

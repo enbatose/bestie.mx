@@ -32,7 +32,9 @@ These events are enabled on the Bestie webhook as of 2026-07-04.
 | `domain.updated` | Domain | Logs | Track tracking/DNS setting changes |
 | `domain.deleted` | Domain | Logs | Alert if domain removed accidentally |
 
-Handler behavior today: verify Svix signature → log event → for `email.received` to `contacto@bestie.mx`, **compose a new message** (subject prefixed `[Externo: <real sender>]` + a red "⚠️ Mensaje EXTERNO" banner naming the original sender/subject, body = original content) and send it via `sendTransactionalEmail()` → `200 OK`.
+Handler behavior today: verify Svix signature → log event → for `email.received` to `contacto@bestie.mx` **from an external address**, **compose a new message** (subject prefixed `[Externo: <real sender>]` + a red "⚠️ Mensaje EXTERNO" banner naming the original sender/subject, body = original content) and send it via `sendTransactionalEmail()` → `200 OK`.
+
+Mail whose `From` is `@bestie.mx` (including `no-reply@`) is **kept in the Resend `contacto@` inbox and not Gmail-forwarded**. That is the Bestie evidence copy for ARCO confirmations (BCC `contacto@`) and it stops the ops-alert loop (sending to `contacto@` used to bounce back out as a second send).
 
 This intentionally does **not** use Resend's raw `emails.receiving.forward()` helper anymore. That raw forward relays the original message essentially unchanged but with the visible `From` rewritten to `Bestie Contacto <contacto@bestie.mx>` — which hides the real external sender and made a "Meta account suspension" phishing email (actually from a random `.edu.ng` address) look like a legitimate Bestie-internal message. The composed forward always exposes the true original sender before you even open it.
 
@@ -40,11 +42,14 @@ Planned: persist bounces/suppressions and auto-disable `email_notify` on saved s
 
 ## Inbound mail — `contacto@bestie.mx` only
 
-Resend receives any `@bestie.mx` address once domain **receiving** is enabled and the apex MX record is published, but Bestie **only forwards** `contacto@bestie.mx` (the only published support address).
+Resend receives any `@bestie.mx` address once domain **receiving** is enabled and the apex MX record is published, but Bestie **only Gmail-forwards external mail** to `contacto@bestie.mx` (the only published support address).
 
 - MX `@` → `inbound-smtp.us-east-1.amazonaws.com` (priority 10) — added via `scripts/cloudflare-setup.mjs`
 - Resend domain `bestie.mx`: receiving **enabled**
 - Forward target env: `RESEND_CONTACT_FORWARD_TO` (default `batani.enrique@gmail.com`)
+- First-publish ops alerts go **directly** to that Gmail target (not to `contacto@`)
+- ARCO confirmation emails still **BCC `contacto@bestie.mx`** so a copy stays in the Bestie inbound inbox as evidence. They are **not** re-sent to Gmail.
+- Skip Gmail forward when `From` is `@bestie.mx` / `*.bestie.mx`
 - Forward from: the composed forward always sends via `sendTransactionalEmail()`'s normal sender
   (`Bestie MX <no-reply@bestie.mx>` / `EMAIL_FROM`) — never `contacto@bestie.mx` — so the visible
   From can't be mistaken for the original external sender. `resolveContactForwardFrom()` in
