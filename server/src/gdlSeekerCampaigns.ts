@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { GDL_SEARCH_POIS } from "./gdlSearchPois.js";
-import { EMPTY_SEARCH_FILTERS, defaultSimilarConfig, type Bbox } from "./sharedSearchMatch.js";
+import type { Bbox } from "./searchFilters.js";
+import { EMPTY_SEARCH_FILTERS, defaultSimilarConfig } from "./sharedSearchMatch.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
 import { OG_DESC_MAX, OG_TITLE_MAX, truncateOgText } from "./listingShareOg.js";
 import { upsertSharedSearch, type SharedSearchRow } from "./sharedSearches.js";
