@@ -114,7 +114,7 @@ describe("message digest quiet hours and first-seeker SMS", () => {
     expect(mailer.sendTransactionalEmail).toHaveBeenCalledOnce();
     expect(sms.smsMasivosSendSms).toHaveBeenCalledOnce();
     const smsBody = (sms.smsMasivosSendSms as ReturnType<typeof vi.fn>).mock.calls[0]![1] as string;
-    expect(smsBody).toContain("Alejandro Padilla te escribió");
+    expect(smsBody).toContain("Alejandro te escribió por tu post");
     expect(smsBody).toContain("Bestie.mx:");
   });
 
@@ -174,7 +174,7 @@ describe("message digest quiet hours and first-seeker SMS", () => {
     expect(mailer.sendTransactionalEmail).toHaveBeenCalledOnce();
     expect(sms.smsMasivosSendSms).toHaveBeenCalledOnce();
     const smsBody = vi.mocked(sms.smsMasivosSendSms).mock.calls[0]![1];
-    expect(smsBody).toContain("María te escribió");
+    expect(smsBody).toContain("María te escribió por tu post");
     expect(smsBody).not.toContain("otro usuario");
   });
 
@@ -248,6 +248,6 @@ describe("message digest quiet hours and first-seeker SMS", () => {
     expect(mailer.sendTransactionalEmail).toHaveBeenCalledOnce();
     expect(sms.smsMasivosSendSms).toHaveBeenCalledOnce();
     const smsBody = vi.mocked(sms.smsMasivosSendSms).mock.calls[0]![1];
-    expect(smsBody).toContain("Alejandro Padilla y otro usuario te escribieron");
+    expect(smsBody).toContain("Alejandro y otro usuario te escribieron");
   });
 });

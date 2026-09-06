@@ -138,7 +138,7 @@ export type SmsMasivosSmsResult =
   | { ok: true; sandbox: boolean }
   | { ok: false; error: string; httpStatus?: number };
 
-/** Transactional SMS (not OTP). Used for first-seeker listing-message notices and ARCO cancelación when the account has no email. */
+/** Transactional SMS (not OTP). Listing first-seeker notices must be ≤160 chars (SMS Masivos account cap). ARCO may be longer. */
 export async function smsMasivosSendSms(
   phoneE164: string,
   message: string,
