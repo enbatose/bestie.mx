@@ -321,4 +321,18 @@ describe("SPA static from API process", () => {
     expect(borrador.text).toContain("Rento habitación OG claim");
     expect(borrador.text).toContain(`og:image" content="https://dev.bestie.mx/api/share-og/anuncio/${ref}.jpg"`);
   });
+
+  it("GET /busquedas/gdlchapu injects the campaign POI Open Graph card", async () => {
+    const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
+    const res = await request(app)
+      .get("/busquedas/gdlchapu")
+      .set("Host", "dev.bestie.mx")
+      .set("User-Agent", "facebookexternalhit/1.1")
+      .expect(200);
+    expect(res.text).toContain("Chapultepec/Americana");
+    expect(res.text).toContain("https://dev.bestie.mx/brand/og-busquedas/gdlchapu.jpg?v=2");
+    expect(res.text).toContain('og:url" content="https://dev.bestie.mx/busquedas/gdlchapu"');
+    expect(res.text).not.toContain("https://www.bestie.mx/brand/og-default.jpg");
+    expect(res.text).not.toContain("Bestie — bestie.mx");
+  });
 });

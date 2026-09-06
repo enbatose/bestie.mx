@@ -16,10 +16,14 @@ export type GdlSeekerCampaign = {
   lng: number;
   zoom: number;
   ogImagePath: string;
+  imageAlt: string;
   /** Live exact/similar counts are filled in at crawl time. */
   title: (exact: number, similar: number) => string;
   description: (exact: number, similar: number) => string;
 };
+
+/** Bump when the JPEG changes so WhatsApp / Facebook recrawl the preview. */
+export const CAMPAIGN_OG_IMAGE_VERSION = "2";
 
 function poi(name: string) {
   const hit = GDL_SEARCH_POIS.find((p) => p.name === name);
@@ -51,9 +55,15 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     lng: chapu.lng,
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlchapu.jpg",
-    title: (exact) => `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} en Zona Chapultepec/Americana`,
+    imageAlt: "Avenida Chapultepec / Colonia Americana al atardecer — Bestie MX",
+    title: (exact) =>
+      exact > 0
+        ? `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} en Zona Chapultepec/Americana`
+        : "Bestie: cuartos en Zona Chapultepec/Americana",
     description: (exact, similar) =>
-      `Time Out eligió Americana el barrio más cool del mundo. ${exact} coincidencias exactas, ${similar} similares. Entra para verlas en el mapa.`,
+      exact > 0
+        ? `Time Out eligió Americana el barrio más cool del mundo. ${exact} coincidencias exactas, ${similar} similares. Entra para verlas en el mapa.`
+        : "Time Out eligió Americana el barrio más cool del mundo. Entra para ver los cuartos en el mapa.",
   },
   {
     id: "gdlcentro",
@@ -63,9 +73,15 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     lng: centro.lng,
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlcentro.jpg",
-    title: (exact) => `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} en el Centro de Guadalajara`,
+    imageAlt: "Catedral de Guadalajara en el Centro — Bestie MX",
+    title: (exact) =>
+      exact > 0
+        ? `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} en el Centro de Guadalajara`
+        : "Bestie: cuartos en el Centro de Guadalajara",
     description: (exact, similar) =>
-      `Línea 3 te deja en la Catedral. ${exact} coincidencias exactas, ${similar} similares. Entra para abrirlas en el mapa.`,
+      exact > 0
+        ? `Línea 3 te deja en la Catedral. ${exact} coincidencias exactas, ${similar} similares. Entra para abrirlas en el mapa.`
+        : "Línea 3 te deja en la Catedral. Entra para abrir los cuartos en el mapa.",
   },
   {
     id: "gdlcucs",
@@ -75,9 +91,15 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     lng: cucs.lng,
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlcucs.jpg",
-    title: (exact) => `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} cerca de CUCS`,
+    imageAlt: "Plaza junto a CUCS y el Hospital Civil — Bestie MX",
+    title: (exact) =>
+      exact > 0
+        ? `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} cerca de CUCS`
+        : "Bestie: cuartos cerca de CUCS",
     description: (exact, similar) =>
-      `CUCS y el Hospital Civil. ${exact} coincidencias exactas, ${similar} similares. Entra para verlos en el mapa.`,
+      exact > 0
+        ? `CUCS y el Hospital Civil. ${exact} coincidencias exactas, ${similar} similares. Entra para verlos en el mapa.`
+        : "CUCS y el Hospital Civil. Entra para ver los cuartos en el mapa.",
   },
 ];
 
@@ -90,11 +112,13 @@ export function formatCampaignShareOg(
   exactCount: number,
   similarCount: number,
   origin: string,
-): { title: string; description: string; imageUrl: string } {
+): { title: string; description: string; imageUrl: string; imageAlt: string } {
+  const base = origin.replace(/\/$/, "");
   return {
     title: truncateOgText(campaign.title(exactCount, similarCount), OG_TITLE_MAX),
     description: truncateOgText(campaign.description(exactCount, similarCount), OG_DESC_MAX),
-    imageUrl: `${origin.replace(/\/$/, "")}${campaign.ogImagePath}`,
+    imageUrl: `${base}${campaign.ogImagePath}?v=${CAMPAIGN_OG_IMAGE_VERSION}`,
+    imageAlt: campaign.imageAlt,
   };
 }
 

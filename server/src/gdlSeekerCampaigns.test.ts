@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openDb } from "./db.js";
-import { GDL_SEEKER_CAMPAIGNS, ensureGdlSeekerCampaignShares } from "./gdlSeekerCampaigns.js";
+import { GDL_SEEKER_CAMPAIGNS, CAMPAIGN_OG_IMAGE_VERSION, ensureGdlSeekerCampaignShares } from "./gdlSeekerCampaigns.js";
 import { resolveSharedSearchOg } from "./sharedSearchOg.js";
 import { loadSharedSearch } from "./sharedSearches.js";
 
@@ -68,7 +68,19 @@ describe("GDL seeker campaign shares", () => {
     const og = resolveSharedSearchOg(db, "/busquedas/gdlchapu", "https://www.bestie.mx");
     expect(og?.title).toMatch(/^Bestie: \d+ cuartos en Zona Chapultepec\/Americana$/);
     expect(og?.description).toMatch(/Time Out/);
-    expect(og?.imageUrl).toBe("https://www.bestie.mx/brand/og-busquedas/gdlchapu.jpg");
+    expect(og?.imageUrl).toBe(
+      `https://www.bestie.mx/brand/og-busquedas/gdlchapu.jpg?v=${CAMPAIGN_OG_IMAGE_VERSION}`,
+    );
+    expect(og?.imageAlt).toMatch(/Chapultepec/);
     expect(og?.url).toBe("https://www.bestie.mx/busquedas/gdlchapu");
+  });
+
+  it("still emits the Chapu POI card if the seeded row is missing", () => {
+    db.prepare("DELETE FROM shared_searches WHERE id = 'gdlchapu'").run();
+    const og = resolveSharedSearchOg(db, "/busquedas/gdlchapu", "https://dev.bestie.mx");
+    expect(og?.title).toMatch(/Chapultepec\/Americana/);
+    expect(og?.imageUrl).toContain("/brand/og-busquedas/gdlchapu.jpg");
+    expect(og?.url).toBe("https://dev.bestie.mx/busquedas/gdlchapu");
+    ensureGdlSeekerCampaignShares(db);
   });
 });

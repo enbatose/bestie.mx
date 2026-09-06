@@ -9,10 +9,11 @@ Shipped files in `public/brand/facebook/post-gdl-seekers-*`.
 - Author: Sergio Estrada Flores
 - License: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - Source: https://commons.wikimedia.org/wiki/File:Catedral_de_Guadalajara,_Jalisco.jpg
-- Used in: `post-gdl-seekers-centro-*`
+- Used in: `post-gdl-seekers-centro-*`, `public/brand/og-busquedas/gdlcentro.jpg`
 
 ### Zona Chapultepec/Americana
 Original photoreal still generated for this campaign (Bestie, 2026). Atmosphere matches Avenida Chapultepec / Colonia Americana at dusk. No third-party still is embedded.
+Also used in `public/brand/og-busquedas/gdlchapu.jpg`.
 
 A CC BY 2.0 street still of the avenue exists for reference only (not in the shipped frames):
 - File: `Avenida Chapultepec cruce Avenida Vallarta 2013.jpg`
@@ -22,6 +23,7 @@ A CC BY 2.0 street still of the avenue exists for reference only (not in the shi
 
 ### CUCS
 Original photoreal still generated for this campaign (Bestie, 2026). Plaza / health-campus dusk, no third-party photo, no logos.
+Also used in `public/brand/og-busquedas/gdlcucs.jpg`.
 
 ## Audio
 Original synthesized beds (sine pads, kicks, hats, UI pops). No third-party music. Same technique as `reel-gdl-follow-roomies`.

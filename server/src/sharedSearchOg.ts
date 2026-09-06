@@ -21,27 +21,34 @@ export function resolveSharedSearchOg(
   if (!match) return null;
   const slug = match[1]!;
   const meta = sharedSearchPublicMeta(db, slug);
-  if (!meta) return null;
-  const url = `${origin.replace(/\/$/, "")}${meta.sharePath}`;
   const campaign = findGdlSeekerCampaign(slug);
+  const originBase = origin.replace(/\/$/, "");
+  // Paid campaign slugs must still emit POI cards if boot-seed has not run yet.
   if (campaign) {
-    const og = formatCampaignShareOg(campaign, meta.exactCount, meta.similarCount, origin);
+    const og = formatCampaignShareOg(
+      campaign,
+      meta?.exactCount ?? 0,
+      meta?.similarCount ?? 0,
+      originBase,
+    );
     return {
       title: og.title,
       description: og.description,
-      url,
+      url: `${originBase}/busquedas/${campaign.id}`,
       imageUrl: og.imageUrl,
+      imageAlt: og.imageAlt,
       noIndex: true,
     };
   }
+  if (!meta) return null;
   return {
     title: truncateOgText(meta.caption, OG_TITLE_MAX),
     description: truncateOgText(
       `${meta.label}. Inicia sesión en Bestie para ver coincidencias exactas y similares en el mapa.`,
       OG_DESC_MAX,
     ),
-    url,
-    imageUrl: `${origin.replace(/\/$/, "")}/brand/og-gdl.jpg`,
+    url: `${originBase}${meta.sharePath}`,
+    imageUrl: `${originBase}/brand/og-gdl.jpg`,
     noIndex: true,
   };
 }
