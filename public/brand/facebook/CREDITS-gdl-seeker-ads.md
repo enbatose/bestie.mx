@@ -13,13 +13,9 @@ Shipped files in `public/brand/facebook/post-gdl-seekers-*`.
 - Video/still crop: yellow twin spires and dome (same landmark framing as the search OG card).
 
 ### Zona Chapultepec/Americana
-Glorieta Niños Héroes (column + cadets) at Avenida Chapultepec — the civic monument, not current protest/memorial overlays. Same landmark as `public/brand/og-busquedas/gdlchapu.jpg`. Photoreal still generated for this campaign (Bestie, 2026).
-
-A CC BY 2.0 street still of the avenue exists for reference only (not in the shipped frames):
-- File: `Avenida Chapultepec cruce Avenida Vallarta 2013.jpg`
-- Author: Reporte Fénix
-- License: [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/)
-- Source: https://commons.wikimedia.org/wiki/File:Avenida_Chapultepec_cruce_Avenida_Vallarta_2013.jpg
+Paseo Chapultepec (camellón, trees, fountain) in Colonia Americana. Same photo in `post-gdl-seekers-chapu-*` and `public/brand/og-busquedas/gdlchapu.jpg`.
+- Photograph: David Lozano Díaz
+- Source: [Architectural Digest México — El Paseo Chapultepec de Guadalajara](https://www.admagazine.com/articulos/el-paseo-chapultepec-de-guadalajara-la-historia-de-un-icono-tapatio)
 
 ### CUCS
 Photoreal still of the **Antiguo Hospital Civil Fray Antonio Alcalde** (Bestie, 2026), the teaching hospital next to CUCS on Sierra Mojada / Col. Independencia. Same landmark as `public/brand/og-busquedas/gdlcucs.jpg`. Not Plaza de la Rectoría / MUSA.

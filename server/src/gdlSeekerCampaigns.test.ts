@@ -73,7 +73,7 @@ describe("GDL seeker campaign shares", () => {
     expect(og?.imageUrl).toBe(
       `https://www.bestie.mx/brand/og-busquedas/gdlchapu.jpg?v=${CAMPAIGN_OG_IMAGE_VERSION}`,
     );
-    expect(og?.imageAlt).toMatch(/Niños Héroes/);
+    expect(og?.imageAlt).toMatch(/Paseo Chapultepec/);
     expect(og?.imageWidth).toBe(1200);
     expect(og?.imageHeight).toBe(1200);
     expect(og?.url).toBe("https://www.bestie.mx/busquedas/gdlchapu");

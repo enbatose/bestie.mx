@@ -24,7 +24,7 @@ export type GdlSeekerCampaign = {
 };
 
 /** Bump when the JPEG changes so WhatsApp / Facebook recrawl the preview. */
-export const CAMPAIGN_OG_IMAGE_VERSION = "5";
+export const CAMPAIGN_OG_IMAGE_VERSION = "6";
 export const CAMPAIGN_OG_IMAGE_EDGE = 1200;
 
 function roomsWord(n: number): string {
@@ -76,7 +76,7 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     lng: chapu.lng,
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlchapu.jpg",
-    imageAlt: "Glorieta Niños Héroes en Avenida Chapultepec — Bestie MX",
+    imageAlt: "Paseo Chapultepec en Zona Chapultepec / Americana — Bestie MX",
     title: (exact, similar) => campaignOgTitle("en Zona Chapultepec/Americana", exact, similar),
     description: (exact, similar) =>
       exact > 0

@@ -330,7 +330,7 @@ describe("SPA static from API process", () => {
       .set("User-Agent", "facebookexternalhit/1.1")
       .expect(200);
     expect(res.text).toContain("Chapultepec/Americana");
-    expect(res.text).toContain("https://dev.bestie.mx/brand/og-busquedas/gdlchapu.jpg?v=5");
+    expect(res.text).toContain("https://dev.bestie.mx/brand/og-busquedas/gdlchapu.jpg?v=6");
     expect(res.text).toContain('og:url" content="https://dev.bestie.mx/busquedas/gdlchapu"');
     expect(res.text).not.toContain("https://www.bestie.mx/brand/og-default.jpg");
     expect(res.text).not.toContain("Bestie — bestie.mx");
