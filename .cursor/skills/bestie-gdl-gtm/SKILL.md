@@ -7,7 +7,7 @@ description: >-
   Meta ads, landing copy, GTM strategy, Facebook outreach targeting, GDL
   neighborhood or university language, publisher vs seeker campaigns, or when
   the user mentions ITESO, Tec, UDG, CUCS, Andares, Americana, Chapultepec,
-  Minerva, roomies, seekers, or closing the marketplace loop.
+  Zona Chapultepec/Americana, Minerva, roomies, seekers, or closing the marketplace loop.
 ---
 
 # Bestie GDL GTM

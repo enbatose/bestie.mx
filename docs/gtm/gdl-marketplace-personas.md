@@ -6,7 +6,7 @@ Brand voice still follows `docs/PRODUCT_V1.md` and `.cursor/rules/bestie-brand.m
 
 Facebook group inventory (demand proxy): [facebook-groups-gdl-roomies.md](./facebook-groups-gdl-roomies.md).
 
-Recheck live stock with `GET https://www.bestie.mx/api/listings` before any number in an ad. Snapshot tables below are **Prod · 5 Sep 2026** (63 published rooms). “Cerca” = haversine **3.5 km** unless noted.
+Recheck live stock with `GET https://www.bestie.mx/api/listings` before any number in an ad. Campus/office snapshot **Prod · 5 Sep 2026**; **Zona Chapultepec/Americana** union recounted **Prod · 6 Sep 2026** (63 published rooms). “Cerca” = haversine **3.5 km** unless noted.
 
 ---
 
@@ -61,11 +61,11 @@ Always pick **one persona + one POI** per ad. Voice changes; geography stays spe
 
 - **Who:** ~22–35, colonia identity, cafés, bars, walkability. May already live in the belt and want a calmer or livelier block.
 - **Job:** Live *in* a named zona, not next to a campus or tower.
-- **Geo rule:** More flexible **inside** the west-central lifestyle belt (Chapultepec nested + Zona Minerva + Chapalita + Providencia). Still **one landmark per creative**. Americana → Providencia/Chapalita as a calmer move is valid. Americana → Andares is a different product — Andares is office/prestige, not this belt.
+- **Geo rule:** More flexible **inside** the west-central lifestyle belt (**Zona Chapultepec/Americana** + Zona Minerva + Chapalita + Providencia). Still **one landmark per creative**. Zona Chapultepec/Americana → Providencia/Chapalita as a calmer move is valid. Americana → Andares is a different product — Andares is office/prestige, not this belt.
 - **Voice:** Local, warm, tapatío. Place names as identity. Not luxury real estate, not “coolest neighborhood in the world” travel-blog.
-- **Words that work:** Americana, Chapultepec, Lafayette, Chapalita, Providencia, Zona Minerva, la glorieta.
-- **Avoid:** Stuffing four colonias in the headline. Calling Andares a lifestyle pin.
-- **Use:** `19 cuartos en Americana y Chapultepec. Cafés, bares y Línea 3 a unos pasos.`
+- **Words that work:** Zona Chapultepec/Americana, Americana, Chapultepec, Moderna, Lafayette, Chapalita, Providencia, Zona Minerva, la glorieta.
+- **Avoid:** Listing Americana + Chapultepec + Moderna + Lafayette as four separate ad pins (they are **one** zona). Calling Andares a lifestyle pin.
+- **Use:** `26 cuartos en Zona Chapultepec/Americana. Cafés, bares y Línea 3 a unos pasos.`
 - **Use:** `Cuartos en Zona Minerva. Vallarta, Justo Sierra y la glorieta a unos pasos.`
 - **Not:** `Cerca de Chapalita, Providencia, Andares y Americana`
 
@@ -117,15 +117,16 @@ This is matching, not inventory. Do **not** mix it into publisher growth, Mis An
 
 ## Naming — Chapultepec and Minerva
 
-**Chapultepec** is a nested *zona*, not the official colonia name.
+**Zona Chapultepec/Americana** is the practical lifestyle **ad pin**. It clubs **Americana**, **Chapultepec**, **La Moderna**, and **Lafayette**. One persona + this one pin per creative — do not buy four budgets or stack those four names in a headline.
+
+Each listing still keeps its own colonia on the post (search chips, card, map). The zona name is for ads and targeting, not a wipe of neighborhood context.
 
 | Scope | Colonias | Ad use |
 | --- | --- | --- |
-| Core | **Colonia Americana** | Lead lifestyle ad. “Americana” or “Chapultepec” both work; nightlife searchers say Chapultepec. |
-| Extended | **Moderna**, **Lafayette** | Same ad set / same bbox. Do not buy a separate budget. |
-| Outer ring | **Ladrón de Guevara**, **Santa Tere** | OK in body as “zona Chapultepec.” Santa Tere has its own identity and overlaps Centro — do not count those rooms as Americana stock. |
+| **Zona Chapultepec/Americana** | **Americana**, **Chapultepec**, **Moderna**, **Lafayette** | One lifestyle pin. Headline: *Zona Chapultepec/Americana*. Nightlife searchers still say Chapultepec; listing cards still say the colonia. Union stock **26 rooms / 23 properties** within 3.5 km of any of the four pins (Prod · 6 Sep 2026). |
+| Outer ring (not in the club) | **Ladrón de Guevara**, **Santa Tere** | OK in body as “zona Chapultepec.” Santa Tere has its own identity and overlaps Centro — do **not** count those rooms in Zona Chapultepec/Americana stock. |
 
-**Zona Minerva** is a **separate** lifestyle POI (not a Chapultepec synonym): La Minerva roundabout, **Justo Sierra**, **Vallarta Norte**, west edge of Ladrón de Guevara. Hinge between Americana, Chapalita, and Providencia. Bestie’s default GDL map pin is already the fountain. Thinner stock than Americana — named creative, not a volume laundry list.
+**Zona Minerva** is a **separate** lifestyle POI (not inside Zona Chapultepec/Americana): La Minerva roundabout, **Justo Sierra**, **Vallarta Norte**, west edge of Ladrón de Guevara. Hinge between Americana, Chapalita, and Providencia. Bestie’s default GDL map pin is already the fountain. Thinner stock — named creative, not a volume laundry list.
 
 ---
 
@@ -163,10 +164,10 @@ Do not say **Centro Financiero**.
 
 | Pin | Scope | Stock | Ads now? |
 | --- | --- | --- | --- |
-| Americana / Chapultepec | Core + Lafayette + Moderna in the same bbox | 19 rooms / 3.5 km Americana; 12 rooms / 2 km core union | Yes — lead lifestyle |
-| Chapalita | Own creative; calmer move from Americana | 11 | Yes |
+| **Zona Chapultepec/Americana** | Americana + Chapultepec + Moderna + Lafayette (union, not a sum) | **26** rooms / 23 properties · 3.5 km | Yes — lead lifestyle |
+| Chapalita | Own creative; calmer move from the zona | 10 | Yes |
 | Providencia | Lifestyle *and* office overlap — fine | 13 | Yes (either campaign, not both Andares-style) |
-| Zona Minerva | Justo Sierra, Vallarta Norte, glorieta | 5 / 2 km · 8–12 / 3.5 km | Yes as a named pin, not a volume claim |
+| Zona Minerva | Justo Sierra, Vallarta Norte, glorieta | 8 / 3.5 km | Yes as a named pin, not a volume claim |
 | Andares | — | 5 | **Office only**, when stock exists |
 
 ---
@@ -178,8 +179,8 @@ Do not say **Centro Financiero**.
 | ITESO + UVM | Estudiante | *8 cuartos a menos de 15 min del ITESO* |
 | CUCS / hospitales | Estudiante | *17 cuartos cerca de CUCS y el Centro Médico* |
 | CUCEI | Estudiante | *13 cuartos cerca de CUCEI* |
-| Americana / Chapultepec | Lifestyler | *19 cuartos en Americana y Chapultepec* |
-| Chapalita | Lifestyler | *11 cuartos en Chapalita* |
+| Zona Chapultepec/Americana | Lifestyler | *26 cuartos en Zona Chapultepec/Americana* |
+| Chapalita | Lifestyler | *10 cuartos en Chapalita* |
 | Zona Minerva | Lifestyler | *Cuartos en Zona Minerva, a unos pasos de la glorieta* |
 | Midtown / Punto Sao Paulo | Profesionista | *12 cuartos cerca de Punto Sao Paulo y Midtown* |
 | Centro | Budget / student / first job | *23 cuartos en el Centro de Guadalajara* |
