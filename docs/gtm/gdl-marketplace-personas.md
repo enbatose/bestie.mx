@@ -135,6 +135,36 @@ This is matching, not inventory. Do **not** mix it into publisher growth, Mis An
 
 ---
 
+## Ranked practical pins (Prod · 6 Sep 2026)
+
+Unique published rooms within 3.5 km. **Zona Chapultepec/Americana** is a union of Americana + Chapultepec + Moderna + Lafayette — not a sum. Counts still overlap across nearby pins (Centro ↔ CUCS, ITESO ↔ UVM). Do not add them.
+
+| # | POI | Persona | Rooms |
+| ---: | --- | --- | ---: |
+| 1 | Zona Chapultepec/Americana | Lifestyler | 26 |
+| 2 | Centro | Profesionista cuello azul | 23 |
+| 3 | CUCS | Estudiante | 17 |
+| 4 | CUCEI | Estudiante | 13 |
+| 5 | Providencia | Lifestyler | 13 |
+| 6 | Punto Sao Paulo / Midtown | Profesionista cuello blanco | 12 |
+| 7 | Chapalita | Lifestyler | 10 |
+| 8 | Country Club | Profesionista cuello blanco | 10 |
+| 9 | UVM (sur) | Estudiante | 9 |
+| 10 | CUAAD | Estudiante | 8 |
+| 11 | ITESO | Estudiante | 8 |
+| 12 | Zona Minerva | Lifestyler | 8 |
+| 13 | Andares | Profesionista cuello blanco | 5 |
+| 14 | CUCEA | Estudiante | 5 |
+| 15 | CUCSH | Estudiante | 5 |
+| 16 | Galerías | Profesionista cuello blanco | 5 |
+| 17 | UP | Estudiante | 5 |
+| 18 | UAG | Estudiante | 4 |
+| 19 | Tec GDL | Estudiante | 2 |
+
+**Do not name Country Club** in ads (same Américas blob as Midtown). Centro can also run **Estudiante** ads as a different persona. Andares / Tec / UAG: park until stock exists. Each listing still shows its own colonia — the zona name is the ad pin only.
+
+---
+
 ## Naming — Chapultepec and Minerva
 
 **Zona Chapultepec/Americana** is the practical lifestyle **ad pin**. It clubs **Americana**, **Chapultepec**, **La Moderna**, and **Lafayette**. One persona + this one pin per creative — do not buy four budgets or stack those four names in a headline.
@@ -175,7 +205,7 @@ Collar is the voice. Pin is still one destination.
 | Punto Sao Paulo / Midtown / Av. Américas | **Cuello blanco** | Midtown, Punto Sao Paulo, Américas | 12 | Yes — lead Godínez / office |
 | Andares / Zona Real / Puerta de Hierro | **Cuello blanco** | Andares | 5 | No — prestige, thin stock |
 | Galerías | **Cuello blanco** | Galerías, Vallarta | 5 | Secondary test only |
-| Country Club | **Cuello blanco** | — | 11 | **Do not name.** Same Américas blob as Midtown |
+| Country Club | **Cuello blanco** | — | 10 | **Do not name.** Same Américas blob as Midtown |
 | Centro | **Cuello azul** | Centro | 23 | Yes — practical profesionista (also student/transit ads, different persona) |
 
 Do not say **Centro Financiero**. Do not run Godínez copy on Centro.
