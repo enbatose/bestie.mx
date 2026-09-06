@@ -10,10 +10,10 @@ Shipped files in `public/brand/facebook/post-gdl-seekers-*`.
 - License: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - Source: https://commons.wikimedia.org/wiki/File:Catedral_de_Guadalajara,_Jalisco.jpg
 - Used in: `post-gdl-seekers-centro-*`, `public/brand/og-busquedas/gdlcentro.jpg`
+- Video/still crop: yellow twin spires and dome (same landmark framing as the search OG card).
 
 ### Zona Chapultepec/Americana
-Original photoreal still generated for this campaign (Bestie, 2026). Glorieta Niños Héroes (column + cadets) at Avenida Chapultepec — the civic monument, not current protest/memorial overlays.
-Also used in `public/brand/og-busquedas/gdlchapu.jpg`.
+Glorieta Niños Héroes (column + cadets) at Avenida Chapultepec — the civic monument, not current protest/memorial overlays. Same landmark as `public/brand/og-busquedas/gdlchapu.jpg`. Photoreal still generated for this campaign (Bestie, 2026).
 
 A CC BY 2.0 street still of the avenue exists for reference only (not in the shipped frames):
 - File: `Avenida Chapultepec cruce Avenida Vallarta 2013.jpg`
@@ -22,8 +22,7 @@ A CC BY 2.0 street still of the avenue exists for reference only (not in the shi
 - Source: https://commons.wikimedia.org/wiki/File:Avenida_Chapultepec_cruce_Avenida_Vallarta_2013.jpg
 
 ### CUCS
-Original photoreal still of the **Antiguo Hospital Civil Fray Antonio Alcalde** (Bestie, 2026), the teaching hospital next to CUCS on Sierra Mojada / Col. Independencia. CUCS campus buildings have no reusable CC postcard photo; this is the landmark students actually navigate by. Not Plaza de la Rectoría / MUSA.
-Also used in `public/brand/og-busquedas/gdlcucs.jpg`.
+Photoreal still of the **Antiguo Hospital Civil Fray Antonio Alcalde** (Bestie, 2026), the teaching hospital next to CUCS on Sierra Mojada / Col. Independencia. Same landmark as `public/brand/og-busquedas/gdlcucs.jpg`. Not Plaza de la Rectoría / MUSA.
 
 ## Audio
 Original synthesized beds (sine pads, kicks, hats, UI pops). No third-party music. Same technique as `reel-gdl-follow-roomies`.
