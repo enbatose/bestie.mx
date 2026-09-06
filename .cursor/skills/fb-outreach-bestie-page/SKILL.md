@@ -47,7 +47,7 @@ Antes de redactar, extrae del post:
 
 - Tipo de oferta (cuarto, estudio, depto, roomie buscando, etc.).
 - Colonia / zona si aparece.
-- Si el autor parece persona o negocio de rentas.
+- Si el autor parece persona o negocio de rentas. Classify **roommate publisher** vs **owner publisher** using `bestie-gdl-gtm` (do not treat seeker–seeker “busco con quien rentar” as a publisher).
 - Tono del post para calibrar formalidad.
 
 Usa **un detalle concreto** del post. No inventes datos ausentes en el screenshot.
