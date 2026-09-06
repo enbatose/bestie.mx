@@ -16,7 +16,7 @@ describe("buildListingFirstSeekerSms", () => {
       },
     ]);
     expect(text).toBe(
-      'Bestie.mx: Alejandro te escribió por tu post "Renta de 2 cuartos amueblados cerca". Revisa tu correo regularmente (también spam) o entra en bestie.mx/mensajes',
+      'Bestie.mx: Alejandro te escribió por tu post "Renta de 2 cuartos amueblados ...". Revisa tu correo regularmente (también spam) o entra en bestie.mx/mensajes',
     );
     expect(Array.from(text ?? "").length).toBeLessThanOrEqual(SMS_NOTIFY_MAX_CHARS);
     expect(text).not.toContain("padilla");
@@ -24,14 +24,23 @@ describe("buildListingFirstSeekerSms", () => {
     expect(text).not.toContain("!");
   });
 
+  it("does not add the omission mark when the full title fits", () => {
+    const text = buildListingFirstSeekerSms([
+      { seekerName: "Luis", listingTitle: "Cuarto en Lafayette" },
+    ]);
+    expect(text).toContain('por tu post "Cuarto en Lafayette"');
+    expect(text).not.toContain(" ...");
+  });
+
   it("clips the post lead when the title would blow the 160-character cap", () => {
     const text = buildListingFirstSeekerSms([
       {
         seekerName: "Alejandrina",
-        listingTitle: "Recámara amueblada privada céntrica luminosa amplia",
+        listingTitle: "Recámara amueblada privada céntrica luminosa amplia con balcón y roof garden",
       },
     ]);
     expect(text).toContain("te escribió por tu post \"");
+    expect(text).toContain(" ...");
     expect(text).toContain("Revisa tu correo regularmente (también spam)");
     expect(Array.from(text ?? "").length).toBeLessThanOrEqual(SMS_NOTIFY_MAX_CHARS);
   });

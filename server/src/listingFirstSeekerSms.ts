@@ -8,7 +8,8 @@ export const SMS_NOTIFY_MAX_CHARS = 160;
 
 const NAME_MAX = 24;
 const TITLE_WORDS_MAX = 6;
-const TITLE_WORDS_MIN = 4;
+/** Shown inside the quoted post lead when the title was cut. Space + three dots = 4 chars. */
+export const TITLE_OMISSION_MARK = " ...";
 
 const FOOTER = "Revisa tu correo regularmente (también spam) o entra en bestie.mx/mensajes";
 
@@ -36,18 +37,24 @@ function titleWords(title: string): string[] {
   return title.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
 }
 
-/** First 4–6 words of the title, then as many letters as the 160-char budget allows. */
+/** First 4–6 words of the title. If the full title does not fit, end with ` ...` (drop the last word if needed). */
 export function listingTitleLeadForSms(title: string, budget: number): string {
   if (budget < 1) return "";
   const words = titleWords(title);
   if (words.length === 0) return "";
+  const full = words.join(" ");
+  if (charLen(full) <= budget) return full;
+
+  const markLen = charLen(TITLE_OMISSION_MARK);
+  const innerBudget = budget - markLen;
+  if (innerBudget < 1) return clipChars(TITLE_OMISSION_MARK.trim(), budget);
+
   const maxWords = Math.min(TITLE_WORDS_MAX, words.length);
-  const minWords = Math.min(TITLE_WORDS_MIN, words.length);
-  for (let n = maxWords; n >= minWords; n--) {
+  for (let n = maxWords; n >= 1; n--) {
     const candidate = words.slice(0, n).join(" ");
-    if (charLen(candidate) <= budget) return candidate;
+    if (charLen(candidate) <= innerBudget) return `${candidate}${TITLE_OMISSION_MARK}`;
   }
-  return clipChars(words.slice(0, minWords).join(" "), budget);
+  return `${clipChars(words[0]!, innerBudget)}${TITLE_OMISSION_MARK}`;
 }
 
 function fitSms(text: string): string {
