@@ -12,7 +12,7 @@ Shipped files in `public/brand/facebook/post-gdl-seekers-*`.
 - Used in: `post-gdl-seekers-centro-*`, `public/brand/og-busquedas/gdlcentro.jpg`
 
 ### Zona Chapultepec/Americana
-Original photoreal still generated for this campaign (Bestie, 2026). Atmosphere matches Avenida Chapultepec / Colonia Americana at dusk. No third-party still is embedded.
+Original photoreal still generated for this campaign (Bestie, 2026). Glorieta Niños Héroes (column + cadets) at Avenida Chapultepec — the civic monument, not current protest/memorial overlays.
 Also used in `public/brand/og-busquedas/gdlchapu.jpg`.
 
 A CC BY 2.0 street still of the avenue exists for reference only (not in the shipped frames):

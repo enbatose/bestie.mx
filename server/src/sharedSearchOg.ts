@@ -7,7 +7,7 @@ import {
   type ListingShareOgMeta,
 } from "./listingShareOg.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
-import { findGdlSeekerCampaign, formatCampaignShareOg } from "./gdlSeekerCampaigns.js";
+import { findGdlSeekerCampaign, formatCampaignShareOg, CAMPAIGN_OG_IMAGE_EDGE } from "./gdlSeekerCampaigns.js";
 import { sharedSearchPublicMeta } from "./sharedSearches.js";
 
 const BUSQUEDAS_RE = /^\/busquedas\/([a-z0-9]{6,16})\/?$/i;
@@ -37,6 +37,8 @@ export function resolveSharedSearchOg(
       url: `${originBase}/busquedas/${campaign.id}`,
       imageUrl: og.imageUrl,
       imageAlt: og.imageAlt,
+      imageWidth: CAMPAIGN_OG_IMAGE_EDGE,
+      imageHeight: CAMPAIGN_OG_IMAGE_EDGE,
       noIndex: true,
     };
   }

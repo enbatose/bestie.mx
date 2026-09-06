@@ -41,6 +41,8 @@ export type ListingShareOgMeta = {
   url: string;
   imageUrl: string | null;
   imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   /** Optional Offer / RealEstateListing JSON-LD for crawlers. */
   jsonLd?: unknown;
   /** Claim / unpublished share links must not be indexed as public listings. */
@@ -493,6 +495,12 @@ export function injectListingShareOg(html: string, meta: ListingShareOgMeta): st
     out = upsertMetaByProperty(out, "og:image:secure_url", meta.imageUrl);
     if (meta.imageAlt) {
       out = upsertMetaByProperty(out, "og:image:alt", meta.imageAlt);
+    }
+    if (meta.imageWidth) {
+      out = upsertMetaByProperty(out, "og:image:width", String(meta.imageWidth));
+    }
+    if (meta.imageHeight) {
+      out = upsertMetaByProperty(out, "og:image:height", String(meta.imageHeight));
     }
   }
   out = upsertMetaByName(out, "twitter:card", meta.imageUrl ? "summary_large_image" : "summary");

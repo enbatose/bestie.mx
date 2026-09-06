@@ -24,7 +24,27 @@ export type GdlSeekerCampaign = {
 };
 
 /** Bump when the JPEG changes so WhatsApp / Facebook recrawl the preview. */
-export const CAMPAIGN_OG_IMAGE_VERSION = "2";
+export const CAMPAIGN_OG_IMAGE_VERSION = "3";
+export const CAMPAIGN_OG_IMAGE_EDGE = 1200;
+
+function roomsWord(n: number): string {
+  return n === 1 ? "cuarto" : "cuartos";
+}
+
+function similarWord(n: number): string {
+  return n === 1 ? "similar" : "similares";
+}
+
+function campaignOgTitle(where: string, exact: number, similar: number): string {
+  if (exact <= 0) return `Bestie: cuartos ${where}`;
+  if (similar <= 0) return `Bestie: ${exact} ${roomsWord(exact)} ${where}`;
+  return `Bestie: ${exact} ${roomsWord(exact)} y ${similar} ${similarWord(similar)} ${where}`;
+}
+
+function campaignOgCountsLead(exact: number, similar: number): string {
+  const exactLabel = `${exact} ${exact === 1 ? "coincidencia exacta" : "coincidencias exactas"}`;
+  return `${exactLabel}, ${similar} ${similarWord(similar)}`;
+}
 
 function poi(name: string) {
   const hit = GDL_SEARCH_POIS.find((p) => p.name === name);
@@ -56,14 +76,11 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     lng: chapu.lng,
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlchapu.jpg",
-    imageAlt: "Avenida Chapultepec / Colonia Americana al atardecer — Bestie MX",
-    title: (exact) =>
-      exact > 0
-        ? `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} en Zona Chapultepec/Americana`
-        : "Bestie: cuartos en Zona Chapultepec/Americana",
+    imageAlt: "Glorieta Niños Héroes en Avenida Chapultepec — Bestie MX",
+    title: (exact, similar) => campaignOgTitle("en Zona Chapultepec/Americana", exact, similar),
     description: (exact, similar) =>
       exact > 0
-        ? `Time Out eligió Americana el barrio más cool del mundo. ${exact} coincidencias exactas, ${similar} similares. Entra para verlas en el mapa.`
+        ? `${campaignOgCountsLead(exact, similar)}. Time Out eligió Americana el barrio más cool del mundo.`
         : "Time Out eligió Americana el barrio más cool del mundo. Entra para ver los cuartos en el mapa.",
   },
   {
@@ -75,13 +92,10 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlcentro.jpg",
     imageAlt: "Catedral de Guadalajara en el Centro — Bestie MX",
-    title: (exact) =>
-      exact > 0
-        ? `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} en el Centro de Guadalajara`
-        : "Bestie: cuartos en el Centro de Guadalajara",
+    title: (exact, similar) => campaignOgTitle("en el Centro de Guadalajara", exact, similar),
     description: (exact, similar) =>
       exact > 0
-        ? `Línea 3 te deja en la Catedral. ${exact} coincidencias exactas, ${similar} similares. Entra para abrirlas en el mapa.`
+        ? `${campaignOgCountsLead(exact, similar)}. Línea 3 te deja en la Catedral.`
         : "Línea 3 te deja en la Catedral. Entra para abrir los cuartos en el mapa.",
   },
   {
@@ -93,13 +107,10 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlcucs.jpg",
     imageAlt: "Plaza junto a CUCS y el Hospital Civil — Bestie MX",
-    title: (exact) =>
-      exact > 0
-        ? `Bestie: ${exact} ${exact === 1 ? "cuarto" : "cuartos"} cerca de CUCS`
-        : "Bestie: cuartos cerca de CUCS",
+    title: (exact, similar) => campaignOgTitle("cerca de CUCS", exact, similar),
     description: (exact, similar) =>
       exact > 0
-        ? `CUCS y el Hospital Civil. ${exact} coincidencias exactas, ${similar} similares. Entra para verlos en el mapa.`
+        ? `${campaignOgCountsLead(exact, similar)}. CUCS y el Hospital Civil.`
         : "CUCS y el Hospital Civil. Entra para ver los cuartos en el mapa.",
   },
 ];
