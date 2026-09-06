@@ -7,6 +7,7 @@ import {
   type ListingShareOgMeta,
 } from "./listingShareOg.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
+import { findGdlSeekerCampaign, formatCampaignShareOg } from "./gdlSeekerCampaigns.js";
 import { sharedSearchPublicMeta } from "./sharedSearches.js";
 
 const BUSQUEDAS_RE = /^\/busquedas\/([a-z0-9]{6,16})\/?$/i;
@@ -22,6 +23,17 @@ export function resolveSharedSearchOg(
   const meta = sharedSearchPublicMeta(db, slug);
   if (!meta) return null;
   const url = `${origin.replace(/\/$/, "")}${meta.sharePath}`;
+  const campaign = findGdlSeekerCampaign(slug);
+  if (campaign) {
+    const og = formatCampaignShareOg(campaign, meta.exactCount, meta.similarCount, origin);
+    return {
+      title: og.title,
+      description: og.description,
+      url,
+      imageUrl: og.imageUrl,
+      noIndex: true,
+    };
+  }
   return {
     title: truncateOgText(meta.caption, OG_TITLE_MAX),
     description: truncateOgText(

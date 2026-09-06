@@ -133,6 +133,50 @@ function insertSharedSearch(
   );
 }
 
+export function upsertSharedSearch(db: DatabaseSync, row: SharedSearchRow): void {
+  db.prepare(
+    `INSERT INTO shared_searches (
+      id, kind, forked_from_id, owner_user_id, created_by_user_id,
+      source_facebook_url, source_facebook_key, seeker_name, seeker_gender,
+      city_code, city_label, label, filters_json, location_json, similar_json,
+      insights_json, non_negotiables_json, q_text, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      kind = excluded.kind,
+      label = excluded.label,
+      filters_json = excluded.filters_json,
+      location_json = excluded.location_json,
+      similar_json = excluded.similar_json,
+      insights_json = excluded.insights_json,
+      non_negotiables_json = excluded.non_negotiables_json,
+      q_text = excluded.q_text,
+      city_code = excluded.city_code,
+      city_label = excluded.city_label,
+      updated_at = excluded.updated_at`,
+  ).run(
+    row.id,
+    row.kind,
+    row.forked_from_id,
+    row.owner_user_id,
+    row.created_by_user_id,
+    row.source_facebook_url,
+    row.source_facebook_key,
+    row.seeker_name,
+    row.seeker_gender,
+    row.city_code,
+    row.city_label,
+    row.label,
+    row.filters_json,
+    row.location_json,
+    row.similar_json,
+    row.insights_json,
+    row.non_negotiables_json,
+    row.q_text,
+    row.created_at,
+    row.updated_at,
+  );
+}
+
 export function findSharedSearchesByFacebookUrl(db: DatabaseSync, rawUrl: string): SharedSearchRow[] {
   const norm = normalizeSourceFacebookUrl(rawUrl);
   if (!norm) return [];
