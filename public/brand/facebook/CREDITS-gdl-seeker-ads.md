@@ -5,12 +5,8 @@ Shipped files in `public/brand/facebook/post-gdl-seekers-*`.
 ## Photographs
 
 ### Centro — Guadalajara Cathedral
-- File: `Catedral de Guadalajara, Jalisco.jpg`
-- Author: Sergio Estrada Flores
-- License: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-- Source: https://commons.wikimedia.org/wiki/File:Catedral_de_Guadalajara,_Jalisco.jpg
-- Used in: `post-gdl-seekers-centro-*`, `public/brand/og-busquedas/gdlcentro.jpg`
-- Video/still crop: yellow twin spires and dome (same landmark framing as the search OG card).
+West facade, yellow twin spires, golden hour. Same photo in `post-gdl-seekers-centro-*` and `public/brand/og-busquedas/gdlcentro.jpg`.
+- Source: campaign still supplied for Centro (Catedral de Guadalajara).
 
 ### Zona Chapultepec/Americana
 Paseo Chapultepec (camellón, trees, fountain) in Colonia Americana. Same photo in `post-gdl-seekers-chapu-*` and `public/brand/og-busquedas/gdlchapu.jpg`.
