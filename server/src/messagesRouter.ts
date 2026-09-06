@@ -28,6 +28,8 @@ import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
 import { isUserPublisherBlocked, loadPostReportByConversationId, REPORT_BOT_USER_ID } from "./listingReports.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
 import { notifyAdminsOfListingInterest } from "./listingContactEvents.js";
+import { recordFirstSeekerListingMessage } from "./listingFirstSeekerNotify.js";
+import { sendMessageDigestForUser } from "./messageDigestNotify.js";
 import {
   hasAcceptedMessagingSafety,
   isMessagingSafetyExemptPeer,
@@ -782,6 +784,27 @@ export function messagesRouter(db: DatabaseSync) {
         messageId: message.id,
         senderUserId: me,
       });
+      const conv = db
+        .prepare(`SELECT listing_room_id, context_title FROM conversations WHERE id = ?`)
+        .get(id) as { listing_room_id: string | null; context_title: string | null } | undefined;
+      const listingRoomId = conv?.listing_room_id?.trim();
+      const owner = listingRoomId ? ownerUserIdForRoomListing(db, listingRoomId) : null;
+      if (owner && owner !== me && listingRoomId) {
+        const first = recordFirstSeekerListingMessage(db, {
+          publisherUserId: owner,
+          seekerUserId: me,
+          listingTitle: String(conv?.context_title ?? "").trim() || listingContextTitle(db, listingRoomId),
+          excludeMessageId: message.id,
+        });
+        if (first.isFirst) {
+          void sendMessageDigestForUser(db, owner).catch((e) => {
+            console.error(
+              `[message-digest] first-seeker send failed user=${owner}:`,
+              e instanceof Error ? e.message : e,
+            );
+          });
+        }
+      }
     }
     res.status(201).json({ id: message.id, createdAt: message.createdAt });
   });

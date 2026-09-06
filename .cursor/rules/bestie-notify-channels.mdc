@@ -1,0 +1,29 @@
+---
+description: >-
+  Quiet hours and cadence for Bestie email/SMS notifications (not in-app, not OTP).
+alwaysApply: true
+---
+
+# Email and SMS notifications
+
+In-app bells stay immediate. **Email and SMS** follow this policy. Canonical code: `server/src/notifyQuietHours.ts`, `server/src/messageDigestNotify.ts`, `server/src/listingFirstSeekerNotify.ts`.
+
+## Quiet hours (listing-local)
+
+- Do **not** send notification email or SMS from **23:00** through **06:00** local. Resume at **06:01**.
+- Timezone = city of the listing(s) in that notify (`resolveTimeZoneForListingCity`); if none, `America/Mexico_City`.
+- At most **one** send is stored overnight. 3-hour reminder slots do **not** stack (no 2am + 5am emails). The due send goes at 06:01; `last_message_digest_at` then restarts the 3-hour clock.
+- **Never** apply quiet hours to OTP, password-reset, claim, or ARCO confirmation SMS/email.
+
+## 3-hour digest
+
+Unread-message emails: at most one every **3 hours** while unread (`MESSAGE_DIGEST_DEBOUNCE_MS`). First new-seeker listing message in a window: send email (+ SMS if below) immediately unless quiet hours or already inside a 3-hour wait.
+
+## First-seeker SMS (temporary)
+
+Kill switch: `LISTING_FIRST_SEEKER_SMS=0`. Default on when SMS Masivos is configured.
+
+- Only the **first listing chat** from that seeker to this **publisher** (any of their posts). Same seeker, later rooms or follow-ups: no extra SMS.
+- Immediate with that first in-app bell **unless** another new seeker already started a 3-hour wait — then one aggregated SMS with the next digest.
+- Copy: `server/src/listingFirstSeekerSms.ts` (tú, `Bestie.mx`, check email + spam every 2–3 h, or `bestie.mx/mensajes`). Two people: `{name} y otro usuario`. Three+: `{name} y otros N usuarios`.
+- Requires verified +52 phone and `phone_notify_opt_in`. Do not SMS chat body.

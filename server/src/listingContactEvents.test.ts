@@ -7,6 +7,7 @@ import { openDb } from "./db.js";
 import {
   listingContactAdminNotifyCopy,
   listingContactNotifyCopy,
+  listingFirstMessagePublisherCopy,
   recordListingContactEvent,
 } from "./listingContactEvents.js";
 
@@ -48,6 +49,12 @@ describe("listingContactEvents", () => {
         listingTitle: "Loft",
       }),
     ).toBe("Interés: Luis envió un primer mensaje en Bestie sobre Loft.");
+    expect(
+      listingFirstMessagePublisherCopy({
+        seekerName: "Luis",
+        listingTitle: "Loft",
+      }),
+    ).toBe("Un usuario, Luis, te escribió en Bestie sobre Loft.");
   });
 
   it("logs every click but notifies only the first unique seeker action", () => {

@@ -1,26 +1,35 @@
 import type { DatabaseSync } from "node:sqlite";
 import {
   formatFriendlyEmailDateTime,
+  MEXICO_CITY_TZ,
   mexicoCityTimeZone,
   resolveTimeZoneForConversation,
   resolveTimeZoneForListingCity,
 } from "./emails/emailDateTime.js";
 import { buildMessageDigestEmail } from "./emails/messageDigestEmail.js";
 import { isUserEmailVerified } from "./emailVerification.js";
+import {
+  bundlePendingFirstSeekerNotifies,
+  bundledUnsentFirstSeekerNotifies,
+  publisherIdsWithFirstSeekerSmsRetry,
+  sendBundledFirstSeekerSms,
+  unbundledFirstSeekerNotifies,
+} from "./listingFirstSeekerNotify.js";
 import { sendTransactionalEmail } from "./mailer.js";
 import { FEEDBACK_BOT_USER_ID, SUPPORT_BOT_USER_ID, isSystemMessagingBot } from "./messagingSchema.js";
+import { isNotifyQuietHours } from "./notifyQuietHours.js";
 
 /** Minimum interval between message digest emails (aggregates activity in this window). */
 export const MESSAGE_DIGEST_DEBOUNCE_MS = 3 * 60 * 60 * 1000;
 
-function isoNow(): string {
-  return new Date().toISOString();
+function isoFromMs(ms: number): string {
+  return new Date(ms).toISOString();
 }
 
-function loadUserForDigest(
+function loadUserForNotify(
   db: DatabaseSync,
   userId: string,
-): { email: string; displayName: string; lastDigestAt: string | null } | null {
+): { email: string | null; emailVerified: boolean; displayName: string; lastDigestAt: string | null } | null {
   const row = db
     .prepare(
       `SELECT email, email_verified_at, display_name, last_message_digest_at FROM users WHERE id = ?`,
@@ -33,12 +42,13 @@ function loadUserForDigest(
         last_message_digest_at: string | null;
       }
     | undefined;
-  const email = row?.email?.trim();
-  if (!email || !isUserEmailVerified(row?.email_verified_at)) return null;
+  if (!row) return null;
+  const email = row.email?.trim() || null;
   return {
     email,
-    displayName: row?.display_name ?? "",
-    lastDigestAt: row?.last_message_digest_at ?? null,
+    emailVerified: Boolean(email) && isUserEmailVerified(row.email_verified_at),
+    displayName: row.display_name ?? "",
+    lastDigestAt: row.last_message_digest_at ?? null,
   };
 }
 
@@ -130,14 +140,12 @@ function cityForNotificationLink(db: DatabaseSync, link: string): string | null 
   const id = decodeURIComponent(m[1]);
   const fromRoom = cityForRoomId(db, id);
   if (fromRoom) return fromRoom;
-  const prop = db
-    .prepare(`SELECT city FROM properties WHERE id = ?`)
-    .get(id) as { city: string } | undefined;
+  const prop = db.prepare(`SELECT city FROM properties WHERE id = ?`).get(id) as { city: string } | undefined;
   return prop?.city?.trim() || null;
 }
 
 function candidateUserIds(db: DatabaseSync): string[] {
-  const rows = db
+  const unread = db
     .prepare(
       `SELECT DISTINCT p.user_id AS user_id
        FROM conversation_participants p
@@ -147,28 +155,32 @@ function candidateUserIds(db: DatabaseSync): string[] {
          AND p.user_id NOT IN (?, ?)`,
     )
     .all(SUPPORT_BOT_USER_ID, FEEDBACK_BOT_USER_ID) as { user_id: string }[];
-  return rows.map((r) => r.user_id);
+  const ids = new Set(unread.map((r) => r.user_id));
+  for (const id of publisherIdsWithFirstSeekerSmsRetry(db)) ids.add(id);
+  return [...ids];
 }
 
-function canSendDigest(lastDigestAt: string | null, nowMs: number): boolean {
+export function canSendDigest(lastDigestAt: string | null, nowMs: number): boolean {
   if (!lastDigestAt) return true;
   const last = Date.parse(lastDigestAt);
   if (!Number.isFinite(last)) return true;
   return nowMs - last >= MESSAGE_DIGEST_DEBOUNCE_MS;
 }
 
-export async function sendMessageDigestForUser(db: DatabaseSync, userId: string): Promise<boolean> {
-  if (isSystemMessagingBot(userId)) return false;
-  const user = loadUserForDigest(db, userId);
-  if (!user) return false;
+/** Listing city of the newest unread inbound message; else Mexico City. */
+export function resolveNotifyTimeZone(db: DatabaseSync, userId: string): string {
+  const row = unreadMessagesForDigest(db, userId).find((m) => (m.city || "").trim());
+  if (row?.city?.trim()) return resolveTimeZoneForListingCity(row.city).timeZone;
+  return MEXICO_CITY_TZ;
+}
 
-  const nowMs = Date.now();
-  if (!canSendDigest(user.lastDigestAt, nowMs)) return false;
-
-  const unread = unreadMessageCount(db, userId);
-  if (unread <= 0) return false;
-
-  const now = new Date(nowMs);
+async function sendDigestEmail(
+  db: DatabaseSync,
+  userId: string,
+  user: { email: string; displayName: string; lastDigestAt: string | null },
+  unread: number,
+  now: Date,
+): Promise<boolean> {
   const messageRows = unreadMessagesForDigest(db, userId).map((row) => {
     const tz = resolveTimeZoneForConversation({ kind: row.kind, city: row.city });
     const title =
@@ -197,7 +209,7 @@ export async function sendMessageDigestForUser(db: DatabaseSync, userId: string)
     notifications,
   });
 
-  const sent = await sendTransactionalEmail({
+  return sendTransactionalEmail({
     to: user.email,
     subject: built.subject,
     html: built.html,
@@ -206,17 +218,60 @@ export async function sendMessageDigestForUser(db: DatabaseSync, userId: string)
     replyTo: built.replyTo,
     tags: built.tags,
   });
-  if (!sent) return false;
+}
 
-  db.prepare(`UPDATE users SET last_message_digest_at = ? WHERE id = ?`).run(isoNow(), userId);
-  return true;
+/**
+ * Email digest (3h) + first-seeker SMS, respecting listing-local quiet hours.
+ * In-app bells are not gated here.
+ */
+export async function sendMessageDigestForUser(
+  db: DatabaseSync,
+  userId: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  if (isSystemMessagingBot(userId)) return false;
+  const user = loadUserForNotify(db, userId);
+  if (!user) return false;
+
+  const tz = resolveNotifyTimeZone(db, userId);
+  if (isNotifyQuietHours(now, tz)) return false;
+
+  const nowMs = now.getTime();
+  const unread = unreadMessageCount(db, userId);
+  const canDigest = unread > 0 && canSendDigest(user.lastDigestAt, nowMs);
+  const nowIso = isoFromMs(nowMs);
+
+  if (canDigest) {
+    let emailed = false;
+    if (user.emailVerified && user.email) {
+      emailed = await sendDigestEmail(
+        db,
+        userId,
+        { email: user.email, displayName: user.displayName, lastDigestAt: user.lastDigestAt },
+        unread,
+        now,
+      );
+      if (!emailed) return false;
+    }
+    const pendingSms =
+      unbundledFirstSeekerNotifies(db, userId).length > 0 ||
+      bundledUnsentFirstSeekerNotifies(db, userId).length > 0;
+    if (!emailed && !pendingSms) return false;
+
+    db.prepare(`UPDATE users SET last_message_digest_at = ? WHERE id = ?`).run(nowIso, userId);
+    bundlePendingFirstSeekerNotifies(db, userId, nowIso);
+    const smsed = await sendBundledFirstSeekerSms(db, userId, nowIso);
+    return emailed || smsed;
+  }
+
+  return sendBundledFirstSeekerSms(db, userId, nowIso);
 }
 
 /** Poll users with unread inbound messages and send throttled digests. */
-export async function pollMessageDigests(db: DatabaseSync): Promise<void> {
+export async function pollMessageDigests(db: DatabaseSync, now: Date = new Date()): Promise<void> {
   for (const userId of candidateUserIds(db)) {
     try {
-      await sendMessageDigestForUser(db, userId);
+      await sendMessageDigestForUser(db, userId, now);
     } catch (e) {
       console.error(
         `[message-digest] failed user=${userId}:`,

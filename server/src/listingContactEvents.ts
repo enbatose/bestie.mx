@@ -76,6 +76,15 @@ export function listingContactNotifyCopy(opts: {
   return `Un usuario, ${seeker}, abrió WhatsApp para escribirte por la publicación ${title}.`;
 }
 
+export function listingFirstMessagePublisherCopy(opts: {
+  seekerName: string;
+  listingTitle: string;
+}): string {
+  const seeker = displayNameOrFallback(opts.seekerName, "un usuario de Bestie");
+  const title = displayNameOrFallback(opts.listingTitle, "tu anuncio");
+  return `Un usuario, ${seeker}, te escribió en Bestie sobre ${title}.`;
+}
+
 /** Operator-facing copy (bell). Distinct from the publisher “tu anuncio” voice. */
 export function listingContactAdminNotifyCopy(opts: {
   eventType: ListingContactEventType | "first_message";

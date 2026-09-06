@@ -13,6 +13,7 @@ import { ensurePhoneRevealSafetySchema } from "./phoneRevealSafety.js";
 import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
 import { ensureListingContactEventsSchema } from "./listingContactEvents.js";
+import { ensureListingFirstSeekerNotifySchema } from "./listingFirstSeekerNotify.js";
 import { backfillPublishFeedbackFromMessages } from "./adminPosts.js";
 import { ensureAssistedDraftSchema } from "./assistedDraftSchema.js";
 import { ensureBlogSchema } from "./blogSchema.js";
@@ -581,6 +582,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensureSavedSearchSchema(db);
   ensureNotificationsSchema(db);
   ensureListingContactEventsSchema(db);
+  ensureListingFirstSeekerNotifySchema(db);
   ensureAssistedDraftSchema(db);
   ensureBlogSchema(db);
   ensureBlogBotUser(db);

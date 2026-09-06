@@ -755,6 +755,11 @@ export function eraseUserForArco(
     if (tableExists(db, "listing_contact_events")) {
       db.prepare(`DELETE FROM listing_contact_events WHERE seeker_user_id = ?`).run(userId);
     }
+    if (tableExists(db, "listing_first_seeker_notifies")) {
+      db.prepare(
+        `DELETE FROM listing_first_seeker_notifies WHERE publisher_user_id = ? OR seeker_user_id = ?`,
+      ).run(userId, userId);
+    }
 
     db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
 

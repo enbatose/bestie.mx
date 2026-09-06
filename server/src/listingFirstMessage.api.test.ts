@@ -84,6 +84,10 @@ describe("listing first in-app message admin notify", () => {
     expect(firstTexts.filter((t) => t.includes("primer mensaje")).length).toBe(1);
     expect(firstTexts[0]).toContain("Luis");
 
+    const ownerNotes = await owner.get("/api/notifications").expect(200);
+    const ownerTexts: string[] = (ownerNotes.body.notifications as { text: string }[]).map((row) => row.text);
+    expect(ownerTexts.some((t) => t.includes("Luis") && t.includes("te escribió en Bestie"))).toBe(true);
+
     await seeker
       .post(`/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`)
       .send({ body: "¿Puedo visitar mañana?" })
@@ -92,5 +96,28 @@ describe("listing first in-app message admin notify", () => {
     const secondNotes = await admin.get("/api/notifications").expect(200);
     const secondTexts: string[] = (secondNotes.body.notifications as { text: string }[]).map((row) => row.text);
     expect(secondTexts.filter((t) => t.includes("primer mensaje")).length).toBe(1);
+
+    db.prepare(
+      `INSERT INTO rooms (
+        id, property_id, status, title, rent_mxn, rooms_available, tags_json,
+        roommate_gender_pref, age_min, age_max, summary
+      ) VALUES (?, ?, 'published', 'Recámara 2', 5500, 1, '[]', 'any', 18, 35, 'Resumen')`,
+    ).run("msg-evt-room-02", propertyId);
+    const started2 = await seeker
+      .post("/api/messages/conversations/from-listing")
+      .send({ listingRoomId: "msg-evt-room-02" })
+      .expect(201);
+    await seeker
+      .post(`/api/messages/conversations/${encodeURIComponent(String(started2.body.conversationId))}/messages`)
+      .send({ body: "Hola, me interesa la otra recámara." })
+      .expect(201);
+
+    const ownerNotes2 = await owner.get("/api/notifications").expect(200);
+    const ownerTexts2: string[] = (ownerNotes2.body.notifications as { text: string }[]).map((row) => row.text);
+    expect(ownerTexts2.filter((t) => t.includes("te escribió en Bestie")).length).toBe(1);
+
+    const adminNotes3 = await admin.get("/api/notifications").expect(200);
+    const adminTexts3: string[] = (adminNotes3.body.notifications as { text: string }[]).map((row) => row.text);
+    expect(adminTexts3.filter((t) => t.includes("primer mensaje")).length).toBe(2);
   });
 });
