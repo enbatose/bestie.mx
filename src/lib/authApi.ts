@@ -845,6 +845,13 @@ export type AdminPostRow = {
    * Shown as "Mensajes" in admin Posts — not raw message count.
    */
   messageThreadCount?: number;
+  /** Unique / total phone-interest events (Mostrar, Llamar, WhatsApp). */
+  phoneRevealUnique?: number;
+  phoneRevealTotal?: number;
+  phoneCallUnique?: number;
+  phoneCallTotal?: number;
+  phoneWhatsappUnique?: number;
+  phoneWhatsappTotal?: number;
   assistedDraft: boolean;
   /** Prefer this for badges; falls back to assistedDraft on older API responses. */
   createOrigin?: AdminPostCreateOrigin;

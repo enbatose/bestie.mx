@@ -58,6 +58,15 @@ function statusBadgeClass(status: AdminPostStatus): string {
   }
 }
 
+function countN(n: number | undefined): number {
+  return Math.max(0, Math.floor(n ?? 0));
+}
+
+/** Unique seekers / total clicks. */
+function uniqueTotal(unique: number | undefined, total: number | undefined): string {
+  return `${countN(unique)}/${countN(total)}`;
+}
+
 function resolveCreateOrigin(row: AdminPostRow): AdminPostCreateOrigin {
   if (row.createOrigin === "manual" || row.createOrigin === "ai_admin" || row.createOrigin === "ai_user") {
     return row.createOrigin;
@@ -257,7 +266,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface lg:block">
-        <table className="min-w-[1180px] w-full text-left text-xs">
+        <table className="min-w-[1320px] w-full text-left text-xs">
           <thead className="border-b border-border bg-bg-light/80 text-[11px] uppercase tracking-wide text-muted">
             <tr>
               <th className="px-3 py-2.5 font-semibold">ID</th>
@@ -271,6 +280,12 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                 title="Hilos de chat únicos por seeker y recámara (no cuenta mensajes repetidos)"
               >
                 Mensajes
+              </th>
+              <th
+                className="px-3 py-2.5 font-semibold"
+                title="Personas únicas / clics totales. Mostrar número, Llamar y WhatsApp."
+              >
+                Teléfono
               </th>
               <th className="px-3 py-2.5 font-semibold">Fechas</th>
               <th className="px-3 py-2.5 font-semibold">Enlaces</th>
@@ -369,7 +384,15 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                   )}
                 </td>
                 <td className="px-3 py-2.5 tabular-nums text-body">
-                  {Math.max(0, Math.floor(row.messageThreadCount ?? 0))}
+                  {countN(row.messageThreadCount)}
+                </td>
+                <td
+                  className="px-3 py-2.5 tabular-nums text-body"
+                  title="únicos / total"
+                >
+                  <div>Mostrar {uniqueTotal(row.phoneRevealUnique, row.phoneRevealTotal)}</div>
+                  <div>Llamar {uniqueTotal(row.phoneCallUnique, row.phoneCallTotal)}</div>
+                  <div>WhatsApp {uniqueTotal(row.phoneWhatsappUnique, row.phoneWhatsappTotal)}</div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-muted">
                   <div>Creado: {formatAdminDate(row.createdAt)}</div>
@@ -494,7 +517,17 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
               </div>
               <div>
                 <dt className="font-semibold text-body">Mensajes</dt>
-                <dd className="tabular-nums">{Math.max(0, Math.floor(row.messageThreadCount ?? 0))}</dd>
+                <dd className="tabular-nums">{countN(row.messageThreadCount)}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-body">Teléfono</dt>
+                <dd className="tabular-nums" title="únicos / total">
+                  Mostrar {uniqueTotal(row.phoneRevealUnique, row.phoneRevealTotal)}
+                  {" · "}
+                  Llamar {uniqueTotal(row.phoneCallUnique, row.phoneCallTotal)}
+                  {" · "}
+                  WhatsApp {uniqueTotal(row.phoneWhatsappUnique, row.phoneWhatsappTotal)}
+                </dd>
               </div>
               <div>
                 <dt className="font-semibold text-body">Fechas</dt>

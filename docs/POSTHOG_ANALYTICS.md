@@ -135,7 +135,8 @@ We track **decisions and outcomes**, not map pans or every filter chip flicker.
 | `search_city_selected` / `neighborhood_selected` | Geo demand |
 | `search_listing_selected` | Map / list / mobile / city-landing cards |
 | `listing_viewed` | Detail attention |
-| `listing_contact_clicked` / `listing_message_sent` | Core conversion |
+| `listing_contact_clicked` / `listing_message_sent` | Scroll-to-contact / in-app message |
+| `listing_phone_revealed` / `listing_phone_call_clicked` / `listing_phone_whatsapp_clicked` | Phone conversion (mostrar / llamar / WhatsApp) |
 | `listing_auth_required` | Friction before contact |
 | `search_save_clicked` / `search_saved` | Retention intent |
 | `search_follow_clicked` / `search_follow_enabled` | Alert activation |

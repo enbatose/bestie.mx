@@ -47,6 +47,11 @@ import {
 } from "./validation.js";
 import { isRealListingPhone, listingPhoneToE164 } from "./phoneAuth.js";
 import { isSelfServeCreator } from "./assistedDraftMerge.js";
+import {
+  listingContactPublisherDisplayName,
+  publishedListingPhoneContext,
+  recordListingContactEvent,
+} from "./listingContactEvents.js";
 import type {
   ListingStatus,
   ListingTag,
@@ -133,6 +138,7 @@ function parsePostListingsLimit(): { windowMs: number; max: number } {
 }
 
 const postListingLimiter = createSlidingWindowLimiter(parsePostListingsLimit());
+const listingContactEventLimiter = createSlidingWindowLimiter({ windowMs: 60_000, max: 40 });
 
 function canTransitionStatus(from: ListingStatus, to: ListingStatus): boolean {
   if (from === to) return true;
@@ -279,7 +285,27 @@ export function listingsRouter(db: DatabaseSync) {
     if (publishedRow && propertyHasPublicPhone(publishedRow.show_whatsapp, publishedRow.contact_whatsapp)) {
       const payload = contactPhonePayload(publishedRow.contact_whatsapp);
       if (payload) {
-        res.json(payload);
+        const listing = joinRowToPropertyListing(publishedRow);
+        const publisherId = String(publishedRow.publisher_id ?? "");
+        const isOwner = Boolean(publisherId && viewerOwnsProperty(db, req, publisherId));
+        if (!claimToken && !isOwner) {
+          const lim = listingContactEventLimiter(`reveal:${uid}|${rateLimitKey(req)}`);
+          if (lim.ok) {
+            recordListingContactEvent(db, {
+              listingId: roomId,
+              seekerUserId: uid,
+              eventType: "reveal",
+              listingPublisherId: publisherId,
+              listingTitle: listing.title,
+              viewerIsOwner: false,
+            });
+          }
+        }
+        res.json({
+          ...payload,
+          listingTitle: listing.title,
+          publisherDisplayName: listingContactPublisherDisplayName(db, publisherId),
+        });
         return;
       }
     }
@@ -305,6 +331,53 @@ export function listingsRouter(db: DatabaseSync) {
     }
 
     res.status(404).json({ error: "phone_unavailable" });
+  });
+
+  r.post("/:id/contact-event", jsonMw, (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (!hasAcceptedPhoneRevealSafety(db, uid)) {
+      res.status(403).json({ error: "safety_required" });
+      return;
+    }
+    const lim = listingContactEventLimiter(`event:${uid}|${rateLimitKey(req)}`);
+    if (!lim.ok) {
+      const retryAfterSec = Math.ceil(lim.retryAfterMs / 1000);
+      res
+        .status(429)
+        .type("json")
+        .set("Retry-After", String(retryAfterSec))
+        .json({ error: "rate_limited", retryAfterSec });
+      return;
+    }
+    const type = (req.body as { type?: unknown }).type;
+    if (type !== "call" && type !== "whatsapp") {
+      res.status(400).json({ error: "invalid_type" });
+      return;
+    }
+    const roomId = resolveRoomIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!roomId) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const ctx = publishedListingPhoneContext(db, roomId);
+    if (!ctx) {
+      res.status(404).json({ error: "phone_unavailable" });
+      return;
+    }
+    const isOwner = viewerOwnsProperty(db, req, ctx.publisherId);
+    recordListingContactEvent(db, {
+      listingId: ctx.listingId,
+      seekerUserId: uid,
+      eventType: type,
+      listingPublisherId: ctx.publisherId,
+      listingTitle: ctx.listingTitle,
+      viewerIsOwner: isOwner,
+    });
+    res.json({ ok: true });
   });
 
   r.get("/:id", (req: Request, res: Response) => {

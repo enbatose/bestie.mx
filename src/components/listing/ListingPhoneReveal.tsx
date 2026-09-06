@@ -4,13 +4,16 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import type { AuthMe } from "@/lib/authApi";
+import { track } from "@/lib/analytics";
 import {
   fetchListingContactPhone,
   fetchPhoneRevealSafetyStatus,
+  postListingContactEvent,
   postPhoneRevealSafetyAcknowledgment,
   type PhoneRevealSafetyRole,
 } from "@/lib/listingPhoneApi";
 import { formatListingPhoneDisplay, maskedMxPhoneHint } from "@/lib/mxPhone";
+import { seekerWhatsAppHref, seekerWhatsAppPrefill } from "@/lib/seekerWhatsAppPrefill";
 
 type Props = {
   listingId: string;
@@ -27,6 +30,8 @@ type Props = {
   compact?: boolean;
   /** Full-width band under photos: centered copy, no inner white card. */
   layout?: "card" | "band";
+  /** Public listing title — used in the WhatsApp prefill if the API omits it. */
+  listingTitle?: string | null;
 };
 
 const SEEKER_TIPS = [
@@ -158,9 +163,14 @@ export function ListingPhoneReveal({
   compact = false,
   layout = "card",
   claimToken = null,
+  listingTitle = null,
 }: Props) {
   const { openLogin } = useAuthModal();
   const [revealed, setRevealed] = useState<string | null>(null);
+  const [revealMeta, setRevealMeta] = useState<{
+    listingTitle: string | null;
+    publisherDisplayName: string | null;
+  } | null>(null);
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [safetyAccepted, setSafetyAccepted] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -188,6 +198,7 @@ export function ListingPhoneReveal({
     if (!viewer) {
       setSafetyAccepted(null);
       setRevealed(null);
+      setRevealMeta(null);
       return;
     }
     let cancelled = false;
@@ -210,6 +221,13 @@ export function ListingPhoneReveal({
     try {
       const res = await fetchListingContactPhone(listingId, { claimToken });
       setRevealed(res.phoneDigits);
+      setRevealMeta({
+        listingTitle: res.listingTitle ?? listingTitle ?? null,
+        publisherDisplayName: res.publisherDisplayName ?? null,
+      });
+      if (!claimToken) {
+        track("listing_phone_revealed", { listing_id: listingId });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo mostrar el teléfono.";
       if (msg === "safety_required") {
@@ -223,7 +241,7 @@ export function ListingPhoneReveal({
     } finally {
       setBusy(false);
     }
-  }, [ensureRevealQuery, listingId, openLogin, claimToken]);
+  }, [ensureRevealQuery, listingId, listingTitle, openLogin, claimToken]);
 
   useEffect(() => {
     if (!hasContactPhone || !viewer || revealed) return;
@@ -275,9 +293,26 @@ export function ListingPhoneReveal({
   const telHref = revealed
     ? `tel:+${revealed.replace(/\D/g, "")}`
     : undefined;
+  const seekerPrefill = Boolean(revealed) && !claimToken && role === "seeker";
   const waHref = revealed
-    ? `https://wa.me/${revealed.replace(/\D/g, "")}`
+    ? seekerPrefill
+      ? seekerWhatsAppHref(
+          revealed,
+          seekerWhatsAppPrefill({
+            publisherName: revealMeta?.publisherDisplayName,
+            seekerName: viewer?.displayName,
+            listingTitle: revealMeta?.listingTitle ?? listingTitle,
+          }),
+        ) ?? `https://wa.me/${revealed.replace(/\D/g, "")}`
+      : `https://wa.me/${revealed.replace(/\D/g, "")}`
     : undefined;
+  const logContactAction = (type: "call" | "whatsapp") => {
+    if (claimToken) return;
+    void postListingContactEvent(listingId, type);
+    track(type === "call" ? "listing_phone_call_clicked" : "listing_phone_whatsapp_clicked", {
+      listing_id: listingId,
+    });
+  };
   const band = layout === "band";
 
   return (
@@ -319,7 +354,7 @@ export function ListingPhoneReveal({
             <span className="break-all font-mono text-base tabular-nums text-body sm:text-sm">{display}</span>
             <button
               type="button"
-              onClick={revealed ? () => setRevealed(null) : onEyeClick}
+              onClick={revealed ? () => { setRevealed(null); setRevealMeta(null); } : onEyeClick}
               disabled={busy || viewer === undefined}
               className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body transition hover:bg-surface-elevated disabled:opacity-50 sm:w-auto"
               aria-label={revealed ? "Ocultar teléfono" : "Mostrar teléfono"}
@@ -340,6 +375,7 @@ export function ListingPhoneReveal({
               {telHref ? (
                 <a
                   href={telHref}
+                  onClick={() => logContactAction("call")}
                   className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-body hover:bg-surface-elevated"
                 >
                   Llamar
@@ -350,10 +386,12 @@ export function ListingPhoneReveal({
                   href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => logContactAction("whatsapp")}
                   className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-body hover:bg-[#25D366]/15"
                 >
                   <WhatsAppMark className="size-3.5 text-[#25D366]" />
-                  WhatsApp
+                  <span className="sm:hidden">WhatsApp</span>
+                  <span className="hidden sm:inline">Mandar WhatsApp</span>
                 </a>
               ) : null}
             </div>

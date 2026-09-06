@@ -40,10 +40,17 @@ export async function postPhoneRevealSafetyAcknowledgment(body: {
   }
 }
 
+export type ListingContactPhone = {
+  phoneDigits: string;
+  e164: string;
+  listingTitle?: string | null;
+  publisherDisplayName?: string | null;
+};
+
 export async function fetchListingContactPhone(
   listingId: string,
   options?: { claimToken?: string | null; signal?: AbortSignal },
-): Promise<{ phoneDigits: string; e164: string }> {
+): Promise<ListingContactPhone> {
   const params = new URLSearchParams();
   if (options?.claimToken) params.set("claim", options.claimToken);
   const qs = params.toString();
@@ -59,11 +66,38 @@ export async function fetchListingContactPhone(
     error?: string;
     phoneDigits?: string;
     e164?: string;
+    listingTitle?: string | null;
+    publisherDisplayName?: string | null;
   };
   if (res.status === 401) throw new Error("unauthorized");
   if (res.status === 403 && j.error === "safety_required") throw new Error("safety_required");
   if (res.status === 404) throw new Error("Teléfono no disponible en este anuncio.");
   if (!res.ok) throw new Error(j.error || `contact_phone_${res.status}`);
   if (!j.phoneDigits) throw new Error("Teléfono no disponible en este anuncio.");
-  return { phoneDigits: j.phoneDigits, e164: j.e164 ?? `+${j.phoneDigits}` };
+  return {
+    phoneDigits: j.phoneDigits,
+    e164: j.e164 ?? `+${j.phoneDigits}`,
+    listingTitle: j.listingTitle ?? null,
+    publisherDisplayName: j.publisherDisplayName ?? null,
+  };
+}
+
+export type ListingContactActionType = "call" | "whatsapp";
+
+/** Fire-and-forget: call / WhatsApp clicks after a published phone reveal. */
+export async function postListingContactEvent(
+  listingId: string,
+  type: ListingContactActionType,
+): Promise<void> {
+  try {
+    await fetch(`${apiBase()}/api/listings/${encodeURIComponent(listingId)}/contact-event`, {
+      method: "POST",
+      credentials: cred,
+      headers: { "Content-Type": "application/json", ...deviceHeaders() },
+      body: JSON.stringify({ type }),
+      keepalive: true,
+    });
+  } catch {
+    /* never block Llamar / WhatsApp */
+  }
 }

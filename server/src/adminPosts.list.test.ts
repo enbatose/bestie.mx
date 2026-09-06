@@ -79,6 +79,14 @@ function setupDb(): DatabaseSync {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE listing_contact_events (
+      id TEXT PRIMARY KEY,
+      listing_id TEXT NOT NULL,
+      property_id TEXT NOT NULL,
+      seeker_user_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -379,5 +387,38 @@ describe("listAdminPosts messageThreadCount", () => {
     const listed = listAdminPosts(db, { status: "published", limit: 25, offset: 0 });
     expect(listed.posts.find((p) => p.propertyId === PROP_MANUAL)?.messageThreadCount).toBe(2);
     expect(listed.posts.find((p) => p.propertyId === otherProp)?.messageThreadCount).toBe(1);
+  });
+});
+
+describe("listAdminPosts phone contact metrics", () => {
+  it("counts unique seekers and total clicks per event type", () => {
+    const db = setupDb();
+    const now = new Date().toISOString();
+    const roomA = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    db.prepare(
+      `INSERT INTO properties (id, publisher_id, status, post_mode, title, city, neighborhood, created_at, published_at, assisted_draft)
+       VALUES (?, 'pub-1', 'published', 'room', 'Casa test', 'Guadalajara', 'Centro', ?, ?, 0)`,
+    ).run(PROP_MANUAL, now, now);
+    db.prepare(`INSERT INTO rooms (id, property_id, status, sort_order) VALUES (?, ?, 'published', 0)`).run(
+      roomA,
+      PROP_MANUAL,
+    );
+    db.prepare(
+      `INSERT INTO listing_contact_events (id, listing_id, property_id, seeker_user_id, event_type, created_at)
+       VALUES ('e1', ?, ?, 's1', 'reveal', ?),
+              ('e2', ?, ?, 's1', 'reveal', ?),
+              ('e3', ?, ?, 's2', 'reveal', ?),
+              ('e4', ?, ?, 's1', 'call', ?),
+              ('e5', ?, ?, 's2', 'whatsapp', ?)`,
+    ).run(roomA, PROP_MANUAL, now, roomA, PROP_MANUAL, now, roomA, PROP_MANUAL, now, roomA, PROP_MANUAL, now, roomA, PROP_MANUAL, now);
+
+    const listed = listAdminPosts(db, { status: "published", limit: 25, offset: 0 });
+    const row = listed.posts.find((p) => p.propertyId === PROP_MANUAL);
+    expect(row?.phoneRevealUnique).toBe(2);
+    expect(row?.phoneRevealTotal).toBe(3);
+    expect(row?.phoneCallUnique).toBe(1);
+    expect(row?.phoneCallTotal).toBe(1);
+    expect(row?.phoneWhatsappUnique).toBe(1);
+    expect(row?.phoneWhatsappTotal).toBe(1);
   });
 });

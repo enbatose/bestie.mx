@@ -91,6 +91,9 @@ export type AnalyticsProps = {
     listing_id: string;
   };
   listing_contact_clicked: { listing_id: string };
+  listing_phone_revealed: { listing_id: string };
+  listing_phone_call_clicked: { listing_id: string };
+  listing_phone_whatsapp_clicked: { listing_id: string };
   listing_message_sent: { listing_id: string; has_body: boolean };
   listing_auth_required: { listing_id: string; reason: "message" };
 
@@ -190,6 +193,8 @@ export function track<E extends AnalyticsEvent>(
     } else if (event === "publish_mode_selected") {
       const p = properties as AnalyticsProps["publish_mode_selected"];
       trackMetaEvent("Lead", { content_name: `publish_${p.mode}` });
+    } else if (event === "listing_phone_revealed") {
+      trackMetaEvent("Contact", { content_name: "listing_phone_revealed" });
     }
   } catch {
     /* ignore */

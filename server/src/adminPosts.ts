@@ -56,6 +56,14 @@ export type AdminPostRow = {
    * Same seeker × room = 1; same seeker on two rooms = 2. Not raw message count.
    */
   messageThreadCount: number;
+  /** Unique seekers who revealed the listing phone (Mostrar). */
+  phoneRevealUnique: number;
+  /** Total Mostrar clicks (same seeker can click more than once). */
+  phoneRevealTotal: number;
+  phoneCallUnique: number;
+  phoneCallTotal: number;
+  phoneWhatsappUnique: number;
+  phoneWhatsappTotal: number;
   /** True when the listing came from any AI-assisted draft flow. */
   assistedDraft: boolean;
   /**
@@ -407,6 +415,30 @@ export function listAdminPosts(
             AND COALESCE(c.kind, 'listing') = 'listing'
         ) AS message_thread_count,
         (
+          SELECT COUNT(*) FROM listing_contact_events e
+          WHERE e.property_id = p.id AND e.event_type = 'reveal'
+        ) AS phone_reveal_total,
+        (
+          SELECT COUNT(DISTINCT e.seeker_user_id) FROM listing_contact_events e
+          WHERE e.property_id = p.id AND e.event_type = 'reveal'
+        ) AS phone_reveal_unique,
+        (
+          SELECT COUNT(*) FROM listing_contact_events e
+          WHERE e.property_id = p.id AND e.event_type = 'call'
+        ) AS phone_call_total,
+        (
+          SELECT COUNT(DISTINCT e.seeker_user_id) FROM listing_contact_events e
+          WHERE e.property_id = p.id AND e.event_type = 'call'
+        ) AS phone_call_unique,
+        (
+          SELECT COUNT(*) FROM listing_contact_events e
+          WHERE e.property_id = p.id AND e.event_type = 'whatsapp'
+        ) AS phone_whatsapp_total,
+        (
+          SELECT COUNT(DISTINCT e.seeker_user_id) FROM listing_contact_events e
+          WHERE e.property_id = p.id AND e.event_type = 'whatsapp'
+        ) AS phone_whatsapp_unique,
+        (
           SELECT pr.conversation_id FROM post_reports pr
           WHERE pr.target_type IN ('room', 'property')
             AND (
@@ -541,6 +573,12 @@ export function listAdminPosts(
       }),
       primaryRoomId,
       messageThreadCount: Math.max(0, Math.floor(Number(row.message_thread_count) || 0)),
+      phoneRevealUnique: Math.max(0, Math.floor(Number(row.phone_reveal_unique) || 0)),
+      phoneRevealTotal: Math.max(0, Math.floor(Number(row.phone_reveal_total) || 0)),
+      phoneCallUnique: Math.max(0, Math.floor(Number(row.phone_call_unique) || 0)),
+      phoneCallTotal: Math.max(0, Math.floor(Number(row.phone_call_total) || 0)),
+      phoneWhatsappUnique: Math.max(0, Math.floor(Number(row.phone_whatsapp_unique) || 0)),
+      phoneWhatsappTotal: Math.max(0, Math.floor(Number(row.phone_whatsapp_total) || 0)),
       assistedDraft,
       createOrigin,
       hasReport: Boolean(

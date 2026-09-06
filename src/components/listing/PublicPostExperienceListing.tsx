@@ -400,6 +400,7 @@ export function PublicPostExperienceListing({
           listingId={listing.id}
           propertyId={share.propertyId}
           hasContactPhone={false}
+          listingTitle={listing.title}
           hideWhenUnavailable={Boolean(listing.claimPreview || listing.contactDisabled)}
           msgBusy={contact.msgBusy}
           msgErr={contact.msgErr}
@@ -510,6 +511,7 @@ export function PublicPostExperienceListing({
           listingId={listing.id}
           propertyId={listing.propertyId}
           hasContactPhone={false}
+          listingTitle={listing.title}
           hideWhenUnavailable={Boolean(listing.claimPreview || listing.contactDisabled)}
           msgBusy={contact.msgBusy}
           msgErr={contact.msgErr}

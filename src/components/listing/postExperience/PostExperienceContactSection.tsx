@@ -13,6 +13,7 @@ type BaseProps = {
   propertyId?: string;
   hasContactPhone?: boolean;
   phoneRevealRole?: "seeker" | "publisher";
+  listingTitle?: string | null;
   /** Claim-link draft: hide the empty Contactar block (phone lives in the claim banner). */
   hideWhenUnavailable?: boolean;
   msgBusy: boolean;
@@ -70,6 +71,7 @@ export function PostExperienceContactSection(props: Props) {
             hasContactPhone={props.hasContactPhone}
             role={props.phoneRevealRole ?? "seeker"}
             compact={props.mode === "single"}
+            listingTitle={props.listingTitle}
           />
         </ListingSection>
       </div>
@@ -133,6 +135,7 @@ export function PostExperienceContactSection(props: Props) {
                 hasContactPhone={props.hasContactPhone}
                 role={props.phoneRevealRole ?? "seeker"}
                 compact={props.mode === "single"}
+                listingTitle={props.listingTitle}
               />
             </div>
           ) : null}

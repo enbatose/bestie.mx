@@ -118,7 +118,8 @@ function ListingPlainContactPhone({ digits, layout = "card" }: { digits: string;
           className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-[#25D366]/40 bg-[#25D366]/10 px-3 py-1.5 text-xs font-semibold text-body hover:bg-[#25D366]/15"
         >
           <WhatsAppMark className="size-3.5 text-[#25D366]" />
-          WhatsApp
+          <span className="sm:hidden">WhatsApp</span>
+          <span className="hidden sm:inline">Mandar WhatsApp</span>
         </a>
       </div>
     </div>
@@ -150,6 +151,7 @@ export function ListingHeroPhone({
         role={listing.viewerIsOwner ? "publisher" : "seeker"}
         compact
         layout={layout}
+        listingTitle={listing.title}
       />
     );
   }

@@ -110,5 +110,7 @@ describe("outreach listing claim preview", () => {
       .get(`/api/listings/${encodeURIComponent(roomId)}/contact-phone?claim=${token}`)
       .expect(200);
     expect(revealed.body.phoneDigits).toBe("523331112233");
+    const events = db.prepare(`SELECT COUNT(*) AS c FROM listing_contact_events`).get() as { c: number };
+    expect(events.c).toBe(0);
   });
 });

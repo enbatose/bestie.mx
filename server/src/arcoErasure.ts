@@ -742,11 +742,18 @@ export function eraseUserForArco(
 
     if (propertyIds.length > 0) {
       const ph = propertyIds.map(() => "?").join(",");
+      if (tableExists(db, "listing_contact_events")) {
+        db.prepare(`DELETE FROM listing_contact_events WHERE property_id IN (${ph})`).run(...propertyIds);
+      }
       if (tableExists(db, "assisted_draft_claim_tokens")) {
         db.prepare(`DELETE FROM assisted_draft_claim_tokens WHERE property_id IN (${ph})`).run(...propertyIds);
       }
       db.prepare(`DELETE FROM rooms WHERE property_id IN (${ph})`).run(...propertyIds);
       db.prepare(`DELETE FROM properties WHERE id IN (${ph})`).run(...propertyIds);
+    }
+
+    if (tableExists(db, "listing_contact_events")) {
+      db.prepare(`DELETE FROM listing_contact_events WHERE seeker_user_id = ?`).run(userId);
     }
 
     db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
