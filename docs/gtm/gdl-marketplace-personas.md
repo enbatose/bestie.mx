@@ -45,17 +45,35 @@ Always pick **one persona + one POI** per ad. Voice changes; geography stays spe
 - **Use:** `8 cuartos cerca del ITESO y UVM. Mapa, fotos y WhatsApp en Bestie.`
 - **Not:** `Cuartos cerca de ITESO, Tec, UDG y UAG`
 
-### 2. Profesionista (young professionals / office)
+### 2. Profesionista (two collars — still one persona)
 
-- **Who:** ~24–40, commute-driven, often Zapopan poniente or corredor Américas.
-- **Job:** Sleep near work. Time > nightlife.
-- **Geo rule:** One **job corridor**. Andares ≠ Centro. Punto Sao Paulo / Midtown / Av. Américas is one blob. Galerías is secondary (Vallarta). **Country Club** is a colonia, not a search term — drop it. **Centro** is budget/transit/students, not white-collar.
-- **Do not advertise yet without stock:** Andares / Zona Real / Puerta de Hierro / UAG.
-- **Voice:** Composed still-tú. Commute and calm, not fiesta. Competent, local, no LinkedIn-English.
-- **Words that work:** cerca de Punto Sao Paulo, Midtown, Andares (when stock exists), sin cruzar la ciudad, zona de oficinas.
-- **Avoid:** “Centro Financiero” (not how people search). Laundry list of malls. Nightlife copy.
-- **Use:** `12 cuartos cerca de Punto Sao Paulo y Midtown. Llega al trabajo sin cruzar la ciudad.`
+Not a fourth seeker. Split **voice and corridor** only. Still **one collar + one POI** per ad. Do not mix Centro copy with Midtown/Andares copy.
+
+Shared job: sleep near work. Time > nightlife. Still-tú. No LinkedIn-English. No fiesta.
+
+#### 2a. Cuello blanco (Godínez / oficina)
+
+- **Who:** ~24–40, salaried office / corporativo / cubículo. Zapopan poniente and corredor Américas.
+- **Pins:** **Punto Sao Paulo / Midtown**, **Galerías**, **Andares** (when stock exists). **Country Club** is in this blob geographically — **do not name it** in ads (colonia, not a search term; same Américas corridor as Midtown).
+- **Do not advertise yet without stock:** Andares / Zona Real / Puerta de Hierro.
+- **Subculture to tap:** Mexican **Godínez / godín / godinear** — the oficinista with jefe, horario ~9 a 6, quincena, cubículo, tupper, gafete, and the clock-out dash. It is a **labor identity**, not “naco,” not lazy, not a class slur. In CDMX, MTY, and GDL corporates, people use it on themselves with resigned humor. Ads should wink **with** that in-group, like a coworker who gets the commute — never punch down, never call the reader Godínez as an insult, never use it on Centro/cuello-azul ads (they are not that joke).
+- **Voice:** Composed still-tú + a light Godínez wink. Dignity of getting home on time. Commute and calm, not glamour towers-as-lifestyle (that is Lifestyler / Andares-as-prestige).
+- **Words that work:** cerca de Punto Sao Paulo, Midtown, Andares (when stock), sin cruzar la ciudad, zona de oficinas, cubículo, hora de salida, quincena, llega al trabajo.
+- **Avoid:** “Centro Financiero.” Naming Country Club. Laundry list of malls. Nightlife copy. Mocking the tupper/gafete. HR-brochure Spanish.
+- **Use:** `12 cuartos cerca de Punto Sao Paulo y Midtown. Llega a tu cubículo sin cruzar la ciudad.`
+- **Use:** `Cerca del trabajo, no de la disco. Sales a tu hora y ya estás en tu cuarto.`
 - **Not:** `Cerca de Andares, Centro Financiero, Galerías, Country Club y Centro`
+
+#### 2b. Cuello azul (Centro / práctico)
+
+- **Who:** ~24–40, jobs in and around the Centro: oficios, servicios, comercio, talleres, piso de tienda, operación — **not** the Midtown cubicle. Also first-job / transit-heavy profesionistas who need the rent and the pasaje to add up.
+- **Pin:** **Centro**. Same geography can still run **Estudiante** ads (CUCS overlap, foráneos). Those are a different persona, not this voice.
+- **Job:** A cuarto that is cheap to reach and cheap to keep. Practicality over image.
+- **Voice:** Direct, cost-efficient, zero glamour. Camión, Línea 3, renta que rinde. No Godínez memes, no “zona de oficinas,” no Midtown aspiration.
+- **Words that work:** Centro, Línea 3, camión, a pie, renta, pasaje, práctico, te rinde.
+- **Avoid:** Cubículo / godín / gafete. Treating Centro as white-collar office. Luxury or “revitalización del Centro” tourism copy.
+- **Use:** `23 cuartos en el Centro. Llegas en camión o Línea 3 y te rinde más la renta.`
+- **Not:** `Cuartos en el Centro Financiero, cerca de tu oficina en Midtown`
 
 ### 3. Lifestyler
 
@@ -110,7 +128,7 @@ This is matching, not inventory. Do **not** mix it into publisher growth, Mis An
 2. **Only advertise pins with enough live rooms.** Empty prestige keywords (Tec, Andares) train Meta and seekers that Bestie is empty.
 3. **“Cerca” ≈ 3.5 km / ~15 min** in ZMG traffic. Do not use 5 km+ for a “cerca de” claim. Counts overlap across nearby pins — do not add them.
 4. **Live counts.** Recheck Prod catalog before shipping a number. Unique rooms, not a slogan.
-5. **Persona voice ≠ broader geography.** Students and profesionistas stay tight. Lifestylers may share a campaign and retargeting pool across the belt, still one pin per post.
+5. **Persona voice ≠ broader geography.** Students stay tight. Profesionistas stay tight **and** keep cuello blanco vs cuello azul on separate ads. Lifestylers may share a campaign and retargeting pool across the belt, still one pin per post.
 6. **Separate seeker vs publisher creatives** (same as `fb-motion-gif`).
 
 ---
@@ -148,15 +166,17 @@ Never headline **UDG** without the campus. ITESO and Tec are opposite sides of t
 
 ## Job-corridor pins (profesionistas)
 
-| Pin | How locals say it | Stock 3.5 km | Ads now? |
-| --- | --- | ---: | --- |
-| Punto Sao Paulo / Midtown / Av. Américas | Midtown, Punto Sao Paulo, Américas | 12 | Yes — lead office |
-| Andares / Zona Real / Puerta de Hierro | Andares | 5 | No — prestige, thin stock |
-| Galerías | Galerías, Vallarta | 5 | Secondary test only |
-| Centro | Centro | 23 | Not as office. Use as budget/student/transit |
-| Country Club | — | 11 | **Do not name.** Same Américas blob as Midtown |
+Collar is the voice. Pin is still one destination.
 
-Do not say **Centro Financiero**.
+| Pin | Collar | How locals say it | Stock 3.5 km | Ads now? |
+| --- | --- | --- | ---: | --- |
+| Punto Sao Paulo / Midtown / Av. Américas | **Cuello blanco** | Midtown, Punto Sao Paulo, Américas | 12 | Yes — lead Godínez / office |
+| Andares / Zona Real / Puerta de Hierro | **Cuello blanco** | Andares | 5 | No — prestige, thin stock |
+| Galerías | **Cuello blanco** | Galerías, Vallarta | 5 | Secondary test only |
+| Country Club | **Cuello blanco** | — | 11 | **Do not name.** Same Américas blob as Midtown |
+| Centro | **Cuello azul** | Centro | 23 | Yes — practical profesionista (also student/transit ads, different persona) |
+
+Do not say **Centro Financiero**. Do not run Godínez copy on Centro.
 
 ---
 
@@ -182,8 +202,8 @@ Do not say **Centro Financiero**.
 | Zona Chapultepec/Americana | Lifestyler | *26 cuartos en Zona Chapultepec/Americana* |
 | Chapalita | Lifestyler | *10 cuartos en Chapalita* |
 | Zona Minerva | Lifestyler | *Cuartos en Zona Minerva, a unos pasos de la glorieta* |
-| Midtown / Punto Sao Paulo | Profesionista | *12 cuartos cerca de Punto Sao Paulo y Midtown* |
-| Centro | Budget / student / first job | *23 cuartos en el Centro de Guadalajara* |
+| Midtown / Punto Sao Paulo | Profesionista cuello blanco | *12 cuartos cerca de Punto Sao Paulo y Midtown* |
+| Centro | Profesionista cuello azul (or Estudiante, separate ads) | *23 cuartos en el Centro. Llegas en camión o Línea 3* |
 
 Park: Tec + UP; Andares / Zona Real / UAG.
 
@@ -205,7 +225,8 @@ Manual close: ping the original Facebook publisher when reveals cluster on their
 
 - One line: “cuartos cerca de ITESO, Tec, UDG y UAG.”
 - One line: “Andares, Centro Financiero, Galerías, Country Club y Centro.”
-- Treat Centro as an office pin.
+- Treat Centro as a white-collar / Godínez office pin.
+- Use Godínez as a punch-down, or on cuello-azul Centro ads.
 - Treat seeker–seeker as publishers.
 - Pause all publisher outreach the week seeker ads go live.
 - Promise leads to publishers.
