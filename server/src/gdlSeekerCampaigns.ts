@@ -24,7 +24,7 @@ export type GdlSeekerCampaign = {
 };
 
 /** Bump when the JPEG changes so WhatsApp / Facebook recrawl the preview. */
-export const CAMPAIGN_OG_IMAGE_VERSION = "4";
+export const CAMPAIGN_OG_IMAGE_VERSION = "5";
 export const CAMPAIGN_OG_IMAGE_EDGE = 1200;
 
 function roomsWord(n: number): string {
@@ -106,7 +106,7 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     lng: cucs.lng,
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlcucs.jpg",
-    imageAlt: "Plaza junto a CUCS y el Hospital Civil — Bestie MX",
+    imageAlt: "Hospital Civil Fray Antonio Alcalde, junto a CUCS — Bestie MX",
     title: (exact, similar) => campaignOgTitle("cerca de CUCS", exact, similar),
     description: (exact, similar) =>
       exact > 0

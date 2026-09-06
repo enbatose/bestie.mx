@@ -22,7 +22,7 @@ A CC BY 2.0 street still of the avenue exists for reference only (not in the shi
 - Source: https://commons.wikimedia.org/wiki/File:Avenida_Chapultepec_cruce_Avenida_Vallarta_2013.jpg
 
 ### CUCS
-Original photoreal still generated for this campaign (Bestie, 2026). Plaza / health-campus dusk, no third-party photo, no logos.
+Original photoreal still of the **Antiguo Hospital Civil Fray Antonio Alcalde** (Bestie, 2026), the teaching hospital next to CUCS on Sierra Mojada / Col. Independencia. CUCS campus buildings have no reusable CC postcard photo; this is the landmark students actually navigate by. Not Plaza de la Rectoría / MUSA.
 Also used in `public/brand/og-busquedas/gdlcucs.jpg`.
 
 ## Audio
