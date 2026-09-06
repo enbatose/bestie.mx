@@ -6,6 +6,7 @@
 ## Vision
 
 - Roommate / shared-rent **marketplace for Mexico**; start in **Guadalajara, Mérida, Puerto Vallarta, Sayulita, Bucerías**; expand nationally, later other Spanish-speaking countries.
+- **GDL GTM personas and POIs** (seekers, owner vs roommate publishers, seeker–seeker): [`docs/gtm/gdl-marketplace-personas.md`](gtm/gdl-marketplace-personas.md).
 - **Mobile-first:** fully responsive web with excellent phone UI.
 
 ## Differentiators (v1 direction)
@@ -13,7 +14,7 @@
 - **Facebook Messenger:** search + filter Q&A + result list **in chat**; tap result → **bestie.mx**. **Listing creation** starts in Messenger → **completed on the web app** (photos, map pin, wizard, legal).
 - **WhatsApp OTP** via Meta’s supported path for verification; **fallback:** email + password.
 - **Property-centric** listings: many **rooms** per property; **status** per property and/or per room: `draft → published → paused → archived`.
-- **Whole-property + groups (v1):** groups of compatible people (e.g. age/income criteria) organizing to rent together — required for v1 differentiation.
+- **Whole-property + groups (v1):** groups of compatible people (e.g. age/income criteria) organizing to rent together — required for v1 differentiation. This is **seeker–seeker** matching, not a publisher listing (see GTM personas doc).
 
 ## Success (90 days)
 

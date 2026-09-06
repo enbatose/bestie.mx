@@ -21,7 +21,7 @@ Short **looping graphic motion** for the Bestie MX Page and Meta ads. Prefer **M
 | --- | --- |
 | `bestie.mx` flat text + lime i-dot | [`bestie-url-lockup`](../bestie-url-lockup/SKILL.md) |
 | High-five mark animation (classic / colorful) | [`bestie-mark-highfive`](../bestie-mark-highfive/SKILL.md) |
-| GDL personas, POIs, seeker vs publisher voice | [`bestie-gdl-gtm`](../bestie-gdl-gtm/SKILL.md) |
+| GDL personas, POIs, seeker vs publisher voice | [`docs/gtm/gdl-marketplace-personas.md`](../../../docs/gtm/gdl-marketplace-personas.md) |
 
 **Reference ship (GDL × publishers):** `public/brand/facebook/post-gdl-publishers-hi5.mp4`  
 **Quality bar:** self-score **≥ 95 / 100** before shipping (rubric below).

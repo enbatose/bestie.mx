@@ -59,7 +59,7 @@ Antes de redactar, extrae del post:
 
 - Tipo de oferta (cuarto, estudio, depto, roomie buscando, etc.).
 - Colonia / zona si aparece (ej. Providencia, Chapalita).
-- Si el autor parece persona o negocio/perfil de rentas. Classify **roommate publisher** vs **owner publisher** using `bestie-gdl-gtm` (do not treat seeker–seeker “busco con quien rentar” as a publisher).
+- Si el autor parece persona o negocio/perfil de rentas. Classify **roommate publisher** vs **owner publisher** using `docs/gtm/gdl-marketplace-personas.md` (do not treat seeker–seeker “busco con quien rentar” as a publisher).
 - Tono del post (formal vs casual) para calibrar el comentario.
 
 Usa **un detalle concreto** del post (zona o tipo de inmueble) para que no suene spam genérico. No inventes datos que no estén en el screenshot.

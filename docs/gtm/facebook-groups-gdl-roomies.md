@@ -8,6 +8,8 @@ Regenerate CSV: `node docs/gtm/parse-roomies-gdl-inventory.mjs`
 
 This inventory is the working list for Bestie go-to-market outreach (group-by-group). It is **not** a complete list of every group either account belongs to — only what that search returned.
 
+Personas, POI naming, and seeker vs publisher targeting: [`gdl-marketplace-personas.md`](./gdl-marketplace-personas.md).
+
 ## Snapshot
 
 | Metric | Count |

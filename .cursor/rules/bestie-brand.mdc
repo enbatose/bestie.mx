@@ -24,7 +24,7 @@ Encode brand decisions as **actionable constraints**. Canonical token values liv
 
 ## 2. Audience → decisions
 
-**Who:** Estudiantes y jóvenes profesionales, typically **~22–35** (listing age filters and seed data center on this band). People searching for roommates in Mexican cities, **mobile-first**.
+**Who:** Estudiantes y jóvenes profesionales, typically **~22–35** (listing age filters and seed data center on this band). People searching for roommates in Mexican cities, **mobile-first**. GDL personas, POIs, and publisher types: `docs/gtm/gdl-marketplace-personas.md`.
 
 **Therefore:**
 

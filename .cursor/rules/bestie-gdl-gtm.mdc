@@ -1,0 +1,28 @@
+---
+description: >-
+  Guadalajara marketplace personas, POI naming, and seeker vs publisher GTM.
+  Always on for every agent in this repo. Canonical doc:
+  docs/gtm/gdl-marketplace-personas.md
+alwaysApply: true
+---
+
+# Bestie GDL GTM (repo-wide)
+
+Follow **`docs/gtm/gdl-marketplace-personas.md`** for GDL ads, landing copy, outreach targeting, neighborhood language, and marketplace growth. Do not keep a second model in a chat.
+
+## Personas
+
+- **Seekers:** Estudiante, Profesionista (office), Lifestyler. One persona + **one POI** per ad. Voice changes; geography stays specific.
+- **Publishers:** Owner (business, 2+ rooms, recurrent) vs roommate publisher (lives there, ~8–12 months). Endorsement is their Bestie experience.
+- **Seeker–seeker** (meet people to rent together) is matching, not inventory — not a publisher, not “X cuartos cerca de…”.
+
+## Geography
+
+- Students: one campus. Never generic **UDG**. Pairs: ITESO+UVM, Tec+UP. Do not stack ITESO+Tec+UAG.
+- Profesionistas: one job corridor. Andares ≠ Centro. Say Midtown / Punto Sao Paulo, not “Centro Financiero”. Do not name Country Club. Centro is budget/transit, not white-collar.
+- Lifestylers: west-central belt is flexible; still one landmark per post. Chapultepec nested: Americana (core) → Moderna/Lafayette → Ladrón de Guevara/Santa Tere (outer; don’t count Santa Tere as Americana stock). **Zona Minerva** is its own POI (Justo Sierra, Vallarta Norte). Andares is office, not lifestyle.
+- “Cerca” ≈ 3.5 km. Recheck Prod listing counts before shipping a number. Don’t advertise Tec or Andares until stock exists.
+
+## Loop (this phase)
+
+Seeker ads on pins with stock. Phone-reveal is the conversion on partner-created posts — tell that publisher when reveals cluster. Don’t pause all publisher outreach. ID verification and success dashboards are later (verification = legal-docs trigger).
