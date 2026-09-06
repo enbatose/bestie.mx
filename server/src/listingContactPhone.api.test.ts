@@ -63,6 +63,12 @@ describe("listing contact phone events", () => {
       .send({ email: "seeker-phone-evt@test.mx", password: "longenough1", displayName: "Luis" })
       .expect(201);
 
+    const admin = request.agent(app);
+    await admin
+      .post("/api/auth/register")
+      .send({ email: "batani.enrique@gmail.com", password: "longenough1", displayName: "Enrique" })
+      .expect(201);
+
     await owner.post("/api/listings/phone-reveal/ack").send({ role: "publisher" }).expect(200);
     await seeker.post("/api/listings/phone-reveal/ack").send({ role: "seeker" }).expect(200);
 
@@ -95,5 +101,12 @@ describe("listing contact phone events", () => {
     expect(texts.filter((t) => t.includes("interés en llamar")).length).toBe(1);
     expect(texts.filter((t) => t.includes("WhatsApp")).length).toBe(1);
     expect(texts.some((t) => t.includes("usuario nuevo"))).toBe(false);
+
+    const adminNotes = await admin.get("/api/notifications").expect(200);
+    const adminTexts: string[] = (adminNotes.body.notifications as { text: string }[]).map((row) => row.text);
+    expect(adminTexts.filter((t) => t.startsWith("Interés:")).length).toBe(5);
+    expect(adminTexts.filter((t) => t.includes("consultó el teléfono")).length).toBe(2);
+    expect(adminTexts.filter((t) => t.includes("quiere llamar")).length).toBe(2);
+    expect(adminTexts.filter((t) => t.includes("abrió WhatsApp")).length).toBe(1);
   });
 });

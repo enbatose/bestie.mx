@@ -27,6 +27,7 @@ import { attachPublishFeedbackToProperty } from "./adminPosts.js";
 import { isRoomListingPubliclyVisible } from "./publishedListingsQuery.js";
 import { isUserPublisherBlocked, loadPostReportByConversationId, REPORT_BOT_USER_ID } from "./listingReports.js";
 import { resolveRoomIdFromRouteParam } from "./resolveListingRouteId.js";
+import { notifyAdminsOfListingInterest } from "./listingContactEvents.js";
 import {
   hasAcceptedMessagingSafety,
   isMessagingSafetyExemptPeer,
@@ -159,6 +160,32 @@ function insertMessage(
   ).run(mid, conversationId, senderUserId, body, now, attachments.length > 0 ? JSON.stringify(attachments) : null);
   db.prepare(`UPDATE conversations SET updated_at = ? WHERE id = ?`).run(now, conversationId);
   return { id: mid, createdAt: now };
+}
+
+function maybeNotifyAdminsFirstListingMessage(
+  db: DatabaseSync,
+  opts: { conversationId: string; messageId: string; senderUserId: string },
+): void {
+  const conv = db
+    .prepare(`SELECT listing_room_id, context_title FROM conversations WHERE id = ?`)
+    .get(opts.conversationId) as { listing_room_id: string | null; context_title: string | null } | undefined;
+  const listingRoomId = conv?.listing_room_id?.trim();
+  if (!listingRoomId) return;
+  const owner = ownerUserIdForRoomListing(db, listingRoomId);
+  if (!owner || owner === opts.senderUserId) return;
+  const prior = db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM messages
+       WHERE conversation_id = ? AND sender_user_id = ? AND id != ?`,
+    )
+    .get(opts.conversationId, opts.senderUserId, opts.messageId) as { c: number };
+  if (Number(prior?.c ?? 0) > 0) return;
+  notifyAdminsOfListingInterest(db, {
+    seekerUserId: opts.senderUserId,
+    listingId: listingRoomId,
+    listingTitle: String(conv?.context_title ?? "").trim() || listingContextTitle(db, listingRoomId),
+    eventType: "first_message",
+  });
 }
 
 function parseAttachmentsJson(raw: unknown): MessageAttachment[] {
@@ -749,6 +776,13 @@ export function messagesRouter(db: DatabaseSync) {
       return;
     }
     const message = insertMessage(db, id, me, body, attachments);
+    if (kind === "listing") {
+      maybeNotifyAdminsFirstListingMessage(db, {
+        conversationId: id,
+        messageId: message.id,
+        senderUserId: me,
+      });
+    }
     res.status(201).json({ id: message.id, createdAt: message.createdAt });
   });
 

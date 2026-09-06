@@ -67,3 +67,26 @@ export function isAdminUser(db: DatabaseSync, userId: string): boolean {
   const row = db.prepare("SELECT email FROM users WHERE id = ?").get(userId) as { email: string | null } | undefined;
   return isAdminEmail(row?.email);
 }
+
+/** Logged-in Bestie operator accounts (built-in + `ADMIN_EMAILS`). */
+export function listAdminUserIds(db: DatabaseSync): string[] {
+  const emails = [...parseAdminEmails()];
+  if (emails.length === 0) return [];
+  const ph = emails.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT id FROM users
+       WHERE lower(trim(IFNULL(email, ''))) IN (${ph})
+          OR lower(trim(IFNULL(email_canonical, ''))) IN (${ph})`,
+    )
+    .all(...emails, ...emails) as { id: string }[];
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const row of rows) {
+    const id = String(row.id ?? "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}

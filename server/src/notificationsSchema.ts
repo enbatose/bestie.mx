@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { listAdminUserIds } from "./adminAuth.js";
 
 function tableHasColumn(db: DatabaseSync, table: string, column: string): boolean {
   const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -84,4 +85,16 @@ export function notifyPublisher(
   const userId = userIdForPublisher(db, publisherId);
   if (!userId) return;
   notifyUser(db, { userId, ...input });
+}
+
+/** In-app bell for Bestie operators. Does not email on its own. */
+export function notifyAdmins(
+  db: DatabaseSync,
+  input: { text: string; link?: string; excludeUserIds?: readonly string[] },
+): void {
+  const skip = new Set((input.excludeUserIds ?? []).filter(Boolean));
+  for (const userId of listAdminUserIds(db)) {
+    if (skip.has(userId)) continue;
+    notifyUser(db, { userId, text: input.text, link: input.link });
+  }
 }

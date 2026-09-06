@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { roomReferenceCode } from "./listingReference.js";
-import { notifyPublisher, userIdForPublisher } from "./notificationsSchema.js";
+import { notifyAdmins, notifyPublisher, userIdForPublisher } from "./notificationsSchema.js";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import { PUBLISHED_JOIN_WHERE } from "./publishedListingsQuery.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
@@ -76,6 +76,51 @@ export function listingContactNotifyCopy(opts: {
   return `Un usuario, ${seeker}, abrió WhatsApp para escribirte por la publicación ${title}.`;
 }
 
+/** Operator-facing copy (bell). Distinct from the publisher “tu anuncio” voice. */
+export function listingContactAdminNotifyCopy(opts: {
+  eventType: ListingContactEventType | "first_message";
+  seekerName: string;
+  listingTitle: string;
+}): string {
+  const seeker = displayNameOrFallback(opts.seekerName, "un usuario de Bestie");
+  const title = displayNameOrFallback(opts.listingTitle, "un anuncio");
+  if (opts.eventType === "reveal") {
+    return `Interés: ${seeker} consultó el teléfono de ${title}.`;
+  }
+  if (opts.eventType === "call") {
+    return `Interés: ${seeker} quiere llamar el teléfono de ${title}.`;
+  }
+  if (opts.eventType === "whatsapp") {
+    return `Interés: ${seeker} abrió WhatsApp por ${title}.`;
+  }
+  return `Interés: ${seeker} envió un primer mensaje en Bestie sobre ${title}.`;
+}
+
+export function listingInterestAdminLink(listingId: string): string {
+  return `/anuncio/${roomReferenceCode(listingId)}`;
+}
+
+export function notifyAdminsOfListingInterest(
+  db: DatabaseSync,
+  opts: {
+    seekerUserId: string;
+    listingId: string;
+    listingTitle: string;
+    eventType: ListingContactEventType | "first_message";
+  },
+): void {
+  const seekerName = seekerDisplayName(db, opts.seekerUserId);
+  notifyAdmins(db, {
+    text: listingContactAdminNotifyCopy({
+      eventType: opts.eventType,
+      seekerName,
+      listingTitle: opts.listingTitle,
+    }),
+    link: listingInterestAdminLink(opts.listingId),
+    excludeUserIds: [opts.seekerUserId],
+  });
+}
+
 function publisherUserId(db: DatabaseSync, publisherId: string): string | null {
   return userIdForPublisher(db, publisherId);
 }
@@ -135,6 +180,13 @@ export function recordListingContactEvent(
       (id, listing_id, property_id, seeker_user_id, event_type, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(id, opts.listingId, propertyId, opts.seekerUserId, opts.eventType, now);
+
+  notifyAdminsOfListingInterest(db, {
+    seekerUserId: opts.seekerUserId,
+    listingId: opts.listingId,
+    listingTitle: opts.listingTitle,
+    eventType: opts.eventType,
+  });
 
   const isFirst = Number(prior?.c ?? 0) === 0;
   if (!isFirst) return { logged: true, notified: false };

@@ -5,6 +5,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openDb } from "./db.js";
 import {
+  listingContactAdminNotifyCopy,
   listingContactNotifyCopy,
   recordListingContactEvent,
 } from "./listingContactEvents.js";
@@ -40,10 +41,20 @@ describe("listingContactEvents", () => {
     ).toBe(
       "Un usuario, Luis, mostró interés en llamar a tu número de teléfono publicado en el anuncio Loft.",
     );
+    expect(
+      listingContactAdminNotifyCopy({
+        eventType: "first_message",
+        seekerName: "Luis",
+        listingTitle: "Loft",
+      }),
+    ).toBe("Interés: Luis envió un primer mensaje en Bestie sobre Loft.");
   });
 
   it("logs every click but notifies only the first unique seeker action", () => {
     const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO users (id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, ?)`,
+    ).run("admin1", "batani.enrique@gmail.com", "x", "Enrique", now);
     db.prepare(
       `INSERT INTO users (id, email, password_hash, display_name, created_at) VALUES (?, ?, ?, ?, ?)`,
     ).run("seeker1", "s@example.com", "x", "Luis", now);
@@ -86,6 +97,15 @@ describe("listingContactEvents", () => {
       c: number;
     };
     expect(n.c).toBe(1);
+    const adminN = db.prepare(`SELECT COUNT(*) AS c FROM notifications WHERE user_id = ?`).get("admin1") as {
+      c: number;
+    };
+    expect(adminN.c).toBe(2);
+    const adminText = db.prepare(`SELECT text FROM notifications WHERE user_id = ? LIMIT 1`).get("admin1") as {
+      text: string;
+    };
+    expect(adminText.text).toContain("Interés:");
+    expect(adminText.text).toContain("Luis");
     const ev = db.prepare(`SELECT COUNT(*) AS c FROM listing_contact_events`).get() as { c: number };
     expect(ev.c).toBe(2);
   });

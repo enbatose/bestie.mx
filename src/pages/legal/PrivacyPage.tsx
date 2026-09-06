@@ -97,7 +97,9 @@ export function PrivacyPage() {
               el registro de cada vez que, ya iniciada la sesión, consultas el teléfono de un anuncio,
               pulsas Llamar o abres WhatsApp hacia ese número (anuncio, tipo de acción y fecha) —si quien
               publica tiene cuenta en Bestie, le mostramos una notificación en la app con tu nombre
-              visible y el título del anuncio— y tus interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño
+              visible y el título del anuncio; el equipo operador de Bestie también recibe esa
+              notificación en la app para seguimiento operativo, y lo mismo cuando envías el primer
+              mensaje en el chat de un anuncio— y tus interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño
               fuera de la republicación autorizada por reglas de un grupo de Facebook, guardamos
               internamente la captura de consentimiento y una nota opcional; esa evidencia no forma
               parte de las fotos del anuncio y no se muestra al público ni al dueño que lo reclame
@@ -239,7 +241,7 @@ export function PrivacyPage() {
           items={[
             "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña de una cuenta con celular verificado, o reclamar un anuncio asociado a ese número.",
             "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
-            "Registrar, cuando revelas el teléfono de un anuncio, llamas o abres WhatsApp hacia ese número, esa acción para métricas del Servicio y, si quien publica tiene cuenta en Bestie, notificarle en la app con tu nombre visible y el título del anuncio.",
+            "Registrar, cuando revelas el teléfono de un anuncio, llamas, abres WhatsApp hacia ese número o envías el primer mensaje en el chat de un anuncio, esa acción para métricas y seguimiento del Servicio; si quien publica tiene cuenta en Bestie, le notificamos en la app con tu nombre visible y el título del anuncio, y el equipo operador de Bestie recibe el mismo tipo de aviso en la app.",
             "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
             "Moderar el blog: revisar comentarios reportados y gestionar contenido inapropiado en los artículos.",
