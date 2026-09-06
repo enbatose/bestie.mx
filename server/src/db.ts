@@ -11,6 +11,7 @@ import { ensurePhoneConsentSchema } from "./phoneConsentSchema.js";
 import { ensurePhoneRevealSafetySchema } from "./phoneRevealSafety.js";
 
 import { ensureSavedSearchSchema } from "./savedSearchSchema.js";
+import { ensureSharedSearchSchema } from "./sharedSearchSchema.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
 import { ensureListingContactEventsSchema } from "./listingContactEvents.js";
 import { ensureListingFirstSeekerNotifySchema } from "./listingFirstSeekerNotify.js";
@@ -580,6 +581,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensurePhoneConsentSchema(db);
   ensurePhoneRevealSafetySchema(db);
   ensureSavedSearchSchema(db);
+  ensureSharedSearchSchema(db);
   ensureNotificationsSchema(db);
   ensureListingContactEventsSchema(db);
   ensureListingFirstSeekerNotifySchema(db);

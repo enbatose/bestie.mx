@@ -20,7 +20,9 @@ export const ADMIN_DEFAULT_PATH = "/admin/usuarios";
 
 export function adminSectionPath(id: AdminSectionId): string {
   const match = ADMIN_SECTIONS.find((section) => section.id === id);
-  return match ? `/admin/${match.slug}` : ADMIN_DEFAULT_PATH;
+  if (!match) return ADMIN_DEFAULT_PATH;
+  if (match.id === "outreach") return "/admin/outreach/creacion";
+  return `/admin/${match.slug}`;
 }
 
 export function parseAdminSectionSlug(slug: string | undefined): AdminSectionId | null {

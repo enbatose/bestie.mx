@@ -28,6 +28,7 @@ import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { SavedSearchesPage } from "@/pages/SavedSearchesPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { SharedSearchPage } from "@/pages/SharedSearchPage";
 import { PostLoginRedirectPage } from "@/pages/PostLoginRedirectPage";
 import { SignInPage } from "@/pages/SignInPage";
 import { BlogIndexPage } from "@/pages/BlogIndexPage";
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: "gdl", element: <Navigate to="/guadalajara" replace /> },
       { path: "buscar", element: <SearchPage /> },
       { path: "buscar/:cityCode", element: <SearchPage /> },
+      { path: "busquedas/:slug", element: <SharedSearchPage /> },
       { path: "anuncio/:id", element: <ListingPage /> },
       { path: "propiedad/:id", element: <PropertyPage /> },
       { path: "publicar", element: <PublishWizardPage /> },
@@ -79,7 +81,7 @@ const router = createBrowserRouter([
       { path: "verificar-correo", element: <EmailVerifyPage /> },
       { path: "grupos", element: <Navigate to="/" replace /> },
       { path: "admin", element: <Navigate to="/admin/usuarios" replace /> },
-      { path: "admin/:section", element: <AdminPage /> },
+      { path: "admin/:section/:tab?", element: <AdminPage /> },
     ],
   },
 ]);

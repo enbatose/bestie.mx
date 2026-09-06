@@ -3,12 +3,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MapFeedbackFab } from "@/components/search/MapFeedbackFab";
 import { MapSupportFab } from "@/components/search/MapSupportFab";
 import { MOBILE_LIST_DRAWER_LEFT_CLASS } from "@/components/search/SearchFilterRail";
-import { SearchResultsList } from "@/components/search/SearchResultsList";
+import { SearchResultsList, type SearchResultsSection } from "@/components/search/SearchResultsList";
 import type { SearchReturnContext } from "@/lib/searchReturn";
 import type { PropertyListing } from "@/types/listing";
 
 type Props = {
   listings: PropertyListing[];
+  sections?: SearchResultsSection[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   searchReturn: SearchReturnContext;
@@ -25,6 +26,7 @@ const LIST_TAB_WIDTH = "2.75rem";
 
 export function SearchMobileResultsPanel({
   listings,
+  sections,
   selectedId,
   onSelect,
   searchReturn,
@@ -147,11 +149,12 @@ export function SearchMobileResultsPanel({
                 dense
                 cardVariant="mobile-drawer"
                 listings={listings}
+                sections={sections}
                 selectedId={selectedId}
                 onSelect={onSelect}
                 searchReturn={searchReturn}
               />
-              {listings.length ? (
+              {listings.length || sections?.some((s) => s.listings.length) ? (
                 <button
                   type="button"
                   onClick={closeDrawer}

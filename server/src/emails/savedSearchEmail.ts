@@ -148,6 +148,7 @@ export type SavedSearchEmailPayload = {
   mode: "initial" | "follow_up";
   newListings: PropertyListing[];
   otherListings: PropertyListing[];
+  similarListings?: PropertyListing[];
 };
 
 export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTransactionalEmail {
@@ -158,10 +159,11 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
     : `${base}${payload.searchUrl.startsWith("/") ? "" : "/"}${payload.searchUrl}`;
   const unsubLink = `${base}/api/saved-searches/unsubscribe/${encodeURIComponent(payload.unsubscribeToken)}`;
   const label = payload.label.trim() || "tu búsqueda";
-  const newCount = payload.newListings.length;
+  const similarListings = payload.similarListings ?? [];
+  const newCount = payload.newListings.length + similarListings.length;
   const totalShown =
     payload.mode === "initial"
-      ? payload.newListings.length + payload.otherListings.length
+      ? payload.newListings.length + payload.otherListings.length + similarListings.length
       : newCount + payload.otherListings.length;
 
   const subject =
@@ -185,12 +187,25 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
 
   let bodyListings = "";
   if (payload.mode === "initial") {
-    const all = [...payload.newListings, ...payload.otherListings];
-    bodyListings = all.map((l) => listingCardHtml(base, l)).join("");
+    if (similarListings.length) {
+      if (payload.newListings.length) {
+        bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Coincidencias exactas</p>`;
+        bodyListings += payload.newListings.map((l) => listingCardHtml(base, l)).join("");
+      }
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Similares</p>`;
+      bodyListings += similarListings.map((l) => listingCardHtml(base, l)).join("");
+    } else {
+      const all = [...payload.newListings, ...payload.otherListings];
+      bodyListings = all.map((l) => listingCardHtml(base, l)).join("");
+    }
   } else {
     if (payload.newListings.length) {
-      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Nuevos</p>`;
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Nuevos · exactos</p>`;
       bodyListings += payload.newListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
+    }
+    if (similarListings.length) {
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Nuevos · similares</p>`;
+      bodyListings += similarListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
     }
     if (payload.otherListings.length) {
       bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">También coinciden</p>`;
@@ -221,8 +236,13 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
   const textLines = [
     subject.replace(/^Bestie · /, ""),
     "",
-    payload.mode === "follow_up" && payload.newListings.length ? "NUEVOS:" : "RESULTADOS:",
+    payload.mode === "follow_up" && payload.newListings.length ? "NUEVOS:" : "COINCIDENCIAS EXACTAS:",
     ...payload.newListings.map(
+      (l) =>
+        `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
+    ),
+    ...(similarListings.length ? ["", "SIMILARES:"] : []),
+    ...similarListings.map(
       (l) =>
         `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),

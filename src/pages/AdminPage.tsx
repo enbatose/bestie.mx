@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, Navigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, NavLink, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { publishWizardEditPath } from "@/lib/listingReference";
 import {
   adminAnalyticsSummary,
@@ -37,7 +37,7 @@ import { AdminPostsPanel } from "@/components/admin/AdminPostsPanel";
 import { AdminUsersPanel } from "@/components/admin/AdminUsersPanel";
 import { AdminReportActions } from "@/components/admin/AdminReportActions";
 import { AdminFraudReportChecklist } from "@/components/admin/AdminFraudReportChecklist";
-import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
+import { AdminOutreachPanel, type OutreachTab } from "@/components/admin/AdminOutreachPanel";
 import { AdminBlogPanel } from "@/components/admin/AdminBlogPanel";
 import { AdminArcoPanel } from "@/components/admin/AdminArcoPanel";
 import { ADMIN_DEFAULT_PATH, ADMIN_NAV_SECTIONS, parseAdminSectionSlug } from "@/lib/adminSections";
@@ -152,10 +152,12 @@ function formatImageEventTime(iso: string): string {
 }
 
 export function AdminPage() {
-  const { section: sectionSlug } = useParams<{ section: string }>();
+  const { section: sectionSlug, tab: sectionTab } = useParams<{ section: string; tab?: string }>();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const parsedSection = parseAdminSectionSlug(sectionSlug);
   const tab = parsedSection ?? "users";
+  const outreachTab: OutreachTab = sectionTab === "difusion" ? "difusion" : "creacion";
   const conversationFromUrl = searchParams.get("c")?.trim() || null;
   const [err, setErr] = useState<string | null>(null);
   const [citiesText, setCitiesText] = useState("");
@@ -334,6 +336,10 @@ export function AdminPage() {
     return <Navigate to={ADMIN_DEFAULT_PATH} replace />;
   }
 
+  if (tab === "outreach" && sectionTab !== "creacion" && sectionTab !== "difusion") {
+    return <Navigate to="/admin/outreach/creacion" replace />;
+  }
+
   return (
     <div className={`mx-auto w-full min-w-0 px-4 py-6 sm:px-6 sm:py-14 ${tab === "soporte" || tab === "analytics" || tab === "property" || tab === "blog" ? "max-w-7xl" : "max-w-3xl"}`}>
       <h1 className="text-2xl font-bold text-primary">Administración</h1>
@@ -363,7 +369,7 @@ export function AdminPage() {
           return (
             <NavLink
               key={section.id}
-              to={`/admin/${section.slug}`}
+              to={section.id === "outreach" ? "/admin/outreach/creacion" : `/admin/${section.slug}`}
               title={
                 countKey === "verifiedUsers"
                   ? "Usuarios verificados"
@@ -378,11 +384,16 @@ export function AdminPage() {
                   ? `${section.label}, ${count.toLocaleString("es-MX")}`
                   : section.label
               }
-              className={({ isActive }) =>
-                `inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 py-2 transition ${
+              className={() => {
+                const isActive =
+                  section.id === "outreach"
+                    ? location.pathname.startsWith("/admin/outreach")
+                    : location.pathname === `/admin/${section.slug}` ||
+                      location.pathname.startsWith(`/admin/${section.slug}/`);
+                return `inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 py-2 transition ${
                   isActive ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
-                }`
-              }
+                }`;
+              }}
             >
               {section.label}
               {count != null ? (
@@ -1490,7 +1501,7 @@ export function AdminPage() {
 
       {tab === "outreach" ? (
         <div className="mt-6">
-          <AdminAssistedDraftPanel />
+          <AdminOutreachPanel tab={outreachTab} />
         </div>
       ) : null}
 

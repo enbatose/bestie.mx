@@ -17,6 +17,7 @@ import { getResendInboundDiagnostics, resendWebhookPost } from "./resendWebhook.
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
 import { savedSearchesRouter } from "./savedSearchesRouter.js";
+import { sharedSearchesRouter } from "./sharedSearchesRouter.js";
 import { uploadsRouter } from "./uploadsRouter.js";
 import {
   getSmtpDiagnostics,
@@ -27,6 +28,7 @@ import {
 import { backupRouter } from "./backup/backupRouter.js";
 import { resolveUploadDir } from "./dataPaths.js";
 import { injectFacebookAppId, injectListingShareOg, resolveListingShareOg } from "./listingShareOg.js";
+import { injectSharedSearchOg, resolveSharedSearchOg } from "./sharedSearchOg.js";
 import { sharePreviewBaseUrl } from "./publicBaseUrl.js";
 import { injectRouteSeo, resolveRouteSeo } from "./routeSeo.js";
 import { reportsRouter } from "./reportsRouter.js";
@@ -195,6 +197,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/reports", reportsRouter(db));
   app.use("/api/notifications", notificationsRouter(db));
   app.use("/api/saved-searches", savedSearchesRouter(db));
+  app.use("/api/shared-searches", sharedSearchesRouter(db));
   app.use("/api/admin", adminRouter(db, { uploadDir }));
   app.use("/api/admin/reports", adminReportsRouter(db));
   app.use("/api/groups", groupsRouter(db));
@@ -242,6 +245,18 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
         if (req.path.startsWith("/api") || req.path === "/health") {
           next();
           return;
+        }
+
+        const sharedOg = resolveSharedSearchOg(db, req.path, sharePreviewBaseUrl(req));
+        if (sharedOg) {
+          try {
+            const html = injectSharedSearchOg(readIndexHtml(), sharedOg);
+            res.status(200).type("html").send(html);
+            return;
+          } catch (err) {
+            next(err);
+            return;
+          }
         }
 
         // Per-listing Open Graph for WhatsApp / Messenger / Facebook scrapers.

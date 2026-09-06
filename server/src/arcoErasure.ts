@@ -761,6 +761,10 @@ export function eraseUserForArco(
       ).run(userId, userId);
     }
 
+    if (tableExists(db, "shared_searches")) {
+      db.prepare(`DELETE FROM shared_searches WHERE owner_user_id = ?`).run(userId);
+    }
+
     db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
 
     for (const name of filenames) {

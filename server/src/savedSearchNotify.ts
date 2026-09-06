@@ -8,10 +8,16 @@ import {
   fetchMatchingListingsForSavedSearch,
   parseSavedSearchFilters,
   parseSavedSearchLocation,
+  type SavedSearchLocationSnapshot,
 } from "./savedSearchMatch.js";
+import { fetchPublishedListings } from "./publishedListingsQuery.js";
+import {
+  highAffinitySimilar,
+  parseSimilarConfig,
+  splitSharedSearchMatches,
+} from "./sharedSearchMatch.js";
 import type { SearchFilters } from "./searchFilters.js";
 import type { PropertyListing } from "./types.js";
-import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
 import { formatSavedSearchDraftLabel } from "./savedSearchDraftLabel.js";
 
 const INITIAL_EMAIL_LISTING_CAP = 50;
@@ -33,6 +39,7 @@ export type SavedSearchRow = {
   is_draft: number;
   created_at: string;
   updated_at: string;
+  share_id?: string | null;
 };
 
 function isoNow(): string {
@@ -97,13 +104,14 @@ export async function enableSavedSearchNotify(
   db: DatabaseSync,
   userId: string,
   savedSearchId: string,
+  opts?: { requireEmail?: boolean },
 ): Promise<EnableNotifyResult> {
   const row = loadSavedSearch(db, savedSearchId);
   if (!row || row.user_id !== userId) {
     return { ok: false, emailSent: false, error: "not_found" };
   }
   const email = loadUserEmail(db, userId);
-  if (!email) {
+  if (!email && opts?.requireEmail !== false) {
     return { ok: false, emailSent: false, error: "email_required" };
   }
 
@@ -139,6 +147,31 @@ export async function enableSavedSearchNotify(
   };
 }
 
+function listingsForSavedSearchEmail(db: DatabaseSync, row: SavedSearchRow): {
+  exact: PropertyListing[];
+  similarHigh: PropertyListing[];
+} {
+  const filters = parseSavedSearchFilters(row.filters_json);
+  const location = parseSavedSearchLocation(row.location_json);
+  const exact = fetchMatchingListingsForSavedSearch(db, filters, location);
+  if (!row.share_id) return { exact, similarHigh: [] };
+  const share = db
+    .prepare(`SELECT similar_json FROM shared_searches WHERE id = ?`)
+    .get(row.share_id) as { similar_json: string } | undefined;
+  if (!share) return { exact, similarHigh: [] };
+  const split = splitSharedSearchMatches(
+    fetchPublishedListings(db),
+    filters,
+    location,
+    parseSimilarConfig(share.similar_json),
+  );
+  const exactIds = new Set(exact.map((l) => l.id));
+  const similarHigh = highAffinitySimilar(split.similar)
+    .map((r) => r.listing)
+    .filter((l) => !exactIds.has(l.id));
+  return { exact, similarHigh };
+}
+
 export async function sendSavedSearchEmail(
   db: DatabaseSync,
   savedSearchId: string,
@@ -150,17 +183,16 @@ export async function sendSavedSearchEmail(
   const email = loadUserEmail(db, row.user_id);
   if (!email) return false;
 
-  const filters = parseSavedSearchFilters(row.filters_json);
-  const location = parseSavedSearchLocation(row.location_json);
-  const allMatches = fetchMatchingListingsForSavedSearch(db, filters, location);
+  const { exact, similarHigh } = listingsForSavedSearchEmail(db, row);
   const notified = notifiedRoomIds(db, savedSearchId);
 
   let newListings: PropertyListing[] = [];
   let otherListings: PropertyListing[] = [];
+  let similarListings: PropertyListing[] = [];
 
   if (mode === "initial") {
-    const capped = allMatches.slice(0, INITIAL_EMAIL_LISTING_CAP);
-    newListings = capped;
+    newListings = exact.slice(0, INITIAL_EMAIL_LISTING_CAP);
+    similarListings = similarHigh.slice(0, INITIAL_EMAIL_LISTING_CAP);
     otherListings = [];
   } else {
     if (row.last_notified_at) {
@@ -169,9 +201,10 @@ export async function sendSavedSearchEmail(
         return false;
       }
     }
-    newListings = allMatches.filter((l) => !notified.has(l.id));
-    if (!newListings.length) return false;
-    otherListings = allMatches.filter((l) => notified.has(l.id)).slice(0, FOLLOW_UP_OTHER_CAP);
+    newListings = exact.filter((l) => !notified.has(l.id));
+    similarListings = similarHigh.filter((l) => !notified.has(l.id));
+    if (!newListings.length && !similarListings.length) return false;
+    otherListings = exact.filter((l) => notified.has(l.id)).slice(0, FOLLOW_UP_OTHER_CAP);
   }
 
   const mail = buildSavedSearchEmail({
@@ -181,6 +214,7 @@ export async function sendSavedSearchEmail(
     mode,
     newListings,
     otherListings,
+    similarListings,
   });
 
   const unsubUrl = `${publicBaseUrl()}/api/saved-searches/unsubscribe/${encodeURIComponent(row.unsubscribe_token)}`;
@@ -201,8 +235,10 @@ export async function sendSavedSearchEmail(
 
   const roomIdsToMark =
     mode === "initial"
-      ? allMatches.slice(0, INITIAL_EMAIL_LISTING_CAP).map((l) => l.id)
-      : [...newListings, ...otherListings].map((l) => l.id);
+      ? [...exact.slice(0, INITIAL_EMAIL_LISTING_CAP), ...similarHigh.slice(0, INITIAL_EMAIL_LISTING_CAP)].map(
+          (l) => l.id,
+        )
+      : [...newListings, ...otherListings, ...similarListings].map((l) => l.id);
   markRoomsNotified(db, savedSearchId, roomIdsToMark);
   db.prepare(`UPDATE saved_searches SET last_notified_at = ?, updated_at = ? WHERE id = ?`).run(
     isoNow(),
@@ -213,10 +249,8 @@ export async function sendSavedSearchEmail(
 }
 
 function listingMatchesSavedSearch(db: DatabaseSync, row: SavedSearchRow, roomId: string): boolean {
-  const filters = parseSavedSearchFilters(row.filters_json);
-  const location = parseSavedSearchLocation(row.location_json);
-  const matches = fetchMatchingListingsForSavedSearch(db, filters, location);
-  return matches.some((l) => l.id === roomId);
+  const { exact, similarHigh } = listingsForSavedSearchEmail(db, row);
+  return exact.some((l) => l.id === roomId) || similarHigh.some((l) => l.id === roomId);
 }
 
 /** After a room is published, notify enabled saved searches that match. */
@@ -273,6 +307,7 @@ export function rowToApi(
     isDraft: row.is_draft === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    shareId: row.share_id ?? null,
     ...(matchCount != null ? { matchCount } : {}),
     ...(areaNeighborhoods && areaNeighborhoods.length
       ? { areaNeighborhoods }

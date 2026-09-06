@@ -26,6 +26,7 @@ import {
   routeCityCodeFromPath,
   type SearchLocationState,
 } from "@/lib/searchLocation";
+import { resolveMetroCity } from "@/lib/metroCities";
 import {
   savedSearchesNavigationState,
   savedSearchesReturnFromLocation,
@@ -72,6 +73,24 @@ function pinAlertEnabledFirst(views: RowView[]): RowView[] {
 }
 
 function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
+  if (row.filters && row.location) {
+    const metro = resolveMetroCity(row.location.cityCode);
+    const loc = row.location;
+    const pathname = row.searchUrl.split("?")[0] || "/buscar";
+    return {
+      filters: row.filters,
+      location: {
+        cityCode: loc.cityCode || metro.code,
+        cityAbbr: loc.cityAbbr || metro.abbr,
+        cityLabel: loc.cityLabel || metro.label,
+        neighborhoods: loc.neighborhoods ?? [],
+        lat: loc.lat,
+        lng: loc.lng,
+        zoom: loc.zoom,
+      },
+      pathname,
+    };
+  }
   try {
     const url = new URL(row.searchUrl, window.location.origin);
     const location = parseSearchLocation(url.searchParams, routeCityCodeFromPath(url.pathname));

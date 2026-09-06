@@ -36,7 +36,7 @@ function WhatsAppMark({ className }: { className?: string }) {
   );
 }
 
-type ImageItem = { mimeType: string; data: string; preview: string };
+export type ImageItem = { mimeType: string; data: string; preview: string };
 
 const CITIES = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
 
@@ -161,16 +161,18 @@ function OutreachDupBanner({
 }
 
 
-function ImageDropZone({
+export function ImageDropZone({
   images,
   onImages,
   label,
   hint,
+  maxImages,
 }: {
   images: ImageItem[];
   onImages: (imgs: ImageItem[]) => void;
   label: string;
   hint: string;
+  maxImages?: number;
 }) {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -182,15 +184,17 @@ function ImageDropZone({
     async (files: FileList | File[]) => {
       if (busyRef.current) return;
       const arr = Array.from(files).filter(isProbablyImageFile);
-      if (!arr.length) return;
+      const remaining = maxImages != null ? Math.max(0, maxImages - images.length) : arr.length;
+      const limited = maxImages != null ? arr.slice(0, remaining) : arr;
+      if (!limited.length) return;
       busyRef.current = true;
       setErr(null);
       const next: ImageItem[] = [];
       try {
-        for (let i = 0; i < arr.length; i++) {
-          setBusy(arr.length === 1 ? "Optimizando foto…" : `Optimizando ${i + 1}/${arr.length}…`);
+        for (let i = 0; i < limited.length; i++) {
+          setBusy(limited.length === 1 ? "Optimizando foto…" : `Optimizando ${i + 1}/${limited.length}…`);
           try {
-            next.push(await fileToPreparedImagePayload(arr[i]!));
+            next.push(await fileToPreparedImagePayload(limited[i]!));
           } catch (e) {
             setErr(e instanceof Error ? e.message : PREPARE_IMAGE_FAIL_MESSAGE);
           }
@@ -201,7 +205,7 @@ function ImageDropZone({
         setBusy(null);
       }
     },
-    [images, onImages],
+    [images, onImages, maxImages],
   );
 
   const { zoneRef, zonePasteProps } = useClipboardImagePaste({
@@ -264,6 +268,7 @@ function ImageDropZone({
               </button>
             </div>
           ))}
+          {maxImages == null || images.length < maxImages ? (
           <button
             type="button"
             disabled={Boolean(busy)}
@@ -273,6 +278,7 @@ function ImageDropZone({
           >
             <ImagePlus size={20} />
           </button>
+          ) : null}
         </div>
       )}
 

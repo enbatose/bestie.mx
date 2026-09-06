@@ -23,6 +23,7 @@ import {
 import { MAX_SAVED_SEARCHES_PER_USER } from "./savedSearchSchema.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import type { SearchFilters } from "./searchFilters.js";
+import { forkSharedSearchOnEdit } from "./sharedSearches.js";
 
 function jsonMw() {
   return express.json({ limit: "256kb" });
@@ -226,9 +227,11 @@ export function savedSearchesRouter(db: DatabaseSync) {
       rows.map((row) => {
         let matchCount: number | undefined;
         let areaNeighborhoods: string[] | undefined;
+        let filters: ReturnType<typeof parseSavedSearchFilters> | undefined;
+        let location: ReturnType<typeof parseSavedSearchLocation> | undefined;
         try {
-          const filters = parseSavedSearchFilters(row.filters_json);
-          const location = parseSavedSearchLocation(row.location_json);
+          filters = parseSavedSearchFilters(row.filters_json);
+          location = parseSavedSearchLocation(row.location_json);
           matchCount = matchSavedSearchListings(published, filters, location).length;
           areaNeighborhoods = neighborhoodsForSavedSearchCard(
             db,
@@ -240,7 +243,11 @@ export function savedSearchesRouter(db: DatabaseSync) {
           matchCount = undefined;
           areaNeighborhoods = undefined;
         }
-        return rowToApi(row, matchCount, areaNeighborhoods);
+        return {
+          ...rowToApi(row, matchCount, areaNeighborhoods),
+          ...(filters ? { filters } : {}),
+          ...(location ? { location } : {}),
+        };
       }),
     );
   });
@@ -442,16 +449,29 @@ export function savedSearchesRouter(db: DatabaseSync) {
     const editFilters = parseBodyFilters(body.filters);
     const editLocation = parseBodyLocation(body.location);
     const editSearchUrl = typeof body.searchUrl === "string" ? body.searchUrl.trim() : "";
-    if (editFilters && editLocation && editSearchUrl.startsWith("/buscar")) {
+    const urlOk = editSearchUrl.startsWith("/buscar") || editSearchUrl.startsWith("/busquedas/");
+    if (editFilters && editLocation && (urlOk || row.share_id)) {
+      let searchUrl = urlOk ? editSearchUrl : row.search_url;
+      let shareId = row.share_id ?? null;
+      const fork = forkSharedSearchOnEdit(db, uid, row, {
+        filters: editFilters,
+        location: editLocation,
+        searchUrl,
+      });
+      if (fork) {
+        searchUrl = fork.searchUrl;
+        shareId = fork.shareId;
+      }
       db.prepare(
         `UPDATE saved_searches
-         SET filters_json = ?, location_json = ?, search_url = ?, city_code = ?, updated_at = ?
+         SET filters_json = ?, location_json = ?, search_url = ?, city_code = ?, share_id = ?, updated_at = ?
          WHERE id = ?`,
       ).run(
         JSON.stringify(editFilters),
         JSON.stringify(editLocation),
-        editSearchUrl,
+        searchUrl,
         editLocation.cityCode,
+        shareId,
         now,
         id,
       );

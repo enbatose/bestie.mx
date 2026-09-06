@@ -18,6 +18,9 @@ export type SavedSearchDto = {
   replacedPrevious?: { id: string; label: string };
   emailSent?: boolean;
   emailError?: string;
+  shareId?: string | null;
+  filters?: SearchFilters;
+  location?: SearchLocationState & { cityAbbr?: string };
 };
 
 export type SaveSavedSearchPayload = {

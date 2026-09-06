@@ -15,6 +15,7 @@ describe("adminSections", () => {
     expect(adminSectionPath("arco")).toBe("/admin/arco");
     expect(adminSectionPath("property")).toBe("/admin/posts");
     expect(adminSectionPath("analytics")).toBe("/admin/metricas");
+    expect(adminSectionPath("outreach")).toBe("/admin/outreach/creacion");
     expect(ADMIN_NAV_SECTIONS.map((s) => s.slug)).toEqual([
       "usuarios",
       "posts",

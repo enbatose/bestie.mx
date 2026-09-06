@@ -104,7 +104,10 @@ export function AppShellLayout() {
     return () => window.removeEventListener("bestie:messages-read-changed", onReadChange);
   }, [refreshUnread]);
 
-  const isSearchPage = location.pathname === "/buscar" || location.pathname.startsWith("/buscar/");
+  const isSearchPage =
+    location.pathname === "/buscar" ||
+    location.pathname.startsWith("/buscar/") ||
+    location.pathname.startsWith("/busquedas/");
   const showEmailVerificationBanner =
     me != null && needsEmailVerification(me) && location.pathname !== "/verificar-correo";
   const showCompleteProfileModal =
