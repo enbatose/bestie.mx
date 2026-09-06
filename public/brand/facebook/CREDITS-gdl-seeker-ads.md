@@ -14,7 +14,8 @@ Paseo Chapultepec (camellón, trees, fountain) in Colonia Americana. Same photo 
 - Source: [Architectural Digest México — El Paseo Chapultepec de Guadalajara](https://www.admagazine.com/articulos/el-paseo-chapultepec-de-guadalajara-la-historia-de-un-icono-tapatio)
 
 ### CUCS
-Photoreal still of the **Antiguo Hospital Civil Fray Antonio Alcalde** (Bestie, 2026), the teaching hospital next to CUCS on Sierra Mojada / Col. Independencia. Same landmark as `public/brand/og-busquedas/gdlcucs.jpg`. Not Plaza de la Rectoría / MUSA.
+Campus courtyard at **CUCS** (Centro Universitario de Ciencias de la Salud). Same photo in `post-gdl-seekers-cucs-*` and `public/brand/og-busquedas/gdlcucs.jpg`.
+- Source: campaign still supplied for CUCS.
 
 ## Audio
 Original synthesized beds (sine pads, kicks, hats, UI pops). No third-party music. Same technique as `reel-gdl-follow-roomies`.
