@@ -23,7 +23,7 @@ Same persona, two corridors. One collar + one POI per ad.
 
 | Collar | Pins | Voice |
 | --- | --- | --- |
-| **Cuello blanco** | Punto Sao Paulo / Midtown, Galerías, Andares (when stock). Country Club is in the blob — **never name it**. | Mexican **Godínez** in-group: cubículo, quincena, tupper, gafete, 9 a 6, hora de salida. Wink *with* the oficinista, not at them. Commute dignity, not tower glamour. |
-| **Cuello azul** | **Centro** | Cost, pasaje, Línea 3 / camión, renta that stretches. Practical, zero glamour. **No** Godínez / cubículo jokes (that is not their subculture). |
+| **Cuello blanco** | Punto Sao Paulo / Midtown, Galerías, Andares (when stock). Country Club is in the blob — **never name it**. | Mexican **Godínez** in-group: cubículo, quincena, tupper, gafete, 9 a 6, hora de salida. Wink *with* the oficinista, not at them. They mostly **drive** — sell skipping **tráfico**, not the transit map. |
+| **Cuello azul** | **Centro** | Cost, pasaje, **Línea 3 / camión / parada**, renta that stretches. Practical, zero glamour. **No** Godínez / cubículo / tráfico-en-auto jokes. Moto is common but **not** a voice hook. |
 
 Godínez = salaried office identity in Mexico (not “naco,” not lazy). Punch-down or Centro+godín copy is wrong. Full examples live in the canonical doc.

@@ -51,16 +51,18 @@ Not a fourth seeker. Split **voice and corridor** only. Still **one collar + one
 
 Shared job: sleep near work. Time > nightlife. Still-tú. No LinkedIn-English. No fiesta.
 
+**Commute mode (does change the line):** cuello blanco mostly **drives** — sell skipping **tráfico**, not the SITEUR map. Cuello azul mostly **rides transit** — sell **camión / Línea 3 / parada**, not the parking lot. Some cuello azul also use **moto** more than a car; that is real but **do not** make moto a voice or identity hook (no “para tu moto,” no biker tone). Moto parking is a listing fact when it exists, not ad personality.
+
 #### 2a. Cuello blanco (Godínez / oficina)
 
 - **Who:** ~24–40, salaried office / corporativo / cubículo. Zapopan poniente and corredor Américas.
 - **Pins:** **Punto Sao Paulo / Midtown**, **Galerías**, **Andares** (when stock exists). **Country Club** is in this blob geographically — **do not name it** in ads (colonia, not a search term; same Américas corridor as Midtown).
 - **Do not advertise yet without stock:** Andares / Zona Real / Puerta de Hierro.
 - **Subculture to tap:** Mexican **Godínez / godín / godinear** — the oficinista with jefe, horario ~9 a 6, quincena, cubículo, tupper, gafete, and the clock-out dash. It is a **labor identity**, not “naco,” not lazy, not a class slur. In CDMX, MTY, and GDL corporates, people use it on themselves with resigned humor. Ads should wink **with** that in-group, like a coworker who gets the commute — never punch down, never call the reader Godínez as an insult, never use it on Centro/cuello-azul ads (they are not that joke).
-- **Voice:** Composed still-tú + a light Godínez wink. Dignity of getting home on time. Commute and calm, not glamour towers-as-lifestyle (that is Lifestyler / Andares-as-prestige).
-- **Words that work:** cerca de Punto Sao Paulo, Midtown, Andares (when stock), sin cruzar la ciudad, zona de oficinas, cubículo, hora de salida, quincena, llega al trabajo.
-- **Avoid:** “Centro Financiero.” Naming Country Club. Laundry list of malls. Nightlife copy. Mocking the tupper/gafete. HR-brochure Spanish.
-- **Use:** `12 cuartos cerca de Punto Sao Paulo y Midtown. Llega a tu cubículo sin cruzar la ciudad.`
+- **Voice:** Composed still-tú + a light Godínez wink. Dignity of getting home on time. The pain is **tráfico** and crossing the city in a car, not missing a camión. Commute and calm, not glamour towers-as-lifestyle (that is Lifestyler / Andares-as-prestige).
+- **Words that work:** cerca de Punto Sao Paulo, Midtown, Andares (when stock), sin cruzar la ciudad, sin comerte el tráfico, zona de oficinas, cubículo, hora de salida, quincena, llega al trabajo.
+- **Avoid:** “Centro Financiero.” Naming Country Club. Laundry list of malls. Nightlife copy. Mocking the tupper/gafete. HR-brochure Spanish. Leading with Línea 3 / camión / parada as the hook (that is cuello azul).
+- **Use:** `12 cuartos cerca de Punto Sao Paulo y Midtown. Llega a tu cubículo sin comerte el tráfico.`
 - **Use:** `Cerca del trabajo, no de la disco. Sales a tu hora y ya estás en tu cuarto.`
 - **Not:** `Cerca de Andares, Centro Financiero, Galerías, Country Club y Centro`
 
@@ -68,10 +70,10 @@ Shared job: sleep near work. Time > nightlife. Still-tú. No LinkedIn-English. N
 
 - **Who:** ~24–40, jobs in and around the Centro: oficios, servicios, comercio, talleres, piso de tienda, operación — **not** the Midtown cubicle. Also first-job / transit-heavy profesionistas who need the rent and the pasaje to add up.
 - **Pin:** **Centro**. Same geography can still run **Estudiante** ads (CUCS overlap, foráneos). Those are a different persona, not this voice.
-- **Job:** A cuarto that is cheap to reach and cheap to keep. Practicality over image.
-- **Voice:** Direct, cost-efficient, zero glamour. Camión, Línea 3, renta que rinde. No Godínez memes, no “zona de oficinas,” no Midtown aspiration.
-- **Words that work:** Centro, Línea 3, camión, a pie, renta, pasaje, práctico, te rinde.
-- **Avoid:** Cubículo / godín / gafete. Treating Centro as white-collar office. Luxury or “revitalización del Centro” tourism copy.
+- **Job:** A cuarto that is cheap to reach and cheap to keep. Practicality over image. The commute that matters is **public transport** (Línea 3, camión, parada, fewer transbordos) — not car traffic.
+- **Voice:** Direct, cost-efficient, zero glamour. Camión, Línea 3, renta que rinde. No Godínez memes, no “zona de oficinas,” no Midtown aspiration, no “evita el tráfico” car copy.
+- **Words that work:** Centro, Línea 3, camión, parada, a pie, transbordo, renta, pasaje, práctico, te rinde.
+- **Avoid:** Cubículo / godín / gafete. Treating Centro as white-collar office. Luxury or “revitalización del Centro” tourism copy. Tráfico / auto / estacionamiento as the hero. Moto-as-lifestyle (“traes moto,” “para tu moto”) — even if many ride one, it does not change this voice.
 - **Use:** `23 cuartos en el Centro. Llegas en camión o Línea 3 y te rinde más la renta.`
 - **Not:** `Cuartos en el Centro Financiero, cerca de tu oficina en Midtown`
 
@@ -202,7 +204,7 @@ Do not say **Centro Financiero**. Do not run Godínez copy on Centro.
 | Zona Chapultepec/Americana | Lifestyler | *26 cuartos en Zona Chapultepec/Americana* |
 | Chapalita | Lifestyler | *10 cuartos en Chapalita* |
 | Zona Minerva | Lifestyler | *Cuartos en Zona Minerva, a unos pasos de la glorieta* |
-| Midtown / Punto Sao Paulo | Profesionista cuello blanco | *12 cuartos cerca de Punto Sao Paulo y Midtown* |
+| Midtown / Punto Sao Paulo | Profesionista cuello blanco | *12 cuartos cerca de Punto Sao Paulo y Midtown. Sin comerte el tráfico* |
 | Centro | Profesionista cuello azul (or Estudiante, separate ads) | *23 cuartos en el Centro. Llegas en camión o Línea 3* |
 
 Park: Tec + UP; Andares / Zona Real / UAG.
@@ -227,6 +229,8 @@ Manual close: ping the original Facebook publisher when reveals cluster on their
 - One line: “Andares, Centro Financiero, Galerías, Country Club y Centro.”
 - Treat Centro as a white-collar / Godínez office pin.
 - Use Godínez as a punch-down, or on cuello-azul Centro ads.
+- Sell Midtown/Andares on camión / Línea 3, or Centro on “evita el tráfico” in a car.
+- Make moto a personality hook in cuello-azul ads.
 - Treat seeker–seeker as publishers.
 - Pause all publisher outreach the week seeker ads go live.
 - Promise leads to publishers.
