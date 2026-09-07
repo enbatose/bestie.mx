@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Wand2 } from "lucide-react";
+import { Check, Copy, RotateCcw, Wand2 } from "lucide-react";
 import {
   ImageDropZone,
   type ImageItem,
@@ -154,7 +154,19 @@ export function AdminOutreachDiffusionPanel() {
     setZoneRule(null);
     setErr(null);
     setDupMatches([]);
+    setCopied(false);
+    setExtracting(false);
+    setCreating(false);
   };
+
+  const formDirty =
+    Boolean(text.trim()) ||
+    infographics.length > 0 ||
+    Boolean(seekerName.trim()) ||
+    Boolean(facebookUrl.trim()) ||
+    Boolean(preview) ||
+    Boolean(sharePath) ||
+    Boolean(err);
 
   const analysisLines = useMemo(() => {
     if (!preview) return [];
@@ -340,15 +352,6 @@ export function AdminOutreachDiffusionPanel() {
             <Wand2 size={16} />
             {extracting ? "Analizando…" : "Analizar con IA"}
           </button>
-          {preview || text || infographics.length > 0 ? (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="min-h-11 rounded-full border border-border bg-surface px-4 py-2.5 text-sm text-muted hover:bg-surface-elevated"
-            >
-              Limpiar
-            </button>
-          ) : null}
         </div>
       ) : null}
 
@@ -485,13 +488,21 @@ export function AdminOutreachDiffusionPanel() {
               {copied ? "Copiado" : "Copiar"}
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {formDirty ? (
+        <div className="min-w-0 border-t border-border pt-4">
           <button
             type="button"
             onClick={handleReset}
-            className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
+            disabled={extracting || creating}
+            className="inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-40 sm:w-auto"
           >
-            Nueva búsqueda
+            <RotateCcw size={16} />
+            Limpiar y nueva difusión
           </button>
+          <p className="mt-2 text-xs text-muted">Borra el formulario para pegar otro post y generar un enlace nuevo.</p>
         </div>
       ) : null}
     </div>
