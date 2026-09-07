@@ -30,6 +30,7 @@ import {
   metroDefaultLocation,
   neighborhoodNamesMatch,
   parseSearchLocation,
+  SAVED_SEARCH_RADIUS_KM,
   searchPathForCity,
   stripMetroLabelPrefix,
   writeSearchLocation,
@@ -738,6 +739,11 @@ export function SearchPage() {
                 defaultZoom={searchLocation.zoom}
                 locationPins={searchLocation.neighborhoods}
                 locationFitNonce={locationFitNonce}
+                locationFitRadiusKm={
+                  savedSearchesRestorePath && searchLocation.neighborhoods.length
+                    ? SAVED_SEARCH_RADIUS_KM
+                    : undefined
+                }
                 preferDefaultView
                 onViewportBbox={onViewportBbox}
               />

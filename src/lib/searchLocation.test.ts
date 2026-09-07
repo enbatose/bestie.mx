@@ -1,15 +1,33 @@
 import { describe, expect, it } from "vitest";
 import {
+  boundsAroundPinsKm,
   combinedNeighborhoodBounds,
   computeNeighborhoodsViewport,
   metroDefaultLocation,
   neighborhoodChipLabel,
   neighborhoodNamesMatch,
   parseSearchLocation,
+  SAVED_SEARCH_RADIUS_KM,
   searchPathForCity,
   stripMetroLabelPrefix,
   writeSearchLocation,
 } from "./searchLocation";
+
+describe("boundsAroundPinsKm", () => {
+  it("frames a 3.5 km disk around the reference pin, not a tight neighborhood box", () => {
+    const box = boundsAroundPinsKm([{ lat: 20.6482, lng: -103.3058 }], SAVED_SEARCH_RADIUS_KM);
+    expect(box).not.toBeNull();
+    const latSpanKm = (box!.maxLat - box!.minLat) * 110.574;
+    const lngSpanKm =
+      (box!.maxLng - box!.minLng) * 110.574 * Math.cos((20.6482 * Math.PI) / 180);
+    expect(latSpanKm).toBeGreaterThan(6.5);
+    expect(latSpanKm).toBeLessThan(7.5);
+    expect(lngSpanKm).toBeGreaterThan(6.5);
+    expect(lngSpanKm).toBeLessThan(7.5);
+    expect(box!.minLat).toBeLessThan(20.6482);
+    expect(box!.maxLat).toBeGreaterThan(20.6482);
+  });
+});
 
 describe("parseSearchLocation", () => {
   it("defaults to Guadalajara for /buscar", () => {

@@ -15,6 +15,7 @@ import {
   fetchSavedSearches,
 } from "@/lib/savedSearchesApi";
 import { looksLikeContactChannel } from "@/lib/outreachDiffusionComment";
+import { SAVED_SEARCH_RADIUS_KM } from "@/lib/searchLocation";
 import { searchReturnFromLocation } from "@/lib/searchReturn";
 import {
   fetchSharedSearchView,
@@ -381,6 +382,7 @@ export function SharedSearchPage() {
                 }
                 defaultZoom={view?.location.zoom ?? 13}
                 locationPins={view?.location.neighborhoods ?? []}
+                locationFitRadiusKm={SAVED_SEARCH_RADIUS_KM}
                 preferDefaultView
               />
             </div>

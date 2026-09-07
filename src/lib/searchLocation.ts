@@ -16,12 +16,43 @@ export type SearchNeighborhoodPin = {
 export const NEIGHBORHOOD_FIT_HALF_SPAN_LAT = 0.008;
 export const NEIGHBORHOOD_FIT_HALF_SPAN_LNG = 0.009;
 
+/** Same disk as shared/saved search matching (`SIMILAR_RADIUS_KM` on the server). */
+export const SAVED_SEARCH_RADIUS_KM = 3.5;
+
+const KM_PER_DEG_LAT = 110.574;
+
 export type LatLngBoundsBox = {
   minLat: number;
   maxLat: number;
   minLng: number;
   maxLng: number;
 };
+
+/**
+ * Axis-aligned box that contains a disk of `radiusKm` around each pin.
+ * Used so a saved search opens showing the 3.5 km search area, not only the pin.
+ */
+export function boundsAroundPinsKm(
+  pins: readonly { lat: number; lng: number }[],
+  radiusKm: number,
+): LatLngBoundsBox | null {
+  if (!pins.length || !(radiusKm > 0)) return null;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  for (const pin of pins) {
+    const latDelta = radiusKm / KM_PER_DEG_LAT;
+    const kmPerDegLng = KM_PER_DEG_LAT * Math.cos((pin.lat * Math.PI) / 180);
+    const lngDelta = radiusKm / Math.max(kmPerDegLng, 1);
+    minLat = Math.min(minLat, pin.lat - latDelta);
+    maxLat = Math.max(maxLat, pin.lat + latDelta);
+    minLng = Math.min(minLng, pin.lng - lngDelta);
+    maxLng = Math.max(maxLng, pin.lng + lngDelta);
+  }
+  if (!Number.isFinite(minLat) || !Number.isFinite(minLng)) return null;
+  return { minLat, maxLat, minLng, maxLng };
+}
 
 export function neighborhoodPinBounds(pin: SearchNeighborhoodPin): LatLngBoundsBox {
   return {

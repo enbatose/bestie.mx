@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, type MutableRefObject, type RefObject } from "react";
-import { MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
+import { AttributionControl, MapContainer, Marker, Popup, TileLayer, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { listingCardHref } from "@/lib/listingKeyLabels";
 import { MAP_PRIVACY_CIRCLE_PATH } from "@/components/WizardLocationMap";
@@ -9,7 +9,7 @@ import { SearchListingCard } from "@/components/search/SearchListingCard";
 import { GUADALAJARA_LA_MINERVA_ZOOM } from "@/lib/searchDefaults";
 import type { Bbox } from "@/lib/searchFilters";
 import type { LatLngBoundsBox, SearchNeighborhoodPin } from "@/lib/searchLocation";
-import { combinedNeighborhoodBounds, neighborhoodPinBounds } from "@/lib/searchLocation";
+import { boundsAroundPinsKm, combinedNeighborhoodBounds, neighborhoodPinBounds } from "@/lib/searchLocation";
 import { listingNavigationState, type SearchReturnContext } from "@/lib/searchReturn";
 import { listingMapPosition } from "@/map/listingMapPosition";
 import {
@@ -36,6 +36,11 @@ type Props = {
   defaultZoom?: number;
   locationPins?: readonly SearchNeighborhoodPin[];
   locationFitNonce?: number;
+  /**
+   * When set, the initial view frames this disk around the reference pin
+   * (saved/shared searches: 3.5 km) instead of the tight neighborhood box.
+   */
+  locationFitRadiusKm?: number;
   preferDefaultView?: boolean;
   /** Render approximate listings as a privacy circle at true coords (no pin). */
   approximateAsCircle?: boolean;
@@ -51,6 +56,11 @@ type Props = {
   searchReturn?: SearchReturnContext;
   /** Portal pin-tied popup into this host (above map chrome such as filter rails). */
   popupOverlayHostRef?: RefObject<HTMLElement | null>;
+  /**
+   * Lift embed zoom controls above a sibling bottom-right overlay (e.g. Ampliar mapa)
+   * and move OSM attribution to the opposite corner so they do not overlap.
+   */
+  liftZoomAboveBottomOverlay?: boolean;
 };
 
 const MEXICO_CENTER: [number, number] = [20.8, -99.5];
@@ -65,7 +75,11 @@ function latLngBoundsFromBox(box: LatLngBoundsBox): L.LatLngBounds {
 
 function neighborhoodTargetBox(
   locationPins: readonly SearchNeighborhoodPin[],
+  radiusKm?: number,
 ): LatLngBoundsBox | null {
+  if (radiusKm && radiusKm > 0 && locationPins.length) {
+    return boundsAroundPinsKm(locationPins, radiusKm);
+  }
   if (!locationPins.length) return null;
   if (locationPins.length === 1) return neighborhoodPinBounds(locationPins[0]!);
   return combinedNeighborhoodBounds(locationPins);
@@ -87,19 +101,27 @@ function viewIsLooserThanNeeded(map: L.Map, box: LatLngBoundsBox): boolean {
   );
 }
 
-function shouldRefitNeighborhoodPins(map: L.Map, locationPins: readonly SearchNeighborhoodPin[]): boolean {
-  const targetBox = neighborhoodTargetBox(locationPins);
+function shouldRefitNeighborhoodPins(
+  map: L.Map,
+  locationPins: readonly SearchNeighborhoodPin[],
+  radiusKm?: number,
+): boolean {
+  const targetBox = neighborhoodTargetBox(locationPins, radiusKm);
   if (!targetBox) return false;
   if (!mapViewContainsBox(map, targetBox)) return true;
   return viewIsLooserThanNeeded(map, targetBox);
 }
 
-function fitNeighborhoodPins(map: L.Map, locationPins: readonly SearchNeighborhoodPin[]) {
+function fitNeighborhoodPins(
+  map: L.Map,
+  locationPins: readonly SearchNeighborhoodPin[],
+  radiusKm?: number,
+) {
   if (!locationPins.length) return;
 
-  const targetBox = neighborhoodTargetBox(locationPins);
+  const targetBox = neighborhoodTargetBox(locationPins, radiusKm);
   if (!targetBox) return;
-  if (!shouldRefitNeighborhoodPins(map, locationPins)) return;
+  if (!shouldRefitNeighborhoodPins(map, locationPins, radiusKm)) return;
 
   map.fitBounds(latLngBoundsFromBox(targetBox), {
     padding: NEIGHBORHOOD_FIT_PADDING,
@@ -183,6 +205,7 @@ function FitBounds({
   defaultZoom,
   locationPins,
   locationFitNonce = 0,
+  locationFitRadiusKm,
   preferDefaultView = false,
   /** When true, never pan/zoom the map when listing markers change — viewport is user-controlled (geofenced search). */
   skipListingDrivenRefit,
@@ -193,6 +216,7 @@ function FitBounds({
   defaultZoom?: number;
   locationPins?: readonly SearchNeighborhoodPin[];
   locationFitNonce?: number;
+  locationFitRadiusKm?: number;
   preferDefaultView?: boolean;
   skipListingDrivenRefit: boolean;
   suppressViewportUntilRef?: MutableRefObject<number>;
@@ -200,9 +224,16 @@ function FitBounds({
   const map = useMap();
   const didInitialView = useRef(false);
   const appliedDefaultViewRef = useRef<string | null>(null);
+  const radiusPins = useMemo((): SearchNeighborhoodPin[] => {
+    if (locationPins?.length) return [...locationPins];
+    if (locationFitRadiusKm && defaultCenter) {
+      return [{ name: "search", lat: defaultCenter[0], lng: defaultCenter[1] }];
+    }
+    return [];
+  }, [defaultCenter, locationFitRadiusKm, locationPins]);
   const locationPinKey =
-    locationPins?.map((pin) => `${pin.name}:${pin.lat},${pin.lng}`).join("|") ?? "";
-  const locationFitKey = `${locationPinKey}#${locationFitNonce}`;
+    radiusPins.map((pin) => `${pin.name}:${pin.lat},${pin.lng}`).join("|") ?? "";
+  const locationFitKey = `${locationPinKey}#${locationFitNonce}#r${locationFitRadiusKm ?? ""}`;
 
   useEffect(() => {
     const el = map.getContainer();
@@ -210,12 +241,12 @@ function FitBounds({
     try {
       map.invalidateSize({ animate: false });
 
-      if (preferDefaultView && locationPins?.length) {
+      if (preferDefaultView && radiusPins.length) {
         if (appliedDefaultViewRef.current === locationFitKey) return;
         if (suppressViewportUntilRef) {
           suppressViewportUntilRef.current = Date.now() + 900;
         }
-        fitNeighborhoodPins(map, locationPins);
+        fitNeighborhoodPins(map, radiusPins, locationFitRadiusKm);
         appliedDefaultViewRef.current = locationFitKey;
         didInitialView.current = true;
         return;
@@ -267,9 +298,10 @@ function FitBounds({
     defaultZoom,
     locationFitKey,
     locationFitNonce,
-    locationPins,
+    locationFitRadiusKm,
     map,
     preferDefaultView,
+    radiusPins,
     skipListingDrivenRefit,
     suppressViewportUntilRef,
   ]);
@@ -287,6 +319,7 @@ export function PropertyMap({
   defaultZoom,
   locationPins,
   locationFitNonce = 0,
+  locationFitRadiusKm,
   preferDefaultView = false,
   approximateAsCircle = false,
   approximateCircleRadiusM = APPROXIMATE_LOCATION_RADIUS_DEFAULT_M,
@@ -294,6 +327,7 @@ export function PropertyMap({
   showListingPopup = true,
   searchReturn,
   popupOverlayHostRef,
+  liftZoomAboveBottomOverlay = false,
 }: Props) {
   useEffect(() => {
     ensureLeafletDefaultIcons();
@@ -328,8 +362,11 @@ export function PropertyMap({
     ? `min-h-0 overflow-hidden bg-surface-elevated ${className}`
     : `overflow-hidden rounded-2xl border border-border shadow-sm ${className}`;
 
+  const zoomCornerClass = liftZoomAboveBottomOverlay
+    ? "[&_.leaflet-top.leaflet-left]:right-2 [&_.leaflet-top.leaflet-left]:bottom-[3.75rem]"
+    : "[&_.leaflet-top.leaflet-left]:right-3 [&_.leaflet-top.leaflet-left]:bottom-3";
   const mapHeight = embed
-    ? "z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px] [&_.leaflet-top.leaflet-left]:left-auto [&_.leaflet-top.leaflet-left]:right-3 [&_.leaflet-top.leaflet-left]:top-auto [&_.leaflet-top.leaflet-left]:bottom-3 [&_.leaflet-top.leaflet-left_.leaflet-control]:m-0"
+    ? `z-0 h-full min-h-0 w-full bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px] [&_.leaflet-top.leaflet-left]:left-auto [&_.leaflet-top.leaflet-left]:top-auto ${zoomCornerClass} [&_.leaflet-top.leaflet-left_.leaflet-control]:m-0`
     : "z-0 h-[min(52vh,420px)] w-full min-h-[280px] bg-surface-elevated [&_.leaflet-control-attribution]:text-[10px]";
 
   const usePinPopupOverlay = showListingPopup && Boolean(popupOverlayHostRef);
@@ -342,12 +379,14 @@ export function PropertyMap({
         zoom={zoom}
         className={mapHeight}
         scrollWheelZoom
+        attributionControl={!liftZoomAboveBottomOverlay}
         aria-label="Mapa de anuncios"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        {liftZoomAboveBottomOverlay ? <AttributionControl position="bottomleft" /> : null}
         <MapResizeInvalidate />
         <FitBounds
           bounds={bounds}
@@ -355,6 +394,7 @@ export function PropertyMap({
           defaultZoom={defaultZoom}
           locationPins={locationPins}
           locationFitNonce={locationFitNonce}
+          locationFitRadiusKm={locationFitRadiusKm}
           preferDefaultView={preferDefaultView}
           skipListingDrivenRefit={Boolean(onViewportBbox)}
           suppressViewportUntilRef={suppressViewportBboxUntilRef}
