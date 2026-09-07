@@ -36,6 +36,7 @@ import { adminReportsRouter } from "./adminReportsRouter.js";
 import { shareOgImageRouter } from "./shareOgImageRouter.js";
 import { shareAiCopyRouter } from "./shareAiCopyRouter.js";
 import { assistedDraftRouter } from "./assistedDraftRouter.js";
+import { outreachInvitationRouter } from "./outreachInvitationRouter.js";
 import { blogAdminRouter } from "./blogAdminRouter.js";
 import { blogPublicRouter } from "./blogPublicRouter.js";
 import { injectBlogShareOg, resolveBlogShareOg } from "./blogShareOg.js";
@@ -199,6 +200,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/saved-searches", savedSearchesRouter(db));
   app.use("/api/shared-searches", sharedSearchesRouter(db));
   app.use("/api/admin", adminRouter(db, { uploadDir }));
+  app.use("/api/admin/outreach-invitation", outreachInvitationRouter(db));
   app.use("/api/admin/reports", adminReportsRouter(db));
   app.use("/api/groups", groupsRouter(db));
   app.use("/api/analytics", analyticsRouter(db));

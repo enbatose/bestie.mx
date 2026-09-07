@@ -1,8 +1,9 @@
 import { NavLink } from "react-router-dom";
 import { AdminAssistedDraftPanel } from "@/components/admin/AdminAssistedDraftPanel";
 import { AdminOutreachDiffusionPanel } from "@/components/admin/AdminOutreachDiffusionPanel";
+import { AdminOutreachInvitationPanel } from "@/components/admin/AdminOutreachInvitationPanel";
 
-export type OutreachTab = "creacion" | "difusion";
+export type OutreachTab = "creacion" | "difusion" | "invitacion";
 
 export function AdminOutreachPanel({ tab }: { tab: OutreachTab }) {
   return (
@@ -28,9 +29,25 @@ export function AdminOutreachPanel({ tab }: { tab: OutreachTab }) {
         >
           Difusión
         </NavLink>
+        <NavLink
+          to="/admin/outreach/invitacion"
+          className={({ isActive }) =>
+            `inline-flex min-h-11 shrink-0 items-center rounded-full px-4 py-2 text-sm font-semibold transition ${
+              isActive ? "bg-primary text-primary-fg" : "border border-border text-body hover:bg-surface-elevated"
+            }`
+          }
+        >
+          Invitación
+        </NavLink>
       </div>
       <div className="mt-6">
-        {tab === "difusion" ? <AdminOutreachDiffusionPanel /> : <AdminAssistedDraftPanel />}
+        {tab === "difusion" ? (
+          <AdminOutreachDiffusionPanel />
+        ) : tab === "invitacion" ? (
+          <AdminOutreachInvitationPanel />
+        ) : (
+          <AdminAssistedDraftPanel />
+        )}
       </div>
     </div>
   );

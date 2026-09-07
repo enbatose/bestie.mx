@@ -157,7 +157,8 @@ export function AdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const parsedSection = parseAdminSectionSlug(sectionSlug);
   const tab = parsedSection ?? "users";
-  const outreachTab: OutreachTab = sectionTab === "difusion" ? "difusion" : "creacion";
+  const outreachTab: OutreachTab =
+    sectionTab === "difusion" ? "difusion" : sectionTab === "invitacion" ? "invitacion" : "creacion";
   const conversationFromUrl = searchParams.get("c")?.trim() || null;
   const [err, setErr] = useState<string | null>(null);
   const [citiesText, setCitiesText] = useState("");
@@ -336,7 +337,12 @@ export function AdminPage() {
     return <Navigate to={ADMIN_DEFAULT_PATH} replace />;
   }
 
-  if (tab === "outreach" && sectionTab !== "creacion" && sectionTab !== "difusion") {
+  if (
+    tab === "outreach" &&
+    sectionTab !== "creacion" &&
+    sectionTab !== "difusion" &&
+    sectionTab !== "invitacion"
+  ) {
     return <Navigate to="/admin/outreach/creacion" replace />;
   }
 
