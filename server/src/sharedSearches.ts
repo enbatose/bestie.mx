@@ -18,9 +18,11 @@ import {
   resolveSharedSearchPlacePhrase,
   type SharedSearchExtraction,
 } from "./sharedSearchCompose.js";
+import { isContactChannelText } from "./contactChannelText.js";
 import {
   highAffinitySimilar,
   parseSimilarConfig,
+  recoverPinsFromPlacePhrases,
   splitSharedSearchMatches,
   defaultSimilarConfig,
   type SharedSearchInsight,
@@ -61,6 +63,41 @@ export type SharedSearchRow = {
   created_at: string;
   updated_at: string;
 };
+
+function publicShareInsights(raw: string): SharedSearchInsight[] {
+  return safeJsonArray<SharedSearchInsight>(raw).filter(
+    (i) => !isContactChannelText(i.label ?? "", i.text ?? ""),
+  );
+}
+
+function geographyForShare(share: SharedSearchRow): {
+  location: SavedSearchLocationSnapshot;
+  similar: SharedSearchSimilarConfig;
+  recovered: boolean;
+} {
+  const location = parseSavedSearchLocation(share.location_json);
+  const similar = parseSimilarConfig(share.similar_json);
+  return recoverPinsFromPlacePhrases(
+    location,
+    similar,
+    [share.label],
+    share.city_code,
+  );
+}
+
+/** Persist a recovered landmark pin so later opens and alerts keep the same zone. */
+function persistRecoveredGeography(
+  db: DatabaseSync,
+  share: SharedSearchRow,
+  location: SavedSearchLocationSnapshot,
+  similar: SharedSearchSimilarConfig,
+): void {
+  db.prepare(
+    `UPDATE shared_searches SET location_json = ?, similar_json = ?, updated_at = ? WHERE id = ?`,
+  ).run(JSON.stringify(location), JSON.stringify(similar), isoNow(), share.id);
+  share.location_json = JSON.stringify(location);
+  share.similar_json = JSON.stringify(similar);
+}
 
 export function sharedSearchMapLocation(share: SharedSearchRow): SavedSearchLocationSnapshot {
   const location = parseSavedSearchLocation(share.location_json);
@@ -435,10 +472,7 @@ export async function subscribeToSharedSearch(
     saved = db.prepare(`SELECT * FROM saved_searches WHERE id = ?`).get(saved.id) as SavedSearchRow;
   }
 
-  const filters = parseSavedSearchFilters(share.filters_json);
-  const location = parseSavedSearchLocation(share.location_json);
-  const similarCfg = parseSimilarConfig(share.similar_json);
-  const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
+  const { split } = listingsForShare(db, share);
   const similarHigh = highAffinitySimilar(split.similar);
 
   return {
@@ -495,6 +529,26 @@ export function forkSharedSearchOnEdit(
   return { shareId: forked.id, searchUrl: `/busquedas/${forked.id}`, location };
 }
 
+function listingsForShare(
+  db: DatabaseSync,
+  share: SharedSearchRow,
+): {
+  filters: ReturnType<typeof parseSavedSearchFilters>;
+  location: SavedSearchLocationSnapshot;
+  similar: SharedSearchSimilarConfig;
+  split: ReturnType<typeof splitSharedSearchMatches>;
+} {
+  const filters = parseSavedSearchFilters(share.filters_json);
+  const geo = geographyForShare(share);
+  if (geo.recovered) persistRecoveredGeography(db, share, geo.location, geo.similar);
+  return {
+    filters,
+    location: geo.location,
+    similar: geo.similar,
+    split: splitSharedSearchMatches(fetchPublishedListings(db), filters, geo.location, geo.similar),
+  };
+}
+
 export function sharedSearchPublicMeta(
   db: DatabaseSync,
   slug: string,
@@ -511,16 +565,13 @@ export function sharedSearchPublicMeta(
 } | null {
   const share = loadSharedSearch(db, slug);
   if (!share) return null;
-  const filters = parseSavedSearchFilters(share.filters_json);
-  const location = parseSavedSearchLocation(share.location_json);
-  const similarCfg = parseSimilarConfig(share.similar_json);
-  const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
+  const { filters, location, similar, split } = listingsForShare(db, share);
   const similarHigh = highAffinitySimilar(split.similar);
   const { caption, zoneRule } = sharedSearchOgCaption(
     share,
     filters,
     location,
-    similarCfg,
+    similar,
     split.exact.length,
     similarHigh.length,
   );
@@ -565,16 +616,13 @@ export function sharedSearchPublicView(
 } | null {
   const share = loadSharedSearch(db, slug);
   if (!share) return null;
-  const filters = parseSavedSearchFilters(share.filters_json);
-  const location = parseSavedSearchLocation(share.location_json);
-  const similarCfg = parseSimilarConfig(share.similar_json);
-  const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
+  const { filters, location, similar, split } = listingsForShare(db, share);
   const similarHigh = highAffinitySimilar(split.similar).map((r) => r.listing);
   const { caption, zoneRule } = sharedSearchOgCaption(
     share,
     filters,
     location,
-    similarCfg,
+    similar,
     split.exact.length,
     similarHigh.length,
   );
@@ -602,7 +650,7 @@ export function sharedSearchPublicView(
     sourceKind: sourceKindFromShare(share.kind, share.id),
     filters,
     location: sharedSearchMapLocation(share),
-    insights: safeJsonArray<SharedSearchInsight>(share.insights_json),
+    insights: publicShareInsights(share.insights_json),
     nonNegotiables: safeJsonArray<SharedSearchNonNegotiable>(share.non_negotiables_json),
     exact: split.exact,
     similar: similarHigh,

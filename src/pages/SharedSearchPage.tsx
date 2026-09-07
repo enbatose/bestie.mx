@@ -14,6 +14,7 @@ import {
   enableSavedSearchNotify,
   fetchSavedSearches,
 } from "@/lib/savedSearchesApi";
+import { looksLikeContactChannel } from "@/lib/outreachDiffusionComment";
 import { searchReturnFromLocation } from "@/lib/searchReturn";
 import {
   fetchSharedSearchView,
@@ -80,7 +81,10 @@ export function SharedSearchPage() {
   }, [view]);
 
   const unmapped = useMemo(
-    () => view?.insights.filter((i) => !i.mapped).map((i) => i.text) ?? [],
+    () =>
+      view?.insights
+        .filter((i) => !i.mapped && !looksLikeContactChannel(i.text) && !looksLikeContactChannel(i.label))
+        .map((i) => i.text) ?? [],
     [view],
   );
 

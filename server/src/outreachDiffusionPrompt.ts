@@ -1,3 +1,5 @@
+import { shareableDiffusionCriteria } from "./contactChannelText.js";
+
 /** Exact sign-off so admins can @-link Equipo Bestie MX on Facebook. */
 export const DIFFUSION_COMMENT_SIGN_OFF = "Atte. Equipo Bestie MX.";
 
@@ -77,6 +79,27 @@ function ensureUrl(text: string, url: string): string {
   return `${text.trimEnd()}\n\n${url}`;
 }
 
+function stripBestiePhoneClaims(text: string, url: string): string {
+  const placeholder = "\uE000BESTIE_DIFFUSION_URL\uE000";
+  const protectedUrl = text.includes(url) ? text.split(url).join(placeholder) : text;
+  const withoutNumbers = protectedUrl
+    .replace(/(?:\+?\s*52[\s().-]*)?(?:\(?\d{2,3}\)?[\s().-]*)?\d{3,4}[\s().-]*\d{4}\b/g, "")
+    .replace(/\b\d{8,13}\b/g, "");
+  const lines = withoutNumbers.split("\n").flatMap((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return [line];
+    if (
+      /escr[ií]b(?:e|i)nos|ll[aá]m(?:a|e)nos|nuestro n[uú]mero|n[uú]mero de (?:bestie|atenci[oó]n|contacto)|whatsapp de bestie|llamar a bestie|puedes escribir/i.test(
+        trimmed,
+      )
+    ) {
+      return [];
+    }
+    return [line.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.;])/g, "$1")];
+  });
+  return lines.join("\n").split(placeholder).join(url);
+}
+
 function ensureSignOff(text: string): string {
   const trimmed = text.trimEnd();
   if (trimmed.endsWith(DIFFUSION_COMMENT_SIGN_OFF)) return trimmed;
@@ -96,10 +119,7 @@ function countsPhrase(exact: number, similar: number): string | null {
 }
 
 function extraLine(criteria: string[] | null | undefined): string | null {
-  const cleaned = (criteria ?? [])
-    .map((c) => c.trim())
-    .filter(Boolean)
-    .slice(0, 2);
+  const cleaned = shareableDiffusionCriteria(criteria).slice(0, 2);
   if (!cleaned.length) return null;
   const joined = cleaned.join(", ");
   if (joined.length > 70) return null;
@@ -197,6 +217,8 @@ Must-include (puedes parafrasear, pero el sentido debe quedar):
 Reglas del enlace (crítico para Facebook):
 - En prosa escribe "Bestie" SIN ".mx" (nunca "Bestie.mx", "bestie.mx" ni "www.bestie.mx" fuera del URL).
 - El único URL del comentario es el enlace de /busquedas/ que te dan.
+- Bestie NO tiene teléfono, WhatsApp ni Messenger de atención. Nunca inventes ni cites un número.
+- Un teléfono, WhatsApp o "manda msj / Messenger" del post es del seeker, no de Bestie. No lo repitas. No digas "escríbenos", "llámanos", "nuestro número" ni des un teléfono. El único contacto de Bestie en el comentario es el enlace.
 
 Formato:
 - 3–6 oraciones cortas + URL + firma. Longitud de comentario de Facebook (no párrafo largo).
@@ -211,7 +233,7 @@ export function buildOutreachDiffusionUserPrompt(input: DiffusionCommentInput): 
   const similar = Math.max(0, Math.floor(Number(input.similarCount) || 0));
   const counts = countsPhrase(exact, similar);
   const previous = (input.previousText ?? "").trim();
-  const extras = (input.extraCriteria ?? []).map((c) => c.trim()).filter(Boolean).slice(0, 3);
+  const extras = shareableDiffusionCriteria(input.extraCriteria).slice(0, 3);
 
   const parts: string[] = [
     "Genera un comentario distinto (parafraseado) para pegar bajo el post de Facebook del seeker.",
@@ -237,7 +259,7 @@ export function buildOutreachDiffusionUserPrompt(input: DiffusionCommentInput): 
 
 export function finalizeOutreachDiffusionCopy(raw: string, sharePathOrUrl: string): string {
   const url = diffusionPublicShareUrl(sharePathOrUrl);
-  let text = scrubProseDomains(stripCodeFences(raw), url);
+  let text = stripBestiePhoneClaims(scrubProseDomains(stripCodeFences(raw), url), url);
   text = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
   text = ensureUrl(text, url);
   text = ensureSignOff(text);

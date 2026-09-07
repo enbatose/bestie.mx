@@ -106,6 +106,17 @@ export const GDL_SEARCH_POIS: readonly SearchPoi[] = [
     aliases: ["centro", "centro historico", "centro histórico", "downtown"],
   },
   {
+    name: "Glorieta del Charro",
+    lat: 20.6482,
+    lng: -103.3058,
+    aliases: [
+      "glorieta del charro",
+      "glorieta charro",
+      "la glorieta del charro",
+      "monumento al charro",
+    ],
+  },
+  {
     name: "Chapalita",
     lat: 20.6682,
     lng: -103.4008,

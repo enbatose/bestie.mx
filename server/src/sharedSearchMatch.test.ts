@@ -5,6 +5,7 @@ import {
   matchExactSharedSearch,
   matchSimilarSharedSearch,
   passesGenderNonNegotiable,
+  recoverPinsFromPlacePhrases,
   resolvePlacePins,
   splitSharedSearchMatches,
   EMPTY_SEARCH_FILTERS,
@@ -45,6 +46,29 @@ describe("shared search matching", () => {
   it("resolves ITESO as a POI pin", () => {
     const pins = resolvePlacePins(["cerca del ITESO"]);
     expect(pins.some((p) => p.name === "ITESO")).toBe(true);
+  });
+
+  it("resolves Glorieta del Charro and does not treat the whole city as en zona", () => {
+    const pins = resolvePlacePins(["Glorieta del Charro"]);
+    expect(pins.some((p) => p.name === "Glorieta del Charro")).toBe(true);
+    const emptyHoods = { ...location, neighborhoods: [] as typeof location.neighborhoods };
+    const recovered = recoverPinsFromPlacePhrases(
+      emptyHoods,
+      defaultSimilarConfig(),
+      ["GDL · Glorieta del Charro"],
+      "gdl",
+    );
+    expect(recovered.recovered).toBe(true);
+    expect(recovered.similar.pois[0]?.name).toBe("Glorieta del Charro");
+    const near = listing({ id: "near", lat: 20.65, lng: -103.308, neighborhood: "San Rafael" });
+    const far = listing({ id: "far", lat: 20.5333, lng: -103.4333, neighborhood: "Vista Sur" });
+    const exact = matchExactSharedSearch(
+      [near, far],
+      EMPTY_SEARCH_FILTERS,
+      recovered.location,
+      recovered.similar,
+    );
+    expect(exact.map((l) => l.id)).toEqual(["near"]);
   });
 
   it("excludes men-only listings for a woman seeker", () => {

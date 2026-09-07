@@ -5,7 +5,7 @@ import {
   type ImageItem,
 } from "@/components/admin/AdminAssistedDraftPanel";
 import { generateOutreachDiffusionComment } from "@/lib/outreachDiffusionApi";
-import { buildDiffusionFacebookComment } from "@/lib/outreachDiffusionComment";
+import { buildDiffusionFacebookComment, looksLikeContactChannel } from "@/lib/outreachDiffusionComment";
 import {
   absoluteShareUrl,
   adminCreateSharedSearch,
@@ -93,7 +93,9 @@ export function AdminOutreachDiffusionPanel() {
     },
   ) => {
     const extras =
-      preview?.insights.filter((i) => !i.mapped).map((i) => i.text) ?? [];
+      preview?.insights
+        .filter((i) => !i.mapped && !looksLikeContactChannel(i.text) && !looksLikeContactChannel(i.label))
+        .map((i) => i.text) ?? [];
     return {
       sharePath: path,
       seekerName: seekerName.trim() || null,
@@ -564,11 +566,13 @@ export function AdminOutreachDiffusionPanel() {
             </div>
           </div>
           <p className="text-xs text-muted">Vista previa del recuadro al compartir: {preview.caption}</p>
-          {preview.insights.filter((i) => !i.mapped).length ? (
+          {preview.insights.filter(
+            (i) => !i.mapped && !looksLikeContactChannel(i.text) && !looksLikeContactChannel(i.label),
+          ).length ? (
             <p className="break-words text-xs text-muted">
               Incluye en el comentario:{" "}
               {preview.insights
-                .filter((i) => !i.mapped)
+                .filter((i) => !i.mapped && !looksLikeContactChannel(i.text) && !looksLikeContactChannel(i.label))
                 .map((i) => i.text)
                 .join(" · ")}
             </p>
@@ -661,11 +665,13 @@ export function AdminOutreachDiffusionPanel() {
             <p className="text-sm font-semibold text-body">Solo el enlace</p>
             {zoneRule ? <p className="break-words text-sm text-body">{zoneRule}</p> : null}
             {caption ? <p className="break-words text-sm text-muted">{caption}</p> : null}
-            {preview?.insights.filter((i) => !i.mapped).length ? (
+            {preview?.insights.filter(
+              (i) => !i.mapped && !looksLikeContactChannel(i.text) && !looksLikeContactChannel(i.label),
+            ).length ? (
               <p className="break-words text-sm text-muted">
                 Criterios en el comentario:{" "}
                 {preview.insights
-                  .filter((i) => !i.mapped)
+                  .filter((i) => !i.mapped && !looksLikeContactChannel(i.text) && !looksLikeContactChannel(i.label))
                   .map((i) => i.text)
                   .join(" · ")}
               </p>

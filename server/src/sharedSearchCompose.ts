@@ -1,3 +1,4 @@
+import { isContactChannelText } from "./contactChannelText.js";
 import { resolveMetroCity } from "./metroCities.js";
 import type { Bbox, SearchFilters } from "./searchFilters.js";
 import type { ListingTag, LodgingType } from "./types.js";
@@ -137,7 +138,10 @@ export function composeSharedSearch(opts: {
   for (const item of ext.unmappedCriteria ?? []) {
     const text = (item.text ?? item.label ?? "").trim();
     if (!text) continue;
-    insights.push({ label: (item.label ?? text).trim(), text, mapped: false });
+    const label = (item.label ?? text).trim();
+    // Phone / Messenger from the Facebook post belong to the seeker, not the search.
+    if (isContactChannelText(label, text)) continue;
+    insights.push({ label, text, mapped: false });
     qParts.push(text);
   }
   for (const tag of wantedTags) {

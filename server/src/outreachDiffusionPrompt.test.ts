@@ -30,6 +30,20 @@ describe("finalizeOutreachDiffusionCopy", () => {
   });
 });
 
+describe("finalizeOutreachDiffusionCopy phone claims", () => {
+  it("drops a seeker phone presented as Bestie's number", () => {
+    const url = "https://www.bestie.mx/busquedas/kkpdnmyy";
+    const out = finalizeOutreachDiffusionCopy(
+      `Hola Alejandro. En Bestie preparamos una búsqueda. Si tienes dudas, también puedes escribirnos al 3327082113. Te comparto el enlace:\n\n${url}\n\nAtte. Equipo Bestie MX.`,
+      url,
+    );
+    expect(out).not.toContain("3327082113");
+    expect(out.toLowerCase()).not.toMatch(/escribirnos|llámanos|escríbenos/);
+    expect(out).toContain(url);
+    expect(out.endsWith(DIFFUSION_COMMENT_SIGN_OFF)).toBe(true);
+  });
+});
+
 describe("buildTemplateOutreachDiffusion", () => {
   it("mentions free publish/search/contact and includes the link", () => {
     const text = buildTemplateOutreachDiffusion({

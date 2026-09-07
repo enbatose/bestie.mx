@@ -32,6 +32,19 @@ export function diffusionPublicShareUrl(sharePathOrUrl: string): string {
   return `${DIFFUSION_PUBLIC_ORIGIN}${path}`;
 }
 
+function digitCount(value: string): number {
+  return (value.match(/\d/g) ?? []).length;
+}
+
+/** Seeker phone / WhatsApp from the Facebook post — never a Bestie contact. */
+export function looksLikeContactChannel(value: string): boolean {
+  const t = value.trim();
+  if (!t) return false;
+  const digits = digitCount(t);
+  if (digits < 8 || digits > 13) return false;
+  return digits >= t.replace(/\s/g, "").length * 0.45 || digits >= 10;
+}
+
 function firstName(raw: string | null | undefined): string | null {
   const t = (raw ?? "").trim();
   if (!t) return null;
@@ -87,7 +100,7 @@ function countsPhrase(exact: number, similar: number): string | null {
 function extraLine(criteria: string[] | null | undefined): string | null {
   const cleaned = (criteria ?? [])
     .map((c) => c.trim())
-    .filter(Boolean)
+    .filter((c) => c && !looksLikeContactChannel(c))
     .slice(0, 2);
   if (!cleaned.length) return null;
   const joined = cleaned.join(", ");

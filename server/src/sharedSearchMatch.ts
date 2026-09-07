@@ -3,6 +3,7 @@ import { curatedNeighborhoodPins } from "./locationSearch.js";
 import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
 import type { ListingTag, LodgingType, PropertyListing } from "./types.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
+import { resolveMetroCity } from "./metroCities.js";
 
 export const SIMILAR_RADIUS_KM = 3.5;
 /** Same disk as GTM “cerca” and campaign ads (was 1.2 km for Difusión-only). */
@@ -308,6 +309,37 @@ export function splitSharedSearchMatches(
 
 export function highAffinitySimilar(similar: RankedListing[], min = HIGH_AFFINITY_MIN): RankedListing[] {
   return similar.filter((r) => r.score >= min);
+}
+
+/**
+ * Shares extracted before a landmark was in the POI list can have a place in the
+ * label ("GDL · Glorieta del Charro") and an empty pin set. Without pins, exact
+ * matching treats the whole city as "en zona". Recover a known pin so the public
+ * link actually filters.
+ */
+export function recoverPinsFromPlacePhrases(
+  location: SavedSearchLocationSnapshot,
+  similar: SharedSearchSimilarConfig,
+  phrases: string[],
+  cityCode?: string,
+): { location: SavedSearchLocationSnapshot; similar: SharedSearchSimilarConfig; recovered: boolean } {
+  if (similar.pois.length > 0 || location.neighborhoods.length > 0) {
+    return { location, similar, recovered: false };
+  }
+  const pins = resolvePlacePins(phrases, "poi", cityCode ?? location.cityCode);
+  if (!pins.length) return { location, similar, recovered: false };
+  const pin = pins[0]!;
+  const metro = resolveMetroCity(cityCode ?? location.cityCode);
+  return {
+    recovered: true,
+    location: {
+      ...location,
+      lat: pin.lat,
+      lng: pin.lng,
+      zoom: metro.neighborhoodZoom,
+    },
+    similar: { ...similar, pois: pins, bbox: null },
+  };
 }
 
 export function parseSimilarConfig(raw: string): SharedSearchSimilarConfig {
