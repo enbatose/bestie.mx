@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, RotateCcw, Wand2 } from "lucide-react";
+import { Check, Copy, RefreshCw, RotateCcw, Wand2 } from "lucide-react";
 import {
   ImageDropZone,
   type ImageItem,
 } from "@/components/admin/AdminAssistedDraftPanel";
+import { buildDiffusionFacebookComment } from "@/lib/outreachDiffusionComment";
 import {
   absoluteShareUrl,
   adminCreateSharedSearch,
@@ -42,6 +43,11 @@ export function AdminOutreachDiffusionPanel() {
   const [caption, setCaption] = useState<string | null>(null);
   const [zoneRule, setZoneRule] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedComment, setCopiedComment] = useState(false);
+  const [commentVariantOffset, setCommentVariantOffset] = useState(0);
+  const [exactCount, setExactCount] = useState<number | null>(null);
+  const [similarCount, setSimilarCount] = useState<number | null>(null);
+  const [shareId, setShareId] = useState<string | null>(null);
   const [dupMatches, setDupMatches] = useState<
     Array<{ id: string; label: string; sharePath: string; createdAt: string; seekerName: string | null }>
   >([]);
@@ -71,6 +77,33 @@ export function AdminOutreachDiffusionPanel() {
   const hasInput = text.trim() || infographics.length > 0;
   const shareUrl = sharePath ? absoluteShareUrl(sharePath) : null;
 
+  const facebookComment = useMemo(() => {
+    if (!sharePath) return "";
+    const extras =
+      preview?.insights.filter((i) => !i.mapped).map((i) => i.text) ?? [];
+    return buildDiffusionFacebookComment({
+      sharePath,
+      seekerName: seekerName.trim() || null,
+      zoneRule,
+      placeHint: caption,
+      exactCount: exactCount ?? preview?.exactCount ?? null,
+      similarCount: similarCount ?? preview?.similarCount ?? null,
+      extraCriteria: extras,
+      variantSeed: shareId ?? sharePath,
+      variantOffset: commentVariantOffset,
+    });
+  }, [
+    sharePath,
+    shareId,
+    seekerName,
+    zoneRule,
+    caption,
+    exactCount,
+    similarCount,
+    preview,
+    commentVariantOffset,
+  ]);
+
   const handleExtract = async () => {
     if (!hasInput) return;
     setExtracting(true);
@@ -79,6 +112,11 @@ export function AdminOutreachDiffusionPanel() {
     setSharePath(null);
     setCaption(null);
     setZoneRule(null);
+    setExactCount(null);
+    setSimilarCount(null);
+    setShareId(null);
+    setCommentVariantOffset(0);
+    setCopiedComment(false);
     try {
       const result = await adminExtractSharedSearch({
         text: text.trim() || undefined,
@@ -110,8 +148,13 @@ export function AdminOutreachDiffusionPanel() {
         extraction: preview.extraction,
       });
       setSharePath(result.sharePath);
+      setShareId(result.id);
       setCaption(result.caption);
       setZoneRule(result.zoneRule ?? preview.zoneRule ?? null);
+      setExactCount(result.exactCount);
+      setSimilarCount(result.similarCount);
+      setCommentVariantOffset(0);
+      setCopiedComment(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Error al crear la búsqueda.");
     } finally {
@@ -122,10 +165,15 @@ export function AdminOutreachDiffusionPanel() {
   const handleReuseExisting = async (sharePathToUse: string, id: string) => {
     setErr(null);
     setSharePath(sharePathToUse);
+    setShareId(id);
+    setCommentVariantOffset(0);
+    setCopiedComment(false);
     try {
       const meta = await fetchSharedSearchMeta(id);
       setCaption(meta.caption);
       setZoneRule(meta.zoneRule ?? null);
+      setExactCount(meta.exactCount);
+      setSimilarCount(meta.similarCount);
     } catch {
       setCaption(null);
     }
@@ -142,6 +190,17 @@ export function AdminOutreachDiffusionPanel() {
     }
   };
 
+  const handleCopyComment = async () => {
+    if (!facebookComment.trim()) return;
+    try {
+      await navigator.clipboard.writeText(facebookComment);
+      setCopiedComment(true);
+      window.setTimeout(() => setCopiedComment(false), 2500);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleReset = () => {
     setText("");
     setInfographics([]);
@@ -150,11 +209,16 @@ export function AdminOutreachDiffusionPanel() {
     setFacebookUrl("");
     setPreview(null);
     setSharePath(null);
+    setShareId(null);
     setCaption(null);
     setZoneRule(null);
+    setExactCount(null);
+    setSimilarCount(null);
+    setCommentVariantOffset(0);
     setErr(null);
     setDupMatches([]);
     setCopied(false);
+    setCopiedComment(false);
     setExtracting(false);
     setCreating(false);
   };
@@ -459,34 +523,79 @@ export function AdminOutreachDiffusionPanel() {
       ) : null}
 
       {shareUrl ? (
-        <div className="min-w-0 space-y-3 rounded-2xl border border-secondary/40 bg-secondary/10 p-4">
-          <p className="text-sm font-semibold text-body">Enlace listo para copiar</p>
-          {zoneRule ? <p className="break-words text-sm text-body">{zoneRule}</p> : null}
-          {caption ? <p className="break-words text-sm text-muted">{caption}</p> : null}
-          {preview?.insights.filter((i) => !i.mapped).length ? (
-            <p className="break-words text-sm text-muted">
-              Comentario:{" "}
-              {preview.insights
-                .filter((i) => !i.mapped)
-                .map((i) => i.text)
-                .join(" · ")}
+        <div className="min-w-0 space-y-4 rounded-2xl border border-secondary/40 bg-secondary/10 p-4">
+          <div className="min-w-0 space-y-2">
+            <p className="text-sm font-semibold text-body">Comentario para Facebook</p>
+            <p className="text-xs text-muted">
+              Listo para pegar bajo el post del seeker. Incluye el enlace de la búsqueda y cierra con{" "}
+              <span className="font-medium text-body">Atte. Equipo Bestie MX.</span> para vincularlo a
+              Bestie en el grupo.
             </p>
-          ) : null}
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
-            <input
+            <textarea
+              id="admin-diffusion-fb-comment"
               readOnly
-              value={shareUrl}
+              value={facebookComment}
+              rows={10}
               onFocus={(e) => e.currentTarget.select()}
-              className="w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body sm:w-0 sm:flex-1"
+              className="w-full min-w-0 resize-y rounded-xl border border-border bg-surface px-3 py-3 text-sm leading-relaxed text-body focus:border-accent focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={() => void handleCopy()}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg hover:brightness-110"
-            >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? "Copiado" : "Copiar"}
-            </button>
+            <div className="flex min-w-0 flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void handleCopyComment()}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg hover:brightness-110"
+              >
+                {copiedComment ? <Check size={16} /> : <Copy size={16} />}
+                {copiedComment ? "Comentario copiado" : "Copiar comentario"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCommentVariantOffset((n) => n + 1);
+                  setCopiedComment(false);
+                }}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
+              >
+                <RefreshCw size={16} />
+                Otra redacción
+              </button>
+            </div>
+            <p className="text-xs text-muted">{facebookComment.length} caracteres</p>
+          </div>
+
+          <div className="min-w-0 space-y-2 border-t border-border/60 pt-3">
+            <p className="text-sm font-semibold text-body">Solo el enlace</p>
+            {zoneRule ? <p className="break-words text-sm text-body">{zoneRule}</p> : null}
+            {caption ? <p className="break-words text-sm text-muted">{caption}</p> : null}
+            {preview?.insights.filter((i) => !i.mapped).length ? (
+              <p className="break-words text-sm text-muted">
+                Criterios en el comentario:{" "}
+                {preview.insights
+                  .filter((i) => !i.mapped)
+                  .map((i) => i.text)
+                  .join(" · ")}
+              </p>
+            ) : null}
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+              <input
+                readOnly
+                value={shareUrl}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body sm:w-0 sm:flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCopy()}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? "Copiado" : "Copiar enlace"}
+              </button>
+            </div>
+            <p className="text-xs text-muted">
+              El comentario ya usa la URL de producción (<span className="font-mono">www.bestie.mx</span>
+              ), aunque estés en Dev.
+            </p>
           </div>
         </div>
       ) : null}
