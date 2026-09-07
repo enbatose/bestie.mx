@@ -1,6 +1,7 @@
-/** Client helpers + offline template fallback (server Gemini is primary). */
-
+/** Exact sign-off so admins can @-link Equipo Bestie MX on Facebook. */
 export const DIFFUSION_COMMENT_SIGN_OFF = "Atte. Equipo Bestie MX.";
+
+/** Live site for paste-ready Facebook comments (not Dev/localhost). */
 export const DIFFUSION_PUBLIC_ORIGIN = "https://www.bestie.mx";
 
 const MAX_COMMENT_CHARS = 750;
@@ -13,6 +14,7 @@ export type DiffusionCommentInput = {
   exactCount?: number | null;
   similarCount?: number | null;
   extraCriteria?: string[] | null;
+  previousText?: string | null;
   variantSeed?: string | null;
   variantOffset?: number;
 };
@@ -66,6 +68,15 @@ function scrubProseDomains(text: string, url: string): string {
     .join(url);
 }
 
+function ensureUrl(text: string, url: string): string {
+  if (text.includes(url)) return text;
+  const signIdx = text.lastIndexOf(DIFFUSION_COMMENT_SIGN_OFF);
+  if (signIdx >= 0) {
+    return `${text.slice(0, signIdx).trimEnd()}\n\n${url}\n\n${DIFFUSION_COMMENT_SIGN_OFF}`;
+  }
+  return `${text.trimEnd()}\n\n${url}`;
+}
+
 function ensureSignOff(text: string): string {
   const trimmed = text.trimEnd();
   if (trimmed.endsWith(DIFFUSION_COMMENT_SIGN_OFF)) return trimmed;
@@ -95,6 +106,14 @@ function extraLine(criteria: string[] | null | undefined): string | null {
   return `Tomamos en cuenta: ${joined}.`;
 }
 
+function stripCodeFences(raw: string): string {
+  let t = raw.trim();
+  if (t.startsWith("```")) {
+    t = t.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
+  }
+  return t.replace(/^["“]|["”]$/g, "").trim();
+}
+
 type VariantCtx = {
   name: string | null;
   zone: string | null;
@@ -103,6 +122,7 @@ type VariantCtx = {
   extra: string | null;
 };
 
+/** Free pillars — always present in template fallbacks (paraphrased by Gemini). */
 const FREE_LINES = [
   "En Bestie publicar, buscar cuartos y contactar al anunciante es gratis.",
   "Publicar, buscar cuarto y escribirle al anunciante no cuesta en Bestie.",
@@ -155,8 +175,85 @@ const VARIANTS: Array<(ctx: VariantCtx) => string[]> = [
   ],
 ];
 
-/** Offline / API-fallback template. Prefer server Gemini via generateOutreachDiffusionComment. */
-export function buildDiffusionFacebookComment(input: DiffusionCommentInput): string {
+export const OUTREACH_DIFFUSION_SYSTEM_PROMPT = `Eres copywriter de Bestie (marketplace de roomies y cuartos en Guadalajara, México).
+
+Redactas un comentario corto para pegar BAJO el post de Facebook de alguien que BUSCA cuarto o roomie (seeker). El objetivo: invitarle a abrir un enlace de búsqueda ya armada en Bestie.
+
+Voz de marca (Equipo Bestie):
+- Español de México, tú, cercano y profesional — no corporativo frío, no infantil.
+- Habla como el equipo de Bestie ("te armamos", "en Bestie…"), no como un perfil personal anónimo.
+- Cero hashtags. Sin pedir like/follow. Sin criticar Facebook ni el grupo.
+- No prometas leads, métricas ni resultados garantizados.
+- 1–3 emojis máximo, solo si aportan. Sin spam de emojis ni signos de exclamación en cascada.
+
+Must-include (puedes parafrasear, pero el sentido debe quedar):
+1) Saludar (con nombre si te lo pasan).
+2) Decir que preparamos / armamos una búsqueda con opciones según lo que pidió (zona y conteos si te los dan).
+3) Dejar claro que en Bestie es GRATIS: publicar anuncios, buscar cuartos y contactar al anunciante.
+4) Invitar a abrir el enlace (mapa / opciones).
+5) Exactamente UN URL: el que te pasan en el prompt (en su propia línea).
+6) Cierre EXACTO en la última línea: ${DIFFUSION_COMMENT_SIGN_OFF}
+
+Reglas del enlace (crítico para Facebook):
+- En prosa escribe "Bestie" SIN ".mx" (nunca "Bestie.mx", "bestie.mx" ni "www.bestie.mx" fuera del URL).
+- El único URL del comentario es el enlace de /busquedas/ que te dan.
+
+Formato:
+- 3–6 oraciones cortas + URL + firma. Longitud de comentario de Facebook (no párrafo largo).
+- Variar estructura y vocabulario en cada generación para que no suene a plantilla spam / bot.
+- Responde SOLO con el comentario listo para pegar. Sin comillas, sin markdown, sin notas.`;
+
+export function buildOutreachDiffusionUserPrompt(input: DiffusionCommentInput): string {
+  const url = diffusionPublicShareUrl(input.sharePath);
+  const name = firstName(input.seekerName);
+  const zone = usefulZone(input.zoneRule, input.placeHint);
+  const exact = Math.max(0, Math.floor(Number(input.exactCount) || 0));
+  const similar = Math.max(0, Math.floor(Number(input.similarCount) || 0));
+  const counts = countsPhrase(exact, similar);
+  const previous = (input.previousText ?? "").trim();
+  const extras = (input.extraCriteria ?? []).map((c) => c.trim()).filter(Boolean).slice(0, 3);
+
+  const parts: string[] = [
+    "Genera un comentario distinto (parafraseado) para pegar bajo el post de Facebook del seeker.",
+    `URL obligatorio (única URL del comentario): ${url}`,
+  ];
+  if (name) parts.push(`Nombre del seeker (úsalo solo en el saludo si suena natural): ${name}`);
+  else parts.push("No hay nombre: saludo genérico amable.");
+  if (zone) parts.push(`Zona / lugar de la búsqueda: ${zone}`);
+  if (counts) parts.push(`Conteos disponibles: ${counts}`);
+  if (extras.length) parts.push(`Criterios extra a mencionar si caben (breves): ${extras.join(" · ")}`);
+  if (previous) {
+    parts.push(
+      "Versión anterior (NO la copies; cambia apertura, orden de frases y redacción):\n---\n" +
+        previous +
+        "\n---",
+    );
+  }
+  parts.push(
+    `Recuerda: gratis publicar + buscar cuartos + contactar anunciante; URL ${url}; firma exacta "${DIFFUSION_COMMENT_SIGN_OFF}".`,
+  );
+  return parts.join("\n\n");
+}
+
+export function finalizeOutreachDiffusionCopy(raw: string, sharePathOrUrl: string): string {
+  const url = diffusionPublicShareUrl(sharePathOrUrl);
+  let text = scrubProseDomains(stripCodeFences(raw), url);
+  text = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+  text = ensureUrl(text, url);
+  text = ensureSignOff(text);
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
+  if (text.length > MAX_COMMENT_CHARS) {
+    const body = text
+      .replace(url, "")
+      .replace(DIFFUSION_COMMENT_SIGN_OFF, "")
+      .trim()
+      .slice(0, MAX_COMMENT_CHARS - url.length - DIFFUSION_COMMENT_SIGN_OFF.length - 10);
+    text = `${body}\n\n${url}\n\n${DIFFUSION_COMMENT_SIGN_OFF}`;
+  }
+  return text;
+}
+
+export function buildTemplateOutreachDiffusion(input: DiffusionCommentInput): string {
   const url = diffusionPublicShareUrl(input.sharePath);
   const name = firstName(input.seekerName);
   const zone = usefulZone(input.zoneRule, input.placeHint);
@@ -165,21 +262,10 @@ export function buildDiffusionFacebookComment(input: DiffusionCommentInput): str
   const counts = countsPhrase(exact, similar);
   const extra = extraLine(input.extraCriteria ?? null);
   const seed = (input.variantSeed ?? url).trim() || url;
-  const offset = Math.max(0, Math.floor(Number(input.variantOffset) || 0));
+  const previous = (input.previousText ?? "").trim();
+  let offset = Math.max(0, Math.floor(Number(input.variantOffset) || 0));
+  if (previous) offset += 1;
   const idx = (hashSeed(seed) + offset) % VARIANTS.length;
   const lines = VARIANTS[idx]!({ name, zone, counts, url, extra });
-  let text = lines.filter(Boolean).join("\n\n");
-  text = scrubProseDomains(text, url);
-  if (!text.includes(url)) text = `${text.trimEnd()}\n\n${url}`;
-  text = ensureSignOff(text);
-  text = text.replace(/\n{3,}/g, "\n\n").trim();
-  if (text.length > MAX_COMMENT_CHARS) {
-    const body = text
-      .replace(url, "")
-      .replace(DIFFUSION_COMMENT_SIGN_OFF, "")
-      .trim()
-      .slice(0, MAX_COMMENT_CHARS - url.length - DIFFUSION_COMMENT_SIGN_OFF.length - 8);
-    text = `${body}\n\n${url}\n\n${DIFFUSION_COMMENT_SIGN_OFF}`;
-  }
-  return text;
+  return finalizeOutreachDiffusionCopy(lines.filter(Boolean).join("\n\n"), input.sharePath);
 }

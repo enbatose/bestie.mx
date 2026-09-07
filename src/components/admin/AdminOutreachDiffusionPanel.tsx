@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, RefreshCw, RotateCcw, Wand2 } from "lucide-react";
 import {
   ImageDropZone,
   type ImageItem,
 } from "@/components/admin/AdminAssistedDraftPanel";
+import { generateOutreachDiffusionComment } from "@/lib/outreachDiffusionApi";
 import { buildDiffusionFacebookComment } from "@/lib/outreachDiffusionComment";
 import {
   absoluteShareUrl,
@@ -28,6 +29,12 @@ function qualityLabel(q: string): string {
   return "Baja";
 }
 
+function diffusionCommentError(code: string): string {
+  if (code === "rate_limited") return "Demasiadas generaciones de comentario. Espera un momento.";
+  if (code === "unauthorized" || code === "forbidden") return "Necesitas sesión de administrador.";
+  return "No se pudo generar el comentario. Intenta de nuevo.";
+}
+
 export function AdminOutreachDiffusionPanel() {
   const [city, setCity] = useState<string>("Guadalajara");
   const [seekerName, setSeekerName] = useState("");
@@ -44,7 +51,10 @@ export function AdminOutreachDiffusionPanel() {
   const [zoneRule, setZoneRule] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedComment, setCopiedComment] = useState(false);
-  const [commentVariantOffset, setCommentVariantOffset] = useState(0);
+  const [facebookComment, setFacebookComment] = useState("");
+  const [commentSource, setCommentSource] = useState<"gemini" | "template" | null>(null);
+  const [generatingComment, setGeneratingComment] = useState(false);
+  const [commentErr, setCommentErr] = useState<string | null>(null);
   const [exactCount, setExactCount] = useState<number | null>(null);
   const [similarCount, setSimilarCount] = useState<number | null>(null);
   const [shareId, setShareId] = useState<string | null>(null);
@@ -77,32 +87,73 @@ export function AdminOutreachDiffusionPanel() {
   const hasInput = text.trim() || infographics.length > 0;
   const shareUrl = sharePath ? absoluteShareUrl(sharePath) : null;
 
-  const facebookComment = useMemo(() => {
-    if (!sharePath) return "";
+  const commentPayload = (
+    path: string,
+    opts?: {
+      previousText?: string | null;
+      zoneRule?: string | null;
+      placeHint?: string | null;
+      exactCount?: number | null;
+      similarCount?: number | null;
+    },
+  ) => {
     const extras =
       preview?.insights.filter((i) => !i.mapped).map((i) => i.text) ?? [];
-    return buildDiffusionFacebookComment({
-      sharePath,
+    return {
+      sharePath: path,
       seekerName: seekerName.trim() || null,
-      zoneRule,
-      placeHint: caption,
-      exactCount: exactCount ?? preview?.exactCount ?? null,
-      similarCount: similarCount ?? preview?.similarCount ?? null,
+      zoneRule: opts?.zoneRule !== undefined ? opts.zoneRule : zoneRule,
+      placeHint: opts?.placeHint !== undefined ? opts.placeHint : caption,
+      exactCount:
+        opts?.exactCount !== undefined ? opts.exactCount : (exactCount ?? preview?.exactCount ?? null),
+      similarCount:
+        opts?.similarCount !== undefined
+          ? opts.similarCount
+          : (similarCount ?? preview?.similarCount ?? null),
       extraCriteria: extras,
-      variantSeed: shareId ?? sharePath,
-      variantOffset: commentVariantOffset,
+      previousText: opts?.previousText?.trim() || null,
+    };
+  };
+
+  const requestComment = async (
+    path: string,
+    opts?: {
+      regenerate?: boolean;
+      zoneRule?: string | null;
+      placeHint?: string | null;
+      exactCount?: number | null;
+      similarCount?: number | null;
+    },
+  ) => {
+    setGeneratingComment(true);
+    setCommentErr(null);
+    setCopiedComment(false);
+    const payload = commentPayload(path, {
+      previousText: opts?.regenerate ? facebookComment : null,
+      zoneRule: opts?.zoneRule,
+      placeHint: opts?.placeHint,
+      exactCount: opts?.exactCount,
+      similarCount: opts?.similarCount,
     });
-  }, [
-    sharePath,
-    shareId,
-    seekerName,
-    zoneRule,
-    caption,
-    exactCount,
-    similarCount,
-    preview,
-    commentVariantOffset,
-  ]);
+    try {
+      const result = await generateOutreachDiffusionComment(payload);
+      setFacebookComment(result.text);
+      setCommentSource(result.source);
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "error";
+      setCommentErr(diffusionCommentError(code));
+      setFacebookComment(
+        buildDiffusionFacebookComment({
+          ...payload,
+          variantSeed: shareId ?? path,
+          variantOffset: opts?.regenerate ? 1 : 0,
+        }),
+      );
+      setCommentSource("template");
+    } finally {
+      setGeneratingComment(false);
+    }
+  };
 
   const handleExtract = async () => {
     if (!hasInput) return;
@@ -115,7 +166,9 @@ export function AdminOutreachDiffusionPanel() {
     setExactCount(null);
     setSimilarCount(null);
     setShareId(null);
-    setCommentVariantOffset(0);
+    setFacebookComment("");
+    setCommentSource(null);
+    setCommentErr(null);
     setCopiedComment(false);
     try {
       const result = await adminExtractSharedSearch({
@@ -150,14 +203,19 @@ export function AdminOutreachDiffusionPanel() {
       setSharePath(result.sharePath);
       setShareId(result.id);
       setCaption(result.caption);
-      setZoneRule(result.zoneRule ?? preview.zoneRule ?? null);
+      const nextZone = result.zoneRule ?? preview.zoneRule ?? null;
+      setZoneRule(nextZone);
       setExactCount(result.exactCount);
       setSimilarCount(result.similarCount);
-      setCommentVariantOffset(0);
-      setCopiedComment(false);
+      setCreating(false);
+      await requestComment(result.sharePath, {
+        zoneRule: nextZone,
+        placeHint: result.caption,
+        exactCount: result.exactCount,
+        similarCount: result.similarCount,
+      });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Error al crear la búsqueda.");
-    } finally {
       setCreating(false);
     }
   };
@@ -166,17 +224,31 @@ export function AdminOutreachDiffusionPanel() {
     setErr(null);
     setSharePath(sharePathToUse);
     setShareId(id);
-    setCommentVariantOffset(0);
-    setCopiedComment(false);
+    setFacebookComment("");
+    setCommentSource(null);
+    let nextCaption: string | null = null;
+    let nextZone: string | null = null;
+    let nextExact: number | null = null;
+    let nextSimilar: number | null = null;
     try {
       const meta = await fetchSharedSearchMeta(id);
-      setCaption(meta.caption);
-      setZoneRule(meta.zoneRule ?? null);
-      setExactCount(meta.exactCount);
-      setSimilarCount(meta.similarCount);
+      nextCaption = meta.caption;
+      nextZone = meta.zoneRule ?? null;
+      nextExact = meta.exactCount;
+      nextSimilar = meta.similarCount;
+      setCaption(nextCaption);
+      setZoneRule(nextZone);
+      setExactCount(nextExact);
+      setSimilarCount(nextSimilar);
     } catch {
       setCaption(null);
     }
+    await requestComment(sharePathToUse, {
+      zoneRule: nextZone,
+      placeHint: nextCaption,
+      exactCount: nextExact,
+      similarCount: nextSimilar,
+    });
   };
 
   const handleCopy = async () => {
@@ -214,13 +286,16 @@ export function AdminOutreachDiffusionPanel() {
     setZoneRule(null);
     setExactCount(null);
     setSimilarCount(null);
-    setCommentVariantOffset(0);
+    setFacebookComment("");
+    setCommentSource(null);
+    setCommentErr(null);
     setErr(null);
     setDupMatches([]);
     setCopied(false);
     setCopiedComment(false);
     setExtracting(false);
     setCreating(false);
+    setGeneratingComment(false);
   };
 
   const formDirty =
@@ -512,11 +587,13 @@ export function AdminOutreachDiffusionPanel() {
           ) : (
             <button
               type="button"
-              disabled={creating}
+              disabled={creating || generatingComment}
               onClick={() => void handleCreate()}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40"
             >
-              {creating ? "Generando enlace…" : "Generar enlace para compartir"}
+              {creating || generatingComment
+                ? "Generando enlace y comentario…"
+                : "Generar enlace para compartir"}
             </button>
           )}
         </div>
@@ -527,40 +604,60 @@ export function AdminOutreachDiffusionPanel() {
           <div className="min-w-0 space-y-2">
             <p className="text-sm font-semibold text-body">Comentario para Facebook</p>
             <p className="text-xs text-muted">
-              Listo para pegar bajo el post del seeker. Incluye el enlace de la búsqueda y cierra con{" "}
-              <span className="font-medium text-body">Atte. Equipo Bestie MX.</span> para vincularlo a
-              Bestie en el grupo.
+              Listo para pegar bajo el post del seeker. Cada generación parafrasea el texto (IA) para
+              reducir detección de spam. Menciona que publicar, buscar cuartos y contactar es gratis;
+              incluye el enlace y cierra con{" "}
+              <span className="font-medium text-body">Atte. Equipo Bestie MX.</span>
             </p>
             <textarea
               id="admin-diffusion-fb-comment"
-              readOnly
               value={facebookComment}
-              rows={10}
-              onFocus={(e) => e.currentTarget.select()}
-              className="w-full min-w-0 resize-y rounded-xl border border-border bg-surface px-3 py-3 text-sm leading-relaxed text-body focus:border-accent focus:outline-none"
+              onChange={(e) => setFacebookComment(e.target.value)}
+              rows={12}
+              disabled={generatingComment}
+              spellCheck
+              className="w-full min-w-0 resize-y rounded-xl border border-border bg-surface px-3 py-3 text-sm leading-relaxed text-body focus:border-accent focus:outline-none disabled:opacity-60"
+              placeholder={generatingComment ? "Generando comentario…" : "El comentario aparecerá aquí…"}
             />
+            {commentErr ? (
+              <p role="alert" className="text-xs text-warning-fg">
+                {commentErr}
+              </p>
+            ) : null}
             <div className="flex min-w-0 flex-wrap gap-2">
               <button
                 type="button"
+                disabled={!facebookComment.trim() || generatingComment}
                 onClick={() => void handleCopyComment()}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg hover:brightness-110"
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40"
               >
                 {copiedComment ? <Check size={16} /> : <Copy size={16} />}
                 {copiedComment ? "Comentario copiado" : "Copiar comentario"}
               </button>
               <button
                 type="button"
+                disabled={!sharePath || generatingComment}
                 onClick={() => {
-                  setCommentVariantOffset((n) => n + 1);
-                  setCopiedComment(false);
+                  if (sharePath) void requestComment(sharePath, { regenerate: true });
                 }}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-body hover:bg-surface-elevated"
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-40"
               >
-                <RefreshCw size={16} />
-                Otra redacción
+                <RefreshCw size={16} className={generatingComment ? "animate-spin" : undefined} />
+                {generatingComment ? "Generando…" : "Otra redacción"}
               </button>
             </div>
-            <p className="text-xs text-muted">{facebookComment.length} caracteres</p>
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-muted">
+              <span>
+                {commentSource === "gemini"
+                  ? "Generado con IA (Gemini)"
+                  : commentSource === "template"
+                    ? "Plantilla de respaldo (sin IA o fallo de IA)"
+                    : generatingComment
+                      ? "Generando…"
+                      : "\u00a0"}
+              </span>
+              <span>{facebookComment.trim() ? `${facebookComment.length} caracteres` : ""}</span>
+            </div>
           </div>
 
           <div className="min-w-0 space-y-2 border-t border-border/60 pt-3">
@@ -605,7 +702,7 @@ export function AdminOutreachDiffusionPanel() {
           <button
             type="button"
             onClick={handleReset}
-            disabled={extracting || creating}
+            disabled={extracting || creating || generatingComment}
             className="inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-2 rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-40 sm:w-auto"
           >
             <RotateCcw size={16} />

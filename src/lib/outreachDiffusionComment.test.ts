@@ -18,7 +18,7 @@ describe("diffusionPublicShareUrl", () => {
 });
 
 describe("buildDiffusionFacebookComment", () => {
-  it("includes greeting, zone, counts, single URL, and sign-off", () => {
+  it("includes greeting, zone, counts, free pillars, single URL, and sign-off", () => {
     const text = buildDiffusionFacebookComment({
       sharePath: "/busquedas/gdlchapu",
       seekerName: "María López",
@@ -31,6 +31,9 @@ describe("buildDiffusionFacebookComment", () => {
     expect(text).toMatch(/María/);
     expect(text).toMatch(/Chapultepec/);
     expect(text).toMatch(/8 en zona/);
+    expect(text.toLowerCase()).toMatch(/gratis|no cuesta/);
+    expect(text.toLowerCase()).toMatch(/publicar/);
+    expect(text.toLowerCase()).toMatch(/buscar/);
     expect(text).toContain("https://www.bestie.mx/busquedas/gdlchapu");
     expect(text.endsWith(DIFFUSION_COMMENT_SIGN_OFF)).toBe(true);
     const withoutUrl = text.replace("https://www.bestie.mx/busquedas/gdlchapu", "");
