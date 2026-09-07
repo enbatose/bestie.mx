@@ -11,4 +11,6 @@ dockerfilePath = "Dockerfile"
 startCommand = "node dist/backupCronEntry.js"
 # Cron runs, then exits. No HTTP server / healthcheck.
 restartPolicyType = "NEVER"
-cronSchedule = "0 5,6 * * *"
+# TEMP: every 5 min + BACKUP_CRON_FORCE=1 to warm the new empty volume from S3.
+# Restore to: cronSchedule = "0 5,6 * * *" and remove BACKUP_CRON_FORCE after one success.
+cronSchedule = "*/5 * * * *"
