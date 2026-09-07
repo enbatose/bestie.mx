@@ -240,9 +240,115 @@ export function formatShareOgCaption(opts: {
   mainArea: string;
 }): string {
   const counts = `Bestie: ${opts.exactCount} en zona, ${opts.similarCount} cerca`;
-  const rest = [opts.cityAbbr, opts.priceLabel, opts.mainArea].filter(Boolean).join(", ");
-  const full = rest ? `${counts} · ${rest}` : counts;
-  return full.length <= 90 ? full : `${counts} · ${opts.cityAbbr}`.slice(0, 90);
+  const place = usefulPlacePhrase(opts.mainArea, opts.cityAbbr);
+  const price = opts.priceLabel.trim();
+  // Place first so Facebook's title shows a street/colonia the seeker recognizes — not only GDL.
+  const rest = [place, price].filter(Boolean).join(", ");
+  const withPlace = rest ? `${counts} · ${rest}` : `${counts} · ${opts.cityAbbr}`.trim();
+  if (withPlace.length <= 90) return withPlace;
+  if (place) {
+    const prefix = `${counts} · `;
+    const room = Math.max(12, 90 - prefix.length);
+    return `${prefix}${truncatePlace(place, room)}`;
+  }
+  return `${counts} · ${opts.cityAbbr}`.slice(0, 90);
+}
+
+/** Prefer a pin, else zone sentence, else unmapped “Cerca de…”, else the area bit of the share label. */
+export function resolveSharedSearchPlacePhrase(opts: {
+  neighborhoods?: { name: string }[];
+  pois?: { name: string }[];
+  cityAbbr?: string;
+  cityLabel?: string;
+  label?: string;
+  zoneRule?: string;
+  insights?: Array<{ label: string; text: string; mapped: boolean }>;
+  mainAreaFallback?: string;
+}): string {
+  const fromPin =
+    opts.neighborhoods?.map((n) => n.name.trim()).find(Boolean) ||
+    opts.pois?.map((p) => p.name.trim()).find(Boolean) ||
+    "";
+  if (fromPin) return fromPin;
+
+  const zone = opts.zoneRule?.trim() ?? "";
+  if (zone && zone !== "Área del mapa" && usefulPlacePhrase(zone, opts.cityAbbr || opts.cityLabel || "")) {
+    return zone;
+  }
+
+  for (const insight of opts.insights ?? []) {
+    if (insight.mapped) continue;
+    const text = insight.text.trim();
+    const label = insight.label.trim();
+    if (!text) continue;
+    const looksLocation =
+      /ubicaci[oó]n/i.test(label) ||
+      /cerca de/i.test(text) ||
+      /cerca de/i.test(label) ||
+      /^(av\.?|avenida|calle|colonia|col\.|zona)\b/i.test(text);
+    if (!looksLocation) continue;
+    return stripCercaPrefix(text);
+  }
+
+  const fromLabel = areaFromShareLabel(opts.label, opts.cityAbbr, opts.cityLabel);
+  if (fromLabel) return fromLabel;
+
+  const fallback = (opts.mainAreaFallback ?? "").trim();
+  return usefulPlacePhrase(fallback, opts.cityAbbr || opts.cityLabel || "") ? fallback : "";
+}
+
+function usefulPlacePhrase(place: string, cityHint: string): string {
+  const p = place.trim();
+  if (!p) return "";
+  const city = cityHint.trim();
+  if (!city) return p;
+  if (normalizePlaceCompare(p) === normalizePlaceCompare(city)) return "";
+  // "GDL" / "Guadalajara" style duplicates
+  if (city.length <= 4 && normalizePlaceCompare(p).startsWith(normalizePlaceCompare(city))) return p;
+  return p;
+}
+
+function stripCercaPrefix(text: string): string {
+  return text.replace(/^cerca de\s+/i, "").trim();
+}
+
+function areaFromShareLabel(
+  label: string | undefined,
+  cityAbbr?: string,
+  cityLabel?: string,
+): string {
+  if (!label?.trim()) return "";
+  const parts = label
+    .split("·")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const skip = new Set(
+    [cityAbbr, cityLabel, "GDL", "Guadalajara"]
+      .filter(Boolean)
+      .map((s) => normalizePlaceCompare(String(s))),
+  );
+  for (const part of parts) {
+    if (/^\$|hasta\s+\$|desde\s+\$|máx\.|min\./i.test(part)) continue;
+    if (skip.has(normalizePlaceCompare(part))) continue;
+    if (part.length < 3) continue;
+    return part;
+  }
+  return "";
+}
+
+function normalizePlaceCompare(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function truncatePlace(place: string, max: number): string {
+  if (place.length <= max) return place;
+  if (max <= 1) return place.slice(0, max);
+  return `${place.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
 }
 
 export function priceLabelFromFilters(filters: SearchFilters): string {

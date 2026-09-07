@@ -15,6 +15,7 @@ import {
   composeSharedSearch,
   formatShareOgCaption,
   priceLabelFromFilters,
+  resolveSharedSearchPlacePhrase,
   type SharedSearchExtraction,
 } from "./sharedSearchCompose.js";
 import {
@@ -288,19 +289,15 @@ export function createTemplateSharedSearch(
   const similarCfg = existing ? parseSimilarConfig(share.similar_json) : composed.similar;
   const split = analyzeSharedSearch(db, filters, location, similarCfg);
   const similarHigh = highAffinitySimilar(split.similar);
-  const metro = resolveMetroCity(share.city_code);
-  const mainArea =
-    location.neighborhoods[0]?.name ||
-    similarCfg.pois[0]?.name ||
-    share.city_label ||
-    metro.label;
-  const caption = formatShareOgCaption({
-    exactCount: split.exact.length,
-    similarCount: similarHigh.length,
-    cityAbbr: metro.abbr || metro.label,
-    priceLabel: priceLabelFromFilters(filters),
-    mainArea,
-  });
+  const { caption, zoneRule, place } = sharedSearchOgCaption(
+    share,
+    filters,
+    location,
+    similarCfg,
+    split.exact.length,
+    similarHigh.length,
+  );
+  const mainArea = place || composed.mainArea;
   const avg =
     similarHigh.length > 0 ? similarHigh.reduce((s, r) => s + r.score, 0) / similarHigh.length : 0;
   return {
@@ -321,7 +318,7 @@ export function createTemplateSharedSearch(
           mainArea,
         }
       : composed,
-    zoneRule: zoneRuleForSavedSearch(filters, location, share.similar_json),
+    zoneRule,
     reused: Boolean(existing),
   };
 }
@@ -519,31 +516,24 @@ export function sharedSearchPublicMeta(
   const similarCfg = parseSimilarConfig(share.similar_json);
   const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
   const similarHigh = highAffinitySimilar(split.similar);
-  const metro = resolveMetroCity(share.city_code);
-  const insights = safeJsonArray<SharedSearchInsight>(share.insights_json);
-  const mainArea =
-    location.neighborhoods[0]?.name ||
-    similarCfg.pois[0]?.name ||
-    share.city_label ||
-    metro.label;
-  void insights;
-  const caption = formatShareOgCaption({
-    exactCount: split.exact.length,
-    similarCount: similarHigh.length,
-    cityAbbr: metro.abbr || metro.label,
-    priceLabel: priceLabelFromFilters(filters),
-    mainArea,
-  });
+  const { caption, zoneRule } = sharedSearchOgCaption(
+    share,
+    filters,
+    location,
+    similarCfg,
+    split.exact.length,
+    similarHigh.length,
+  );
   return {
     id: share.id,
     label: share.label,
     cityCode: share.city_code,
-    cityLabel: share.city_label || metro.label,
+    cityLabel: share.city_label || resolveMetroCity(share.city_code).label,
     caption,
     exactCount: split.exact.length,
     similarCount: similarHigh.length,
     sharePath: `/busquedas/${share.id}`,
-    zoneRule: zoneRuleForSavedSearch(filters, location, share.similar_json),
+    zoneRule,
   };
 }
 
@@ -580,19 +570,14 @@ export function sharedSearchPublicView(
   const similarCfg = parseSimilarConfig(share.similar_json);
   const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
   const similarHigh = highAffinitySimilar(split.similar).map((r) => r.listing);
-  const metro = resolveMetroCity(share.city_code);
-  const mainArea =
-    location.neighborhoods[0]?.name ||
-    similarCfg.pois[0]?.name ||
-    share.city_label ||
-    metro.label;
-  const caption = formatShareOgCaption({
-    exactCount: split.exact.length,
-    similarCount: similarHigh.length,
-    cityAbbr: metro.abbr || metro.label,
-    priceLabel: priceLabelFromFilters(filters),
-    mainArea,
-  });
+  const { caption, zoneRule } = sharedSearchOgCaption(
+    share,
+    filters,
+    location,
+    similarCfg,
+    split.exact.length,
+    similarHigh.length,
+  );
   let alreadySaved = false;
   let savedSearchId: string | null = null;
   let emailNotifyEnabled = false;
@@ -611,9 +596,9 @@ export function sharedSearchPublicView(
     kind: share.kind,
     label: share.label,
     cityCode: share.city_code,
-    cityLabel: share.city_label || metro.label,
+    cityLabel: share.city_label || resolveMetroCity(share.city_code).label,
     caption,
-    zoneRule: zoneRuleForSavedSearch(filters, location, share.similar_json),
+    zoneRule,
     sourceKind: sourceKindFromShare(share.kind, share.id),
     filters,
     location: sharedSearchMapLocation(share),
@@ -639,6 +624,49 @@ function safeJsonArray<T>(raw: string): T[] {
   }
 }
 
+function sharedSearchPlaceAndZone(
+  share: SharedSearchRow,
+  filters: ReturnType<typeof parseSavedSearchFilters>,
+  location: SavedSearchLocationSnapshot,
+  similarCfg: SharedSearchSimilarConfig,
+): { place: string; zoneRule: string } {
+  const insights = safeJsonArray<SharedSearchInsight>(share.insights_json);
+  let zoneRule = zoneRuleForSavedSearch(filters, location, share.similar_json);
+  const place = resolveSharedSearchPlacePhrase({
+    neighborhoods: location.neighborhoods,
+    pois: similarCfg.pois,
+    cityAbbr: resolveMetroCity(share.city_code).abbr,
+    cityLabel: share.city_label || location.cityLabel,
+    label: share.label,
+    zoneRule,
+    insights,
+  });
+  if ((!zoneRule || zoneRule === "Área del mapa") && place) {
+    zoneRule = place.startsWith("Cerca de ") ? place : `Cerca de ${place}`;
+  }
+  return { place, zoneRule };
+}
+
+function sharedSearchOgCaption(
+  share: SharedSearchRow,
+  filters: ReturnType<typeof parseSavedSearchFilters>,
+  location: SavedSearchLocationSnapshot,
+  similarCfg: SharedSearchSimilarConfig,
+  exactCount: number,
+  similarCount: number,
+): { caption: string; zoneRule: string; place: string } {
+  const metro = resolveMetroCity(share.city_code);
+  const { place, zoneRule } = sharedSearchPlaceAndZone(share, filters, location, similarCfg);
+  const caption = formatShareOgCaption({
+    exactCount,
+    similarCount,
+    cityAbbr: metro.abbr || metro.label,
+    priceLabel: priceLabelFromFilters(filters),
+    mainArea: place || share.city_label || metro.label,
+  });
+  return { caption, zoneRule, place };
+}
+
 export function sharedSearchAdminPreview(
   db: DatabaseSync,
   composed: ReturnType<typeof composeSharedSearch>,
@@ -656,6 +684,19 @@ export function sharedSearchAdminPreview(
   const avg =
     similarHigh.length > 0 ? similarHigh.reduce((s, r) => s + r.score, 0) / similarHigh.length : 0;
   const metro = resolveMetroCity(composed.location.cityCode);
+  const place =
+    resolveSharedSearchPlacePhrase({
+      neighborhoods: composed.location.neighborhoods,
+      pois: composed.similar.pois,
+      cityAbbr: metro.abbr,
+      cityLabel: composed.location.cityLabel,
+      label: composed.label,
+      insights: composed.insights,
+      mainAreaFallback: composed.mainArea,
+    }) || composed.mainArea;
+  const zoneRule =
+    zoneRuleForSavedSearch(composed.filters, composed.location, JSON.stringify(composed.similar)) ||
+    (place ? `Cerca de ${place}` : "");
   return {
     exact: split.exact,
     similar: similarHigh,
@@ -665,13 +706,9 @@ export function sharedSearchAdminPreview(
       similarCount: similarHigh.length,
       cityAbbr: metro.abbr || metro.label,
       priceLabel: priceLabelFromFilters(composed.filters),
-      mainArea: composed.mainArea,
+      mainArea: place,
     }),
-    zoneRule: zoneRuleForSavedSearch(
-      composed.filters,
-      composed.location,
-      JSON.stringify(composed.similar),
-    ),
+    zoneRule: zoneRule === "Área del mapa" && place ? `Cerca de ${place}` : zoneRule,
     insights: composed.insights,
     nonNegotiables: composed.nonNegotiables,
   };

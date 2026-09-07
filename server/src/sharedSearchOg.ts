@@ -46,7 +46,9 @@ export function resolveSharedSearchOg(
   return {
     title: truncateOgText(meta.caption, OG_TITLE_MAX),
     description: truncateOgText(
-      `${meta.label}. Abre en Bestie para ver cuartos en zona y cerca en el mapa.`,
+      meta.zoneRule && meta.zoneRule !== "Área del mapa"
+        ? `${meta.zoneRule}. ${meta.exactCount} en zona y ${meta.similarCount} cerca en Bestie — abre el mapa.`
+        : `${meta.label}. Abre en Bestie para ver cuartos en zona y cerca en el mapa.`,
       OG_DESC_MAX,
     ),
     url: `${originBase}${meta.sharePath}`,
