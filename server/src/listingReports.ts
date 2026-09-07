@@ -10,6 +10,7 @@ import {
   type PostReportCategoryId,
 } from "./reportCategories.js";
 import { scheduleNotifyPostReported } from "./postReportNotify.js";
+import { markAvailabilityConfirmed } from "./listingAvailability.js";
 import type { ReportTargetType } from "./reportsSchema.js";
 
 export const REPORT_BOT_USER_ID = "report-bestie";
@@ -577,6 +578,7 @@ export function adminUnpauseProperty(db: DatabaseSync, propertyId: string): void
   db.prepare(
     `UPDATE rooms SET status = 'published', paused_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status = 'paused' AND paused_by = 'admin'`,
   ).run(propertyId);
+  markAvailabilityConfirmed(db, propertyId);
 }
 
 export function approvePendingReviewProperty(db: DatabaseSync, propertyId: string): void {

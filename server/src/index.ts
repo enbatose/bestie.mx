@@ -10,6 +10,7 @@ import { logOutboundMailHintIfDisabled, verifySmtpConnection } from "./mailer.js
 import { verifyResendInbound } from "./resendWebhook.js";
 import { startSavedSearchPollWorker } from "./savedSearchNotify.js";
 import { startMessageDigestPollWorker } from "./messageDigestNotify.js";
+import { startListingAvailabilityWorker } from "./listingAvailability.js";
 import { startAssistedDraftPurgeWorker } from "./assistedDraftPurge.js";
 
 assertAuthSecretConfigured();
@@ -118,5 +119,6 @@ function onListen() {
   void verifyResendInbound();
   startSavedSearchPollWorker(db);
   startMessageDigestPollWorker(db);
+  startListingAvailabilityWorker(db);
   startAssistedDraftPurgeWorker(db);
 }

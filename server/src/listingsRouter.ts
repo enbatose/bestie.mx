@@ -46,6 +46,7 @@ import {
   normalizeWhatsAppDigits,
 } from "./validation.js";
 import { isRealListingPhone, listingPhoneToE164 } from "./phoneAuth.js";
+import { availabilityOwnerFlags } from "./listingAvailability.js";
 import { isSelfServeCreator } from "./assistedDraftMerge.js";
 import {
   listingContactPublisherDisplayName,
@@ -450,6 +451,11 @@ export function listingsRouter(db: DatabaseSync) {
       const payload = {
         ...listing,
         ...(isOwner ? { viewerIsOwner: true as const } : {}),
+        ...(isOwner &&
+        availabilityOwnerFlags(db, [String(row.property_id ?? "")]).get(String(row.property_id ?? ""))
+          ?.availabilityNeedsConfirm
+          ? { availabilityNeedsConfirm: true as const }
+          : {}),
         ...(flags.claimPreview ? { claimPreview: true as const } : {}),
         hasDraftPhone: flags.hasDraftPhone,
         ...(flags.claimPreview && flags.hasDraftPhone

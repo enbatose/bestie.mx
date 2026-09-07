@@ -121,7 +121,9 @@ export function joinRowToPropertyListing(row: Record<string, unknown>): Property
         ? "admin"
         : String(row.property_paused_by ?? "").trim() === "publisher"
           ? "publisher"
-          : null,
+          : String(row.property_paused_by ?? "").trim() === "availability"
+            ? "availability"
+            : null,
     propertyPostMode: postMode,
     title: displayTitle,
     ...(trimmedRoomTitle ? { roomTitle: trimmedRoomTitle } : {}),

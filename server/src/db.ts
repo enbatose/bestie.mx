@@ -16,6 +16,7 @@ import { ensureGdlSeekerCampaignShares } from "./gdlSeekerCampaigns.js";
 import { ensureNotificationsSchema } from "./notificationsSchema.js";
 import { ensureListingContactEventsSchema } from "./listingContactEvents.js";
 import { ensureListingFirstSeekerNotifySchema } from "./listingFirstSeekerNotify.js";
+import { ensureListingAvailabilitySchema } from "./listingAvailability.js";
 import { backfillPublishFeedbackFromMessages } from "./adminPosts.js";
 import { ensureAssistedDraftSchema } from "./assistedDraftSchema.js";
 import { ensureBlogSchema } from "./blogSchema.js";
@@ -587,6 +588,7 @@ export function openDb(databasePath: string): DatabaseSync {
   ensureNotificationsSchema(db);
   ensureListingContactEventsSchema(db);
   ensureListingFirstSeekerNotifySchema(db);
+  ensureListingAvailabilitySchema(db);
   ensureAssistedDraftSchema(db);
   ensureBlogSchema(db);
   ensureBlogBotUser(db);

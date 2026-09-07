@@ -41,6 +41,7 @@ import { sendTransactionalEmail } from "./mailer.js";
 import { smsMasivosSendSms } from "./smsMasivosOtp.js";
 import { isFirstPropertyPublish, scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
+import { markAvailabilityConfirmed } from "./listingAvailability.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
 import {
   HIDE_PRICING_CONTACT_MESSAGE,
@@ -163,6 +164,7 @@ export function adminRouter(db: DatabaseSync, opts?: { uploadDir?: string }) {
       );
     } else if (st === "published") {
       db.prepare(`UPDATE properties SET status = ?, paused_by = NULL WHERE id = ?`).run(st, propertyId);
+      if (cur.status === "paused") markAvailabilityConfirmed(db, propertyId);
     } else if (st === "paused") {
       db.prepare(`UPDATE properties SET status = ?, paused_by = 'admin' WHERE id = ?`).run(st, propertyId);
     } else {

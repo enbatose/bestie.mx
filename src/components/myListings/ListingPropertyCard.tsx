@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Eye, Pencil, Share2, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Eye, Pencil, Share2, Trash2 } from "lucide-react";
 import { ListingStatusBadge } from "@/components/myListings/ListingStatusBadge";
 import { MissingFieldsCallout } from "@/components/myListings/MissingFieldsCallout";
 import {
@@ -64,6 +64,8 @@ export type ListingPropertyCardProps = {
   onContactSupportAboutPause?: () => void;
   supportBusy?: boolean;
   onArchiveProperty: () => void;
+  /** Day-25 confirm that the published post is still available. */
+  onConfirmAvailability?: () => void;
   onRoomOccupancy: (l: PropertyListing, available: boolean) => void;
   /** Restore an archived room to published (property-room rows only). */
   onRestoreRoom: (l: PropertyListing) => void;
@@ -98,6 +100,7 @@ export function ListingPropertyCard({
   onRoomOccupancy,
   onRestoreRoom,
   onArchiveRoom,
+  onConfirmAvailability,
   defaultRoomsOpen = false,
 }: ListingPropertyCardProps) {
   const location = useLocation();
@@ -161,7 +164,21 @@ export function ListingPropertyCard({
     });
   }
 
+  const needsConfirm = Boolean(head.availabilityNeedsConfirm) && propSt === "published";
+  const availabilityPaused = head.propertyPausedBy === "availability" && propSt === "paused";
+
   const cardActions: CardActionItem[] = [
+    ...(needsConfirm && onConfirmAvailability
+      ? [
+          {
+            key: "confirm-availability",
+            label: "Sigue disponible",
+            disabled: propertyBusy,
+            onClick: onConfirmAvailability,
+            icon: <Check className="size-4 shrink-0" aria-hidden />,
+          } satisfies CardActionItem,
+        ]
+      : []),
     {
       key: "view",
       label: propSt === "published" ? "Ver" : "Vista previa",
@@ -256,9 +273,11 @@ export function ListingPropertyCard({
                     : "Anuncio publicado — tocar para pausar"
                 }
                 offLabel={
-                  isProperty
-                    ? "Propiedad pausada — tocar para publicar y ofrecer recámaras en renta"
-                    : "Anuncio pausado — tocar para publicar"
+                  availabilityPaused
+                    ? "Pausado: no confirmaste que sigue disponible — tocar para reanudar"
+                    : isProperty
+                      ? "Propiedad pausada — tocar para publicar y ofrecer recámaras en renta"
+                      : "Anuncio pausado — tocar para publicar"
                 }
               />
             )
@@ -329,6 +348,35 @@ export function ListingPropertyCard({
             )
           }
         />
+
+        {needsConfirm ? (
+          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">
+            <p className="font-semibold">Este anuncio lleva 25 días publicado.</p>
+            <p className="mt-1 text-xs leading-relaxed">
+              Confirma que sigue disponible. Si no lo confirmas, lo pausamos a los 30 días. Puedes
+              reanudarlo cuando quieras.
+            </p>
+            {onConfirmAvailability ? (
+              <button
+                type="button"
+                disabled={propertyBusy}
+                onClick={onConfirmAvailability}
+                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+              >
+                Sigue disponible
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {availabilityPaused ? (
+          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">
+            <p className="font-semibold">Pausado: no confirmaste que sigue disponible.</p>
+            <p className="mt-1 text-xs leading-relaxed">
+              Actívalo cuando quieras para volver a publicarlo.
+            </p>
+          </div>
+        ) : null}
 
         {adminPaused ? (
           <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-warning-fg">

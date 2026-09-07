@@ -481,6 +481,31 @@ export async function updateProperty(
   return (await res.json()) as Property;
 }
 
+export async function confirmListingAvailability(propertyId: string, signal?: AbortSignal): Promise<void> {
+  const base = apiBase();
+  const res = await fetch(
+    `${base}/api/properties/${encodeURIComponent(propertyId)}/confirm-availability`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...deviceHeaders() },
+      credentials: cred,
+      body: "{}",
+      signal,
+    },
+  );
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = (await res.json()) as { error?: string; message?: string };
+      if (j.message) detail = `: ${j.message}`;
+      else if (j.error) detail = `: ${j.error}`;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`confirm_availability_http_${res.status}${detail}`);
+  }
+}
+
 /** Strip `update_property_http_400: ` so UI can show the Spanish server message. */
 export function listingsHttpErrorMessage(err: unknown, fallback = "No se pudo guardar."): string {
   const raw = err instanceof Error ? err.message : String(err ?? "");

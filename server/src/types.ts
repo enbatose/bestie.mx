@@ -150,7 +150,7 @@ export type PropertyListing = {
   /** Parent property lifecycle (same join). */
   propertyStatus?: ListingStatus;
   /** Who paused the parent property (`admin` locks publisher unpause). */
-  propertyPausedBy?: "admin" | "publisher" | null;
+  propertyPausedBy?: "admin" | "publisher" | "availability" | null;
   /** Publishing strategy of the parent property. */
   propertyPostMode?: "room" | "property";
   /** From parent property join. */

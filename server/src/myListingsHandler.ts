@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
+import { availabilityOwnerFlags } from "./listingAvailability.js";
 import { publisherIdsForOwnerSession } from "./propertyRequestAccess.js";
 import { readAuthUserId } from "./jwtSession.js";
 
@@ -37,7 +38,19 @@ export function myListingsHandler(db: DatabaseSync) {
 FROM rooms r`,
     )} WHERE p.publisher_id IN (${placeholders}) ${MY_LISTINGS_ORDER}`;
     const rows = db.prepare(sql).all(...publisherIds) as Record<string, unknown>[];
+    const flags = availabilityOwnerFlags(
+      db,
+      rows.map((row) => String(row.property_id ?? "")),
+    );
 
-    res.json(rows.map(joinRowToPropertyListing));
+    res.json(
+      rows.map((row) => {
+        const listing = joinRowToPropertyListing(row);
+        const flag = flags.get(listing.propertyId);
+        return flag?.availabilityNeedsConfirm
+          ? { ...listing, availabilityNeedsConfirm: true as const }
+          : listing;
+      }),
+    );
   };
 }

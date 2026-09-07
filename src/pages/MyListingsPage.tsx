@@ -8,6 +8,7 @@ import {
   roomReadyToOffer,
 } from "@/components/myListings/RoomActivationModal";
 import {
+  confirmListingAvailability,
   fetchMyListings,
   patchDraftRoom,
   updateListingStatus,
@@ -453,6 +454,21 @@ export function MyListingsPage() {
     }
   }
 
+  async function confirmAvailability(propertyId: string) {
+    setActionPropertyId(propertyId);
+    setErr(null);
+    clearPropertyError(propertyId);
+    try {
+      await confirmListingAvailability(propertyId);
+      await load();
+      setFlash({ text: "Confirmamos que el anuncio sigue disponible." });
+    } catch (e) {
+      setPropertyError(propertyId, e, "No se pudo confirmar el anuncio.");
+    } finally {
+      setActionPropertyId(null);
+    }
+  }
+
   /**
    * Flips one room between offered-for-rent and lived-in. Closing the final
    * available room in a property post also pauses its parent property.
@@ -740,6 +756,7 @@ export function MyListingsPage() {
               }
               onPropertyActive={(next) => handlePropertyActive(propertyId, list, next)}
               onPropertyStatus={(status) => void setPropertyStatus(propertyId, status)}
+              onConfirmAvailability={() => void confirmAvailability(propertyId)}
               onSubmitForReview={() => {
                 void (async () => {
                   setActionPropertyId(propertyId);

@@ -44,6 +44,7 @@ import { injectBlogShareOg, resolveBlogShareOg } from "./blogShareOg.js";
 import { buildSitemapXml } from "./sitemap.js";
 import { bindUsageAnalyticsDb } from "./usageAnalytics.js";
 import { installVanityRedirects } from "./vanityRedirects.js";
+import { installListingAvailabilityRoutes } from "./listingAvailabilityRoutes.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -208,6 +209,9 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/analytics", analyticsRouter(db));
   app.use("/api/compliance", complianceRouter());
   app.use("/api/internal/backup", backupRouter(db, databasePath));
+
+  // SMS/email confirm and pause links — before SPA catch-all and static vanity slugs.
+  installListingAvailabilityRoutes(app, db);
 
   // Clean same-domain short links for social/offline outreach (see vanityRedirects.ts).
   installVanityRedirects(app, sharePreviewBaseUrl);

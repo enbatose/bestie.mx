@@ -5,6 +5,7 @@ import {
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
+import { AvailabilityConfirmButton } from "@/components/listing/AvailabilityConfirmButton";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
 import {
@@ -302,19 +303,24 @@ export function PropertyPage() {
 
   const ownerActions =
     listing.viewerIsOwner && property.status === "published" ? (
-      <Link
-        to={publishWizardEditPath(property.id)}
-        state={
-          myListingsReturn
-            ? myListingsNavigationState(myListingsReturn)
-            : searchReturn
-              ? { searchReturn }
-              : undefined
-        }
-        className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
-      >
-        Editar anuncio
-      </Link>
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        {listing.availabilityNeedsConfirm ? (
+          <AvailabilityConfirmButton propertyId={property.id} />
+        ) : null}
+        <Link
+          to={publishWizardEditPath(property.id)}
+          state={
+            myListingsReturn
+              ? myListingsNavigationState(myListingsReturn)
+              : searchReturn
+                ? { searchReturn }
+                : undefined
+          }
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+        >
+          Editar anuncio
+        </Link>
+      </div>
     ) : null;
 
   return (

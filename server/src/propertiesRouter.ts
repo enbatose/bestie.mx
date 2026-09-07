@@ -6,6 +6,7 @@ import { isListingTag } from "./listingTags.js";
 import { readAuthUserId } from "./jwtSession.js";
 import { canWritePropertyByRequest, hasPublisherOrAdminSession, isAdminRequest } from "./propertyRequestAccess.js";
 import { isUnclaimedAdminOutreach, isRealListingPhone } from "./phoneAuth.js";
+import { markAvailabilityConfirmed } from "./listingAvailability.js";
 import { propertyHasPublicPhone } from "./phoneRevealSafety.js";
 import {
   hidePricingContactAllowed,
@@ -1136,6 +1137,38 @@ export function propertiesRouter(db: DatabaseSync) {
   });
 
   /** Update property fields and/or status (pause cascades to rooms). */
+  r.post("/:id/confirm-availability", jsonMw, (req: Request, res: Response) => {
+    if (!hasPublisherOrAdminSession(db, req)) {
+      res.status(401).json({ error: "publisher_session_required" });
+      return;
+    }
+    const propertyId = resolvePropertyIdFromRouteParam(db, String(req.params.id ?? ""));
+    if (!propertyId) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const prop = db.prepare("SELECT publisher_id, status FROM properties WHERE id = ?").get(propertyId) as
+      | { publisher_id: string; status: string }
+      | undefined;
+    if (!prop) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (!canWritePropertyByRequest(db, req, String(prop.publisher_id))) {
+      res.status(403).json({ error: "not_owner" });
+      return;
+    }
+    if (String(prop.status) !== "published") {
+      res.status(409).json({
+        error: "not_published",
+        message: "Solo puedes confirmar un anuncio que sigue publicado.",
+      });
+      return;
+    }
+    markAvailabilityConfirmed(db, propertyId);
+    res.json({ ok: true });
+  });
+
   r.patch("/:id", jsonMw, (req: Request, res: Response) => {
     if (!hasPublisherOrAdminSession(db, req)) {
       res.status(401).json({ error: "publisher_session_required" });
@@ -1452,7 +1485,12 @@ export function propertiesRouter(db: DatabaseSync) {
       else if (nextStatus === "published") nextPausedBy = null;
     } else if (patch.status != null) {
       if (nextStatus === "paused" && curStatus === "published") nextPausedBy = "publisher";
-      else if (nextStatus === "published" && curPausedBy === "publisher") nextPausedBy = null;
+      else if (
+        nextStatus === "published" &&
+        (curPausedBy === "publisher" || curPausedBy === "availability")
+      ) {
+        nextPausedBy = null;
+      }
     }
 
     db.prepare(
@@ -1512,6 +1550,7 @@ export function propertiesRouter(db: DatabaseSync) {
       db.prepare(
         "UPDATE rooms SET status = 'published', paused_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE property_id = ? AND status = 'paused'",
       ).run(propertyId);
+      markAvailabilityConfirmed(db, propertyId);
     }
     if (patch.status === "pending_review") {
       db.prepare(

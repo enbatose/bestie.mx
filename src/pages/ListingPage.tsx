@@ -6,6 +6,7 @@ import {
 } from "@/components/listing/PublicPostExperienceListing";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { ListingClaimActions } from "@/components/listing/ListingClaimActions";
+import { AvailabilityConfirmButton } from "@/components/listing/AvailabilityConfirmButton";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
 import { getListingById, SEED_LISTINGS } from "@/data/seedListings";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
@@ -583,19 +584,24 @@ export function ListingPage() {
 
   const ownerActions =
     listing.viewerIsOwner && listingStatus === "published" ? (
-      <Link
-        to={publishWizardEditPath(listing.propertyId, listing.id)}
-        state={
-          myListingsReturn
-            ? myListingsNavigationState(myListingsReturn)
-            : searchReturn
-              ? { searchReturn }
-              : undefined
-        }
-        className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
-      >
-        Editar anuncio
-      </Link>
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        {listing.availabilityNeedsConfirm ? (
+          <AvailabilityConfirmButton propertyId={listing.propertyId} />
+        ) : null}
+        <Link
+          to={publishWizardEditPath(listing.propertyId, listing.id)}
+          state={
+            myListingsReturn
+              ? myListingsNavigationState(myListingsReturn)
+              : searchReturn
+                ? { searchReturn }
+                : undefined
+          }
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+        >
+          Editar anuncio
+        </Link>
+      </div>
     ) : null;
 
   const statusBadge = listing.claimPreview ? (

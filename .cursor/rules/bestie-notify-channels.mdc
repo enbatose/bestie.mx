@@ -27,3 +27,12 @@ Kill switch: `LISTING_FIRST_SEEKER_SMS=0`. Default on when SMS Masivos is config
 - Immediate with that first in-app bell **unless** another new seeker already started a 3-hour wait — then one aggregated SMS with the next digest.
 - Copy: `server/src/listingFirstSeekerSms.ts`. **SMS Masivos cap = 160 characters** (the API rejects longer listing SMS). First name only. Single seeker: `te escribió por tu post "{4–6 word title lead}"`. If the title is cut, end the quote with ` ...` (4 characters: space + three dots); drop the last included word if that is what makes the mark fit. Complete short titles have no mark. Footer: `Revisa tu correo regularmente (también spam) o entra en bestie.mx/mensajes`. Two people: `{first} y otro usuario`. Three+: `{first} y otros N usuarios`.
 - Requires verified +52 phone and `phone_notify_opt_in`. Do not SMS chat body.
+
+## Listing availability (day 25 / day 30)
+
+Canonical code: `server/src/listingAvailability.ts`.
+
+- At 25 days since publish, last confirmation, or resume: one email and/or SMS naming the post, with short confirm (`/c/`) and pause (`/p/`) links. One message per post.
+- Pause at 5 days after that notice if still unconfirmed (`paused_by = availability`). Resume resets the clock.
+- Email when the account has an email. SMS if they also have a phone **and** `phone_notify_opt_in`. Phone-only (no email), including unclaimed listing phones: SMS regardless of `phone_notify_opt_in`.
+- Quiet hours apply. Do not pause until a notice was actually sent.

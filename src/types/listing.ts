@@ -167,7 +167,7 @@ export type PropertyListing = {
   /** Parent property status when returned from my-listings / joins. */
   propertyStatus?: ListingStatus;
   /** Who paused the parent property (`admin` locks publisher unpause). */
-  propertyPausedBy?: "admin" | "publisher" | null;
+  propertyPausedBy?: "admin" | "publisher" | "availability" | null;
   /** Publishing strategy of the parent property. */
   propertyPostMode?: "room" | "property";
   title: string;
@@ -231,6 +231,8 @@ export type PropertyListing = {
   updatedAt?: string;
   /** True when the authenticated session owns this listing (publisher cookie or linked account). */
   viewerIsOwner?: boolean;
+  /** Owner-only: published 25+ days without a confirmation this cycle. */
+  availabilityNeedsConfirm?: boolean;
   /** True when the listing is shown via an outreach claim link (unpublished preview). */
   claimPreview?: boolean;
   /** True when the draft stores a real contact phone. Claim previews may include `claimPhoneDisplay`. */
