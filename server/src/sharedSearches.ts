@@ -321,7 +321,7 @@ export async function createTemplateSharedSearch(
     sourceFacebookUrl: string;
     extraction: SharedSearchExtraction;
   },
-): {
+): Promise<{
   share: SharedSearchRow;
   exactCount: number;
   similarCount: number;
@@ -332,7 +332,7 @@ export async function createTemplateSharedSearch(
   composed: ReturnType<typeof composeSharedSearch>;
   zoneRule: string;
   reused: boolean;
-} {
+}> {
   const composed = await withGeocodedPlace(
     withRecoveredPlace(
       composeSharedSearch({
@@ -672,7 +672,7 @@ export async function sharedSearchPublicView(
   db: DatabaseSync,
   slug: string,
   uid?: string | null,
-): {
+): Promise<{
   id: string;
   kind: string;
   label: string;
@@ -693,7 +693,7 @@ export async function sharedSearchPublicView(
   alreadySaved: boolean;
   savedSearchId: string | null;
   emailNotifyEnabled: boolean;
-} | null {
+} | null> {
   const share = loadSharedSearch(db, slug);
   if (!share) return null;
   await pinUnresolvedSharePlace(db, share);
