@@ -115,6 +115,29 @@ describe("shared search matching", () => {
     expect(resolvePlacePins(["cerca del ITESO"], "poi", "gdl").some((p) => p.name === "ITESO")).toBe(true);
   });
 
+  it("prefers POI disk over campaign bbox for exact matches", () => {
+    const emptyHoods = { ...location, neighborhoods: [] as typeof location.neighborhoods };
+    const inDisk = listing({ id: "in", lat: 20.6746, lng: -103.3665 });
+    // Inside the ~3.5 km square bbox corner, but outside the 3.5 km circle.
+    const cornerOnly = listing({
+      id: "corner",
+      neighborhood: "Huerta Baeza",
+      lat: 20.6585,
+      lng: -103.3352,
+    });
+    const cfg = defaultSimilarConfig({
+      pois: [{ name: "Zona Chapultepec/Americana", lat: 20.6746, lng: -103.3665 }],
+      bbox: {
+        minLat: 20.643159108875317,
+        maxLat: 20.706040891124687,
+        minLng: -103.40010503382537,
+        maxLng: -103.33289496617463,
+      },
+    });
+    const exact = matchExactSharedSearch([inDisk, cornerOnly], EMPTY_SEARCH_FILTERS, emptyHoods, cfg);
+    expect(exact.map((l) => l.id)).toEqual(["in"]);
+  });
+
   it("haversine is ~0 for the same point", () => {
     expect(haversineKm(20.67, -103.35, 20.67, -103.35)).toBeLessThan(0.01);
   });

@@ -220,16 +220,16 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
 
   let bodyListings = "";
   if (payload.mode === "initial") {
+    if (newListings.length) {
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">En zona</p>`;
+      bodyListings += newListings.map((l) => listingCardHtml(base, l)).join("");
+    }
     if (similarCapped.length) {
-      if (newListings.length) {
-        bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">En zona</p>`;
-        bodyListings += newListings.map((l) => listingCardHtml(base, l)).join("");
-      }
       bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Cerca</p>`;
       bodyListings += similarCapped.map((l) => listingCardHtml(base, l)).join("");
-    } else {
-      const all = [...newListings, ...otherListings];
-      bodyListings = all.map((l) => listingCardHtml(base, l)).join("");
+    }
+    if (!newListings.length && !similarCapped.length && otherListings.length) {
+      bodyListings = otherListings.map((l) => listingCardHtml(base, l)).join("");
     }
   } else {
     if (newListings.length) {

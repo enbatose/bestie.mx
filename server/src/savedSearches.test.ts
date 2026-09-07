@@ -281,6 +281,8 @@ describe("saved searches API", () => {
       similarListings: picked.shownSimilar,
       totalMatchCount: 24,
     });
+    expect(mail.html).toContain("En zona");
+    expect(mail.html).not.toMatch(/>Cerca</);
     expect(mail.html).toContain("Te mostramos 10 de 24");
     expect(mail.html).toContain("Hay más anuncios en Bestie");
     expect(mail.html).toContain("Ver todos en Bestie");
@@ -288,5 +290,17 @@ describe("saved searches API", () => {
     expect(mail.text).toContain("Ver todos en Bestie");
     expect(mail.previewText).toContain("10 de 24");
     expect((mail.html.match(/Ver anuncio/g) ?? []).length).toBe(10);
+
+    const hidden = buildSavedSearchEmail({
+      label: "Test",
+      searchUrl: "/busquedas/gdlchapu",
+      unsubscribeToken: "abc123",
+      mode: "initial",
+      newListings: [{ ...room("hidden"), rentMxn: 0, hidePricing: true }],
+      otherListings: [],
+    });
+    expect(hidden.html).toContain("Consultar $");
+    expect(hidden.html).not.toContain(">$0<");
+    expect(hidden.text).toContain("Consultar $");
   });
 });
