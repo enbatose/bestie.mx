@@ -7,6 +7,7 @@ import {
   type AdminReportContext,
 } from "@/lib/authApi";
 import { adminSectionPath } from "@/lib/adminSections";
+import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
 
 type Props = {
   conversationId: string;
@@ -43,7 +44,7 @@ export function AdminReportActions({ conversationId, onRefreshThread }: Props) {
       await load();
       onRefreshThread();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error");
+      setErr(httpStatusErrorMessage(e, "No se pudo aplicar la acción del reporte."));
     } finally {
       setBusy(null);
     }
@@ -217,7 +218,11 @@ export function AdminReportActions({ conversationId, onRefreshThread }: Props) {
         </ul>
       ) : null}
 
-      {err ? <p className="mt-2 text-xs text-error">{err}</p> : null}
+      {err ? (
+        <p role="alert" className="mt-2 whitespace-pre-line break-words text-xs text-error">
+          {err}
+        </p>
+      ) : null}
     </div>
   );
 }

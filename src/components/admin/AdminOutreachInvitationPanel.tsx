@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, RefreshCw, Sparkles } from "lucide-react";
 import { generateOutreachInvitation } from "@/lib/outreachInvitationApi";
-
-function invitationErrorMessage(code: string): string {
-  if (code === "rate_limited") return "Demasiadas generaciones. Espera un momento e intenta de nuevo.";
-  if (code === "unauthorized" || code === "forbidden") return "Necesitas sesión de administrador.";
-  return "No se pudo generar el comentario. Intenta de nuevo.";
-}
+import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -37,7 +32,7 @@ export function AdminOutreachInvitationPanel() {
       setText(result.text);
       setSource(result.source);
     } catch (e) {
-      setErr(invitationErrorMessage(e instanceof Error ? e.message : "error"));
+      setErr(httpStatusErrorMessage(e, "No se pudo generar el comentario. Intenta de nuevo."));
     } finally {
       setLoading(false);
     }
@@ -119,7 +114,7 @@ export function AdminOutreachInvitationPanel() {
         </div>
 
         {err ? (
-          <p role="alert" className="mt-3 text-sm text-error">
+          <p role="alert" className="mt-3 whitespace-pre-line break-words text-sm text-error">
             {err}
           </p>
         ) : null}

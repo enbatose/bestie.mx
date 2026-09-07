@@ -22,6 +22,7 @@ import {
   type BlogCosts,
   type BlogSource,
 } from "@/lib/blogApi";
+import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
 
 const fieldClass = "mt-1 min-h-11 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2";
 const primaryClass = "inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40";
@@ -315,7 +316,7 @@ export function AdminBlogPanel() {
     try {
       await operation();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo completar la acción.");
+      setError(httpStatusErrorMessage(err, "No se pudo completar la acción."));
     } finally {
       setBusy(false);
       stopAiProgress();
@@ -601,7 +602,14 @@ export function AdminBlogPanel() {
         {aiJob ? (
           <AiProgressBanner title={aiJob.title} stepLabel={aiJob.stepLabel} percent={aiJob.percent} />
         ) : null}
-        {error ? <p className="mb-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{error}</p> : null}
+        {error ? (
+          <p
+            role="alert"
+            className="mb-4 whitespace-pre-line break-words rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error"
+          >
+            {error}
+          </p>
+        ) : null}
         {notice ? <p className="mb-4 rounded-xl border border-secondary/30 bg-secondary/10 p-3 text-sm text-body">{notice}</p> : null}
         {!article ? <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted">Elige un artículo o crea uno nuevo.</div> : (
           <div className="space-y-6">

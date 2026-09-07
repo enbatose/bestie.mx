@@ -9,6 +9,7 @@ import {
   type OutreachDuplicateCheck,
   type OutreachDuplicateListing,
 } from "@/lib/assistedDraftApi";
+import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 import {
@@ -491,7 +492,7 @@ export function AdminAssistedDraftPanel() {
       });
       setExtraction(result);
     } catch (e) {
-      setExtractErr(e instanceof Error ? e.message : "Error al analizar.");
+      setExtractErr(httpStatusErrorMessage(e, "Error al analizar."));
     } finally {
       setExtracting(false);
     }
@@ -527,7 +528,7 @@ export function AdminAssistedDraftPanel() {
       setClaimUrl(result.claimUrl);
       setListingUrl(result.listingUrl);
     } catch (e) {
-      setCreateErr(e instanceof Error ? e.message : "Error al crear el borrador.");
+      setCreateErr(httpStatusErrorMessage(e, "Error al crear el borrador."));
     } finally {
       setCreating(false);
       setCreateBusyLabel("Generando…");
@@ -717,7 +718,10 @@ export function AdminAssistedDraftPanel() {
       )}
 
       {extractErr && (
-        <div className="rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">
+        <div
+          role="alert"
+          className="whitespace-pre-line break-words rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
+        >
           {extractErr}
         </div>
       )}
@@ -802,7 +806,10 @@ export function AdminAssistedDraftPanel() {
           ) : null}
 
           {createErr && (
-            <div className="rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">
+            <div
+              role="alert"
+              className="whitespace-pre-line break-words rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
+            >
               {createErr}
             </div>
           )}

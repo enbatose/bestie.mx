@@ -14,6 +14,7 @@ import {
   fetchSharedSearchMeta,
   type SharedSearchExtractResult,
 } from "@/lib/sharedSearchesApi";
+import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
 
 const CITIES = ["Guadalajara", "Mérida", "Puerto Vallarta", "Sayulita", "Bucerías"] as const;
 
@@ -27,12 +28,6 @@ function qualityLabel(q: string): string {
   if (q === "alta") return "Alta";
   if (q === "media") return "Media";
   return "Baja";
-}
-
-function diffusionCommentError(code: string): string {
-  if (code === "rate_limited") return "Demasiadas generaciones de comentario. Espera un momento.";
-  if (code === "unauthorized" || code === "forbidden") return "Necesitas sesión de administrador.";
-  return "No se pudo generar el comentario. Intenta de nuevo.";
 }
 
 export function AdminOutreachDiffusionPanel() {
@@ -140,8 +135,7 @@ export function AdminOutreachDiffusionPanel() {
       setFacebookComment(result.text);
       setCommentSource(result.source);
     } catch (e) {
-      const code = e instanceof Error ? e.message : "error";
-      setCommentErr(diffusionCommentError(code));
+      setCommentErr(httpStatusErrorMessage(e, "No se pudo generar el comentario. Intenta de nuevo."));
       setFacebookComment(
         buildDiffusionFacebookComment({
           ...payload,
@@ -182,7 +176,7 @@ export function AdminOutreachDiffusionPanel() {
       });
       setPreview(result);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error al analizar.");
+      setErr(httpStatusErrorMessage(e, "Error al analizar."));
     } finally {
       setExtracting(false);
     }
@@ -215,7 +209,7 @@ export function AdminOutreachDiffusionPanel() {
         similarCount: result.similarCount,
       });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error al crear la búsqueda.");
+      setErr(httpStatusErrorMessage(e, "Error al crear la búsqueda."));
       setCreating(false);
     }
   };
@@ -495,7 +489,10 @@ export function AdminOutreachDiffusionPanel() {
       ) : null}
 
       {err ? (
-        <div className="rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
+        <div
+          className="whitespace-pre-line break-words rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error"
+          role="alert"
+        >
           {err}
         </div>
       ) : null}
@@ -620,7 +617,7 @@ export function AdminOutreachDiffusionPanel() {
               placeholder={generatingComment ? "Generando comentario…" : "El comentario aparecerá aquí…"}
             />
             {commentErr ? (
-              <p role="alert" className="text-xs text-warning-fg">
+              <p role="alert" className="whitespace-pre-line break-words text-xs text-warning-fg">
                 {commentErr}
               </p>
             ) : null}

@@ -21,6 +21,7 @@ import {
   type AdminSupportThread,
 } from "@/lib/authApi";
 import { apiBase } from "@/lib/apiBase";
+import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
 import {
   ADMIN_SUPPORT_KIND_FILTER_OPTIONS,
   ADMIN_SUPPORT_SORT_OPTIONS,
@@ -221,7 +222,7 @@ export function AdminPage() {
     try {
       setSupportRows(await adminListSupportConversations({ q, kind }));
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "No se pudo cargar Soporte al Cliente.");
+      setErr(httpStatusErrorMessage(x, "No se pudo cargar Soporte al Cliente."));
     } finally {
       setSupportLoadingList(false);
     }
@@ -232,7 +233,7 @@ export function AdminPage() {
     try {
       setSupportThread(await adminFetchSupportThread(conversationId));
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "No se pudo cargar la conversación.");
+      setErr(httpStatusErrorMessage(x, "No se pudo cargar la conversación."));
       setSupportThread(null);
     } finally {
       setSupportLoadingThread(false);
@@ -256,7 +257,7 @@ export function AdminPage() {
       await loadSupportConversations(supportDebouncedSearch || undefined, supportKindFilter);
       await loadNavCounts();
     } catch (x) {
-      setErr(x instanceof Error ? x.message : "No se pudo enviar la respuesta.");
+      setErr(httpStatusErrorMessage(x, "No se pudo enviar la respuesta."));
     } finally {
       setSupportSending(false);
     }
@@ -268,12 +269,23 @@ export function AdminPage() {
         await loadCities();
         await loadSummary();
         await loadNavCounts();
+        setErr(null);
+      } catch (x) {
+        setErr(
+          httpStatusErrorMessage(
+            x,
+            "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).",
+          ),
+        );
+        return;
+      }
+      // Metrics are nice-to-have: a 502 on usage must not block Outreach / other tabs.
+      try {
         await loadStreetView(streetViewMonth);
         await loadUsage(streetViewMonth);
         await loadImageUploads(imageFailuresOnly);
-        setErr(null);
       } catch (x) {
-        setErr(x instanceof Error ? x.message : "Sin acceso admin (revisa ADMIN_EMAILS en el servidor).");
+        setErr(httpStatusErrorMessage(x, "No se pudieron cargar las métricas admin."));
       }
     })();
   }, [loadCities, loadSummary, loadNavCounts, loadStreetView, loadUsage, loadImageUploads, streetViewMonth, imageFailuresOnly]);
@@ -330,7 +342,7 @@ export function AdminPage() {
     : 0;
 
   const clearErr = useCallback((message: string | null) => {
-    setErr(message);
+    setErr(message == null ? null : httpStatusErrorMessage(message, message));
   }, []);
 
   if (!parsedSection) {
@@ -364,7 +376,12 @@ export function AdminPage() {
       </p>
 
       {err ? (
-        <p className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">{err}</p>
+        <p
+          role="alert"
+          className="mt-4 whitespace-pre-line break-words rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error"
+        >
+          {err}
+        </p>
       ) : null}
 
       <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-1 text-sm font-medium [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
@@ -453,7 +470,7 @@ export function AdminPage() {
                   .filter(Boolean);
                 await adminPutFeaturedCities(cities);
               } catch (x) {
-                setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+                setErr(httpStatusErrorMessage(x, "No se pudo completar la acción."));
               } finally {
                 setBusy(false);
               }
@@ -1185,7 +1202,7 @@ export function AdminPage() {
                   setPropOk(`Listo: ${result.propertyId} → ${result.status}`);
                   void loadNavCounts();
                 } catch (x) {
-                  setErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+                  setErr(httpStatusErrorMessage(x, "No se pudo completar la acción."));
                 } finally {
                   setBusy(false);
                 }
