@@ -243,22 +243,42 @@ export function AdminOutreachDiffusionPanel() {
           />
         </div>
         <div className="min-w-0">
-          <label
-            htmlFor="admin-diffusion-gender"
-            className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted"
+          <p
+            id="admin-diffusion-gender-label"
+            className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted"
           >
             Género
-          </label>
-          <select
-            id="admin-diffusion-gender"
-            value={seekerGender}
-            onChange={(e) => setSeekerGender(e.target.value as "" | "female" | "male")}
-            className="w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body focus:border-accent focus:outline-none"
+          </p>
+          <div
+            role="group"
+            aria-labelledby="admin-diffusion-gender-label"
+            className="flex min-w-0 gap-2"
           >
-            <option value="">No indicado</option>
-            <option value="female">Mujer</option>
-            <option value="male">Hombre</option>
-          </select>
+            <button
+              type="button"
+              aria-pressed={seekerGender === "female"}
+              onClick={() => setSeekerGender((current) => (current === "female" ? "" : "female"))}
+              className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition ${
+                seekerGender === "female"
+                  ? "border-primary bg-primary text-primary-fg shadow-sm"
+                  : "border-border bg-surface text-body hover:bg-surface-elevated"
+              }`}
+            >
+              Mujer
+            </button>
+            <button
+              type="button"
+              aria-pressed={seekerGender === "male"}
+              onClick={() => setSeekerGender((current) => (current === "male" ? "" : "male"))}
+              className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition ${
+                seekerGender === "male"
+                  ? "border-primary bg-primary text-primary-fg shadow-sm"
+                  : "border-border bg-surface text-body hover:bg-surface-elevated"
+              }`}
+            >
+              Hombre
+            </button>
+          </div>
         </div>
       </div>
 
