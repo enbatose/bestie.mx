@@ -102,22 +102,35 @@ export function resolveSavedSearchMatches(
 }
 
 /**
- * Neighborhood names for a Mis Búsquedas card location line.
- * Prefers stored colonia pins; for map-area saves, resolves names inside the bbox
- * from curated pins and published listings (never a generic "Área del mapa" label).
+ * Neighborhood / POI names for a Mis Búsquedas card location line.
+ * Prefers stored colonia pins; campaign shares keep the pin in similar_json;
+ * map-area saves resolve names inside the bbox (never a generic "Área del mapa").
  */
-export function neighborhoodsForSavedSearchCard(
-  db: DatabaseSync,
+export function areaNamesForSavedSearchCard(
   filters: SearchFilters,
   location: SavedSearchLocationSnapshot,
-  published?: PropertyListing[],
+  published: PropertyListing[] = [],
+  similarJson?: string | null,
 ): string[] {
   const stored = location.neighborhoods
     .map((n) => n.name.trim())
     .filter((name) => name.length > 0);
   if (stored.length) return stored;
 
-  if (!filters.bbox) return [];
+  const similar = similarJson ? parseSimilarConfig(similarJson) : null;
+  const poiNames = similar?.pois.map((p) => p.name.trim()).filter((name) => name.length > 0) ?? [];
+  if (poiNames.length) {
+    const names = new Map<string, string>();
+    for (const name of poiNames) {
+      const key = normalizeNeighborhood(name);
+      if (!key || names.has(key)) continue;
+      names.set(key, name);
+    }
+    return Array.from(names.values());
+  }
+
+  const bbox = filters.bbox ?? similar?.bbox ?? null;
+  if (!bbox) return [];
 
   const names = new Map<string, string>();
   const add = (raw: string) => {
@@ -129,14 +142,29 @@ export function neighborhoodsForSavedSearchCard(
   };
 
   for (const pin of curatedNeighborhoodPins()) {
-    if (pointInBbox(pin.lat, pin.lng, filters.bbox)) add(pin.neighborhood);
+    if (pointInBbox(pin.lat, pin.lng, bbox)) add(pin.neighborhood);
   }
 
-  for (const listing of published ?? fetchPublishedListings(db)) {
-    if (pointInBbox(listing.lat, listing.lng, filters.bbox)) add(listing.neighborhood);
+  for (const listing of published) {
+    if (pointInBbox(listing.lat, listing.lng, bbox)) add(listing.neighborhood);
   }
 
   return Array.from(names.values()).sort((a, b) => a.localeCompare(b, "es"));
+}
+
+export function neighborhoodsForSavedSearchCard(
+  db: DatabaseSync,
+  filters: SearchFilters,
+  location: SavedSearchLocationSnapshot,
+  published?: PropertyListing[],
+  similarJson?: string | null,
+): string[] {
+  return areaNamesForSavedSearchCard(
+    filters,
+    location,
+    published ?? fetchPublishedListings(db),
+    similarJson,
+  );
 }
 
 export function parseSavedSearchFilters(raw: string): SearchFilters {

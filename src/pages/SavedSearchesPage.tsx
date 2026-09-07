@@ -861,7 +861,7 @@ export function SavedSearchesPage() {
                               onVerMas={() => onEditFilters(row, { highlight: true })}
                             />
                             {locationSummary ? (
-                              <p className="mt-2 line-clamp-2 text-xs leading-snug text-muted">
+                              <p className="mt-2 min-w-0 break-words line-clamp-2 text-xs leading-snug text-muted">
                                 {locationSummary}
                               </p>
                             ) : null}

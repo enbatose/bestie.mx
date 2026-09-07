@@ -250,6 +250,7 @@ export function savedSearchesRouter(db: DatabaseSync) {
             filters,
             location,
             published,
+            similarJson,
           );
         } catch {
           matchCount = undefined;

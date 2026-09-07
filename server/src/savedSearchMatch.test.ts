@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveSavedSearchMatches, type SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
+import {
+  areaNamesForSavedSearchCard,
+  resolveSavedSearchMatches,
+  type SavedSearchLocationSnapshot,
+} from "./savedSearchMatch.js";
 import { defaultSimilarConfig, EMPTY_SEARCH_FILTERS } from "./sharedSearchMatch.js";
 import type { PropertyListing } from "./types.js";
 
@@ -73,5 +77,24 @@ describe("resolveSavedSearchMatches", () => {
     });
     const { exact } = resolveSavedSearchMatches([a, b], EMPTY_SEARCH_FILTERS, chapuLocation, null);
     expect(exact.map((l) => l.id).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("areaNamesForSavedSearchCard", () => {
+  it("uses campaign POI name when neighborhoods are empty", () => {
+    const similarJson = JSON.stringify(
+      defaultSimilarConfig({
+        pois: [{ name: "Zona Chapultepec/Americana", lat: 20.6746, lng: -103.3665 }],
+        bbox: {
+          minLat: 20.643,
+          maxLat: 20.706,
+          minLng: -103.4,
+          maxLng: -103.333,
+        },
+      }),
+    );
+    expect(areaNamesForSavedSearchCard(EMPTY_SEARCH_FILTERS, chapuLocation, [], similarJson)).toEqual([
+      "Zona Chapultepec/Americana",
+    ]);
   });
 });
