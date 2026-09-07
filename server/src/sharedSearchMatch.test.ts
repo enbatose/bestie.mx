@@ -48,6 +48,44 @@ describe("shared search matching", () => {
     expect(pins.some((p) => p.name === "ITESO")).toBe(true);
   });
 
+  it("resolves Tianguis del Sol without confusing it with Plaza del Sol", () => {
+    const tianguis = resolvePlacePins(["GDL · Tianguis del Sol"]);
+    expect(tianguis.map((p) => p.name)).toEqual(["Tianguis del Sol"]);
+    const plaza = resolvePlacePins(["cerca de Plaza del Sol"]);
+    expect(plaza.map((p) => p.name)).toEqual(["Plaza del Sol"]);
+    const both = resolvePlacePins(["cerca del ITESO y UVM"]);
+    expect(both.map((p) => p.name)).toEqual(["ITESO", "UVM"]);
+  });
+
+  it("recovers a named landmark from the share label and does not city-match an unknown place", () => {
+    const emptyHoods = { ...location, neighborhoods: [] as typeof location.neighborhoods };
+    const recovered = recoverPinsFromPlacePhrases(
+      emptyHoods,
+      defaultSimilarConfig(),
+      ["GDL · Tianguis del Sol"],
+      "gdl",
+    );
+    expect(recovered.recovered).toBe(true);
+    expect(recovered.similar.pois[0]?.name).toBe("Tianguis del Sol");
+    expect(recovered.location.lat).toBeCloseTo(20.65209, 4);
+
+    const missing = recoverPinsFromPlacePhrases(
+      emptyHoods,
+      defaultSimilarConfig(),
+      ["GDL · Fraccionamiento Inventado"],
+      "gdl",
+    );
+    expect(missing.recovered).toBe(false);
+    expect(missing.similar.unresolvedPlace).toBe(true);
+    const cityWide = listing({ id: "anywhere", lat: 20.53, lng: -103.43, neighborhood: "Vista Sur" });
+    expect(
+      matchExactSharedSearch([cityWide], EMPTY_SEARCH_FILTERS, missing.location, missing.similar),
+    ).toEqual([]);
+    expect(
+      matchSimilarSharedSearch([cityWide], EMPTY_SEARCH_FILTERS, missing.similar, new Set()),
+    ).toEqual([]);
+  });
+
   it("resolves Glorieta del Charro and does not treat the whole city as en zona", () => {
     const pins = resolvePlacePins(["Glorieta del Charro"]);
     expect(pins.some((p) => p.name === "Glorieta del Charro")).toBe(true);

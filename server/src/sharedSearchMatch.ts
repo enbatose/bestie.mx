@@ -1,4 +1,9 @@
-import { GDL_SEARCH_POIS, normalizePlaceKey } from "./gdlSearchPois.js";
+import {
+  cleanedPlaceKey,
+  matchGdlSearchPois,
+  normalizePlaceKey,
+  specificPlacePhrase,
+} from "./gdlSearchPois.js";
 import { curatedNeighborhoodPins } from "./locationSearch.js";
 import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
 import type { ListingTag, LodgingType, PropertyListing } from "./types.js";
@@ -26,6 +31,11 @@ export type SharedSearchSimilarConfig = {
   lodgingType: LodgingType | null;
   seekerGender: "female" | "male" | null;
   highAffinityMin: number;
+  /**
+   * Share named a landmark we could not pin. Do not treat the metro as "en zona".
+   * Not persisted — recomputed on each open so a later catalog pin can recover it.
+   */
+  unresolvedPlace?: boolean;
 };
 
 export type SharedSearchInsight = {
@@ -131,7 +141,7 @@ export function minDistanceKmToPins(listing: PropertyListing, pins: SearchPlaceP
 function locationScoreFor(listing: PropertyListing, cfg: SharedSearchSimilarConfig, radiusKm: number): number {
   if (cfg.bbox && pointInBbox(listing.lat, listing.lng, cfg.bbox)) return 1;
   const dist = minDistanceKmToPins(listing, cfg.pois);
-  if (dist == null) return 0.45;
+  if (dist == null) return cfg.unresolvedPlace ? 0 : 0.45;
   if (dist <= 0.15) return 1;
   if (dist >= radiusKm) return 0;
   return Math.max(0, 1 - dist / radiusKm);
@@ -194,33 +204,43 @@ export function resolvePlacePins(
   const seen = new Set<string>();
   const curated = curatedNeighborhoodPins();
 
+  const pushPin = (pin: SearchPlacePin) => {
+    const key = normalizePlaceKey(pin.name);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(pin);
+  };
+
   for (const raw of names) {
-    const key = normalizePlaceKey(raw);
-    if (!key || seen.has(key)) continue;
+    const cleaned = cleanedPlaceKey(raw);
+    if (!cleaned) continue;
 
     const fromCurated = (): SearchPlacePin | null => {
-      const pin = curated.find((n) => normalizePlaceKey(n.neighborhood) === key);
+      const pin = curated.find((n) => normalizePlaceKey(n.neighborhood) === cleaned);
       return pin ? { name: pin.neighborhood, lat: pin.lat, lng: pin.lng } : null;
     };
-    const fromPoi = (): SearchPlacePin | null => {
-      if (cityCode && cityCode !== "gdl") return null;
-      const poi = GDL_SEARCH_POIS.find(
-        (p) => normalizePlaceKey(p.name) === key || p.aliases.some((a) => normalizePlaceKey(a) === key),
-      );
-      if (poi) return { name: poi.name, lat: poi.lat, lng: poi.lng };
-      const fuzzy = GDL_SEARCH_POIS.find(
-        (p) =>
-          key.includes(normalizePlaceKey(p.name)) ||
-          p.aliases.some((a) => key.includes(normalizePlaceKey(a)) && normalizePlaceKey(a).length >= 4),
-      );
-      return fuzzy ? { name: fuzzy.name, lat: fuzzy.lat, lng: fuzzy.lng } : null;
+    const fromPoi = (): SearchPlacePin[] => {
+      if (cityCode && cityCode !== "gdl") return [];
+      return matchGdlSearchPois(raw).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng }));
     };
 
-    const hit = prefer === "neighborhood" ? fromCurated() ?? fromPoi() : fromPoi() ?? fromCurated();
-    if (hit) {
-      seen.add(key);
-      out.push(hit);
+    if (prefer === "neighborhood") {
+      const hood = fromCurated();
+      if (hood) {
+        pushPin(hood);
+        continue;
+      }
+      for (const pin of fromPoi()) pushPin(pin);
+      continue;
     }
+
+    const pois = fromPoi();
+    if (pois.length) {
+      for (const pin of pois) pushPin(pin);
+      continue;
+    }
+    const hood = fromCurated();
+    if (hood) pushPin(hood);
   }
   return out;
 }
@@ -238,6 +258,8 @@ function exactLocationOk(
     const neighborhoodHit = hasNeighborhoods && listingMatchesNeighborhoods(listing, location.neighborhoods);
     return poiHit || neighborhoodHit;
   }
+  // Named landmark with no pin must not become every room in the metro.
+  if (cfg.unresolvedPlace) return false;
   if (cfg.bbox) return pointInBbox(listing.lat, listing.lng, cfg.bbox);
   return true;
 }
@@ -283,12 +305,11 @@ export function matchSimilarSharedSearch(
   const pool = listings.filter((l) => !exactIds.has(l.id) && l.roomOccupancyStatus !== "occupied");
   const hard = pool.filter((l) => passesHardSimilar(l, cfg));
 
-  const atRadius = rankSimilarAtRadius(hard, filters, cfg, cfg.radiusKm).filter((r) => r.score > 0);
+  const nearby = (rows: RankedListing[]) => rows.filter((r) => r.locationScore > 0 && r.score > 0);
+  const atRadius = nearby(rankSimilarAtRadius(hard, filters, cfg, cfg.radiusKm));
   if (atRadius.length >= 1) return atRadius.slice(0, SIMILAR_CAP);
 
-  return rankSimilarAtRadius(hard, filters, cfg, EXPANDED_RADIUS_KM)
-    .filter((r) => r.score > 0)
-    .slice(0, SIMILAR_CAP);
+  return nearby(rankSimilarAtRadius(hard, filters, cfg, EXPANDED_RADIUS_KM)).slice(0, SIMILAR_CAP);
 }
 
 export function splitSharedSearchMatches(
@@ -327,7 +348,15 @@ export function recoverPinsFromPlacePhrases(
     return { location, similar, recovered: false };
   }
   const pins = resolvePlacePins(phrases, "poi", cityCode ?? location.cityCode);
-  if (!pins.length) return { location, similar, recovered: false };
+  if (!pins.length) {
+    const named = phrases.map((p) => specificPlacePhrase(p)).find(Boolean);
+    if (!named) return { location, similar, recovered: false };
+    return {
+      recovered: false,
+      location,
+      similar: { ...similar, unresolvedPlace: true },
+    };
+  }
   const pin = pins[0]!;
   const metro = resolveMetroCity(cityCode ?? location.cityCode);
   return {

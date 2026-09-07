@@ -77,10 +77,13 @@ function geographyForShare(share: SharedSearchRow): {
 } {
   const location = parseSavedSearchLocation(share.location_json);
   const similar = parseSimilarConfig(share.similar_json);
+  const insightPhrases = safeJsonArray<{ text?: string; label?: string }>(share.insights_json).flatMap((i) =>
+    [i.text, i.label].filter((v): v is string => typeof v === "string" && v.trim().length > 0),
+  );
   return recoverPinsFromPlacePhrases(
     location,
     similar,
-    [share.label],
+    [share.label, ...insightPhrases],
     share.city_code,
   );
 }
