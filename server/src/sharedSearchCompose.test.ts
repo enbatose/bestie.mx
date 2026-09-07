@@ -24,7 +24,8 @@ describe("composeSharedSearch", () => {
       priceLabel: "$6k–$8k",
       mainArea: "Americana",
     });
-    expect(caption).toContain("4 exactas");
+    expect(caption).toContain("4 en zona");
+    expect(caption).toContain("12 cerca");
     expect(caption.length).toBeLessThanOrEqual(90);
   });
 });

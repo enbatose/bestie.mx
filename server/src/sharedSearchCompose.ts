@@ -239,7 +239,7 @@ export function formatShareOgCaption(opts: {
   priceLabel: string;
   mainArea: string;
 }): string {
-  const counts = `Bestie: ${opts.exactCount} exactas, ${opts.similarCount} similares`;
+  const counts = `Bestie: ${opts.exactCount} en zona, ${opts.similarCount} cerca`;
   const rest = [opts.cityAbbr, opts.priceLabel, opts.mainArea].filter(Boolean).join(", ");
   const full = rest ? `${counts} · ${rest}` : counts;
   return full.length <= 90 ? full : `${counts} · ${opts.cityAbbr}`.slice(0, 90);

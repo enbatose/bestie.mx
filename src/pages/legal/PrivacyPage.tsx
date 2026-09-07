@@ -165,12 +165,13 @@ export function PrivacyPage() {
               propia publicación; en ese caso los datos salen de ti, no de un tercero. En el mismo tipo
               de canales, el equipo puede copiar de forma manual el texto, el nombre visible, el género
               que indique el operador, infográficos o un mapa de zona de un post de alguien que{" "}
-              <strong>busca</strong> cuarto, para armar una búsqueda compartida en Bestie (coincidencias
-              exactas y similares). Guardamos internamente el enlace de origen, los criterios extraídos
+              <strong>busca</strong> cuarto, para armar una búsqueda compartida en Bestie (cuartos en
+              zona y cerca). Guardamos internamente el enlace de origen, los criterios extraídos
               (incluidos deseos que aún no son un filtro de Bestie) y el enlace corto de esa búsqueda.
-              Quien abre ese enlace e inicia sesión se suscribe a esos criterios en sus búsquedas
-              guardadas. La vista previa del enlace en Facebook o WhatsApp muestra un recuento de
-              coincidencias, ciudad, rango de precio y zona; no incluye tu correo ni teléfono.
+              Quien abre ese enlace puede ver los resultados; Guardar o Avisarme es opcional (abrir no
+              guarda ni activa avisos por sí solo). La vista previa del enlace en Facebook o WhatsApp
+              muestra un recuento en zona y cerca, ciudad, rango de precio y zona; no incluye tu correo
+              ni teléfono.
             </>,
           ]}
         />

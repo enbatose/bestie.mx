@@ -67,8 +67,8 @@ describe("GDL seeker campaign shares", () => {
   it("puts live exact counts and a POI image on the Chapu OG tags", () => {
     const og = resolveSharedSearchOg(db, "/busquedas/gdlchapu", "https://www.bestie.mx");
     expect(og?.title).toMatch(/Chapultepec\/Americana/);
-    expect(og?.description).toMatch(/\d+ coincidencia/);
-    expect(og?.description).toMatch(/\d+ similar/);
+    expect(og?.description).toMatch(/\d+ en zona/);
+    expect(og?.description).toMatch(/\d+ cerca/);
     expect(og?.description).toMatch(/Time Out/);
     expect(og?.imageUrl).toBe(
       `https://www.bestie.mx/brand/og-busquedas/gdlchapu.jpg?v=${CAMPAIGN_OG_IMAGE_VERSION}`,

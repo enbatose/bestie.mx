@@ -88,7 +88,7 @@ describe("shared searches", () => {
 
     expect(created.body.sharePath).toMatch(/^\/busquedas\/[a-z0-9]+$/);
     const slug = created.body.id as string;
-    expect(created.body.caption).toContain("exactas");
+    expect(created.body.caption).toContain("en zona");
 
     const guestMeta = await request(app).get(`/api/shared-searches/${slug}/meta`).expect(200);
     expect(guestMeta.body.id).toBe(slug);

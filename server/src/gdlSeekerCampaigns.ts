@@ -31,19 +31,14 @@ function roomsWord(n: number): string {
   return n === 1 ? "cuarto" : "cuartos";
 }
 
-function similarWord(n: number): string {
-  return n === 1 ? "similar" : "similares";
-}
-
 function campaignOgTitle(where: string, exact: number, similar: number): string {
   if (exact <= 0) return `Bestie: cuartos ${where}`;
   if (similar <= 0) return `Bestie: ${exact} ${roomsWord(exact)} ${where}`;
-  return `Bestie: ${exact} ${roomsWord(exact)} y ${similar} ${similarWord(similar)} ${where}`;
+  return `Bestie: ${exact} en zona y ${similar} cerca ${where}`;
 }
 
 function campaignOgCountsLead(exact: number, similar: number): string {
-  const exactLabel = `${exact} ${exact === 1 ? "coincidencia exacta" : "coincidencias exactas"}`;
-  return `${exactLabel}, ${similar} ${similarWord(similar)}`;
+  return `${exact} en zona, ${similar} cerca`;
 }
 
 function poi(name: string) {
@@ -107,7 +102,7 @@ export const GDL_SEEKER_CAMPAIGNS: readonly GdlSeekerCampaign[] = [
     zoom: 14,
     ogImagePath: "/brand/og-busquedas/gdlcucs.jpg",
     imageAlt: "Campus CUCS en Guadalajara — Bestie MX",
-    title: (exact, similar) => campaignOgTitle("cerca de CUCS", exact, similar),
+    title: (exact, similar) => campaignOgTitle("junto a CUCS", exact, similar),
     description: (exact, similar) =>
       exact > 0
         ? `${campaignOgCountsLead(exact, similar)}. CUCS y el Hospital Civil.`

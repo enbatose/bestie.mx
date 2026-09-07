@@ -160,7 +160,7 @@ export function AdminOutreachDiffusionPanel() {
     if (!preview) return [];
     return [
       `Calidad de la búsqueda: ${qualityLabel(preview.quality)}`,
-      `${preview.exactCount} coincidencia${preview.exactCount === 1 ? "" : "s"} exacta${preview.exactCount === 1 ? "" : "s"}`,
+      `${preview.exactCount} en zona`,
       `${preview.similarCount} cerca`,
       preview.zoneRule ? `Zona: ${preview.zoneRule}` : preview.composed.mainArea ? `Zona: ${preview.composed.mainArea}` : "",
       preview.composed.label,
@@ -172,8 +172,8 @@ export function AdminOutreachDiffusionPanel() {
       <div>
         <h2 className="text-lg font-bold text-body">Difusión de búsquedas</h2>
         <p className="mt-1 text-sm text-muted">
-          Pega el post de alguien que busca cuarto. La IA arma una búsqueda guardada con coincidencias
-          exactas y similares para compartir en Facebook o WhatsApp.
+          Pega el post de alguien que busca cuarto. La IA arma una búsqueda con cuartos en zona y cerca
+          para compartir en Facebook o WhatsApp.
         </p>
       </div>
 
@@ -396,7 +396,7 @@ export function AdminOutreachDiffusionPanel() {
           ) : null}
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Exactas</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">En zona</p>
               <ul className="mt-1 space-y-1 text-sm text-body">
                 {preview.exact.length ? (
                   preview.exact.slice(0, 6).map((l) => (
@@ -405,12 +405,12 @@ export function AdminOutreachDiffusionPanel() {
                     </li>
                   ))
                 ) : (
-                  <li className="text-muted">Ninguna exacta aún</li>
+                  <li className="text-muted">Ninguno en zona aún</li>
                 )}
               </ul>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Similares</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Cerca</p>
               <ul className="mt-1 space-y-1 text-sm text-body">
                 {preview.similar.length ? (
                   preview.similar.slice(0, 6).map((l) => (
@@ -419,7 +419,7 @@ export function AdminOutreachDiffusionPanel() {
                     </li>
                   ))
                 ) : (
-                  <li className="text-muted">Ninguna similar</li>
+                  <li className="text-muted">Ninguno cerca</li>
                 )}
               </ul>
             </div>

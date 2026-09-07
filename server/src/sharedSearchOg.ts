@@ -46,7 +46,7 @@ export function resolveSharedSearchOg(
   return {
     title: truncateOgText(meta.caption, OG_TITLE_MAX),
     description: truncateOgText(
-      `${meta.label}. Inicia sesión en Bestie para ver coincidencias exactas y similares en el mapa.`,
+      `${meta.label}. Abre en Bestie para ver cuartos en zona y cerca en el mapa.`,
       OG_DESC_MAX,
     ),
     url: `${originBase}${meta.sharePath}`,
