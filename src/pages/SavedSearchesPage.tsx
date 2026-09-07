@@ -101,6 +101,16 @@ function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
   }
 }
 
+function savedSearchMatchChipLabel(exact?: number, similar?: number): string | null {
+  if (exact == null) return null;
+  if (similar && similar > 0) {
+    const exactWord = exact === 1 ? "exacta" : "exactas";
+    const simWord = similar === 1 ? "similar" : "similares";
+    return `${exact} ${exactWord} · ${similar} ${simWord}`;
+  }
+  return `${exact} anuncio${exact === 1 ? "" : "s"}`;
+}
+
 function locationSummaryForCard(
   filters: SearchFilters,
   location: SearchLocationState,
@@ -672,6 +682,7 @@ export function SavedSearchesPage() {
           filters={editFilters}
           onFiltersChange={setEditFilters}
           searchLocation={editLocation}
+          lockedAreaLabels={editRow.areaNeighborhoods}
         />
       ) : null}
 
@@ -692,7 +703,7 @@ export function SavedSearchesPage() {
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-3xl px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10">
+      <div className="mx-auto w-full min-w-0 max-w-3xl overflow-x-clip px-4 py-8 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-10">
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">Mis Búsquedas</h1>
@@ -821,10 +832,7 @@ export function SavedSearchesPage() {
                   </div>
                 ) : (
                   visibleRows.map(({ row, filterIcons, showVerMas, cityLabel, locationSummary }) => {
-                    const matchLabel =
-                      row.matchCount != null
-                        ? `${row.matchCount} anuncio${row.matchCount === 1 ? "" : "s"}`
-                        : null;
+                    const matchLabel = savedSearchMatchChipLabel(row.matchCount, row.similarCount);
                     const rowBusy = busyId === row.id;
                     const noEmailHintId = `mis-busquedas-no-email-${row.id}`;
                     const lightFilters = highlightFiltersId === row.id;
@@ -873,7 +881,7 @@ export function SavedSearchesPage() {
                                   </span>
                                 ) : null}
                                 {matchLabel ? (
-                                  <span className="inline-flex min-h-6 items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
+                                  <span className="inline-flex min-h-6 min-w-0 max-w-full items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
                                     {matchLabel}
                                   </span>
                                 ) : null}

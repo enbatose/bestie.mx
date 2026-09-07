@@ -10,6 +10,7 @@ import {
   CalendarClock,
   DoorClosed,
   House,
+  MapPin,
   Tag,
   UserRound,
   Warehouse,
@@ -35,14 +36,10 @@ export type EditableFilterChip = {
   removable: boolean;
 };
 
-/**
- * Every currently active filter as a single, flat, removable-chip list — merges the header bar
- * (Renta/Género/Edad), the quick-filter rail, the advanced sheet, and location, so nothing is missed
- * regardless of which UI surface it was set from.
- */
 export function editableActiveFilterChips(
   filters: SearchFilters,
   searchLocation: Pick<SearchLocationState, "cityLabel" | "neighborhoods">,
+  lockedAreaLabels: string[] = [],
 ): EditableFilterChip[] {
   const chips: EditableFilterChip[] = [];
 
@@ -57,6 +54,16 @@ export function editableActiveFilterChips(
       label: chip.label,
       icon: chip.icon,
       removable: !chip.id.startsWith("location-"),
+    });
+  }
+
+  const areaLabels = lockedAreaLabels.map((n) => n.trim()).filter((n) => n.length > 0);
+  if (areaLabels.length && !searchLocation.neighborhoods.some((n) => n.name.trim())) {
+    chips.push({
+      id: "location-area",
+      label: areaLabels.join(", "),
+      icon: MapPin,
+      removable: false,
     });
   }
 

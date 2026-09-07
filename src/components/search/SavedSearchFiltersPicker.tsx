@@ -17,6 +17,8 @@ type Props = {
   filters: SearchFilters;
   onFiltersChange: (next: SearchFilters) => void;
   searchLocation: Pick<SearchLocationState, "cityLabel" | "neighborhoods">;
+  /** Campaign/POI names when the share stores the zone outside location.neighborhoods. */
+  lockedAreaLabels?: string[];
 };
 
 function digitsOnly(s: string): string {
@@ -106,6 +108,7 @@ export function SavedSearchFiltersPicker({
   filters,
   onFiltersChange,
   searchLocation,
+  lockedAreaLabels,
 }: Props) {
   const [query, setQuery] = useState("");
   const [editingChipId, setEditingChipId] = useState<string | null>(null);
@@ -130,8 +133,8 @@ export function SavedSearchFiltersPicker({
   }, [open, onClose, editingChipId]);
 
   const activeChips = useMemo(
-    () => editableActiveFilterChips(filters, searchLocation),
-    [filters, searchLocation],
+    () => editableActiveFilterChips(filters, searchLocation, lockedAreaLabels),
+    [filters, searchLocation, lockedAreaLabels],
   );
   const results = useMemo(() => searchAddableFilters(filters, query), [filters, query]);
   const groupedResults = useMemo(() => {

@@ -57,6 +57,17 @@ export type SharedSearchRow = {
   updated_at: string;
 };
 
+export function sharedSearchMapLocation(share: SharedSearchRow): SavedSearchLocationSnapshot {
+  const location = parseSavedSearchLocation(share.location_json);
+  if (location.neighborhoods.length) return location;
+  const pois = parseSimilarConfig(share.similar_json).pois;
+  if (!pois.length) return location;
+  return {
+    ...location,
+    neighborhoods: pois.map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+  };
+}
+
 function isoNow(): string {
   return new Date().toISOString();
 }

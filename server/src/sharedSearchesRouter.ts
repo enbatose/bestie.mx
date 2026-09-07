@@ -9,6 +9,7 @@ import {
   createTemplateSharedSearch,
   findSharedSearchesByFacebookUrl,
   sharedSearchAdminPreview,
+  sharedSearchMapLocation,
   sharedSearchPublicMeta,
   subscribeToSharedSearch,
 } from "./sharedSearches.js";
@@ -191,7 +192,7 @@ export function sharedSearchesRouter(db: DatabaseSync) {
             exact: result.exact,
             similar: result.similar.map((row) => row.listing),
           },
-          location: JSON.parse(result.share.location_json),
+          location: sharedSearchMapLocation(result.share),
           filters: JSON.parse(result.share.filters_json),
         });
       } catch (e) {

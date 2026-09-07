@@ -65,6 +65,7 @@ describe("resolveSavedSearchMatches", () => {
       similarJson,
     );
     expect(exact.map((l) => l.id)).toEqual(["in"]);
+    expect(resolveSavedSearchMatches([inZone, far], EMPTY_SEARCH_FILTERS, chapuLocation, similarJson).similarCount).toBeGreaterThanOrEqual(0);
   });
 
   it("without similar_json, empty neighborhoods still follow filters only", () => {
@@ -77,6 +78,7 @@ describe("resolveSavedSearchMatches", () => {
     });
     const { exact } = resolveSavedSearchMatches([a, b], EMPTY_SEARCH_FILTERS, chapuLocation, null);
     expect(exact.map((l) => l.id).sort()).toEqual(["a", "b"]);
+    expect(resolveSavedSearchMatches([a, b], EMPTY_SEARCH_FILTERS, chapuLocation, null).similarCount).toBe(0);
   });
 });
 

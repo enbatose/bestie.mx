@@ -83,7 +83,7 @@ export function resolveSavedSearchMatches(
   filters: SearchFilters,
   location: SavedSearchLocationSnapshot,
   similarJson?: string | null,
-): { exact: PropertyListing[]; similarHigh: PropertyListing[] } {
+): { exact: PropertyListing[]; similarHigh: PropertyListing[]; similarCount: number } {
   if (similarJson) {
     const split = splitSharedSearchMatches(
       published,
@@ -96,9 +96,13 @@ export function resolveSavedSearchMatches(
     const similarHigh = highAffinitySimilar(split.similar)
       .map((r) => r.listing)
       .filter((l) => !exactIds.has(l.id));
-    return { exact, similarHigh };
+    return { exact, similarHigh, similarCount: split.similar.length };
   }
-  return { exact: matchSavedSearchListings(published, filters, location), similarHigh: [] };
+  return {
+    exact: matchSavedSearchListings(published, filters, location),
+    similarHigh: [],
+    similarCount: 0,
+  };
 }
 
 /**

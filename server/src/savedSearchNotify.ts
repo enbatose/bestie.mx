@@ -294,6 +294,7 @@ export function rowToApi(
   row: SavedSearchRow,
   matchCount?: number,
   areaNeighborhoods?: string[],
+  similarCount?: number,
 ) {
   return {
     id: row.id,
@@ -306,6 +307,7 @@ export function rowToApi(
     updatedAt: row.updated_at,
     shareId: row.share_id ?? null,
     ...(matchCount != null ? { matchCount } : {}),
+    ...(similarCount != null && similarCount > 0 ? { similarCount } : {}),
     ...(areaNeighborhoods && areaNeighborhoods.length
       ? { areaNeighborhoods }
       : {}),

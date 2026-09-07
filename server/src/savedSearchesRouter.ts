@@ -237,6 +237,7 @@ export function savedSearchesRouter(db: DatabaseSync) {
     res.json(
       rows.map((row) => {
         let matchCount: number | undefined;
+        let similarCount: number | undefined;
         let areaNeighborhoods: string[] | undefined;
         let filters: ReturnType<typeof parseSavedSearchFilters> | undefined;
         let location: ReturnType<typeof parseSavedSearchLocation> | undefined;
@@ -244,7 +245,9 @@ export function savedSearchesRouter(db: DatabaseSync) {
           filters = parseSavedSearchFilters(row.filters_json);
           location = parseSavedSearchLocation(row.location_json);
           const similarJson = row.share_id ? similarByShare.get(row.share_id) ?? null : null;
-          matchCount = resolveSavedSearchMatches(published, filters, location, similarJson).exact.length;
+          const matches = resolveSavedSearchMatches(published, filters, location, similarJson);
+          matchCount = matches.exact.length;
+          similarCount = matches.similarCount;
           areaNeighborhoods = neighborhoodsForSavedSearchCard(
             db,
             filters,
@@ -254,10 +257,11 @@ export function savedSearchesRouter(db: DatabaseSync) {
           );
         } catch {
           matchCount = undefined;
+          similarCount = undefined;
           areaNeighborhoods = undefined;
         }
         return {
-          ...rowToApi(row, matchCount, areaNeighborhoods),
+          ...rowToApi(row, matchCount, areaNeighborhoods, similarCount),
           ...(filters ? { filters } : {}),
           ...(location ? { location } : {}),
         };

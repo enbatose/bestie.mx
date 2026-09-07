@@ -13,6 +13,7 @@ export type SavedSearchDto = {
   createdAt: string;
   updatedAt: string;
   matchCount?: number;
+  similarCount?: number;
   /** Neighborhood names for the card (stored pins or resolved from map bbox). */
   areaNeighborhoods?: string[];
   replacedPrevious?: { id: string; label: string };
