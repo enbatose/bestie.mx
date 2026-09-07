@@ -9,6 +9,7 @@ import {
   deleteSavedSearch,
   enableSavedSearchNotify,
   fetchSavedSearches,
+  savedSearchSourceKindLabel,
   updateSavedSearch,
   type SavedSearchDto,
 } from "@/lib/savedSearchesApi";
@@ -103,16 +104,13 @@ function parseRowSearch(row: SavedSearchDto): ParsedSearch | null {
 
 function savedSearchMatchChipLabel(exact?: number, similar?: number): string | null {
   if (exact == null) return null;
-  if (similar && similar > 0) {
-    const exactWord = exact === 1 ? "exacta" : "exactas";
-    const simWord = similar === 1 ? "similar" : "similares";
-    return `${exact} ${exactWord} · ${similar} ${simWord}`;
-  }
-  return `${exact} anuncio${exact === 1 ? "" : "s"}`;
+  const similarN = similar ?? 0;
+  const zone = `${exact} en zona`;
+  return similarN > 0 ? `${zone} · ${similarN} cerca` : zone;
 }
 
 function locationSummaryForCard(
-  filters: SearchFilters,
+  _filters: SearchFilters,
   location: SearchLocationState,
   areaNeighborhoods?: string[],
 ): string | null {
@@ -135,12 +133,20 @@ function buildRowView(row: SavedSearchDto): RowView {
     ? describeActiveSearchFilterChips(parsed.filters, parsed.location)
     : [];
   const cityLabel = parsed?.location.cityLabel?.trim() ?? "";
-  const locationSummary = parsed
-    ? locationSummaryForCard(parsed.filters, parsed.location, row.areaNeighborhoods)
-    : row.areaNeighborhoods?.length
-      ? row.areaNeighborhoods.join(", ")
-      : null;
-  const haystack = [row.label, cityLabel, locationSummary ?? "", ...chipLabels]
+  const locationSummary =
+    row.zoneRule?.trim() ||
+    (parsed
+      ? locationSummaryForCard(parsed.filters, parsed.location, row.areaNeighborhoods)
+      : row.areaNeighborhoods?.length
+        ? row.areaNeighborhoods.join(", ")
+        : null);
+  const haystack = [
+    row.label,
+    cityLabel,
+    locationSummary ?? "",
+    savedSearchSourceKindLabel(row.sourceKind),
+    ...chipLabels,
+  ]
     .join(" ")
     .toLowerCase();
   return {
@@ -398,6 +404,7 @@ export function SavedSearchesPage() {
   const [editPathname, setEditPathname] = useState<string>("/buscar");
   const [editOriginal, setEditOriginal] = useState<string>("");
   const [highlightFiltersId, setHighlightFiltersId] = useState<string | null>(null);
+  const [forkConfirmOpen, setForkConfirmOpen] = useState(false);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const rowViews = useMemo(() => rows?.map(buildRowView) ?? [], [rows]);
@@ -534,6 +541,7 @@ export function SavedSearchesPage() {
     const pathname = editPathname;
     const unchanged = flt != null && JSON.stringify(flt) === editOriginal;
     const litFiltersId = highlightFiltersId;
+    setForkConfirmOpen(false);
     setEditRow(null);
     setEditFilters(null);
     setEditLocation(null);
@@ -569,6 +577,17 @@ export function SavedSearchesPage() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const tryCloseEditor = () => {
+    const row = editRow;
+    const flt = editFilters;
+    const unchanged = flt != null && JSON.stringify(flt) === editOriginal;
+    if (row && flt && !unchanged && row.shareId && row.sourceKind !== "copia") {
+      setForkConfirmOpen(true);
+      return;
+    }
+    void closeEditor();
   };
 
   const onConfirmDelete = async () => {
@@ -675,16 +694,29 @@ export function SavedSearchesPage() {
         }}
         onSave={(label) => void onSaveRename(label)}
       />
-      {editRow && editFilters && editLocation ? (
+      {editRow && editFilters && editLocation && !forkConfirmOpen ? (
         <SavedSearchFiltersPicker
           open
-          onClose={() => void closeEditor()}
+          onClose={() => tryCloseEditor()}
           filters={editFilters}
           onFiltersChange={setEditFilters}
           searchLocation={editLocation}
-          lockedAreaLabels={editRow.areaNeighborhoods}
+          lockedAreaLabels={
+            editRow.sourceKind === "anuncio" || editRow.sourceKind === "facebook"
+              ? editRow.areaNeighborhoods
+              : undefined
+          }
         />
       ) : null}
+      <AppConfirmDialog
+        open={forkConfirmOpen}
+        title="¿Crear una copia personal?"
+        message="Si cambias los filtros de una búsqueda compartida, se crea una copia tuya. El enlace original no cambia."
+        confirmLabel="Crear copia"
+        busy={editRow != null && busyId === editRow.id}
+        onConfirm={() => void closeEditor()}
+        onCancel={() => setForkConfirmOpen(false)}
+      />
 
       {flash ? (
         <div
@@ -719,7 +751,8 @@ export function SavedSearchesPage() {
             <p className="mt-2 text-sm font-medium text-body">{summaryLine}</p>
           ) : (
             <p className="mt-2 text-sm text-muted">
-              Búsquedas guardadas desde el mapa. Puedes activar alertas por correo en una a la vez.
+              Búsquedas guardadas desde el mapa, un anuncio o Facebook. Guardar no activa el correo;
+              puedes avisarte en una a la vez.
             </p>
           )}
         </div>
@@ -873,8 +906,13 @@ export function SavedSearchesPage() {
                                 {locationSummary}
                               </p>
                             ) : null}
-                            {cityLabel || matchLabel ? (
+                            {cityLabel || matchLabel || row.sourceKind ? (
                               <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {row.sourceKind && row.sourceKind !== "mapa" ? (
+                                  <span className="inline-flex min-h-6 items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
+                                    {savedSearchSourceKindLabel(row.sourceKind)}
+                                  </span>
+                                ) : null}
                                 {cityLabel ? (
                                   <span className="inline-flex min-h-6 items-center rounded-full border border-border bg-bg-light px-2 text-[11px] font-medium text-muted">
                                     {cityLabel}
@@ -896,11 +934,11 @@ export function SavedSearchesPage() {
                               <CardOnOffToggle
                                 active={row.emailNotifyEnabled}
                                 tone={CARD_TONE}
-                                disabled={!me.email}
+                                disabled={!me.email && !row.emailNotifyEnabled}
                                 busy={rowBusy}
                                 onLabel="Desactivar alertas por correo"
                                 offLabel="Activar alertas por correo"
-                                describedById={!me.email ? noEmailHintId : undefined}
+                                describedById={!me.email && !row.emailNotifyEnabled ? noEmailHintId : undefined}
                                 onChange={(next) => void onToggleNotify(row, next)}
                               />
                             </div>

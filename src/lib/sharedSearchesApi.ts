@@ -48,6 +48,7 @@ export type SharedSearchExtractResult = {
   similarCount: number;
   quality: "alta" | "media" | "baja";
   caption: string;
+  zoneRule?: string;
 };
 
 export type SharedSearchCreateResult = {
@@ -60,6 +61,8 @@ export type SharedSearchCreateResult = {
   exactCount: number;
   similarCount: number;
   quality: "alta" | "media" | "baja";
+  reused?: boolean;
+  zoneRule?: string;
 };
 
 export type SharedSearchMeta = {
@@ -71,6 +74,30 @@ export type SharedSearchMeta = {
   exactCount: number;
   similarCount: number;
   sharePath: string;
+  zoneRule?: string;
+};
+
+export type SharedSearchPublicView = {
+  id: string;
+  kind: string;
+  label: string;
+  cityCode: string;
+  cityLabel: string;
+  caption: string;
+  zoneRule: string;
+  sourceKind: "mapa" | "anuncio" | "facebook" | "copia";
+  filters: SearchFilters;
+  location: SharedSearchLocation;
+  insights: Array<{ label: string; text: string; mapped: boolean }>;
+  nonNegotiables: Array<{ kind: string; value: string; reason: string }>;
+  exact: PropertyListing[];
+  similar: PropertyListing[];
+  exactCount: number;
+  similarCount: number;
+  sharePath: string;
+  alreadySaved: boolean;
+  savedSearchId: string | null;
+  emailNotifyEnabled: boolean;
 };
 
 export type SharedSearchSubscribeResult = {
@@ -78,6 +105,7 @@ export type SharedSearchSubscribeResult = {
   sharePath: string;
   redirectedSlug: string | null;
   subscribedNow: boolean;
+  savedSearch?: { id: string; emailNotifyEnabled: boolean };
   exactCount: number;
   similarCount: number;
   listings: { exact: PropertyListing[]; similar: PropertyListing[] };
@@ -129,6 +157,17 @@ export async function adminSharedSearchDuplicateCheck(sourceFacebookUrl: string)
   return parseJson(res);
 }
 
+export async function fetchSharedSearchView(
+  id: string,
+  signal?: AbortSignal,
+): Promise<SharedSearchPublicView> {
+  const res = await fetch(`${apiBase()}/api/shared-searches/${encodeURIComponent(id)}`, {
+    credentials: cred,
+    signal,
+  });
+  return parseJson(res);
+}
+
 export async function fetchSharedSearchMeta(id: string, signal?: AbortSignal): Promise<SharedSearchMeta> {
   const res = await fetch(`${apiBase()}/api/shared-searches/${encodeURIComponent(id)}/meta`, {
     credentials: cred,
@@ -137,12 +176,15 @@ export async function fetchSharedSearchMeta(id: string, signal?: AbortSignal): P
   return parseJson(res);
 }
 
-export async function subscribeSharedSearch(id: string): Promise<SharedSearchSubscribeResult> {
+export async function subscribeSharedSearch(
+  id: string,
+  opts?: { enableNotify?: boolean },
+): Promise<SharedSearchSubscribeResult> {
   const res = await fetch(`${apiBase()}/api/shared-searches/${encodeURIComponent(id)}/subscribe`, {
     method: "POST",
     credentials: cred,
     headers: { "Content-Type": "application/json" },
-    body: "{}",
+    body: JSON.stringify({ enableNotify: Boolean(opts?.enableNotify) }),
   });
   return parseJson(res);
 }

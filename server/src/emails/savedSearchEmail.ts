@@ -46,6 +46,19 @@ function listingSubtitle(listing: PropertyListing): string {
   return parts.join(" · ");
 }
 
+function listingRentText(listing: PropertyListing): string {
+  if (listing.hidePricing) return "Consultar $";
+  return `${money.format(listing.rentMxn)}/mes`;
+}
+
+function listingRentHtml(listing: PropertyListing): string {
+  if (listing.hidePricing) {
+    return `<p style="margin:8px 0 0;font-size:14px;font-weight:700;color:${EMAIL_BRAND.body};">Consultar $</p>`;
+  }
+  const rent = money.format(listing.rentMxn);
+  return `<p style="margin:8px 0 0;font-size:14px;font-weight:700;color:${EMAIL_BRAND.body};">${escapeHtml(rent)}<span style="font-size:11px;font-weight:400;color:${EMAIL_BRAND.muted};"> / mes</span></p>`;
+}
+
 function listingCoverPath(listing: PropertyListing): string | null {
   const mode = listing.propertyPostMode === "property" ? "property" : "room";
   const urls =
@@ -101,7 +114,7 @@ function listingCardHtml(
   const B = EMAIL_BRAND;
   const title = escapeHtml(listingTitle(listing));
   const subtitle = escapeHtml(listingSubtitle(listing));
-  const rent = escapeHtml(money.format(listing.rentMxn));
+  const rentHtml = listingRentHtml(listing);
   const summary = escapeHtml((listing.summary ?? "").slice(0, 140));
   const href = `${base}/anuncio/${encodeURIComponent(roomReferenceCode(listing.id))}`;
   const cover = listingCoverPath(listing);
@@ -129,7 +142,7 @@ function listingCardHtml(
           <td style="padding-left:12px;" valign="top">
             <p style="margin:0;font-size:15px;font-weight:700;color:${B.primary};">${title}</p>
             <p style="margin:4px 0 0;font-size:13px;color:${B.muted};">${subtitle}</p>
-            <p style="margin:8px 0 0;font-size:14px;font-weight:700;color:${B.body};">${rent}<span style="font-size:11px;font-weight:400;color:${B.muted};"> / mes</span></p>
+            ${rentHtml}
             ${summary ? `<p style="margin:8px 0 0;font-size:12px;line-height:1.45;color:${B.muted};">${summary}</p>` : ""}
             ${badges ? `<div style="margin-top:8px;">${badges}</div>` : ""}
             <p style="margin:10px 0 0;">${textLinkHtml(href, "Ver anuncio")}</p>
@@ -209,10 +222,10 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
   if (payload.mode === "initial") {
     if (similarCapped.length) {
       if (newListings.length) {
-        bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Coincidencias exactas</p>`;
+        bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">En zona</p>`;
         bodyListings += newListings.map((l) => listingCardHtml(base, l)).join("");
       }
-      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Similares</p>`;
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Cerca</p>`;
       bodyListings += similarCapped.map((l) => listingCardHtml(base, l)).join("");
     } else {
       const all = [...newListings, ...otherListings];
@@ -220,11 +233,11 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
     }
   } else {
     if (newListings.length) {
-      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Nuevos · exactos</p>`;
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Nuevos · en zona</p>`;
       bodyListings += newListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
     }
     if (similarCapped.length) {
-      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Nuevos · similares</p>`;
+      bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Nuevos · cerca</p>`;
       bodyListings += similarCapped.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
     }
     if (otherListings.length) {
@@ -244,7 +257,9 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
     <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:${B.muted};">Estos cuartos coinciden con los filtros que guardaste. Abre un anuncio para ver fotos y detalles.</p>
     ${
       bodyListings ||
-      `<p style="margin:0 0 16px;font-size:14px;color:${B.muted};">Aún no hay anuncios que coincidan en este momento.</p>`
+      (payload.mode === "initial"
+        ? `<p style="margin:0 0 16px;font-size:14px;color:${B.muted};">Aún no hay cuartos en esta zona. Te escribiremos cuando aparezca uno.</p>`
+        : `<p style="margin:0 0 16px;font-size:14px;color:${B.muted};">Aún no hay anuncios que coincidan en este momento.</p>`)
     }
     ${moreHtml}
     <p style="margin:20px 0 0;text-align:center;">${primaryButtonHtml(searchLink, ctaLabel)}</p>
@@ -263,20 +278,20 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
   const textLines = [
     subject.replace(/^Bestie · /, ""),
     "",
-    payload.mode === "follow_up" && newListings.length ? "NUEVOS:" : "COINCIDENCIAS EXACTAS:",
+    payload.mode === "follow_up" && newListings.length ? "NUEVOS · EN ZONA:" : "EN ZONA:",
     ...newListings.map(
       (l) =>
-        `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
+        `- ${listingTitle(l)} · ${listingRentText(l)} · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
-    ...(similarCapped.length ? ["", "SIMILARES:"] : []),
+    ...(similarCapped.length ? ["", "CERCA:"] : []),
     ...similarCapped.map(
       (l) =>
-        `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
+        `- ${listingTitle(l)} · ${listingRentText(l)} · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
     ...(otherListings.length ? ["", "TAMBIÉN COINCIDEN:"] : []),
     ...otherListings.map(
       (l) =>
-        `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
+        `- ${listingTitle(l)} · ${listingRentText(l)} · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
     "",
     ...(moreCount > 0
@@ -302,6 +317,28 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
       { name: "product", value: "bestie" },
     ],
   };
+}
+
+export function renderUnsubscribePromptHtml(label: string, token: string): string {
+  const base = publicBaseUrl();
+  const B = EMAIL_BRAND;
+  const safe = escapeHtml(label);
+  const action = `${base}/api/saved-searches/unsubscribe/${encodeURIComponent(token)}`;
+  return `<!DOCTYPE html>
+<html lang="es-MX">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/><title>¿Dejar de recibir alertas?</title></head>
+<body style="margin:0;font-family:Inter,system-ui,sans-serif;background:${B.bgLight};padding:40px 16px;">
+  <div style="max-width:420px;margin:0 auto;background:${B.surface};border-radius:16px;border:1px solid ${B.border};padding:32px;text-align:center;">
+    <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:${B.primary};">Bestie</p>
+    <h1 style="margin:16px 0 8px;font-size:18px;color:${B.body};">¿Dejar de recibir alertas?</h1>
+    <p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:${B.muted};">Ya no te enviaremos correos de «${safe}». La búsqueda seguirá en Mis Búsquedas.</p>
+    <form method="post" action="${escapeHtml(action)}">
+      <button type="submit" style="display:inline-block;padding:12px 20px;border:0;border-radius:999px;background:${B.primary};color:#fff;font-size:14px;font-weight:700;cursor:pointer;">Sí, desactivar alertas</button>
+    </form>
+    <p style="margin:20px 0 0;"><a href="${base}/mis-busquedas" style="color:${B.primary};font-weight:600;">Cancelar y volver</a></p>
+  </div>
+</body>
+</html>`;
 }
 
 export function renderUnsubscribeConfirmationHtml(label: string): string {

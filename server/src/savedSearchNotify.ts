@@ -14,6 +14,8 @@ import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import type { SearchFilters } from "./searchFilters.js";
 import type { PropertyListing } from "./types.js";
 import { formatSavedSearchDraftLabel } from "./savedSearchDraftLabel.js";
+import { isNotifyQuietHours } from "./notifyQuietHours.js";
+import { metroTimeZone } from "./metroCities.js";
 
 export { SAVED_SEARCH_EMAIL_LISTING_CAP };
 
@@ -81,10 +83,10 @@ export function generateUnsubscribeToken(): string {
 
 export function autoLabelFromSearch(
   location: SavedSearchLocationSnapshot,
-  _filters: SearchFilters,
-  at: Date = new Date(),
+  filters: SearchFilters,
+  _at: Date = new Date(),
 ): string {
-  return formatSavedSearchDraftLabel(location, at);
+  return formatSavedSearchDraftLabel(location, filters);
 }
 
 export type EnableNotifyResult = {
@@ -181,6 +183,8 @@ export async function sendSavedSearchEmail(
   const email = loadUserEmail(db, row.user_id);
   if (!email) return false;
 
+  if (isNotifyQuietHours(new Date(), metroTimeZone(row.city_code))) return false;
+
   const { exact, similarHigh } = listingsForSavedSearchEmail(db, row);
   const notified = notifiedRoomIds(db, savedSearchId);
 
@@ -260,7 +264,7 @@ export async function onRoomPublished(db: DatabaseSync, roomId: string): Promise
     const notified = notifiedRoomIds(db, row.id);
     if (notified.has(roomId)) continue;
     try {
-      await sendSavedSearchEmail(db, row.id, "follow_up");
+      await sendSavedSearchEmail(db, row.id, row.last_notified_at ? "follow_up" : "initial");
     } catch (e) {
       console.error(`[saved-search] notify failed search=${row.id}:`, e instanceof Error ? e.message : e);
     }
@@ -274,7 +278,7 @@ export async function pollSavedSearchNotifications(db: DatabaseSync): Promise<vo
     .all() as SavedSearchRow[];
   for (const row of rows) {
     try {
-      await sendSavedSearchEmail(db, row.id, "follow_up");
+      await sendSavedSearchEmail(db, row.id, row.last_notified_at ? "follow_up" : "initial");
     } catch (e) {
       console.error(`[saved-search] poll failed search=${row.id}:`, e instanceof Error ? e.message : e);
     }
@@ -307,7 +311,7 @@ export function rowToApi(
     updatedAt: row.updated_at,
     shareId: row.share_id ?? null,
     ...(matchCount != null ? { matchCount } : {}),
-    ...(similarCount != null && similarCount > 0 ? { similarCount } : {}),
+    ...(similarCount != null ? { similarCount } : {}),
     ...(areaNeighborhoods && areaNeighborhoods.length
       ? { areaNeighborhoods }
       : {}),

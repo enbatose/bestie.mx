@@ -60,7 +60,8 @@ export function matchSavedSearchListings(
   filters: SearchFilters,
   location: SavedSearchLocationSnapshot,
 ): PropertyListing[] {
-  const filtered = filterListings(allPublished, filters);
+  const filtersForMatch = location.neighborhoods.length ? { ...filters, bbox: null } : filters;
+  const filtered = filterListings(allPublished, filtersForMatch);
   const withLocation = filtered.filter((l) => listingMatchesNeighborhoods(l, location.neighborhoods));
   return sortListingsNewestFirst(withLocation);
 }
@@ -96,7 +97,7 @@ export function resolveSavedSearchMatches(
     const similarHigh = highAffinitySimilar(split.similar)
       .map((r) => r.listing)
       .filter((l) => !exactIds.has(l.id));
-    return { exact, similarHigh, similarCount: split.similar.length };
+    return { exact, similarHigh, similarCount: similarHigh.length };
   }
   return {
     exact: matchSavedSearchListings(published, filters, location),
@@ -154,6 +155,44 @@ export function areaNamesForSavedSearchCard(
   }
 
   return Array.from(names.values()).sort((a, b) => a.localeCompare(b, "es"));
+}
+
+/** Human zone sentence for cards, landings, and Difusión preview. */
+export function zoneRuleForSavedSearch(
+  filters: SearchFilters,
+  location: SavedSearchLocationSnapshot,
+  similarJson?: string | null,
+): string {
+  const similar = similarJson ? parseSimilarConfig(similarJson) : null;
+  const poiNames = similar?.pois.map((p) => p.name.trim()).filter((name) => name.length > 0) ?? [];
+  const stored = location.neighborhoods.map((n) => n.name.trim()).filter((name) => name.length > 0);
+  const uniqPois = [...new Set(poiNames)];
+
+  if (stored.length && uniqPois.length) {
+    return `${stored.join(", ")} · 3.5 km de ${uniqPois[0]}`;
+  }
+  if (uniqPois.length) {
+    return `Cuartos a 3.5 km de ${uniqPois[0]}`;
+  }
+  if (stored.length) return stored.join(", ");
+  if (filters.bbox || similar?.bbox) return "Área del mapa";
+  return location.cityLabel?.trim() || "";
+}
+
+export type SavedSearchSourceKind = "mapa" | "anuncio" | "facebook" | "copia";
+
+export function sourceKindFromShare(kind?: string | null, shareId?: string | null): SavedSearchSourceKind {
+  if (!shareId) return "mapa";
+  if (kind === "campaign") return "anuncio";
+  if (kind === "fork") return "copia";
+  return "facebook";
+}
+
+export function sourceKindLabel(kind: SavedSearchSourceKind): string {
+  if (kind === "anuncio") return "Anuncio";
+  if (kind === "facebook") return "Facebook";
+  if (kind === "copia") return "Copia";
+  return "Mapa";
 }
 
 export function neighborhoodsForSavedSearchCard(

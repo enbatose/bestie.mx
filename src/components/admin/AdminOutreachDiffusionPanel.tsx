@@ -9,6 +9,7 @@ import {
   adminCreateSharedSearch,
   adminExtractSharedSearch,
   adminSharedSearchDuplicateCheck,
+  fetchSharedSearchMeta,
   type SharedSearchExtractResult,
 } from "@/lib/sharedSearchesApi";
 
@@ -39,6 +40,7 @@ export function AdminOutreachDiffusionPanel() {
   const [err, setErr] = useState<string | null>(null);
   const [sharePath, setSharePath] = useState<string | null>(null);
   const [caption, setCaption] = useState<string | null>(null);
+  const [zoneRule, setZoneRule] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [dupMatches, setDupMatches] = useState<
     Array<{ id: string; label: string; sharePath: string; createdAt: string; seekerName: string | null }>
@@ -76,6 +78,7 @@ export function AdminOutreachDiffusionPanel() {
     setPreview(null);
     setSharePath(null);
     setCaption(null);
+    setZoneRule(null);
     try {
       const result = await adminExtractSharedSearch({
         text: text.trim() || undefined,
@@ -108,10 +111,23 @@ export function AdminOutreachDiffusionPanel() {
       });
       setSharePath(result.sharePath);
       setCaption(result.caption);
+      setZoneRule(result.zoneRule ?? preview.zoneRule ?? null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Error al crear la búsqueda.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleReuseExisting = async (sharePathToUse: string, id: string) => {
+    setErr(null);
+    setSharePath(sharePathToUse);
+    try {
+      const meta = await fetchSharedSearchMeta(id);
+      setCaption(meta.caption);
+      setZoneRule(meta.zoneRule ?? null);
+    } catch {
+      setCaption(null);
     }
   };
 
@@ -135,6 +151,7 @@ export function AdminOutreachDiffusionPanel() {
     setPreview(null);
     setSharePath(null);
     setCaption(null);
+    setZoneRule(null);
     setErr(null);
     setDupMatches([]);
   };
@@ -144,8 +161,8 @@ export function AdminOutreachDiffusionPanel() {
     return [
       `Calidad de la búsqueda: ${qualityLabel(preview.quality)}`,
       `${preview.exactCount} coincidencia${preview.exactCount === 1 ? "" : "s"} exacta${preview.exactCount === 1 ? "" : "s"}`,
-      `${preview.similarCount} similar${preview.similarCount === 1 ? "" : "es"}`,
-      preview.composed.mainArea ? `Zona: ${preview.composed.mainArea}` : "",
+      `${preview.similarCount} cerca`,
+      preview.zoneRule ? `Zona: ${preview.zoneRule}` : preview.composed.mainArea ? `Zona: ${preview.composed.mainArea}` : "",
       preview.composed.label,
     ].filter(Boolean);
   }, [preview]);
@@ -219,7 +236,14 @@ export function AdminOutreachDiffusionPanel() {
                 </li>
               ))}
             </ul>
-            <p className="mt-1.5 text-xs text-warning-fg/80">Puedes generar de todos modos si es a propósito.</p>
+            <p className="mt-1.5 text-xs text-warning-fg/80">Usa el enlace existente. No generes otro salvo que sea a propósito.</p>
+            <button
+              type="button"
+              onClick={() => void handleReuseExisting(dupMatches[0].sharePath, dupMatches[0].id)}
+              className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-fg hover:brightness-110"
+            >
+              Usar enlace existente
+            </button>
           </div>
         )}
       </div>
@@ -401,21 +425,50 @@ export function AdminOutreachDiffusionPanel() {
             </div>
           </div>
           <p className="text-xs text-muted">Vista previa del recuadro al compartir: {preview.caption}</p>
-          <button
-            type="button"
-            disabled={creating}
-            onClick={() => void handleCreate()}
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40"
-          >
-            {creating ? "Generando enlace…" : "Generar enlace para compartir"}
-          </button>
+          {preview.insights.filter((i) => !i.mapped).length ? (
+            <p className="break-words text-xs text-muted">
+              Incluye en el comentario:{" "}
+              {preview.insights
+                .filter((i) => !i.mapped)
+                .map((i) => i.text)
+                .join(" · ")}
+            </p>
+          ) : null}
+          {dupMatches.length ? (
+            <button
+              type="button"
+              onClick={() => void handleReuseExisting(dupMatches[0].sharePath, dupMatches[0].id)}
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110"
+            >
+              Usar enlace existente
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={creating}
+              onClick={() => void handleCreate()}
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40"
+            >
+              {creating ? "Generando enlace…" : "Generar enlace para compartir"}
+            </button>
+          )}
         </div>
       ) : null}
 
       {shareUrl ? (
         <div className="min-w-0 space-y-3 rounded-2xl border border-secondary/40 bg-secondary/10 p-4">
           <p className="text-sm font-semibold text-body">Enlace listo para copiar</p>
+          {zoneRule ? <p className="break-words text-sm text-body">{zoneRule}</p> : null}
           {caption ? <p className="break-words text-sm text-muted">{caption}</p> : null}
+          {preview?.insights.filter((i) => !i.mapped).length ? (
+            <p className="break-words text-sm text-muted">
+              Comentario:{" "}
+              {preview.insights
+                .filter((i) => !i.mapped)
+                .map((i) => i.text)
+                .join(" · ")}
+            </p>
+          ) : null}
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
             <input
               readOnly

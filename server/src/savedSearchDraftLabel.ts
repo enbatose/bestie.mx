@@ -1,33 +1,23 @@
-import { metroTimeZone } from "./metroCities.js";
+import type { SearchFilters } from "./searchFilters.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
 
-/** "26 jun 2025, 14:35 · Ciudad de México · Roma Norte, Condesa" */
+function moneyMx(n: number): string {
+  return `$${Math.round(n).toLocaleString("es-MX")}`;
+}
+
+/** "Providencia · máx. $8,000" — zone plus one budget chip, not a timestamp. */
 export function formatSavedSearchDraftLabel(
   location: SavedSearchLocationSnapshot,
-  at: Date = new Date(),
+  filters?: SearchFilters | null,
 ): string {
-  const tz = metroTimeZone(location.cityCode);
-  const parts = new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: tz,
-  }).formatToParts(at);
-
-  const day = parts.find((p) => p.type === "day")?.value ?? "";
-  const month = (parts.find((p) => p.type === "month")?.value ?? "").replace(/\.$/, "");
-  const year = parts.find((p) => p.type === "year")?.value ?? "";
-  const hour = parts.find((p) => p.type === "hour")?.value ?? "";
-  const minute = parts.find((p) => p.type === "minute")?.value ?? "";
-  const dateTime = `${day} ${month} ${year}, ${hour}:${minute}`;
-
-  const city = location.cityLabel?.trim() || location.cityCode.toUpperCase();
-  const segments = [dateTime, city];
-  if (location.neighborhoods.length) {
-    segments.push(location.neighborhoods.map((n) => n.name).join(", "));
-  }
-  return segments.join(" · ");
+  const zone = location.neighborhoods.length
+    ? location.neighborhoods.map((n) => n.name.trim()).filter(Boolean).join(", ")
+    : location.cityLabel?.trim() || location.cityCode.toUpperCase();
+  const budget =
+    filters?.budgetMax != null
+      ? `máx. ${moneyMx(filters.budgetMax)}`
+      : filters?.budgetMin != null
+        ? `mín. ${moneyMx(filters.budgetMin)}`
+        : "";
+  return [zone, budget].filter(Boolean).join(" · ").slice(0, 200);
 }

@@ -4,6 +4,7 @@ import { readAuthUserId } from "./jwtSession.js";
 import {
   renderUnsubscribeConfirmationHtml,
   renderUnsubscribeNotFoundHtml,
+  renderUnsubscribePromptHtml,
 } from "./emails/savedSearchEmail.js";
 import {
   autoLabelFromSearch,
@@ -18,6 +19,8 @@ import {
   parseSavedSearchFilters,
   parseSavedSearchLocation,
   resolveSavedSearchMatches,
+  sourceKindFromShare,
+  zoneRuleForSavedSearch,
   type SavedSearchLocationSnapshot,
 } from "./savedSearchMatch.js";
 import { MAX_SAVED_SEARCHES_PER_USER } from "./savedSearchSchema.js";
@@ -193,8 +196,24 @@ function upsertUserDraft(
 export function savedSearchesRouter(db: DatabaseSync) {
   const r = express.Router();
 
-  /** Public unsubscribe — must be registered before /:id routes. */
+  /** Public unsubscribe: GET confirms; POST (and Gmail one-click) disables. Before /:id. */
   r.get("/unsubscribe/:token", (req: Request, res: Response) => {
+    const token = String(req.params.token ?? "").trim();
+    if (!token) {
+      res.status(404).type("html").send(renderUnsubscribeNotFoundHtml());
+      return;
+    }
+    const row = db
+      .prepare(`SELECT id, label FROM saved_searches WHERE unsubscribe_token = ?`)
+      .get(token) as { id: string; label: string } | undefined;
+    if (!row) {
+      res.status(404).type("html").send(renderUnsubscribeNotFoundHtml());
+      return;
+    }
+    res.status(200).type("html").send(renderUnsubscribePromptHtml(row.label, token));
+  });
+
+  r.post("/unsubscribe/:token", express.urlencoded({ extended: false }), (req: Request, res: Response) => {
     const token = String(req.params.token ?? "").trim();
     if (!token) {
       res.status(404).type("html").send(renderUnsubscribeNotFoundHtml());
@@ -227,12 +246,16 @@ export function savedSearchesRouter(db: DatabaseSync) {
       ...new Set(rows.map((r) => r.share_id?.trim()).filter((id): id is string => Boolean(id))),
     ];
     const similarByShare = new Map<string, string>();
+    const kindByShare = new Map<string, string>();
     if (shareIds.length) {
       const ph = shareIds.map(() => "?").join(",");
       const shares = db
-        .prepare(`SELECT id, similar_json FROM shared_searches WHERE id IN (${ph})`)
-        .all(...shareIds) as { id: string; similar_json: string }[];
-      for (const s of shares) similarByShare.set(s.id, s.similar_json);
+        .prepare(`SELECT id, similar_json, kind FROM shared_searches WHERE id IN (${ph})`)
+        .all(...shareIds) as { id: string; similar_json: string; kind: string }[];
+      for (const s of shares) {
+        similarByShare.set(s.id, s.similar_json);
+        kindByShare.set(s.id, s.kind);
+      }
     }
     res.json(
       rows.map((row) => {
@@ -241,6 +264,7 @@ export function savedSearchesRouter(db: DatabaseSync) {
         let areaNeighborhoods: string[] | undefined;
         let filters: ReturnType<typeof parseSavedSearchFilters> | undefined;
         let location: ReturnType<typeof parseSavedSearchLocation> | undefined;
+        let zoneRule: string | undefined;
         try {
           filters = parseSavedSearchFilters(row.filters_json);
           location = parseSavedSearchLocation(row.location_json);
@@ -255,15 +279,21 @@ export function savedSearchesRouter(db: DatabaseSync) {
             published,
             similarJson,
           );
+          zoneRule = zoneRuleForSavedSearch(filters, location, similarJson);
         } catch {
           matchCount = undefined;
           similarCount = undefined;
           areaNeighborhoods = undefined;
+          zoneRule = undefined;
         }
+        const shareKind = row.share_id ? kindByShare.get(row.share_id) ?? null : null;
         return {
           ...rowToApi(row, matchCount, areaNeighborhoods, similarCount),
           ...(filters ? { filters } : {}),
           ...(location ? { location } : {}),
+          ...(zoneRule ? { zoneRule } : {}),
+          sourceKind: sourceKindFromShare(shareKind, row.share_id),
+          ...(shareKind ? { shareKind } : {}),
         };
       }),
     );
@@ -470,6 +500,7 @@ export function savedSearchesRouter(db: DatabaseSync) {
     if (editFilters && editLocation && (urlOk || row.share_id)) {
       let searchUrl = urlOk ? editSearchUrl : row.search_url;
       let shareId = row.share_id ?? null;
+      let locationToStore = editLocation;
       const fork = forkSharedSearchOnEdit(db, uid, row, {
         filters: editFilters,
         location: editLocation,
@@ -478,6 +509,7 @@ export function savedSearchesRouter(db: DatabaseSync) {
       if (fork) {
         searchUrl = fork.searchUrl;
         shareId = fork.shareId;
+        locationToStore = fork.location;
       }
       db.prepare(
         `UPDATE saved_searches
@@ -485,9 +517,9 @@ export function savedSearchesRouter(db: DatabaseSync) {
          WHERE id = ?`,
       ).run(
         JSON.stringify(editFilters),
-        JSON.stringify(editLocation),
+        JSON.stringify(locationToStore),
         searchUrl,
-        editLocation.cityCode,
+        locationToStore.cityCode,
         shareId,
         now,
         id,

@@ -16,6 +16,9 @@ export type SavedSearchDto = {
   similarCount?: number;
   /** Neighborhood names for the card (stored pins or resolved from map bbox). */
   areaNeighborhoods?: string[];
+  zoneRule?: string;
+  sourceKind?: "mapa" | "anuncio" | "facebook" | "copia";
+  shareKind?: string;
   replacedPrevious?: { id: string; label: string };
   emailSent?: boolean;
   emailError?: string;
@@ -23,6 +26,13 @@ export type SavedSearchDto = {
   filters?: SearchFilters;
   location?: SearchLocationState & { cityAbbr?: string };
 };
+
+export function savedSearchSourceKindLabel(kind?: SavedSearchDto["sourceKind"]): string {
+  if (kind === "anuncio") return "Anuncio";
+  if (kind === "facebook") return "Facebook";
+  if (kind === "copia") return "Copia";
+  return "Mapa";
+}
 
 export type SaveSavedSearchPayload = {
   label?: string;
@@ -60,7 +70,7 @@ export function autoLabelFromFilters(
   searchLocation: SearchLocationState,
   _filters?: SearchFilters,
 ): string {
-  return formatSavedSearchDraftLabel(searchLocation);
+  return formatSavedSearchDraftLabel(searchLocation, _filters);
 }
 
 export async function fetchSavedSearches(signal?: AbortSignal): Promise<SavedSearchDto[]> {

@@ -104,7 +104,13 @@ describe("shared searches", () => {
     const sub1 = await seeker.post(`/api/shared-searches/${slug}/subscribe`).expect(200);
     expect(sub1.body.subscribedNow).toBe(true);
     expect(sub1.body.sharePath).toBe(`/busquedas/${slug}`);
-    expect(sub1.body.savedSearch.emailNotifyEnabled).toBe(true);
+    expect(sub1.body.savedSearch.emailNotifyEnabled).toBe(false);
+
+    const guestView = await request(app).get(`/api/shared-searches/${slug}`).expect(200);
+    expect(guestView.body.id).toBe(slug);
+    expect(guestView.body.alreadySaved).toBe(false);
+    expect(Array.isArray(guestView.body.exact)).toBe(true);
+    expect(guestView.body.zoneRule).toBeTruthy();
 
     const list1 = await seeker.get("/api/saved-searches").expect(200);
     expect(list1.body.some((r: { shareId?: string }) => r.shareId === slug)).toBe(true);

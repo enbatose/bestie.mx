@@ -5,7 +5,8 @@ import type { ListingTag, LodgingType, PropertyListing } from "./types.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
 
 export const SIMILAR_RADIUS_KM = 3.5;
-export const EXACT_POI_RADIUS_KM = 1.2;
+/** Same disk as GTM “cerca” and campaign ads (was 1.2 km for Difusión-only). */
+export const EXACT_POI_RADIUS_KM = SIMILAR_RADIUS_KM;
 export const PRICE_BAND = 0.25;
 export const LOCATION_WEIGHT = 0.55;
 export const PRICE_WEIGHT = 0.45;
@@ -183,7 +184,11 @@ function combinedScore(locationScore: number, priceScore: number | null): number
   return LOCATION_WEIGHT * locationScore + PRICE_WEIGHT * priceScore;
 }
 
-export function resolvePlacePins(names: string[], prefer: "neighborhood" | "poi" = "poi"): SearchPlacePin[] {
+export function resolvePlacePins(
+  names: string[],
+  prefer: "neighborhood" | "poi" = "poi",
+  cityCode?: string,
+): SearchPlacePin[] {
   const out: SearchPlacePin[] = [];
   const seen = new Set<string>();
   const curated = curatedNeighborhoodPins();
@@ -197,6 +202,7 @@ export function resolvePlacePins(names: string[], prefer: "neighborhood" | "poi"
       return pin ? { name: pin.neighborhood, lat: pin.lat, lng: pin.lng } : null;
     };
     const fromPoi = (): SearchPlacePin | null => {
+      if (cityCode && cityCode !== "gdl") return null;
       const poi = GDL_SEARCH_POIS.find(
         (p) => normalizePlaceKey(p.name) === key || p.aliases.some((a) => normalizePlaceKey(a) === key),
       );
@@ -223,12 +229,15 @@ function exactLocationOk(
   location: SavedSearchLocationSnapshot,
   cfg: SharedSearchSimilarConfig,
 ): boolean {
-  if (cfg.bbox) return pointInBbox(listing.lat, listing.lng, cfg.bbox);
-  if (location.neighborhoods.length) return listingMatchesNeighborhoods(listing, location.neighborhoods);
-  if (cfg.pois.length) {
-    const dist = minDistanceKmToPins(listing, cfg.pois);
-    return dist != null && dist <= EXACT_POI_RADIUS_KM;
+  const hasPois = cfg.pois.length > 0;
+  const hasNeighborhoods = location.neighborhoods.length > 0;
+  if (hasPois || hasNeighborhoods) {
+    const poiHit =
+      hasPois && (minDistanceKmToPins(listing, cfg.pois) ?? Infinity) <= EXACT_POI_RADIUS_KM;
+    const neighborhoodHit = hasNeighborhoods && listingMatchesNeighborhoods(listing, location.neighborhoods);
+    return poiHit || neighborhoodHit;
   }
+  if (cfg.bbox) return pointInBbox(listing.lat, listing.lng, cfg.bbox);
   return true;
 }
 
@@ -261,8 +270,8 @@ function rankSimilarAtRadius(
 }
 
 /**
- * Similar posts: never empty when inventory exists. Relaxes radius then city-wide,
- * but never drops gender / lodging / required-tag hard excludes.
+ * Nearby posts that are not exact: same 3.5 km disk, then at most 7 km.
+ * Never city-wide filler and never drop gender / lodging / required-tag excludes.
  */
 export function matchSimilarSharedSearch(
   listings: PropertyListing[],
@@ -273,19 +282,12 @@ export function matchSimilarSharedSearch(
   const pool = listings.filter((l) => !exactIds.has(l.id) && l.roomOccupancyStatus !== "occupied");
   const hard = pool.filter((l) => passesHardSimilar(l, cfg));
 
-  let ranked = rankSimilarAtRadius(hard, filters, cfg, cfg.radiusKm).filter((r) => r.score > 0);
-  if (ranked.length >= 1) return ranked.slice(0, SIMILAR_CAP);
+  const atRadius = rankSimilarAtRadius(hard, filters, cfg, cfg.radiusKm).filter((r) => r.score > 0);
+  if (atRadius.length >= 1) return atRadius.slice(0, SIMILAR_CAP);
 
-  ranked = rankSimilarAtRadius(hard, filters, cfg, EXPANDED_RADIUS_KM);
-  if (ranked.length >= 1) return ranked.slice(0, SIMILAR_CAP);
-
-  const cityWide = rankSimilarAtRadius(hard, filters, { ...cfg, pois: cfg.pois }, 40);
-  if (cityWide.length) return cityWide.slice(0, SIMILAR_CAP);
-
-  return rankSimilarAtRadius(pool, filters, { ...cfg, requiredTags: [], lodgingType: null }, 40).slice(
-    0,
-    SIMILAR_CAP,
-  );
+  return rankSimilarAtRadius(hard, filters, cfg, EXPANDED_RADIUS_KM)
+    .filter((r) => r.score > 0)
+    .slice(0, SIMILAR_CAP);
 }
 
 export function splitSharedSearchMatches(

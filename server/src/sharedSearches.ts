@@ -10,11 +10,6 @@ import {
   rowToApi,
   type SavedSearchRow,
 } from "./savedSearchNotify.js";
-import {
-  parseSavedSearchFilters,
-  parseSavedSearchLocation,
-  type SavedSearchLocationSnapshot,
-} from "./savedSearchMatch.js";
 import type { SearchFilters } from "./searchFilters.js";
 import {
   composeSharedSearch,
@@ -26,11 +21,20 @@ import {
   highAffinitySimilar,
   parseSimilarConfig,
   splitSharedSearchMatches,
+  defaultSimilarConfig,
   type SharedSearchInsight,
   type SharedSearchNonNegotiable,
   type SharedSearchSimilarConfig,
 } from "./sharedSearchMatch.js";
 import type { PropertyListing } from "./types.js";
+import { MAX_SAVED_SEARCHES_PER_USER } from "./savedSearchSchema.js";
+import {
+  parseSavedSearchFilters,
+  parseSavedSearchLocation,
+  zoneRuleForSavedSearch,
+  sourceKindFromShare,
+  type SavedSearchLocationSnapshot,
+} from "./savedSearchMatch.js";
 
 const SLUG_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 
@@ -66,6 +70,30 @@ export function sharedSearchMapLocation(share: SharedSearchRow): SavedSearchLoca
     ...location,
     neighborhoods: pois.map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
   };
+}
+
+export function similarConfigFromEditedSearch(
+  parent: SharedSearchSimilarConfig,
+  filters: SearchFilters,
+  location: SavedSearchLocationSnapshot,
+): SharedSearchSimilarConfig {
+  const pins = location.neighborhoods
+    .map((n) => ({ name: n.name.trim(), lat: n.lat, lng: n.lng }))
+    .filter((p) => p.name.length > 0);
+  const seekerGender = filters.pref === "female" || filters.pref === "male" ? filters.pref : null;
+  const lodgingType =
+    filters.lodgingType === "private_room" || filters.lodgingType === "shared_room" ? filters.lodgingType : null;
+  const hasPins = pins.length > 0 || parent.pois.length > 0;
+  return defaultSimilarConfig({
+    radiusKm: parent.radiusKm,
+    priceBandPct: parent.priceBandPct,
+    pois: pins.length ? pins : parent.pois,
+    bbox: hasPins ? null : (filters.bbox ?? parent.bbox),
+    requiredTags: parent.requiredTags,
+    lodgingType: lodgingType ?? parent.lodgingType,
+    seekerGender,
+    highAffinityMin: parent.highAffinityMin,
+  });
 }
 
 function isoNow(): string {
@@ -217,61 +245,84 @@ export function createTemplateSharedSearch(
   caption: string;
   sharePath: string;
   composed: ReturnType<typeof composeSharedSearch>;
+  zoneRule: string;
+  reused: boolean;
 } {
   const composed = composeSharedSearch({
     city: opts.city,
     seekerGender: opts.seekerGender,
     extraction: opts.extraction,
   });
-  const now = isoNow();
   const fb = opts.sourceFacebookUrl.trim() ? normalizeSourceFacebookUrl(opts.sourceFacebookUrl) : null;
-  const id = uniqueSlug(db);
-  const share: SharedSearchRow = {
-    id,
-    kind: "template",
-    forked_from_id: null,
-    owner_user_id: null,
-    created_by_user_id: opts.adminUserId,
-    source_facebook_url: fb?.url ?? (opts.sourceFacebookUrl.trim() || null),
-    source_facebook_key: fb?.key ?? null,
-    seeker_name: opts.seekerName.trim() || null,
-    seeker_gender: opts.seekerGender,
-    city_code: composed.location.cityCode,
-    city_label: composed.location.cityLabel ?? opts.city,
-    label: composed.label,
-    filters_json: JSON.stringify(composed.filters),
-    location_json: JSON.stringify(composed.location),
-    similar_json: JSON.stringify(composed.similar),
-    insights_json: JSON.stringify(composed.insights),
-    non_negotiables_json: JSON.stringify(composed.nonNegotiables),
-    q_text: composed.qText || null,
-    created_at: now,
-    updated_at: now,
-  };
-  insertSharedSearch(db, share);
-  const split = analyzeSharedSearch(db, composed.filters, composed.location, composed.similar);
+  const existing = fb ? findSharedSearchesByFacebookUrl(db, opts.sourceFacebookUrl)[0] : undefined;
+  const share = existing ?? (() => {
+    const now = isoNow();
+    const row: SharedSearchRow = {
+      id: uniqueSlug(db),
+      kind: "template",
+      forked_from_id: null,
+      owner_user_id: null,
+      created_by_user_id: opts.adminUserId,
+      source_facebook_url: fb?.url ?? (opts.sourceFacebookUrl.trim() || null),
+      source_facebook_key: fb?.key ?? null,
+      seeker_name: opts.seekerName.trim() || null,
+      seeker_gender: opts.seekerGender,
+      city_code: composed.location.cityCode,
+      city_label: composed.location.cityLabel ?? opts.city,
+      label: composed.label,
+      filters_json: JSON.stringify(composed.filters),
+      location_json: JSON.stringify(composed.location),
+      similar_json: JSON.stringify(composed.similar),
+      insights_json: JSON.stringify(composed.insights),
+      non_negotiables_json: JSON.stringify(composed.nonNegotiables),
+      q_text: composed.qText || null,
+      created_at: now,
+      updated_at: now,
+    };
+    insertSharedSearch(db, row);
+    return row;
+  })();
+
+  const filters = existing ? parseSavedSearchFilters(share.filters_json) : composed.filters;
+  const location = existing ? parseSavedSearchLocation(share.location_json) : composed.location;
+  const similarCfg = existing ? parseSimilarConfig(share.similar_json) : composed.similar;
+  const split = analyzeSharedSearch(db, filters, location, similarCfg);
   const similarHigh = highAffinitySimilar(split.similar);
-  const metro = resolveMetroCity(composed.location.cityCode);
+  const metro = resolveMetroCity(share.city_code);
+  const mainArea =
+    location.neighborhoods[0]?.name ||
+    similarCfg.pois[0]?.name ||
+    share.city_label ||
+    metro.label;
   const caption = formatShareOgCaption({
     exactCount: split.exact.length,
-    similarCount: split.similar.length,
+    similarCount: similarHigh.length,
     cityAbbr: metro.abbr || metro.label,
-    priceLabel: priceLabelFromFilters(composed.filters),
-    mainArea: composed.mainArea,
+    priceLabel: priceLabelFromFilters(filters),
+    mainArea,
   });
   const avg =
-    split.similar.length > 0
-      ? split.similar.reduce((s, r) => s + r.score, 0) / split.similar.length
-      : 0;
+    similarHigh.length > 0 ? similarHigh.reduce((s, r) => s + r.score, 0) / similarHigh.length : 0;
   return {
     share,
     exactCount: split.exact.length,
-    similarCount: split.similar.length,
+    similarCount: similarHigh.length,
     similarHighCount: similarHigh.length,
-    quality: matchQuality(split.exact.length, avg, split.similar.length),
+    quality: matchQuality(split.exact.length, avg, similarHigh.length),
     caption,
-    sharePath: `/busquedas/${id}`,
-    composed,
+    sharePath: `/busquedas/${share.id}`,
+    composed: existing
+      ? {
+          ...composed,
+          filters,
+          location,
+          similar: similarCfg,
+          label: share.label,
+          mainArea,
+        }
+      : composed,
+    zoneRule: zoneRuleForSavedSearch(filters, location, share.similar_json),
+    reused: Boolean(existing),
   };
 }
 
@@ -280,6 +331,14 @@ function insertUserSavedSearch(
   uid: string,
   share: SharedSearchRow,
 ): SavedSearchRow {
+  const count = (
+    db
+      .prepare(`SELECT COUNT(*) AS c FROM saved_searches WHERE user_id = ? AND is_draft = 0`)
+      .get(uid) as { c: number }
+  ).c;
+  if (count >= MAX_SAVED_SEARCHES_PER_USER) {
+    throw Object.assign(new Error("limit_reached"), { code: "limit_reached" });
+  }
   const now = isoNow();
   const id = newSavedSearchId();
   const row: SavedSearchRow = {
@@ -340,6 +399,7 @@ export async function subscribeToSharedSearch(
   db: DatabaseSync,
   uid: string,
   slug: string,
+  opts?: { enableNotify?: boolean },
 ): Promise<{
   share: SharedSearchRow;
   savedSearch: SavedSearchRow;
@@ -373,13 +433,16 @@ export async function subscribeToSharedSearch(
     subscribedNow = true;
   }
 
-  await enableSavedSearchNotify(db, uid, saved.id, { requireEmail: false });
-  saved = db.prepare(`SELECT * FROM saved_searches WHERE id = ?`).get(saved.id) as SavedSearchRow;
+  if (opts?.enableNotify) {
+    await enableSavedSearchNotify(db, uid, saved.id, { requireEmail: true });
+    saved = db.prepare(`SELECT * FROM saved_searches WHERE id = ?`).get(saved.id) as SavedSearchRow;
+  }
 
   const filters = parseSavedSearchFilters(share.filters_json);
   const location = parseSavedSearchLocation(share.location_json);
   const similarCfg = parseSimilarConfig(share.similar_json);
   const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
+  const similarHigh = highAffinitySimilar(split.similar);
 
   return {
     share,
@@ -387,7 +450,7 @@ export async function subscribeToSharedSearch(
     subscribedNow,
     redirectedSlug,
     exact: split.exact,
-    similar: split.similar,
+    similar: similarHigh,
   };
 }
 
@@ -396,30 +459,43 @@ export function forkSharedSearchOnEdit(
   uid: string,
   saved: SavedSearchRow,
   next: { filters: SearchFilters; location: SavedSearchLocationSnapshot; searchUrl: string },
-): { shareId: string; searchUrl: string } | null {
+): { shareId: string; searchUrl: string; location: SavedSearchLocationSnapshot } | null {
   const shareId = saved.share_id?.trim();
   if (!shareId) return null;
   const share = loadSharedSearch(db, shareId);
   if (!share) return null;
+
+  const parentSimilar = parseSimilarConfig(share.similar_json);
+  let location = next.location;
+  if (!location.neighborhoods.length && parentSimilar.pois.length) {
+    location = {
+      ...location,
+      neighborhoods: parentSimilar.pois.map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+    };
+  }
+  const similar = similarConfigFromEditedSearch(parentSimilar, next.filters, location);
+  const similarJson = JSON.stringify(similar);
+  const filtersJson = JSON.stringify(next.filters);
+  const locationJson = JSON.stringify(location);
 
   const now = isoNow();
   const ownsFork = share.kind === "fork" && share.owner_user_id === uid;
   if (ownsFork) {
     db.prepare(
       `UPDATE shared_searches
-       SET filters_json = ?, location_json = ?, city_code = ?, updated_at = ?
+       SET filters_json = ?, location_json = ?, similar_json = ?, city_code = ?, updated_at = ?
        WHERE id = ?`,
-    ).run(JSON.stringify(next.filters), JSON.stringify(next.location), next.location.cityCode, now, share.id);
-    return { shareId: share.id, searchUrl: `/busquedas/${share.id}` };
+    ).run(filtersJson, locationJson, similarJson, location.cityCode, now, share.id);
+    return { shareId: share.id, searchUrl: `/busquedas/${share.id}`, location };
   }
 
   const forked = cloneForkForUser(db, share, uid);
   db.prepare(
     `UPDATE shared_searches
-     SET filters_json = ?, location_json = ?, city_code = ?, updated_at = ?
+     SET filters_json = ?, location_json = ?, similar_json = ?, city_code = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(JSON.stringify(next.filters), JSON.stringify(next.location), next.location.cityCode, now, forked.id);
-  return { shareId: forked.id, searchUrl: `/busquedas/${forked.id}` };
+  ).run(filtersJson, locationJson, similarJson, location.cityCode, now, forked.id);
+  return { shareId: forked.id, searchUrl: `/busquedas/${forked.id}`, location };
 }
 
 export function sharedSearchPublicMeta(
@@ -434,6 +510,7 @@ export function sharedSearchPublicMeta(
   exactCount: number;
   similarCount: number;
   sharePath: string;
+  zoneRule: string;
 } | null {
   const share = loadSharedSearch(db, slug);
   if (!share) return null;
@@ -441,6 +518,7 @@ export function sharedSearchPublicMeta(
   const location = parseSavedSearchLocation(share.location_json);
   const similarCfg = parseSimilarConfig(share.similar_json);
   const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
+  const similarHigh = highAffinitySimilar(split.similar);
   const metro = resolveMetroCity(share.city_code);
   const insights = safeJsonArray<SharedSearchInsight>(share.insights_json);
   const mainArea =
@@ -451,7 +529,7 @@ export function sharedSearchPublicMeta(
   void insights;
   const caption = formatShareOgCaption({
     exactCount: split.exact.length,
-    similarCount: split.similar.length,
+    similarCount: similarHigh.length,
     cityAbbr: metro.abbr || metro.label,
     priceLabel: priceLabelFromFilters(filters),
     mainArea,
@@ -463,8 +541,92 @@ export function sharedSearchPublicMeta(
     cityLabel: share.city_label || metro.label,
     caption,
     exactCount: split.exact.length,
-    similarCount: split.similar.length,
+    similarCount: similarHigh.length,
     sharePath: `/busquedas/${share.id}`,
+    zoneRule: zoneRuleForSavedSearch(filters, location, share.similar_json),
+  };
+}
+
+export function sharedSearchPublicView(
+  db: DatabaseSync,
+  slug: string,
+  uid?: string | null,
+): {
+  id: string;
+  kind: string;
+  label: string;
+  cityCode: string;
+  cityLabel: string;
+  caption: string;
+  zoneRule: string;
+  sourceKind: ReturnType<typeof sourceKindFromShare>;
+  filters: ReturnType<typeof parseSavedSearchFilters>;
+  location: SavedSearchLocationSnapshot;
+  insights: SharedSearchInsight[];
+  nonNegotiables: SharedSearchNonNegotiable[];
+  exact: PropertyListing[];
+  similar: PropertyListing[];
+  exactCount: number;
+  similarCount: number;
+  sharePath: string;
+  alreadySaved: boolean;
+  savedSearchId: string | null;
+  emailNotifyEnabled: boolean;
+} | null {
+  const share = loadSharedSearch(db, slug);
+  if (!share) return null;
+  const filters = parseSavedSearchFilters(share.filters_json);
+  const location = parseSavedSearchLocation(share.location_json);
+  const similarCfg = parseSimilarConfig(share.similar_json);
+  const split = splitSharedSearchMatches(fetchPublishedListings(db), filters, location, similarCfg);
+  const similarHigh = highAffinitySimilar(split.similar).map((r) => r.listing);
+  const metro = resolveMetroCity(share.city_code);
+  const mainArea =
+    location.neighborhoods[0]?.name ||
+    similarCfg.pois[0]?.name ||
+    share.city_label ||
+    metro.label;
+  const caption = formatShareOgCaption({
+    exactCount: split.exact.length,
+    similarCount: similarHigh.length,
+    cityAbbr: metro.abbr || metro.label,
+    priceLabel: priceLabelFromFilters(filters),
+    mainArea,
+  });
+  let alreadySaved = false;
+  let savedSearchId: string | null = null;
+  let emailNotifyEnabled = false;
+  if (uid) {
+    const row = db
+      .prepare(`SELECT id, email_notify_enabled FROM saved_searches WHERE user_id = ? AND share_id = ? AND is_draft = 0 LIMIT 1`)
+      .get(uid, share.id) as { id: string; email_notify_enabled: number } | undefined;
+    if (row) {
+      alreadySaved = true;
+      savedSearchId = row.id;
+      emailNotifyEnabled = row.email_notify_enabled === 1;
+    }
+  }
+  return {
+    id: share.id,
+    kind: share.kind,
+    label: share.label,
+    cityCode: share.city_code,
+    cityLabel: share.city_label || metro.label,
+    caption,
+    zoneRule: zoneRuleForSavedSearch(filters, location, share.similar_json),
+    sourceKind: sourceKindFromShare(share.kind, share.id),
+    filters,
+    location: sharedSearchMapLocation(share),
+    insights: safeJsonArray<SharedSearchInsight>(share.insights_json),
+    nonNegotiables: safeJsonArray<SharedSearchNonNegotiable>(share.non_negotiables_json),
+    exact: split.exact,
+    similar: similarHigh,
+    exactCount: split.exact.length,
+    similarCount: similarHigh.length,
+    sharePath: `/busquedas/${share.id}`,
+    alreadySaved,
+    savedSearchId,
+    emailNotifyEnabled,
   };
 }
 
@@ -485,26 +647,31 @@ export function sharedSearchAdminPreview(
   similar: ReturnType<typeof splitSharedSearchMatches>["similar"];
   quality: "alta" | "media" | "baja";
   caption: string;
+  zoneRule: string;
   insights: SharedSearchInsight[];
   nonNegotiables: SharedSearchNonNegotiable[];
 } {
   const split = analyzeSharedSearch(db, composed.filters, composed.location, composed.similar);
+  const similarHigh = highAffinitySimilar(split.similar);
   const avg =
-    split.similar.length > 0
-      ? split.similar.reduce((s, r) => s + r.score, 0) / split.similar.length
-      : 0;
+    similarHigh.length > 0 ? similarHigh.reduce((s, r) => s + r.score, 0) / similarHigh.length : 0;
   const metro = resolveMetroCity(composed.location.cityCode);
   return {
     exact: split.exact,
-    similar: split.similar,
-    quality: matchQuality(split.exact.length, avg, split.similar.length),
+    similar: similarHigh,
+    quality: matchQuality(split.exact.length, avg, similarHigh.length),
     caption: formatShareOgCaption({
       exactCount: split.exact.length,
-      similarCount: split.similar.length,
+      similarCount: similarHigh.length,
       cityAbbr: metro.abbr || metro.label,
       priceLabel: priceLabelFromFilters(composed.filters),
       mainArea: composed.mainArea,
     }),
+    zoneRule: zoneRuleForSavedSearch(
+      composed.filters,
+      composed.location,
+      JSON.stringify(composed.similar),
+    ),
     insights: composed.insights,
     nonNegotiables: composed.nonNegotiables,
   };

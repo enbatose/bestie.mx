@@ -118,9 +118,9 @@ export function composeSharedSearch(opts: {
 
   const neighborhoods = (ext.neighborhoods ?? []).map((n) => n.trim()).filter(Boolean);
   const poiNames = (ext.pois ?? []).map((n) => n.trim()).filter(Boolean);
-  const neighborhoodPins = resolvePlacePins(neighborhoods, "neighborhood");
-  const poiPins = resolvePlacePins(poiNames, "poi");
-  const extraPins = ext.mainAreaLabel ? resolvePlacePins([ext.mainAreaLabel], "neighborhood") : [];
+  const neighborhoodPins = resolvePlacePins(neighborhoods, "neighborhood", cityCode);
+  const poiPins = resolvePlacePins(poiNames, "poi", cityCode);
+  const extraPins = ext.mainAreaLabel ? resolvePlacePins([ext.mainAreaLabel], "neighborhood", cityCode) : [];
   const pins = [...neighborhoodPins, ...poiPins, ...extraPins].filter(
     (p, i, arr) => arr.findIndex((x) => x.name === p.name) === i,
   );

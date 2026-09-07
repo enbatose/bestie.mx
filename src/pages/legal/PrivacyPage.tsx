@@ -100,8 +100,8 @@ export function PrivacyPage() {
               visible y el título del anuncio; el equipo operador de Bestie también recibe esa
               notificación en la app para seguimiento operativo, y lo mismo cuando envías el primer
               mensaje en el chat de un anuncio—, tus búsquedas guardadas (filtros, zona, si activaste
-              avisos por correo y, si llegaste desde un enlace compartido de búsqueda, la suscripción a
-              esos criterios) y tus interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño
+              avisos por correo y, si guardas un enlace compartido de búsqueda, esos criterios; abrir el
+              enlace no guarda ni activa avisos por sí solo) y tus interacciones en la Plataforma. Si un admin publica un borrador de crecimiento sin dueño
               fuera de la republicación autorizada por reglas de un grupo de Facebook, guardamos
               internamente la captura de consentimiento y una nota opcional; esa evidencia no forma
               parte de las fotos del anuncio y no se muestra al público ni al dueño que lo reclame
@@ -256,7 +256,7 @@ export function PrivacyPage() {
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
             "Moderar el blog: revisar comentarios reportados y gestionar contenido inapropiado en los artículos.",
             "Moderar anuncios y conversaciones: revisar reportes de usuarios, pausar o retirar publicaciones y restringir cuentas que incumplan las reglas.",
-            "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña por correo o por SMS, notificaciones del servicio), incluidos avisos por correo de búsquedas guardadas cuando los activas (como máximo una búsqueda a la vez; el correo no se envía si no hay un correo registrado y verificado en la cuenta).",
+            "Enviar comunicaciones operativas y de seguridad (verificación de correo, restablecimiento de contraseña por correo o por SMS, notificaciones del servicio), incluidos avisos por correo de búsquedas guardadas cuando los activas (como máximo una búsqueda a la vez; el correo no se envía si no hay un correo registrado y verificado en la cuenta). Esos avisos de búsqueda no se envían entre las 23:00 y las 6:00 hora local de la ciudad de la búsqueda (reanudamos a las 6:01).",
             "Enviar, si agregas tu teléfono y mantienes activa la preferencia correspondiente, comunicaciones transaccionales por SMS o WhatsApp relacionadas con tu cuenta, soporte, actividad en la Plataforma o seguimiento operativo del Servicio. Eso incluye, mientras la función esté activa, un SMS cuando una persona te escribe por primera vez en el chat de un anuncio (como máximo uno por cada persona interesada distinta; si varias escriben en la misma ventana de aviso, unificamos el SMS). El SMS no incluye el contenido del chat: te indica que revises el correo de Bestie.mx —incluida la carpeta de spam— o que abras Mensajes en la Plataforma.",
             "Enviarte correos de aviso cuando tengas mensajes nuevos en Bestie (como máximo uno cada 3 horas; el correo no incluye el contenido de los mensajes). Si en ese periodo también se crearon notificaciones en la app, podemos resumirlas en el mismo correo. No enviamos esos correos ni los SMS de aviso de mensajes entre las 23:00 y las 6:00 hora local del anuncio (reanudamos a las 6:01). El intervalo de 3 horas no acumula varios envíos durante esa ventana: como máximo un aviso queda pendiente y se envía a las 6:01. Los SMS de un solo uso (verificación, restablecer contraseña, reclamar un anuncio) y las confirmaciones ARCO no siguen ese horario.",
             "Prevenir fraudes, abusos y garantizar la seguridad de la Plataforma.",

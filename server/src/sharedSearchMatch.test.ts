@@ -91,7 +91,7 @@ describe("shared search matching", () => {
     expect(split.similar.map((r) => r.listing.id)).not.toContain("men");
   });
 
-  it("always returns similar listings when inventory exists", () => {
+  it("does not fill similares with city-wide inventory", () => {
     const far = listing({
       id: "only",
       neighborhood: "El Salto",
@@ -107,8 +107,12 @@ describe("shared search matching", () => {
       }),
       new Set(),
     );
-    expect(similar.length).toBeGreaterThan(0);
-    expect(similar[0]?.listing.id).toBe("only");
+    expect(similar).toHaveLength(0);
+  });
+
+  it("does not resolve GDL POIs for other cities", () => {
+    expect(resolvePlacePins(["ITESO"], "poi", "mty")).toEqual([]);
+    expect(resolvePlacePins(["cerca del ITESO"], "poi", "gdl").some((p) => p.name === "ITESO")).toBe(true);
   });
 
   it("haversine is ~0 for the same point", () => {

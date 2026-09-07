@@ -11,6 +11,7 @@ import {
   sharedSearchAdminPreview,
   sharedSearchMapLocation,
   sharedSearchPublicMeta,
+  sharedSearchPublicView,
   subscribeToSharedSearch,
 } from "./sharedSearches.js";
 
@@ -106,6 +107,7 @@ export function sharedSearchesRouter(db: DatabaseSync) {
           similarCount: preview.similar.length,
           quality: preview.quality,
           caption: preview.caption,
+          zoneRule: preview.zoneRule,
         });
       } catch (err) {
         console.error("[shared-searches] extract", err);
@@ -153,6 +155,8 @@ export function sharedSearchesRouter(db: DatabaseSync) {
         quality: created.quality,
         insights: created.composed.insights,
         nonNegotiables: created.composed.nonNegotiables,
+        zoneRule: created.zoneRule,
+        reused: created.reused,
       });
     } catch (err) {
       console.error("[shared-searches] create", err);
@@ -170,6 +174,17 @@ export function sharedSearchesRouter(db: DatabaseSync) {
     res.json(meta);
   });
 
+  r.get("/:id", (req: Request, res: Response) => {
+    const id = String(req.params.id ?? "").trim();
+    const uid = readAuthUserId(req);
+    const view = sharedSearchPublicView(db, id, uid);
+    if (!view) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    res.json(view);
+  });
+
   r.post("/:id/subscribe", jsonMw(), (req: Request, res: Response) => {
     const uid = readAuthUserId(req);
     if (!uid) {
@@ -177,9 +192,10 @@ export function sharedSearchesRouter(db: DatabaseSync) {
       return;
     }
     const id = String(req.params.id ?? "").trim();
+    const enableNotify = req.body?.enableNotify === true;
     void (async () => {
       try {
-        const result = await subscribeToSharedSearch(db, uid, id);
+        const result = await subscribeToSharedSearch(db, uid, id, { enableNotify });
         res.json({
           id: result.share.id,
           sharePath: `/busquedas/${result.share.id}`,
@@ -199,6 +215,10 @@ export function sharedSearchesRouter(db: DatabaseSync) {
         const code = e && typeof e === "object" && "code" in e ? String((e as { code?: string }).code) : "";
         if (code === "not_found") {
           res.status(404).json({ error: "not_found" });
+          return;
+        }
+        if (code === "limit_reached") {
+          res.status(400).json({ error: "limit_reached", message: "Máximo de búsquedas guardadas alcanzado." });
           return;
         }
         console.error("[shared-searches] subscribe", e);

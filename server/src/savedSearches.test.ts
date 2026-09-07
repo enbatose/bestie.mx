@@ -85,8 +85,9 @@ describe("saved searches API", () => {
 
     const draft = await agent.put("/api/saved-searches/draft").send(payload).expect(200);
     expect(draft.body.isDraft).toBe(true);
-    expect(draft.body.label).toContain("Guadalajara");
     expect(draft.body.label).toContain("Providencia");
+    expect(draft.body.label).toMatch(/máx\.\s*\$9/);
+    expect(draft.body.label).not.toMatch(/\d{1,2}\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)/i);
 
     const listWhileDraft = await agent.get("/api/saved-searches").expect(200);
     expect(listWhileDraft.body).toHaveLength(0);
@@ -199,8 +200,19 @@ describe("saved searches API", () => {
       .prepare(`SELECT unsubscribe_token FROM saved_searches WHERE id = ?`)
       .get(second.body.id) as { unsubscribe_token: string };
 
-    const unsub = await request(app)
+    const unsubGet = await request(app)
       .get(`/api/saved-searches/unsubscribe/${tokenRow.unsubscribe_token}`)
+      .expect(200);
+    expect(unsubGet.text).toContain("¿Dejar de recibir alertas?");
+    const stillOn = db
+      .prepare(`SELECT email_notify_enabled FROM saved_searches WHERE id = ?`)
+      .get(second.body.id) as { email_notify_enabled: number };
+    expect(stillOn.email_notify_enabled).toBe(1);
+
+    const unsub = await request(app)
+      .post(`/api/saved-searches/unsubscribe/${tokenRow.unsubscribe_token}`)
+      .type("form")
+      .send({ "List-Unsubscribe": "One-Click" })
       .expect(200);
     expect(unsub.text).toContain("Alertas desactivadas");
 

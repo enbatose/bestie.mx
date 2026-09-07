@@ -244,7 +244,8 @@ export function SaveSearchModal({
                 setNameEditing(false);
               }
             }}
-            className={`min-w-0 flex-1 bg-transparent text-sm text-body outline-none ${
+            size={10}
+            className={`w-0 min-w-0 flex-1 bg-transparent text-sm text-body outline-none ${
               nameEditing ? "" : "cursor-default"
             }`}
           />
@@ -300,7 +301,7 @@ export function SaveSearchModal({
                 <p className="mt-0.5 text-xs text-primary-fg/75">
                   {emailNotifyOn
                     ? "Te avisaremos cuando haya nuevos anuncios (máx. un correo cada 3 h)."
-                    : "Desactivadas para esta búsqueda."}
+                    : "Guardar no activa el correo. Enciende esto si quieres avisos."}
                 </p>
               </div>
               <button
