@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
 import { buildSavedSearchEmail } from "./emails/savedSearchEmail.js";
+import { pickSavedSearchEmailListings } from "./savedSearchNotify.js";
+import type { PropertyListing } from "./types.js";
 import * as mailer from "./mailer.js";
 
 describe("saved searches API", () => {
@@ -226,5 +228,53 @@ describe("saved searches API", () => {
     expect(mail.html).toContain("#143D30");
     expect(mail.previewText.length).toBeGreaterThan(10);
     expect(mail.replyTo).toBe("contacto@bestie.mx");
+  });
+
+  it("caps alert emails at 10 and points to the rest on Bestie", () => {
+    const room = (id: string): PropertyListing => ({
+      id,
+      propertyId: `prp__${id}`,
+      title: `Cuarto ${id}`,
+      city: "Guadalajara",
+      neighborhood: "Americana",
+      lat: 20.67,
+      lng: -103.36,
+      rentMxn: 7000,
+      roomsAvailable: 1,
+      tags: [],
+      roommateGenderPref: "any",
+      ageMin: 18,
+      ageMax: 99,
+      summary: "x",
+      contactWhatsApp: "52",
+      status: "published",
+    });
+    const exact = Array.from({ length: 15 }, (_, i) => room(`e${i}`));
+    const similar = Array.from({ length: 8 }, (_, i) => room(`s${i}`));
+    const picked = pickSavedSearchEmailListings(exact, similar);
+    expect(picked.shownExact).toHaveLength(10);
+    expect(picked.shownSimilar).toHaveLength(0);
+
+    const fewExact = pickSavedSearchEmailListings(exact.slice(0, 3), similar);
+    expect(fewExact.shownExact).toHaveLength(3);
+    expect(fewExact.shownSimilar).toHaveLength(7);
+
+    const mail = buildSavedSearchEmail({
+      label: "GDL · Zona Chapultepec/Americana",
+      searchUrl: "/busquedas/gdlchapu",
+      unsubscribeToken: "abc123",
+      mode: "initial",
+      newListings: picked.shownExact,
+      otherListings: [],
+      similarListings: picked.shownSimilar,
+      totalMatchCount: 24,
+    });
+    expect(mail.html).toContain("Te mostramos 10 de 24");
+    expect(mail.html).toContain("Hay más anuncios en Bestie");
+    expect(mail.html).toContain("Ver todos en Bestie");
+    expect(mail.html).toContain("/busquedas/gdlchapu");
+    expect(mail.text).toContain("Ver todos en Bestie");
+    expect(mail.previewText).toContain("10 de 24");
+    expect((mail.html.match(/Ver anuncio/g) ?? []).length).toBe(10);
   });
 });

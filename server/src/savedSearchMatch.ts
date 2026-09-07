@@ -2,6 +2,11 @@ import type { DatabaseSync } from "node:sqlite";
 import { curatedNeighborhoodPins } from "./locationSearch.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
+import {
+  highAffinitySimilar,
+  parseSimilarConfig,
+  splitSharedSearchMatches,
+} from "./sharedSearchMatch.js";
 import type { PropertyListing } from "./types.js";
 
 export type SavedSearchLocationSnapshot = {
@@ -66,6 +71,34 @@ export function fetchMatchingListingsForSavedSearch(
   location: SavedSearchLocationSnapshot,
 ): PropertyListing[] {
   return matchSavedSearchListings(fetchPublishedListings(db), filters, location);
+}
+
+/**
+ * Alert + card matching. Shared/campaign searches store the zone in
+ * `similar_json` (bbox/POI), not in empty `location.neighborhoods` — using
+ * filters+neighborhoods alone would match every published room.
+ */
+export function resolveSavedSearchMatches(
+  published: PropertyListing[],
+  filters: SearchFilters,
+  location: SavedSearchLocationSnapshot,
+  similarJson?: string | null,
+): { exact: PropertyListing[]; similarHigh: PropertyListing[] } {
+  if (similarJson) {
+    const split = splitSharedSearchMatches(
+      published,
+      filters,
+      location,
+      parseSimilarConfig(similarJson),
+    );
+    const exact = sortListingsNewestFirst(split.exact);
+    const exactIds = new Set(exact.map((l) => l.id));
+    const similarHigh = highAffinitySimilar(split.similar)
+      .map((r) => r.listing)
+      .filter((l) => !exactIds.has(l.id));
+    return { exact, similarHigh };
+  }
+  return { exact: matchSavedSearchListings(published, filters, location), similarHigh: [] };
 }
 
 /**

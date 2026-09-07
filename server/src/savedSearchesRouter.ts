@@ -14,10 +14,10 @@ import {
   type SavedSearchRow,
 } from "./savedSearchNotify.js";
 import {
-  matchSavedSearchListings,
   neighborhoodsForSavedSearchCard,
   parseSavedSearchFilters,
   parseSavedSearchLocation,
+  resolveSavedSearchMatches,
   type SavedSearchLocationSnapshot,
 } from "./savedSearchMatch.js";
 import { MAX_SAVED_SEARCHES_PER_USER } from "./savedSearchSchema.js";
@@ -223,6 +223,17 @@ export function savedSearchesRouter(db: DatabaseSync) {
       )
       .all(uid) as SavedSearchRow[];
     const published = fetchPublishedListings(db);
+    const shareIds = [
+      ...new Set(rows.map((r) => r.share_id?.trim()).filter((id): id is string => Boolean(id))),
+    ];
+    const similarByShare = new Map<string, string>();
+    if (shareIds.length) {
+      const ph = shareIds.map(() => "?").join(",");
+      const shares = db
+        .prepare(`SELECT id, similar_json FROM shared_searches WHERE id IN (${ph})`)
+        .all(...shareIds) as { id: string; similar_json: string }[];
+      for (const s of shares) similarByShare.set(s.id, s.similar_json);
+    }
     res.json(
       rows.map((row) => {
         let matchCount: number | undefined;
@@ -232,7 +243,8 @@ export function savedSearchesRouter(db: DatabaseSync) {
         try {
           filters = parseSavedSearchFilters(row.filters_json);
           location = parseSavedSearchLocation(row.location_json);
-          matchCount = matchSavedSearchListings(published, filters, location).length;
+          const similarJson = row.share_id ? similarByShare.get(row.share_id) ?? null : null;
+          matchCount = resolveSavedSearchMatches(published, filters, location, similarJson).exact.length;
           areaNeighborhoods = neighborhoodsForSavedSearchCard(
             db,
             filters,

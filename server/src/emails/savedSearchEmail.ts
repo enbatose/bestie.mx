@@ -149,7 +149,16 @@ export type SavedSearchEmailPayload = {
   newListings: PropertyListing[];
   otherListings: PropertyListing[];
   similarListings?: PropertyListing[];
+  /** Exact + similar matches this send (may exceed the cards shown). */
+  totalMatchCount?: number;
 };
+
+/** Max listing cards in one alert email. Remaining matches live on the saved-search link. */
+export const SAVED_SEARCH_EMAIL_LISTING_CAP = 10;
+
+function anunciosPhrase(n: number): string {
+  return n === 1 ? "1 anuncio" : `${n} anuncios`;
+}
 
 export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTransactionalEmail {
   const base = publicBaseUrl();
@@ -159,26 +168,37 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
     : `${base}${payload.searchUrl.startsWith("/") ? "" : "/"}${payload.searchUrl}`;
   const unsubLink = `${base}/api/saved-searches/unsubscribe/${encodeURIComponent(payload.unsubscribeToken)}`;
   const label = payload.label.trim() || "tu búsqueda";
-  const similarListings = payload.similarListings ?? [];
-  const newCount = payload.newListings.length + similarListings.length;
-  const totalShown =
-    payload.mode === "initial"
-      ? payload.newListings.length + payload.otherListings.length + similarListings.length
-      : newCount + payload.otherListings.length;
+  const newListings = payload.newListings.slice(0, SAVED_SEARCH_EMAIL_LISTING_CAP);
+  const similarCapped = (payload.similarListings ?? []).slice(
+    0,
+    Math.max(0, SAVED_SEARCH_EMAIL_LISTING_CAP - newListings.length),
+  );
+  const otherListings = payload.otherListings.slice(
+    0,
+    Math.max(0, SAVED_SEARCH_EMAIL_LISTING_CAP - newListings.length - similarCapped.length),
+  );
+
+  const shownCount = newListings.length + similarCapped.length + otherListings.length;
+  const totalMatchCount = Math.max(payload.totalMatchCount ?? shownCount, shownCount);
+  const moreCount = Math.max(0, totalMatchCount - shownCount);
 
   const subject =
     payload.mode === "initial"
       ? `Bestie · resultados para «${label}»`
-      : newCount === 1
+      : totalMatchCount === 1
         ? `Bestie · 1 anuncio nuevo para «${label}»`
-        : `Bestie · ${newCount} anuncios nuevos para «${label}»`;
+        : `Bestie · ${totalMatchCount} anuncios nuevos para «${label}»`;
 
   const previewText =
     payload.mode === "initial"
-      ? `${totalShown || "Varios"} anuncios que coinciden con tus filtros.`
-      : newCount === 1
+      ? moreCount > 0
+        ? `Te mostramos ${shownCount} de ${totalMatchCount} anuncios que coinciden. Hay más en Bestie.`
+        : `${anunciosPhrase(shownCount)} que coinciden con tus filtros.`
+      : totalMatchCount === 1
         ? "Hay un anuncio nuevo que coincide con tu búsqueda guardada."
-        : `Hay ${newCount} anuncios nuevos que coinciden con tu búsqueda.`;
+        : moreCount > 0
+          ? `Hay ${totalMatchCount} anuncios nuevos. Te mostramos ${shownCount}; el resto está en Bestie.`
+          : `Hay ${anunciosPhrase(totalMatchCount)} nuevos que coinciden con tu búsqueda.`;
 
   const headline =
     payload.mode === "initial"
@@ -187,31 +207,37 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
 
   let bodyListings = "";
   if (payload.mode === "initial") {
-    if (similarListings.length) {
-      if (payload.newListings.length) {
+    if (similarCapped.length) {
+      if (newListings.length) {
         bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Coincidencias exactas</p>`;
-        bodyListings += payload.newListings.map((l) => listingCardHtml(base, l)).join("");
+        bodyListings += newListings.map((l) => listingCardHtml(base, l)).join("");
       }
       bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Similares</p>`;
-      bodyListings += similarListings.map((l) => listingCardHtml(base, l)).join("");
+      bodyListings += similarCapped.map((l) => listingCardHtml(base, l)).join("");
     } else {
-      const all = [...payload.newListings, ...payload.otherListings];
+      const all = [...newListings, ...otherListings];
       bodyListings = all.map((l) => listingCardHtml(base, l)).join("");
     }
   } else {
-    if (payload.newListings.length) {
+    if (newListings.length) {
       bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:4px 0 8px;">Nuevos · exactos</p>`;
-      bodyListings += payload.newListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
+      bodyListings += newListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
     }
-    if (similarListings.length) {
+    if (similarCapped.length) {
       bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">Nuevos · similares</p>`;
-      bodyListings += similarListings.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
+      bodyListings += similarCapped.map((l) => listingCardHtml(base, l, { isNew: true })).join("");
     }
-    if (payload.otherListings.length) {
+    if (otherListings.length) {
       bodyListings += `<p style="font-size:13px;font-weight:700;color:${B.primary};margin:16px 0 8px;">También coinciden</p>`;
-      bodyListings += payload.otherListings.map((l) => listingCardHtml(base, l)).join("");
+      bodyListings += otherListings.map((l) => listingCardHtml(base, l)).join("");
     }
   }
+
+  const moreHtml =
+    moreCount > 0
+      ? `<p style="margin:4px 0 16px;font-size:14px;line-height:1.5;color:${B.muted};">Te mostramos ${shownCount} de ${totalMatchCount}. Hay más anuncios en Bestie que coinciden con esta búsqueda.</p>`
+      : "";
+  const ctaLabel = moreCount > 0 ? "Ver todos en Bestie" : "Ver en el mapa";
 
   const bodyHtml = `
     <h1 style="margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:${B.body};">${headline}</h1>
@@ -220,7 +246,8 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
       bodyListings ||
       `<p style="margin:0 0 16px;font-size:14px;color:${B.muted};">Aún no hay anuncios que coincidan en este momento.</p>`
     }
-    <p style="margin:20px 0 0;text-align:center;">${primaryButtonHtml(searchLink, "Ver en el mapa")}</p>
+    ${moreHtml}
+    <p style="margin:20px 0 0;text-align:center;">${primaryButtonHtml(searchLink, ctaLabel)}</p>
   `;
 
   const html = renderEmailShell({
@@ -236,23 +263,28 @@ export function buildSavedSearchEmail(payload: SavedSearchEmailPayload): BuiltTr
   const textLines = [
     subject.replace(/^Bestie · /, ""),
     "",
-    payload.mode === "follow_up" && payload.newListings.length ? "NUEVOS:" : "COINCIDENCIAS EXACTAS:",
-    ...payload.newListings.map(
+    payload.mode === "follow_up" && newListings.length ? "NUEVOS:" : "COINCIDENCIAS EXACTAS:",
+    ...newListings.map(
       (l) =>
         `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
-    ...(similarListings.length ? ["", "SIMILARES:"] : []),
-    ...similarListings.map(
+    ...(similarCapped.length ? ["", "SIMILARES:"] : []),
+    ...similarCapped.map(
       (l) =>
         `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
-    ...(payload.otherListings.length ? ["", "TAMBIÉN COINCIDEN:"] : []),
-    ...payload.otherListings.map(
+    ...(otherListings.length ? ["", "TAMBIÉN COINCIDEN:"] : []),
+    ...otherListings.map(
       (l) =>
         `- ${listingTitle(l)} · ${money.format(l.rentMxn)}/mes · ${base}/anuncio/${roomReferenceCode(l.id)}`,
     ),
     "",
-    `Ver en el mapa: ${searchLink}`,
+    ...(moreCount > 0
+      ? [
+          `Te mostramos ${shownCount} de ${totalMatchCount}. Hay más anuncios en Bestie que coinciden con esta búsqueda.`,
+          `Ver todos en Bestie: ${searchLink}`,
+        ]
+      : [`Ver en el mapa: ${searchLink}`]),
     "",
     `Dejar de recibir alertas: ${unsubLink}`,
     `Ayuda: ${B.support}`,

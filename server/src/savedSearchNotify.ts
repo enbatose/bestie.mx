@@ -1,27 +1,22 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { buildSavedSearchEmail } from "./emails/savedSearchEmail.js";
+import { buildSavedSearchEmail, SAVED_SEARCH_EMAIL_LISTING_CAP } from "./emails/savedSearchEmail.js";
 import { isUserEmailVerified } from "./emailVerification.js";
 import { sendTransactionalEmail } from "./mailer.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
 import {
-  fetchMatchingListingsForSavedSearch,
   parseSavedSearchFilters,
   parseSavedSearchLocation,
+  resolveSavedSearchMatches,
   type SavedSearchLocationSnapshot,
 } from "./savedSearchMatch.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
-import {
-  highAffinitySimilar,
-  parseSimilarConfig,
-  splitSharedSearchMatches,
-} from "./sharedSearchMatch.js";
 import type { SearchFilters } from "./searchFilters.js";
 import type { PropertyListing } from "./types.js";
 import { formatSavedSearchDraftLabel } from "./savedSearchDraftLabel.js";
 
-const INITIAL_EMAIL_LISTING_CAP = 50;
-const FOLLOW_UP_OTHER_CAP = 5;
+export { SAVED_SEARCH_EMAIL_LISTING_CAP };
+
 /** Minimum interval between follow-up alert emails (aggregate new matches in this window). */
 const FOLLOW_UP_DEBOUNCE_MS = 3 * 60 * 60 * 1000;
 
@@ -147,29 +142,32 @@ export async function enableSavedSearchNotify(
   };
 }
 
+export function pickSavedSearchEmailListings(
+  exact: PropertyListing[],
+  similar: PropertyListing[],
+  cap = SAVED_SEARCH_EMAIL_LISTING_CAP,
+): { shownExact: PropertyListing[]; shownSimilar: PropertyListing[] } {
+  const shownExact = exact.slice(0, cap);
+  const remaining = Math.max(0, cap - shownExact.length);
+  const exactIds = new Set(exact.map((l) => l.id));
+  const shownSimilar = similar.filter((l) => !exactIds.has(l.id)).slice(0, remaining);
+  return { shownExact, shownSimilar };
+}
+
 function listingsForSavedSearchEmail(db: DatabaseSync, row: SavedSearchRow): {
   exact: PropertyListing[];
   similarHigh: PropertyListing[];
 } {
   const filters = parseSavedSearchFilters(row.filters_json);
   const location = parseSavedSearchLocation(row.location_json);
-  const exact = fetchMatchingListingsForSavedSearch(db, filters, location);
-  if (!row.share_id) return { exact, similarHigh: [] };
-  const share = db
-    .prepare(`SELECT similar_json FROM shared_searches WHERE id = ?`)
-    .get(row.share_id) as { similar_json: string } | undefined;
-  if (!share) return { exact, similarHigh: [] };
-  const split = splitSharedSearchMatches(
-    fetchPublishedListings(db),
-    filters,
-    location,
-    parseSimilarConfig(share.similar_json),
-  );
-  const exactIds = new Set(exact.map((l) => l.id));
-  const similarHigh = highAffinitySimilar(split.similar)
-    .map((r) => r.listing)
-    .filter((l) => !exactIds.has(l.id));
-  return { exact, similarHigh };
+  let similarJson: string | null = null;
+  if (row.share_id) {
+    const share = db
+      .prepare(`SELECT similar_json FROM shared_searches WHERE id = ?`)
+      .get(row.share_id) as { similar_json: string } | undefined;
+    similarJson = share?.similar_json ?? null;
+  }
+  return resolveSavedSearchMatches(fetchPublishedListings(db), filters, location, similarJson);
 }
 
 export async function sendSavedSearchEmail(
@@ -186,14 +184,12 @@ export async function sendSavedSearchEmail(
   const { exact, similarHigh } = listingsForSavedSearchEmail(db, row);
   const notified = notifiedRoomIds(db, savedSearchId);
 
-  let newListings: PropertyListing[] = [];
-  let otherListings: PropertyListing[] = [];
-  let similarListings: PropertyListing[] = [];
+  let poolExact: PropertyListing[] = [];
+  let poolSimilar: PropertyListing[] = [];
 
   if (mode === "initial") {
-    newListings = exact.slice(0, INITIAL_EMAIL_LISTING_CAP);
-    similarListings = similarHigh.slice(0, INITIAL_EMAIL_LISTING_CAP);
-    otherListings = [];
+    poolExact = exact;
+    poolSimilar = similarHigh;
   } else {
     if (row.last_notified_at) {
       const last = Date.parse(row.last_notified_at);
@@ -201,20 +197,23 @@ export async function sendSavedSearchEmail(
         return false;
       }
     }
-    newListings = exact.filter((l) => !notified.has(l.id));
-    similarListings = similarHigh.filter((l) => !notified.has(l.id));
-    if (!newListings.length && !similarListings.length) return false;
-    otherListings = exact.filter((l) => notified.has(l.id)).slice(0, FOLLOW_UP_OTHER_CAP);
+    poolExact = exact.filter((l) => !notified.has(l.id));
+    poolSimilar = similarHigh.filter((l) => !notified.has(l.id));
+    if (!poolExact.length && !poolSimilar.length) return false;
   }
+
+  const totalMatchCount = poolExact.length + poolSimilar.length;
+  const { shownExact, shownSimilar } = pickSavedSearchEmailListings(poolExact, poolSimilar);
 
   const mail = buildSavedSearchEmail({
     label: row.label,
     searchUrl: row.search_url,
     unsubscribeToken: row.unsubscribe_token,
     mode,
-    newListings,
-    otherListings,
-    similarListings,
+    newListings: shownExact,
+    otherListings: [],
+    similarListings: shownSimilar,
+    totalMatchCount,
   });
 
   const unsubUrl = `${publicBaseUrl()}/api/saved-searches/unsubscribe/${encodeURIComponent(row.unsubscribe_token)}`;
@@ -235,10 +234,8 @@ export async function sendSavedSearchEmail(
 
   const roomIdsToMark =
     mode === "initial"
-      ? [...exact.slice(0, INITIAL_EMAIL_LISTING_CAP), ...similarHigh.slice(0, INITIAL_EMAIL_LISTING_CAP)].map(
-          (l) => l.id,
-        )
-      : [...newListings, ...otherListings, ...similarListings].map((l) => l.id);
+      ? [...exact, ...similarHigh].map((l) => l.id)
+      : [...poolExact, ...poolSimilar].map((l) => l.id);
   markRoomsNotified(db, savedSearchId, roomIdsToMark);
   db.prepare(`UPDATE saved_searches SET last_notified_at = ?, updated_at = ? WHERE id = ?`).run(
     isoNow(),
