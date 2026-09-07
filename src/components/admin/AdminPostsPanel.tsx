@@ -67,6 +67,53 @@ function uniqueTotal(unique: number | undefined, total: number | undefined): str
   return `${countN(unique)}/${countN(total)}`;
 }
 
+function AvailabilityDayCell({ row }: { row: AdminPostRow }) {
+  const label = availabilityDayLabel(row);
+  if (!label) return <span className="text-muted">—</span>;
+  const soon =
+    row.status === "published" &&
+    row.availabilityDaysUntilPause != null &&
+    row.availabilityDaysUntilPause <= 5;
+  return (
+    <span
+      className={`font-semibold tabular-nums ${soon ? "text-warning-fg" : "text-body"}`}
+      title="Día del ciclo de 30 hasta la pausa automática"
+    >
+      {label}
+    </span>
+  );
+}
+
+function AvailabilityDayBadge({ row }: { row: AdminPostRow }) {
+  const label = availabilityDayLabel(row);
+  if (!label) return null;
+  const soon =
+    row.status === "published" &&
+    row.availabilityDaysUntilPause != null &&
+    row.availabilityDaysUntilPause <= 5;
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
+        soon ? "bg-warning/15 text-warning-fg ring-1 ring-warning/40" : "bg-bg-light text-body ring-1 ring-border"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function availabilityDayLabel(row: AdminPostRow): string | null {
+  if (row.availabilityDay == null) return null;
+  const day = `Día ${row.availabilityDay} de 30`;
+  if (row.status !== "published" || row.availabilityDaysUntilPause == null) return day;
+  if (row.availabilityDaysUntilPause <= 0) return `${day} · pausa hoy`;
+  if (row.availabilityDaysUntilPause <= 5) {
+    const unit = row.availabilityDaysUntilPause === 1 ? "día" : "días";
+    return `${day} · pausa en ${row.availabilityDaysUntilPause} ${unit}`;
+  }
+  return day;
+}
+
 function resolveCreateOrigin(row: AdminPostRow): AdminPostCreateOrigin {
   if (row.createOrigin === "manual" || row.createOrigin === "ai_admin" || row.createOrigin === "ai_user") {
     return row.createOrigin;
@@ -104,6 +151,7 @@ type Props = {
 export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
   const [rows, setRows] = useState<AdminPostRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [expiringWithin5Days, setExpiringWithin5Days] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all" | "reported">("published");
@@ -134,10 +182,12 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
       });
       setRows(r.posts);
       setTotal(r.total);
+      setExpiringWithin5Days(Math.max(0, Math.floor(r.expiringWithin5Days ?? 0)));
     } catch (x) {
       onError(x instanceof Error ? x.message : "No se pudo cargar el reporte de posts.");
       setRows([]);
       setTotal(0);
+      setExpiringWithin5Days(0);
     } finally {
       setLoading(false);
     }
@@ -188,6 +238,27 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
 
   return (
     <div className="mt-6 space-y-4">
+      <section
+        className={`rounded-xl border p-4 text-sm ${
+          expiringWithin5Days > 0
+            ? "border-warning/40 bg-warning/10 text-warning-fg"
+            : "border-border bg-surface text-body"
+        }`}
+        aria-label="Anuncios por vencer"
+      >
+        <p className="font-semibold">
+          {expiringWithin5Days === 0
+            ? "Ningún anuncio publicado vence en los próximos 5 días."
+            : expiringWithin5Days === 1
+              ? "1 anuncio vence en los próximos 5 días si el dueño no lo confirma."
+              : `${expiringWithin5Days.toLocaleString("es-MX")} anuncios vencen en los próximos 5 días si el dueño no los confirma.`}
+        </p>
+        <p className={`mt-1 text-xs leading-relaxed ${expiringWithin5Days > 0 ? "text-warning-fg" : "text-muted"}`}>
+          A los 30 días sin confirmación el anuncio se pausa. El dueño puede confirmar que sigue
+          disponible o reanudarlo después.
+        </p>
+      </section>
+
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 lg:flex-row lg:flex-wrap lg:items-end">
         <label className="block min-w-0 flex-1 text-sm font-medium text-body">
           Buscar
@@ -271,6 +342,9 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
             <tr>
               <th className="px-3 py-2.5 font-semibold">ID</th>
               <th className="px-3 py-2.5 font-semibold">Estado</th>
+              <th className="px-3 py-2.5 font-semibold" title="Día del ciclo de 30 hasta la pausa automática">
+                Día 30
+              </th>
               <th className="px-3 py-2.5 font-semibold">Título</th>
               <th className="px-3 py-2.5 font-semibold">Creador</th>
               <th className="px-3 py-2.5 font-semibold">Paso borrador</th>
@@ -329,6 +403,9 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                       </Link>
                     ) : null}
                   </div>
+                </td>
+                <td className="px-3 py-2.5">
+                  <AvailabilityDayCell row={row} />
                 </td>
                 <td className="max-w-[180px] px-3 py-2.5">
                   <div className="line-clamp-2 font-medium text-body">{row.title || "Sin título"}</div>
@@ -441,7 +518,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
             ))}
             {!loading && rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-muted">
+                <td colSpan={11} className="px-3 py-8 text-center text-muted">
                   No hay posts que coincidan con el filtro.
                 </td>
               </tr>
@@ -466,6 +543,7 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
                   {statusLabel(row.status)}
                 </span>
                 <CreateOriginBadge origin={resolveCreateOrigin(row)} />
+                <AvailabilityDayBadge row={row} />
                 {row.hasReport ? (
                   <Link
                     to={

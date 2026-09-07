@@ -101,6 +101,7 @@ describe("getAdminNavCounts", () => {
       publishedPosts: 2,
       unreadSupportMessages: 1,
       unreviewedReportedPosts: 0,
+      expiringWithin5Days: 0,
     });
     process.env.ADMIN_EMAILS = prevAdmin;
   });

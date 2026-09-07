@@ -396,8 +396,8 @@ export function AdminPage() {
               title={
                 countKey === "verifiedUsers"
                   ? "Usuarios verificados"
-                  : countKey === "publishedPosts"
-                    ? "Posts publicados"
+                  :                 countKey === "publishedPosts"
+                  ? "Posts publicados. El número en ámbar vence en 5 días si el dueño no confirma."
                     : countKey === "unreadSupportMessages"
                       ? "Mensajes no leídos"
                       : undefined
@@ -435,6 +435,16 @@ export function AdminPage() {
                   navCounts.unreviewedReportedPosts > 0 ? (
                     <span className="text-[11px] font-bold text-error">
                       ({navCounts.unreviewedReportedPosts.toLocaleString("es-MX")})
+                    </span>
+                  ) : null}
+                  {countKey === "publishedPosts" &&
+                  navCounts?.expiringWithin5Days != null &&
+                  navCounts.expiringWithin5Days > 0 ? (
+                    <span
+                      className="rounded-full bg-warning px-1.5 py-0.5 text-[11px] font-bold text-warning-fg"
+                      title="Vencen en 5 días si el dueño no confirma"
+                    >
+                      {navCounts.expiringWithin5Days.toLocaleString("es-MX")}
                     </span>
                   ) : null}
                 </span>

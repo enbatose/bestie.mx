@@ -6,10 +6,12 @@ import {
   availabilityCycleStartMs,
   availabilityNotifyPlan,
   ensureListingAvailabilitySchema,
+  listingAvailabilityClock,
   shouldPauseForAvailability,
   shouldSendAvailabilityNotice,
   AVAILABILITY_NOTICE_AFTER_DAYS,
   AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS,
+  AVAILABILITY_WINDOW_DAYS,
 } from "./listingAvailability.js";
 import { buildListingAvailabilitySms } from "./listingAvailabilitySms.js";
 
@@ -108,6 +110,47 @@ describe("availability clock", () => {
         now,
       }),
     ).toBe(false);
+  });
+});
+
+describe("listingAvailabilityClock", () => {
+  const now = new Date("2026-09-07T18:00:00.000Z");
+
+  it("reports the day within the 30-day window", () => {
+    const clock = listingAvailabilityClock({
+      status: "published",
+      publishedAt: daysAgo(now, 11),
+      confirmedAt: null,
+      noticeSentAt: null,
+      now,
+    });
+    expect(clock.dayOfWindow).toBe(12);
+    expect(clock.expiresWithin5Days).toBe(false);
+  });
+
+  it("marks day 26 as expiring within 5 days", () => {
+    const clock = listingAvailabilityClock({
+      status: "published",
+      publishedAt: daysAgo(now, 25),
+      confirmedAt: null,
+      noticeSentAt: null,
+      now,
+    });
+    expect(clock.dayOfWindow).toBe(26);
+    expect(clock.expiresWithin5Days).toBe(true);
+    expect(clock.daysUntilPause).toBe(AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS);
+  });
+
+  it("caps the displayed day at 30", () => {
+    const clock = listingAvailabilityClock({
+      status: "published",
+      publishedAt: daysAgo(now, 40),
+      confirmedAt: null,
+      noticeSentAt: daysAgo(now, 1),
+      now,
+    });
+    expect(clock.dayOfWindow).toBe(AVAILABILITY_WINDOW_DAYS);
+    expect(clock.expiresWithin5Days).toBe(true);
   });
 });
 

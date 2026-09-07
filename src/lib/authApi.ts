@@ -617,6 +617,7 @@ export type AdminNavCounts = {
   publishedPosts: number;
   unreadSupportMessages: number;
   unreviewedReportedPosts: number;
+  expiringWithin5Days?: number;
 };
 
 export async function adminNavCounts(signal?: AbortSignal): Promise<AdminNavCounts> {
@@ -861,6 +862,9 @@ export type AdminPostRow = {
   reportCount?: number;
   unclaimedOutreach?: boolean;
   hasPublishEvidence?: boolean;
+  /** 1–30 while published. Null for drafts and ordinary pauses. */
+  availabilityDay?: number | null;
+  availabilityDaysUntilPause?: number | null;
 };
 
 export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -873,7 +877,13 @@ export async function adminListPosts(
     offset?: number;
   } = {},
   signal?: AbortSignal,
-): Promise<{ posts: AdminPostRow[]; total: number; limit: number; offset: number }> {
+): Promise<{
+  posts: AdminPostRow[];
+  total: number;
+  limit: number;
+  offset: number;
+  expiringWithin5Days?: number;
+}> {
   const base = apiBase();
   const q = new URLSearchParams();
   if (opts.q?.trim()) q.set("q", opts.q.trim());
@@ -888,6 +898,7 @@ export async function adminListPosts(
   if (!res.ok) throw new Error(`admin_posts_${res.status}`);
   return (await res.json()) as {
     posts: AdminPostRow[];
+    expiringWithin5Days?: number;
     total: number;
     limit: number;
     offset: number;

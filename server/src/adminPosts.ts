@@ -7,6 +7,11 @@ import {
 } from "./listingReference.js";
 import { posthogReplayUrl } from "./vendorUsageLimits.js";
 import { isSelfServeCreator, SELF_SERVE_CREATOR_ID } from "./assistedDraftMerge.js";
+import {
+  countPostsExpiringWithin5Days,
+  ensureListingAvailabilitySchema,
+  listingAvailabilityClock,
+} from "./listingAvailability.js";
 
 /** How the listing entered Bestie — drives admin Posts badges. */
 export type AdminPostCreateOrigin = "manual" | "ai_admin" | "ai_user";
@@ -84,6 +89,10 @@ export type AdminPostRow = {
   unclaimedOutreach: boolean;
   /** Internal consent screenshot exists (never shown on the public listing). */
   hasPublishEvidence: boolean;
+  /** 1–30 while published (or 30 if auto-paused). Null for drafts and other pauses. */
+  availabilityDay: number | null;
+  /** Days until auto-pause. 0 means due now. */
+  availabilityDaysUntilPause: number | null;
 };
 
 /** Resolve admin vs user AI origin from property + claim-token creator ids. */
@@ -132,6 +141,8 @@ export type AdminPostsListResult = {
   total: number;
   limit: number;
   offset: number;
+  /** Published posts that pause within 5 days unless the owner confirms. */
+  expiringWithin5Days: number;
 };
 
 function isAdminPostStatus(v: string): v is AdminPostStatus {
@@ -199,6 +210,12 @@ export function listAdminPosts(
     ? (rawLimit as (typeof ADMIN_POSTS_PAGE_SIZES)[number])
     : 25;
   const offset = Math.max(0, Math.floor(Number(opts.offset) || 0));
+  ensureListingAvailabilitySchema(db);
+  const now = new Date();
+  const expiringWithin5Days = countPostsExpiringWithin5Days(db, now);
+  const hasPausedBy = (
+    db.prepare(`PRAGMA table_info(properties)`).all() as { name: string }[]
+  ).some((col) => col.name === "paused_by");
 
   const statusRaw = typeof opts.status === "string" ? opts.status.trim() : "";
   const reportFilter = statusRaw === "reported";
@@ -365,6 +382,9 @@ export function listAdminPosts(
         p.neighborhood,
         p.created_at,
         p.published_at,
+        p.availability_confirmed_at,
+        p.availability_notice_sent_at,
+        ${hasPausedBy ? "p.paused_by" : "NULL"} AS paused_by,
         p.wizard_step,
         p.posthog_session_id,
         p.feedback_rating,
@@ -538,6 +558,16 @@ export function listAdminPosts(
       createdByAdminId,
       claimCreatedByAdminId,
     });
+    const clock = listingAvailabilityClock({
+      status,
+      publishedAt: row.published_at != null ? String(row.published_at) : null,
+      confirmedAt:
+        row.availability_confirmed_at != null ? String(row.availability_confirmed_at) : null,
+      noticeSentAt:
+        row.availability_notice_sent_at != null ? String(row.availability_notice_sent_at) : null,
+      pausedBy: row.paused_by != null ? String(row.paused_by) : null,
+      now,
+    });
 
     return {
       propertyId,
@@ -594,10 +624,12 @@ export function listAdminPosts(
       hasPublishEvidence: Boolean(
         row.admin_publish_evidence_url != null && String(row.admin_publish_evidence_url).trim(),
       ),
+      availabilityDay: clock.dayOfWindow,
+      availabilityDaysUntilPause: clock.daysUntilPause,
     };
   });
 
-  return { posts, total, limit, offset };
+  return { posts, total, limit, offset, expiringWithin5Days };
 }
 
 /** Resolve room → property and store publish-flow feedback on the property row. */

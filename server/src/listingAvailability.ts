@@ -20,6 +20,11 @@ import { smsMasivosConfigured, smsMasivosSendSms } from "./smsMasivosOtp.js";
 export const AVAILABILITY_NOTICE_AFTER_DAYS = 25;
 /** Pause only after the notice, and never sooner than 5 days later (launch grace). */
 export const AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS = 5;
+/** Published cycle length until auto-pause when the notice goes out on day 25. */
+export const AVAILABILITY_WINDOW_DAYS =
+  AVAILABILITY_NOTICE_AFTER_DAYS + AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS;
+/** Admin "expiring soon" horizon. */
+export const AVAILABILITY_EXPIRING_SOON_DAYS = 5;
 export const AVAILABILITY_PAUSED_BY = "availability";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -125,6 +130,106 @@ export function shouldPauseForAvailability(opts: {
   const confirmed = parseIsoMs(opts.confirmedAt);
   if (confirmed != null && confirmed >= noticeMs) return false;
   return opts.now.getTime() >= noticeMs + AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS * DAY_MS;
+}
+
+export type ListingAvailabilityClock = {
+  /** 1-based day in the 30-day window. Null when the post is not on the published clock. */
+  dayOfWindow: number | null;
+  /** Whole days until auto-pause. 0 means due now. Null if not scheduled. */
+  daysUntilPause: number | null;
+  expiresWithin5Days: boolean;
+};
+
+/**
+ * When the post will pause if the owner does not confirm.
+ * If the day-25 notice is already due but not sent, pause is 5 days after that send.
+ */
+export function availabilityPauseAtMs(opts: {
+  status: string;
+  publishedAt: string | null;
+  confirmedAt: string | null;
+  noticeSentAt: string | null;
+  now: Date;
+}): number | null {
+  if (opts.status !== "published") return null;
+  const start = availabilityCycleStartMs(opts.publishedAt, opts.confirmedAt);
+  if (start == null) return null;
+  const noticeMs = parseIsoMs(opts.noticeSentAt);
+  if (noticeMs != null && noticeMs >= start) {
+    return noticeMs + AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS * DAY_MS;
+  }
+  if (opts.now.getTime() - start >= AVAILABILITY_NOTICE_AFTER_DAYS * DAY_MS) {
+    return opts.now.getTime() + AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS * DAY_MS;
+  }
+  return start + AVAILABILITY_WINDOW_DAYS * DAY_MS;
+}
+
+export function listingAvailabilityClock(opts: {
+  status: string;
+  publishedAt: string | null;
+  confirmedAt: string | null;
+  noticeSentAt: string | null;
+  pausedBy?: string | null;
+  now?: Date;
+}): ListingAvailabilityClock {
+  const now = opts.now ?? new Date();
+  if (opts.status === "paused" && String(opts.pausedBy ?? "").trim() === AVAILABILITY_PAUSED_BY) {
+    return { dayOfWindow: AVAILABILITY_WINDOW_DAYS, daysUntilPause: 0, expiresWithin5Days: false };
+  }
+  const start = availabilityCycleStartMs(opts.publishedAt, opts.confirmedAt);
+  if (opts.status !== "published" || start == null) {
+    return { dayOfWindow: null, daysUntilPause: null, expiresWithin5Days: false };
+  }
+  const dayOfWindow = Math.min(
+    AVAILABILITY_WINDOW_DAYS,
+    Math.max(1, Math.floor(availabilityAgeDays(start, now)) + 1),
+  );
+  const pauseAt = availabilityPauseAtMs({
+    status: opts.status,
+    publishedAt: opts.publishedAt,
+    confirmedAt: opts.confirmedAt,
+    noticeSentAt: opts.noticeSentAt,
+    now,
+  });
+  const daysUntilPause =
+    pauseAt == null ? null : Math.max(0, Math.ceil((pauseAt - now.getTime()) / DAY_MS));
+  const expiresWithin5Days =
+    pauseAt != null && pauseAt <= now.getTime() + AVAILABILITY_EXPIRING_SOON_DAYS * DAY_MS;
+  return { dayOfWindow, daysUntilPause, expiresWithin5Days };
+}
+
+export function countPostsExpiringWithin5Days(db: DatabaseSync, now: Date = new Date()): number {
+  ensureListingAvailabilitySchema(db);
+  const cols = new Set(
+    (db.prepare(`PRAGMA table_info(properties)`).all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!cols.has("published_at")) return 0;
+  const rows = db
+    .prepare(
+      `SELECT status, published_at, availability_confirmed_at, availability_notice_sent_at
+       FROM properties WHERE status = 'published'`,
+    )
+    .all() as {
+    status: string;
+    published_at: string | null;
+    availability_confirmed_at: string | null;
+    availability_notice_sent_at: string | null;
+  }[];
+  let n = 0;
+  for (const row of rows) {
+    if (
+      listingAvailabilityClock({
+        status: row.status,
+        publishedAt: row.published_at,
+        confirmedAt: row.availability_confirmed_at,
+        noticeSentAt: row.availability_notice_sent_at,
+        now,
+      }).expiresWithin5Days
+    ) {
+      n += 1;
+    }
+  }
+  return n;
 }
 
 export function availabilityNeedsConfirm(opts: {

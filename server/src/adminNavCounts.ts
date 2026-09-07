@@ -5,12 +5,15 @@ import { BLOG_BOT_USER_ID } from "./blogReports.js";
 import { REPORT_BOT_USER_ID } from "./listingReports.js";
 
 import { countUnreviewedReportedPosts } from "./listingReports.js";
+import { countPostsExpiringWithin5Days } from "./listingAvailability.js";
 
 export type AdminNavCounts = {
   verifiedUsers: number;
   publishedPosts: number;
   unreadSupportMessages: number;
   unreviewedReportedPosts: number;
+  /** Published posts that pause within 5 days unless the owner confirms. */
+  expiringWithin5Days: number;
 };
 
 function countPublishedPosts(db: DatabaseSync): number {
@@ -41,5 +44,6 @@ export function getAdminNavCounts(db: DatabaseSync): AdminNavCounts {
     publishedPosts: countPublishedPosts(db),
     unreadSupportMessages: countUnreadSupportMessages(db),
     unreviewedReportedPosts: countUnreviewedReportedPosts(db),
+    expiringWithin5Days: countPostsExpiringWithin5Days(db),
   };
 }
