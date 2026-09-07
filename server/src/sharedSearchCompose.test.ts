@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   composeSharedSearch,
+  dropMealPlanUtilityTag,
   formatShareOgCaption,
   resolveSharedSearchPlacePhrase,
 } from "./sharedSearchCompose.js";
@@ -62,6 +63,21 @@ describe("composeSharedSearch", () => {
     expect(caption).toContain("Circunvalación");
     expect(caption).not.toContain("Guadalajara");
     expect(caption.length).toBeLessThanOrEqual(90);
+  });
+
+  it("does not treat a weekly meal plan as included utilities", () => {
+    expect(dropMealPlanUtilityTag(["servicios-incluidos"], ["plan de alimentación semanal"])).toEqual([]);
+    const composed = composeSharedSearch({
+      city: "Guadalajara",
+      seekerGender: "female",
+      extraction: {
+        pois: ["Lamar Palomar"],
+        requiredTags: ["servicios-incluidos"],
+        unmappedCriteria: [{ label: "alimentación", text: "plan de alimentación en la semana" }],
+      },
+    });
+    expect(composed.similar.requiredTags).not.toContain("servicios-incluidos");
+    expect(composed.similar.pois.some((p) => p.name === "Universidad Lamar")).toBe(true);
   });
 
   it("names every requested zone, not only the first pin", () => {

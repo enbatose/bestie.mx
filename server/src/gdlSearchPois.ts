@@ -221,6 +221,18 @@ export const GDL_SEARCH_POIS: readonly SearchPoi[] = [
     aliases: ["hospital san javier", "san javier"],
   },
   {
+    name: "Universidad Lamar",
+    lat: 20.59026,
+    lng: -103.43844,
+    aliases: [
+      "lamar",
+      "lamar palomar",
+      "universidad lamar",
+      "campus palomar",
+      "lamar campus palomar",
+    ],
+  },
+  {
     name: "UNIVA",
     lat: 20.65965,
     lng: -103.41926,

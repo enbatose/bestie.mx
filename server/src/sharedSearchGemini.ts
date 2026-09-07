@@ -28,6 +28,7 @@ REGLAS:
 - Si hay un mapa o polígono en una imagen, estima un bbox [minLat,minLng,maxLat,maxLng] de Guadalajara.
 - lodgingType: private_room | shared_room | whole_home si lo piden.
 - tags: slugs Bestie que QUIEREN (mascotas, muebles, baño-privado, estacionamiento, lgbt-friendly, estudiantes, profesionistas, wifi, servicios-incluidos, …).
+- servicios-incluidos es luz, agua o gas. Un plan de alimentación, comida o pensión NO es servicios-incluidos: va a unmappedCriteria.
 - requiredTags: solo no-negociables explícitos (ej. "tengo perro, tiene que aceptar mascotas" → ["mascotas"]).
 - deniedTags: lo que rechazan.
 - genderPref: si buscan depa/cuarto de mujeres o de hombres (filtro del anuncio).

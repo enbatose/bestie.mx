@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { normalizeSourceFacebookUrl } from "./facebookPostUrl.js";
 import { resolveMetroCity } from "./metroCities.js";
+import { geocodeNamedPlaceInMetro } from "./placeGeocode.js";
+import { specificPlacePhrase } from "./gdlSearchPois.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import {
   enableSavedSearchNotify,
@@ -13,6 +15,7 @@ import {
 import type { SearchFilters } from "./searchFilters.js";
 import {
   composeSharedSearch,
+  dropMealPlanUtilityTag,
   formatShareOgCaption,
   priceLabelFromFilters,
   resolveSharedSearchPlacePhrase,
@@ -70,6 +73,40 @@ function publicShareInsights(raw: string): SharedSearchInsight[] {
   );
 }
 
+async function withGeocodedPlace(
+  composed: ReturnType<typeof composeSharedSearch>,
+): Promise<ReturnType<typeof composeSharedSearch>> {
+  if (composed.similar.pois.length || composed.location.neighborhoods.length) return composed;
+  const phrase = specificPlacePhrase(composed.mainArea || composed.label);
+  if (!phrase) return composed;
+  const pin = await geocodeNamedPlaceInMetro(phrase, composed.location.cityCode);
+  if (!pin) return composed;
+  const metro = resolveMetroCity(composed.location.cityCode);
+  return {
+    ...composed,
+    location: {
+      ...composed.location,
+      lat: pin.lat,
+      lng: pin.lng,
+      zoom: metro.neighborhoodZoom,
+    },
+    similar: { ...composed.similar, pois: [pin], bbox: null, unresolvedPlace: undefined },
+  };
+}
+
+function withRecoveredPlace(
+  composed: ReturnType<typeof composeSharedSearch>,
+): ReturnType<typeof composeSharedSearch> {
+  const phrases = [composed.label, composed.mainArea, ...composed.insights.map((i) => `${i.label} ${i.text}`)];
+  const geo = recoverPinsFromPlacePhrases(composed.location, composed.similar, phrases, composed.location.cityCode);
+  const requiredTags = dropMealPlanUtilityTag(geo.similar.requiredTags, phrases);
+  return {
+    ...composed,
+    location: geo.location,
+    similar: { ...geo.similar, requiredTags },
+  };
+}
+
 function geographyForShare(share: SharedSearchRow): {
   location: SavedSearchLocationSnapshot;
   similar: SharedSearchSimilarConfig;
@@ -80,12 +117,19 @@ function geographyForShare(share: SharedSearchRow): {
   const insightPhrases = safeJsonArray<{ text?: string; label?: string }>(share.insights_json).flatMap((i) =>
     [i.text, i.label].filter((v): v is string => typeof v === "string" && v.trim().length > 0),
   );
-  return recoverPinsFromPlacePhrases(
+  const geo = recoverPinsFromPlacePhrases(
     location,
     similar,
     [share.label, ...insightPhrases],
     share.city_code,
   );
+  const stripped = dropMealPlanUtilityTag(geo.similar.requiredTags, [share.label, ...insightPhrases]);
+  if (stripped.length === geo.similar.requiredTags.length) return geo;
+  return {
+    ...geo,
+    recovered: true,
+    similar: { ...geo.similar, requiredTags: stripped },
+  };
 }
 
 /** Persist a recovered landmark pin so later opens and alerts keep the same zone. */
@@ -267,7 +311,7 @@ export function findSharedSearchesByFacebookUrl(db: DatabaseSync, rawUrl: string
     .all(norm.key) as SharedSearchRow[];
 }
 
-export function createTemplateSharedSearch(
+export async function createTemplateSharedSearch(
   db: DatabaseSync,
   opts: {
     adminUserId: string;
@@ -289,11 +333,15 @@ export function createTemplateSharedSearch(
   zoneRule: string;
   reused: boolean;
 } {
-  const composed = composeSharedSearch({
-    city: opts.city,
-    seekerGender: opts.seekerGender,
-    extraction: opts.extraction,
-  });
+  const composed = await withGeocodedPlace(
+    withRecoveredPlace(
+      composeSharedSearch({
+        city: opts.city,
+        seekerGender: opts.seekerGender,
+        extraction: opts.extraction,
+      }),
+    ),
+  );
   const fb = opts.sourceFacebookUrl.trim() ? normalizeSourceFacebookUrl(opts.sourceFacebookUrl) : null;
   const existing = fb ? findSharedSearchesByFacebookUrl(db, opts.sourceFacebookUrl)[0] : undefined;
   const share = existing ?? (() => {
@@ -532,6 +580,25 @@ export function forkSharedSearchOnEdit(
   return { shareId: forked.id, searchUrl: `/busquedas/${forked.id}`, location };
 }
 
+async function pinUnresolvedSharePlace(db: DatabaseSync, share: SharedSearchRow): Promise<void> {
+  const geo = geographyForShare(share);
+  if (geo.similar.pois.length || geo.location.neighborhoods.length) {
+    if (geo.recovered) persistRecoveredGeography(db, share, geo.location, geo.similar);
+    return;
+  }
+  const phrase = specificPlacePhrase(share.label);
+  if (!phrase) return;
+  const pin = await geocodeNamedPlaceInMetro(phrase, share.city_code);
+  if (!pin) return;
+  const metro = resolveMetroCity(share.city_code);
+  persistRecoveredGeography(
+    db,
+    share,
+    { ...geo.location, lat: pin.lat, lng: pin.lng, zoom: metro.neighborhoodZoom },
+    { ...geo.similar, pois: [pin], bbox: null, unresolvedPlace: undefined },
+  );
+}
+
 function listingsForShare(
   db: DatabaseSync,
   share: SharedSearchRow,
@@ -552,7 +619,7 @@ function listingsForShare(
   };
 }
 
-export function sharedSearchPublicMeta(
+export function sharedSearchPublicMetaSync(
   db: DatabaseSync,
   slug: string,
 ): {
@@ -591,7 +658,17 @@ export function sharedSearchPublicMeta(
   };
 }
 
-export function sharedSearchPublicView(
+export async function sharedSearchPublicMeta(
+  db: DatabaseSync,
+  slug: string,
+): Promise<ReturnType<typeof sharedSearchPublicMetaSync>> {
+  const share = loadSharedSearch(db, slug);
+  if (!share) return null;
+  await pinUnresolvedSharePlace(db, share);
+  return sharedSearchPublicMetaSync(db, slug);
+}
+
+export async function sharedSearchPublicView(
   db: DatabaseSync,
   slug: string,
   uid?: string | null,
@@ -619,6 +696,7 @@ export function sharedSearchPublicView(
 } | null {
   const share = loadSharedSearch(db, slug);
   if (!share) return null;
+  await pinUnresolvedSharePlace(db, share);
   const { filters, location, similar, split } = listingsForShare(db, share);
   const similarHigh = highAffinitySimilar(split.similar).map((r) => r.listing);
   const { caption, zoneRule } = sharedSearchOgCaption(
@@ -749,15 +827,16 @@ export function sharedSearchAdminPreview(
   insights: SharedSearchInsight[];
   nonNegotiables: SharedSearchNonNegotiable[];
 } {
-  const split = analyzeSharedSearch(db, composed.filters, composed.location, composed.similar);
+  const pinned = withRecoveredPlace(composed);
+  const split = analyzeSharedSearch(db, pinned.filters, pinned.location, pinned.similar);
   const similarHigh = highAffinitySimilar(split.similar);
   const avg =
     similarHigh.length > 0 ? similarHigh.reduce((s, r) => s + r.score, 0) / similarHigh.length : 0;
-  const metro = resolveMetroCity(composed.location.cityCode);
+  const metro = resolveMetroCity(pinned.location.cityCode);
   const place =
     resolveSharedSearchPlacePhrase({
-      neighborhoods: composed.location.neighborhoods,
-      pois: composed.similar.pois,
+      neighborhoods: pinned.location.neighborhoods,
+      pois: pinned.similar.pois,
       cityAbbr: metro.abbr,
       cityLabel: composed.location.cityLabel,
       label: composed.label,
@@ -765,7 +844,7 @@ export function sharedSearchAdminPreview(
       mainAreaFallback: composed.mainArea,
     }) || composed.mainArea;
   const zoneRule =
-    zoneRuleForSavedSearch(composed.filters, composed.location, JSON.stringify(composed.similar)) ||
+    zoneRuleForSavedSearch(pinned.filters, pinned.location, JSON.stringify(pinned.similar)) ||
     (place ? `Cerca de ${place}` : "");
   return {
     exact: split.exact,

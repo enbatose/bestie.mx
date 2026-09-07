@@ -71,6 +71,24 @@ describe("shared search matching", () => {
     expect(split.similar.map((r) => r.listing.id)).not.toContain("solo");
   });
 
+  it("pins Lamar Palomar instead of treating the city as en zona", () => {
+    const pins = resolvePlacePins(["Lamar Palomar"]);
+    expect(pins.map((p) => p.name)).toEqual(["Universidad Lamar"]);
+    const emptyHoods = { ...location, neighborhoods: [] as typeof location.neighborhoods };
+    const recovered = recoverPinsFromPlacePhrases(
+      emptyHoods,
+      defaultSimilarConfig(),
+      ["GDL · Lamar Palomar"],
+      "gdl",
+    );
+    expect(recovered.recovered).toBe(true);
+    expect(recovered.similar.unresolvedPlace).toBeUndefined();
+    const far = listing({ id: "far", lat: 20.67, lng: -103.35, neighborhood: "Centro" });
+    expect(
+      matchExactSharedSearch([far], EMPTY_SEARCH_FILTERS, recovered.location, recovered.similar),
+    ).toEqual([]);
+  });
+
   it("resolves Tianguis del Sol without confusing it with Plaza del Sol", () => {
     const tianguis = resolvePlacePins(["GDL · Tianguis del Sol"]);
     expect(tianguis.map((p) => p.name)).toEqual(["Tianguis del Sol"]);

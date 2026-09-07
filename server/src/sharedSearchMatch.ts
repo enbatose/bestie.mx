@@ -306,7 +306,12 @@ export function matchExactSharedSearch(
   cfg: SharedSearchSimilarConfig,
 ): PropertyListing[] {
   const filtered = filterListings(listings, { ...filters, bbox: null });
-  return filtered.filter((l) => !listingHitsExcludedTag(l, cfg) && exactLocationOk(l, location, cfg));
+  return filtered.filter(
+    (l) =>
+      !listingHitsExcludedTag(l, cfg) &&
+      cfg.requiredTags.every((tag) => l.tags.includes(tag)) &&
+      exactLocationOk(l, location, cfg),
+  );
 }
 
 function rankSimilarAtRadius(

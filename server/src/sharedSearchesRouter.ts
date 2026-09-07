@@ -117,6 +117,7 @@ export function sharedSearchesRouter(db: DatabaseSync) {
   });
 
   r.post("/admin", adminGuard, jsonMw("1mb"), (req: Request, res: Response) => {
+    void (async () => {
     const adminId = readAuthUserId(req);
     if (!adminId) return;
     const body = req.body as {
@@ -134,7 +135,7 @@ export function sharedSearchesRouter(db: DatabaseSync) {
       body.extraction && typeof body.extraction === "object" ? body.extraction : {}
     ) as SharedSearchExtraction;
     try {
-      const created = createTemplateSharedSearch(db, {
+      const created = await createTemplateSharedSearch(db, {
         adminUserId: adminId,
         city,
         seekerName,
@@ -162,27 +163,30 @@ export function sharedSearchesRouter(db: DatabaseSync) {
       console.error("[shared-searches] create", err);
       res.status(500).json({ error: "create_failed" });
     }
+    })();
   });
 
   r.get("/:id/meta", (req: Request, res: Response) => {
     const id = String(req.params.id ?? "").trim();
-    const meta = sharedSearchPublicMeta(db, id);
-    if (!meta) {
-      res.status(404).json({ error: "not_found" });
-      return;
-    }
-    res.json(meta);
+    void sharedSearchPublicMeta(db, id).then((meta) => {
+      if (!meta) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      res.json(meta);
+    });
   });
 
   r.get("/:id", (req: Request, res: Response) => {
     const id = String(req.params.id ?? "").trim();
     const uid = readAuthUserId(req);
-    const view = sharedSearchPublicView(db, id, uid);
-    if (!view) {
-      res.status(404).json({ error: "not_found" });
-      return;
-    }
-    res.json(view);
+    void sharedSearchPublicView(db, id, uid).then((view) => {
+      if (!view) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      res.json(view);
+    });
   });
 
   r.post("/:id/subscribe", jsonMw(), (req: Request, res: Response) => {

@@ -8,7 +8,7 @@ import {
 } from "./listingShareOg.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
 import { findGdlSeekerCampaign, formatCampaignShareOg, CAMPAIGN_OG_IMAGE_EDGE } from "./gdlSeekerCampaigns.js";
-import { sharedSearchPublicMeta } from "./sharedSearches.js";
+import { sharedSearchPublicMetaSync } from "./sharedSearches.js";
 
 const BUSQUEDAS_RE = /^\/busquedas\/([a-z0-9]{6,16})\/?$/i;
 
@@ -20,7 +20,7 @@ export function resolveSharedSearchOg(
   const match = pathname.match(BUSQUEDAS_RE);
   if (!match) return null;
   const slug = match[1]!;
-  const meta = sharedSearchPublicMeta(db, slug);
+  const meta = sharedSearchPublicMetaSync(db, slug);
   const campaign = findGdlSeekerCampaign(slug);
   const originBase = origin.replace(/\/$/, "");
   // Paid campaign slugs must still emit POI cards if boot-seed has not run yet.

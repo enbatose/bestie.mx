@@ -108,6 +108,19 @@ export type ComposedSharedSearch = {
   mainArea: string;
 };
 
+const MEAL_PLAN_RE = /alimentaci[oó]n|plan de comida|comida incluida|penci[oó]n/i;
+const UTILITY_RE = /\b(servicios incluidos|luz|agua|gas)\b/i;
+
+export function isMealPlanWithoutUtilities(texts: string[]): boolean {
+  const blob = texts.join(" ");
+  return MEAL_PLAN_RE.test(blob) && !UTILITY_RE.test(blob);
+}
+
+export function dropMealPlanUtilityTag<T extends string>(tags: T[], texts: string[]): T[] {
+  if (!isMealPlanWithoutUtilities(texts)) return tags;
+  return tags.filter((tag) => tag !== "servicios-incluidos");
+}
+
 export function composeSharedSearch(opts: {
   city: string;
   seekerGender: "female" | "male" | null;
@@ -127,8 +140,15 @@ export function composeSharedSearch(opts: {
     (p, i, arr) => arr.findIndex((x) => x.name === p.name) === i,
   );
 
-  const requiredTags = asTags(ext.requiredTags);
-  const wantedTags = asTags(ext.tags).filter((t) => !requiredTags.includes(t));
+  const mealPlanTexts = [
+    ...(ext.unmappedCriteria ?? []).map((item) => `${item.label ?? ""} ${item.text ?? ""}`),
+    ...(ext.nonNegotiables ?? []).map((item) => `${item.kind ?? ""} ${item.value ?? ""} ${item.reason ?? ""}`),
+    ext.descriptionKeywords ?? "",
+  ];
+  const requiredTags = dropMealPlanUtilityTag(asTags(ext.requiredTags), mealPlanTexts);
+  const wantedTags = asTags(ext.tags)
+    .filter((t) => !requiredTags.includes(t))
+    .filter((t) => t !== "servicios-incluidos" || !isMealPlanWithoutUtilities(mealPlanTexts));
   const lodging =
     ext.lodgingType === "private_room" || ext.lodgingType === "shared_room" || ext.lodgingType === "whole_home"
       ? ext.lodgingType
