@@ -238,20 +238,21 @@ export function formatShareOgCaption(opts: {
   cityAbbr: string;
   priceLabel: string;
   mainArea: string;
+  cityLabel?: string;
 }): string {
-  const counts = `Bestie: ${opts.exactCount} en zona, ${opts.similarCount} cerca`;
-  const place = usefulPlacePhrase(opts.mainArea, opts.cityAbbr);
+  // FB in-comment cards often show only domain + og:title (description hidden). Put place early.
+  const place = usefulPlacePhrase(opts.mainArea, [opts.cityAbbr, opts.cityLabel, "GDL", "Guadalajara"]);
   const price = opts.priceLabel.trim();
-  // Place first so Facebook's title shows a street/colonia the seeker recognizes — not only GDL.
-  const rest = [place, price].filter(Boolean).join(", ");
-  const withPlace = rest ? `${counts} · ${rest}` : `${counts} · ${opts.cityAbbr}`.trim();
-  if (withPlace.length <= 90) return withPlace;
+  const counts = `${opts.exactCount} en zona, ${opts.similarCount} cerca`;
   if (place) {
-    const prefix = `${counts} · `;
-    const room = Math.max(12, 90 - prefix.length);
-    return `${prefix}${truncatePlace(place, room)}`;
+    const primary = `${place} · ${counts}`;
+    const withPrice = price ? `${primary} · ${price}` : primary;
+    if (withPrice.length <= 90) return withPrice;
+    if (primary.length <= 90) return primary;
+    return truncatePlace(primary, 90);
   }
-  return `${counts} · ${opts.cityAbbr}`.slice(0, 90);
+  const cityOnly = `${counts} · ${opts.cityAbbr}${price ? ` · ${price}` : ""}`.trim();
+  return cityOnly.slice(0, 90);
 }
 
 /** Prefer a pin, else zone sentence, else unmapped “Cerca de…”, else the area bit of the share label. */
@@ -265,14 +266,16 @@ export function resolveSharedSearchPlacePhrase(opts: {
   insights?: Array<{ label: string; text: string; mapped: boolean }>;
   mainAreaFallback?: string;
 }): string {
+  const cityHints = [opts.cityAbbr, opts.cityLabel, "GDL", "Guadalajara"].filter(Boolean) as string[];
   const fromPin =
     opts.neighborhoods?.map((n) => n.name.trim()).find(Boolean) ||
     opts.pois?.map((p) => p.name.trim()).find(Boolean) ||
     "";
-  if (fromPin) return fromPin;
+  if (fromPin && usefulPlacePhrase(fromPin, cityHints)) return fromPin;
 
   const zone = opts.zoneRule?.trim() ?? "";
-  if (zone && zone !== "Área del mapa" && usefulPlacePhrase(zone, opts.cityAbbr || opts.cityLabel || "")) {
+  // City-only zone ("Guadalajara") must not beat a label like "… · Plaza Patria".
+  if (zone && zone !== "Área del mapa" && usefulPlacePhrase(zone, cityHints)) {
     return zone;
   }
 
@@ -285,26 +288,32 @@ export function resolveSharedSearchPlacePhrase(opts: {
       /ubicaci[oó]n/i.test(label) ||
       /cerca de/i.test(text) ||
       /cerca de/i.test(label) ||
-      /^(av\.?|avenida|calle|colonia|col\.|zona)\b/i.test(text);
+      /^(av\.?|avenida|calle|colonia|col\.|zona|plaza|estadio)\b/i.test(text);
     if (!looksLocation) continue;
-    return stripCercaPrefix(text);
+    const cleaned = stripCercaPrefix(text);
+    if (usefulPlacePhrase(cleaned, cityHints)) return cleaned;
   }
 
   const fromLabel = areaFromShareLabel(opts.label, opts.cityAbbr, opts.cityLabel);
   if (fromLabel) return fromLabel;
 
   const fallback = (opts.mainAreaFallback ?? "").trim();
-  return usefulPlacePhrase(fallback, opts.cityAbbr || opts.cityLabel || "") ? fallback : "";
+  return usefulPlacePhrase(fallback, cityHints);
 }
 
-function usefulPlacePhrase(place: string, cityHint: string): string {
+/** Empty when the phrase is only the metro (FB comments need a colonia/POI in og:title). */
+function usefulPlacePhrase(place: string, cityHints: string | string[]): string {
   const p = place.trim();
   if (!p) return "";
-  const city = cityHint.trim();
-  if (!city) return p;
-  if (normalizePlaceCompare(p) === normalizePlaceCompare(city)) return "";
-  // "GDL" / "Guadalajara" style duplicates
-  if (city.length <= 4 && normalizePlaceCompare(p).startsWith(normalizePlaceCompare(city))) return p;
+  const hints = (Array.isArray(cityHints) ? cityHints : [cityHints])
+    .filter((h): h is string => typeof h === "string" && h.trim().length > 0)
+    .map((h) => h.trim());
+  const normalizedPlace = normalizePlaceCompare(p);
+  for (const city of hints) {
+    const normalizedCity = normalizePlaceCompare(city);
+    if (!normalizedCity) continue;
+    if (normalizedPlace === normalizedCity) return "";
+  }
   return p;
 }
 

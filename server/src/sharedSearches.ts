@@ -632,19 +632,37 @@ function sharedSearchPlaceAndZone(
 ): { place: string; zoneRule: string } {
   const insights = safeJsonArray<SharedSearchInsight>(share.insights_json);
   let zoneRule = zoneRuleForSavedSearch(filters, location, share.similar_json);
+  const metro = resolveMetroCity(share.city_code);
+  const cityLabel = share.city_label || location.cityLabel;
   const place = resolveSharedSearchPlacePhrase({
     neighborhoods: location.neighborhoods,
     pois: similarCfg.pois,
-    cityAbbr: resolveMetroCity(share.city_code).abbr,
-    cityLabel: share.city_label || location.cityLabel,
+    cityAbbr: metro.abbr,
+    cityLabel,
     label: share.label,
     zoneRule,
     insights,
   });
-  if ((!zoneRule || zoneRule === "Área del mapa") && place) {
+  const zoneIsCityOnly =
+    !zoneRule ||
+    zoneRule === "Área del mapa" ||
+    normalizeLoosePlace(zoneRule) === normalizeLoosePlace(metro.abbr) ||
+    normalizeLoosePlace(zoneRule) === normalizeLoosePlace(cityLabel) ||
+    normalizeLoosePlace(zoneRule) === "guadalajara" ||
+    normalizeLoosePlace(zoneRule) === "gdl";
+  if (zoneIsCityOnly && place) {
     zoneRule = place.startsWith("Cerca de ") ? place : `Cerca de ${place}`;
   }
   return { place, zoneRule };
+}
+
+function normalizeLoosePlace(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function sharedSearchOgCaption(
@@ -661,6 +679,7 @@ function sharedSearchOgCaption(
     exactCount,
     similarCount,
     cityAbbr: metro.abbr || metro.label,
+    cityLabel: share.city_label || metro.label,
     priceLabel: priceLabelFromFilters(filters),
     mainArea: place || share.city_label || metro.label,
   });
@@ -705,10 +724,15 @@ export function sharedSearchAdminPreview(
       exactCount: split.exact.length,
       similarCount: similarHigh.length,
       cityAbbr: metro.abbr || metro.label,
+      cityLabel: composed.location.cityLabel || metro.label,
       priceLabel: priceLabelFromFilters(composed.filters),
       mainArea: place,
     }),
-    zoneRule: zoneRule === "Área del mapa" && place ? `Cerca de ${place}` : zoneRule,
+    zoneRule:
+      (!zoneRule || zoneRule === "Área del mapa" || zoneRule === metro.label || zoneRule === "Guadalajara") &&
+      place
+        ? `Cerca de ${place}`
+        : zoneRule,
     insights: composed.insights,
     nonNegotiables: composed.nonNegotiables,
   };

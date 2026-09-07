@@ -63,4 +63,29 @@ describe("composeSharedSearch", () => {
     expect(caption).not.toContain("Guadalajara");
     expect(caption.length).toBeLessThanOrEqual(90);
   });
+
+  it("does not let city-only zoneRule hide Plaza Patria from the share label", () => {
+    const place = resolveSharedSearchPlacePhrase({
+      neighborhoods: [],
+      pois: [],
+      cityAbbr: "GDL",
+      cityLabel: "Guadalajara",
+      label: "GDL · $5–5k · Plaza Patria",
+      zoneRule: "Guadalajara",
+      insights: [],
+    });
+    expect(place).toBe("Plaza Patria");
+    const caption = formatShareOgCaption({
+      exactCount: 1,
+      similarCount: 0,
+      cityAbbr: "GDL",
+      cityLabel: "Guadalajara",
+      priceLabel: "$5k–$5k",
+      mainArea: place,
+    });
+    expect(caption).toContain("Plaza Patria");
+    expect(caption).toMatch(/1 en zona/);
+    expect(caption).not.toContain("Guadalajara");
+    expect(caption.length).toBeLessThanOrEqual(90);
+  });
 });
