@@ -28,7 +28,7 @@ export function outreachInvitationRouter(db: DatabaseSync) {
 
   r.post("/generate", (req: Request, res: Response): void => {
     const ip = req.ip || "unknown";
-    if (!generateLimiter.check(ip).ok) {
+    if (!generateLimiter(ip).ok) {
       res.status(429).json({ error: "rate_limited" });
       return;
     }
