@@ -168,12 +168,11 @@ export function zoneRuleForSavedSearch(
   const stored = location.neighborhoods.map((n) => n.name.trim()).filter((name) => name.length > 0);
   const uniqPois = [...new Set(poiNames)];
 
-  if (stored.length && uniqPois.length) {
-    return `${stored.join(", ")} · 3.5 km de ${uniqPois[0]}`;
+  const named = [...stored, ...uniqPois].filter((name, i, arr) => arr.indexOf(name) === i);
+  if (named.length > 1) {
+    return named.length === 2 ? `${named[0]} o ${named[1]}` : `${named.slice(0, -1).join(", ")} o ${named[named.length - 1]}`;
   }
-  if (uniqPois.length) {
-    return `Cuartos a 3.5 km de ${uniqPois[0]}`;
-  }
+  if (named.length === 1) return `Cuartos a 3.5 km de ${named[0]}`;
   if (stored.length) return stored.join(", ");
   if (filters.bbox || similar?.bbox) return "Área del mapa";
   return location.cityLabel?.trim() || "";

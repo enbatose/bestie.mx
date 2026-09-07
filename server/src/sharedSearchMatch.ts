@@ -28,6 +28,8 @@ export type SharedSearchSimilarConfig = {
   pois: SearchPlacePin[];
   bbox: Bbox | null;
   requiredTags: ListingTag[];
+  /** Hard excludes, e.g. singles-only rooms when the seeker asked for two people. */
+  excludedTags?: ListingTag[];
   lodgingType: LodgingType | null;
   seekerGender: "female" | "male" | null;
   highAffinityMin: number;
@@ -87,6 +89,7 @@ export function defaultSimilarConfig(
     pois: [],
     bbox: null,
     requiredTags: [],
+    excludedTags: [],
     lodgingType: null,
     seekerGender: null,
     highAffinityMin: HIGH_AFFINITY_MIN,
@@ -178,16 +181,49 @@ export function passesGenderNonNegotiable(
   return listing.roommateGenderPref === seekerGender;
 }
 
+const COUPLE_OCCUPANCY_RE =
+  /\b(?:para\s+(?:dos|2)\s+personas|somos\s+(?:dos|2)|somos\s+pareja|para\s+(?:mi\s+)?pareja|en\s+pareja|cuarto\s+para\s+(?:dos|2))\b/i;
+
+/** "Cuarto para dos personas" is a couple room, not a singles-only listing. */
+export function coupleOccupancyRequested(texts: string[]): boolean {
+  return texts.some((raw) => COUPLE_OCCUPANCY_RE.test(raw));
+}
+
+function listingHitsExcludedTag(listing: PropertyListing, cfg: SharedSearchSimilarConfig): boolean {
+  const excluded = cfg.excludedTags ?? [];
+  return excluded.some((tag) => listing.tags.includes(tag));
+}
+
 function passesHardSimilar(
   listing: PropertyListing,
   cfg: SharedSearchSimilarConfig,
 ): boolean {
   if (!passesGenderNonNegotiable(listing, cfg.seekerGender)) return false;
+  if (listingHitsExcludedTag(listing, cfg)) return false;
   if (cfg.lodgingType && listing.lodgingType && listing.lodgingType !== cfg.lodgingType) return false;
   for (const tag of cfg.requiredTags) {
     if (!listing.tags.includes(tag)) return false;
   }
   return listing.roomOccupancyStatus !== "occupied";
+}
+
+/** Neighborhood pins and POI pins are the same 3.5 km disks. */
+export function zonePinsForSearch(
+  location: SavedSearchLocationSnapshot,
+  cfg: SharedSearchSimilarConfig,
+): SearchPlacePin[] {
+  const out: SearchPlacePin[] = [];
+  const seen = new Set<string>();
+  const push = (pin: SearchPlacePin) => {
+    if (!Number.isFinite(pin.lat) || !Number.isFinite(pin.lng)) return;
+    const key = `${pin.lat.toFixed(5)},${pin.lng.toFixed(5)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(pin);
+  };
+  for (const pin of cfg.pois) push(pin);
+  for (const pin of location.neighborhoods) push({ name: pin.name, lat: pin.lat, lng: pin.lng });
+  return out;
 }
 
 function combinedScore(locationScore: number, priceScore: number | null): number {
@@ -250,13 +286,12 @@ function exactLocationOk(
   location: SavedSearchLocationSnapshot,
   cfg: SharedSearchSimilarConfig,
 ): boolean {
-  const hasPois = cfg.pois.length > 0;
+  const pins = zonePinsForSearch(location, cfg);
   const hasNeighborhoods = location.neighborhoods.length > 0;
-  if (hasPois || hasNeighborhoods) {
-    const poiHit =
-      hasPois && (minDistanceKmToPins(listing, cfg.pois) ?? Infinity) <= EXACT_POI_RADIUS_KM;
+  if (pins.length || hasNeighborhoods) {
+    const pinHit = pins.length > 0 && (minDistanceKmToPins(listing, pins) ?? Infinity) <= EXACT_POI_RADIUS_KM;
     const neighborhoodHit = hasNeighborhoods && listingMatchesNeighborhoods(listing, location.neighborhoods);
-    return poiHit || neighborhoodHit;
+    return pinHit || neighborhoodHit;
   }
   // Named landmark with no pin must not become every room in the metro.
   if (cfg.unresolvedPlace) return false;
@@ -271,7 +306,7 @@ export function matchExactSharedSearch(
   cfg: SharedSearchSimilarConfig,
 ): PropertyListing[] {
   const filtered = filterListings(listings, { ...filters, bbox: null });
-  return filtered.filter((l) => exactLocationOk(l, location, cfg));
+  return filtered.filter((l) => !listingHitsExcludedTag(l, cfg) && exactLocationOk(l, location, cfg));
 }
 
 function rankSimilarAtRadius(
@@ -318,11 +353,13 @@ export function splitSharedSearchMatches(
   location: SavedSearchLocationSnapshot,
   cfg: SharedSearchSimilarConfig,
 ): { exact: PropertyListing[]; similar: RankedListing[] } {
-  const exact = matchExactSharedSearch(listings, filters, location, cfg);
+  const pins = zonePinsForSearch(location, cfg);
+  const zoned = pins.length ? { ...cfg, pois: pins, bbox: null } : cfg;
+  const exact = matchExactSharedSearch(listings, filters, location, zoned);
   const similar = matchSimilarSharedSearch(
     listings,
     filters,
-    cfg,
+    zoned,
     new Set(exact.map((l) => l.id)),
   );
   return { exact, similar };
@@ -345,29 +382,42 @@ export function recoverPinsFromPlacePhrases(
   cityCode?: string,
 ): { location: SavedSearchLocationSnapshot; similar: SharedSearchSimilarConfig; recovered: boolean } {
   if (similar.pois.length > 0 || location.neighborhoods.length > 0) {
-    return { location, similar, recovered: false };
+    return applyCoupleOccupancy(location, similar, phrases, false);
   }
   const pins = resolvePlacePins(phrases, "poi", cityCode ?? location.cityCode);
   if (!pins.length) {
     const named = phrases.map((p) => specificPlacePhrase(p)).find(Boolean);
-    if (!named) return { location, similar, recovered: false };
-    return {
-      recovered: false,
-      location,
-      similar: { ...similar, unresolvedPlace: true },
-    };
+    if (!named) return applyCoupleOccupancy(location, similar, phrases, false);
+    return applyCoupleOccupancy(location, { ...similar, unresolvedPlace: true }, phrases, false);
   }
   const pin = pins[0]!;
   const metro = resolveMetroCity(cityCode ?? location.cityCode);
-  return {
-    recovered: true,
-    location: {
+  return applyCoupleOccupancy(
+    {
       ...location,
       lat: pin.lat,
       lng: pin.lng,
       zoom: metro.neighborhoodZoom,
     },
-    similar: { ...similar, pois: pins, bbox: null },
+    { ...similar, pois: pins, bbox: null },
+    phrases,
+    true,
+  );
+}
+
+function applyCoupleOccupancy(
+  location: SavedSearchLocationSnapshot,
+  similar: SharedSearchSimilarConfig,
+  phrases: string[],
+  recovered: boolean,
+): { location: SavedSearchLocationSnapshot; similar: SharedSearchSimilarConfig; recovered: boolean } {
+  if (!coupleOccupancyRequested(phrases)) return { location, similar, recovered };
+  const excluded = similar.excludedTags ?? [];
+  if (excluded.includes("individuos-solo")) return { location, similar, recovered };
+  return {
+    location,
+    recovered: true,
+    similar: { ...similar, excludedTags: [...excluded, "individuos-solo"] },
   };
 }
 
@@ -392,6 +442,7 @@ export function parseSimilarConfig(raw: string): SharedSearchSimilarConfig {
       pois,
       bbox: v.bbox && typeof v.bbox === "object" ? v.bbox : null,
       requiredTags: Array.isArray(v.requiredTags) ? (v.requiredTags as ListingTag[]) : [],
+      excludedTags: Array.isArray(v.excludedTags) ? (v.excludedTags as ListingTag[]) : [],
       lodgingType: v.lodgingType === "private_room" || v.lodgingType === "shared_room" ? v.lodgingType : null,
       seekerGender,
       highAffinityMin: typeof v.highAffinityMin === "number" ? v.highAffinityMin : HIGH_AFFINITY_MIN,

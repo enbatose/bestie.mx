@@ -100,6 +100,16 @@ function stripBestiePhoneClaims(text: string, url: string): string {
   return lines.join("\n").split(placeholder).join(url);
 }
 
+/** Gemini upgrades "en zona / cerca" into "punto exacto" and "muy cerca". Keep the product words. */
+export function softenDiffusionDistanceClaims(text: string): string {
+  return text
+    .replace(/\ben el punto exacto\b/gi, "en zona")
+    .replace(/\bpunto exacto\b/gi, "en zona")
+    .replace(/\bjusto en el (?:área|area|zona)\b/gi, "en zona")
+    .replace(/\bmuy cerca\b/gi, "cerca")
+    .replace(/\ben los alrededores\b/gi, "cerca");
+}
+
 function ensureSignOff(text: string): string {
   const trimmed = text.trimEnd();
   if (trimmed.endsWith(DIFFUSION_COMMENT_SIGN_OFF)) return trimmed;
@@ -220,6 +230,11 @@ Reglas del enlace (crítico para Facebook):
 - Bestie NO tiene teléfono, WhatsApp ni Messenger de atención. Nunca inventes ni cites un número.
 - Un teléfono, WhatsApp o "manda msj / Messenger" del post es del seeker, no de Bestie. No lo repitas. No digas "escríbenos", "llámanos", "nuestro número" ni des un teléfono. El único contacto de Bestie en el comentario es el enlace.
 
+Conteos y zona (no los infles):
+- Si te dan conteos, úsalos con esas palabras: "N en zona" y "M cerca". "En zona" es el disco de 3.5 km. "Cerca" son opciones más lejos, no la misma cuadra.
+- Prohibido: "punto exacto", "justo en", "justo en el área", "muy cerca", "en los alrededores", "a la vuelta".
+- Si la zona nombra varios lugares, menciónalos todos. No te quedes solo con el primero.
+
 Formato:
 - 3–6 oraciones cortas + URL + firma. Longitud de comentario de Facebook (no párrafo largo).
 - Variar estructura y vocabulario en cada generación para que no suene a plantilla spam / bot.
@@ -259,7 +274,9 @@ export function buildOutreachDiffusionUserPrompt(input: DiffusionCommentInput): 
 
 export function finalizeOutreachDiffusionCopy(raw: string, sharePathOrUrl: string): string {
   const url = diffusionPublicShareUrl(sharePathOrUrl);
-  let text = stripBestiePhoneClaims(scrubProseDomains(stripCodeFences(raw), url), url);
+  let text = softenDiffusionDistanceClaims(
+    stripBestiePhoneClaims(scrubProseDomains(stripCodeFences(raw), url), url),
+  );
   text = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
   text = ensureUrl(text, url);
   text = ensureSignOff(text);

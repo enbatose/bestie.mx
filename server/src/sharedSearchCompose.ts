@@ -5,6 +5,7 @@ import type { ListingTag, LodgingType } from "./types.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
 import {
   EMPTY_SEARCH_FILTERS,
+  coupleOccupancyRequested,
   defaultSimilarConfig,
   resolvePlacePins,
   type SharedSearchInsight,
@@ -210,10 +211,16 @@ export function composeSharedSearch(opts: {
   }
 
   const lodgingHard = nonNegotiables.some((n) => n.kind === "lodging");
+  const coupleTexts = [
+    ext.mainAreaLabel ?? "",
+    ext.descriptionKeywords ?? "",
+    ...insights.map((i) => `${i.label} ${i.text}`),
+  ];
   const similar = defaultSimilarConfig({
     pois: pins.length ? pins : neighborhoodPins,
     bbox: ext.bbox ?? null,
     requiredTags,
+    excludedTags: coupleOccupancyRequested(coupleTexts) ? ["individuos-solo"] : [],
     lodgingType: lodgingHard && lodging !== "whole_home" ? lodging : null,
     seekerGender,
   });
@@ -271,11 +278,11 @@ export function resolveSharedSearchPlacePhrase(opts: {
   mainAreaFallback?: string;
 }): string {
   const cityHints = [opts.cityAbbr, opts.cityLabel, "GDL", "Guadalajara"].filter(Boolean) as string[];
-  const fromPin =
-    opts.neighborhoods?.map((n) => n.name.trim()).find(Boolean) ||
-    opts.pois?.map((p) => p.name.trim()).find(Boolean) ||
-    "";
-  if (fromPin && usefulPlacePhrase(fromPin, cityHints)) return fromPin;
+  const joinedPins = joinPlaceNames(
+    [...(opts.neighborhoods ?? []), ...(opts.pois ?? [])].map((n) => n.name),
+    cityHints,
+  );
+  if (joinedPins) return joinedPins;
 
   const zone = opts.zoneRule?.trim() ?? "";
   // City-only zone ("Guadalajara") must not beat a label like "… · Plaza Patria".
@@ -319,6 +326,20 @@ function usefulPlacePhrase(place: string, cityHints: string | string[]): string 
     if (normalizedPlace === normalizedCity) return "";
   }
   return p;
+}
+
+function joinPlaceNames(names: string[], cityHints: string[]): string {
+  const uniq: string[] = [];
+  for (const raw of names) {
+    const t = raw.trim();
+    if (!t || !usefulPlacePhrase(t, cityHints)) continue;
+    if (uniq.some((x) => normalizePlaceCompare(x) === normalizePlaceCompare(t))) continue;
+    uniq.push(t);
+    if (uniq.length >= 3) break;
+  }
+  if (uniq.length <= 1) return uniq[0] ?? "";
+  if (uniq.length === 2) return `${uniq[0]} o ${uniq[1]}`;
+  return `${uniq.slice(0, -1).join(", ")} o ${uniq[uniq.length - 1]}`;
 }
 
 function stripCercaPrefix(text: string): string {

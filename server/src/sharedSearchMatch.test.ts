@@ -48,6 +48,29 @@ describe("shared search matching", () => {
     expect(pins.some((p) => p.name === "ITESO")).toBe(true);
   });
 
+  it("excludes singles-only rooms when the seeker asked for two people", () => {
+    const emptyHoods = { ...location, neighborhoods: [] as typeof location.neighborhoods };
+    const recovered = recoverPinsFromPlacePhrases(
+      { ...location, neighborhoods: [{ name: "Centro", lat: 20.6751, lng: -103.3473 }] },
+      defaultSimilarConfig({ pois: [{ name: "Centro", lat: 20.6751, lng: -103.3473 }] }),
+      ["para dos personas"],
+      "gdl",
+    );
+    expect(recovered.similar.excludedTags).toContain("individuos-solo");
+    const coupleOk = listing({ id: "ok", lat: 20.676, lng: -103.348, tags: ["muebles"] });
+    const singles = listing({ id: "solo", lat: 20.676, lng: -103.348, tags: ["individuos-solo"] });
+    const far = listing({ id: "far", lat: 20.55, lng: -103.45, neighborhood: "Aeropuerto", tags: ["muebles"] });
+    const split = splitSharedSearchMatches(
+      [coupleOk, singles, far],
+      EMPTY_SEARCH_FILTERS,
+      recovered.location,
+      recovered.similar,
+    );
+    expect(split.exact.map((l) => l.id)).toEqual(["ok"]);
+    expect(split.similar.map((r) => r.listing.id)).not.toContain("far");
+    expect(split.similar.map((r) => r.listing.id)).not.toContain("solo");
+  });
+
   it("resolves Tianguis del Sol without confusing it with Plaza del Sol", () => {
     const tianguis = resolvePlacePins(["GDL · Tianguis del Sol"]);
     expect(tianguis.map((p) => p.name)).toEqual(["Tianguis del Sol"]);

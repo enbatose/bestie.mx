@@ -64,6 +64,22 @@ describe("composeSharedSearch", () => {
     expect(caption.length).toBeLessThanOrEqual(90);
   });
 
+  it("names every requested zone, not only the first pin", () => {
+    const place = resolveSharedSearchPlacePhrase({
+      neighborhoods: [
+        { name: "Centro" },
+        { name: "Tonalá" },
+        { name: "Tlaquepaque" },
+      ],
+      pois: [],
+      cityAbbr: "GDL",
+      cityLabel: "Guadalajara",
+      label: "GDL · Centro",
+      zoneRule: "Centro, Tonalá, Tlaquepaque · 3.5 km de Centro",
+    });
+    expect(place).toBe("Centro, Tonalá o Tlaquepaque");
+  });
+
   it("does not let city-only zoneRule hide Plaza Patria from the share label", () => {
     const place = resolveSharedSearchPlacePhrase({
       neighborhoods: [],
