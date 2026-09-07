@@ -7,7 +7,7 @@ Bestie prod data lives on Railway volume `bestie-prod-volume` (`/data`: SQLite `
 | Layer | What | Region / home | Retention |
 | --- | --- | --- | --- |
 | **A. Native Railway volume backups** | Snapshot of prod volume | Same project/env as prod | Daily (6 days) + Weekly (1 month) — enable under **bestie-prod → Backups** if not already on |
-| **B. Warm standby volume** | Service `bestie-backup` mounts `/data` with extracted latest + dated copies | **US East** | Latest + **7** daily folders |
+| **B. Warm standby volume** | Service `bestie-backup` mounts `/data` with extracted latest + dated archive copies | **US East** | Latest (archive + extract) + **3** daily folders (archive + manifest only) |
 | **C. Object store** | Railway Bucket `bestie-prod-backups` | **iad (US East)** | **14** daily + **8** weekly (Sundays) + `latest/` |
 
 Nothing in B/C is wired as an app environment database — redundancy only.
@@ -22,9 +22,9 @@ Flow each night:
 
 1. Cron triggers `POST https://www.bestie.mx/api/internal/backup/run` (Bearer `BACKUP_JOB_SECRET`).
 2. Prod takes an online SQLite backup + packs `uploads/`, uploads to the bucket.
-3. Cron downloads `latest/` into the US East volume and keeps dated copies.
+3. Cron downloads `latest/` into the US East volume, extracts once under `/data/latest/extracted`, and keeps dated **archive-only** copies under `/data/daily/` (3 days — the 5GB volume cannot hold 7× full archive+extract copies of a ~700MB dump).
 
-Failures email `BACKUP_ALERT_TO` (default: same as contact forward / `batani.enrique@gmail.com`).
+Failures email `BACKUP_ALERT_TO` (default: same as contact forward / `batani.enrique@gmail.com`). `bestie-backup` must use the same valid `RESEND_API_KEY` / `EMAIL_FROM` as prod or alerts fail with HTTP 401.
 
 ## Manual / force run
 

@@ -8,7 +8,8 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 # WORKDIR in the image is /app/server — same as bestie-prod.
-startCommand = "node dist/backupCronEntry.js"
-# Cron runs, then exits. No HTTP server / healthcheck.
-restartPolicyType = "NEVER"
-cronSchedule = "0 5,6 * * *"
+# TEMP: prune warm volume then sleep so ops can SSH / verify free space.
+# Restore to: startCommand = "node dist/backupCronEntry.js" + cronSchedule after prune.
+startCommand = "sh -c 'echo pruning; du -sh /data /data/daily /data/latest 2>/dev/null || true; rm -rf /data/daily /data/latest/extracted; mkdir -p /data/daily /data/latest; df -h /data; echo prune_done; exec sleep infinity'"
+restartPolicyType = "ALWAYS"
+# cronSchedule cleared while pruning; restore "0 5,6 * * *" after volume is healthy.

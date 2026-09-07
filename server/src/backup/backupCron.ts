@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { sendTransactionalEmail } from "../mailer.js";
 import {
   BACKUP_ARCHIVE_NAME,
+  BACKUP_MANIFEST_NAME,
   BACKUP_WARM_DAILY_RETENTION,
   backupAlertTo,
   isMexicoCityMidnightHour,
@@ -31,13 +32,13 @@ async function alert(reason: string, detail?: string): Promise<void> {
   });
 }
 
-async function pruneWarmDaily(archiveRoot: string): Promise<void> {
+async function pruneWarmDaily(archiveRoot: string, keep: number): Promise<void> {
   if (!fs.existsSync(archiveRoot)) return;
   const dates = (await fs.promises.readdir(archiveRoot))
     .filter((name) => /^\d{4}-\d{2}-\d{2}$/.test(name))
     .sort()
     .reverse();
-  for (const dateKey of dates.slice(BACKUP_WARM_DAILY_RETENTION)) {
+  for (const dateKey of dates.slice(keep)) {
     await fs.promises.rm(path.join(archiveRoot, dateKey), { recursive: true, force: true });
   }
 }
@@ -107,18 +108,22 @@ export async function runBackupCronJob(): Promise<number> {
   const dataRoot = (process.env.BACKUP_DATA_DIR ?? "/data").trim() || "/data";
   const latestDir = path.join(dataRoot, "latest");
   const dailyRoot = path.join(dataRoot, "daily");
+  const extractDir = path.join(latestDir, "extracted");
   await fs.promises.mkdir(latestDir, { recursive: true });
   await fs.promises.mkdir(dailyRoot, { recursive: true });
 
+  // Free space before download: drop old dated copies and previous extract.
+  // (Copying archive+extracted into 7 daily folders filled the 5GB volume.)
+  await pruneWarmDaily(dailyRoot, BACKUP_WARM_DAILY_RETENTION - 1);
+  await fs.promises.rm(extractDir, { recursive: true, force: true });
+
   const client = createBackupS3Client(s3cfg);
   const archivePath = path.join(latestDir, BACKUP_ARCHIVE_NAME);
-  const manifestPath = path.join(latestDir, "manifest.json");
+  const manifestPath = path.join(latestDir, BACKUP_MANIFEST_NAME);
   const bytes = await downloadBackupObject(client, s3cfg.bucket, latestObjectKey(), archivePath);
   await downloadBackupObject(client, s3cfg.bucket, latestManifestKey(), manifestPath);
   console.log(`[backup-cron] downloaded latest archive bytes=${bytes}`);
 
-  const extractDir = path.join(latestDir, "extracted");
-  await fs.promises.rm(extractDir, { recursive: true, force: true });
   await fs.promises.mkdir(extractDir, { recursive: true });
   await execFileAsync("tar", ["-xzf", archivePath, "-C", extractDir], {
     maxBuffer: 32 * 1024 * 1024,
@@ -127,8 +132,11 @@ export async function runBackupCronJob(): Promise<number> {
   const { dateKey } = mexicoCityParts();
   const dayDir = path.join(dailyRoot, dateKey);
   await fs.promises.rm(dayDir, { recursive: true, force: true });
-  await fs.promises.cp(latestDir, dayDir, { recursive: true });
-  await pruneWarmDaily(dailyRoot);
+  await fs.promises.mkdir(dayDir, { recursive: true });
+  // Dated folders keep archive + manifest only (restore can extract on demand).
+  await fs.promises.copyFile(archivePath, path.join(dayDir, BACKUP_ARCHIVE_NAME));
+  await fs.promises.copyFile(manifestPath, path.join(dayDir, BACKUP_MANIFEST_NAME));
+  await pruneWarmDaily(dailyRoot, BACKUP_WARM_DAILY_RETENTION);
 
   const marker = path.join(dataRoot, "LAST_OK");
   await fs.promises.writeFile(

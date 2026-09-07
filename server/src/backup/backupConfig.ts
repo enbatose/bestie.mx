@@ -9,8 +9,12 @@ export const BACKUP_DAILY_RETENTION = 14;
 /** Keep this many weekly object-store snapshots (written on Sundays). */
 export const BACKUP_WEEKLY_RETENTION = 8;
 
-/** Keep this many dated copies on the warm US-East volume. */
-export const BACKUP_WARM_DAILY_RETENTION = 7;
+/**
+ * Dated copies on the warm US-East volume (archive + manifest only).
+ * Keep low: a ~700MB daily archive × N must fit on the 5GB Railway volume
+ * alongside `latest/` (archive + extracted).
+ */
+export const BACKUP_WARM_DAILY_RETENTION = 3;
 
 export const BACKUP_OBJECT_PREFIX = "bestie-prod";
 export const BACKUP_ARCHIVE_NAME = "bestie-data.tar.gz";
