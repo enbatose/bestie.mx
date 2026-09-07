@@ -10,6 +10,7 @@ import {
   type OutreachDuplicateListing,
 } from "@/lib/assistedDraftApi";
 import { httpStatusErrorMessage } from "@/lib/httpStatusErrorMessage";
+import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { ListingPhoneCaptureFields } from "@/components/publish/ListingPhoneCaptureFields";
 import { formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 import {
@@ -137,6 +138,60 @@ function DuplicateAccountLine({ account }: { account: OutreachDuplicateAccount }
         Ver en ARCO
       </a>
     </p>
+  );
+}
+
+function PhoneLookupResult({
+  phoneDisplay,
+  result,
+}: {
+  phoneDisplay: string;
+  result: OutreachDuplicateCheck;
+}) {
+  const postCount = result.phoneListings.length;
+  const account = result.phoneAccount;
+  const clean = postCount === 0 && !account;
+
+  return (
+    <div className="mt-3 min-w-0 space-y-2" role="status">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Resultado para {phoneDisplay}
+      </p>
+      {clean ? (
+        <div className="flex min-w-0 items-start gap-2 rounded-xl border border-secondary/40 bg-secondary/10 px-3 py-2.5">
+          <Check size={16} className="mt-0.5 shrink-0 text-secondary" aria-hidden />
+          <p className="min-w-0 break-words text-sm text-body">
+            Este número no está en ningún anuncio ni asignado a ninguna cuenta.
+          </p>
+        </div>
+      ) : null}
+      {postCount > 0 ? (
+        <OutreachDupBanner
+          title={
+            postCount === 1
+              ? "Este número ya se usó en 1 anuncio"
+              : `Este número ya se usó en ${postCount} anuncios`
+          }
+        >
+          <DuplicateListingRows listings={result.phoneListings} />
+        </OutreachDupBanner>
+      ) : !clean ? (
+        <p className="text-sm text-body">No hay anuncios con este teléfono.</p>
+      ) : null}
+      {account ? (
+        <OutreachDupBanner
+          title={
+            account.phoneVerified
+              ? `Este número está asignado a ${account.displayName}`
+              : `Este número está en la cuenta de ${account.displayName} (aún no verificado)`
+          }
+        >
+          <DuplicateAccountLine account={account} />
+        </OutreachDupBanner>
+      ) : !clean ? (
+        <p className="text-sm text-body">No está asignado a ninguna cuenta.</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -433,6 +488,10 @@ export function AdminAssistedDraftPanel() {
   const [publisherName, setPublisherName] = useState("");
   const [facebookUrl, setFacebookUrl] = useState("");
   const [dupCheck, setDupCheck] = useState<OutreachDuplicateCheck>(EMPTY_DUP_CHECK);
+  const [lookupPhone, setLookupPhone] = useState("");
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupErr, setLookupErr] = useState<string | null>(null);
+  const [lookupResult, setLookupResult] = useState<OutreachDuplicateCheck | null>(null);
 
   useEffect(() => {
     if (!extraction) {
@@ -579,6 +638,26 @@ export function AdminAssistedDraftPanel() {
     setPublisherName("");
     setFacebookUrl("");
     setDupCheck(EMPTY_DUP_CHECK);
+    setLookupPhone("");
+    setLookupErr(null);
+    setLookupResult(null);
+  };
+
+  const lookupDigits = normalizeMxNationalDigits(lookupPhone);
+
+  const handleLookupPhone = async () => {
+    if (!lookupDigits || lookupBusy) return;
+    setLookupBusy(true);
+    setLookupErr(null);
+    setLookupResult(null);
+    try {
+      const result = await adminOutreachDuplicateCheck({ phone: lookupDigits });
+      setLookupResult(result);
+    } catch (e) {
+      setLookupErr(httpStatusErrorMessage(e, "No se pudo validar el número."));
+    } finally {
+      setLookupBusy(false);
+    }
   };
 
   return (
@@ -589,6 +668,58 @@ export function AdminAssistedDraftPanel() {
           Analiza texto o imágenes de Facebook con IA y genera un enlace de reclamación que el propietario puede usar para publicar su anuncio.
         </p>
       </div>
+
+      <form
+        className="min-w-0 rounded-2xl border border-border bg-surface p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleLookupPhone();
+        }}
+      >
+        <label
+          htmlFor="admin-outreach-phone-lookup"
+          className="block text-sm font-semibold text-body"
+        >
+          Validar teléfono (México)
+        </label>
+        <p className="mt-1 text-xs text-muted">
+          10 dígitos. Revisa si este número ya está en algún anuncio y si está asignado a una cuenta.
+        </p>
+        <div className="mt-2 min-w-0">
+          <PhoneNumberField
+            id="admin-outreach-phone-lookup"
+            value={lookupPhone}
+            onChange={(next) => {
+              setLookupPhone(next);
+              setLookupResult(null);
+              setLookupErr(null);
+            }}
+            showLabel={false}
+            showWhatsAppHint={false}
+            allowCountryChange={false}
+            label="Teléfono de México"
+            disabled={lookupBusy}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={!lookupDigits || lookupBusy}
+          className="mt-2 inline-flex min-h-11 min-w-0 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-fg hover:brightness-110 disabled:opacity-40"
+        >
+          {lookupBusy ? "Validando…" : "Validar número"}
+        </button>
+        {lookupErr ? (
+          <p role="alert" className="mt-2 break-words text-sm text-error">
+            {lookupErr}
+          </p>
+        ) : null}
+        {lookupResult && lookupDigits ? (
+          <PhoneLookupResult
+            phoneDisplay={formatMxPhoneDisplay(lookupDigits)}
+            result={lookupResult}
+          />
+        ) : null}
+      </form>
 
       {/* City selector */}
       <div>
