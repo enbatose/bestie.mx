@@ -646,8 +646,8 @@ function sharedSearchPlaceAndZone(
   const zoneIsCityOnly =
     !zoneRule ||
     zoneRule === "Área del mapa" ||
-    normalizeLoosePlace(zoneRule) === normalizeLoosePlace(metro.abbr) ||
-    normalizeLoosePlace(zoneRule) === normalizeLoosePlace(cityLabel) ||
+    normalizeLoosePlace(zoneRule) === normalizeLoosePlace(metro.abbr || "") ||
+    normalizeLoosePlace(zoneRule) === normalizeLoosePlace(cityLabel || "") ||
     normalizeLoosePlace(zoneRule) === "guadalajara" ||
     normalizeLoosePlace(zoneRule) === "gdl";
   if (zoneIsCityOnly && place) {

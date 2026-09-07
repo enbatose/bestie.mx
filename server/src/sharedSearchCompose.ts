@@ -241,7 +241,7 @@ export function formatShareOgCaption(opts: {
   cityLabel?: string;
 }): string {
   // FB in-comment cards often show only domain + og:title (description hidden). Put place early.
-  const place = usefulPlacePhrase(opts.mainArea, [opts.cityAbbr, opts.cityLabel, "GDL", "Guadalajara"]);
+  const place = usefulPlacePhrase(opts.mainArea, [opts.cityAbbr, opts.cityLabel ?? "", "GDL", "Guadalajara"]);
   const price = opts.priceLabel.trim();
   const counts = `${opts.exactCount} en zona, ${opts.similarCount} cerca`;
   if (place) {
