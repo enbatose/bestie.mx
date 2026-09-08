@@ -41,7 +41,7 @@ function roomIdFrom(req: Request): string | null {
   return raw || null;
 }
 
-function handleGet(db: DatabaseSync, req: Request, res: Response, action: AvailabilityAction, code: string): void {
+function handleGet(db: DatabaseSync, _req: Request, res: Response, action: AvailabilityAction, code: string): void {
   const found = lookupAvailabilityCode(db, code);
   if (!found || found.action !== action) {
     sendHtml(res, 404, availabilityResultPage({ outcome: "invalid" }));
