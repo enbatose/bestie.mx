@@ -7,6 +7,7 @@ import {
 } from "./listingReference.js";
 import { posthogReplayUrl } from "./vendorUsageLimits.js";
 import { isSelfServeCreator, SELF_SERVE_CREATOR_ID } from "./assistedDraftMerge.js";
+import { isUnclaimedAdminOutreach } from "./phoneAuth.js";
 import {
   countPostsExpiringWithin5Days,
   ensureListingAvailabilitySchema,
@@ -205,6 +206,7 @@ export function listAdminPosts(
     offset?: number;
   } = {},
 ): AdminPostsListResult {
+  const expiringQueue = opts.status === "expiring";
   const rawLimit = Number(opts.limit);
   const limit = ADMIN_POSTS_PAGE_SIZES.includes(rawLimit as (typeof ADMIN_POSTS_PAGE_SIZES)[number])
     ? (rawLimit as (typeof ADMIN_POSTS_PAGE_SIZES)[number])
@@ -219,7 +221,7 @@ export function listAdminPosts(
 
   const statusRaw = typeof opts.status === "string" ? opts.status.trim() : "";
   const reportFilter = statusRaw === "reported";
-  const statusFilter = isAdminPostStatus(statusRaw) ? statusRaw : null;
+  const statusFilter = !expiringQueue && isAdminPostStatus(statusRaw) ? statusRaw : null;
 
   const rawQ =
     typeof opts.q === "string"
@@ -246,6 +248,8 @@ export function listAdminPosts(
           OR pr.target_room_id IN (SELECT r2.id FROM rooms r2 WHERE r2.property_id = p.id)
         )
     )`);
+  } else if (expiringQueue) {
+    conditions.push(`p.status = 'published'`);
   } else if (statusFilter) {
     conditions.push(`p.status = ?`);
     params.push(statusFilter);
@@ -494,7 +498,7 @@ export function listAdminPosts(
       LIMIT ? OFFSET ?
     `,
     )
-    .all(...params, limit, offset) as Record<string, unknown>[];
+    .all(...params, expiringQueue ? 500 : limit, expiringQueue ? 0 : offset) as Record<string, unknown>[];
 
   const posts: AdminPostRow[] = rows.map((row) => {
     const propertyId = String(row.property_id);
@@ -629,7 +633,33 @@ export function listAdminPosts(
     };
   });
 
-  return { posts, total, limit, offset, expiringWithin5Days };
+  if (!expiringQueue) {
+    return { posts, total, limit, offset, expiringWithin5Days };
+  }
+
+  const queued = posts
+    .filter(
+      (post) =>
+        post.status === "published" &&
+        post.availabilityDaysUntilPause != null &&
+        post.availabilityDaysUntilPause <= 5,
+    )
+    .sort((a, b) => {
+      const aUnclaimed = isUnclaimedAdminOutreach(db, a.propertyId) ? 0 : 1;
+      const bUnclaimed = isUnclaimedAdminOutreach(db, b.propertyId) ? 0 : 1;
+      if (aUnclaimed !== bUnclaimed) return aUnclaimed - bUnclaimed;
+      const reveal = b.phoneRevealUnique - a.phoneRevealUnique;
+      if (reveal !== 0) return reveal;
+      return (a.availabilityDaysUntilPause ?? 99) - (b.availabilityDaysUntilPause ?? 99);
+    });
+
+  return {
+    posts: queued.slice(offset, offset + limit),
+    total: queued.length,
+    limit,
+    offset,
+    expiringWithin5Days,
+  };
 }
 
 /** Resolve room → property and store publish-flow feedback on the property row. */

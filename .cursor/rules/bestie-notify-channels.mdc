@@ -32,7 +32,9 @@ Kill switch: `LISTING_FIRST_SEEKER_SMS=0`. Default on when SMS Masivos is config
 
 Canonical code: `server/src/listingAvailability.ts`.
 
-- At 25 days since publish, last confirmation, or resume: one email and/or SMS naming the post, with short confirm (`/c/`) and pause (`/p/`) links. One message per post.
-- Pause at 5 days after that notice if still unconfirmed (`paused_by = availability`). Resume resets the clock.
+- At 25 days since publish, last confirmation, or resume: email and/or SMS naming the post. One `https://` link to `/c/` where they choose **Sigue libre** or **Ya se rentó**. Old `/p/` links still mark rented.
+- Reveals are a reason to answer, not proof the room is free. Do not delay the pause for views, clicks, or phone reveals.
+- Claimed account with several due posts the same local morning: one SMS that morning (digest to `/mis-anuncios` when more than one). Unclaimed stays one SMS per post. Email stays one per post.
+- Pause at 5 days after that notice if still unconfirmed (`paused_by = availability`). **Ya se rentó** sets occupancy occupied so resume does not put it back in search without an explicit **Sigue libre**. Unanswered pause resume resets the clock.
 - Email when the account has an email. SMS if they also have a phone **and** `phone_notify_opt_in`. Phone-only (no email), including unclaimed listing phones: SMS regardless of `phone_notify_opt_in`.
 - Quiet hours apply. Do not pause until a notice was actually sent.

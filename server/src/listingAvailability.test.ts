@@ -13,7 +13,7 @@ import {
   AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS,
   AVAILABILITY_WINDOW_DAYS,
 } from "./listingAvailability.js";
-import { buildListingAvailabilitySms } from "./listingAvailabilitySms.js";
+import { buildListingAvailabilityDigestSms, buildListingAvailabilitySms } from "./listingAvailabilitySms.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -190,15 +190,37 @@ describe("availability notify channels", () => {
 });
 
 describe("buildListingAvailabilitySms", () => {
-  it("names the post and stays within 160 characters", () => {
+  it("uses one link and names the post when nobody asked for the number", () => {
     const text = buildListingAvailabilitySms({
       title: "Recámara amueblada privada céntrica luminosa amplia con balcón y roof garden en Americana",
-      confirmUrl: "bestie.mx/c/k7m2pq",
-      pauseUrl: "bestie.mx/p/k7m2pq",
+      confirmUrl: "https://bestie.mx/c/k7m2pq",
+      revealPeople: 0,
     });
-    expect(text).toContain("bestie.mx/c/k7m2pq");
-    expect(text).toContain("bestie.mx/p/k7m2pq");
-    expect(text).toContain("cumple 30 días");
+    expect(text).toContain("https://bestie.mx/c/k7m2pq");
+    expect(text).toContain("se oculta en 5 días");
+    expect(text).not.toContain("/p/");
+    expect(Array.from(text).length).toBeLessThanOrEqual(SMS_NOTIFY_MAX_CHARS);
+  });
+
+  it("mentions phone asks as a reason to answer, not as proof it is free", () => {
+    const text = buildListingAvailabilitySms({
+      title: "Cuarto en Americana",
+      confirmUrl: "https://bestie.mx/c/k7m2pq",
+      revealPeople: 3,
+    });
+    expect(text).toBe(
+      'Bestie: 3 personas pidieron tu número por "Cuarto en Americana". ¿Sigue libre? https://bestie.mx/c/k7m2pq',
+    );
+  });
+});
+
+describe("buildListingAvailabilityDigestSms", () => {
+  it("sends one morning text for several claimed posts", () => {
+    const text = buildListingAvailabilityDigestSms({
+      count: 3,
+      hubUrl: "https://bestie.mx/mis-anuncios",
+    });
+    expect(text).toBe("Bestie: 3 anuncios se ocultan en 5 días si no confirmas. https://bestie.mx/mis-anuncios");
     expect(Array.from(text).length).toBeLessThanOrEqual(SMS_NOTIFY_MAX_CHARS);
   });
 });

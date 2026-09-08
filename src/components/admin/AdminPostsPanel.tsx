@@ -13,13 +13,14 @@ import { AdminUserSupportLink } from "@/components/admin/AdminUserSupportLink";
 import { AdminConsentEvidenceForm } from "@/components/admin/AdminConsentEvidenceForm";
 import { adminSupportConversationPath } from "@/lib/adminSections";
 
-const STATUS_OPTIONS: { value: AdminPostStatus | "all" | "reported"; label: string }[] = [
+const STATUS_OPTIONS: { value: AdminPostStatus | "all" | "reported" | "expiring"; label: string }[] = [
   { value: "all", label: "Todos" },
   { value: "draft", label: "Borrador" },
   { value: "published", label: "Publicado" },
   { value: "paused", label: "Pausado" },
   { value: "archived", label: "Archivado" },
   { value: "reported", label: "Con reporte" },
+  { value: "expiring", label: "Por vencer" },
 ];
 
 function formatAdminDate(iso: string | null | undefined): string {
@@ -154,7 +155,9 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
   const [expiringWithin5Days, setExpiringWithin5Days] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all" | "reported">("published");
+  const [statusFilter, setStatusFilter] = useState<AdminPostStatus | "all" | "reported" | "expiring">(
+    "published",
+  );
   const [pageSize, setPageSize] = useState<(typeof ADMIN_POSTS_PAGE_SIZES)[number]>(25);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -254,9 +257,18 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
               : `${expiringWithin5Days.toLocaleString("es-MX")} anuncios vencen en los próximos 5 días si el dueño no los confirma.`}
         </p>
         <p className={`mt-1 text-xs leading-relaxed ${expiringWithin5Days > 0 ? "text-warning-fg" : "text-muted"}`}>
-          A los 30 días sin confirmación el anuncio se pausa. El dueño puede confirmar que sigue
-          disponible o reanudarlo después.
+          A los 30 días sin confirmación el anuncio se pausa. El dueño puede decir que sigue libre
+          o que ya se rentó.
         </p>
+        {expiringWithin5Days > 0 ? (
+          <button
+            type="button"
+            onClick={() => setStatusFilter("expiring")}
+            className="mt-3 min-h-11 rounded-full bg-surface px-4 text-xs font-semibold text-body ring-1 ring-warning/40"
+          >
+            Ver cola: sin dueño primero, luego los que más pidieron el número
+          </button>
+        ) : null}
       </section>
 
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 lg:flex-row lg:flex-wrap lg:items-end">
@@ -273,7 +285,9 @@ export function AdminPostsPanel({ onError, onStatusChanged }: Props) {
           Estado
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as AdminPostStatus | "all" | "reported")}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as AdminPostStatus | "all" | "reported" | "expiring")
+            }
             className="mt-1 w-full rounded-xl border border-border bg-bg-light px-3 py-2 text-sm outline-none ring-accent focus:ring-2"
           >
             {STATUS_OPTIONS.map((o) => (

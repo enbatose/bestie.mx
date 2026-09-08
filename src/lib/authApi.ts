@@ -872,7 +872,7 @@ export const ADMIN_POSTS_PAGE_SIZES = [10, 25, 50, 100] as const;
 export async function adminListPosts(
   opts: {
     q?: string;
-    status?: AdminPostStatus | "all" | "reported";
+    status?: AdminPostStatus | "all" | "reported" | "expiring";
     limit?: number;
     offset?: number;
   } = {},

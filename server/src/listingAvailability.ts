@@ -3,7 +3,10 @@ import type { DatabaseSync } from "node:sqlite";
 import { buildListingAvailabilityEmail } from "./emails/listingAvailabilityEmail.js";
 import { resolveTimeZoneForListingCity } from "./emails/emailDateTime.js";
 import { listingTitleLeadForSms } from "./listingFirstSeekerSms.js";
-import { buildListingAvailabilitySms } from "./listingAvailabilitySms.js";
+import {
+  buildListingAvailabilityDigestSms,
+  buildListingAvailabilitySms,
+} from "./listingAvailabilitySms.js";
 import { sendTransactionalEmail } from "./mailer.js";
 import { notifyPublisher } from "./notificationsSchema.js";
 import { isNotifyQuietHours } from "./notifyQuietHours.js";
@@ -262,7 +265,16 @@ export function ensureListingAvailabilitySchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_listing_availability_codes_property
       ON listing_availability_action_codes(property_id);
+    CREATE TABLE IF NOT EXISTS listing_availability_sms_sent (
+      recipient_key TEXT PRIMARY KEY,
+      sent_on TEXT NOT NULL,
+      sent_at TEXT NOT NULL
+    );
   `);
+  const roomCols = db.prepare(`PRAGMA table_info(rooms)`).all() as { name: string }[];
+  if (roomCols.length > 0 && !roomCols.some((c) => c.name === "availability_confirmed_at")) {
+    db.exec(`ALTER TABLE rooms ADD COLUMN availability_confirmed_at TEXT`);
+  }
 }
 
 function randomCode(): string {
@@ -328,6 +340,7 @@ type PropertyAvailRow = {
   id: string;
   publisher_id: string;
   status: string;
+  post_mode: string | null;
   title: string | null;
   city: string | null;
   neighborhood: string | null;
@@ -341,7 +354,7 @@ type PropertyAvailRow = {
 function loadProperty(db: DatabaseSync, propertyId: string): PropertyAvailRow | null {
   const row = db
     .prepare(
-      `SELECT id, publisher_id, status, title, city, neighborhood, contact_whatsapp,
+      `SELECT id, publisher_id, status, post_mode, title, city, neighborhood, contact_whatsapp,
               published_at, availability_confirmed_at, availability_notice_sent_at, paused_by
        FROM properties WHERE id = ?`,
     )
@@ -371,8 +384,116 @@ export function pausePropertyForAvailability(db: DatabaseSync, propertyId: strin
   ).run(AVAILABILITY_PAUSED_BY, propertyId);
 }
 
+type AvailableRoomRow = {
+  id: string;
+  title: string | null;
+  custom_name: string | null;
+  availability_confirmed_at: string | null;
+};
+
+function roomLabel(row: AvailableRoomRow, index: number): string {
+  const custom = String(row.custom_name ?? "").trim();
+  const title = String(row.title ?? "").trim();
+  if (custom && custom !== "Recámara 1") return custom;
+  if (title && title !== "Recámara 1") return title;
+  return `Recámara ${index + 1}`;
+}
+
+function availableRooms(db: DatabaseSync, propertyId: string): AvailableRoomRow[] {
+  return db
+    .prepare(
+      `SELECT id, title, custom_name, availability_confirmed_at
+       FROM rooms
+       WHERE property_id = ?
+         AND status = 'published'
+         AND IFNULL(occupancy_status, 'available') != 'occupied'
+       ORDER BY sort_order ASC, id ASC`,
+    )
+    .all(propertyId) as AvailableRoomRow[];
+}
+
+export function listAvailabilityRoomChoices(
+  db: DatabaseSync,
+  propertyId: string,
+): { id: string; label: string }[] {
+  return availableRooms(db, propertyId).map((row, i) => ({ id: row.id, label: roomLabel(row, i) }));
+}
+
+function remainingAvailableCount(db: DatabaseSync, propertyId: string): number {
+  return availableRooms(db, propertyId).length;
+}
+
+export function markRoomRented(db: DatabaseSync, propertyId: string, roomId: string | null): AvailabilityActionResult {
+  const prop = loadProperty(db, propertyId);
+  if (!prop) return { ok: false, error: "not_found" };
+  const title = String(prop.title ?? "").trim() || "Anuncio sin título";
+  if (prop.status !== "published") {
+    return { ok: true, outcome: "already_paused", title };
+  }
+  const rooms = availableRooms(db, propertyId);
+  const targets = roomId ? rooms.filter((r) => r.id === roomId) : rooms;
+  if (targets.length === 0) {
+    pausePropertyForAvailability(db, propertyId);
+    return { ok: true, outcome: "rented", title };
+  }
+  for (const room of targets) {
+    db.prepare(
+      `UPDATE rooms SET occupancy_status = 'occupied', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    ).run(room.id);
+  }
+  if (remainingAvailableCount(db, propertyId) === 0) {
+    pausePropertyForAvailability(db, propertyId);
+  }
+  return { ok: true, outcome: "rented", title: targets.length === 1 ? roomLabel(targets[0]!, 0) : title };
+}
+
+export function confirmRoomStillFree(
+  db: DatabaseSync,
+  propertyId: string,
+  roomId: string | null,
+  now: Date = new Date(),
+): AvailabilityActionResult {
+  const prop = loadProperty(db, propertyId);
+  if (!prop) return { ok: false, error: "not_found" };
+  const title = String(prop.title ?? "").trim() || "Anuncio sin título";
+  if (prop.status !== "published") {
+    if (prop.status === "paused" && String(prop.paused_by ?? "") === AVAILABILITY_PAUSED_BY) {
+      return { ok: true, outcome: "already_paused", title };
+    }
+    return { ok: false, error: "not_published" };
+  }
+  const rooms = availableRooms(db, propertyId);
+  const isProperty = String(prop.post_mode ?? "") === "property" && rooms.length > 1;
+  const targets = roomId ? rooms.filter((r) => r.id === roomId) : rooms;
+  const nowIso = now.toISOString();
+  for (const room of targets) {
+    db.prepare(`UPDATE rooms SET availability_confirmed_at = ? WHERE id = ?`).run(nowIso, room.id);
+  }
+  const stillOpen = availableRooms(db, propertyId);
+  const cycleStart = availabilityCycleStartMs(prop.published_at, prop.availability_confirmed_at) ?? 0;
+  const allConfirmed =
+    !isProperty ||
+    (stillOpen.length > 0 &&
+      stillOpen.every((room) => {
+        const at = parseIsoMs(room.availability_confirmed_at);
+        return at != null && at >= cycleStart;
+      }));
+  if (allConfirmed || !isProperty) {
+    markAvailabilityConfirmed(db, propertyId, now);
+  }
+  return {
+    ok: true,
+    outcome: "confirmed",
+    title: targets.length === 1 ? roomLabel(targets[0]!, 0) : title,
+  };
+}
+
 export type AvailabilityActionResult =
-  | { ok: true; outcome: "confirmed" | "paused" | "already_paused" | "already_confirmed"; title: string }
+  | {
+      ok: true;
+      outcome: "confirmed" | "rented" | "paused" | "already_paused" | "already_confirmed";
+      title: string;
+    }
   | { ok: false; error: "not_found" | "not_published" };
 
 export function applyAvailabilityAction(
@@ -391,8 +512,7 @@ export function applyAvailabilityAction(
       }
       return { ok: false, error: "not_published" };
     }
-    markAvailabilityConfirmed(db, propertyId, now);
-    return { ok: true, outcome: "confirmed", title };
+    return confirmRoomStillFree(db, propertyId, null, now);
   }
   if (prop.status === "paused") {
     return { ok: true, outcome: "already_paused", title };
@@ -480,35 +600,111 @@ export function resolveAvailabilityContact(
   };
 }
 
+function revealPeopleSince(db: DatabaseSync, propertyId: string, sinceIso: string | null): number {
+  try {
+    const row = db
+      .prepare(
+        `SELECT COUNT(DISTINCT seeker_user_id) AS n
+         FROM listing_contact_events
+         WHERE property_id = ? AND event_type = 'reveal' AND (? IS NULL OR created_at >= ?)`,
+      )
+      .get(propertyId, sinceIso, sinceIso) as { n: number } | undefined;
+    return Math.max(0, Math.floor(Number(row?.n ?? 0)));
+  } catch {
+    return 0;
+  }
+}
+
+function confirmUrlFor(base: string, code: string): string {
+  const host = smsLinkHost(base);
+  const httpsHost = host === "bestie.mx" || host.endsWith(".bestie.mx") ? host : host;
+  return `https://${httpsHost}${availabilityActionPath("confirm", code)}`;
+}
+
+function localDateKey(now: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const y = parts.find((p) => p.type === "year")?.value ?? "0000";
+  const m = parts.find((p) => p.type === "month")?.value ?? "01";
+  const d = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${d}`;
+}
+
+function smsAlreadySentToday(db: DatabaseSync, recipientKey: string, dayKey: string): boolean {
+  const row = db
+    .prepare(`SELECT sent_on FROM listing_availability_sms_sent WHERE recipient_key = ?`)
+    .get(recipientKey) as { sent_on: string } | undefined;
+  return row?.sent_on === dayKey;
+}
+
+function markSmsSent(db: DatabaseSync, recipientKey: string, dayKey: string, now: Date): void {
+  db.prepare(
+    `INSERT INTO listing_availability_sms_sent (recipient_key, sent_on, sent_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(recipient_key) DO UPDATE SET sent_on = excluded.sent_on, sent_at = excluded.sent_at`,
+  ).run(recipientKey, dayKey, now.toISOString());
+}
+
+/** Claim link for an unclaimed post, extended so the SMS page can still save it. */
+export function availabilityClaimUrl(
+  db: DatabaseSync,
+  propertyId: string,
+  now: Date = new Date(),
+): string | null {
+  if (!isUnclaimedAdminOutreach(db, propertyId)) return null;
+  const token = extendUnclaimedClaim(db, propertyId, now);
+  if (!token) return null;
+  return `https://${smsLinkHost(publicBaseUrl())}/borrador/${encodeURIComponent(token)}`;
+}
+
+function extendUnclaimedClaim(db: DatabaseSync, propertyId: string, now: Date): string | null {
+  try {
+    const row = db
+      .prepare(
+        `SELECT token FROM assisted_draft_claim_tokens
+         WHERE property_id = ? AND claimed_by_user_id IS NULL
+         ORDER BY created_at DESC LIMIT 1`,
+      )
+      .get(propertyId) as { token: string } | undefined;
+    if (!row?.token) return null;
+    const until = now.getTime() + 30 * DAY_MS;
+    db.prepare(
+      `UPDATE assisted_draft_claim_tokens SET expires_at = ? WHERE token = ? AND expires_at < ?`,
+    ).run(until, row.token, until);
+    return row.token;
+  } catch {
+    return null;
+  }
+}
+
 function propertyTitleLead(title: string | null): string {
   const t = String(title ?? "").trim();
   return listingTitleLeadForSms(t, 48) || "tu anuncio";
 }
 
-async function sendAvailabilityNotice(
+type NoticeJob = {
+  prop: PropertyAvailRow;
+  contact: ReturnType<typeof resolveAvailabilityContact>;
+  confirmUrl: string;
+  revealPeople: number;
+};
+
+async function deliverAvailabilityNotice(
   db: DatabaseSync,
-  prop: PropertyAvailRow,
+  job: NoticeJob,
   now: Date,
+  sms: { body: string; recipientKey: string; dayKey: string } | null,
+  coveredByMorningSms = false,
 ): Promise<boolean> {
-  const contact = resolveAvailabilityContact(db, prop);
+  const { prop, contact, confirmUrl } = job;
   const plan = availabilityNotifyPlan(contact);
-  if (!plan.email && !plan.sms) {
-    console.info(`[availability] no contact property=${prop.id}`);
-    return false;
-  }
-  const tz = resolveTimeZoneForListingCity(prop.city).timeZone;
-  if (isNotifyQuietHours(now, tz)) return false;
-
-  const codes = ensureAvailabilityActionCodes(db, prop.id, now);
-  const base = publicBaseUrl();
-  const host = smsLinkHost(base);
-  const confirmUrl = `${base}${availabilityActionPath("confirm", codes.confirmCode)}`;
-  const pauseUrl = `${base}${availabilityActionPath("pause", codes.pauseCode)}`;
-  const confirmSms = `${host}${availabilityActionPath("confirm", codes.confirmCode)}`;
-  const pauseSms = `${host}${availabilityActionPath("pause", codes.pauseCode)}`;
   const title = String(prop.title ?? "").trim() || "Anuncio sin título";
-
   let sent = false;
+
   if (plan.email && contact.email) {
     const built = buildListingAvailabilityEmail({
       title,
@@ -516,7 +712,6 @@ async function sendAvailabilityNotice(
       neighborhood: String(prop.neighborhood ?? ""),
       publisherName: contact.displayName,
       confirmUrl,
-      pauseUrl,
     });
     const ok = await sendTransactionalEmail({
       to: contact.email,
@@ -528,15 +723,19 @@ async function sendAvailabilityNotice(
     });
     if (ok) sent = true;
   }
-  if (plan.sms && contact.phoneE164 && smsMasivosConfigured()) {
-    const body = buildListingAvailabilitySms({
-      title,
-      confirmUrl: confirmSms,
-      pauseUrl: pauseSms,
-    });
-    const sms = await smsMasivosSendSms(contact.phoneE164, body);
-    if (sms.ok) sent = true;
-    else console.error(`[availability] sms failed property=${prop.id}: ${sms.error}`);
+
+  if (sms && plan.sms && contact.phoneE164 && smsMasivosConfigured()) {
+    if (!smsAlreadySentToday(db, sms.recipientKey, sms.dayKey)) {
+      const result = await smsMasivosSendSms(contact.phoneE164, sms.body);
+      if (result.ok) {
+        sent = true;
+        markSmsSent(db, sms.recipientKey, sms.dayKey, now);
+      } else {
+        console.error(`[availability] sms failed property=${prop.id}: ${result.error}`);
+      }
+    }
+  } else if (plan.sms && !sms && contact.userId) {
+    sent = sent || Boolean(contact.email) || coveredByMorningSms;
   } else if (plan.sms && !smsMasivosConfigured()) {
     console.info(`[availability] sms skipped, not configured property=${prop.id}`);
   }
@@ -549,24 +748,47 @@ async function sendAvailabilityNotice(
   );
   if (contact.userId) {
     notifyPublisher(db, prop.publisher_id, {
-      text: `Confirma que "${propertyTitleLead(title)}" sigue disponible o lo pausamos en 5 días.`,
+      text: `Confirma que "${propertyTitleLead(title)}" sigue libre o lo ocultamos en 5 días.`,
       link: "/mis-anuncios",
     });
   }
   return true;
 }
 
+function pauseDueProperty(db: DatabaseSync, prop: PropertyAvailRow): void {
+  const rooms = availableRooms(db, prop.id);
+  const isProperty = String(prop.post_mode ?? "") === "property" && rooms.length > 1;
+  if (!isProperty) {
+    pausePropertyForAvailability(db, prop.id);
+    return;
+  }
+  const start = availabilityCycleStartMs(prop.published_at, prop.availability_confirmed_at);
+  for (const room of rooms) {
+    const confirmed = parseIsoMs(room.availability_confirmed_at);
+    if (start != null && confirmed != null && confirmed >= start) continue;
+    db.prepare(
+      `UPDATE rooms SET status = 'paused', paused_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    ).run(AVAILABILITY_PAUSED_BY, room.id);
+  }
+  if (remainingAvailableCount(db, prop.id) === 0) {
+    pausePropertyForAvailability(db, prop.id);
+  } else {
+    db.prepare(`UPDATE properties SET availability_notice_sent_at = NULL WHERE id = ?`).run(prop.id);
+  }
+}
+
 export async function pollListingAvailability(db: DatabaseSync, now: Date = new Date()): Promise<void> {
   ensureListingAvailabilitySchema(db);
   const rows = db
     .prepare(
-      `SELECT id, publisher_id, status, title, city, neighborhood, contact_whatsapp,
+      `SELECT id, publisher_id, status, post_mode, title, city, neighborhood, contact_whatsapp,
               published_at, availability_confirmed_at, availability_notice_sent_at, paused_by
        FROM properties
        WHERE status = 'published'`,
     )
     .all() as PropertyAvailRow[];
 
+  const due: NoticeJob[] = [];
   for (const prop of rows) {
     try {
       if (
@@ -578,11 +800,11 @@ export async function pollListingAvailability(db: DatabaseSync, now: Date = new 
           now,
         })
       ) {
-        pausePropertyForAvailability(db, prop.id);
+        pauseDueProperty(db, prop);
         continue;
       }
       if (
-        shouldSendAvailabilityNotice({
+        !shouldSendAvailabilityNotice({
           status: prop.status,
           publishedAt: prop.published_at,
           confirmedAt: prop.availability_confirmed_at,
@@ -590,13 +812,91 @@ export async function pollListingAvailability(db: DatabaseSync, now: Date = new 
           now,
         })
       ) {
-        await sendAvailabilityNotice(db, prop, now);
+        continue;
       }
+      const contact = resolveAvailabilityContact(db, prop);
+      const tz = resolveTimeZoneForListingCity(prop.city).timeZone;
+      if (isNotifyQuietHours(now, tz)) continue;
+      if (!availabilityNotifyPlan(contact).email && !availabilityNotifyPlan(contact).sms) {
+        console.info(`[availability] no contact property=${prop.id}`);
+        continue;
+      }
+      const codes = ensureAvailabilityActionCodes(db, prop.id, now);
+      const start = availabilityCycleStartMs(prop.published_at, prop.availability_confirmed_at);
+      due.push({
+        prop,
+        contact,
+        confirmUrl: confirmUrlFor(publicBaseUrl(), codes.confirmCode),
+        revealPeople: revealPeopleSince(db, prop.id, start == null ? null : new Date(start).toISOString()),
+      });
     } catch (e) {
-      console.error(
-        `[availability] property=${prop.id}:`,
-        e instanceof Error ? e.message : e,
-      );
+      console.error(`[availability] property=${prop.id}:`, e instanceof Error ? e.message : e);
+    }
+  }
+
+  const claimed = new Map<string, NoticeJob[]>();
+  const solo: NoticeJob[] = [];
+  for (const job of due) {
+    if (job.contact.userId) {
+      const list = claimed.get(job.contact.userId) ?? [];
+      list.push(job);
+      claimed.set(job.contact.userId, list);
+    } else {
+      solo.push(job);
+    }
+  }
+
+  for (const job of solo) {
+    const tz = resolveTimeZoneForListingCity(job.prop.city).timeZone;
+    const dayKey = localDateKey(now, tz);
+    const key = `unclaimed:${job.prop.id}`;
+    const sms = availabilityNotifyPlan(job.contact).sms
+      ? {
+          body: buildListingAvailabilitySms({
+            title: String(job.prop.title ?? ""),
+            revealPeople: job.revealPeople,
+            confirmUrl: job.confirmUrl,
+          }),
+          recipientKey: key,
+          dayKey,
+        }
+      : null;
+    try {
+      availabilityClaimUrl(db, job.prop.id, now);
+      await deliverAvailabilityNotice(db, job, now, sms);
+    } catch (e) {
+      console.error(`[availability] property=${job.prop.id}:`, e instanceof Error ? e.message : e);
+    }
+  }
+
+  for (const [userId, jobs] of claimed) {
+    const tz = resolveTimeZoneForListingCity(jobs[0]?.prop.city).timeZone;
+    const dayKey = localDateKey(now, tz);
+    const recipientKey = `user:${userId}`;
+    const digest = jobs.length > 1;
+    const hub = `https://${smsLinkHost(publicBaseUrl())}/mis-anuncios`;
+    let morningCovered = smsAlreadySentToday(db, recipientKey, dayKey);
+    for (const job of jobs) {
+      const sendSms = availabilityNotifyPlan(job.contact).sms && !morningCovered;
+      const sms = sendSms
+        ? {
+            body: digest
+              ? buildListingAvailabilityDigestSms({ count: jobs.length, hubUrl: hub })
+              : buildListingAvailabilitySms({
+                  title: String(job.prop.title ?? ""),
+                  revealPeople: job.revealPeople,
+                  confirmUrl: job.confirmUrl,
+                }),
+            recipientKey,
+            dayKey,
+          }
+        : null;
+      try {
+        await deliverAvailabilityNotice(db, job, now, sms, morningCovered);
+        if (sendSms && smsAlreadySentToday(db, recipientKey, dayKey)) morningCovered = true;
+      } catch (e) {
+        console.error(`[availability] property=${job.prop.id}:`, e instanceof Error ? e.message : e);
+      }
     }
   }
 }

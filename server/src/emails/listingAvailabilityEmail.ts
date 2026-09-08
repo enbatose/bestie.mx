@@ -6,7 +6,6 @@ import {
   greetingText,
   primaryButtonHtml,
   renderEmailShell,
-  secondaryButtonHtml,
 } from "./emailLayout.js";
 
 export type ListingAvailabilityEmailPayload = {
@@ -15,7 +14,6 @@ export type ListingAvailabilityEmailPayload = {
   neighborhood: string;
   publisherName: string | null;
   confirmUrl: string;
-  pauseUrl: string;
 };
 
 export function buildListingAvailabilityEmail(
@@ -23,13 +21,13 @@ export function buildListingAvailabilityEmail(
 ): BuiltTransactionalEmail {
   const title = payload.title.trim() || "Anuncio sin título";
   const place = [payload.neighborhood, payload.city].filter((s) => s.trim()).join(" · ") || "Sin ubicación";
-  const subject = `Tu anuncio cumple 30 días · ${title}`.slice(0, 90);
-  const previewText = `Confirma que sigue disponible o lo pausamos en 5 días.`;
+  const subject = `¿Sigue libre? · ${title}`.slice(0, 90);
+  const previewText = `Di si sigue libre o ya se rentó. Si no respondes, lo ocultamos en 5 días.`;
   const B = EMAIL_BRAND;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:${B.body};">${greetingHtml(payload.publisherName ?? undefined)},</p>
-    <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:${B.body};">Tu anuncio lleva 25 días publicado en Bestie. Confirma que sigue disponible. Si no lo confirmas, lo pausamos en 5 días. Puedes reanudarlo cuando quieras.</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:${B.body};">Tu anuncio lleva 25 días publicado en Bestie. Di si sigue libre o ya se rentó. Si no respondes, lo ocultamos en 5 días. Puedes volver a publicarlo cuando quieras.</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px;border:1px solid ${B.border};border-radius:12px;background:${B.bgLight};">
       <tr>
         <td style="padding:14px 16px;">
@@ -38,8 +36,8 @@ export function buildListingAvailabilityEmail(
         </td>
       </tr>
     </table>
-    <p style="margin:0;text-align:center;">${primaryButtonHtml(payload.confirmUrl, "Sigue disponible")}</p>
-    <p style="margin:12px 0 0;text-align:center;">${secondaryButtonHtml(payload.pauseUrl, "Pausar anuncio")}</p>
+    <p style="margin:0;text-align:center;">${primaryButtonHtml(payload.confirmUrl, "Sigue libre")}</p>
+    <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:${B.muted};text-align:center;">En la misma página puedes marcar que ya se rentó.</p>
   `;
 
   const html = renderEmailShell({
@@ -51,13 +49,12 @@ export function buildListingAvailabilityEmail(
   const text = [
     greetingText(payload.publisherName ?? undefined),
     "",
-    "Tu anuncio lleva 25 días publicado en Bestie. Confirma que sigue disponible. Si no lo confirmas, lo pausamos en 5 días. Puedes reanudarlo cuando quieras.",
+    "Tu anuncio lleva 25 días publicado en Bestie. Di si sigue libre o ya se rentó. Si no respondes, lo ocultamos en 5 días.",
     "",
     title,
     place,
     "",
-    `Sigue disponible: ${payload.confirmUrl}`,
-    `Pausar anuncio: ${payload.pauseUrl}`,
+    `Sigue libre o ya se rentó: ${payload.confirmUrl}`,
   ].join("\n");
 
   return {

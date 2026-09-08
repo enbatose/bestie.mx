@@ -191,13 +191,16 @@ export function TermsPage() {
         </p>
         <p>
           <strong>Confirmación de disponibilidad.</strong> Un anuncio publicado permanece visible
-          mientras quien lo publica confirme que sigue disponible. A los 25 días de la publicación,
-          o de la última confirmación o reanudación, Bestie envía un aviso por correo y, cuando
-          corresponde, por SMS, con el nombre del anuncio y enlaces para confirmar que sigue
-          disponible o para pausarlo. Si no hay confirmación, Bestie pausa el anuncio 5 días después
-          de ese aviso. Quien publica puede reanudarlo en cualquier momento; eso cuenta como una
-          nueva confirmación. Los anuncios publicados sin una cuenta en Bestie reciben ese aviso por
-          SMS al teléfono del anuncio.
+          mientras quien lo publica confirme que sigue libre. A los 25 días de la publicación, o de
+          la última confirmación o reanudación, Bestie envía un aviso por correo y, cuando corresponde,
+          por SMS, con el nombre del anuncio y un enlace a una página para indicar que sigue libre o
+          que ya se rentó. El SMS incluye un solo enlace. Si la misma cuenta tiene varios anuncios
+          por confirmar el mismo día, el SMS es uno esa mañana y nombra el conjunto; el correo sigue
+          siendo uno por anuncio. Si no hay respuesta, Bestie oculta el anuncio 5 días después de
+          ese aviso. Marcar que ya se rentó no vuelve a mostrarlo en búsqueda hasta una confirmación
+          explícita de que sigue libre. Quien publica puede reanudar un anuncio oculto por falta de
+          respuesta en cualquier momento; eso cuenta como una nueva confirmación. Los anuncios
+          publicados sin una cuenta en Bestie reciben ese aviso por SMS al teléfono del anuncio.
         </p>
         <p>
           <strong>Borradores asistidos y republicación desde Facebook.</strong> Bestie puede armar
