@@ -1,4 +1,5 @@
 import type { AssistedDraftExtraction } from "./assistedDraftGemini.js";
+import { applySourceTextTagSignals } from "./assistedDraftSourceTags.js";
 
 export const SELF_SERVE_CREATOR_ID = "self-serve";
 
@@ -92,13 +93,14 @@ export function mergeExtractionWithHints(
   hints: SelfServeHints,
   sourceText = "",
 ): MergedAssistedDraft {
+  const text = sourceText.trim();
+  const signaled = applySourceTextTagSignals(extraction, text);
   const next: AssistedDraftExtraction = {
-    ...extraction,
-    tags: uniqueTags(extraction.tags),
+    ...signaled,
+    tags: uniqueTags(signaled.tags),
   };
   const conflicts: FieldConflict[] = [];
-  const denied = new Set(uniqueTags(extraction.deniedTags));
-  const text = sourceText.trim();
+  const denied = new Set(uniqueTags(signaled.deniedTags));
 
   const lodging = hints.lodgingType ?? null;
   if (lodging === "private_room" || lodging === "shared_room") {

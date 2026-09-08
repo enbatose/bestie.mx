@@ -1,3 +1,4 @@
+import { applySourceTextTagSignals } from "./assistedDraftSourceTags.js";
 import { geminiApiKey, geminiModel } from "./shareAiCopyGemini.js";
 import { extractFirstMxPhoneFromText, phoneDigitsForStorage } from "./mxPhoneExtract.js";
 
@@ -107,6 +108,10 @@ REGLAS IMPORTANTES:
 - Para teléfono/contacto (contactPhone): si el texto O una imagen/infográfico muestra celular, WhatsApp, tel o "llamar", extrae el PRIMER número visible.
   En México suele ser 10 dígitos sin código de país; normaliza a "52" + 10 dígitos (ej. "523312345678"). No inventes. Si no hay número, omite el campo.
 - deniedTags: slugs que el anuncio niega de forma explícita (p. ej. "no se aceptan mascotas" → ["mascotas"]). No pongas un tag en tags y deniedTags a la vez.
+- Permisividad y amenidades son Sí/No en la ficha. Si el texto da una señal positiva, el slug VA en tags. Omitirlo se muestra como "No".
+  mascotas: "pet friendly", "eres pet friendly", "se aceptan mascotas", "hay/tenemos perritos/gatos/mascotas" → ["mascotas"].
+  "no hacen desastres", "no ladran" o "no molestan" NO es una negación de mascotas.
+  closet / clóset, cochera, baño privado, wifi, coto/seguridad 24 h, rutas de transporte, profesionista, estudiante: misma regla (señal positiva → tag; solo niega si lo dice explícito, p. ej. "sin amueblar", "baño compartido").
 - Para descripción (roomSummary): genera un texto atractivo en español usando SOLO la información disponible. 
   Mínimo 100 caracteres, máximo 1200. Si no hay suficiente información, sé conciso pero honesto.
   Usa un tono cálido y directo, sin exagerar características no mencionadas.
@@ -451,8 +456,8 @@ export async function extractListingDataWithGemini(
       location = { type: "none" };
     }
 
-    return {
-      extraction: {
+    const extraction = applySourceTextTagSignals(
+      {
         propertyTitle: extractString(parsed.propertyTitle),
         neighborhood: extractString(parsed.neighborhood),
         contactPhone,
@@ -477,6 +482,11 @@ export async function extractListingDataWithGemini(
         confidence: confidenceMap,
         rawText,
       },
+      input.text ?? "",
+    );
+
+    return {
+      extraction,
       promptTokens,
       outputTokens,
       model,
