@@ -126,6 +126,10 @@ function quickAttributeGenderIconClass(id: string, mobile: boolean): string {
   if (id === "gender-male") {
     return mobile ? "size-4" : "size-4 sm:size-[1.05rem]";
   }
+  // Text lockup, not a pictogram — size-* would clip "LGBT" inside the badge.
+  if (id === "tag-lgbt-friendly") {
+    return "h-full w-full px-0.5";
+  }
   return mobile ? "size-3.5" : "size-4 sm:size-[1.05rem]";
 }
 

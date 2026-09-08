@@ -178,11 +178,11 @@ function SearchListingMobileDrawerCard({
         </div>
       </div>
       {quickAttributes.length ? (
-        <div className="mt-2.5 flex w-full items-center justify-between gap-1">
+        <div className="mt-2.5 flex w-full min-w-0 flex-wrap items-center justify-between gap-1">
           {quickAttributes.map((item) => {
             const Icon = item.icon;
             return (
-              <span key={item.id} className="group/icon relative inline-flex min-w-0 flex-1 justify-center">
+              <span key={item.id} className="group/icon relative inline-flex shrink-0 justify-center">
                 <span
                   className="inline-flex size-7 items-center justify-center rounded-full bg-bg-light text-primary ring-1 ring-border"
                   aria-hidden="true"

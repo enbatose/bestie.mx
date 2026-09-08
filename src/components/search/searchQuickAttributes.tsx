@@ -296,23 +296,25 @@ export function listingCardQuickAttributes(listing: PropertyListing): SearchQuic
     items.push(GENDER_META.any);
   }
 
-  if (listing.tags.includes("baño-privado")) {
-    items.push(PRIVATE_BATHROOM_META);
-  }
-
-  if (listing.tags.includes("estacionamiento")) {
-    items.push(PRIVATE_PARKING_META);
-  }
-
-  if (listing.tags.includes("muebles")) {
-    items.push(FURNISHED_META);
-  }
-
-  if (listing.tags.includes("mascotas")) {
-    items.push(PETS_META);
+  // Same icon set as the rail + "Detalles del anuncio" filters, so a tag
+  // that can be filtered by icon is also visible on the card.
+  for (const tag of ADVANCED_TAG_FILTERS) {
+    const meta = ADVANCED_TAG_META[tag];
+    if (meta && listingHasAdvancedTag(listing.tags, tag)) {
+      items.push(meta);
+    }
   }
 
   return items;
+}
+
+/** True when the listing satisfies an advanced filter tag, including smoking aliases. */
+function listingHasAdvancedTag(tags: readonly ListingTag[], tag: ListingTag): boolean {
+  if (tags.includes(tag)) return true;
+  if (tag === "fumar-permitido-recamara") {
+    return tags.includes("fumar-habitacion") || tags.includes("fumar");
+  }
+  return false;
 }
 
 /**
