@@ -98,7 +98,7 @@ export async function generateOutreachDiffusionComment(
       return { text: buildTemplateOutreachDiffusion(input), source: "template" };
     }
     return {
-      text: finalizeOutreachDiffusionCopy(raw, sharePath),
+      text: finalizeOutreachDiffusionCopy(raw, sharePath, input.zoneRule),
       source: "gemini",
       model,
       promptTokens: Number(json.usageMetadata?.promptTokenCount) || 0,

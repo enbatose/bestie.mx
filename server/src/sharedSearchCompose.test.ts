@@ -80,6 +80,20 @@ describe("composeSharedSearch", () => {
     expect(composed.similar.pois.some((p) => p.name === "Universidad Lamar")).toBe(true);
   });
 
+  it("collapses Colonia Americana into Zona Chapultepec/Americana", () => {
+    const place = resolveSharedSearchPlacePhrase({
+      neighborhoods: [
+        { name: "Zona Chapultepec/Americana" },
+        { name: "Centro" },
+      ],
+      pois: [{ name: "Colonia Americana" }],
+      cityAbbr: "GDL",
+      cityLabel: "Guadalajara",
+      label: "GDL · Colonia Americana",
+    });
+    expect(place).toBe("Zona Chapultepec/Americana o Centro");
+  });
+
   it("names every requested zone, not only the first pin", () => {
     const place = resolveSharedSearchPlacePhrase({
       neighborhoods: [

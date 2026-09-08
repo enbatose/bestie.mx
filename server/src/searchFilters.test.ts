@@ -98,6 +98,20 @@ describe("parseFilters extended", () => {
   });
 });
 
+describe("filterListings cuarto o loft", () => {
+  it("keeps a private room or a loft when both filters are set", () => {
+    const rows = [
+      baseListing({ id: "room", lodgingType: "private_room", propertyKind: "apartment" }),
+      baseListing({ id: "loft", lodgingType: "whole_home", propertyKind: "loft" }),
+      baseListing({ id: "shared", lodgingType: "shared_room", propertyKind: "apartment" }),
+    ];
+    const f = {
+      ...parseFilters(new URLSearchParams({ lodging: "private_room", loft: "1" })),
+    };
+    expect(filterListings(rows, f).map((r) => r.id).sort()).toEqual(["loft", "room"]);
+  });
+});
+
 describe("filterListings hidePricing", () => {
   it("includes hidden-price listings when budget is default", () => {
     const rows = [

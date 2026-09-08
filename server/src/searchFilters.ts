@@ -145,12 +145,13 @@ function matchesHospedaje(
   wantLoft: boolean,
   lodgingType: LodgingType | null,
 ): boolean {
-  if (lodgingType != null) {
-    if (listing.lodgingType == null) return true;
-    if (listing.lodgingType !== lodgingType) return false;
-  }
-  if (!wantLoft) return true;
-  return listing.propertyKind === "loft";
+  const isLoft = listing.propertyKind === "loft";
+  const matchesSelectedLodging =
+    lodgingType == null ? false : listing.lodgingType == null ? true : listing.lodgingType === lodgingType;
+
+  if (!wantLoft && lodgingType == null) return true;
+  // "cuarto o loft": either lodging type or loft, not both required.
+  return [wantLoft && isLoft, matchesSelectedLodging].some(Boolean);
 }
 
 function isAvailableForSearch(listing: PropertyListing): boolean {

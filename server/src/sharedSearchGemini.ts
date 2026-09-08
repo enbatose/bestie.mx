@@ -27,6 +27,7 @@ REGLAS:
 - pois: universidades, plazas, hospitales, Glorieta Minerva, Andares, ITESO, CUCS, etc.
 - Si hay un mapa o polígono en una imagen, estima un bbox [minLat,minLng,maxLat,maxLng] de Guadalajara.
 - lodgingType: private_room | shared_room | whole_home si lo piden.
+- "cuarto o loft" / "cuarto, depa o loft" = cualquiera sirve: lodgingType private_room (o el tipo que nombren) y wantLoft false. wantLoft true SOLO si piden loft y no un cuarto genérico ("busco loft", "solo loft").
 - tags: slugs Bestie que QUIEREN (mascotas, muebles, baño-privado, estacionamiento, lgbt-friendly, estudiantes, profesionistas, wifi, servicios-incluidos, …).
 - servicios-incluidos es luz, agua o gas. Un plan de alimentación, comida o pensión NO es servicios-incluidos: va a unmappedCriteria.
 - requiredTags: solo no-negociables explícitos (ej. "tengo perro, tiene que aceptar mascotas" → ["mascotas"]).

@@ -1,4 +1,5 @@
 import { isContactChannelText } from "./contactChannelText.js";
+import { canonicalSearchPlaceName } from "./gdlSearchPois.js";
 import { resolveMetroCity } from "./metroCities.js";
 import type { Bbox, SearchFilters } from "./searchFilters.js";
 import type { ListingTag, LodgingType } from "./types.js";
@@ -136,9 +137,10 @@ export function composeSharedSearch(opts: {
   const neighborhoodPins = resolvePlacePins(neighborhoods, "neighborhood", cityCode);
   const poiPins = resolvePlacePins(poiNames, "poi", cityCode);
   const extraPins = ext.mainAreaLabel ? resolvePlacePins([ext.mainAreaLabel], "neighborhood", cityCode) : [];
-  const pins = [...neighborhoodPins, ...poiPins, ...extraPins].filter(
-    (p, i, arr) => arr.findIndex((x) => x.name === p.name) === i,
-  );
+  const pins = [...neighborhoodPins, ...poiPins, ...extraPins].filter((p, i, arr) => {
+    const key = canonicalSearchPlaceName(p.name);
+    return arr.findIndex((x) => canonicalSearchPlaceName(x.name) === key) === i;
+  });
 
   const mealPlanTexts = [
     ...(ext.unmappedCriteria ?? []).map((item) => `${item.label ?? ""} ${item.text ?? ""}`),
@@ -351,7 +353,7 @@ function usefulPlacePhrase(place: string, cityHints: string | string[]): string 
 function joinPlaceNames(names: string[], cityHints: string[]): string {
   const uniq: string[] = [];
   for (const raw of names) {
-    const t = raw.trim();
+    const t = canonicalSearchPlaceName(raw);
     if (!t || !usefulPlacePhrase(t, cityHints)) continue;
     if (uniq.some((x) => normalizePlaceCompare(x) === normalizePlaceCompare(t))) continue;
     uniq.push(t);

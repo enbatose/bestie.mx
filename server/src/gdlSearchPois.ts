@@ -387,6 +387,47 @@ export function specificPlacePhrase(value: string): string {
   return cleaned;
 }
 
+/**
+ * Pin name for an alias. "Colonia Americana" and "Chapultepec" are the same
+ * Zona Chapultepec/Americana pin — listing both (or splitting them) is wrong.
+ */
+export function canonicalSearchPlaceName(raw: string): string {
+  const trimmed = raw.trim();
+  const cleaned = cleanedPlaceKey(trimmed);
+  if (!cleaned) return trimmed;
+  for (const poi of GDL_SEARCH_POIS) {
+    const keys = [poi.name, ...poi.aliases].map((name) => cleanedPlaceKey(name));
+    if (keys.includes(cleaned)) return poi.name;
+  }
+  return trimmed;
+}
+
+/** Drop aliases already covered by a union pin (Colonia Americana ⊂ Zona Chapultepec/Americana). */
+export function collapseCoveredPlaceNames(names: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of names) {
+    const name = canonicalSearchPlaceName(raw);
+    const key = cleanedPlaceKey(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
+/** "Zona Chapultepec/Americana, Centro o Colonia Americana" → "Zona Chapultepec/Americana o Centro". */
+export function collapseZonePhrase(zone: string): string {
+  const parts = zone
+    .split(/\s*(?:,|\s+o\s+|\s+y\s+)\s*/i)
+    .map((part) => part.replace(/\s*·.*$/, "").trim())
+    .filter((part) => part && !/^\d+(\.\d+)?\s*km\b/i.test(part));
+  const collapsed = collapseCoveredPlaceNames(parts);
+  if (collapsed.length <= 1) return collapsed[0] ?? zone.trim();
+  if (collapsed.length === 2) return `${collapsed[0]} o ${collapsed[1]}`;
+  return `${collapsed.slice(0, -1).join(", ")} o ${collapsed[collapsed.length - 1]}`;
+}
+
 function placeTokens(value: string): string[] {
   return cleanedPlaceKey(value).split(" ").filter(Boolean);
 }

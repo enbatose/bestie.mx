@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { collapseZonePhrase } from "./gdlSearchPois.js";
 import {
   DIFFUSION_COMMENT_SIGN_OFF,
   buildTemplateOutreachDiffusion,
@@ -41,6 +42,28 @@ describe("finalizeOutreachDiffusionCopy phone claims", () => {
     expect(out.toLowerCase()).not.toMatch(/escribirnos|llámanos|escríbenos/);
     expect(out).toContain(url);
     expect(out.endsWith(DIFFUSION_COMMENT_SIGN_OFF)).toBe(true);
+  });
+});
+
+describe("collapseZonePhrase", () => {
+  it("does not list Colonia Americana beside the Chapultepec/Americana pin", () => {
+    expect(collapseZonePhrase("Zona Chapultepec/Americana, Centro o Colonia Americana")).toBe(
+      "Zona Chapultepec/Americana o Centro",
+    );
+  });
+});
+
+describe("finalizeOutreachDiffusionCopy place names", () => {
+  it("does not split Colonia Americana into a bare Colonia", () => {
+    const url = "https://www.bestie.mx/busquedas/nha5mzfy";
+    const out = finalizeOutreachDiffusionCopy(
+      `Hola Shady, te armamos una búsqueda con opciones en la zona de Chapultepec, Americana, Centro y Colonia para tu home office. Tenemos 1 opción en zona para que revises con calma. En Bestie es gratis publicar, buscar y contactar al anunciante.\n\n${url}\n\nAtte. Equipo Bestie MX.`,
+      url,
+      "Zona Chapultepec/Americana, Centro o Colonia Americana",
+    );
+    expect(out).toContain("Zona Chapultepec/Americana o Centro");
+    expect(out).not.toMatch(/\bColonia\b(?!\s+Americana)/);
+    expect(out).not.toMatch(/Chapultepec, Americana/);
   });
 });
 

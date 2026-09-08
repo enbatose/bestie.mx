@@ -1,4 +1,5 @@
 import { shareableDiffusionCriteria } from "./contactChannelText.js";
+import { collapseZonePhrase } from "./gdlSearchPois.js";
 
 /** Exact sign-off so admins can @-link Equipo Bestie MX on Facebook. */
 export const DIFFUSION_COMMENT_SIGN_OFF = "Atte. Equipo Bestie MX.";
@@ -45,12 +46,26 @@ function firstName(raw: string | null | undefined): string | null {
 function usefulZone(zone: string | null | undefined, placeHint: string | null | undefined): string | null {
   const cityish = /^(guadalajara|gdl|área del mapa|area del mapa)$/i;
   for (const candidate of [zone, placeHint]) {
-    const t = (candidate ?? "").trim();
+    const raw = (candidate ?? "").trim();
+    if (!raw) continue;
+    const t = collapseZonePhrase(raw.split("·")[0] ?? raw);
     if (!t) continue;
     if (cityish.test(t)) continue;
     return t.length > 48 ? `${t.slice(0, 45).trimEnd()}…` : t;
   }
   return null;
+}
+
+/** Undo Gemini splitting "Zona Chapultepec/Americana" into Chapultepec + Americana + Colonia. */
+export function repairSplitDiffusionPlaces(text: string, zone: string | null | undefined): string {
+  const collapsed = usefulZone(zone, null);
+  if (!collapsed || !/chapultepec\/americana/i.test(collapsed)) return text;
+  const exploded =
+    /(?:en la zona de\s+|en\s+)?(?:zona de\s+)?(?:zona\s+)?chapultepec(?:\/americana)?,?\s+americana(?:,?\s+centro)?(?:\s+y\s+colonia(?:\s+americana)?)?/gi;
+  return text.replace(exploded, (match) => {
+    const lead = /^en la zona de\s+|^en\s+/i.test(match) ? "en " : "";
+    return `${lead}${collapsed}`;
+  });
 }
 
 function hashSeed(seed: string): number {
@@ -233,7 +248,10 @@ Reglas del enlace (crítico para Facebook):
 Conteos y zona (no los infles):
 - Si te dan conteos, úsalos con esas palabras: "N en zona" y "M cerca". "En zona" es el disco de 3.5 km. "Cerca" son opciones más lejos, no la misma cuadra.
 - Prohibido: "punto exacto", "justo en", "justo en el área", "muy cerca", "en los alrededores", "a la vuelta".
-- Si la zona nombra varios lugares, menciónalos todos. No te quedes solo con el primero.
+- Si la zona nombra varios lugares, menciónalos todos con las frases tal cual. No te quedes solo con el primero.
+- Un nombre con barra es UN pin (ej. "Zona Chapultepec/Americana"). No lo partas en Chapultepec y Americana.
+- "Colonia Americana" es un nombre completo. Nunca dejes "Colonia" sola. Si ya está "Zona Chapultepec/Americana", no agregues Colonia Americana otra vez.
+- Conserva el "o" de la zona (es alternativa). No lo conviertas en "y".
 
 Formato:
 - 3–6 oraciones cortas + URL + firma. Longitud de comentario de Facebook (no párrafo largo).
@@ -272,10 +290,17 @@ export function buildOutreachDiffusionUserPrompt(input: DiffusionCommentInput): 
   return parts.join("\n\n");
 }
 
-export function finalizeOutreachDiffusionCopy(raw: string, sharePathOrUrl: string): string {
+export function finalizeOutreachDiffusionCopy(
+  raw: string,
+  sharePathOrUrl: string,
+  zone?: string | null,
+): string {
   const url = diffusionPublicShareUrl(sharePathOrUrl);
-  let text = softenDiffusionDistanceClaims(
-    stripBestiePhoneClaims(scrubProseDomains(stripCodeFences(raw), url), url),
+  let text = repairSplitDiffusionPlaces(
+    softenDiffusionDistanceClaims(
+      stripBestiePhoneClaims(scrubProseDomains(stripCodeFences(raw), url), url),
+    ),
+    zone,
   );
   text = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
   text = ensureUrl(text, url);
@@ -306,5 +331,5 @@ export function buildTemplateOutreachDiffusion(input: DiffusionCommentInput): st
   if (previous) offset += 1;
   const idx = (hashSeed(seed) + offset) % VARIANTS.length;
   const lines = VARIANTS[idx]!({ name, zone, counts, url, extra });
-  return finalizeOutreachDiffusionCopy(lines.filter(Boolean).join("\n\n"), input.sharePath);
+  return finalizeOutreachDiffusionCopy(lines.filter(Boolean).join("\n\n"), input.sharePath, input.zoneRule);
 }

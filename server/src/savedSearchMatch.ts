@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { collapseCoveredPlaceNames } from "./gdlSearchPois.js";
 import { curatedNeighborhoodPins } from "./locationSearch.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
@@ -168,7 +169,7 @@ export function zoneRuleForSavedSearch(
   const stored = location.neighborhoods.map((n) => n.name.trim()).filter((name) => name.length > 0);
   const uniqPois = [...new Set(poiNames)];
 
-  const named = [...stored, ...uniqPois].filter((name, i, arr) => arr.indexOf(name) === i);
+  const named = collapseCoveredPlaceNames([...stored, ...uniqPois]);
   if (named.length > 1) {
     return named.length === 2 ? `${named[0]} o ${named[1]}` : `${named.slice(0, -1).join(", ")} o ${named[named.length - 1]}`;
   }
