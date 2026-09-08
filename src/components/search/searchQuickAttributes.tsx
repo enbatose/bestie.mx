@@ -308,6 +308,10 @@ export function listingCardQuickAttributes(listing: PropertyListing): SearchQuic
     items.push(FURNISHED_META);
   }
 
+  if (listing.tags.includes("mascotas")) {
+    items.push(PETS_META);
+  }
+
   return items;
 }
 
