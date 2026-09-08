@@ -23,6 +23,11 @@ import { useDebouncedCommit } from "@/components/publish/useDebouncedCommit";
 import { ListingTagChips } from "@/components/listing/ListingTagChips";
 import { PreviewPropertyLocationMap } from "@/components/publish/PreviewPropertyLocationMap";
 import { EditableRoomModal } from "@/components/publish/EditableRoomModal";
+import {
+  RoomBathroomField,
+  RoomHouseRuleFactFields,
+  RoomUtilitiesAvalFields,
+} from "@/components/publish/roomDetailsFactFields";
 import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
 import {
   cloneRoomDraft,
@@ -67,9 +72,11 @@ import {
 import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSummary, propertyRoomPencilTitle, propertyRoomSlotTitle } from "@/lib/roomDisplay";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
+  PROPERTY_PERMITIDO_TAG_SLUGS,
   PROPERTY_TAG_GROUPS,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
+  applyPropertyPermitidoTags,
   filterPropertyScopeTags,
   filterRoomScopeTags,
   formatRoomAvailableFrom,
@@ -476,6 +483,7 @@ export function EditableListingPreview({
   const [propertySummaryDraft, setPropertySummaryDraft] = useState(draft.propertySummary);
   const [roomSummaryDraft, setRoomSummaryDraft] = useState(room?.summary ?? "");
   const [roomDetailsDraft, setRoomDetailsDraft] = useState<RoomDraft | null>(null);
+  const [permitidoDraft, setPermitidoDraft] = useState<ListingTag[] | null>(null);
   const [propertyFactsDraft, setPropertyFactsDraft] = useState<PropertyFactsDraft>(() =>
     propertyFactsFromDraft(draft),
   );
@@ -695,13 +703,24 @@ export function EditableListingPreview({
 
   const openRoomDetailsEdit = () => {
     setRoomDetailsDraft(cloneRoomDraft(room));
+    setPermitidoDraft(
+      PROPERTY_PERMITIDO_TAG_SLUGS.filter((tag) => draft.propertyTags.includes(tag)),
+    );
     setEditingRoomDetails(true);
+  };
+
+  const closeRoomDetailsEdit = () => {
+    setEditingRoomDetails(false);
+    setRoomDetailsDraft(null);
+    setPermitidoDraft(null);
   };
 
   const saveRoomDetails = () => {
     if (!roomDetailsDraft) return;
+    const nextPermitido = permitidoDraft ?? [];
     onDraftChange((d) => ({
       ...d,
+      propertyTags: applyPropertyPermitidoTags(d.propertyTags, nextPermitido),
       rooms: d.rooms.map((r, i) =>
         i === roomIndex
           ? {
@@ -715,8 +734,7 @@ export function EditableListingPreview({
           : r,
       ),
     }));
-    setEditingRoomDetails(false);
-    setRoomDetailsDraft(null);
+    closeRoomDetailsEdit();
   };
 
   const openPropertyFactsEdit = () => {
@@ -1618,12 +1636,9 @@ export function EditableListingPreview({
         >
         {editingRoomDetails && roomDetailsDraft ? (
           <InlineFieldEditor
-            label="Tipo, disponibilidad y perfil buscado"
+            label="Tipo, disponibilidad, reglas y perfil buscado"
             onSave={saveRoomDetails}
-            onCancel={() => {
-              setEditingRoomDetails(false);
-              setRoomDetailsDraft(null);
-            }}
+            onCancel={closeRoomDetailsEdit}
           >
             <div className="grid items-start gap-3 sm:grid-cols-2">
               <label className="block text-sm font-medium text-body">
@@ -1675,6 +1690,10 @@ export function EditableListingPreview({
                   <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
                 </select>
               </label>
+              <RoomBathroomField
+                tags={detailsRoom.tags}
+                onChange={(tags) => setRoomDetailsDraft((r) => (r ? { ...r, tags } : r))}
+              />
               {draft.postMode === "property" ? (
                 <div className="block text-sm font-medium text-body">
                   <WizardPairedFieldLabel>Plazas / espacios</WizardPairedFieldLabel>
@@ -1770,40 +1789,23 @@ export function EditableListingPreview({
                 />
               </div>
               {draft.postMode === "room" ? (
-                <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
-                    <input
-                      type="checkbox"
-                      checked={detailsRoom.rentIncludesUtilities}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setRoomDetailsDraft((r) => (r ? { ...r, rentIncludesUtilities: checked } : r));
-                      }}
-                      className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium text-body">Servicios básicos incluidos</span>
-                      <span className="mt-0.5 block text-xs text-muted leading-snug">
-                        Activa esta opción si el precio de renta ya cubre luz, agua, gas e internet (Wi-Fi).
-                      </span>
-                    </span>
-                  </label>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface-elevated/50 px-3 py-2.5 text-body">
-                    <input
-                      type="checkbox"
-                      checked={detailsRoom.avalRequired}
-                      onChange={(e) =>
-                        setRoomDetailsDraft((r) => (r ? { ...r, avalRequired: e.target.checked } : r))
-                      }
-                      className="mt-0.5 size-4 shrink-0 rounded border-border text-primary"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium text-body">Se requiere aval</span>
-                      <span className="mt-0.5 block text-xs text-muted leading-snug">
-                        Activa esta opción si para rentar esta recámara es obligatorio presentar aval.
-                      </span>
-                    </span>
-                  </label>
+                <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+                  <RoomUtilitiesAvalFields
+                    rentIncludesUtilities={detailsRoom.rentIncludesUtilities}
+                    avalRequired={detailsRoom.avalRequired}
+                    onRentIncludesUtilitiesChange={(checked) =>
+                      setRoomDetailsDraft((r) => (r ? { ...r, rentIncludesUtilities: checked } : r))
+                    }
+                    onAvalRequiredChange={(checked) =>
+                      setRoomDetailsDraft((r) => (r ? { ...r, avalRequired: checked } : r))
+                    }
+                  />
+                  <RoomHouseRuleFactFields
+                    roomTags={detailsRoom.tags}
+                    onRoomTagsChange={(tags) => setRoomDetailsDraft((r) => (r ? { ...r, tags } : r))}
+                    permitidoTags={permitidoDraft ?? []}
+                    onPermitidoChange={setPermitidoDraft}
+                  />
                 </div>
               ) : null}
             </div>

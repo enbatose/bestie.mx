@@ -21,6 +21,10 @@ import {
   ScopeTagsBlock,
 } from "@/components/publish/editablePreviewShared";
 import {
+  RoomBathroomField,
+  RoomUtilitiesAvalFields,
+} from "@/components/publish/roomDetailsFactFields";
+import {
   WizardNumberStepper,
   WizardPairedFieldLabel,
   WIZARD_FIELD_CONTROL_CLASS,
@@ -329,7 +333,7 @@ export function EditableRoomModal({
       next = {
         ...next,
         ...detailsDraft,
-        tags: filterRoomScopeTags(next.tags),
+        tags: filterRoomScopeTags(detailsDraft.tags),
         summary: summaryDraft,
       };
     }
@@ -382,11 +386,11 @@ export function EditableRoomModal({
     setLocalRoom((r) => ({
       ...r,
       ...detailsDraft,
-      tags: filterRoomScopeTags(r.tags),
+      tags: filterRoomScopeTags(detailsDraft.tags),
       summary: summaryDraft,
       roomsAvailable:
         draft.postMode === "room"
-          ? roomsAvailableFromIdealTags(r.tags)
+          ? roomsAvailableFromIdealTags(detailsDraft.tags)
           : detailsDraft.roomsAvailable,
     }));
     setEditingDetails(false);
@@ -633,7 +637,7 @@ export function EditableRoomModal({
                 >
                   {editingDetails && detailsDraft ? (
                     <InlineFieldEditor
-                      label="Tipo, disponibilidad y perfil buscado"
+                      label="Tipo, disponibilidad, reglas y perfil buscado"
                       onSave={saveDetails}
                       onCancel={() => {
                         setEditingDetails(false);
@@ -675,6 +679,10 @@ export function EditableRoomModal({
                             <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
                           </select>
                         </label>
+                        <RoomBathroomField
+                          tags={detailsRoom.tags}
+                          onChange={(tags) => setDetailsDraft((r) => (r ? { ...r, tags } : r))}
+                        />
                         <div className="block text-sm font-medium text-body">
                           <WizardPairedFieldLabel>Plazas / espacios</WizardPairedFieldLabel>
                           <WizardNumberStepper
@@ -769,6 +777,18 @@ export function EditableRoomModal({
                             }
                             decrementLabel="Menor edad máxima"
                             incrementLabel="Mayor edad máxima"
+                          />
+                        </div>
+                        <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+                          <RoomUtilitiesAvalFields
+                            rentIncludesUtilities={detailsRoom.rentIncludesUtilities}
+                            avalRequired={detailsRoom.avalRequired}
+                            onRentIncludesUtilitiesChange={(checked) =>
+                              setDetailsDraft((r) => (r ? { ...r, rentIncludesUtilities: checked } : r))
+                            }
+                            onAvalRequiredChange={(checked) =>
+                              setDetailsDraft((r) => (r ? { ...r, avalRequired: checked } : r))
+                            }
                           />
                         </div>
                       </div>

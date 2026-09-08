@@ -494,6 +494,30 @@ export function filterRoomScopeTags(tags: readonly ListingTag[]): ListingTag[] {
   return tags.filter((t) => isRoomScopeTag(t));
 }
 
+/** Add or remove one tag without touching the rest. */
+export function setListingTag(
+  tags: readonly ListingTag[],
+  tag: ListingTag,
+  enabled: boolean,
+): ListingTag[] {
+  if (enabled) return tags.includes(tag) ? [...tags] : [...tags, tag];
+  return tags.filter((t) => t !== tag);
+}
+
+/**
+ * Replace only “Se permite” tags (mascotas, fiestas, fumar).
+ * Other property amenities stay as they are.
+ */
+export function applyPropertyPermitidoTags(
+  propertyTags: readonly ListingTag[],
+  permitido: readonly ListingTag[],
+): ListingTag[] {
+  const permitidoOn = new Set(permitido);
+  const kept = propertyTags.filter((t) => !PROPERTY_PERMITIDO_TAG_SLUGS.includes(t));
+  const nextPermitido = PROPERTY_PERMITIDO_TAG_SLUGS.filter((t) => permitidoOn.has(t));
+  return filterPropertyScopeTags([...kept, ...nextPermitido]);
+}
+
 /** Catalog tags that are not currently selected (preview “no incluidas” chips). */
 export function listingTagsNotSelected(
   catalog: readonly ListingTag[],
