@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPropertyPermitidoTags, setListingTag } from "@/lib/listingTags";
+import { applyPropertyPermitidoTags, propertyPermitidoTags, setListingTag } from "@/lib/listingTags";
 
 describe("setListingTag", () => {
   it("adds a tag without dropping the others", () => {
@@ -13,6 +13,15 @@ describe("setListingTag", () => {
   it("removes only the targeted tag", () => {
     expect(setListingTag(["estacionamiento", "muebles"], "estacionamiento", false)).toEqual([
       "muebles",
+    ]);
+  });
+});
+
+describe("propertyPermitidoTags", () => {
+  it("keeps only the house-rule tags", () => {
+    expect(propertyPermitidoTags(["wifi", "mascotas", "muebles", "fumar"])).toEqual([
+      "mascotas",
+      "fumar",
     ]);
   });
 });

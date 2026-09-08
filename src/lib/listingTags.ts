@@ -508,6 +508,10 @@ export function setListingTag(
  * Replace only “Se permite” tags (mascotas, fiestas, fumar).
  * Other property amenities stay as they are.
  */
+export function propertyPermitidoTags(tags: readonly ListingTag[]): ListingTag[] {
+  return PROPERTY_PERMITIDO_TAG_SLUGS.filter((t) => tags.includes(t));
+}
+
 export function applyPropertyPermitidoTags(
   propertyTags: readonly ListingTag[],
   permitido: readonly ListingTag[],

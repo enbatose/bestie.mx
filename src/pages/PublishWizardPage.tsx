@@ -92,6 +92,10 @@ import {
 } from "@/lib/publishWizard/assistedDraftClaimSession";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
+  RoomBathroomField,
+  RoomHouseRuleFactFields,
+} from "@/components/publish/roomDetailsFactFields";
+import {
   LISTING_TAG_SLUG_SET,
   migrateDraftTagScopes,
   PROPERTY_AMENITY_TAG_SLUGS,
@@ -100,7 +104,9 @@ import {
   PROPERTY_SCOPE_TAG_SLUGS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   ROOM_TAG_GROUPS,
+  applyPropertyPermitidoTags,
   isListingRentMissing,
+  propertyPermitidoTags,
 } from "@/lib/listingTags";
 import {
   hydrateDraftImagesFromUrls,
@@ -2627,6 +2633,7 @@ export function PublishWizardPage() {
               onToggleTag={(roomIndex, tag, active) =>
                 setDraft((d) => toggleRoomTag(d, roomIndex, tag, active))
               }
+              onPropertyTagsChange={(propertyTags) => setDraft((d) => ({ ...d, propertyTags }))}
               onHidePricingChange={(hide) =>
                 setDraft((d) =>
                   applyDraftHidePricing(d, hide, { hasChat: !unclaimedAdminOutreach, requireContact: false }),
@@ -2729,6 +2736,10 @@ export function PublishWizardPage() {
                         )}
                       </select>
                     </label>
+                    <RoomBathroomField
+                      tags={room.tags}
+                      onChange={(tags) => updateRoom(i, { tags })}
+                    />
                     <div className="sm:col-span-2">
                       <HidePricingToggle
                         hidePricing={Boolean(draft.hidePricing)}
@@ -2814,6 +2825,17 @@ export function PublishWizardPage() {
                           </span>
                         </span>
                       </label>
+                      <RoomHouseRuleFactFields
+                        roomTags={room.tags}
+                        onRoomTagsChange={(tags) => updateRoom(i, { tags })}
+                        permitidoTags={propertyPermitidoTags(draft.propertyTags)}
+                        onPermitidoChange={(tags) =>
+                          setDraft((d) => ({
+                            ...d,
+                            propertyTags: applyPropertyPermitidoTags(d.propertyTags, tags),
+                          }))
+                        }
+                      />
                     </div>
                   </div>
                 </div>

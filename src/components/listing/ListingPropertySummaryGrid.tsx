@@ -164,6 +164,7 @@ export function ListingRoomDetailsGrid({
   roomCount,
   propertyTags,
   hidePricing = false,
+  showHouseRules,
 }: {
   room: ListingRoomDetailsInput;
   postMode: "room" | "property";
@@ -171,6 +172,8 @@ export function ListingRoomDetailsGrid({
   /** Property-scope “Se permite” tags (single-room preview keeps them off the room draft). */
   propertyTags?: readonly ListingTag[];
   hidePricing?: boolean;
+  /** Bathroom-adjacent house rules. Defaults to single-room posts; editors pass true. */
+  showHouseRules?: boolean;
 }) {
   const lodgingKey =
     postMode === "room" && room.lodgingType === "whole_home"
@@ -232,7 +235,7 @@ export function ListingRoomDetailsGrid({
     { icon: UserRound, label: "Edades", value: roomAgeRangeLabel(room.ageMin, room.ageMax) },
   );
 
-  if (postMode === "room") {
+  if (showHouseRules ?? postMode === "room") {
     const permitidoSource = propertyTags ?? room.tags;
     stats.push(
       { icon: Car, label: "Estacionamiento incluido", value: yesNo(room.tags.includes("estacionamiento")) },

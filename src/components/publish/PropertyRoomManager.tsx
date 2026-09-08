@@ -10,6 +10,8 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import {
+  applyPropertyPermitidoTags,
+  propertyPermitidoTags,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   ROOM_TAG_GROUPS,
 } from "@/lib/listingTags";
@@ -31,6 +33,10 @@ import {
 } from "@/lib/roomDisplay";
 import type { DraftImage } from "@/lib/publishWizard/draftImages";
 import { HidePricingToggle } from "@/components/publish/HidePricingToggle";
+import {
+  RoomBathroomField,
+  RoomHouseRuleFactFields,
+} from "@/components/publish/roomDetailsFactFields";
 import { draftHidePricingContactOk } from "@/lib/listingPricing";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoomOccupancyStatus, RoommateGenderPref } from "@/types/listing";
 import type { Draft, RoomDraft } from "@/pages/PublishWizardPage";
@@ -56,6 +62,7 @@ type Props = {
   onUpdateRoom: (index: number, patch: Partial<RoomDraft>) => void;
   onRoomPhotosChange: (roomIndex: number, photos: DraftImage[]) => void;
   onToggleTag: (roomIndex: number, tag: ListingTag, active: boolean) => void;
+  onPropertyTagsChange: (tags: ListingTag[]) => void;
   onHidePricingChange: (hide: boolean) => void;
   /** False for unclaimed admin outreach (no Bestie inbox until claimed). */
   hasChat?: boolean;
@@ -337,16 +344,20 @@ function AvailableRoomFields({
   room,
   roomLabel,
   hidePricing,
+  propertyTags,
   onChange,
   onToggleTag,
+  onPropertyTagsChange,
   onPhotosChange,
   apiOn = false,
 }: {
   room: RoomDraft;
   roomLabel: string;
   hidePricing: boolean;
+  propertyTags: readonly ListingTag[];
   onChange: (patch: Partial<RoomDraft>) => void;
   onToggleTag: (tag: ListingTag, active: boolean) => void;
+  onPropertyTagsChange: (tags: ListingTag[]) => void;
   onPhotosChange: (photos: DraftImage[]) => void;
   apiOn?: boolean;
 }) {
@@ -378,6 +389,7 @@ function AvailableRoomFields({
             <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
           </select>
         </label>
+        <RoomBathroomField tags={room.tags} onChange={(tags) => onChange({ tags })} />
         <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-body">
@@ -437,6 +449,14 @@ function AvailableRoomFields({
               </span>
             </span>
           </label>
+          <RoomHouseRuleFactFields
+            roomTags={room.tags}
+            onRoomTagsChange={(tags) => onChange({ tags })}
+            permitidoTags={propertyPermitidoTags(propertyTags)}
+            onPermitidoChange={(tags) =>
+              onPropertyTagsChange(applyPropertyPermitidoTags(propertyTags, tags))
+            }
+          />
         </div>
       </div>
 
@@ -597,6 +617,7 @@ export function PropertyRoomManager({
   onUpdateRoom,
   onRoomPhotosChange,
   onToggleTag,
+  onPropertyTagsChange,
   apiOn = false,
   onHidePricingChange,
   hasChat = true,
@@ -784,10 +805,12 @@ export function PropertyRoomManager({
                     room={room}
                     roomLabel={roomLabel}
                     hidePricing={Boolean(draft.hidePricing)}
+                    propertyTags={draft.propertyTags}
                     apiOn={apiOn}
                     onChange={(patch) => onUpdateRoom(i, patch)}
                     onPhotosChange={(photos) => onRoomPhotosChange(i, photos)}
                     onToggleTag={(tag, active) => onToggleTag(i, tag, active)}
+                    onPropertyTagsChange={onPropertyTagsChange}
                   />
                   <p className="text-xs text-muted">
                     Si alguien renta esta recámara, puedes marcarla como ocupada más adelante. Guardamos descripción,

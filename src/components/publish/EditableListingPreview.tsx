@@ -72,13 +72,13 @@ import {
 import { isRoomAvailableForRent, occupancyStatusLabel, occupiedRoomOccupantSummary, propertyRoomPencilTitle, propertyRoomSlotTitle } from "@/lib/roomDisplay";
 import { streetViewPovCacheKey } from "@/lib/streetView";
 import {
-  PROPERTY_PERMITIDO_TAG_SLUGS,
   PROPERTY_TAG_GROUPS,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   applyPropertyPermitidoTags,
   filterPropertyScopeTags,
   filterRoomScopeTags,
+  propertyPermitidoTags,
   formatRoomAvailableFrom,
   isListingRentMissing,
   listingHeroPriceLabel,
@@ -703,9 +703,7 @@ export function EditableListingPreview({
 
   const openRoomDetailsEdit = () => {
     setRoomDetailsDraft(cloneRoomDraft(room));
-    setPermitidoDraft(
-      PROPERTY_PERMITIDO_TAG_SLUGS.filter((tag) => draft.propertyTags.includes(tag)),
-    );
+    setPermitidoDraft(propertyPermitidoTags(draft.propertyTags));
     setEditingRoomDetails(true);
   };
 
@@ -872,7 +870,7 @@ export function EditableListingPreview({
         actionErr={isRoomOfProperty ? actionErr : null}
         initialEditingPhotos={initialEditingPhotos && editingRoomModalIndex === roomIndex}
         initialFocusIssueId={roomModalFocusIssueId}
-        onSave={(updated) => {
+        onSave={(updated, extras) => {
           const localIssues = collectRoomFieldIssueDetails(draft, updated);
           if (localIssues.length) return;
 
@@ -880,6 +878,7 @@ export function EditableListingPreview({
             setRoomPhotosExclusive(
               {
                 ...d,
+                ...(extras?.propertyTags ? { propertyTags: extras.propertyTags } : {}),
                 rooms: d.rooms.map((r, i) => (i === editingRoomModalIndex ? updated : r)),
               },
               editingRoomModalIndex,
@@ -1817,6 +1816,7 @@ export function EditableListingPreview({
             roomCount={draft.rooms.length}
             propertyTags={draft.propertyTags}
             hidePricing={draft.hidePricing}
+            showHouseRules
           />
         )}
       </PreviewSection>

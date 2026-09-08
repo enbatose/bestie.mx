@@ -5,6 +5,10 @@ import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
 import {
+  RoomBathroomField,
+  RoomHouseRuleFactFields,
+} from "@/components/publish/roomDetailsFactFields";
+import {
   WizardNumberStepper,
   WizardPairedFieldLabel,
   WIZARD_FIELD_CONTROL_CLASS,
@@ -13,8 +17,10 @@ import { RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { RoomTitlePencilEditor } from "@/components/publish/RoomTitlePencilEditor";
 import { isListingsApiConfigured, patchDraftRoom } from "@/lib/listingsApi";
 import {
+  PROPERTY_PERMITIDO_TAG_SLUGS,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
+  propertyPermitidoTags,
 } from "@/lib/listingTags";
 import { ROOM_SUMMARY_MAX, ROOM_SUMMARY_MIN } from "@/lib/publishWizard/publishCore";
 import {
@@ -257,6 +263,7 @@ export function RoomActivationModal({
                   <option value="large">Grande (Cabe cama Queen/King + área de estar)</option>
                 </select>
               </label>
+              <RoomBathroomField tags={draft.tags} onChange={(tags) => patch({ tags })} />
               <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-body">
@@ -319,6 +326,23 @@ export function RoomActivationModal({
                     </span>
                   </span>
                 </label>
+                <RoomHouseRuleFactFields
+                  roomTags={draft.tags}
+                  onRoomTagsChange={(tags) => patch({ tags })}
+                  permitidoTags={propertyPermitidoTags(draft.tags)}
+                  onPermitidoChange={(tags) => {
+                    const permitidoOn = new Set<ListingTag>(tags);
+                    patch({
+                      tags: [
+                        ...draft.tags.filter(
+                          (tag) =>
+                            !(PROPERTY_PERMITIDO_TAG_SLUGS as readonly ListingTag[]).includes(tag),
+                        ),
+                        ...PROPERTY_PERMITIDO_TAG_SLUGS.filter((tag) => permitidoOn.has(tag)),
+                      ],
+                    });
+                  }}
+                />
               </div>
             </div>
           </div>

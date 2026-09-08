@@ -22,6 +22,7 @@ import {
 } from "@/components/publish/editablePreviewShared";
 import {
   RoomBathroomField,
+  RoomHouseRuleFactFields,
   RoomUtilitiesAvalFields,
 } from "@/components/publish/roomDetailsFactFields";
 import {
@@ -30,9 +31,11 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import {
+  applyPropertyPermitidoTags,
   filterRoomScopeTags,
   isListingRentMissing,
   listingTagsNotSelected,
+  propertyPermitidoTags,
   ROOM_TAG_GROUPS,
   ROOMMATE_GENDER_PREF_FIELD_LABEL_SHORT,
   sortRoomScopeTags,
@@ -89,7 +92,7 @@ type Props = {
   initialEditingPhotos?: boolean;
   /** When set (e.g. jumped from a missing-field bullet), focus that control after open. */
   initialFocusIssueId?: string | null;
-  onSave: (updated: RoomDraft) => void;
+  onSave: (updated: RoomDraft, extras?: { propertyTags?: ListingTag[] }) => void;
   onClose: () => void;
   onPhotoPickerOpen?: () => void;
 };
@@ -220,6 +223,7 @@ export function EditableRoomModal({
     depositMxn: room.depositMxn,
   });
   const [detailsDraft, setDetailsDraft] = useState<RoomDraft | null>(null);
+  const [permitidoDraft, setPermitidoDraft] = useState<ListingTag[] | null>(null);
   const [summaryDraft, setSummaryDraft] = useState(room.summary);
   const [showIssues, setShowIssues] = useState(
     () => collectRoomFieldIssueDetails(draft, room).length > 0,
@@ -250,6 +254,7 @@ export function EditableRoomModal({
     }
     if (issue.section === "details") {
       setDetailsDraft(cloneRoomDraft(localRoom));
+      setPermitidoDraft(propertyPermitidoTags(draft.propertyTags));
       setEditingDetails(true);
     }
     const targetId = roomIssueFocusElementId(issue);
@@ -270,6 +275,7 @@ export function EditableRoomModal({
     }
     if (sections.includes("details")) {
       setDetailsDraft(cloneRoomDraft(localRoom));
+      setPermitidoDraft(propertyPermitidoTags(draft.propertyTags));
       setEditingDetails(true);
     }
     if (sections.includes("description")) {
@@ -343,6 +349,11 @@ export function EditableRoomModal({
 
   const localIssues = collectRoomFieldIssueDetails(draft, flushPendingEdits(localRoom));
 
+  const propertyTagsForSave = (): ListingTag[] | undefined => {
+    if (!permitidoDraft) return undefined;
+    return applyPropertyPermitidoTags(draft.propertyTags, permitidoDraft);
+  };
+
   const trySave = () => {
     const next = flushPendingEdits(localRoom);
     setLocalRoom(next);
@@ -352,7 +363,7 @@ export function EditableRoomModal({
       applyIssueFocus(issues[0]!);
       return;
     }
-    onSave(next);
+    onSave(next, { propertyTags: propertyTagsForSave() });
   };
 
   const openHeaderEdit = () => {
@@ -631,6 +642,7 @@ export function EditableRoomModal({
                   title="Detalles de la recámara"
                   onEdit={() => {
                     setDetailsDraft(cloneRoomDraft(localRoom));
+                    setPermitidoDraft(propertyPermitidoTags(draft.propertyTags));
                     setEditingDetails(true);
                   }}
                   editLabel="Editar detalles"
@@ -642,6 +654,7 @@ export function EditableRoomModal({
                       onCancel={() => {
                         setEditingDetails(false);
                         setDetailsDraft(null);
+                        setPermitidoDraft(null);
                       }}
                     >
                       <div className="grid items-start gap-3 sm:grid-cols-2">
@@ -790,6 +803,12 @@ export function EditableRoomModal({
                               setDetailsDraft((r) => (r ? { ...r, avalRequired: checked } : r))
                             }
                           />
+                          <RoomHouseRuleFactFields
+                            roomTags={detailsRoom.tags}
+                            onRoomTagsChange={(tags) => setDetailsDraft((r) => (r ? { ...r, tags } : r))}
+                            permitidoTags={permitidoDraft ?? []}
+                            onPermitidoChange={setPermitidoDraft}
+                          />
                         </div>
                       </div>
                     </InlineFieldEditor>
@@ -798,7 +817,9 @@ export function EditableRoomModal({
                       room={detailsRoom}
                       postMode={draft.postMode}
                       roomCount={draft.rooms.length}
+                      propertyTags={draft.propertyTags}
                       hidePricing={draft.hidePricing}
+                      showHouseRules
                     />
                   )}
                 </PreviewSection>
