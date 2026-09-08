@@ -334,7 +334,8 @@ function rankSimilarAtRadius(
 
 /**
  * Nearby posts that are not exact: same 3.5 km disk, then at most 7 km.
- * Never city-wide filler and never drop gender / lodging / required-tag excludes.
+ * Must keep the seeker's stay, lodging, and gender — a 1-month private room
+ * cannot list a 12-month or shared room as "cerca".
  */
 export function matchSimilarSharedSearch(
   listings: PropertyListing[],
@@ -343,7 +344,16 @@ export function matchSimilarSharedSearch(
   exactIds: Set<string>,
 ): RankedListing[] {
   const pool = listings.filter((l) => !exactIds.has(l.id) && l.roomOccupancyStatus !== "occupied");
-  const hard = pool.filter((l) => passesHardSimilar(l, cfg));
+  const hardFilters: SearchFilters = {
+    ...EMPTY_SEARCH_FILTERS,
+    pref: filters.pref,
+    lodgingType: filters.lodgingType ?? cfg.lodgingType,
+    minimalStayMonths: filters.minimalStayMonths,
+    wantHouse: filters.wantHouse,
+    wantApartment: filters.wantApartment,
+    wantLoft: filters.wantLoft,
+  };
+  const hard = filterListings(pool, hardFilters).filter((l) => passesHardSimilar(l, cfg));
 
   const nearby = (rows: RankedListing[]) => rows.filter((r) => r.locationScore > 0 && r.score > 0);
   const atRadius = nearby(rankSimilarAtRadius(hard, filters, cfg, cfg.radiusKm));

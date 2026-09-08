@@ -194,6 +194,42 @@ describe("shared search matching", () => {
     expect(split.similar.map((r) => r.listing.id)).not.toContain("men");
   });
 
+  it("does not offer longer-stay or shared rooms as cerca when the seeker wants one month private", () => {
+    const pin = { name: "Centro Médico", lat: 20.6945, lng: -103.352 };
+    const near = listing({
+      id: "month",
+      lat: 20.7,
+      lng: -103.355,
+      neighborhood: "Independencia",
+      minimalStayMonths: 1,
+      lodgingType: "private_room",
+    });
+    const year = listing({
+      id: "year",
+      lat: 20.701,
+      lng: -103.356,
+      neighborhood: "Centro",
+      minimalStayMonths: 12,
+      lodgingType: "private_room",
+    });
+    const shared = listing({
+      id: "shared",
+      lat: 20.702,
+      lng: -103.354,
+      neighborhood: "Independencia Sur",
+      minimalStayMonths: 6,
+      lodgingType: "shared_room",
+    });
+    const split = splitSharedSearchMatches(
+      [near, year, shared],
+      { ...EMPTY_SEARCH_FILTERS, lodgingType: "private_room", minimalStayMonths: 1, pref: "male" },
+      { ...location, neighborhoods: [], lat: pin.lat, lng: pin.lng },
+      defaultSimilarConfig({ pois: [pin] }),
+    );
+    expect(split.exact.map((l) => l.id)).toEqual(["month"]);
+    expect(split.similar.map((r) => r.listing.id)).toEqual([]);
+  });
+
   it("does not fill similares with city-wide inventory", () => {
     const far = listing({
       id: "only",
