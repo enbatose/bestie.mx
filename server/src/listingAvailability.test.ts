@@ -5,8 +5,10 @@ import {
   availabilityAgeDays,
   availabilityCycleStartMs,
   availabilityNotifyPlan,
+  confirmRoomStillFree,
   ensureListingAvailabilitySchema,
   listingAvailabilityClock,
+  markRoomRented,
   shouldPauseForAvailability,
   shouldSendAvailabilityNotice,
   AVAILABILITY_NOTICE_AFTER_DAYS,
@@ -222,6 +224,83 @@ describe("buildListingAvailabilityDigestSms", () => {
     });
     expect(text).toBe("Bestie: 3 anuncios se ocultan en 5 días si no confirmas. https://bestie.mx/mis-anuncios");
     expect(Array.from(text).length).toBeLessThanOrEqual(SMS_NOTIFY_MAX_CHARS);
+  });
+});
+
+describe("availability confirmation titles", () => {
+  function dbWithPost(opts: { postMode: string; roomTitle: string; extraRoom?: boolean }): DatabaseSync {
+    const db = new DatabaseSync(":memory:");
+    db.exec(`
+      CREATE TABLE properties (
+        id TEXT PRIMARY KEY,
+        publisher_id TEXT,
+        status TEXT,
+        post_mode TEXT,
+        title TEXT,
+        city TEXT,
+        neighborhood TEXT,
+        contact_whatsapp TEXT,
+        published_at TEXT,
+        availability_confirmed_at TEXT,
+        availability_notice_sent_at TEXT,
+        paused_by TEXT
+      );
+      CREATE TABLE rooms (
+        id TEXT PRIMARY KEY,
+        property_id TEXT,
+        status TEXT,
+        title TEXT,
+        custom_name TEXT,
+        occupancy_status TEXT,
+        availability_confirmed_at TEXT,
+        sort_order INTEGER,
+        paused_by TEXT,
+        updated_at TEXT
+      );
+    `);
+    ensureListingAvailabilitySchema(db);
+    db.prepare(
+      `INSERT INTO properties (id, publisher_id, status, post_mode, title, city, neighborhood)
+       VALUES ('prp-1', 'pub-1', 'published', ?, 'Casa con balcón en Versalles', 'Guadalajara', 'Chapalita')`,
+    ).run(opts.postMode);
+    db.prepare(
+      `INSERT INTO rooms (id, property_id, status, title, custom_name, occupancy_status, sort_order)
+       VALUES ('room-1', 'prp-1', 'published', ?, ?, 'available', 0)`,
+    ).run(opts.roomTitle, opts.roomTitle);
+    if (opts.extraRoom) {
+      db.prepare(
+        `INSERT INTO rooms (id, property_id, status, title, custom_name, occupancy_status, sort_order)
+         VALUES ('room-2', 'prp-1', 'published', 'Recámara 2', 'Recámara 2', 'available', 1)`,
+      ).run();
+    }
+    return db;
+  }
+
+  it("names a single-room post by its listing title, not the default Recámara 1", () => {
+    const db = dbWithPost({ postMode: "room", roomTitle: "Recámara 1" });
+    expect(markRoomRented(db, "prp-1", "room-1")).toMatchObject({
+      ok: true,
+      outcome: "rented",
+      title: "Casa con balcón en Versalles",
+    });
+  });
+
+  it("keeps the room name when a multi-room property marks one recámara rented", () => {
+    const db = dbWithPost({ postMode: "property", roomTitle: "Recámara 1", extraRoom: true });
+    expect(markRoomRented(db, "prp-1", "room-1")).toMatchObject({
+      ok: true,
+      outcome: "rented",
+      title: "Recámara 1",
+    });
+  });
+
+  it("uses the listing title when confirming a single-room post is still free", () => {
+    const db = dbWithPost({ postMode: "room", roomTitle: "Recámara 1" });
+    expect(confirmRoomStillFree(db, "prp-1", "room-1")).toMatchObject({
+      ok: true,
+      outcome: "confirmed",
+      title: "Casa con balcón en Versalles",
+    });
   });
 });
 

@@ -400,6 +400,18 @@ function roomLabel(row: AvailableRoomRow, index: number): string {
   return `Recámara ${index + 1}`;
 }
 
+/**
+ * Single-room posts store a placeholder room name ("Recámara 1"). Confirmations
+ * must name the listing the publisher recognizes, not that default.
+ * Multi-room property posts keep the room label so each recámara is distinct.
+ */
+function confirmationTitle(prop: PropertyAvailRow, targets: AvailableRoomRow[], openRoomCount: number): string {
+  const propertyTitle = String(prop.title ?? "").trim() || "Anuncio sin título";
+  const multiRoom = String(prop.post_mode ?? "") === "property" && openRoomCount > 1;
+  if (!multiRoom || targets.length !== 1) return propertyTitle;
+  return roomLabel(targets[0]!, 0);
+}
+
 function availableRooms(db: DatabaseSync, propertyId: string): AvailableRoomRow[] {
   return db
     .prepare(
@@ -445,7 +457,7 @@ export function markRoomRented(db: DatabaseSync, propertyId: string, roomId: str
   if (remainingAvailableCount(db, propertyId) === 0) {
     pausePropertyForAvailability(db, propertyId);
   }
-  return { ok: true, outcome: "rented", title: targets.length === 1 ? roomLabel(targets[0]!, 0) : title };
+  return { ok: true, outcome: "rented", title: confirmationTitle(prop, targets, rooms.length) };
 }
 
 export function confirmRoomStillFree(
@@ -485,7 +497,7 @@ export function confirmRoomStillFree(
   return {
     ok: true,
     outcome: "confirmed",
-    title: targets.length === 1 ? roomLabel(targets[0]!, 0) : title,
+    title: confirmationTitle(prop, targets, rooms.length),
   };
 }
 
