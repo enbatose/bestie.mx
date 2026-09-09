@@ -6,6 +6,7 @@ import {
   greetingText,
   primaryButtonHtml,
   renderEmailShell,
+  secondaryButtonHtml,
 } from "./emailLayout.js";
 
 export type ListingAvailabilityEmailPayload = {
@@ -13,7 +14,12 @@ export type ListingAvailabilityEmailPayload = {
   city: string;
   neighborhood: string;
   publisherName: string | null;
+  /** Public listing page — title card opens this. */
+  listingUrl: string;
+  /** GET shows the confirm form; does not mark the post free by itself. */
   confirmUrl: string;
+  /** GET shows the rented form; does not mark the post rented by itself. */
+  rentedUrl: string;
 };
 
 export function buildListingAvailabilityEmail(
@@ -25,19 +31,22 @@ export function buildListingAvailabilityEmail(
   const previewText = `Di si sigue libre o ya se rentó. Si no respondes, lo ocultamos en 5 días.`;
   const B = EMAIL_BRAND;
 
+  const listingHref = escapeHtml(payload.listingUrl);
   const bodyHtml = `
     <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:${B.body};">${greetingHtml(payload.publisherName ?? undefined)},</p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:${B.body};">Tu anuncio lleva 25 días publicado en Bestie. Di si sigue libre o ya se rentó. Si no respondes, lo ocultamos en 5 días. Puedes volver a publicarlo cuando quieras.</p>
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px;border:1px solid ${B.border};border-radius:12px;background:${B.bgLight};">
       <tr>
-        <td style="padding:14px 16px;">
-          <p style="margin:0 0 8px;font-size:16px;font-weight:700;line-height:1.35;color:${B.body};">${escapeHtml(title)}</p>
-          <p style="margin:0;font-size:13px;line-height:1.5;color:${B.muted};">${escapeHtml(place)}</p>
+        <td style="padding:0;">
+          <a href="${listingHref}" style="display:block;padding:14px 16px;text-decoration:none;color:${B.body};">
+            <span style="display:block;margin:0 0 8px;font-size:16px;font-weight:700;line-height:1.35;color:${B.body};">${escapeHtml(title)}</span>
+            <span style="display:block;font-size:13px;line-height:1.5;color:${B.muted};">${escapeHtml(place)}</span>
+          </a>
         </td>
       </tr>
     </table>
     <p style="margin:0;text-align:center;">${primaryButtonHtml(payload.confirmUrl, "Sigue libre")}</p>
-    <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:${B.muted};text-align:center;">En la misma página puedes marcar que ya se rentó.</p>
+    <p style="margin:10px 0 0;text-align:center;">${secondaryButtonHtml(payload.rentedUrl, "Ya se rentó")}</p>
   `;
 
   const html = renderEmailShell({
@@ -53,8 +62,10 @@ export function buildListingAvailabilityEmail(
     "",
     title,
     place,
+    `Ver anuncio: ${payload.listingUrl}`,
     "",
-    `Sigue libre o ya se rentó: ${payload.confirmUrl}`,
+    `Sigue libre: ${payload.confirmUrl}`,
+    `Ya se rentó: ${payload.rentedUrl}`,
   ].join("\n");
 
   return {

@@ -17,6 +17,7 @@ import {
   listingPhoneToE164,
 } from "./phoneAuth.js";
 import { publicBaseUrl } from "./publicBaseUrl.js";
+import { propertyReferenceCode, roomReferenceCode } from "./listingReference.js";
 import { smsMasivosConfigured, smsMasivosSendSms } from "./smsMasivosOtp.js";
 
 /** Notice goes out once the post has been live 25 days without a confirmation. */
@@ -615,10 +616,35 @@ function revealPeopleSince(db: DatabaseSync, propertyId: string, sinceIso: strin
   }
 }
 
-function confirmUrlFor(base: string, code: string): string {
+function actionUrlFor(base: string, action: AvailabilityAction, code: string): string {
   const host = smsLinkHost(base);
-  const httpsHost = host === "bestie.mx" || host.endsWith(".bestie.mx") ? host : host;
-  return `https://${httpsHost}${availabilityActionPath("confirm", code)}`;
+  return `https://${host}${availabilityActionPath(action, code)}`;
+}
+
+function confirmUrlFor(base: string, code: string): string {
+  return actionUrlFor(base, "confirm", code);
+}
+
+function rentedUrlFor(base: string, code: string): string {
+  return actionUrlFor(base, "pause", code);
+}
+
+/** Public listing page for the title card. Room posts open the room; multi-room opens the property. */
+function listingPublicUrl(db: DatabaseSync, prop: PropertyAvailRow): string {
+  const base = publicBaseUrl().replace(/\/+$/, "");
+  const roomMode = String(prop.post_mode ?? "") === "room";
+  if (roomMode) {
+    const room = db
+      .prepare(
+        `SELECT id FROM rooms
+         WHERE property_id = ? AND status != 'archived'
+         ORDER BY CASE WHEN status = 'published' THEN 0 ELSE 1 END, sort_order ASC, id ASC
+         LIMIT 1`,
+      )
+      .get(prop.id) as { id: string } | undefined;
+    if (room?.id) return `${base}/anuncio/${roomReferenceCode(room.id)}`;
+  }
+  return `${base}/propiedad/${propertyReferenceCode(prop.id)}`;
 }
 
 function localDateKey(now: Date, timeZone: string): string {
@@ -689,7 +715,9 @@ function propertyTitleLead(title: string | null): string {
 type NoticeJob = {
   prop: PropertyAvailRow;
   contact: ReturnType<typeof resolveAvailabilityContact>;
+  listingUrl: string;
   confirmUrl: string;
+  rentedUrl: string;
   revealPeople: number;
 };
 
@@ -700,7 +728,7 @@ async function deliverAvailabilityNotice(
   sms: { body: string; recipientKey: string; dayKey: string } | null,
   coveredByMorningSms = false,
 ): Promise<boolean> {
-  const { prop, contact, confirmUrl } = job;
+  const { prop, contact, listingUrl, confirmUrl, rentedUrl } = job;
   const plan = availabilityNotifyPlan(contact);
   const title = String(prop.title ?? "").trim() || "Anuncio sin título";
   let sent = false;
@@ -711,7 +739,9 @@ async function deliverAvailabilityNotice(
       city: String(prop.city ?? ""),
       neighborhood: String(prop.neighborhood ?? ""),
       publisherName: contact.displayName,
+      listingUrl,
       confirmUrl,
+      rentedUrl,
     });
     const ok = await sendTransactionalEmail({
       to: contact.email,
@@ -826,7 +856,9 @@ export async function pollListingAvailability(db: DatabaseSync, now: Date = new 
       due.push({
         prop,
         contact,
+        listingUrl: listingPublicUrl(db, prop),
         confirmUrl: confirmUrlFor(publicBaseUrl(), codes.confirmCode),
+        rentedUrl: rentedUrlFor(publicBaseUrl(), codes.pauseCode),
         revealPeople: revealPeopleSince(db, prop.id, start == null ? null : new Date(start).toISOString()),
       });
     } catch (e) {
