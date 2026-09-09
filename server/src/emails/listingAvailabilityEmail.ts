@@ -16,11 +16,22 @@ export type ListingAvailabilityEmailPayload = {
   publisherName: string | null;
   /** Public listing page — title card opens this. */
   listingUrl: string;
-  /** GET shows the confirm form; does not mark the post free by itself. */
+  /** Still-free action. Email appends `?e=1` so the click is the answer. */
   confirmUrl: string;
-  /** GET shows the rented form; does not mark the post rented by itself. */
+  /** Rented action. Email appends `?e=1` so the click is the answer. */
   rentedUrl: string;
 };
+
+/** Mail scanners GET links. `e=1` only auto-posts the choice already made in the email. */
+function emailChoiceHref(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("e", "1");
+    return parsed.toString();
+  } catch {
+    return url.includes("?") ? `${url}&e=1` : `${url}?e=1`;
+  }
+}
 
 export function buildListingAvailabilityEmail(
   payload: ListingAvailabilityEmailPayload,
@@ -45,8 +56,8 @@ export function buildListingAvailabilityEmail(
         </td>
       </tr>
     </table>
-    <p style="margin:0;text-align:center;">${primaryButtonHtml(payload.confirmUrl, "Sigue libre")}</p>
-    <p style="margin:10px 0 0;text-align:center;">${secondaryButtonHtml(payload.rentedUrl, "Ya se rentó")}</p>
+    <p style="margin:0;text-align:center;">${primaryButtonHtml(emailChoiceHref(payload.confirmUrl), "Sigue libre")}</p>
+    <p style="margin:10px 0 0;text-align:center;">${secondaryButtonHtml(emailChoiceHref(payload.rentedUrl), "Ya se rentó")}</p>
   `;
 
   const html = renderEmailShell({
@@ -64,8 +75,8 @@ export function buildListingAvailabilityEmail(
     place,
     `Ver anuncio: ${payload.listingUrl}`,
     "",
-    `Sigue libre: ${payload.confirmUrl}`,
-    `Ya se rentó: ${payload.rentedUrl}`,
+    `Sigue libre: ${emailChoiceHref(payload.confirmUrl)}`,
+    `Ya se rentó: ${emailChoiceHref(payload.rentedUrl)}`,
   ].join("\n");
 
   return {

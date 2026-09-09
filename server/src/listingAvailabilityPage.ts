@@ -83,6 +83,29 @@ export function availabilityPromptPage(opts: {
   });
 }
 
+/**
+ * Email already chose Sigue libre or Ya se rentó. This page records that choice
+ * and does not ask again. GET does not change the listing; the form posts immediately.
+ */
+export function availabilityEmailApplyPage(opts: { intent: "confirm" | "rented" }): string {
+  const heading = opts.intent === "confirm" ? "Sigue libre" : "Ya se rentó";
+  const B = EMAIL_BRAND;
+  return page({
+    title: heading,
+    bodyHtml: `
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.55;">Anotando tu respuesta…</p>
+      <form id="bestie-email-choice" method="post" action="">
+        <input type="hidden" name="intent" value="${opts.intent}"/>
+        <input type="hidden" name="source" value="email"/>
+        <noscript>
+          <button type="submit" style="display:block;width:100%;min-height:44px;border:2px solid ${B.primary};border-radius:999px;background:${B.primary};color:${B.primaryFg};font-size:15px;font-weight:700;cursor:pointer;">${escapeHtml(heading)}</button>
+        </noscript>
+      </form>
+      <script>document.getElementById("bestie-email-choice").submit();</script>
+    `,
+  });
+}
+
 export function availabilityResultPage(opts: {
   outcome: "confirmed" | "rented" | "paused" | "already_paused" | "already_confirmed" | "invalid";
   title?: string;

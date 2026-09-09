@@ -11,7 +11,11 @@ import {
   parseAvailabilityActionPath,
   type AvailabilityAction,
 } from "./listingAvailability.js";
-import { availabilityPromptPage, availabilityResultPage } from "./listingAvailabilityPage.js";
+import {
+  availabilityEmailApplyPage,
+  availabilityPromptPage,
+  availabilityResultPage,
+} from "./listingAvailabilityPage.js";
 
 function sendHtml(res: Response, status: number, html: string): void {
   res
@@ -41,10 +45,19 @@ function roomIdFrom(req: Request): string | null {
   return raw || null;
 }
 
-function handleGet(db: DatabaseSync, _req: Request, res: Response, action: AvailabilityAction, code: string): void {
+function isEmailChoice(req: Request): boolean {
+  const raw = req.query.e;
+  return raw === "1" || (Array.isArray(raw) && raw.includes("1"));
+}
+
+function handleGet(db: DatabaseSync, req: Request, res: Response, action: AvailabilityAction, code: string): void {
   const found = lookupAvailabilityCode(db, code);
   if (!found || found.action !== action) {
     sendHtml(res, 404, availabilityResultPage({ outcome: "invalid" }));
+    return;
+  }
+  if (isEmailChoice(req)) {
+    sendHtml(res, 200, availabilityEmailApplyPage({ intent: action === "pause" ? "rented" : "confirm" }));
     return;
   }
   const meta = loadPlace(db, found.propertyId);
@@ -95,7 +108,7 @@ function handlePost(db: DatabaseSync, req: Request, res: Response, action: Avail
   );
 }
 
-/** Short confirm links for SMS and email. GET shows buttons; POST performs the action. */
+/** Short links. SMS GET shows both choices. Email `?e=1` applies the button they already tapped. */
 export function installListingAvailabilityRoutes(app: Express, db: DatabaseSync): void {
   ensureListingAvailabilitySchema(db);
   const parseBody = express.urlencoded({ extended: false });

@@ -15,6 +15,7 @@ import {
   AVAILABILITY_PAUSE_AFTER_NOTICE_DAYS,
   AVAILABILITY_WINDOW_DAYS,
 } from "./listingAvailability.js";
+import { availabilityEmailApplyPage } from "./listingAvailabilityPage.js";
 import { buildListingAvailabilityDigestSms, buildListingAvailabilitySms } from "./listingAvailabilitySms.js";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -224,6 +225,16 @@ describe("buildListingAvailabilityDigestSms", () => {
     });
     expect(text).toBe("Bestie: 3 anuncios se ocultan en 5 días si no confirmas. https://bestie.mx/mis-anuncios");
     expect(Array.from(text).length).toBeLessThanOrEqual(SMS_NOTIFY_MAX_CHARS);
+  });
+});
+
+describe("availability email apply page", () => {
+  it("records the email choice without asking both questions again", () => {
+    const html = availabilityEmailApplyPage({ intent: "rented" });
+    expect(html).toContain('name="intent" value="rented"');
+    expect(html).toContain("bestie-email-choice");
+    expect(html).toContain(".submit()");
+    expect(html).not.toContain("Sigue libre");
   });
 });
 
