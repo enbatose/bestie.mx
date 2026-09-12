@@ -29,9 +29,9 @@ export function SearchViewAllCta({
 }: Props) {
   const expanding = mode === "expand";
   const total = money.format(totalCount);
-  const label = expanding ? `Todas las Publicaciones (${total})` : "Volver a mi búsqueda";
+  const label = expanding ? `Ver todos los posts (${total})` : "Volver a mi búsqueda";
   const ariaLabel = expanding
-    ? `Ver todas las publicaciones en ${metroName}: ${total}`
+    ? `Ver todos los posts en ${metroName}: ${total}`
     : "Volver a los resultados de mi búsqueda";
   const hint = expanding
     ? shownCount != null
