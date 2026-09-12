@@ -6,6 +6,7 @@ import {
   getResendReceivingApiKey,
   inboundReceivedDimension,
   isBestieOwnedAddress,
+  isSkippedInboundForwardSender,
   matchesInboundAddress,
   normalizeEmailAddress,
   resolveContactForwardFrom,
@@ -58,6 +59,33 @@ describe("resendWebhook inbound routing", () => {
     );
     expect(inboundReceivedDimension(["contacto@bestie.mx"], "user@gmail.com")).toBe(
       "contacto_forward",
+    );
+  });
+
+  it("does not forward Facebook Group updates from groupupdates@facebookmail.com", () => {
+    expect(isSkippedInboundForwardSender("groupupdates@facebookmail.com")).toBe(true);
+    expect(
+      isSkippedInboundForwardSender("Facebook <groupupdates@facebookmail.com>"),
+    ).toBe(true);
+    expect(isSkippedInboundForwardSender("groupupdates+abc@facebookmail.com")).toBe(true);
+    expect(isSkippedInboundForwardSender("notification@facebookmail.com")).toBe(false);
+    expect(isSkippedInboundForwardSender("security@facebookmail.com")).toBe(false);
+    expect(isSkippedInboundForwardSender("user@gmail.com")).toBe(false);
+
+    expect(
+      shouldForwardInbound(["contacto@bestie.mx"], "groupupdates@facebookmail.com"),
+    ).toBe(false);
+    expect(
+      shouldForwardInbound(
+        ["contacto@bestie.mx"],
+        "Grupo de roomies <groupupdates@facebookmail.com>",
+      ),
+    ).toBe(false);
+    expect(
+      shouldForwardInbound(["contacto@bestie.mx"], "notification@facebookmail.com"),
+    ).toBe(true);
+    expect(inboundReceivedDimension(["contacto@bestie.mx"], "groupupdates@facebookmail.com")).toBe(
+      "contacto_skipped",
     );
   });
 

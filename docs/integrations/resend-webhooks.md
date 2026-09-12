@@ -36,6 +36,8 @@ Handler behavior today: verify Svix signature → log event → for `email.recei
 
 Mail whose `From` is `@bestie.mx` (including `no-reply@`) is **kept in the Resend `contacto@` inbox and not Gmail-forwarded**. That is the Bestie evidence copy for ARCO confirmations (BCC `contacto@`) and it stops the ops-alert loop (sending to `contacto@` used to bounce back out as a second send).
 
+Facebook Group notifications from **`groupupdates@facebookmail.com`** (including `groupupdates+…@facebookmail.com`) are also **kept in Resend and not forwarded** to Gmail or any other address. Other `facebookmail.com` senders (Meta verification / business mail) still forward.
+
 This intentionally does **not** use Resend's raw `emails.receiving.forward()` helper anymore. That raw forward relays the original message essentially unchanged but with the visible `From` rewritten to `Bestie Contacto <contacto@bestie.mx>` — which hides the real external sender and made a "Meta account suspension" phishing email (actually from a random `.edu.ng` address) look like a legitimate Bestie-internal message. The composed forward always exposes the true original sender before you even open it.
 
 Planned: persist bounces/suppressions and auto-disable `email_notify` on saved searches.
@@ -50,6 +52,7 @@ Resend receives any `@bestie.mx` address once domain **receiving** is enabled an
 - First-publish ops alerts go **directly** to that Gmail target (not to `contacto@`)
 - ARCO confirmation emails still **BCC `contacto@bestie.mx`** so a copy stays in the Bestie inbound inbox as evidence. They are **not** re-sent to Gmail.
 - Skip Gmail forward when `From` is `@bestie.mx` / `*.bestie.mx`
+- Skip forward when `From` is `groupupdates@facebookmail.com` (Facebook Group updates stay in Resend)
 - Forward from: the composed forward always sends via `sendTransactionalEmail()`'s normal sender
   (`Bestie MX <no-reply@bestie.mx>` / `EMAIL_FROM`) — never `contacto@bestie.mx` — so the visible
   From can't be mistaken for the original external sender. `resolveContactForwardFrom()` in

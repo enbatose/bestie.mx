@@ -6,7 +6,8 @@
  * failed (e.g. missing RESEND_RECEIVING_API_KEY) or Gmail never showed the forward.
  *
  * Skips mail whose From is @bestie.mx (ops alerts, ARCO BCC evidence) — those stay
- * in the Resend contacto@ inbox and must not be sent again.
+ * in the Resend contacto@ inbox and must not be sent again. Also skips Facebook
+ * Group updates from groupupdates@facebookmail.com (never forward those).
  *
  * Composes a NEW message (fetches the original body via GET /emails/receiving/:id,
  * then sends with `emails.send`) instead of Resend's raw `emails.receiving.forward` —
@@ -71,9 +72,21 @@ function isBestieFrom(from) {
   return host === "bestie.mx" || host.endsWith(".bestie.mx");
 }
 
+function isSkippedFrom(from) {
+  const email = normalizeEmail(from);
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  const host = email.slice(at + 1);
+  if (host !== "facebookmail.com") return false;
+  const local = email.slice(0, at);
+  const localBase = local.split("+", 1)[0] ?? local;
+  return localBase === "groupupdates";
+}
+
 function shouldForward(toList, from) {
   if (!(toList ?? []).some((t) => normalizeEmail(t) === CONTACT)) return false;
   if (isBestieFrom(from)) return false;
+  if (isSkippedFrom(from)) return false;
   return true;
 }
 
@@ -149,7 +162,9 @@ let forwarded = 0;
 for (const row of rows) {
   const to = row.to ?? [];
   if (!shouldForward(to, row.from)) {
-    if ((to ?? []).some((t) => normalizeEmail(t) === CONTACT) && isBestieFrom(row.from)) {
+    if ((to ?? []).some((t) => normalizeEmail(t) === CONTACT) && isSkippedFrom(row.from)) {
+      console.log(`\nskip ${row.id} (groupupdates@facebookmail.com, kept in contacto@)`);
+    } else if ((to ?? []).some((t) => normalizeEmail(t) === CONTACT) && isBestieFrom(row.from)) {
       console.log(`\nskip ${row.id} (@bestie.mx From, kept in contacto@)`);
     }
     continue;

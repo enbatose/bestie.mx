@@ -133,9 +133,30 @@ export function isBestieOwnedAddress(value: string | undefined): boolean {
 }
 
 /**
+ * Facebook Group notification mail. Keep in the Resend contacto@ inbox; never
+ * forward to Gmail or any other address. Do not skip the whole facebookmail.com
+ * domain — Meta verification / business mail from other local-parts still forwards.
+ */
+export const SKIP_INBOUND_FORWARD_LOCAL_PARTS: ReadonlySet<string> = new Set(["groupupdates"]);
+export const SKIP_INBOUND_FORWARD_HOSTS: ReadonlySet<string> = new Set(["facebookmail.com"]);
+
+export function isSkippedInboundForwardSender(from?: string): boolean {
+  if (!from) return false;
+  const email = normalizeEmailAddress(from);
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  const host = email.slice(at + 1);
+  if (!SKIP_INBOUND_FORWARD_HOSTS.has(host)) return false;
+  const local = email.slice(0, at);
+  const localBase = local.split("+", 1)[0] ?? local;
+  return SKIP_INBOUND_FORWARD_LOCAL_PARTS.has(localBase);
+}
+
+/**
  * Forward external mail to contacto@ → Gmail.
  * Do not forward Bestie-originated mail (ops alerts, ARCO BCC): those stay in the
  * Resend contacto@ inbox as the Bestie evidence copy and must not consume a second send.
+ * Do not forward Facebook Group updates (`groupupdates@facebookmail.com`).
  */
 export function shouldForwardInbound(
   recipients: string[] | undefined,
@@ -143,6 +164,7 @@ export function shouldForwardInbound(
 ): boolean {
   if (!matchesInboundAddress(recipients, CONTACT_INBOUND_ADDRESS)) return false;
   if (isBestieOwnedAddress(from)) return false;
+  if (isSkippedInboundForwardSender(from)) return false;
   return true;
 }
 
@@ -152,6 +174,7 @@ export function inboundReceivedDimension(
 ): string {
   if (!matchesInboundAddress(recipients, CONTACT_INBOUND_ADDRESS)) return "inbound_other";
   if (isBestieOwnedAddress(from)) return "contacto_bestie_outbound";
+  if (isSkippedInboundForwardSender(from)) return "contacto_skipped";
   return "contacto_forward";
 }
 
@@ -408,7 +431,11 @@ export async function resendWebhookPost(req: Request, res: Response): Promise<vo
         return;
       }
     } else if (event.type === "email.received" && emailId) {
-      if (matchesInboundAddress(to, CONTACT_INBOUND_ADDRESS) && isBestieOwnedAddress(from)) {
+      if (matchesInboundAddress(to, CONTACT_INBOUND_ADDRESS) && isSkippedInboundForwardSender(from)) {
+        console.log(
+          `[resend] email.received kept in ${CONTACT_INBOUND_ADDRESS} (no forward for skipped sender) email_id=${emailId} from=${from}`,
+        );
+      } else if (matchesInboundAddress(to, CONTACT_INBOUND_ADDRESS) && isBestieOwnedAddress(from)) {
         console.log(
           `[resend] email.received kept in ${CONTACT_INBOUND_ADDRESS} (no Gmail forward for @bestie.mx From) email_id=${emailId} from=${from}`,
         );

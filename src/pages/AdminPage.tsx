@@ -75,6 +75,8 @@ function formatCategoryLabel(key: string): string {
     inbound_forward_alert: "Alerta reenvío inbound",
     uncategorized: "Sin categoría",
     contacto_forward: "Contacto (reenviado)",
+    contacto_skipped: "Contacto (omitido)",
+    contacto_bestie_outbound: "Contacto (Bestie, no reenviado)",
     inbound_other: "Inbound (otros)",
     ok: "Enviado OK",
     fail: "Falló",
