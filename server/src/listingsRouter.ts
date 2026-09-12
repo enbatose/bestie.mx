@@ -4,6 +4,8 @@ import express, { type Request, type Response } from "express";
 import { joinRowToPropertyListing, ROOM_PROPERTY_JOIN_SQL } from "./listingDto.js";
 import { redactHiddenPublicPricing } from "./listingPricing.js";
 import { isListingTag } from "./listingTags.js";
+import { resolveMetroCity } from "./metroCities.js";
+import { countSearchCards, listingInMetro } from "./metroListingScope.js";
 import { createSlidingWindowLimiter } from "./rateLimit.js";
 import { filterListings, parseFilters } from "./searchFilters.js";
 import { canWritePropertyByRequest, isAdminRequest, viewerOwnsProperty } from "./propertyRequestAccess.js";
@@ -223,6 +225,20 @@ export function listingsRouter(db: DatabaseSync) {
     const rows = db.prepare(sql).all() as Record<string, unknown>[];
     const all = rows.map(joinRowToPropertyListing).map(listingForPublic);
     res.json(filterListings(all, filters));
+  });
+
+  /**
+   * Unfiltered card count for a metro area, so search can offer the
+   * "Ver todas (N)" exit out of a narrowed / saved search.
+   */
+  r.get("/count", (req: Request, res: Response) => {
+    const metro = resolveMetroCity(typeof req.query.city === "string" ? req.query.city : null);
+    const sql = `${ROOM_PROPERTY_JOIN_SQL} ${PUBLISHED_JOIN_WHERE}`;
+    const rows = db.prepare(sql).all() as Record<string, unknown>[];
+    const inMetro = rows
+      .map(joinRowToPropertyListing)
+      .filter((listing) => listingInMetro(listing, metro));
+    res.json({ cityCode: metro.code, count: countSearchCards(inMetro) });
   });
 
   r.get("/phone-reveal/status", (req: Request, res: Response) => {

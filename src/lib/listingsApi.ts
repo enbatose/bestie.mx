@@ -69,6 +69,24 @@ export async function fetchListingsFromApi(
   return (await res.json()) as PropertyListing[];
 }
 
+/** Published cards in the whole metro area (ZMG = Guadalajara + Zapopan + …), ignoring filters. */
+export async function fetchCityListingsCount(
+  cityCode: string,
+  signal?: AbortSignal,
+): Promise<number> {
+  const base = apiBase();
+  const params = new URLSearchParams({ city: cityCode });
+  const res = await fetch(`${base}/api/listings/count?${params.toString()}`, {
+    signal,
+    credentials: cred,
+  });
+  if (!res.ok) {
+    throw new Error(`listings_count_http_${res.status}`);
+  }
+  const body = (await res.json()) as { count?: unknown };
+  return typeof body.count === "number" && Number.isFinite(body.count) ? body.count : 0;
+}
+
 export async function fetchLocationSuggestions(
   query: string,
   options?: { cityCode?: string | null; scope?: "city" | "neighborhood" | "publish"; signal?: AbortSignal },

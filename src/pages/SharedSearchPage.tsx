@@ -4,7 +4,9 @@ import { AppConfirmDialog, replaceActiveSavedSearchNotifyMessage } from "@/compo
 import { PropertyMap } from "@/components/map/PropertyMap";
 import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResultsPanel";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
+import { SearchViewAllCta } from "@/components/search/SearchViewAllCta";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useCityListingsCount } from "@/hooks/useCityListingsCount";
 import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { authMe, authUpdateMe, type AuthMe } from "@/lib/authApi";
 import { collapseSearchListings } from "@/lib/collapseSearchListings";
@@ -15,8 +17,15 @@ import {
   fetchSavedSearches,
 } from "@/lib/savedSearchesApi";
 import { looksLikeContactChannel } from "@/lib/outreachDiffusionComment";
-import { SAVED_SEARCH_RADIUS_KM } from "@/lib/searchLocation";
+import { resolveMetroCity } from "@/lib/metroCities";
+import {
+  metroDefaultLocation,
+  SAVED_SEARCH_RADIUS_KM,
+  searchPathForCity,
+  writeSearchLocation,
+} from "@/lib/searchLocation";
 import { searchReturnFromLocation } from "@/lib/searchReturn";
+import { withViewAllCityReturn } from "@/lib/searchViewAllReturn";
 import {
   fetchSharedSearchView,
   subscribeSharedSearch,
@@ -107,6 +116,40 @@ export function SharedSearchPage() {
     ],
     [exactList, similarList],
   );
+
+  const cityTotalCount = useCityListingsCount(view?.cityCode);
+  const shownCount = exactList.length + similarList.length;
+  const metro = useMemo(() => resolveMetroCity(view?.cityCode), [view?.cityCode]);
+
+  /** Escape hatch: leave the shared criteria and browse the whole metro area on the map. */
+  const viewAllCityListings = () => {
+    const nextLocation = { ...metroDefaultLocation(metro), zoom: metro.municipalityZoom };
+    const nextParams = writeSearchLocation(new URLSearchParams(), nextLocation);
+    navigate(
+      { pathname: searchPathForCity(metro.code), search: `?${nextParams.toString()}` },
+      {
+        state: withViewAllCityReturn(null, {
+          pathname: `/busquedas/${slug ?? ""}`,
+          search: "",
+        }),
+      },
+    );
+  };
+
+  const renderViewAllCta = (layout: "bar" | "block", shown: number) => {
+    if (cityTotalCount == null || cityTotalCount <= shown) return null;
+    return (
+      <SearchViewAllCta
+        mode="expand"
+        metroName={metro.metroName}
+        totalCount={cityTotalCount}
+        shownCount={shown}
+        onExpand={viewAllCityListings}
+        onRestore={() => {}}
+        layout={layout}
+      />
+    );
+  };
 
   const showToast = (message: string) => {
     setToast(message);
@@ -238,6 +281,8 @@ export function SharedSearchPage() {
 
   const alreadySaved = Boolean(view?.alreadySaved);
   const alertsOn = Boolean(view?.emailNotifyEnabled);
+  const viewAllBar = renderViewAllCta("bar", shownCount);
+  const viewAllBlock = renderViewAllCta("block", shownCount);
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip">
@@ -362,6 +407,10 @@ export function SharedSearchPage() {
               )}
             </div>
           )}
+
+          {viewAllBar ? (
+            <div className="flex min-w-0 items-center border-t border-border pt-2">{viewAllBar}</div>
+          ) : null}
         </div>
       </header>
 
@@ -398,6 +447,7 @@ export function SharedSearchPage() {
                   ? `${exactList.length} en zona${similarList.length ? ` · ${similarList.length} cerca` : ""}`
                   : "Cargando…"
               }
+              topAction={viewAllBlock}
               onOpenFeedback={() => openFeedback({ source: "map" })}
               flashFeedbackFab={flashMapFab}
             />
@@ -410,9 +460,12 @@ export function SharedSearchPage() {
               {view?.label ?? "Búsqueda"}
             </h2>
             <p className="shrink-0 text-sm text-muted">
-              {view ? `${exactList.length + similarList.length}` : "Cargando…"}
+              {view ? `${shownCount}` : "Cargando…"}
             </p>
           </div>
+          {viewAllBlock ? (
+            <div className="border-b border-border px-4 py-3">{viewAllBlock}</div>
+          ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
             <SearchResultsList
               dense

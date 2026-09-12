@@ -10,6 +10,8 @@ import { SearchMobileResultsPanel } from "@/components/search/SearchMobileResult
 import { MapSupportModal } from "@/components/search/MapSupportModal";
 import { SearchResultsList } from "@/components/search/SearchResultsList";
 import { SearchTopBar, type SearchTopBarHandle } from "@/components/search/SearchTopBar";
+import { SearchViewAllCta, type SearchViewAllMode } from "@/components/search/SearchViewAllCta";
+import { useCityListingsCount } from "@/hooks/useCityListingsCount";
 import { useFeedbackModal } from "@/contexts/FeedbackModalContext";
 import { SEED_LISTINGS } from "@/data/seedListings";
 import { fetchListingsFromApi, isListingsApiConfigured, type LocationSuggestion } from "@/lib/listingsApi";
@@ -41,6 +43,11 @@ import {
   buildSavedSearchesRestorePath,
   readSavedSearchesReturn,
 } from "@/lib/savedSearchesReturn";
+import {
+  readViewAllCityReturn,
+  withoutViewAllCityReturn,
+  withViewAllCityReturn,
+} from "@/lib/searchViewAllReturn";
 import { SavedSearchesReturnLink } from "@/components/savedSearches/SavedSearchesReturnLink";
 import { authMe, type AuthMe } from "@/lib/authApi";
 import { track } from "@/lib/analytics";
@@ -533,6 +540,61 @@ export function SearchPage() {
     [normalizedFilters, searchLocation.neighborhoods.length],
   );
 
+  const cityTotalCount = useCityListingsCount(searchLocation.cityCode);
+  const viewAllReturn = useMemo(() => readViewAllCityReturn(location.state), [location.state]);
+
+  /** Escape hatch out of a saved search: drop every criterion and show the whole metro area. */
+  const viewAllCityListings = useCallback(() => {
+    setLocationError(null);
+    track("search_view_all_city", {
+      city_code: metro.code,
+      total_count: cityTotalCount,
+      shown_count: searchListings.length,
+    });
+    const nextLocation = { ...metroDefaultLocation(metro), zoom: metro.municipalityZoom };
+    const nextParams = writeSearchLocation(
+      filtersToParams(resetSearchFilters(normalizedFilters)),
+      nextLocation,
+    );
+    navigate(
+      {
+        pathname: searchPathForCity(metro.code),
+        search: `?${nextParams.toString()}`,
+      },
+      {
+        state: withViewAllCityReturn(location.state, {
+          pathname: location.pathname,
+          search: location.search,
+        }),
+      },
+    );
+  }, [
+    cityTotalCount,
+    location.pathname,
+    location.search,
+    location.state,
+    metro,
+    navigate,
+    normalizedFilters,
+    searchListings.length,
+  ]);
+
+  const restoreNarrowedSearch = useCallback(() => {
+    if (!viewAllReturn) return;
+    setLocationError(null);
+    track("search_view_all_city_restored", { city_code: metro.code });
+    navigate(
+      { pathname: viewAllReturn.pathname, search: viewAllReturn.search },
+      { state: withoutViewAllCityReturn(location.state), replace: true },
+    );
+  }, [location.state, metro.code, navigate, viewAllReturn]);
+
+  const viewAllMode = useMemo((): SearchViewAllMode | null => {
+    if (cityTotalCount == null || cityTotalCount <= 0) return null;
+    if (!hasActiveFilters) return viewAllReturn ? "restore" : null;
+    return cityTotalCount > searchListings.length ? "expand" : null;
+  }, [cityTotalCount, hasActiveFilters, searchListings.length, viewAllReturn]);
+
   useEffect(() => {
     if (me?.id) return;
     if (isSaveSearchGuestNudgeDismissed()) return;
@@ -669,6 +731,21 @@ export function SearchPage() {
         {!apiOn ? `/${SEED_LISTINGS.length}` : ""}
       </>
     );
+  const renderViewAllCta = (layout: "bar" | "block", shownCount: number) => {
+    if (!viewAllMode || cityTotalCount == null) return null;
+    return (
+      <SearchViewAllCta
+        mode={viewAllMode}
+        metroName={metro.metroName}
+        totalCount={cityTotalCount}
+        shownCount={shownCount}
+        onExpand={viewAllCityListings}
+        onRestore={restoreNarrowedSearch}
+        layout={layout}
+      />
+    );
+  };
+
   const farNeighborhoodAutoOpenKey =
     searchLocation.neighborhoods.length > 1 && searchLocation.zoom <= metro.neighborhoodZoom - 2
       ? `${searchLocation.cityCode}:${neighborhoodSelectionKey}:${searchLocation.zoom}`
@@ -717,9 +794,14 @@ export function SearchPage() {
         }
       />
 
-      {savedSearchesRestorePath ? (
-        <div className="w-full border-b border-border bg-surface px-4 py-2 sm:px-6 lg:px-8">
-          <SavedSearchesReturnLink to={savedSearchesRestorePath} />
+      {savedSearchesRestorePath || viewAllMode ? (
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-2 sm:px-6 lg:px-8">
+          {savedSearchesRestorePath ? (
+            <div className="min-w-0 shrink-0">
+              <SavedSearchesReturnLink to={savedSearchesRestorePath} />
+            </div>
+          ) : null}
+          {renderViewAllCta("bar", searchListings.length)}
         </div>
       ) : null}
 
@@ -765,6 +847,7 @@ export function SearchPage() {
               searchReturn={searchReturn}
               filterRailLabelsExpanded={filterRailLabelsExpanded}
               countLabel={mobileResultsCountLabel}
+              topAction={renderViewAllCta("block", mobileDrawerListings.length)}
               autoExpandKey={farNeighborhoodAutoOpenKey}
               onDrawerOpen={handleMobileDrawerOpen}
               onOpenSupport={() => setSupportOpen(true)}
@@ -779,6 +862,11 @@ export function SearchPage() {
             <h2 className="text-base font-semibold text-body">Listados</h2>
             <p className="text-sm text-muted">{resultsCountLabel}</p>
           </div>
+          {viewAllMode ? (
+            <div className="border-b border-border px-4 py-3">
+              {renderViewAllCta("block", searchListings.length)}
+            </div>
+          ) : null}
           {saveNotice ? (
             <p className="border-b border-border bg-secondary/10 px-4 py-2 text-xs text-body">{saveNotice}</p>
           ) : null}
