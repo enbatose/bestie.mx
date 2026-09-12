@@ -4,9 +4,11 @@ import {
   buildCuratedNeighborhoodSuggestions,
   buildStreetLabel,
   dedupePublishSuggestions,
+  listingMatchesNeighborhoodNames,
   mergeLocationSuggestions,
   municipalitySortRank,
   parseHouseNumberFromQuery,
+  resolveCuratedNeighborhoodPin,
   sortPublishSuggestions,
   suggestionDedupeKey,
 } from "./locationSearch.js";
@@ -340,6 +342,43 @@ describe("publish suggestion ranking and dedupe", () => {
       },
     ]);
     expect(result).toHaveLength(1);
+  });
+});
+
+describe("Tlaquepaque municipality matching", () => {
+  it("resolves San Pedro Tlaquepaque onto the Tlaquepaque pin", () => {
+    expect(resolveCuratedNeighborhoodPin("Tlaquepaque")?.name).toBe("Tlaquepaque");
+    expect(resolveCuratedNeighborhoodPin("San Pedro Tlaquepaque")?.name).toBe("Tlaquepaque");
+    expect(resolveCuratedNeighborhoodPin("Zapopan")?.name).not.toBe("Valle Real");
+  });
+
+  it("uses municipality zoom for Tlaquepaque, not colonia zoom", () => {
+    const pin = buildCuratedNeighborhoodSuggestions("Tlaquepaque", DEFAULT_METRO_CITY).find(
+      (row) => row.neighborhood === "Tlaquepaque",
+    );
+    expect(pin?.zoom).toBe(DEFAULT_METRO_CITY.municipalityZoom);
+    const valle = buildCuratedNeighborhoodSuggestions("Valle Real", DEFAULT_METRO_CITY)[0];
+    expect(valle?.zoom).toBe(DEFAULT_METRO_CITY.neighborhoodZoom);
+  });
+
+  it("matches inventory neighborhoods like Lomas del Paradero, Tlaquepaque", () => {
+    const inTlaquepaque = {
+      city: "Guadalajara",
+      neighborhood: "Lomas del Paradero, Tlaquepaque",
+    };
+    const farArrayanes = {
+      city: "Guadalajara",
+      neighborhood: "Los Arrayanes, Tlaquepaque",
+    };
+    const americana = { city: "Guadalajara", neighborhood: "Colonia Americana, Guadalajara" };
+    const zapopanCentro = { city: "Guadalajara", neighborhood: "Zapopan Centro" };
+
+    expect(listingMatchesNeighborhoodNames(inTlaquepaque, ["Tlaquepaque"])).toBe(true);
+    expect(listingMatchesNeighborhoodNames(farArrayanes, ["San Pedro Tlaquepaque"])).toBe(true);
+    expect(listingMatchesNeighborhoodNames(americana, ["Tlaquepaque"])).toBe(false);
+    expect(listingMatchesNeighborhoodNames(americana, ["Colonia Americana"])).toBe(true);
+    expect(listingMatchesNeighborhoodNames(zapopanCentro, ["Centro"])).toBe(false);
+    expect(listingMatchesNeighborhoodNames(zapopanCentro, ["Centro Histórico"])).toBe(false);
   });
 });
 

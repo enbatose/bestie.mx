@@ -134,4 +134,18 @@ describe("composeSharedSearch", () => {
     expect(caption).not.toContain("Guadalajara");
     expect(caption.length).toBeLessThanOrEqual(90);
   });
+
+  it("pins San Pedro Tlaquepaque as Tlaquepaque so difusión can match rooms", () => {
+    const composed = composeSharedSearch({
+      city: "Guadalajara",
+      seekerGender: null,
+      extraction: {
+        neighborhoods: ["San Pedro Tlaquepaque"],
+        mainAreaLabel: "San Pedro Tlaquepaque",
+      },
+    });
+    expect(composed.location.neighborhoods.map((n) => n.name)).toEqual(["Tlaquepaque"]);
+    expect(composed.similar.pois.some((p) => p.name === "Tlaquepaque")).toBe(true);
+    expect(composed.similar.unresolvedPlace).toBeUndefined();
+  });
 });

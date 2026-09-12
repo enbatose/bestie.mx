@@ -4,7 +4,10 @@ import {
   normalizePlaceKey,
   specificPlacePhrase,
 } from "./gdlSearchPois.js";
-import { curatedNeighborhoodPins } from "./locationSearch.js";
+import {
+  listingMatchesNeighborhoodNames,
+  resolveCuratedNeighborhoodPin,
+} from "./locationSearch.js";
 import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
 import type { ListingTag, LodgingType, PropertyListing } from "./types.js";
 import type { SavedSearchLocationSnapshot } from "./savedSearchMatch.js";
@@ -112,22 +115,13 @@ function pointInBbox(lat: number, lng: number, b: Bbox): boolean {
   return lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng;
 }
 
-function normalizeNeighborhood(value: string): string {
-  return normalizePlaceKey(value)
-    .replace(/\b(colonia|col|barrio|zona)\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function listingMatchesNeighborhoods(
   listing: PropertyListing,
   neighborhoods: SavedSearchLocationSnapshot["neighborhoods"],
 ): boolean {
-  if (!neighborhoods.length) return true;
-  return neighborhoods.some((n) =>
-    [listing.neighborhood, listing.city].some(
-      (c) => normalizeNeighborhood(c) === normalizeNeighborhood(n.name),
-    ),
+  return listingMatchesNeighborhoodNames(
+    listing,
+    neighborhoods.map((n) => n.name),
   );
 }
 
@@ -238,8 +232,6 @@ export function resolvePlacePins(
 ): SearchPlacePin[] {
   const out: SearchPlacePin[] = [];
   const seen = new Set<string>();
-  const curated = curatedNeighborhoodPins();
-
   const pushPin = (pin: SearchPlacePin) => {
     const key = normalizePlaceKey(pin.name);
     if (!key || seen.has(key)) return;
@@ -252,8 +244,8 @@ export function resolvePlacePins(
     if (!cleaned) continue;
 
     const fromCurated = (): SearchPlacePin | null => {
-      const pin = curated.find((n) => normalizePlaceKey(n.neighborhood) === cleaned);
-      return pin ? { name: pin.neighborhood, lat: pin.lat, lng: pin.lng } : null;
+      const pin = resolveCuratedNeighborhoodPin(cleaned);
+      return pin ? { name: pin.name, lat: pin.lat, lng: pin.lng } : null;
     };
     const fromPoi = (): SearchPlacePin[] => {
       if (cityCode && cityCode !== "gdl") return [];

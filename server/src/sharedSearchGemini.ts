@@ -23,8 +23,8 @@ REGLAS:
 - Solo extrae lo EXPLÍCITO o claramente visible. No inventes.
 - confidence 0-100 por campo. Omite lo que no esté al menos a 60.
 - budgetMin/budgetMax en MXN mensuales. Si dice "máximo 7000", budgetMax=7000.
-- neighborhoods: colonias o zonas nombradas.
-- pois: universidades, plazas, hospitales, Glorieta Minerva, Andares, ITESO, CUCS, etc.
+- neighborhoods: colonias, zonas o municipios ZMG nombrados (Tlaquepaque / San Pedro Tlaquepaque, Tonalá, Zapopan, Tlajomulco, El Salto). No los dejes solo en unmappedCriteria.
+- pois: universidades, plazas, hospitales, Glorieta Minerva, Andares, ITESO, CUCS, Forum Tlaquepaque, etc. Un municipio no es un POI.
 - Si hay un mapa o polígono en una imagen, estima un bbox [minLat,minLng,maxLat,maxLng] de Guadalajara.
 - lodgingType: private_room | shared_room | whole_home si lo piden.
 - "cuarto o loft" / "cuarto, depa o loft" = cualquiera sirve: lodgingType private_room (o el tipo que nombren) y wantLoft false. wantLoft true SOLO si piden loft y no un cuarto genérico ("busco loft", "solo loft").

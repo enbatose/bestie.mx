@@ -155,6 +155,137 @@ function normalizeLocationText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
+type CuratedNeighborhood = (typeof CURATED_GUADALAJARA_NEIGHBORHOODS)[number];
+
+/** Tlaquepaque's official city is "San Pedro Tlaquepaque"; Valle Real's city is Zapopan (not a municipality pin). */
+export function curatedItemIsMunicipality(item: {
+  neighborhood: string;
+  city?: string;
+  aliases?: string[];
+}): boolean {
+  const city = normalizeLocationText(item.city ?? "");
+  if (!city) return false;
+  return [item.neighborhood, ...(item.aliases ?? [])].map(normalizeLocationText).includes(city);
+}
+
+function normalizePlaceForMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}\s]/gu, " ")
+    .replace(/\b(colonia|col|barrio|zona)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function curatedLookupKeys(item: CuratedNeighborhood): string[] {
+  const names = [item.neighborhood, ...(item.aliases ?? [])];
+  if (curatedItemIsMunicipality(item) && item.city) names.push(item.city);
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    const key = normalizePlaceForMatch(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  return keys;
+}
+
+/** Resolve "San Pedro Tlaquepaque" / aliases onto the curated pin (name stays "Tlaquepaque"). */
+export function resolveCuratedNeighborhoodPin(
+  cleanedQuery: string,
+): { name: string; lat: number; lng: number } | null {
+  const cleaned = normalizePlaceForMatch(cleanedQuery);
+  if (!cleaned) return null;
+  for (const item of CURATED_GUADALAJARA_NEIGHBORHOODS) {
+    if (curatedLookupKeys(item).includes(cleaned)) {
+      return { name: item.neighborhood, lat: item.lat, lng: item.lng };
+    }
+  }
+  return null;
+}
+
+const TRAILING_METRO_CITY_TOKENS = ["guadalajara", "gdl", "jalisco", "jal"];
+
+function stripTrailingMetroCity(normalized: string): string {
+  let out = normalized;
+  for (const token of TRAILING_METRO_CITY_TOKENS) {
+    const suffix = ` ${token}`;
+    if (out.endsWith(suffix)) out = out.slice(0, -suffix.length).trim();
+  }
+  return out;
+}
+
+function containsContiguousTokens(haystack: string, needle: string): boolean {
+  const h = haystack.split(" ").filter(Boolean);
+  const n = needle.split(" ").filter(Boolean);
+  if (!n.length || n.length > h.length) return false;
+  for (let i = 0; i <= h.length - n.length; i++) {
+    if (n.every((t, j) => h[i + j] === t)) return true;
+  }
+  return false;
+}
+
+function municipalityMatchKeys(): Set<string> {
+  const skip = new Set(["guadalajara", "gdl"]);
+  const keys = new Set<string>();
+  for (const area of DEFAULT_METRO_CITY.metroAreas) {
+    const key = normalizePlaceForMatch(area);
+    if (key && !skip.has(key)) keys.add(key);
+  }
+  for (const item of CURATED_GUADALAJARA_NEIGHBORHOODS) {
+    if (!curatedItemIsMunicipality(item)) continue;
+    for (const key of curatedLookupKeys(item)) {
+      if (!skip.has(key)) keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function expandCuratedPlaceNames(name: string): string[] {
+  const base = normalizePlaceForMatch(name);
+  if (!base) return [];
+  const out = new Set<string>([base]);
+  for (const item of CURATED_GUADALAJARA_NEIGHBORHOODS) {
+    const keys = curatedLookupKeys(item);
+    if (!keys.includes(base)) continue;
+    for (const key of keys) out.add(key);
+  }
+  return [...out];
+}
+
+/**
+ * Saved-search / difusión matching. Inventory stores city=Guadalajara and
+ * neighborhoods like "Lomas del Paradero, Tlaquepaque" — exact equality on
+ * "Tlaquepaque" misses them. Municipality names match as a phrase inside the
+ * colonia; short aliases like "Centro" stay exact so "Zapopan Centro" does not
+ * count as Centro Histórico.
+ */
+export function listingMatchesNeighborhoodNames(
+  listing: { city: string; neighborhood: string },
+  names: readonly string[],
+): boolean {
+  if (!names.length) return true;
+  const candidates = new Set<string>();
+  for (const field of [listing.neighborhood, listing.city]) {
+    const normalized = normalizePlaceForMatch(field);
+    if (!normalized) continue;
+    candidates.add(normalized);
+    const stripped = stripTrailingMetroCity(normalized);
+    if (stripped) candidates.add(stripped);
+  }
+  const municipalityKeys = municipalityMatchKeys();
+  return names.some((name) =>
+    expandCuratedPlaceNames(name).some((pin) => {
+      if ([...candidates].some((candidate) => candidate === pin)) return true;
+      if (!municipalityKeys.has(pin)) return false;
+      return [...candidates].some((candidate) => containsContiguousTokens(candidate, pin));
+    }),
+  );
+}
+
 function metroAreaSet(metro: MetroCity) {
   return new Set(metro.metroAreas.map(normalizeLocationText));
 }
@@ -508,7 +639,7 @@ export function buildCuratedNeighborhoodSuggestions(
   return CURATED_GUADALAJARA_NEIGHBORHOODS.map((item) => {
     const city = item.city ?? metro.label;
     const primaryName = item.neighborhood;
-    const isMunicipality = normalizeLocationText(primaryName) === normalizeLocationText(city);
+    const isMunicipality = curatedItemIsMunicipality({ ...item, city });
     const label = `${metro.abbr} - ${primaryName}`;
     return {
       key: `curated:${item.neighborhood}`,

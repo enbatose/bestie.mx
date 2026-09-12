@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { collapseCoveredPlaceNames } from "./gdlSearchPois.js";
-import { curatedNeighborhoodPins } from "./locationSearch.js";
+import { curatedNeighborhoodPins, listingMatchesNeighborhoodNames } from "./locationSearch.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import { filterListings, type Bbox, type SearchFilters } from "./searchFilters.js";
 import {
@@ -38,11 +38,9 @@ function listingMatchesNeighborhoods(
   listing: PropertyListing,
   neighborhoods: SavedSearchLocationSnapshot["neighborhoods"],
 ): boolean {
-  if (!neighborhoods.length) return true;
-  return neighborhoods.some((n) =>
-    [listing.neighborhood, listing.city].some(
-      (c) => normalizeNeighborhood(c) === normalizeNeighborhood(n.name),
-    ),
+  return listingMatchesNeighborhoodNames(
+    listing,
+    neighborhoods.map((n) => n.name),
   );
 }
 

@@ -280,4 +280,48 @@ describe("shared search matching", () => {
   it("haversine is ~0 for the same point", () => {
     expect(haversineKm(20.67, -103.35, 20.67, -103.35)).toBeLessThan(0.01);
   });
+
+  it("pins San Pedro Tlaquepaque as the municipality, not Forum Tlaquepaque", () => {
+    expect(resolvePlacePins(["Tlaquepaque"], "neighborhood", "gdl").map((p) => p.name)).toEqual([
+      "Tlaquepaque",
+    ]);
+    expect(resolvePlacePins(["San Pedro Tlaquepaque"], "neighborhood", "gdl").map((p) => p.name)).toEqual([
+      "Tlaquepaque",
+    ]);
+    expect(resolvePlacePins(["Forum Tlaquepaque"], "poi", "gdl").map((p) => p.name)).toEqual([
+      "Forum Tlaquepaque",
+    ]);
+  });
+
+  it("counts Tlaquepaque rooms whose colonia names the municipality even far from centro", () => {
+    const near = listing({
+      id: "paradero",
+      city: "Guadalajara",
+      neighborhood: "Lomas del Paradero, Tlaquepaque",
+      lat: 20.655,
+      lng: -103.305,
+    });
+    const far = listing({
+      id: "arrayanes",
+      city: "Guadalajara",
+      neighborhood: "Los Arrayanes, Tlaquepaque",
+      lat: 20.58,
+      lng: -103.36,
+    });
+    const americana = listing({ id: "ame", neighborhood: "Colonia Americana, Guadalajara" });
+    const pins = resolvePlacePins(["San Pedro Tlaquepaque"], "neighborhood", "gdl");
+    const loc: SavedSearchLocationSnapshot = {
+      ...location,
+      neighborhoods: pins.map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+      lat: pins[0]!.lat,
+      lng: pins[0]!.lng,
+    };
+    const exact = matchExactSharedSearch(
+      [near, far, americana],
+      EMPTY_SEARCH_FILTERS,
+      loc,
+      defaultSimilarConfig({ pois: pins }),
+    );
+    expect(exact.map((l) => l.id).sort()).toEqual(["arrayanes", "paradero"]);
+  });
 });
