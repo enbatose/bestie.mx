@@ -13,6 +13,7 @@ import { locationSearchHandler } from "./locationSearch.js";
 import { messagesRouter } from "./messagesRouter.js";
 import { notificationsRouter } from "./notificationsRouter.js";
 import { messengerWebhookPost, messengerWebhookVerify } from "./messengerWebhook.js";
+import { whatsappWebhookPost, whatsappWebhookVerify } from "./whatsappWebhook.js";
 import { getResendInboundDiagnostics, resendWebhookPost } from "./resendWebhook.js";
 import { myListingsHandler } from "./myListingsHandler.js";
 import { propertiesRouter } from "./propertiesRouter.js";
@@ -169,6 +170,15 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
     express.raw({ type: "application/json", limit: "4mb" }),
     (req, res, next) => {
       void messengerWebhookPost(db)(req, res).catch(next);
+    },
+  );
+
+  app.get("/api/whatsapp/webhook", whatsappWebhookVerify);
+  app.post(
+    "/api/whatsapp/webhook",
+    express.raw({ type: "application/json", limit: "4mb" }),
+    (req, res, next) => {
+      void whatsappWebhookPost(db)(req, res).catch(next);
     },
   );
 

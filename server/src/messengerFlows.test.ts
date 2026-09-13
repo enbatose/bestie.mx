@@ -29,6 +29,13 @@ describe("Messenger flows (session + state)", () => {
     }
   });
 
+  it("treats hola as the main menu", async () => {
+    const psid = "test-psid-hola";
+    await processMessengerUserInput(db, psid, { text: "hola" });
+    const s = getMessengerChat(db, psid);
+    expect(s?.flow).toBe("idle");
+  });
+
   it("MB_HELP resets flow to idle", async () => {
     const psid = "test-psid-1";
     await processMessengerUserInput(db, psid, { postback: "MB_HELP" });

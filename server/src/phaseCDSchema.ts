@@ -149,6 +149,19 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
       draft_json TEXT NOT NULL DEFAULT '{}',
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS whatsapp_events (
+      id TEXT PRIMARY KEY,
+      sender_wa TEXT,
+      payload_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_events_sender ON whatsapp_events(sender_wa);
+
+    CREATE TABLE IF NOT EXISTS whatsapp_processed_wamids (
+      wamid TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL
+    );
   `);
   /** Older DBs: `CREATE TABLE IF NOT EXISTS` does not add new columns; register INSERT would fail otherwise. */
   if (!usersTableHasColumn(db, "email_verified_at")) {

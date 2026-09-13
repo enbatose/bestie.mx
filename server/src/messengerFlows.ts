@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import type { ChatSink } from "./chatChannel.js";
 import type { PropertyListing } from "./types.js";
 import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
 import { roomReferenceCode } from "./listingReference.js";
@@ -48,17 +49,40 @@ function listingPrimaryImage(base: string, l: PropertyListing): string | undefin
   return undefined;
 }
 
-async function sendMainMenu(psid: string): Promise<void> {
-  await sendMessengerQuickReplies(psid, "Hola, soy Bestie. ¿Qué quieres hacer?", [
+function messengerSink(psid: string): ChatSink {
+  return {
+    sendText: (text) => sendMessengerText(psid, text),
+    sendQuickReplies: (text, replies) => sendMessengerQuickReplies(psid, text, replies),
+    sendListingCards: async (cards, footer) => {
+      await sendMessengerGenericCarousel(
+        psid,
+        cards.map((c) => ({
+          title: c.title.slice(0, 80),
+          subtitle: c.subtitle.slice(0, 80),
+          ...(c.imageUrl ? { image_url: c.imageUrl } : {}),
+          default_action: { type: "web_url" as const, url: c.url, webview_height_ratio: "tall" as const },
+          buttons: [{ type: "web_url" as const, title: "Ver anuncio", url: c.url }],
+        })),
+      );
+      await sendMessengerText(psid, footer);
+    },
+  };
+}
+
+function isGreeting(text: string): boolean {
+  return /^(hola|hello|hi|hey|buenas|buen[oa]s(\s+d[ií]as)?|qu[eé]\s+tal)[\s!.,¿?]*$/i.test(text.trim());
+}
+
+async function sendMainMenu(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies("Hola, soy Bestie. ¿Qué quieres hacer?", [
     { title: "Buscar cuarto", payload: "MB_SEARCH" },
     { title: "Publicar", payload: "MB_PUB" },
     { title: "Ayuda", payload: "MB_HELP" },
   ]);
 }
 
-async function sendHelp(psid: string, base: string): Promise<void> {
-  await sendMessengerText(
-    psid,
+async function sendHelp(sink: ChatSink, base: string): Promise<void> {
+  await sink.sendText(
     [
       "Puedes buscar cuarto con filtros guiados (ciudad, presupuesto, preferencia de roomies) y ver resultados aquí.",
       `Mapa y filtros avanzados: ${base}/buscar`,
@@ -68,21 +92,20 @@ async function sendHelp(psid: string, base: string): Promise<void> {
   );
 }
 
-async function sendCityStep(db: DatabaseSync, psid: string): Promise<void> {
+async function sendCityStep(db: DatabaseSync, sink: ChatSink): Promise<void> {
   const cities = featuredCitiesList(db).slice(0, 8);
   const replies = [
     ...cities.map((c) => ({ title: c.length > 20 ? `${c.slice(0, 17)}…` : c, payload: `MB_CITY:${c}` })),
     { title: "Cualquier ciudad", payload: "MB_CITY:*" },
   ];
-  await sendMessengerQuickReplies(
-    psid,
+  await sink.sendQuickReplies(
     "Paso 1/3: ¿En qué ciudad buscas? (Si ya escribiste palabras clave, las combino con la ciudad.)",
     replies,
   );
 }
 
-async function sendBudgetStep(psid: string): Promise<void> {
-  await sendMessengerQuickReplies(psid, "Paso 2/3: ¿Presupuesto mensual máximo aproximado?", [
+async function sendBudgetStep(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies("Paso 2/3: ¿Presupuesto mensual máximo aproximado?", [
     { title: "Hasta $5,000", payload: "MB_BD:5000" },
     { title: "Hasta $8,000", payload: "MB_BD:8000" },
     { title: "Hasta $12,000", payload: "MB_BD:12000" },
@@ -90,8 +113,8 @@ async function sendBudgetStep(psid: string): Promise<void> {
   ]);
 }
 
-async function sendPrefStep(psid: string): Promise<void> {
-  await sendMessengerQuickReplies(psid, "Paso 3/3: Preferencia de roomies (filtro de anuncio)", [
+async function sendPrefStep(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies("Paso 3/3: Preferencia de roomies (filtro de anuncio)", [
     { title: "Cualquiera", payload: "MB_PREF:any" },
     { title: "Pref. mujer", payload: "MB_PREF:female" },
     { title: "Pref. hombre", payload: "MB_PREF:male" },
@@ -108,47 +131,50 @@ function searchParamsFromDraft(draft: MessengerSearchDraft): URLSearchParams {
   return p;
 }
 
-async function runSearchAndReply(db: DatabaseSync, psid: string, base: string, draft: MessengerSearchDraft) {
+async function runSearchAndReply(
+  db: DatabaseSync,
+  sink: ChatSink,
+  base: string,
+  draft: MessengerSearchDraft,
+): Promise<void> {
   const params = searchParamsFromDraft(draft);
   const filters = parseFilters(params);
   const list = filterListings(fetchPublishedListings(db), filters);
   const web = `${base}/buscar?${params.toString()}`;
 
   if (list.length === 0) {
-    await sendMessengerText(
-      psid,
+    await sink.sendText(
       `No encontré resultados con esos filtros. Prueba en el mapa y ajusta tags/edad en la web:\n${web}`,
     );
     return;
   }
 
   const top = list.slice(0, 5);
-  const elements = top.map((l) => {
+  const cards = top.map((l) => {
     const url = `${base}/anuncio/${encodeURIComponent(roomReferenceCode(l.id))}`;
-    const img = listingPrimaryImage(base, l);
     return {
       title: l.title.slice(0, 80),
       subtitle: `${l.city} · $${l.rentMxn} MXN/mes`.slice(0, 80),
-      ...(img ? { image_url: img } : {}),
-      default_action: { type: "web_url" as const, url, webview_height_ratio: "tall" as const },
-      buttons: [{ type: "web_url" as const, title: "Ver anuncio", url }],
+      url,
+      imageUrl: listingPrimaryImage(base, l),
     };
   });
-  await sendMessengerGenericCarousel(psid, elements);
-  await sendMessengerText(
-    psid,
+  await sink.sendListingCards(
+    cards,
     `Mostrando ${top.length}${list.length > top.length ? ` de ${list.length}` : ""} anuncios. Más filtros en la web: ${web}`,
   );
 }
 
 /**
- * Handles a single Messenger user action (postback, quick reply, or free text).
+ * Handles a single Messenger / WhatsApp user action (postback, quick reply, or free text).
  */
 export async function processMessengerUserInput(
   db: DatabaseSync,
   psid: string,
   opts: { postback?: string; quickReplyPayload?: string; text?: string },
+  sink?: ChatSink,
 ): Promise<void> {
+  const out = sink ?? messengerSink(psid);
   const base = publicWebOrigin();
   let payload = opts.postback ?? opts.quickReplyPayload ?? null;
   const textRaw = opts.text?.trim() ?? "";
@@ -164,7 +190,8 @@ export async function processMessengerUserInput(
   }
 
   if (!payload && chat.flow === "idle") {
-    if (/^ayuda$|^help$/i.test(lower)) payload = "MB_HELP";
+    if (isGreeting(textRaw)) payload = "MB_MENU";
+    else if (/^ayuda$|^help$/i.test(lower)) payload = "MB_HELP";
     else if (/^publicar$|^anunciar$/i.test(lower)) payload = "MB_PUB";
     else if (/^buscar$|^busco\b/i.test(lower)) payload = "MB_SEARCH";
     else if (textRaw.length > 0) {
@@ -172,29 +199,29 @@ export async function processMessengerUserInput(
         flow: "search_city",
         draft: { ...chat.draft, q: textRaw.slice(0, 120) },
       });
-      await sendCityStep(db, psid);
+      await sendCityStep(db, out);
       return;
     }
   }
 
   if (!payload && chat.flow !== "idle") {
-    await sendMessengerText(psid, "Elige una de las opciones de arriba, o escribe Ayuda para reiniciar.");
+    await out.sendText("Elige una de las opciones de arriba, o escribe Ayuda para reiniciar.");
     return;
   }
 
   if (!payload) {
-    await sendMainMenu(psid);
+    await sendMainMenu(out);
     return;
   }
 
   if (payload === "MB_HELP") {
-    await sendHelp(psid, base);
+    await sendHelp(out, base);
     upsertMessengerChat(db, psid, { flow: "idle", draft: chat.draft });
     return;
   }
 
   if (payload === "GET_STARTED" || payload === "MB_MENU") {
-    await sendMainMenu(psid);
+    await sendMainMenu(out);
     upsertMessengerChat(db, psid, { flow: "idle", draft: chat.draft });
     return;
   }
@@ -204,15 +231,14 @@ export async function processMessengerUserInput(
       flow: "search_city",
       draft: { ...chat.draft, city: null, budgetMax: null, pref: null },
     });
-    await sendCityStep(db, psid);
+    await sendCityStep(db, out);
     return;
   }
 
   if (payload === "MB_PUB") {
     const c = getMessengerChat(db, psid)!;
     const { url } = createPublishHandoff(db, c.publisherId, null);
-    await sendMessengerText(
-      psid,
+    await out.sendText(
       `Abre este enlace en el navegador para terminar tu anuncio (fotos, mapa, legal). Válido 24 h:\n${url}`,
     );
     upsertMessengerChat(db, psid, { flow: "idle", draft: c.draft });
@@ -226,7 +252,7 @@ export async function processMessengerUserInput(
       flow: "search_budget",
       draft: { ...c.draft, city: v === "*" ? DEFAULT_SEARCH_CITY : v },
     });
-    await sendBudgetStep(psid);
+    await sendBudgetStep(out);
     return;
   }
 
@@ -241,7 +267,7 @@ export async function processMessengerUserInput(
         budgetMax: budgetMax != null && Number.isFinite(budgetMax) ? budgetMax : null,
       },
     });
-    await sendPrefStep(psid);
+    await sendPrefStep(out);
     return;
   }
 
@@ -251,10 +277,10 @@ export async function processMessengerUserInput(
     const pref = v === "any" ? null : v === "female" ? "female" : v === "male" ? "male" : null;
     const nextDraft: MessengerSearchDraft = { ...c.draft, pref };
     upsertMessengerChat(db, psid, { flow: "idle", draft: nextDraft });
-    await runSearchAndReply(db, psid, base, nextDraft);
+    await runSearchAndReply(db, out, base, nextDraft);
     return;
   }
 
-  await sendMainMenu(psid);
+  await sendMainMenu(out);
   upsertMessengerChat(db, psid, { flow: "idle", draft: chat.draft });
 }

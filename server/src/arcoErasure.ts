@@ -15,6 +15,7 @@ import {
 } from "./messagingSchema.js";
 import { uploadFilenameFromListingPath } from "./shareOgImage.js";
 import { normalizeWhatsAppDigits } from "./validation.js";
+import { whatsappSessionIdsForStoredPhone } from "./whatsappCloud.js";
 
 export const ARCO_TOMBSTONE_BODY = "[Mensaje eliminado]";
 
@@ -732,6 +733,19 @@ export function eraseUserForArco(
     if (tableExists(db, "messenger_chat_sessions") && publisherIds.length > 0) {
       const ph = publisherIds.map(() => "?").join(",");
       db.prepare(`DELETE FROM messenger_chat_sessions WHERE publisher_id IN (${ph})`).run(...publisherIds);
+    }
+    if (capturedPhone) {
+      const waIds = whatsappSessionIdsForStoredPhone(capturedPhone);
+      if (tableExists(db, "messenger_chat_sessions") && waIds.length > 0) {
+        const ph = waIds.map(() => "?").join(",");
+        db.prepare(`DELETE FROM messenger_chat_sessions WHERE psid IN (${ph})`).run(...waIds);
+      }
+      if (tableExists(db, "whatsapp_events")) {
+        const digits = capturedPhone.replace(/\D/g, "");
+        if (digits.length >= 10) {
+          db.prepare(`DELETE FROM whatsapp_events WHERE sender_wa LIKE '%' || ?`).run(digits.slice(-10));
+        }
+      }
     }
 
     db.prepare(`DELETE FROM email_verification_challenges WHERE user_id = ?`).run(userId);

@@ -99,7 +99,9 @@ export function PrivacyPage() {
               publica tiene cuenta en Bestie, le mostramos una notificación en la app con tu nombre
               visible y el título del anuncio; el equipo operador de Bestie también recibe esa
               notificación en la app para seguimiento operativo, y lo mismo cuando envías el primer
-              mensaje en el chat de un anuncio—, tus búsquedas guardadas (filtros, zona, si activaste
+              mensaje en el chat de un anuncio—, los mensajes que envías al número de WhatsApp Business
+              de Bestie y las respuestas automáticas de ese canal (incluido el número desde el que
+              escribes), tus búsquedas guardadas (filtros, zona, si activaste
               avisos por correo y, si guardas un enlace compartido de búsqueda, esos criterios; abrir el
               enlace no guarda ni activa avisos por sí solo), la fecha en que confirmas que un
               anuncio sigue libre o marcas que ya se rentó, y códigos cortos para abrir esa
@@ -134,7 +136,7 @@ export function PrivacyPage() {
           items={[
             <>
               <strong>Directamente de ti:</strong> cuando te registras, completas tu perfil, publicas
-              anuncios o nos contactas. Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
+              anuncios o nos contactas, o cuando escribes al número de WhatsApp Business de Bestie. Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
               imágenes (fotos e infográficos) que pegas o subes para armar el borrador.
             </>,
             <>
@@ -253,7 +255,7 @@ export function PrivacyPage() {
         <LegalList
           items={[
             "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña de una cuenta con celular verificado, o reclamar un anuncio asociado a ese número.",
-            "Permitir la publicación y consulta de anuncios y el contacto entre usuarios.",
+            "Permitir la publicación y consulta de anuncios y el contacto entre usuarios, incluido el chat automático en el WhatsApp Business de Bestie para buscar anuncios o iniciar un borrador que terminas en el sitio.",
             "Registrar, cuando revelas el teléfono de un anuncio, llamas, abres WhatsApp hacia ese número o envías el primer mensaje en el chat de un anuncio, esa acción para métricas y seguimiento del Servicio; si quien publica tiene cuenta en Bestie, le notificamos en la app con tu nombre visible y el título del anuncio, y el equipo operador de Bestie recibe el mismo tipo de aviso en la app.",
             "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
@@ -313,6 +315,7 @@ export function PrivacyPage() {
         <LegalList
           items={[
             "Proveedores de inicio de sesión e identidad (Google LLC y Meta Platforms, Inc.).",
+            "Proveedor de mensajería WhatsApp Cloud API (Meta Platforms, Inc.) para recibir y responder los mensajes que envías al número de WhatsApp Business de Bestie.",
             "Proveedor de infraestructura y alojamiento de la aplicación.",
             "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
             "Proveedor de envío de correos electrónicos transaccionales.",
@@ -390,7 +393,8 @@ export function PrivacyPage() {
           La cancelación incluye, según corresponda: tu cuenta y credenciales; nombre, correo, teléfono y
           foto de perfil; anuncios, recámaras y fotografías; búsquedas guardadas; comentarios en el blog;
           identificadores de inicio de sesión con Google o Facebook; el registro de si consultaste, llamaste
-          o abriste WhatsApp hacia el teléfono de un anuncio; y los mensajes que hayas enviado.
+          o abriste WhatsApp hacia el teléfono de un anuncio; los mensajes al WhatsApp Business de Bestie;
+          y los mensajes que hayas enviado.
           Los chats con otras personas no se destruyen: tu lado se sustituye por “Usuario eliminado” para
           no borrar la correspondencia de quien conversó contigo. Conservamos un registro interno{" "}
           <em>bloqueado</em> de que procesamos la solicitud (sin tu correo ni teléfono en claro) y, cuando
