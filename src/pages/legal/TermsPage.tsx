@@ -138,6 +138,7 @@ export function TermsPage() {
             "Bestie solo solicita los permisos mínimos necesarios para autenticarte (identidad, correo y perfil básico); no publicamos ni accedemos a tu actividad en dichas plataformas.",
             "El uso de tus datos obtenidos por estos medios se rige por nuestro Aviso de Privacidad y por las políticas del proveedor correspondiente.",
             "Si Facebook no comparte un correo y el que agregas ya pertenece a una cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta (por ejemplo si antes entraste con Google o con correo y contraseña).",
+            "Lo mismo si esta sesión de Facebook aún no tiene correo y el celular mexicano que confirmas con SMS ya está verificado en otra cuenta Bestie tuya: al comprobar el código ligamos Facebook a esa cuenta. No unimos dos cuentas que ya tienen correos distintos.",
           ]}
         />
         <p>

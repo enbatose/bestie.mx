@@ -195,7 +195,7 @@ export async function authPhoneRegister(
 export async function authPhoneVerify(
   body: { phone: string; code: string },
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<{ linked?: boolean }> {
   const base = apiBase();
   const res = await networkFetch(`${base}/api/auth/phone/verify`, {
     method: "POST",
@@ -204,10 +204,15 @@ export async function authPhoneVerify(
     body: JSON.stringify(body),
     signal,
   });
-  const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  const j = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+    linked?: boolean;
+  };
   if (!res.ok) {
     throw new Error(j.message || j.error || `phone_verify_${res.status}`);
   }
+  return { linked: j.linked === true };
 }
 
 export async function authMe(signal?: AbortSignal): Promise<AuthMe | null> {

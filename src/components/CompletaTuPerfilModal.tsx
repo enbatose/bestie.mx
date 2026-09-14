@@ -44,10 +44,11 @@ export function CompletaTuPerfilModal({
   const [err, setErr] = useState<string | null>(null);
   const [linkPending, setLinkPending] = useState(false);
   const [linkCode, setLinkCode] = useState("");
+  const [preferPhone, setPreferPhone] = useState(false);
 
   const needsEmail = !me.email?.trim();
   const askPhone = shouldAskProfilePhone(me, { missingEmailAtOpen });
-  const step: "email" | "phone" = needsEmail ? "email" : "phone";
+  const step: "email" | "phone" = needsEmail && !preferPhone ? "email" : "phone";
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +61,7 @@ export function CompletaTuPerfilModal({
     setErr(null);
     setLinkPending(false);
     setLinkCode("");
+    setPreferPhone(false);
   }, [me.email, me.id, me.phoneE164, open]);
 
   const phoneDigits = useMemo(() => (phone.trim() ? phoneDigitsForStorage(phone) : null), [phone]);
@@ -112,8 +114,12 @@ export function CompletaTuPerfilModal({
     setBusy(true);
     setErr(null);
     try {
-      await authPhoneVerify({ phone: phone.trim(), code: code.trim() });
+      const verified = await authPhoneVerify({ phone: phone.trim(), code: code.trim() });
       window.dispatchEvent(new Event("bestie:me-changed"));
+      if (verified.linked) {
+        await onSaved();
+        return;
+      }
       await finishAfterContact();
     } catch (error) {
       setErr(error instanceof Error ? error.message : "No se pudo verificar el teléfono.");
@@ -181,10 +187,10 @@ export function CompletaTuPerfilModal({
     ? `Ese correo ya es una cuenta Bestie (Google o correo y contraseña). Te enviamos un código a ${email.trim()} para ligar Facebook a esa misma cuenta. Revisa también spam.`
     : step === "email"
       ? askPhone
-        ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo; después confirmamos un celular de México con SMS."
+        ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo, o confirma el celular si tu cuenta Bestie es de teléfono."
         : "Agrega un correo para avisarte de mensajes y códigos. Facebook y Google no siempre lo comparten."
-      : me.signInMethod === "facebook" || missingEmailAtOpen
-        ? "Facebook Login no incluye tu número. Confirmamos el celular con un código por SMS. Solo México (+52)."
+      : me.signInMethod === "facebook" || missingEmailAtOpen || preferPhone
+        ? "Facebook Login no incluye tu número. Confirmamos el celular con un código por SMS. Si ese número ya es tu cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta. Solo México (+52)."
         : "Confirmamos el número con un código por SMS. Solo celulares de México (+52).";
 
   return createPortal(
@@ -253,6 +259,19 @@ export function CompletaTuPerfilModal({
             {linkPending && devCode ? (
               <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p>
             ) : null}
+            {needsEmail && !linkPending ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPreferPhone(true);
+                  setErr(null);
+                }}
+                disabled={busy}
+                className="min-h-11 w-full min-w-0 text-left text-sm font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-60"
+              >
+                Prefiero confirmar con mi celular
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -281,6 +300,22 @@ export function CompletaTuPerfilModal({
             ) : null}
             {devCode ? (
               <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p>
+            ) : null}
+            {preferPhone && needsEmail ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPreferPhone(false);
+                  setOtpSent(false);
+                  setCode("");
+                  setDevCode(null);
+                  setErr(null);
+                }}
+                disabled={busy}
+                className="min-h-11 w-full min-w-0 text-left text-sm font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-60"
+              >
+                Prefiero usar un correo
+              </button>
             ) : null}
           </div>
         ) : null}

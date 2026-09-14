@@ -35,8 +35,8 @@ import {
 } from "./passwordReset.js";
 import {
   absorbStubUserInto,
+  canMergeStubIntoExisting,
   findUserIdByEmailLookup,
-  oauthMergeBlocked,
   OAuthProviderTakenError,
 } from "./authLinkExistingAccount.js";
 import { registerGoogleOAuthRoutes } from "./googleOAuth.js";
@@ -420,7 +420,7 @@ export function authRouter(db: DatabaseSync) {
         }
         const takenId = findUserIdByEmailLookup(db, emailCanonical, emailDisplay);
         if (takenId && takenId !== uid) {
-          if (!row.email?.trim() && !oauthMergeBlocked(db, uid, takenId)) {
+          if (canMergeStubIntoExisting(db, uid, takenId)) {
             const { code, emailSent } = await issueEmailVerificationChallenge(
               db,
               uid,
@@ -935,11 +935,13 @@ export function authRouter(db: DatabaseSync) {
     const uid = readAuthUserId(req);
     const taken = findUserIdByVerifiedPhone(db, mx.e164);
     if (taken && taken !== uid) {
-      res.status(409).json({
-        error: "phone_taken",
-        message: "Ese número ya tiene una cuenta. Entra con teléfono o correo y contraseña.",
-      });
-      return;
+      if (!uid || !canMergeStubIntoExisting(db, uid, taken)) {
+        res.status(409).json({
+          error: "phone_taken",
+          message: "Ese número ya tiene una cuenta. Entra con teléfono o correo y contraseña.",
+        });
+        return;
+      }
     }
     const sent = await requestPhoneOtp(db, mx.e164);
     if (!sent.ok) {
@@ -1053,10 +1055,31 @@ export function authRouter(db: DatabaseSync) {
     }
     const taken = findUserIdByVerifiedPhone(db, mx.e164);
     if (taken && taken !== uid) {
-      res.status(409).json({
-        error: "phone_taken",
-        message: "Ese número ya tiene una cuenta. Entra con esa cuenta.",
-      });
+      if (!canMergeStubIntoExisting(db, uid, taken)) {
+        res.status(409).json({
+          error: "phone_taken",
+          message: "Ese número ya tiene una cuenta. Entra con esa cuenta.",
+        });
+        return;
+      }
+      const linkedOtp = await verifyPhoneOtp(db, mx.e164, code);
+      if (!linkedOtp.ok) {
+        res.status(400).json({ error: linkedOtp.error });
+        return;
+      }
+      try {
+        absorbStubUserInto(db, uid, taken);
+      } catch (err) {
+        if (err instanceof OAuthProviderTakenError) {
+          res.status(409).json({ error: "phone_taken", message: "Ese número ya tiene una cuenta." });
+          return;
+        }
+        console.error("[auth] phone verify absorb failed", err);
+        res.status(500).json({ error: "link_failed" });
+        return;
+      }
+      issueAuthCookie(res, taken);
+      res.json({ ok: true, linked: true, phoneVerified: true, phoneE164: mx.e164 });
       return;
     }
     const verified = await verifyPhoneOtp(db, mx.e164, code);

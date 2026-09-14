@@ -1,4 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
+import { canonicalLookupEmail } from "./authEmail.js";
+import { isPhoneVerifiedAt } from "./phoneAuth.js";
 
 export class OAuthProviderTakenError extends Error {
   readonly code = "oauth_provider_taken";
@@ -43,6 +45,31 @@ export function oauthProviderUserId(
     .prepare("SELECT provider_user_id FROM oauth_identities WHERE provider = ? AND user_id = ?")
     .get(provider, userId) as { provider_user_id: string } | undefined;
   return row?.provider_user_id ?? null;
+}
+
+/**
+ * Facebook (or other) session with no email and no verified phone may attach to the
+ * account that already owns that email or Mexican cellphone after the user proves the inbox/SIM.
+ * Two established accounts (different emails, or a stub that already has a verified phone) stay separate.
+ */
+export function canMergeStubIntoExisting(db: DatabaseSync, stubId: string, targetId: string): boolean {
+  if (!stubId || !targetId || stubId === targetId) return false;
+  if (oauthMergeBlocked(db, stubId, targetId)) return false;
+  const stub = db
+    .prepare("SELECT email, phone_verified_at FROM users WHERE id = ?")
+    .get(stubId) as { email: string | null; phone_verified_at: string | null } | undefined;
+  const target = db
+    .prepare("SELECT email FROM users WHERE id = ?")
+    .get(targetId) as { email: string | null } | undefined;
+  if (!stub || !target) return false;
+  if (isPhoneVerifiedAt(stub.phone_verified_at)) return false;
+  const stubEmail = stub.email?.trim();
+  const targetEmail = target.email?.trim();
+  if (stubEmail) {
+    if (!targetEmail) return false;
+    return canonicalLookupEmail(stubEmail) === canonicalLookupEmail(targetEmail);
+  }
+  return true;
 }
 
 /** Move a no-email stub (Facebook Login without Graph email) onto the account that owns that email. */
