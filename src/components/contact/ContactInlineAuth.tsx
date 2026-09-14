@@ -281,8 +281,8 @@ export function ContactInlineAuth({
             <p className="mt-1.5 text-[11px] text-muted">Guardando tus adjuntos antes de continuar…</p>
           ) : (
             <p className="mt-1.5 text-[11px] text-muted">
-              Con Google saldrás un momento; al volver restauramos tu borrador completo, incluidas las
-              imágenes.
+              Con Google o Facebook saldrás un momento; al volver restauramos tu borrador completo,
+              incluidas las imágenes.
             </p>
           )}
           <AuthMethodDivider />

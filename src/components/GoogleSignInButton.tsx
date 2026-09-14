@@ -34,11 +34,7 @@ type Props = {
 const socialButtonClass =
   "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-2 py-2 text-xs font-semibold text-body shadow-sm transition hover:bg-surface-elevated sm:gap-2 sm:px-3 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800";
 
-/**
- * Social auth row for sign-in / register.
- * Facebook is temporarily omitted pending Meta Login button approval —
- * re-add `<FacebookSignInButton />` beside Google when approved.
- */
+/** Social auth row for sign-in / register. */
 export function SocialSignInButtons({
   returnTo,
   onClick,
@@ -51,8 +47,9 @@ export function SocialSignInButtons({
   className?: string;
 }) {
   return (
-    <div className={`flex gap-2 ${className}`.trim()}>
+    <div className={`flex min-w-0 gap-2 ${className}`.trim()}>
       <GoogleSignInButton returnTo={returnTo} onClick={onClick} onBeforeNavigate={onBeforeNavigate} />
+      <FacebookSignInButton returnTo={returnTo} onClick={onClick} onBeforeNavigate={onBeforeNavigate} />
     </div>
   );
 }
@@ -91,7 +88,6 @@ export function GoogleSignInButton({ returnTo, className = "", onClick, onBefore
   );
 }
 
-/** Kept for easy re-enable after Meta Login approval. */
 export function FacebookSignInButton({ returnTo, className = "", onClick, onBeforeNavigate }: Props) {
   const href = facebookSignInUrl(returnTo);
 
