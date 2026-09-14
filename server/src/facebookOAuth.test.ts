@@ -195,6 +195,72 @@ describe("Facebook OAuth", () => {
     expect(me.body.emailVerified).toBe(false);
   });
 
+  it("links a Facebook-without-email stub onto an existing email account after inbox verification", async () => {
+    process.env.FACEBOOK_APP_ID = "test-app-id";
+    process.env.FACEBOOK_APP_SECRET = "test-app-secret";
+    process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
+
+    const existingEmail = `google-first-${randomUUID().slice(0, 8)}@example.com`;
+    const owner = request.agent(app);
+    await owner
+      .post("/api/auth/register")
+      .send({ email: existingEmail, password: "longenough1", displayName: "Cuenta Google" })
+      .expect(201);
+    const ownerMe = await owner.get("/api/auth/me").expect(200);
+    await owner.post("/api/auth/logout").expect(200);
+
+    const facebookId = `facebook-id-link-${randomUUID().slice(0, 8)}`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "fb-at-test" }), { status: 200 });
+        }
+        if (url.includes("/me?")) {
+          return new Response(JSON.stringify({ id: facebookId, name: "Stub Facebook" }), { status: 200 });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+
+    const fb = request.agent(app);
+    const start = await fb.get("/api/auth/facebook?returnTo=/mis-anuncios").expect(302);
+    const state = new URL(start.headers.location as string).searchParams.get("state");
+    const first = await fb
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(state!)}`)
+      .expect(302);
+    const reaskState = new URL(first.headers.location as string).searchParams.get("state");
+    await fb
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(reaskState!)}`)
+      .expect(302);
+    const stubMe = await fb.get("/api/auth/me").expect(200);
+    expect(stubMe.body.email).toBeNull();
+    expect(stubMe.body.id).not.toBe(ownerMe.body.id);
+
+    const patch = await fb.patch("/api/auth/me").send({ email: existingEmail }).expect(409);
+    expect(patch.body.error).toBe("email_link_required");
+    expect(patch.body.devCode).toMatch(/^\d{6}$/);
+
+    const linked = await fb
+      .post("/api/auth/me/link-existing-email")
+      .send({ email: existingEmail, code: patch.body.devCode })
+      .expect(200);
+    expect(linked.body.linked).toBe(true);
+
+    const me = await fb.get("/api/auth/me").expect(200);
+    expect(me.body.id).toBe(ownerMe.body.id);
+    expect(me.body.email).toBe(existingEmail);
+    expect(me.body.displayName).toBe("Cuenta Google");
+
+    const oauth = db
+      .prepare("SELECT user_id FROM oauth_identities WHERE provider = ? AND provider_user_id = ?")
+      .get("facebook", facebookId) as { user_id: string } | undefined;
+    expect(oauth?.user_id).toBe(ownerMe.body.id);
+    const stubGone = db.prepare("SELECT id FROM users WHERE id = ?").get(stubMe.body.id);
+    expect(stubGone).toBeUndefined();
+  });
+
   it("GET /api/auth/facebook/callback signs in a linked Facebook user even without email", async () => {
     process.env.FACEBOOK_APP_ID = "test-app-id";
     process.env.FACEBOOK_APP_SECRET = "test-app-secret";

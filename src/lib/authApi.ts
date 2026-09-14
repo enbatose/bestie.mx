@@ -322,6 +322,22 @@ export async function authResendVerificationEmail(
   return j.devCode ? { devCode: j.devCode } : {};
 }
 
+export class EmailLinkRequiredError extends Error {
+  readonly code = "email_link_required";
+  readonly devCode?: string;
+  constructor(devCode?: string) {
+    super(
+      "Ese correo ya tiene una cuenta Bestie. Te enviamos un código para ligar Facebook a esa cuenta. Revisa inbox y spam.",
+    );
+    this.name = "EmailLinkRequiredError";
+    this.devCode = devCode;
+  }
+}
+
+export function isEmailLinkRequiredError(error: unknown): error is EmailLinkRequiredError {
+  return error instanceof EmailLinkRequiredError;
+}
+
 export type UpdateMeBody = {
   displayName?: string;
   email?: string;
@@ -357,6 +373,11 @@ export async function authUpdateMe(body: UpdateMeBody, signal?: AbortSignal): Pr
     if (err === "email_taken") {
       throw new Error("Ese correo ya está en uso en otra cuenta.");
     }
+    if (err === "email_link_required") {
+      throw new EmailLinkRequiredError(
+        typeof j.devCode === "string" ? j.devCode : undefined,
+      );
+    }
     if (err === "invalid_email") {
       throw new Error("Correo inválido.");
     }
@@ -385,6 +406,43 @@ export async function authUpdateMe(body: UpdateMeBody, signal?: AbortSignal): Pr
     emailChanged: Boolean(j.emailChanged),
     email: typeof j.email === "string" ? j.email : null,
   };
+}
+
+export async function authLinkExistingEmail(
+  body: { email: string; code: string },
+  signal?: AbortSignal,
+): Promise<{ ok: true; linked: true }> {
+  const base = apiBase();
+  const res = await networkFetch(`${base}/api/auth/me/link-existing-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...deviceHeaders() },
+    credentials: cred,
+    body: JSON.stringify(body),
+    signal,
+  });
+  const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  if (!res.ok) {
+    if (j.error === "invalid_code") {
+      throw new Error("Código incorrecto. Revisa el correo e inténtalo de nuevo.");
+    }
+    if (j.error === "code_expired" || j.error === "not_found") {
+      throw new Error("El código expiró. Pide uno nuevo con Continuar.");
+    }
+    if (j.error === "too_many_attempts") {
+      throw new Error("Demasiados intentos. Pide un código nuevo.");
+    }
+    if (j.error === "email_taken") {
+      throw new Error("Ese correo ya está ligado a otro Facebook.");
+    }
+    if (j.error === "rate_limited") {
+      throw new Error("Espera un momento e inténtalo de nuevo.");
+    }
+    if (j.error === "unauthorized") {
+      throw new Error("Tu sesión expiró. Inicia sesión de nuevo.");
+    }
+    throw new Error(typeof j.message === "string" ? j.message : j.error || "No se pudo ligar la cuenta.");
+  }
+  return { ok: true, linked: true };
 }
 
 export async function authChangePassword(

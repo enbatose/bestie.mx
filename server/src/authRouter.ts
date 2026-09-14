@@ -33,6 +33,12 @@ import {
   passwordResetDevReturnEnabled,
   requestPasswordResetForEmail,
 } from "./passwordReset.js";
+import {
+  absorbStubUserInto,
+  findUserIdByEmailLookup,
+  oauthMergeBlocked,
+  OAuthProviderTakenError,
+} from "./authLinkExistingAccount.js";
 import { registerGoogleOAuthRoutes } from "./googleOAuth.js";
 import { registerFacebookOAuthRoutes } from "./facebookOAuth.js";
 import { authSecret } from "./authSecret.js";
@@ -412,6 +418,24 @@ export function authRouter(db: DatabaseSync) {
             return;
           }
         }
+        const takenId = findUserIdByEmailLookup(db, emailCanonical, emailDisplay);
+        if (takenId && takenId !== uid) {
+          if (!row.email?.trim() && !oauthMergeBlocked(db, uid, takenId)) {
+            const { code, emailSent } = await issueEmailVerificationChallenge(
+              db,
+              uid,
+              emailDisplay,
+              emailCanonical,
+              row.display_name,
+            );
+            const payload: Record<string, unknown> = { error: "email_link_required" };
+            if (shouldReturnDevVerificationCode(emailSent)) payload.devCode = code;
+            res.status(409).json(payload);
+            return;
+          }
+          res.status(409).json({ error: "email_taken" });
+          return;
+        }
         emailChanged = true;
         nextEmail = emailDisplay;
         nextEmailCanonical = emailCanonical;
@@ -457,6 +481,63 @@ export function authRouter(db: DatabaseSync) {
       emailVerified: emailChanged ? false : undefined,
       accountStatus: emailChanged ? "pending_validation" : undefined,
     });
+  });
+
+  /** Prove inbox ownership, then attach this session's Facebook (or other) login onto the existing email account. */
+  r.post("/me/link-existing-email", jsonMw(), (req: Request, res: Response) => {
+    const uid = readAuthUserId(req);
+    if (!uid) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const lim = otpVerifyLimiter(uid);
+    if (!lim.ok) {
+      res.status(429).json({ error: "rate_limited", retryAfterMs: lim.retryAfterMs });
+      return;
+    }
+    const stub = db
+      .prepare("SELECT id, email FROM users WHERE id = ?")
+      .get(uid) as { id: string; email: string | null } | undefined;
+    if (!stub) {
+      clearAuthCookie(res);
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (stub.email?.trim()) {
+      res.status(400).json({ error: "email_already_set" });
+      return;
+    }
+    const body = req.body as { email?: unknown; code?: unknown };
+    const emailDisplay = typeof body.email === "string" ? displayStorageEmail(body.email) : "";
+    const emailCanonical = emailDisplay.includes("@") ? canonicalLookupEmail(emailDisplay) : "";
+    const code = typeof body.code === "string" ? body.code.trim() : "";
+    if (!emailCanonical || !/^\d{6}$/.test(code)) {
+      res.status(400).json({ error: "invalid_input" });
+      return;
+    }
+    const verified = verifyEmailVerificationCode(db, uid, emailCanonical, code);
+    if (!verified.ok) {
+      res.status(400).json({ error: verified.error });
+      return;
+    }
+    const targetId = findUserIdByEmailLookup(db, emailCanonical, emailDisplay);
+    if (!targetId || targetId === uid) {
+      res.status(400).json({ error: "email_taken" });
+      return;
+    }
+    try {
+      absorbStubUserInto(db, uid, targetId);
+    } catch (err) {
+      if (err instanceof OAuthProviderTakenError) {
+        res.status(409).json({ error: "email_taken" });
+        return;
+      }
+      console.error("[auth] link-existing-email absorb failed", err);
+      res.status(500).json({ error: "link_failed" });
+      return;
+    }
+    issueAuthCookie(res, targetId);
+    res.json({ ok: true, linked: true, userId: targetId });
   });
 
   /** Change the password for the logged-in user (email accounts only). */

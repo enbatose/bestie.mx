@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { PasswordField } from "@/components/PasswordField";
 import {
+  authLinkExistingEmail,
   authPhoneOtpRequest,
   authPhoneVerify,
   authUpdateMe,
+  isEmailLinkRequiredError,
   shouldAskProfilePhone,
   type AuthMe,
 } from "@/lib/authApi";
@@ -40,6 +42,8 @@ export function CompletaTuPerfilModal({
   const [currentPassword, setCurrentPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [linkPending, setLinkPending] = useState(false);
+  const [linkCode, setLinkCode] = useState("");
 
   const needsEmail = !me.email?.trim();
   const askPhone = shouldAskProfilePhone(me, { missingEmailAtOpen });
@@ -54,6 +58,8 @@ export function CompletaTuPerfilModal({
     setEmail(me.email ?? "");
     setCurrentPassword("");
     setErr(null);
+    setLinkPending(false);
+    setLinkCode("");
   }, [me.email, me.id, me.phoneE164, open]);
 
   const phoneDigits = useMemo(() => (phone.trim() ? phoneDigitsForStorage(phone) : null), [phone]);
@@ -135,15 +141,45 @@ export function CompletaTuPerfilModal({
         navigate("/verificar-correo", { replace: true });
       }
     } catch (error) {
+      if (isEmailLinkRequiredError(error)) {
+        setLinkPending(true);
+        setLinkCode("");
+        setDevCode(error.devCode ?? null);
+        setErr(null);
+        return;
+      }
       setErr(error instanceof Error ? error.message : "No se pudo guardar el correo.");
     } finally {
       setBusy(false);
     }
   };
 
-  const title = step === "email" ? "Agrega tu correo" : "Confirma tu celular";
-  const blurb =
-    step === "email"
+  const confirmLink = async () => {
+    if (!/^\d{6}$/.test(linkCode.trim())) {
+      setErr("Ingresa el código de 6 dígitos del correo.");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await authLinkExistingEmail({ email: email.trim(), code: linkCode.trim() });
+      window.dispatchEvent(new Event("bestie:me-changed"));
+      await onSaved();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "No se pudo ligar la cuenta.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const title = linkPending
+    ? "Liga tu cuenta"
+    : step === "email"
+      ? "Agrega tu correo"
+      : "Confirma tu celular";
+  const blurb = linkPending
+    ? `Ese correo ya es una cuenta Bestie (Google o correo y contraseña). Te enviamos un código a ${email.trim()} para ligar Facebook a esa misma cuenta. Revisa también spam.`
+    : step === "email"
       ? askPhone
         ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo; después confirmamos un celular de México con SMS."
         : "Agrega un correo para avisarte de mensajes y códigos. Facebook y Google no siempre lo comparten."
@@ -178,11 +214,17 @@ export function CompletaTuPerfilModal({
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (linkPending) {
+                    setLinkPending(false);
+                    setLinkCode("");
+                  }
+                }}
                 className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
               />
             </label>
-            {!oauthAccount ? (
+            {!oauthAccount && !linkPending ? (
               <label className="block text-sm font-medium text-body">
                 Contraseña actual
                 <PasswordField
@@ -192,6 +234,24 @@ export function CompletaTuPerfilModal({
                   className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
                 />
               </label>
+            ) : null}
+            {linkPending ? (
+              <label className="block text-sm font-medium text-body">
+                Código del correo
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  size={6}
+                  maxLength={6}
+                  value={linkCode}
+                  onChange={(e) => setLinkCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+                />
+              </label>
+            ) : null}
+            {linkPending && devCode ? (
+              <p className="text-xs text-muted">Código de prueba (dev): {devCode}</p>
             ) : null}
           </div>
         ) : null}
@@ -240,7 +300,7 @@ export function CompletaTuPerfilModal({
           >
             Ahora no
           </button>
-          {step === "email" ? (
+          {step === "email" && !linkPending ? (
             <button
               type="button"
               onClick={() => void saveEmail()}
@@ -248,6 +308,16 @@ export function CompletaTuPerfilModal({
               className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
             >
               {busy ? "Guardando…" : askPhone ? "Continuar" : "Guardar correo"}
+            </button>
+          ) : null}
+          {step === "email" && linkPending ? (
+            <button
+              type="button"
+              onClick={() => void confirmLink()}
+              disabled={busy || linkCode.length !== 6}
+              className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+            >
+              {busy ? "Ligando…" : "Ligar cuenta"}
             </button>
           ) : null}
           {step === "phone" && !otpSent ? (

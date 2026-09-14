@@ -137,7 +137,7 @@ export function TermsPage() {
           items={[
             "Bestie solo solicita los permisos mínimos necesarios para autenticarte (identidad, correo y perfil básico); no publicamos ni accedemos a tu actividad en dichas plataformas.",
             "El uso de tus datos obtenidos por estos medios se rige por nuestro Aviso de Privacidad y por las políticas del proveedor correspondiente.",
-            "Puedes revocar el acceso de Bestie desde la configuración de tu cuenta de Google o Facebook en cualquier momento.",
+            "Si Facebook no comparte un correo y el que agregas ya pertenece a una cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta (por ejemplo si antes entraste con Google o con correo y contraseña).",
           ]}
         />
         <p>

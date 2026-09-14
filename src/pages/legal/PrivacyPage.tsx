@@ -240,7 +240,9 @@ export function PrivacyPage() {
               cuenta de Bestie; se almacena vinculado a tu cuenta. No publicamos en tu nombre ni
               pedimos permisos adicionales. Si Facebook no comparte un correo, creamos la cuenta con
               tu identificador de Facebook y te pedimos correo y celular mexicano en Completa tu
-              perfil (el celular se verifica con un código SMS de Bestie).
+              perfil (el celular se verifica con un código SMS de Bestie). Si el correo que das ya
+              existe en Bestie, te enviamos un código a esa bandeja y, al verificarlo, ligamos
+              Facebook a esa cuenta en lugar de dejar un duplicado.
             </>,
             <>
               <strong>Cómo lo compartimos:</strong> no vendemos esos datos ni los usamos para anuncios
