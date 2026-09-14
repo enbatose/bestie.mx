@@ -333,7 +333,7 @@ describe("Facebook OAuth", () => {
     expect(db.prepare("SELECT id FROM users WHERE id = ?").get(stubMe.body.id)).toBeUndefined();
   });
 
-  it("does not merge a Facebook account that already has email onto a different phone account", async () => {
+  it("links a Facebook account that already has email onto a phone-only account after SMS OTP", async () => {
     process.env.FACEBOOK_APP_ID = "test-app-id";
     process.env.FACEBOOK_APP_SECRET = "test-app-secret";
     process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
@@ -350,9 +350,10 @@ describe("Facebook OAuth", () => {
         displayName: "Celular Dueño",
       })
       .expect(201);
+    const ownerMe = await owner.get("/api/auth/me").expect(200);
     await owner.post("/api/auth/logout").expect(200);
 
-    const facebookId = `facebook-id-email-vs-phone-${randomUUID().slice(0, 8)}`;
+    const facebookId = `facebook-id-email-into-phone-${randomUUID().slice(0, 8)}`;
     const fbEmail = `fb-own-${randomUUID().slice(0, 8)}@example.com`;
     vi.stubGlobal(
       "fetch",
@@ -379,9 +380,134 @@ describe("Facebook OAuth", () => {
       .expect(302);
     const stubMe = await fb.get("/api/auth/me").expect(200);
     expect(stubMe.body.email).toBe(fbEmail);
+    expect(stubMe.body.id).not.toBe(ownerMe.body.id);
+
+    const reqOtp = await fb.post("/api/auth/phone/otp/request").send({ phone: national }).expect(200);
+    const linked = await fb
+      .post("/api/auth/phone/verify")
+      .send({ phone: national, code: reqOtp.body.devCode })
+      .expect(200);
+    expect(linked.body.linked).toBe(true);
+
+    const me = await fb.get("/api/auth/me").expect(200);
+    expect(me.body.id).toBe(ownerMe.body.id);
+    expect(me.body.email).toBe(fbEmail);
+    expect(me.body.phoneE164).toBe(`+52${national}`);
+    const oauth = db
+      .prepare("SELECT user_id FROM oauth_identities WHERE provider = ? AND provider_user_id = ?")
+      .get("facebook", facebookId) as { user_id: string } | undefined;
+    expect(oauth?.user_id).toBe(ownerMe.body.id);
+    expect(db.prepare("SELECT id FROM users WHERE id = ?").get(stubMe.body.id)).toBeUndefined();
+  });
+
+  it("does not merge two email accounts that collide on the same phone", async () => {
+    process.env.FACEBOOK_APP_ID = "test-app-id";
+    process.env.FACEBOOK_APP_SECRET = "test-app-secret";
+    process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
+
+    const national = "5599001188";
+    const owner = request.agent(app);
+    await owner
+      .post("/api/auth/register")
+      .send({
+        email: `email-phone-owner-${randomUUID().slice(0, 8)}@example.com`,
+        password: "longenough1",
+        displayName: "Dueño Correo",
+      })
+      .expect(201);
+    const otp = await owner.post("/api/auth/phone/otp/request").send({ phone: national }).expect(200);
+    await owner.post("/api/auth/phone/verify").send({ phone: national, code: otp.body.devCode }).expect(200);
+    await owner.post("/api/auth/logout").expect(200);
+
+    const facebookId = `facebook-id-two-emails-${randomUUID().slice(0, 8)}`;
+    const fbEmail = `fb-other-${randomUUID().slice(0, 8)}@example.com`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "fb-at-test" }), { status: 200 });
+        }
+        if (url.includes("/me?")) {
+          return new Response(
+            JSON.stringify({ id: facebookId, name: "Otro Correo", email: fbEmail }),
+            { status: 200 },
+          );
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+
+    const fb = request.agent(app);
+    const start = await fb.get("/api/auth/facebook?returnTo=/mis-anuncios").expect(302);
+    const state = new URL(start.headers.location as string).searchParams.get("state");
+    await fb
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(state!)}`)
+      .expect(302);
 
     const taken = await fb.post("/api/auth/phone/otp/request").send({ phone: national }).expect(409);
     expect(taken.body.error).toBe("phone_taken");
+    expect(taken.body.message).toMatch(/entra/i);
+  });
+
+  it("lets a Facebook stub that already verified a new phone link onto an email account without phone", async () => {
+    process.env.FACEBOOK_APP_ID = "test-app-id";
+    process.env.FACEBOOK_APP_SECRET = "test-app-secret";
+    process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
+
+    const existingEmail = `google-after-phone-${randomUUID().slice(0, 8)}@example.com`;
+    const owner = request.agent(app);
+    await owner
+      .post("/api/auth/register")
+      .send({ email: existingEmail, password: "longenough1", displayName: "Cuenta Correo" })
+      .expect(201);
+    const ownerMe = await owner.get("/api/auth/me").expect(200);
+    await owner.post("/api/auth/logout").expect(200);
+
+    const facebookId = `facebook-id-stub-phone-then-email-${randomUUID().slice(0, 8)}`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "fb-at-test" }), { status: 200 });
+        }
+        if (url.includes("/me?")) {
+          return new Response(JSON.stringify({ id: facebookId, name: "Stub Luego Correo" }), {
+            status: 200,
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+
+    const fb = request.agent(app);
+    const start = await fb.get("/api/auth/facebook?returnTo=/mis-anuncios").expect(302);
+    const state = new URL(start.headers.location as string).searchParams.get("state");
+    const first = await fb
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(state!)}`)
+      .expect(302);
+    const reaskState = new URL(first.headers.location as string).searchParams.get("state");
+    await fb
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(reaskState!)}`)
+      .expect(302);
+
+    const national = "5599001199";
+    const reqOtp = await fb.post("/api/auth/phone/otp/request").send({ phone: national }).expect(200);
+    await fb.post("/api/auth/phone/verify").send({ phone: national, code: reqOtp.body.devCode }).expect(200);
+
+    const patch = await fb.patch("/api/auth/me").send({ email: existingEmail }).expect(409);
+    expect(patch.body.error).toBe("email_link_required");
+    const linked = await fb
+      .post("/api/auth/me/link-existing-email")
+      .send({ email: existingEmail, code: patch.body.devCode })
+      .expect(200);
+    expect(linked.body.linked).toBe(true);
+
+    const me = await fb.get("/api/auth/me").expect(200);
+    expect(me.body.id).toBe(ownerMe.body.id);
+    expect(me.body.email).toBe(existingEmail);
+    expect(me.body.phoneE164).toBe(`+52${national}`);
   });
 
   it("GET /api/auth/facebook/callback signs in a linked Facebook user even without email", async () => {

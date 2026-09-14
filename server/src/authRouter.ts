@@ -37,6 +37,12 @@ import {
   absorbStubUserInto,
   canMergeStubIntoExisting,
   findUserIdByEmailLookup,
+  MSG_ALREADY_SIGNED_IN_PHONE,
+  MSG_EMAIL_OTHER_OAUTH,
+  MSG_EMAIL_TAKEN,
+  MSG_PHONE_REGISTER_TAKEN,
+  MSG_PHONE_TAKEN,
+  oauthMergeBlocked,
   OAuthProviderTakenError,
 } from "./authLinkExistingAccount.js";
 import { registerGoogleOAuthRoutes } from "./googleOAuth.js";
@@ -208,7 +214,7 @@ export function authRouter(db: DatabaseSync) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("UNIQUE constraint failed") && (msg.includes("email_canonical") || msg.includes("email"))) {
-        res.status(409).json({ error: "email_taken" });
+        res.status(409).json({ error: "email_taken", message: MSG_EMAIL_TAKEN });
         return;
       }
       console.error("[auth] register insert failed:", msg);
@@ -433,7 +439,10 @@ export function authRouter(db: DatabaseSync) {
             res.status(409).json(payload);
             return;
           }
-          res.status(409).json({ error: "email_taken" });
+          res.status(409).json({
+            error: "email_taken",
+            message: oauthMergeBlocked(db, uid, takenId) ? MSG_EMAIL_OTHER_OAUTH : MSG_EMAIL_TAKEN,
+          });
           return;
         }
         emailChanged = true;
@@ -463,7 +472,7 @@ export function authRouter(db: DatabaseSync) {
         msg.includes("UNIQUE constraint failed") &&
         (msg.includes("email_canonical") || msg.includes("email"))
       ) {
-        res.status(409).json({ error: "email_taken" });
+        res.status(409).json({ error: "email_taken", message: MSG_EMAIL_TAKEN });
         return;
       }
       console.error("[auth] patch /me failed:", msg);
@@ -522,14 +531,21 @@ export function authRouter(db: DatabaseSync) {
     }
     const targetId = findUserIdByEmailLookup(db, emailCanonical, emailDisplay);
     if (!targetId || targetId === uid) {
-      res.status(400).json({ error: "email_taken" });
+      res.status(400).json({ error: "email_taken", message: MSG_EMAIL_TAKEN });
+      return;
+    }
+    if (!canMergeStubIntoExisting(db, uid, targetId)) {
+      res.status(409).json({
+        error: "email_taken",
+        message: oauthMergeBlocked(db, uid, targetId) ? MSG_EMAIL_OTHER_OAUTH : MSG_EMAIL_TAKEN,
+      });
       return;
     }
     try {
       absorbStubUserInto(db, uid, targetId);
     } catch (err) {
       if (err instanceof OAuthProviderTakenError) {
-        res.status(409).json({ error: "email_taken" });
+        res.status(409).json({ error: "email_taken", message: MSG_EMAIL_OTHER_OAUTH });
         return;
       }
       console.error("[auth] link-existing-email absorb failed", err);
@@ -938,7 +954,7 @@ export function authRouter(db: DatabaseSync) {
       if (!uid || !canMergeStubIntoExisting(db, uid, taken)) {
         res.status(409).json({
           error: "phone_taken",
-          message: "Ese número ya tiene una cuenta. Entra con teléfono o correo y contraseña.",
+          message: MSG_PHONE_TAKEN,
         });
         return;
       }
@@ -984,11 +1000,19 @@ export function authRouter(db: DatabaseSync) {
       res.status(400).json({ error: "invalid_display_name" });
       return;
     }
+    const uid = readAuthUserId(req);
+    if (uid) {
+      res.status(409).json({
+        error: "already_signed_in",
+        message: MSG_ALREADY_SIGNED_IN_PHONE,
+      });
+      return;
+    }
     const existing = findUserIdByVerifiedPhone(db, mx.e164);
     if (existing) {
       res.status(409).json({
         error: "phone_taken",
-        message: "Ese número ya tiene una cuenta. Entra con teléfono y contraseña.",
+        message: MSG_PHONE_REGISTER_TAKEN,
       });
       return;
     }
@@ -1009,7 +1033,7 @@ export function authRouter(db: DatabaseSync) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("UNIQUE constraint failed")) {
-        res.status(409).json({ error: "phone_taken" });
+        res.status(409).json({ error: "phone_taken", message: MSG_PHONE_REGISTER_TAKEN });
         return;
       }
       console.error("[auth] phone register failed:", msg);
@@ -1058,7 +1082,7 @@ export function authRouter(db: DatabaseSync) {
       if (!canMergeStubIntoExisting(db, uid, taken)) {
         res.status(409).json({
           error: "phone_taken",
-          message: "Ese número ya tiene una cuenta. Entra con esa cuenta.",
+          message: MSG_PHONE_TAKEN,
         });
         return;
       }
@@ -1071,7 +1095,7 @@ export function authRouter(db: DatabaseSync) {
         absorbStubUserInto(db, uid, taken);
       } catch (err) {
         if (err instanceof OAuthProviderTakenError) {
-          res.status(409).json({ error: "phone_taken", message: "Ese número ya tiene una cuenta." });
+          res.status(409).json({ error: "phone_taken", message: MSG_EMAIL_OTHER_OAUTH });
           return;
         }
         console.error("[auth] phone verify absorb failed", err);

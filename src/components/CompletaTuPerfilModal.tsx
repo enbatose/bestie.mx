@@ -184,14 +184,14 @@ export function CompletaTuPerfilModal({
       ? "Agrega tu correo"
       : "Confirma tu celular";
   const blurb = linkPending
-    ? `Ese correo ya es una cuenta Bestie (Google o correo y contraseña). Te enviamos un código a ${email.trim()} para ligar Facebook a esa misma cuenta. Revisa también spam.`
+    ? `Ese correo ya es una cuenta Bestie. Te enviamos un código a ${email.trim()} para ligar esta sesión (Facebook o Google) a esa misma cuenta. Revisa también spam.`
     : step === "email"
       ? askPhone
         ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo, o confirma el celular si tu cuenta Bestie es de teléfono."
         : "Agrega un correo para avisarte de mensajes y códigos. Facebook y Google no siempre lo comparten."
       : me.signInMethod === "facebook" || missingEmailAtOpen || preferPhone
-        ? "Facebook Login no incluye tu número. Confirmamos el celular con un código por SMS. Si ese número ya es tu cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta. Solo México (+52)."
-        : "Confirmamos el número con un código por SMS. Solo celulares de México (+52).";
+        ? "Confirmamos el celular con un código SMS. Si ese número ya es tu cuenta Bestie, al verificarlo ligamos esta sesión a esa cuenta. No unimos dos cuentas que ya tienen correos o celulares distintos. Solo México (+52)."
+        : "Confirmamos el número con un código por SMS. Si ya es otra cuenta Bestie, te diremos cómo entrar ahí. Solo celulares de México (+52).";
 
   return createPortal(
     <div

@@ -242,9 +242,10 @@ export function PrivacyPage() {
               tu identificador de Facebook y te pedimos correo y celular mexicano en Completa tu
               perfil (el celular se verifica con un código SMS de Bestie). Si el correo que das ya
               existe en Bestie, te enviamos un código a esa bandeja y, al verificarlo, ligamos
-              Facebook a esa cuenta en lugar de dejar un duplicado. Si el celular mexicano que
-              confirmas con SMS ya está verificado en otra cuenta y esta sesión aún no tiene correo,
-              al verificar el código ligamos Facebook a esa cuenta.
+              Facebook o Google a esa cuenta en lugar de dejar un duplicado. Si el celular mexicano que
+              confirmas con SMS ya está verificado en otra cuenta (por ejemplo solo de teléfono), al
+              verificar el código ligamos esta sesión a esa cuenta y le pasamos el correo si no tenía.
+              No unimos dos cuentas que ya tienen correos distintos o dos celulares distintos.
             </>,
             <>
               <strong>Cómo lo compartimos:</strong> no vendemos esos datos ni los usamos para anuncios

@@ -78,9 +78,9 @@ const FACEBOOK_OAUTH_ERRORS: Record<string, string> = {
   facebook_token_failed: "No pudimos validar tu cuenta de Facebook. Inténtalo de nuevo.",
   facebook_profile_failed: "Facebook no compartió tu perfil. Inténtalo de nuevo.",
   facebook_email_declined:
-    "Facebook no concedió el permiso de correo. En el diálogo de Facebook, acepta email y vuelve a intentar.",
+    "Facebook no compartió un correo. En Bestie puedes agregar tu correo o celular después de entrar, o usa Google / correo y contraseña.",
   facebook_email_required:
-    "Facebook no tiene un correo confirmado en ese perfil para compartir. En Facebook, agrega y confirma un correo (no basta con el Centro de cuentas) o entra con Google / correo y contraseña.",
+    "Facebook no tiene un correo confirmado en ese perfil. En Bestie puedes completar correo o celular después, o entra con Google / correo y contraseña.",
   facebook_account_failed: "No pudimos crear tu cuenta con Facebook.",
   facebook_oauth_failed: "Error al iniciar sesión con Facebook. Inténtalo de nuevo.",
 };
@@ -188,7 +188,15 @@ export async function authPhoneRegister(
   const j = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
   if (!res.ok) {
     if (j.error === "phone_taken") {
-      throw new Error(j.message || "Ese número ya tiene una cuenta. Entra con teléfono y contraseña.");
+      throw new Error(
+        j.message ||
+          "Ese número ya tiene una cuenta. Entra con teléfono y contraseña, o con Google/Facebook si esa cuenta ya los tiene.",
+      );
+    }
+    if (j.error === "already_signed_in") {
+      throw new Error(
+        j.message || "Ya tienes una sesión. Confirma el celular desde tu perfil, no registres otra cuenta.",
+      );
     }
     throw new Error(j.message || j.error || `phone_register_${res.status}`);
   }
@@ -252,6 +260,12 @@ export async function authRegister(
         "El servidor no acepta POST en /api (405). Sirve el front desde el mismo proceso que la API o configura un proxy /api hacia Node.",
       );
     }
+    if (j.error === "email_taken") {
+      throw new Error(
+        j.message ||
+          "Ese correo ya tiene una cuenta Bestie. Entra con ese correo y contraseña, o con Google/Facebook si así la creaste.",
+      );
+    }
     throw new Error(j.message || j.error || `register_${res.status}`);
   }
   const reg = (await res.json().catch(() => ({}))) as {
@@ -288,10 +302,14 @@ export async function authLogin(
       );
     }
     if (j.error === "google_only_account") {
-      throw new Error("Esta cuenta usa Google para entrar. Usa «Continuar con Google».");
+      throw new Error(
+        "Esta cuenta entra con Google, no con correo y contraseña. Usa «Continuar con Google». Si también tienes celular en esa misma cuenta, entra con teléfono y contraseña.",
+      );
     }
     if (j.error === "facebook_only_account") {
-      throw new Error("Esta cuenta usa Facebook para entrar. Usa «Continuar con Facebook».");
+      throw new Error(
+        "Esta cuenta entra con Facebook, no con correo y contraseña. Usa «Continuar con Facebook». Si también tienes celular en esa misma cuenta, entra con teléfono y contraseña.",
+      );
     }
     throw new Error(j.error || `login_${res.status}`);
   }
@@ -337,7 +355,7 @@ export class EmailLinkRequiredError extends Error {
   readonly devCode?: string;
   constructor(devCode?: string) {
     super(
-      "Ese correo ya tiene una cuenta Bestie. Te enviamos un código para ligar Facebook a esa cuenta. Revisa inbox y spam.",
+      "Ese correo ya tiene una cuenta Bestie. Te enviamos un código para ligar esta sesión a esa cuenta. Revisa inbox y spam.",
     );
     this.name = "EmailLinkRequiredError";
     this.devCode = devCode;
@@ -381,7 +399,11 @@ export async function authUpdateMe(body: UpdateMeBody, signal?: AbortSignal): Pr
   if (!res.ok) {
     const err = typeof j.error === "string" ? j.error : `update_${res.status}`;
     if (err === "email_taken") {
-      throw new Error("Ese correo ya está en uso en otra cuenta.");
+      throw new Error(
+        typeof j.message === "string"
+          ? j.message
+          : "Ese correo ya tiene una cuenta Bestie. Entra con esa cuenta (correo, Google o Facebook). No unimos dos cuentas con correos distintos.",
+      );
     }
     if (err === "email_link_required") {
       throw new EmailLinkRequiredError(
@@ -400,7 +422,11 @@ export async function authUpdateMe(body: UpdateMeBody, signal?: AbortSignal): Pr
       );
     }
     if (err === "phone_taken") {
-      throw new Error(typeof j.message === "string" ? j.message : "Ese número ya está en otra cuenta.");
+      throw new Error(
+        typeof j.message === "string"
+          ? j.message
+          : "Ese celular ya tiene una cuenta Bestie. Entra con esa cuenta; no unimos dos cuentas con celular o correo distintos.",
+      );
     }
     if (err === "invalid_password") {
       throw new Error("Contraseña actual incorrecta.");
@@ -442,7 +468,10 @@ export async function authLinkExistingEmail(
       throw new Error("Demasiados intentos. Pide un código nuevo.");
     }
     if (j.error === "email_taken") {
-      throw new Error("Ese correo ya está ligado a otro Facebook.");
+      throw new Error(
+        j.message ||
+          "Ese correo ya está ligado a otro Facebook o Google. Entra con esa cuenta original.",
+      );
     }
     if (j.error === "rate_limited") {
       throw new Error("Espera un momento e inténtalo de nuevo.");
