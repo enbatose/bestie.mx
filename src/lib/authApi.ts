@@ -133,6 +133,11 @@ export function needsProfileCompletion(me: AuthMe): boolean {
   return isPublisherAccount(me) && !me.phoneE164;
 }
 
+/** Google/Facebook already supplied an email; Bestie must not overwrite it from the profile form. */
+export function isProviderManagedEmail(me: AuthMe): boolean {
+  return (me.signInMethod === "google" || me.signInMethod === "facebook") && Boolean(me.email?.trim());
+}
+
 /** After email (or when email already exists): ask phone for publishers, unfinished OTP, or accounts that opened without email. */
 export function shouldAskProfilePhone(
   me: AuthMe,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isProviderManagedEmail,
   needsProfileCompletion,
   shouldAskProfilePhone,
   type AuthMe,
@@ -20,6 +21,19 @@ function me(partial: Partial<AuthMe>): AuthMe {
     ...partial,
   };
 }
+
+describe("isProviderManagedEmail", () => {
+  it("locks Google/Facebook email only when the provider already shared one", () => {
+    expect(isProviderManagedEmail(me({ signInMethod: "facebook" }))).toBe(false);
+    expect(isProviderManagedEmail(me({ signInMethod: "google" }))).toBe(false);
+    expect(
+      isProviderManagedEmail(me({ signInMethod: "facebook", email: "a@example.com" })),
+    ).toBe(true);
+    expect(isProviderManagedEmail(me({ signInMethod: "email", email: "a@example.com" }))).toBe(
+      false,
+    );
+  });
+});
 
 describe("needsProfileCompletion", () => {
   it("asks Facebook/Google seekers with no email", () => {

@@ -107,6 +107,11 @@ export function ProfilePage() {
           setVerifyPhoneOpen(false);
           await load();
         }}
+        hint={
+          me.signInMethod === "facebook" && !me.email
+            ? "Si ese número ya es tu cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta."
+            : undefined
+        }
       />
     </div>
   );

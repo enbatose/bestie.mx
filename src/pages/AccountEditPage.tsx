@@ -8,9 +8,12 @@ import {
   authChangePassword,
   authCompletePasswordReset,
   authConsumePasswordReset,
+  authLinkExistingEmail,
   authMe,
   authUpdateMe,
+  isEmailLinkRequiredError,
   isPhoneVerified,
+  isProviderManagedEmail,
   type AuthMe,
 } from "@/lib/authApi";
 import { normalizeMxNationalDigits, parsePhoneInputToE164 } from "@/lib/mxPhone";
@@ -44,6 +47,9 @@ export function AccountEditPage() {
 
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileErr, setProfileErr] = useState<string | null>(null);
+  const [linkPending, setLinkPending] = useState(false);
+  const [linkCode, setLinkCode] = useState("");
+  const [linkDevCode, setLinkDevCode] = useState<string | null>(null);
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [pwErr, setPwErr] = useState<string | null>(null);
   const [passwordResetSuccessOpen, setPasswordResetSuccessOpen] = useState(false);
@@ -164,7 +170,8 @@ export function AccountEditPage() {
   const isOAuthAccount = isGoogleAccount || isFacebookAccount;
   const isEmailPasswordAccount = signInMethod === "email";
   const isPublisher = me.linkedPublisherIds.length > 0;
-  const emailChanged = !isOAuthAccount && email.trim().toLowerCase() !== (me.email ?? "").toLowerCase();
+  const emailManagedByProvider = isProviderManagedEmail(me);
+  const emailChanged = !emailManagedByProvider && email.trim().toLowerCase() !== (me.email ?? "").toLowerCase();
   const displayNameChanged = displayName.trim() !== (me.displayName ?? "").trim();
   const nextPhoneE164 = phone.trim() ? parsePhoneInputToE164(phone) : null;
   const currentPhoneE164 = me.phoneE164 ?? null;
@@ -201,6 +208,10 @@ export function AccountEditPage() {
     e.preventDefault();
     setProfileMsg(null);
     setProfileErr(null);
+    if (linkPending) {
+      await confirmLink();
+      return;
+    }
     if (!profileHasChanges) {
       setProfileMsg("No hay cambios para guardar.");
       scrollProfileFeedback();
@@ -221,7 +232,7 @@ export function AccountEditPage() {
       scrollProfileFeedback();
       return;
     }
-    if (phoneChanged && nextPhoneE164) {
+    if (phoneChanged && nextPhoneE164 && !emailChanged) {
       openVerifyPhone();
       return;
     }
@@ -237,7 +248,7 @@ export function AccountEditPage() {
       if (displayNameChanged) body.displayName = displayName.trim();
       if (emailChanged) {
         body.email = email.trim().toLowerCase();
-        body.currentPassword = currentPassword;
+        if (requiresPasswordForEmail) body.currentPassword = currentPassword;
       }
       if (phoneNotifyChanged) body.phoneNotifyOptIn = phoneNotifyOptIn;
       if (phoneMarketingChanged) body.phoneMarketingOptIn = phoneMarketingOptIn;
@@ -258,7 +269,41 @@ export function AccountEditPage() {
       await load();
       scrollProfileFeedback();
     } catch (x) {
+      if (isEmailLinkRequiredError(x)) {
+        setLinkPending(true);
+        setLinkCode("");
+        setLinkDevCode(x.devCode ?? null);
+        setProfileMsg(x.message);
+        setProfileErr(null);
+        scrollProfileFeedback();
+        return;
+      }
       setProfileErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
+      scrollProfileFeedback();
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const confirmLink = async () => {
+    if (!/^\d{6}$/.test(linkCode.trim())) {
+      setProfileErr("Ingresa el código de 6 dígitos del correo.");
+      scrollProfileFeedback();
+      return;
+    }
+    setSavingProfile(true);
+    setProfileErr(null);
+    try {
+      await authLinkExistingEmail({ email: email.trim(), code: linkCode.trim() });
+      window.dispatchEvent(new Event("bestie:me-changed"));
+      setLinkPending(false);
+      setLinkCode("");
+      setLinkDevCode(null);
+      setProfileMsg("Cuenta ligada. Ya estás en tu cuenta Bestie original.");
+      await load();
+      scrollProfileFeedback();
+    } catch (x) {
+      setProfileErr(x instanceof Error ? x.message : "No se pudo ligar la cuenta.");
       scrollProfileFeedback();
     } finally {
       setSavingProfile(false);
@@ -280,7 +325,7 @@ export function AccountEditPage() {
       if (displayNameChanged) body.displayName = displayName.trim();
       if (emailChanged) {
         body.email = email.trim().toLowerCase();
-        body.currentPassword = currentPassword;
+        if (requiresPasswordForEmail) body.currentPassword = currentPassword;
       }
       if (phoneNotifyChanged) body.phoneNotifyOptIn = phoneNotifyOptIn;
       if (phoneMarketingChanged) body.phoneMarketingOptIn = phoneMarketingOptIn;
@@ -300,6 +345,15 @@ export function AccountEditPage() {
       await load();
       scrollProfileFeedback();
     } catch (x) {
+      if (isEmailLinkRequiredError(x)) {
+        setLinkPending(true);
+        setLinkCode("");
+        setLinkDevCode(x.devCode ?? null);
+        setProfileMsg(x.message);
+        setProfileErr(null);
+        scrollProfileFeedback();
+        return;
+      }
       setProfileErr(x instanceof Error ? x.message : "No se pudo completar la acción.");
       scrollProfileFeedback();
     } finally {
@@ -343,7 +397,7 @@ export function AccountEditPage() {
 
   return (
     <>
-    <div className="mx-auto w-full min-w-0 max-w-lg px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:py-14">
+    <div className="mx-auto w-full min-w-0 max-w-lg overflow-x-clip px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:py-14">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-primary">Editar cuenta</h1>
         <button
@@ -357,10 +411,12 @@ export function AccountEditPage() {
       <p className="mt-2 text-sm text-muted">
         {resetMode
           ? "Elige una contraseña nueva para tu cuenta."
-          : isGoogleAccount
-            ? "Actualiza tu nombre para mostrar y tu teléfono. El correo lo administra Google."
-            : isFacebookAccount
-              ? "Actualiza tu nombre para mostrar y tu teléfono. El correo lo administra Facebook."
+          : emailManagedByProvider
+            ? isGoogleAccount
+              ? "Actualiza tu nombre para mostrar y tu teléfono. El correo lo administra Google."
+              : "Actualiza tu nombre para mostrar y tu teléfono. El correo lo administra Facebook."
+            : isFacebookAccount && !me.email
+              ? "Facebook no compartió un correo. Agrégalo aquí; si ya es una cuenta Bestie, te enviamos un código para ligar Facebook a esa cuenta."
               : "Actualiza el nombre para mostrar, el correo y tu contraseña."}
       </p>
 
@@ -407,7 +463,7 @@ export function AccountEditPage() {
           </label>
           <label className="block text-sm font-medium text-body">
             Correo
-            {isOAuthAccount ? (
+            {emailManagedByProvider ? (
               <span className="ml-1 font-normal text-muted">
                 ({isGoogleAccount ? "Google" : "Facebook"})
               </span>
@@ -416,19 +472,49 @@ export function AccountEditPage() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(ev) => setEmail(ev.target.value)}
-              readOnly={isOAuthAccount}
-              aria-readonly={isOAuthAccount}
-              className={`mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-body outline-none ring-accent focus:ring-2 ${
-                isOAuthAccount ? "cursor-default bg-bg-light text-muted" : ""
+              onChange={(ev) => {
+                setEmail(ev.target.value);
+                if (linkPending) {
+                  setLinkPending(false);
+                  setLinkCode("");
+                  setLinkDevCode(null);
+                }
+              }}
+              readOnly={emailManagedByProvider}
+              aria-readonly={emailManagedByProvider}
+              className={`mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm ${
+                emailManagedByProvider ? "cursor-default bg-bg-light text-muted" : ""
               }`}
             />
           </label>
-          {isOAuthAccount ? (
+          {emailManagedByProvider ? (
             <p className="text-xs text-muted">
               Para cambiar el correo de acceso, actualízalo en tu cuenta de {isGoogleAccount ? "Google" : "Facebook"}.
               Aquí puedes editar tu nombre, teléfono y preferencias de contacto.
             </p>
+          ) : isOAuthAccount && !me.email ? (
+            <p className="text-xs text-muted">
+              Si ese correo ya tiene cuenta Bestie (Google o correo y contraseña), al guardar te enviamos un
+              código para ligar {isGoogleAccount ? "Google" : "Facebook"} a esa misma cuenta.
+            </p>
+          ) : null}
+          {linkPending ? (
+            <label className="block text-sm font-medium text-body">
+              Código del correo
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                size={6}
+                maxLength={6}
+                value={linkCode}
+                onChange={(ev) => setLinkCode(ev.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+              />
+            </label>
+          ) : null}
+          {linkPending && linkDevCode ? (
+            <p className="text-xs text-muted">Código de prueba (dev): {linkDevCode}</p>
           ) : null}
           <div className="rounded-2xl border border-border bg-bg-light p-3 sm:p-4">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -446,6 +532,9 @@ export function AccountEditPage() {
                 : "Tu número no se muestra a otras personas en tu perfil. Si algún día publicas un anuncio, podrás decidir si mostrarlo ahí."}{" "}
               {!(isPhoneVerified(me) && !phoneChanged)
                 ? "Toca Sin verificar para confirmarlo con un código SMS."
+                : null}
+              {isFacebookAccount && !me.email
+                ? " Si ese celular ya es tu cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta."
                 : null}
             </p>
             <PhoneNumberField
@@ -504,10 +593,22 @@ export function AccountEditPage() {
           ) : null}
           <button
             type="submit"
-            disabled={savingProfile || !profileHasChanges || !phoneComplete}
+            disabled={
+              savingProfile ||
+              (!linkPending && (!profileHasChanges || !phoneComplete)) ||
+              (linkPending && linkCode.length !== 6)
+            }
             className="w-full rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
           >
-            {savingProfile ? "Guardando…" : phoneChanged ? "Verificar teléfono" : "Guardar cambios"}
+            {savingProfile
+              ? linkPending
+                ? "Ligando…"
+                : "Guardando…"
+              : linkPending
+                ? "Ligar cuenta"
+                : phoneChanged
+                  ? "Verificar teléfono"
+                  : "Guardar cambios"}
           </button>
         </form>
       </section>
@@ -595,6 +696,11 @@ export function AccountEditPage() {
       initialPhone={phone}
       onClose={() => setVerifyPhoneOpen(false)}
       onVerified={() => void onPhoneVerified()}
+      hint={
+        isFacebookAccount && !me.email
+          ? "Si ese número ya es tu cuenta Bestie, al verificarlo ligamos Facebook a esa cuenta."
+          : undefined
+      }
     />
 
     {passwordResetSuccessOpen ? (

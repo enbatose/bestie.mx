@@ -10,9 +10,11 @@ type Props = {
   initialPhone: string;
   onClose: () => void;
   onVerified: () => void | Promise<void>;
+  /** Extra note under the SMS copy (e.g. Facebook account linking). */
+  hint?: string;
 };
 
-export function VerifyPhoneOtpModal({ open, initialPhone, onClose, onVerified }: Props) {
+export function VerifyPhoneOtpModal({ open, initialPhone, onClose, onVerified, hint }: Props) {
   const [phone, setPhone] = useState(initialPhone);
   const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -86,6 +88,7 @@ export function VerifyPhoneOtpModal({ open, initialPhone, onClose, onVerified }:
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           Te enviamos un código por SMS. Solo celulares de México (+52).
+          {hint ? ` ${hint}` : ""}
         </p>
 
         <div className="mt-4 space-y-3">
