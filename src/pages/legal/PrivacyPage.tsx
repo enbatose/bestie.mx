@@ -81,8 +81,10 @@ export function PrivacyPage() {
             </>,
             <>
               <strong>Datos de proveedores de identidad:</strong> cuando usas Google o Facebook,
-              recibimos tu identificador de cuenta del proveedor, nombre, correo electrónico y foto de
-              perfil (ver sección 5).
+              recibimos tu identificador de cuenta del proveedor, nombre y foto de perfil, y el
+              correo electrónico si el proveedor lo comparte (ver sección 5). Facebook Login no
+              incluye tu número de teléfono. Si Facebook no comparte un correo, te pedimos correo y
+              un celular mexicano (+52) en Completa tu perfil, después de iniciar sesión.
             </>,
             <>
               <strong>Datos de tus anuncios y actividad:</strong> información de las propiedades o
@@ -229,13 +231,16 @@ export function PrivacyPage() {
               y <code className="rounded bg-black/5 px-1 py-0.5 text-xs dark:bg-white/10">email</code>.
             </>,
             <>
-              <strong>Qué recibimos:</strong> tu identificador de Facebook, nombre, correo electrónico y
-              foto de perfil.
+              <strong>Qué recibimos:</strong> tu identificador de Facebook, nombre y foto de perfil, y
+              tu correo electrónico solo si Facebook lo comparte desde el correo confirmado de esa
+              cuenta. No recibimos tu número de teléfono por Facebook Login.
             </>,
             <>
               <strong>Cómo lo usamos y almacenamos:</strong> únicamente para crear y autenticar tu
               cuenta de Bestie; se almacena vinculado a tu cuenta. No publicamos en tu nombre ni
-              pedimos permisos adicionales.
+              pedimos permisos adicionales. Si Facebook no comparte un correo, creamos la cuenta con
+              tu identificador de Facebook y te pedimos correo y celular mexicano en Completa tu
+              perfil (el celular se verifica con un código SMS de Bestie).
             </>,
             <>
               <strong>Cómo lo compartimos:</strong> no vendemos esos datos ni los usamos para anuncios

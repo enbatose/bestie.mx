@@ -7,7 +7,7 @@ import {
   authPhoneOtpRequest,
   authPhoneVerify,
   authUpdateMe,
-  isPhoneVerified,
+  shouldAskProfilePhone,
   type AuthMe,
 } from "@/lib/authApi";
 import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
@@ -15,6 +15,7 @@ import { normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone"
 type Props = {
   open: boolean;
   me: AuthMe;
+  missingEmailAtOpen?: boolean;
   onSaved: () => void | Promise<void>;
   onDismissed: () => void | Promise<void>;
 };
@@ -23,7 +24,13 @@ export function profileNagStorageKey(userId: string): string {
   return `bestie_profile_nag_skip_${userId}`;
 }
 
-export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props) {
+export function CompletaTuPerfilModal({
+  open,
+  me,
+  missingEmailAtOpen = false,
+  onSaved,
+  onDismissed,
+}: Props) {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -34,11 +41,9 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const needsPhone = Boolean(me.phoneE164 && !isPhoneVerified(me)) || !me.phoneE164;
   const needsEmail = !me.email?.trim();
-  const publisher = (me.linkedPublisherIds?.length ?? 0) > 0;
-  const showPhone = needsPhone && (publisher || Boolean(me.phoneE164));
-  const showEmail = publisher && needsEmail;
+  const askPhone = shouldAskProfilePhone(me, { missingEmailAtOpen });
+  const step: "email" | "phone" = needsEmail ? "email" : "phone";
 
   useEffect(() => {
     if (!open) return;
@@ -49,11 +54,14 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
     setEmail(me.email ?? "");
     setCurrentPassword("");
     setErr(null);
-  }, [me.email, me.phoneE164, open]);
+  }, [me.email, me.id, me.phoneE164, open]);
 
   const phoneDigits = useMemo(() => (phone.trim() ? phoneDigitsForStorage(phone) : null), [phone]);
 
   if (!open) return null;
+
+  const oauthAccount =
+    me.signInMethod === "google" || me.signInMethod === "facebook" || me.signInMethod === "phone";
 
   const dismiss = async () => {
     try {
@@ -62,6 +70,14 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
       /* ignore */
     }
     await onDismissed();
+  };
+
+  const finishAfterContact = async () => {
+    await onSaved();
+    const emailNow = (me.email ?? email).trim();
+    if (emailNow && (missingEmailAtOpen || me.emailVerified === false)) {
+      navigate("/verificar-correo", { replace: true });
+    }
   };
 
   const sendOtp = async () => {
@@ -92,7 +108,7 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
     try {
       await authPhoneVerify({ phone: phone.trim(), code: code.trim() });
       window.dispatchEvent(new Event("bestie:me-changed"));
-      await onSaved();
+      await finishAfterContact();
     } catch (error) {
       setErr(error instanceof Error ? error.message : "No se pudo verificar el teléfono.");
     } finally {
@@ -110,19 +126,30 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
     try {
       await authUpdateMe({
         email: email.trim(),
-        ...(me.signInMethod === "google" || me.signInMethod === "facebook"
-          ? {}
-          : { currentPassword }),
+        ...(oauthAccount ? {} : { currentPassword }),
       });
       window.dispatchEvent(new Event("bestie:me-changed"));
-      navigate("/verificar-correo", { replace: true });
       await onSaved();
+      const nextMe = { ...me, email: email.trim(), emailVerified: false };
+      if (!shouldAskProfilePhone(nextMe, { missingEmailAtOpen: true })) {
+        navigate("/verificar-correo", { replace: true });
+      }
     } catch (error) {
       setErr(error instanceof Error ? error.message : "No se pudo guardar el correo.");
     } finally {
       setBusy(false);
     }
   };
+
+  const title = step === "email" ? "Agrega tu correo" : "Confirma tu celular";
+  const blurb =
+    step === "email"
+      ? askPhone
+        ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo; después confirmamos un celular de México con SMS."
+        : "Agrega un correo para avisarte de mensajes y códigos. Facebook y Google no siempre lo comparten."
+      : me.signInMethod === "facebook" || missingEmailAtOpen
+        ? "Facebook Login no incluye tu número. Confirmamos el celular con un código por SMS. Solo México (+52)."
+        : "Confirmamos el número con un código por SMS. Solo celulares de México (+52).";
 
   return createPortal(
     <div
@@ -138,20 +165,38 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
     >
       <div className="max-h-[min(92dvh,720px)] w-full min-w-0 max-w-md overflow-x-clip overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-xl sm:p-6">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Completa tu perfil</p>
-        <h2 id="complete-profile-title" className="mt-1 text-lg font-bold text-primary">
-          {showPhone && showEmail
-            ? "Teléfono y correo"
-            : showPhone
-              ? "Verifica tu teléfono"
-              : "Agrega tu correo"}
+        <h2 id="complete-profile-title" className="mt-1 break-words text-lg font-bold text-primary">
+          {title}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          {showPhone
-            ? "Confirmamos el número con un código por SMS. Solo celulares de México (+52)."
-            : "El correo es opcional, pero sin él no recibes avisos de mensajes en Bestie."}
-        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{blurb}</p>
 
-        {showPhone ? (
+        {step === "email" ? (
+          <div className="mt-4 space-y-3">
+            <label className="block text-sm font-medium text-body">
+              Correo
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+              />
+            </label>
+            {!oauthAccount ? (
+              <label className="block text-sm font-medium text-body">
+                Contraseña actual
+                <PasswordField
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+                />
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+
+        {step === "phone" && askPhone ? (
           <div className="mt-4 space-y-3">
             <PhoneNumberField
               id="complete-profile-phone"
@@ -180,75 +225,49 @@ export function CompletaTuPerfilModal({ open, me, onSaved, onDismissed }: Props)
           </div>
         ) : null}
 
-        {showEmail && !showPhone ? (
-          <div className="mt-4 space-y-3">
-            <label className="block text-sm font-medium text-body">
-              Correo
-              <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
-              />
-            </label>
-            {me.signInMethod !== "google" && me.signInMethod !== "facebook" ? (
-              <label className="block text-sm font-medium text-body">
-                Contraseña actual
-                <PasswordField
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
-                />
-              </label>
-            ) : null}
-          </div>
-        ) : null}
-
         {err ? (
           <p role="alert" className="mt-4 rounded-xl border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">
             {err}
           </p>
         ) : null}
 
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row">
+        <div className="mt-5 flex min-w-0 flex-col-reverse gap-2 sm:flex-row">
           <button
             type="button"
             onClick={() => void dismiss()}
             disabled={busy}
-            className="min-h-11 flex-1 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-60"
+            className="min-h-11 min-w-0 flex-1 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-body hover:bg-surface-elevated disabled:opacity-60"
           >
             Ahora no
           </button>
-          {showPhone && !otpSent ? (
-            <button
-              type="button"
-              onClick={() => void sendOtp()}
-              disabled={busy || !phoneDigits}
-              className="min-h-11 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
-            >
-              {busy ? "Enviando…" : "Enviar código"}
-            </button>
-          ) : null}
-          {showPhone && otpSent ? (
-            <button
-              type="button"
-              onClick={() => void confirmPhone()}
-              disabled={busy || code.length !== 6}
-              className="min-h-11 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
-            >
-              {busy ? "Verificando…" : "Verificar"}
-            </button>
-          ) : null}
-          {showEmail && !showPhone ? (
+          {step === "email" ? (
             <button
               type="button"
               onClick={() => void saveEmail()}
               disabled={busy}
-              className="min-h-11 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+              className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
             >
-              {busy ? "Guardando…" : "Guardar correo"}
+              {busy ? "Guardando…" : askPhone ? "Continuar" : "Guardar correo"}
+            </button>
+          ) : null}
+          {step === "phone" && !otpSent ? (
+            <button
+              type="button"
+              onClick={() => void sendOtp()}
+              disabled={busy || !phoneDigits}
+              className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+            >
+              {busy ? "Enviando…" : "Enviar código"}
+            </button>
+          ) : null}
+          {step === "phone" && otpSent ? (
+            <button
+              type="button"
+              onClick={() => void confirmPhone()}
+              disabled={busy || code.length !== 6}
+              className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+            >
+              {busy ? "Verificando…" : "Verificar"}
             </button>
           ) : null}
         </div>

@@ -310,11 +310,11 @@ function findUserByEmailCanonical(
 function createFacebookUser(
   db: DatabaseSync,
   info: FacebookUserInfo,
-  emailDisplay: string,
-  emailCanonical: string,
+  emailDisplay: string | null,
+  emailCanonical: string | null,
 ): string {
   const userId = randomUUID();
-  const displayName = (info.name?.trim() || emailDisplay.split("@")[0] || "Usuario").slice(0, 120);
+  const displayName = (info.name?.trim() || emailDisplay?.split("@")[0] || "Usuario").slice(0, 120);
   const pictureUrl = info.picture?.data?.url?.trim() || null;
   db.prepare(
     `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url)
@@ -326,7 +326,7 @@ function createFacebookUser(
     facebookOAuthPasswordPlaceholder(),
     displayName,
     isoNow(),
-    isoNow(),
+    emailDisplay ? isoNow() : null,
     pictureUrl,
   );
   upsertOAuthIdentity(db, FACEBOOK_PROVIDER, info.id, userId);
@@ -339,7 +339,9 @@ function resolveFacebookUserId(db: DatabaseSync, info: FacebookUserInfo): string
   if (linked) return linked;
 
   const rawEmail = info.email?.trim();
-  if (!rawEmail?.includes("@")) return null;
+  if (!rawEmail?.includes("@")) {
+    return createFacebookUser(db, info, null, null);
+  }
   const emailDisplay = displayStorageEmail(rawEmail);
   const emailCanonical = canonicalLookupEmail(rawEmail);
 
@@ -389,17 +391,6 @@ async function fetchFacebookUserInfo(accessToken: string): Promise<FacebookUserI
   if (!res.ok) return null;
   const j = (await res.json()) as FacebookUserInfo;
   return typeof j.id === "string" ? j : null;
-}
-
-async function facebookEmailPermissionGranted(accessToken: string): Promise<boolean | null> {
-  const res = await fetch(
-    `https://graph.facebook.com/${FACEBOOK_GRAPH_VERSION}/me/permissions?access_token=${encodeURIComponent(accessToken)}`,
-  );
-  if (!res.ok) return null;
-  const j = (await res.json()) as { data?: Array<{ permission?: string; status?: string }> };
-  const email = j.data?.find((p) => p.permission === "email");
-  if (!email) return null;
-  return email.status === "granted";
 }
 
 function redirectToFacebookDialog(
@@ -480,19 +471,8 @@ export function registerFacebookOAuthRoutes(db: DatabaseSync, r: express.Router)
     }
 
     const linked = findUserIdByOAuth(db, FACEBOOK_PROVIDER, info.id);
-    if (!info.email?.includes("@")) {
-      if (linked) {
-        issueAuthCookie(res, linked);
-        tryLinkPublisher(db, req, linked);
-        res.redirect(302, `${webOrigin()}${stored.returnTo}`);
-        return;
-      }
-      if (!stored.reask) {
-        redirectToFacebookDialog(res, config, stored.returnTo, true);
-        return;
-      }
-      const granted = await facebookEmailPermissionGranted(accessToken);
-      oauthErrorRedirect(res, granted === false ? "facebook_email_declined" : "facebook_email_required");
+    if (!info.email?.includes("@") && !linked && !stored.reask) {
+      redirectToFacebookDialog(res, config, stored.returnTo, true);
       return;
     }
 

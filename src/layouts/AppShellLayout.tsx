@@ -10,7 +10,7 @@ import { FeedbackModalProvider } from "@/contexts/FeedbackModalContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { PostHogIdentify, PostHogPageViews } from "@/components/analytics/PostHogApp";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { analyticsHeartbeat, authMe, needsEmailVerification, needsProfileCompletion, type AuthMe } from "@/lib/authApi";
+import { analyticsHeartbeat, authMe, needsEmailVerification, needsProfileCompletion, shouldAskProfilePhone, type AuthMe } from "@/lib/authApi";
 import { fetchUnreadMessageCount } from "@/lib/messagesApi";
 import { Link } from "react-router-dom";
 import type { AppShellOutletContext } from "@/layouts/appShellOutletContext";
@@ -21,6 +21,7 @@ export function AppShellLayout() {
   const [me, setMe] = useState<AuthMe | null | undefined>(undefined);
   const [unread, setUnread] = useState(0);
   const [profileNagSkipped, setProfileNagSkipped] = useState(false);
+  const [openedWithoutEmail, setOpenedWithoutEmail] = useState(false);
   const { rowRef, actionsRef, markOnly, iconGapPx } = useHeaderChromeFit(
     me?.id,
     me !== undefined,
@@ -28,6 +29,7 @@ export function AppShellLayout() {
   useEffect(() => {
     if (!me?.id) {
       setProfileNagSkipped(false);
+      setOpenedWithoutEmail(false);
       return;
     }
     try {
@@ -35,7 +37,13 @@ export function AppShellLayout() {
     } catch {
       setProfileNagSkipped(false);
     }
+    setOpenedWithoutEmail(!me.email?.trim());
   }, [me?.id]);
+
+  useEffect(() => {
+    if (!me?.id) return;
+    if (!me.email?.trim()) setOpenedWithoutEmail(true);
+  }, [me?.id, me?.email]);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -112,9 +120,10 @@ export function AppShellLayout() {
     me != null && needsEmailVerification(me) && location.pathname !== "/verificar-correo";
   const showCompleteProfileModal =
     me != null &&
-    needsProfileCompletion(me) &&
     !profileNagSkipped &&
-    location.pathname !== "/verificar-correo";
+    location.pathname !== "/verificar-correo" &&
+    (needsProfileCompletion(me) ||
+      shouldAskProfilePhone(me, { missingEmailAtOpen: openedWithoutEmail }));
 
   const outletContext: AppShellOutletContext = { me, refreshMe, unreadMessageCount: unread };
 
@@ -167,7 +176,8 @@ export function AppShellLayout() {
           <CompletaTuPerfilModal
             open={showCompleteProfileModal}
             me={me}
-            onSaved={() => void refreshMe()}
+            missingEmailAtOpen={openedWithoutEmail}
+            onSaved={() => refreshMe()}
             onDismissed={() => {
               setProfileNagSkipped(true);
               void refreshMe();

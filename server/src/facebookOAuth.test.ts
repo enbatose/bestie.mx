@@ -181,6 +181,18 @@ describe("Facebook OAuth", () => {
     const again = new URL(callback.headers.location as string);
     expect(again.searchParams.get("auth_type")).toBe("rerequest");
     expect(again.searchParams.get("scope")).toBe("email,public_profile");
+
+    const reaskState = again.searchParams.get("state");
+    expect(reaskState).toBeTruthy();
+    const created = await agent
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(reaskState!)}`)
+      .expect(302);
+    expect(created.headers.location).toBe("http://localhost/mis-anuncios");
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.email).toBeNull();
+    expect(me.body.displayName).toBe("Sin Correo");
+    expect(me.body.signInMethod).toBe("facebook");
+    expect(me.body.emailVerified).toBe(false);
   });
 
   it("GET /api/auth/facebook/callback signs in a linked Facebook user even without email", async () => {

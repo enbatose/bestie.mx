@@ -127,9 +127,11 @@ export function TermsPage() {
         <p>
           Puedes crear tu cuenta o iniciar sesión mediante correo y contraseña, un celular mexicano verificado, o proveedores de identidad de terceros como{" "}
           <strong>Google</strong> y <strong>Facebook</strong>. Al hacerlo, autorizas a dichos
-          proveedores a compartir con Bestie datos básicos de tu perfil (por ejemplo, nombre, dirección
-          de correo electrónico, identificador de la cuenta y foto de perfil) para crear y autenticar tu
-          cuenta.
+          proveedores a compartir con Bestie datos básicos de tu perfil (por ejemplo, nombre,
+          identificador de la cuenta, foto de perfil y, cuando el proveedor lo comparte, dirección de
+          correo electrónico) para crear y autenticar tu cuenta. Facebook Login no incluye tu número
+          de teléfono. Si Facebook no comparte un correo, puedes completar correo y celular mexicano
+          en Bestie después de entrar.
         </p>
         <LegalList
           items={[

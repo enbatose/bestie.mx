@@ -125,14 +125,23 @@ export function isPublisherAccount(me: AuthMe): boolean {
   return (me.linkedPublisherIds?.length ?? 0) > 0;
 }
 
-/** Publishers: missing email or unverified/missing phone. Seekers: only if they already have an unverified phone. */
+/** Publishers: missing email or unverified/missing phone. Seekers: missing email, or an unverified phone they already started. */
 export function needsProfileCompletion(me: AuthMe): boolean {
-  const publisher = isPublisherAccount(me);
+  if (!me.email?.trim()) return true;
   const unverifiedPhone = Boolean(me.phoneE164) && !me.phoneVerified;
-  const missingPhone = publisher && !me.phoneE164;
-  const missingEmail = publisher && !me.email?.trim();
-  if (publisher) return missingPhone || unverifiedPhone || missingEmail;
-  return unverifiedPhone;
+  if (unverifiedPhone) return true;
+  return isPublisherAccount(me) && !me.phoneE164;
+}
+
+/** After email (or when email already exists): ask phone for publishers, unfinished OTP, or accounts that opened without email. */
+export function shouldAskProfilePhone(
+  me: AuthMe,
+  opts?: { missingEmailAtOpen?: boolean },
+): boolean {
+  if (isPhoneVerified(me)) return false;
+  if (me.phoneE164 && !me.phoneVerified) return true;
+  if (isPublisherAccount(me)) return true;
+  return Boolean(opts?.missingEmailAtOpen) || !me.email?.trim();
 }
 
 export async function authPhoneOtpRequest(
