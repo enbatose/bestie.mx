@@ -77,8 +77,10 @@ const FACEBOOK_OAUTH_ERRORS: Record<string, string> = {
   facebook_state_mismatch: "La sesión de Facebook expiró. Inténtalo de nuevo.",
   facebook_token_failed: "No pudimos validar tu cuenta de Facebook. Inténtalo de nuevo.",
   facebook_profile_failed: "Facebook no compartió tu perfil. Inténtalo de nuevo.",
+  facebook_email_declined:
+    "Facebook no concedió el permiso de correo. En el diálogo de Facebook, acepta email y vuelve a intentar.",
   facebook_email_required:
-    "Facebook no compartió tu correo. Autoriza el permiso de email o usa correo y contraseña.",
+    "Facebook no tiene un correo confirmado en ese perfil para compartir. En Facebook, agrega y confirma un correo (no basta con el Centro de cuentas) o entra con Google / correo y contraseña.",
   facebook_account_failed: "No pudimos crear tu cuenta con Facebook.",
   facebook_oauth_failed: "Error al iniciar sesión con Facebook. Inténtalo de nuevo.",
 };

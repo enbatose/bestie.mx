@@ -21,6 +21,8 @@ type OAuthStatePayload = {
   state: string;
   returnTo: string;
   exp: number;
+  /** True after we already sent Facebook `auth_type=rerequest` for email. */
+  reask?: boolean;
 };
 
 type FacebookUserInfo = {
@@ -76,6 +78,7 @@ function verifyOAuthState(token: string): OAuthStatePayload | null {
   if (typeof payload.state !== "string" || typeof payload.returnTo !== "string" || typeof payload.exp !== "number") {
     return null;
   }
+  if (payload.reask != null && typeof payload.reask !== "boolean") return null;
   if (payload.exp < Date.now()) return null;
   return payload;
 }
@@ -388,6 +391,41 @@ async function fetchFacebookUserInfo(accessToken: string): Promise<FacebookUserI
   return typeof j.id === "string" ? j : null;
 }
 
+async function facebookEmailPermissionGranted(accessToken: string): Promise<boolean | null> {
+  const res = await fetch(
+    `https://graph.facebook.com/${FACEBOOK_GRAPH_VERSION}/me/permissions?access_token=${encodeURIComponent(accessToken)}`,
+  );
+  if (!res.ok) return null;
+  const j = (await res.json()) as { data?: Array<{ permission?: string; status?: string }> };
+  const email = j.data?.find((p) => p.permission === "email");
+  if (!email) return null;
+  return email.status === "granted";
+}
+
+function redirectToFacebookDialog(
+  res: Response,
+  config: { appId: string; redirectUri: string },
+  returnTo: string,
+  reask: boolean,
+): void {
+  const state = b64url(randomBytes(24));
+  issueOAuthStateCookie(res, {
+    state,
+    returnTo,
+    reask,
+    exp: Date.now() + OAUTH_STATE_TTL_MS,
+  });
+  const params = new URLSearchParams({
+    client_id: config.appId,
+    redirect_uri: config.redirectUri,
+    response_type: "code",
+    scope: "email,public_profile",
+    state,
+  });
+  if (reask) params.set("auth_type", "rerequest");
+  res.redirect(302, `https://www.facebook.com/${FACEBOOK_GRAPH_VERSION}/dialog/oauth?${params.toString()}`);
+}
+
 export function registerFacebookOAuthRoutes(db: DatabaseSync, r: express.Router): void {
   r.get("/facebook/enabled", (_req: Request, res: Response) => {
     res.json({ enabled: isFacebookOAuthEnabled() });
@@ -399,21 +437,7 @@ export function registerFacebookOAuthRoutes(db: DatabaseSync, r: express.Router)
       oauthErrorRedirect(res, "facebook_not_configured");
       return;
     }
-    const state = b64url(randomBytes(24));
-    const returnTo = safeReturnTo(req.query.returnTo);
-    issueOAuthStateCookie(res, {
-      state,
-      returnTo,
-      exp: Date.now() + OAUTH_STATE_TTL_MS,
-    });
-    const params = new URLSearchParams({
-      client_id: config.appId,
-      redirect_uri: config.redirectUri,
-      response_type: "code",
-      scope: "email,public_profile",
-      state,
-    });
-    res.redirect(302, `https://www.facebook.com/${FACEBOOK_GRAPH_VERSION}/dialog/oauth?${params.toString()}`);
+    redirectToFacebookDialog(res, config, safeReturnTo(req.query.returnTo), req.query.reask === "1");
   });
 
   r.get("/facebook/callback", async (req: Request, res: Response) => {
@@ -454,8 +478,21 @@ export function registerFacebookOAuthRoutes(db: DatabaseSync, r: express.Router)
       oauthErrorRedirect(res, "facebook_profile_failed");
       return;
     }
+
+    const linked = findUserIdByOAuth(db, FACEBOOK_PROVIDER, info.id);
     if (!info.email?.includes("@")) {
-      oauthErrorRedirect(res, "facebook_email_required");
+      if (linked) {
+        issueAuthCookie(res, linked);
+        tryLinkPublisher(db, req, linked);
+        res.redirect(302, `${webOrigin()}${stored.returnTo}`);
+        return;
+      }
+      if (!stored.reask) {
+        redirectToFacebookDialog(res, config, stored.returnTo, true);
+        return;
+      }
+      const granted = await facebookEmailPermissionGranted(accessToken);
+      oauthErrorRedirect(res, granted === false ? "facebook_email_declined" : "facebook_email_required");
       return;
     }
 

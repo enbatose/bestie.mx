@@ -90,9 +90,20 @@ describe("Facebook OAuth", () => {
     expect(res.headers.location).toContain("facebook.com/");
     expect(res.headers.location).toContain("client_id=test-app-id");
     expect(res.headers.location).toContain("scope=email%2Cpublic_profile");
+    expect(res.headers.location).not.toContain("auth_type=rerequest");
     expect(res.headers.location).not.toContain("user_friends");
     expect(res.headers.location).not.toContain("pages_");
     expect(res.headers["set-cookie"]?.join(";")).toContain("bestie_facebook_oauth=");
+  });
+
+  it("GET /api/auth/facebook?reask=1 asks Facebook again for declined email", async () => {
+    process.env.FACEBOOK_APP_ID = "test-app-id";
+    process.env.FACEBOOK_APP_SECRET = "test-app-secret";
+    process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
+
+    const res = await request(app).get("/api/auth/facebook?reask=1").expect(302);
+    expect(res.headers.location).toContain("auth_type=rerequest");
+    expect(res.headers.location).toContain("scope=email%2Cpublic_profile");
   });
 
   it("GET /api/auth/facebook/callback creates a verified user and session", async () => {
@@ -135,6 +146,91 @@ describe("Facebook OAuth", () => {
     expect(me.body.emailVerified).toBe(true);
     expect(me.body.accountStatus).toBe("active");
     expect(me.body.displayName).toBe("Facebook Tester");
+  });
+
+  it("GET /api/auth/facebook/callback reasks Facebook once when /me has no email", async () => {
+    process.env.FACEBOOK_APP_ID = "test-app-id";
+    process.env.FACEBOOK_APP_SECRET = "test-app-secret";
+    process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "fb-at-test" }), { status: 200 });
+        }
+        if (url.includes("/me?")) {
+          return new Response(JSON.stringify({ id: "facebook-id-no-email", name: "Sin Correo" }), {
+            status: 200,
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+
+    const agent = request.agent(app);
+    const start = await agent.get("/api/auth/facebook?returnTo=/mis-anuncios").expect(302);
+    const loc = new URL(start.headers.location as string);
+    const state = loc.searchParams.get("state");
+    expect(loc.searchParams.get("auth_type")).toBeNull();
+
+    const callback = await agent
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(state!)}`)
+      .expect(302);
+    const again = new URL(callback.headers.location as string);
+    expect(again.searchParams.get("auth_type")).toBe("rerequest");
+    expect(again.searchParams.get("scope")).toBe("email,public_profile");
+  });
+
+  it("GET /api/auth/facebook/callback signs in a linked Facebook user even without email", async () => {
+    process.env.FACEBOOK_APP_ID = "test-app-id";
+    process.env.FACEBOOK_APP_SECRET = "test-app-secret";
+    process.env.FACEBOOK_OAUTH_REDIRECT_URI = "http://localhost/api/auth/facebook/callback";
+
+    const userId = randomUUID();
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at)
+       VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
+    ).run(
+      userId,
+      "already@example.com",
+      canonicalLookupEmail("already@example.com"),
+      facebookOAuthPasswordPlaceholder(),
+      "Ya ligado",
+      now,
+      now,
+    );
+    db.prepare(
+      `INSERT INTO oauth_identities (provider, provider_user_id, user_id, created_at) VALUES (?, ?, ?, ?)`,
+    ).run("facebook", "facebook-already-linked", userId, now);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "fb-at-test" }), { status: 200 });
+        }
+        if (url.includes("/me?")) {
+          return new Response(JSON.stringify({ id: "facebook-already-linked", name: "Ya ligado" }), {
+            status: 200,
+          });
+        }
+        return new Response("not found", { status: 404 });
+      }),
+    );
+
+    const agent = request.agent(app);
+    const start = await agent.get("/api/auth/facebook").expect(302);
+    const state = new URL(start.headers.location as string).searchParams.get("state");
+    const callback = await agent
+      .get(`/api/auth/facebook/callback?code=fake-code&state=${encodeURIComponent(state!)}`)
+      .expect(302);
+    expect(callback.headers.location).toBe("http://localhost/mis-anuncios");
+    const me = await agent.get("/api/auth/me").expect(200);
+    expect(me.body.displayName).toBe("Ya ligado");
   });
 
   it("parses a valid Facebook signed_request and rejects a bad signature", () => {
