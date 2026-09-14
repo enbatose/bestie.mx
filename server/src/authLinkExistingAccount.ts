@@ -157,6 +157,7 @@ export function absorbStubUserInto(db: DatabaseSync, stubId: string, targetId: s
         email_verified_at: string | null;
       }
     | undefined;
+  if (!stub) return;
   const target = db
     .prepare("SELECT profile_picture_url, phone_e164, email FROM users WHERE id = ?")
     .get(targetId) as {
