@@ -1,0 +1,60 @@
+---
+description: >-
+  Do not break Google Sign-In or Facebook Login policy when adding features.
+  Certified scopes, Limited Use, no Login PII in ads, deletion callback.
+alwaysApply: true
+---
+
+# Google / Meta sign-in policy (do not break on new features)
+
+Google Sign-In and Facebook Login are **account auth only**. Approvals, Privacy §5, and
+`legal-docs-review.mdc` depend on this staying true. On **any new feature** (not only
+OAuth files), check the list below before finishing. If a trigger applies and you would
+violate a rule, **stop**, tell the user, and do not ship a workaround.
+
+Canonical code: `server/src/googleOAuth.ts`, `server/src/facebookOAuth.ts`,
+`src/lib/metaPixel.ts`. Apps: **Bestie** `863391173118522` = Login; **Bestie Chat** =
+WhatsApp/Page tokens — never mix Login user tokens with those.
+
+## Allowed (certified)
+
+| Provider | Scopes / fields | Stored |
+| --- | --- | --- |
+| Google | `openid email profile` only. Userinfo: sub, email, name, picture. | `oauth_identities` + name/email/photo on `users`. No refresh/access token. |
+| Facebook | `email,public_profile` only. `/me`: `id,name,email,picture.type(large)`. | Same. No user access token. |
+
+Use: create/sign-in Bestie account, session cookie, link same email across Google/Facebook.
+Deletion: ARCO + Google revoke URL; Facebook `POST /api/auth/facebook/data-deletion` and
+`/eliminar-facebook`; keep Privacy `#eliminacion-de-datos`.
+
+## Forbidden without an explicit product + legal + App Review / Google verification decision
+
+- Extra OAuth/Graph scopes (`user_friends`, `pages_*`, Gmail, Drive, Contacts, `user_posts`, …).
+- Persist Login **access/refresh tokens**; call Graph/Google APIs later **as the signed-in person**.
+- Post, message, or manage Pages/IG **as the Login user** (admin Page/Cloud tokens are a different product).
+- **Sell** Google or Facebook Login data, or use it for **ads targeting**, lookalikes, credit, or brokers.
+- Meta Pixel / CAPI **Advanced Matching** (or `fbq('init', id, {em, fn, …})`) with Login email, name, phone, or Facebook uid. Pixel stays consent-gated technical events only.
+- Google Ads / Customer Match / similar using Google Sign-In profile data.
+- Hide, rename, or fake the Google/Facebook buttons in a way that violates their branding, or request scopes the UI does not explain.
+- Replace the Facebook **instructions** URL (`/legal/privacidad#eliminacion-de-datos`) with the POST callback while App Review is pending; register the callback as a **separate** field after approval.
+
+PostHog `identify` with email/name after **analytics** consent is a disclosed processor of the
+Service — not Meta/Google ads. Do not pipe that identity into the Pixel or ad audiences.
+
+## Feature checklist (run every time)
+
+1. New data, SDK, ads, matching, or “personalization”? Does it read Google/Facebook identity?
+2. Changing `scope=`, `/me` `fields=`, or adding `googleapis.com` / `graph.facebook.com` calls?
+3. Storing a token, or sending email/name/uid to Pixel, CAPI, or an ad API?
+4. Auth/deletion/cookie change? Update Privacy §5 / §7 / `#eliminacion-de-datos`, bump
+   `LEGAL_LAST_UPDATED`, keep tests that lock `openid email profile` and `email,public_profile`.
+
+```ts
+// BAD — extra Login scope or Pixel matching
+scope: "email,public_profile,user_friends"
+fbq("init", pixelId, { em: user.email, external_id: facebookId })
+
+// GOOD — auth only; Pixel has no PII
+scope: "email,public_profile" // facebookOAuth.ts
+fbq("init", pixelId) // metaPixel.ts
+```

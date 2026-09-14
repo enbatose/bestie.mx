@@ -8,6 +8,8 @@ alwaysApply: true
 The Terms & Conditions and the Aviso de Privacidad are legal representations of what Bestie
 actually does. Google OAuth and Facebook Login approvals depend on them staying accurate. Any
 change to functionality MUST be checked against these documents before finishing the task.
+Sign-in **data-use** limits (scopes, no Login PII in ads, deletion callback) are in
+`oauth-signin-policy.mdc` — run that checklist on the same change.
 
 ## Where the documents live
 
