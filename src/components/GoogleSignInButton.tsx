@@ -32,9 +32,9 @@ type Props = {
 };
 
 const socialButtonClass =
-  "inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-2 py-2 text-xs font-semibold text-body shadow-sm transition hover:bg-surface-elevated sm:gap-2 sm:px-3 sm:text-sm dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800";
+  "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2 text-sm font-semibold text-body shadow-sm transition hover:bg-surface-elevated dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800";
 
-/** Social auth row for sign-in / register. */
+/** Social auth buttons for sign-in / register — stacked so both labels fit at 360px. */
 export function SocialSignInButtons({
   returnTo,
   onClick,
@@ -47,7 +47,7 @@ export function SocialSignInButtons({
   className?: string;
 }) {
   return (
-    <div className={`flex min-w-0 gap-2 ${className}`.trim()}>
+    <div className={`flex min-w-0 flex-col gap-2 ${className}`.trim()}>
       <GoogleSignInButton returnTo={returnTo} onClick={onClick} onBeforeNavigate={onBeforeNavigate} />
       <FacebookSignInButton returnTo={returnTo} onClick={onClick} onBeforeNavigate={onBeforeNavigate} />
     </div>
@@ -83,7 +83,7 @@ export function GoogleSignInButton({ returnTo, className = "", onClick, onBefore
       className={`${socialButtonClass} ${className}`.trim()}
     >
       <GoogleLogo className="size-4 shrink-0 sm:size-5" aria-hidden />
-      <span className="truncate">Continuar con Google</span>
+      <span className="min-w-0 truncate">Continuar con Google</span>
     </a>
   );
 }
@@ -117,7 +117,7 @@ export function FacebookSignInButton({ returnTo, className = "", onClick, onBefo
       className={`${socialButtonClass} ${className}`.trim()}
     >
       <FacebookLogo className="size-4 shrink-0 sm:size-5" aria-hidden />
-      <span className="truncate">Facebook</span>
+      <span className="min-w-0 truncate">Continuar con Facebook</span>
     </a>
   );
 }

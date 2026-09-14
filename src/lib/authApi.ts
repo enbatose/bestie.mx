@@ -245,7 +245,7 @@ export async function authLogin(
       throw new Error("Esta cuenta usa Google para entrar. Usa «Continuar con Google».");
     }
     if (j.error === "facebook_only_account") {
-      throw new Error("Esta cuenta usa Facebook para entrar. Usa el botón de Facebook.");
+      throw new Error("Esta cuenta usa Facebook para entrar. Usa «Continuar con Facebook».");
     }
     throw new Error(j.error || `login_${res.status}`);
   }
