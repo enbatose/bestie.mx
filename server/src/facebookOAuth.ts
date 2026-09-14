@@ -1,7 +1,12 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import express, { type Request, type Response } from "express";
-import { facebookOAuthPasswordPlaceholder } from "./adminAuth.js";
+import {
+  facebookOAuthPasswordPlaceholder,
+  isFacebookOAuthPasswordHash,
+} from "./adminAuth.js";
+import { classifyAdminUserRole } from "./adminUsers.js";
+import { eraseUserForArco } from "./arcoErasure.js";
 import { authSecret } from "./authSecret.js";
 import { canonicalLookupEmail, displayStorageEmail } from "./authEmail.js";
 import { issueAuthCookie } from "./jwtSession.js";
@@ -131,6 +136,116 @@ export function facebookOAuthConfig(): {
 
 export function isFacebookOAuthEnabled(): boolean {
   return facebookOAuthConfig() != null;
+}
+
+type FacebookSignedRequestPayload = {
+  user_id?: string;
+  algorithm?: string;
+};
+
+/** Meta `signed_request` (HMAC-SHA256 + base64url JSON). */
+export function parseFacebookSignedRequest(
+  signedRequest: string,
+  appSecret: string,
+): FacebookSignedRequestPayload | null {
+  const idx = signedRequest.indexOf(".");
+  if (idx <= 0) return null;
+  const encodedSig = signedRequest.slice(0, idx);
+  const payloadPart = signedRequest.slice(idx + 1);
+  if (!encodedSig || !payloadPart) return null;
+  let sig: Buffer;
+  try {
+    sig = fromB64url(encodedSig);
+  } catch {
+    return null;
+  }
+  const expected = createHmac("sha256", appSecret).update(payloadPart).digest();
+  if (sig.length !== expected.length || !timingSafeEqual(sig, expected)) return null;
+  let payload: FacebookSignedRequestPayload;
+  try {
+    payload = JSON.parse(fromB64url(payloadPart).toString("utf8")) as FacebookSignedRequestPayload;
+  } catch {
+    return null;
+  }
+  const algo = typeof payload.algorithm === "string" ? payload.algorithm.toUpperCase() : "";
+  if (algo && algo !== "HMAC-SHA256") return null;
+  return payload;
+}
+
+function isFacebookHostedProfileUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host === "facebook.com" ||
+      host.endsWith(".facebook.com") ||
+      host === "fbcdn.net" ||
+      host.endsWith(".fbcdn.net") ||
+      host === "fbsbx.com" ||
+      host.endsWith(".fbsbx.com")
+    );
+  } catch {
+    return /fbcdn\.net|facebook\.com|fbsbx\.com/i.test(url);
+  }
+}
+
+export type FacebookDeletionPublicStatus = "unlinked" | "erased" | "none";
+
+function facebookDeletionStatusUrl(code: string): string {
+  return `${webOrigin()}/eliminar-facebook?code=${encodeURIComponent(code)}`;
+}
+
+function signedRequestFromBody(req: Request): string {
+  const body = req.body as { signed_request?: unknown } | undefined;
+  return typeof body?.signed_request === "string" ? body.signed_request.trim() : "";
+}
+
+function applyFacebookLoginDataDeletion(
+  db: DatabaseSync,
+  facebookUserId: string,
+): FacebookDeletionPublicStatus {
+  const userId = findUserIdByOAuth(db, FACEBOOK_PROVIDER, facebookUserId);
+  if (!userId) return "none";
+
+  const row = db
+    .prepare("SELECT id, email, password_hash, profile_picture_url FROM users WHERE id = ?")
+    .get(userId) as
+    | { id: string; email: string | null; password_hash: string; profile_picture_url: string | null }
+    | undefined;
+  if (!row) {
+    db.prepare("DELETE FROM oauth_identities WHERE provider = ? AND provider_user_id = ?").run(
+      FACEBOOK_PROVIDER,
+      facebookUserId,
+    );
+    return "none";
+  }
+
+  const role = classifyAdminUserRole(row.id, row.email);
+  const facebookOnly = isFacebookOAuthPasswordHash(row.password_hash);
+
+  db.prepare("DELETE FROM oauth_identities WHERE provider = ? AND provider_user_id = ?").run(
+    FACEBOOK_PROVIDER,
+    facebookUserId,
+  );
+  if (isFacebookHostedProfileUrl(row.profile_picture_url)) {
+    db.prepare("UPDATE users SET profile_picture_url = NULL WHERE id = ?").run(row.id);
+  }
+
+  if (!facebookOnly || role !== "user") return "unlinked";
+
+  try {
+    eraseUserForArco(db, {
+      userId: row.id,
+      adminUserId: "facebook-data-deletion",
+      emailConfirm: row.email?.trim() || row.id,
+      source: "facebook",
+      reason: "Meta Facebook Login data deletion callback",
+    });
+    return "erased";
+  } catch (err) {
+    console.error("[facebook-data-deletion] ARCO erase failed after unlink", err);
+    return "unlinked";
+  }
 }
 
 function safeReturnTo(raw: unknown): string {
@@ -355,5 +470,65 @@ export function registerFacebookOAuthRoutes(db: DatabaseSync, r: express.Router)
 
     const origin = webOrigin();
     res.redirect(302, `${origin}${stored.returnTo}`);
+  });
+
+  r.post(
+    "/facebook/data-deletion",
+    express.urlencoded({ extended: false, limit: "32kb" }),
+    express.json({ limit: "32kb" }),
+    (req: Request, res: Response) => {
+      const config = facebookOAuthConfig();
+      if (!config) {
+        res.status(503).json({ error: "facebook_not_configured" });
+        return;
+      }
+      const signed = signedRequestFromBody(req);
+      const payload = signed ? parseFacebookSignedRequest(signed, config.appSecret) : null;
+      const facebookUserId = typeof payload?.user_id === "string" ? payload.user_id.trim() : "";
+      if (!facebookUserId) {
+        res.status(400).json({ error: "invalid_signed_request" });
+        return;
+      }
+
+      const confirmationCode = randomBytes(16).toString("hex");
+      let status: FacebookDeletionPublicStatus = "none";
+      try {
+        status = applyFacebookLoginDataDeletion(db, facebookUserId);
+      } catch (err) {
+        console.error("[facebook-data-deletion] unlink failed", err);
+        res.status(500).json({ error: "deletion_failed" });
+        return;
+      }
+
+      db.prepare(
+        `INSERT INTO facebook_data_deletion_requests (confirmation_code, facebook_user_id, status, created_at)
+         VALUES (?, ?, ?, ?)`,
+      ).run(confirmationCode, facebookUserId, status, isoNow());
+
+      res.status(200).json({
+        url: facebookDeletionStatusUrl(confirmationCode),
+        confirmation_code: confirmationCode,
+      });
+    },
+  );
+
+  r.get("/facebook/deletion-status", (req: Request, res: Response) => {
+    const code = typeof req.query.code === "string" ? req.query.code.trim() : "";
+    if (!/^[a-f0-9]{32}$/i.test(code)) {
+      res.status(400).json({ error: "invalid_code" });
+      return;
+    }
+    const row = db
+      .prepare("SELECT status FROM facebook_data_deletion_requests WHERE confirmation_code = ?")
+      .get(code.toLowerCase()) as { status: string } | undefined;
+    if (!row) {
+      res.json({ ok: true, found: false });
+      return;
+    }
+    const status: FacebookDeletionPublicStatus =
+      row.status === "erased" || row.status === "unlinked" || row.status === "none"
+        ? row.status
+        : "none";
+    res.json({ ok: true, found: true, status, confirmation_code: code.toLowerCase() });
   });
 }

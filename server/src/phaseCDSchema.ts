@@ -77,6 +77,15 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_oauth_identities_user ON oauth_identities(user_id);
 
+    CREATE TABLE IF NOT EXISTS facebook_data_deletion_requests (
+      confirmation_code TEXT PRIMARY KEY,
+      facebook_user_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_facebook_deletion_fb_user
+      ON facebook_data_deletion_requests(facebook_user_id);
+
     CREATE TABLE IF NOT EXISTS messenger_handoff_tokens (
       token TEXT PRIMARY KEY,
       publisher_id TEXT NOT NULL,

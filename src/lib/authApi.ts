@@ -36,6 +36,31 @@ export function facebookSignInUrl(returnTo?: string): string {
   return `${base}${path}?returnTo=${encodeURIComponent(returnTo)}`;
 }
 
+export type FacebookDeletionStatus = {
+  ok: true;
+  found: boolean;
+  status?: "unlinked" | "erased" | "none";
+  confirmation_code?: string;
+};
+
+export async function fetchFacebookDeletionStatus(code: string): Promise<FacebookDeletionStatus> {
+  const res = await networkFetch(
+    `${apiBase()}/api/auth/facebook/deletion-status?code=${encodeURIComponent(code.trim())}`,
+  );
+  const body = (await res.json().catch(() => null)) as FacebookDeletionStatus | { error?: string } | null;
+  if (!res.ok) {
+    throw new Error(
+      res.status === 400
+        ? "El código de confirmación no es válido."
+        : "No se pudo consultar el estado de la solicitud.",
+    );
+  }
+  if (!body || typeof body !== "object" || !("ok" in body) || body.ok !== true) {
+    throw new Error("No se pudo consultar el estado de la solicitud.");
+  }
+  return body;
+}
+
 const GOOGLE_OAUTH_ERRORS: Record<string, string> = {
   google_denied: "Cancelaste el inicio de sesión con Google.",
   google_not_configured: "Google no está configurado en el servidor.",

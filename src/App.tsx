@@ -10,6 +10,7 @@ import { GuadalajaraLandingPage } from "@/pages/GuadalajaraLandingPage";
 import { LegalPage } from "@/pages/LegalPage";
 import { TermsPage } from "@/pages/legal/TermsPage";
 import { PrivacyPage } from "@/pages/legal/PrivacyPage";
+import { FacebookDeletionStatusPage } from "@/pages/FacebookDeletionStatusPage";
 import { ListingPage } from "@/pages/ListingPage";
 import { MessagesPage } from "@/pages/MessagesPage";
 import { MyListingsPage } from "@/pages/MyListingsPage";
@@ -75,6 +76,7 @@ const router = createBrowserRouter([
       { path: "legal", element: <LegalPage /> },
       { path: "legal/terminos", element: <TermsPage /> },
       { path: "legal/privacidad", element: <PrivacyPage /> },
+      { path: "eliminar-facebook", element: <FacebookDeletionStatusPage /> },
       { path: "entrar", element: <SignInPage /> },
       { path: "recuperar-contrasena", element: <ForgotPasswordPage /> },
       { path: "registro", element: <RegisterPage /> },

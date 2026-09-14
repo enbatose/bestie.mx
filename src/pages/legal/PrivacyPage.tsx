@@ -234,7 +234,13 @@ export function PrivacyPage() {
             </>,
             <>
               <strong>Cómo lo usamos y almacenamos:</strong> únicamente para crear y autenticar tu
-              cuenta de Bestie; se almacena vinculado a tu cuenta.
+              cuenta de Bestie; se almacena vinculado a tu cuenta. No publicamos en tu nombre ni
+              pedimos permisos adicionales.
+            </>,
+            <>
+              <strong>Cómo lo compartimos:</strong> no vendemos esos datos ni los usamos para anuncios
+              de Meta. El píxel de medición, si lo autorizas en cookies, no recibe tu correo ni tu
+              identificador de Facebook (no hay coincidencia avanzada / Advanced Matching).
             </>,
             <>
               <strong>Eliminación:</strong> puedes solicitar la eliminación de estos datos conforme a la
@@ -316,12 +322,12 @@ export function PrivacyPage() {
           items={[
             "Proveedores de inicio de sesión e identidad (Google LLC y Meta Platforms, Inc.).",
             "Proveedor de mensajería WhatsApp Cloud API (Meta Platforms, Inc.) para recibir y responder los mensajes que envías al número de WhatsApp Business de Bestie.",
-            "Proveedor de infraestructura y alojamiento de la aplicación.",
+            "Proveedor de infraestructura y alojamiento de la aplicación (Railway, Estados Unidos).",
             "Proveedor de almacenamiento de respaldos de la base de datos y archivos del Servicio (copias de seguridad cifradas en tránsito, separadas del volumen de producción).",
-            "Proveedor de envío de correos electrónicos transaccionales.",
+            "Proveedor de envío de correos electrónicos transaccionales (Resend, Estados Unidos).",
             "Proveedor de envío de mensajes SMS (SMS Masivos) a celulares mexicanos (+52): códigos de un solo uso al registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña, o reclamar un anuncio cuyo contacto es ese número; un SMS transaccional de aviso cuando, si tienes teléfono verificado y la preferencia de avisos activa, una persona te escribe por primera vez en el chat de un anuncio; y un SMS transaccional de confirmación cuando atendemos una solicitud ARCO de cancelación de una cuenta que no tiene correo electrónico.",
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
-            "Proveedor de analítica de producto (PostHog, Inc.), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz, grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos) y, si inicias sesión, un identificador de usuario asociado a tu cuenta.",
+            "Proveedor de analítica de producto (PostHog, Inc., Estados Unidos), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz y grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos). Si inicias sesión y diste consentimiento de analítica, asociamos tu cuenta a un identificador interno y podemos enviar tu correo y nombre visible como propiedades de esa persona en PostHog, para medir el uso del Servicio, no para anuncios de Meta.",
             "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",
             "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para: (i) extraer, a tu solicitud, campos de un anuncio (por ejemplo zona, renta, tipo de espacio, recámaras y etiquetas) a partir del texto o infográfico que proporcionas al publicar un cuarto o una propiedad; (ii) generar un texto sugerido de compartir basado en los datos estructurados de tu anuncio (editable por ti; no sustituye la descripción pública ni se usa como vista previa Open Graph); y (iii) extraer criterios de búsqueda a partir de texto o infográficos de un post público de alguien que busca cuarto, cuando el equipo operador arma un enlace de búsqueda compartida. El borrador extraído de un anuncio no se publica hasta que lo revisas y confirmas.",
           ]}
@@ -364,7 +370,18 @@ export function PrivacyPage() {
             <>
               <strong>Desde Facebook:</strong> puedes retirar el acceso de Bestie desde{" "}
               <em>Configuración y privacidad → Configuración → Apps y sitios web</em> en tu cuenta de
-              Facebook, y usar la opción “Enviar solicitud” para pedir la eliminación de datos.
+              Facebook, y usar la opción “Enviar solicitud”. Facebook nos avisa; desvinculamos el
+              inicio de sesión y borramos los datos obtenidos de Facebook (identificador, y la foto de
+              perfil si venía de Facebook). Si tu cuenta de Bestie se creó solo con Facebook y no es
+              una cuenta de operador, también cancelamos esa cuenta. Facebook te muestra un código de
+              confirmación; el estado de esa solicitud está en{" "}
+              <Link
+                to="/eliminar-facebook"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                /eliminar-facebook
+              </Link>
+              .
             </>,
             <>
               <strong>Desde Google:</strong> puedes revocar el acceso de Bestie desde la página de{" "}
