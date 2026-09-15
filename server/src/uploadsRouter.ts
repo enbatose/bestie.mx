@@ -14,6 +14,34 @@ export type UploadsRouterOptions = {
   db?: DatabaseSync;
 };
 
+/** Persist a listing photo from WhatsApp (or any buffer) into the same store as POST /api/uploads. */
+export function persistListingImageBuffer(
+  db: DatabaseSync,
+  uploadDir: string,
+  buffer: Buffer,
+  declaredMime?: string,
+): string | null {
+  if (!buffer?.length) return null;
+  const mime = resolveUploadMime(declaredMime ?? "", buffer);
+  if (!mime) return null;
+  const ext = extForUploadMime(mime);
+  const name = `${randomUUID()}${ext}`;
+  const dir = path.resolve(uploadDir);
+  fs.mkdirSync(dir, { recursive: true });
+  const dest = path.join(dir, name);
+  if (!dest.startsWith(dir)) return null;
+  fs.writeFileSync(dest, buffer);
+  try {
+    db.prepare(
+      `INSERT OR REPLACE INTO upload_blobs (filename, mime_type, bytes, created_at)
+       VALUES (?, ?, ?, ?)`,
+    ).run(name, mime, buffer, new Date().toISOString());
+  } catch {
+    /* table may be missing in stripped test DBs; file on disk is enough */
+  }
+  return `/api/uploads/${name}`;
+}
+
 function uploadErrorMessage(err: unknown): { status: number; error: string; message: string } {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {

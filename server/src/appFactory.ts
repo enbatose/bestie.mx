@@ -81,6 +81,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   const databaseLabel = opts.databaseLabel ?? "in-process";
   const databasePath = opts.databasePath;
   const instanceId = opts.instanceId;
+  const uploadDir = resolveUploadDir(databasePath);
   const corsOrigins = normalizeCorsOrigins(
     opts.corsOrigins ??
       (process.env.CORS_ORIGINS ??
@@ -178,7 +179,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
     "/api/whatsapp/webhook",
     express.raw({ type: "application/json", limit: "4mb" }),
     (req, res, next) => {
-      void whatsappWebhookPost(db)(req, res).catch(next);
+      void whatsappWebhookPost(db, { uploadDir })(req, res).catch(next);
     },
   );
 
@@ -197,11 +198,10 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
   app.use("/api/listings", listingsRouter(db));
   app.use("/api/properties", propertiesRouter(db));
   app.use("/api/share-copy", shareAiCopyRouter(db));
-  app.use("/api/assisted-draft", assistedDraftRouter(db, resolveUploadDir(databasePath)));
+  app.use("/api/assisted-draft", assistedDraftRouter(db, uploadDir));
   app.use("/api/blog", blogPublicRouter(db));
   app.use("/api/admin/blog", blogAdminRouter(db, databasePath));
 
-  const uploadDir = resolveUploadDir(databasePath);
   app.use("/api/uploads", uploadsRouter({ db, uploadDir }));
   app.use("/api/share-og", shareOgImageRouter({ db, uploadDir }));
 

@@ -11,4 +11,5 @@ export type ChatSink = {
   sendText: (text: string) => Promise<void>;
   sendQuickReplies: (text: string, replies: ChatQuickReply[]) => Promise<void>;
   sendListingCards: (cards: ChatListingCard[], footer: string) => Promise<void>;
+  sendImage?: (opts: { url: string; caption?: string }) => Promise<void>;
 };

@@ -2,12 +2,16 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
 import { isProductionRuntime } from "./authSecret.js";
-import { processMessengerUserInput } from "./messengerFlows.js";
+import { processWhatsAppUserInput } from "./whatsappFlows.js";
 import {
   whatsappChatSink,
   whatsappCloudPhoneNumberId,
   whatsappSessionId,
 } from "./whatsappCloud.js";
+
+export type WhatsAppWebhookOptions = {
+  uploadDir?: string;
+};
 
 export function whatsappWebhookVerify(req: Request, res: Response): void {
   const mode = req.query["hub.mode"];
@@ -41,6 +45,8 @@ type WaMessage = {
   from?: string;
   type?: string;
   text?: { body?: string };
+  image?: { id?: string; caption?: string };
+  location?: { latitude?: number; longitude?: number; name?: string; address?: string };
   interactive?: {
     type?: string;
     button_reply?: { id?: string };
@@ -65,7 +71,7 @@ function rememberWamid(db: DatabaseSync, wamid: string): boolean {
   }
 }
 
-export function whatsappWebhookPost(db: DatabaseSync) {
+export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptions = {}) {
   return async (req: Request, res: Response): Promise<void> => {
     const raw = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body ?? {}));
     const sig = req.get("x-hub-signature-256");
@@ -109,15 +115,40 @@ export function whatsappWebhookPost(db: DatabaseSync) {
 
             const sessionId = whatsappSessionId(from);
             const sink = whatsappChatSink(from);
+            const button = interactivePayload(msg);
+            const lat = Number(msg.location?.latitude);
+            const lng = Number(msg.location?.longitude);
+            const imageId = typeof msg.image?.id === "string" ? msg.image.id : "";
+            const handledType =
+              Boolean(button) ||
+              msg.type === "text" ||
+              msg.type === "image" ||
+              msg.type === "location" ||
+              (Number.isFinite(lat) && Number.isFinite(lng));
+            if (!handledType) continue;
+
             try {
-              const button = interactivePayload(msg);
-              if (button) {
-                await processMessengerUserInput(db, sessionId, { quickReplyPayload: button }, sink);
-              } else if (msg.type === "text" && typeof msg.text?.body === "string") {
-                await processMessengerUserInput(db, sessionId, { text: msg.text.body }, sink);
-              } else {
-                await processMessengerUserInput(db, sessionId, { postback: "MB_MENU" }, sink);
-              }
+              await processWhatsAppUserInput(
+                db,
+                sessionId,
+                from,
+                {
+                  ...(button ? { quickReplyPayload: button } : {}),
+                  ...(msg.type === "text" && typeof msg.text?.body === "string" ? { text: msg.text.body } : {}),
+                  ...(imageId ? { imageMediaId: imageId, imageCaption: msg.image?.caption } : {}),
+                  ...(Number.isFinite(lat) && Number.isFinite(lng)
+                    ? {
+                        location: {
+                          lat,
+                          lng,
+                          name: msg.location?.name || msg.location?.address,
+                        },
+                      }
+                    : {}),
+                },
+                sink,
+                { uploadDir: opts.uploadDir },
+              );
             } catch (err) {
               console.warn(`[whatsapp] handler error for ${from}:`, err);
             }

@@ -103,7 +103,8 @@ export function PrivacyPage() {
               notificación en la app para seguimiento operativo, y lo mismo cuando envías el primer
               mensaje en el chat de un anuncio—, los mensajes que envías al número de WhatsApp Business
               de Bestie y las respuestas automáticas de ese canal (incluido el número desde el que
-              escribes), tus búsquedas guardadas (filtros, zona, si activaste
+              escribes, las fotos que mandas para un anuncio y la ubicación aproximada si la compartes),
+              la cuenta que creamos o ligamos a ese celular, tus búsquedas guardadas (filtros, zona, si activaste
               avisos por correo y, si guardas un enlace compartido de búsqueda, esos criterios; abrir el
               enlace no guarda ni activa avisos por sí solo), la fecha en que confirmas que un
               anuncio sigue libre o marcas que ya se rentó, y códigos cortos para abrir esa
@@ -138,7 +139,7 @@ export function PrivacyPage() {
           items={[
             <>
               <strong>Directamente de ti:</strong> cuando te registras, completas tu perfil, publicas
-              anuncios o nos contactas, o cuando escribes al número de WhatsApp Business de Bestie. Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
+              anuncios o nos contactas, o cuando escribes al número de WhatsApp Business de Bestie (texto, fotos, ubicación nativa o descrita). Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
               imágenes (fotos e infográficos) que pegas o subes para armar el borrador.
             </>,
             <>
@@ -270,8 +271,8 @@ export function PrivacyPage() {
         </p>
         <LegalList
           items={[
-            "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña de una cuenta con celular verificado, o reclamar un anuncio asociado a ese número.",
-            "Permitir la publicación y consulta de anuncios y el contacto entre usuarios, incluido el chat automático en el WhatsApp Business de Bestie para buscar anuncios o iniciar un borrador que terminas en el sitio.",
+            "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña de una cuenta con celular verificado, o reclamar un anuncio asociado a ese número. Si usas el WhatsApp Business de Bestie, el número desde el que escribes también autentica tu cuenta.",
+            "Permitir la publicación y consulta de anuncios y el contacto entre usuarios, incluido el chat automático en el WhatsApp Business de Bestie para buscar anuncios o publicar un cuarto (fotos, ubicación aproximada y confirmación expresa en el mismo chat).",
             "Registrar, cuando revelas el teléfono de un anuncio, llamas, abres WhatsApp hacia ese número o envías el primer mensaje en el chat de un anuncio, esa acción para métricas y seguimiento del Servicio; si quien publica tiene cuenta en Bestie, le notificamos en la app con tu nombre visible y el título del anuncio, y el equipo operador de Bestie recibe el mismo tipo de aviso en la app.",
             "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",
@@ -339,7 +340,7 @@ export function PrivacyPage() {
             "Proveedores de mapas y teselas (por ejemplo, OpenStreetMap).",
             "Proveedor de analítica de producto (PostHog, Inc., Estados Unidos), que puede tratar identificadores técnicos, eventos de uso, métricas de rendimiento, mapas de calor, errores de la interfaz y grabaciones de sesión de la interfaz (con campos sensibles y contenido de chat enmascarados o excluidos). Si inicias sesión y diste consentimiento de analítica, asociamos tu cuenta a un identificador interno y podemos enviar tu correo y nombre visible como propiedades de esa persona en PostHog, para medir el uso del Servicio, no para anuncios de Meta.",
             "Proveedor de publicidad y medición de anuncios (Meta Platforms, Inc.), a través del píxel de Meta en el sitio, que puede tratar identificadores técnicos, páginas visitadas y eventos de conversión (por ejemplo, registro o publicación) para medir y optimizar campañas en Facebook e Instagram.",
-            "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para: (i) extraer, a tu solicitud, campos de un anuncio (por ejemplo zona, renta, tipo de espacio, recámaras y etiquetas) a partir del texto o infográfico que proporcionas al publicar un cuarto o una propiedad; (ii) generar un texto sugerido de compartir basado en los datos estructurados de tu anuncio (editable por ti; no sustituye la descripción pública ni se usa como vista previa Open Graph); y (iii) extraer criterios de búsqueda a partir de texto o infográficos de un post público de alguien que busca cuarto, cuando el equipo operador arma un enlace de búsqueda compartida. El borrador extraído de un anuncio no se publica hasta que lo revisas y confirmas.",
+            "Proveedor de modelos de inteligencia artificial (Google LLC, Gemini API) para: (i) extraer, a tu solicitud, campos de un anuncio (por ejemplo zona, renta, tipo de espacio, recámaras y etiquetas) a partir del texto o infográfico que proporcionas al publicar un cuarto o una propiedad, incluso cuando lo mandas por el WhatsApp Business de Bestie; (ii) generar un texto sugerido de compartir basado en los datos estructurados de tu anuncio (editable por ti; no sustituye la descripción pública ni se usa como vista previa Open Graph); y (iii) extraer criterios de búsqueda a partir de texto o infográficos de un post público de alguien que busca cuarto, o del texto que escribes en WhatsApp para buscar, cuando armamos filtros. Un anuncio extraído no se publica hasta que lo confirmas (en el sitio o con el toque de aceptación en WhatsApp).",
           ]}
         />
         <p>

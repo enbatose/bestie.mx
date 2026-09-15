@@ -61,6 +61,17 @@ export async function sendWhatsAppText(to: string, text: string): Promise<void> 
   });
 }
 
+export async function sendWhatsAppImage(to: string, url: string, caption?: string): Promise<void> {
+  await postMessages({
+    to,
+    type: "image",
+    image: {
+      link: url,
+      ...(caption?.trim() ? { caption: caption.trim().slice(0, 1024) } : {}),
+    },
+  });
+}
+
 async function sendWhatsAppButtons(to: string, text: string, replies: ChatQuickReply[]): Promise<void> {
   const buttons = replies.slice(0, 3).map((r) => ({
     type: "reply" as const,
@@ -103,9 +114,17 @@ export function whatsappChatSink(to: string): ChatSink {
       if (replies.length <= 3) await sendWhatsAppButtons(to, text, replies);
       else await sendWhatsAppList(to, text, replies);
     },
+    sendImage: ({ url, caption }) => sendWhatsAppImage(to, url, caption),
     sendListingCards: async (cards, footer) => {
-      const lines = cards.map((c, i) => `${i + 1}. ${c.title}\n${c.subtitle}\n${c.url}`);
-      await sendWhatsAppText(to, `${lines.join("\n\n")}\n\n${footer}`.slice(0, 4096));
+      for (const c of cards.slice(0, 3)) {
+        const caption = `${c.title}\n${c.subtitle}\n${c.url}`.slice(0, 1024);
+        if (c.imageUrl?.startsWith("http")) {
+          await sendWhatsAppImage(to, c.imageUrl, caption);
+        } else {
+          await sendWhatsAppText(to, caption);
+        }
+      }
+      if (footer.trim()) await sendWhatsAppText(to, footer.slice(0, 4096));
     },
   };
 }
