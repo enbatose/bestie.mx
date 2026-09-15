@@ -20,6 +20,7 @@ import {
   WHATSAPP_MENU_POIS,
 } from "./whatsappBotSearch.js";
 import {
+  appendWhatsAppPhotoUrls,
   emptyWhatsAppDraft,
   getWhatsAppChat,
   upsertWhatsAppChat,
@@ -30,13 +31,21 @@ export type WhatsAppInbound = {
   text?: string;
   quickReplyPayload?: string;
   imageMediaId?: string;
+  imageMediaIds?: string[];
   imageCaption?: string;
   location?: { lat: number; lng: number; name?: string };
 };
 
 export type WhatsAppFlowOptions = {
   uploadDir?: string;
+  /** Wait for an album burst to finish before asking if more photos are coming. */
+  photoAckDelayMs?: number;
+  saveImage?: (mediaId: string) => Promise<string | null>;
 };
+
+const DEFAULT_PHOTO_ACK_DELAY_MS = 1800;
+const PHOTO_CAP = 6;
+const photoAckTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function isGreeting(text: string): boolean {
   return /^(hola|hello|hi|hey|buenas|buen[oa]s(\s+d[ií]as)?|qu[eé]\s+tal)[\s!.,¿?]*$/i.test(text.trim());
@@ -121,19 +130,55 @@ async function finishSearch(
 }
 
 async function sendPhotosPrompt(sink: ChatSink, count: number): Promise<void> {
-  const replies =
-    count > 0
-      ? [
-          { title: "Seguir", payload: "WA_PHOTOS_DONE" },
-          { title: "Cancelar", payload: "WA_CANCEL" },
-        ]
-      : [{ title: "Cancelar", payload: "WA_CANCEL" }];
+  if (count <= 0) {
+    await sink.sendQuickReplies(
+      "Mándame las fotos del cuarto. Puedes enviar varias a la vez (hasta 6). Cuando las reciba te pregunto si hay más pendientes.",
+      [{ title: "Cancelar", payload: "WA_CANCEL" }],
+    );
+    return;
+  }
+  if (count >= PHOTO_CAP) {
+    await sink.sendQuickReplies(`Ya tengo ${PHOTO_CAP} fotos, el máximo. ¿Seguimos?`, [
+      { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ]);
+    return;
+  }
   await sink.sendQuickReplies(
-    count > 0
-      ? `Tengo ${count} foto${count === 1 ? "" : "s"}. Manda otra (hasta 6) o pulsa Seguir.`
-      : "Mándame 1 a 6 fotos del cuarto (no infográficos). Cuando termines, pulsa Seguir.",
-    replies,
+    `Recibí ${count} foto${count === 1 ? "" : "s"}. ¿Tienes más pendientes? Puedes mandar varias juntas.`,
+    [
+      { title: "Sí, más fotos", payload: "WA_PHOTOS_MORE" },
+      { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ],
   );
+}
+
+function inboundImageIds(inbound: WhatsAppInbound): string[] {
+  const ids = [...(inbound.imageMediaIds ?? []), inbound.imageMediaId ?? ""].map((id) => id.trim()).filter(Boolean);
+  return [...new Set(ids)];
+}
+
+function schedulePhotosAck(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  delayMs: number,
+): void {
+  const prev = photoAckTimers.get(psid);
+  if (prev) clearTimeout(prev);
+  const fire = () => {
+    photoAckTimers.delete(psid);
+    const count = getWhatsAppChat(db, psid)?.draft.photoUrls.length ?? 0;
+    void sendPhotosPrompt(sink, count);
+  };
+  if (delayMs <= 0) {
+    fire();
+    return;
+  }
+  const t = setTimeout(fire, delayMs);
+  if (typeof t.unref === "function") t.unref();
+  photoAckTimers.set(psid, t);
 }
 
 async function sendLocationPrompt(sink: ChatSink): Promise<void> {
@@ -222,25 +267,30 @@ export async function processWhatsAppUserInput(
     }
   }
 
-  if (inbound.imageMediaId) {
-    const url = opts.uploadDir
-      ? await saveWhatsAppMediaImage(db, opts.uploadDir, inbound.imageMediaId)
-      : null;
-    if (inbound.imageCaption?.trim()) {
-      draft = await enrichPublishDraftFromText(draft, inbound.imageCaption.trim());
-    }
-    if (!url) {
-      await sink.sendText("No pude guardar esa foto. Mándala otra vez en JPG o PNG.");
-      return;
-    }
+  const imageIds = inboundImageIds(inbound);
+  if (imageIds.length) {
     if (!flow.startsWith("pub") && flow !== "idle") {
       await sink.sendText("Si quieres publicar, pulsa Publicar en el menú y luego manda las fotos.");
       return;
     }
-    draft.intent = "publish";
-    if (!draft.photoUrls.includes(url) && draft.photoUrls.length < 6) draft.photoUrls = [...draft.photoUrls, url];
-    save(db, psid, "pub_photos", draft, publisherId);
-    await sendPhotosPrompt(sink, draft.photoUrls.length);
+    const saveImage =
+      opts.saveImage ??
+      (async (mediaId: string) =>
+        opts.uploadDir ? saveWhatsAppMediaImage(db, opts.uploadDir, mediaId) : null);
+    const saved = (
+      await Promise.all(imageIds.map((id) => saveImage(id).catch(() => null)))
+    ).filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/"));
+    if (!saved.length) {
+      await sink.sendText("No pude guardar esas fotos. Mándalas otra vez en JPG o PNG.");
+      return;
+    }
+    const row = appendWhatsAppPhotoUrls(db, psid, saved, {
+      publisherId,
+      sourceText: inbound.imageCaption?.trim(),
+    });
+    draft = row.draft;
+    flow = "pub_photos";
+    schedulePhotosAck(db, psid, sink, opts.photoAckDelayMs ?? DEFAULT_PHOTO_ACK_DELAY_MS);
     return;
   }
 
@@ -259,6 +309,14 @@ export async function processWhatsAppUserInput(
       await sink.sendText("Armo el anuncio con lo que escribiste. Mándame fotos del cuarto.");
       await sendPhotosPrompt(sink, draft.photoUrls.length);
       return;
+    }
+  }
+
+  if (flow === "pub_photos") {
+    if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
+      payload = "WA_PHOTOS_DONE";
+    } else if (/^(s[ií]|m[aá]s|otra|otras)[\s!.]*$/i.test(lower)) {
+      payload = "WA_PHOTOS_MORE";
     }
   }
 
@@ -327,6 +385,14 @@ export async function processWhatsAppUserInput(
     const raw = payload.slice("WA_PREF:".length);
     draft.pref = raw === "female" || raw === "male" ? raw : null;
     await finishSearch(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (payload === "WA_PHOTOS_MORE") {
+    save(db, psid, "pub_photos", draft, publisherId);
+    await sink.sendText(
+      `Mándalas (varias a la vez está bien). Llevo ${draft.photoUrls.length} de ${PHOTO_CAP}. Te pregunto de nuevo cuando las reciba.`,
+    );
     return;
   }
 
@@ -424,7 +490,7 @@ export async function processWhatsAppUserInput(
   if (flow === "pub_photos") {
     draft = await enrichPublishDraftFromText(draft, textRaw);
     save(db, psid, "pub_photos", draft, publisherId);
-    await sink.sendText("Anotado. Sigue mandando fotos o pulsa Seguir.");
+    await sink.sendText("Anotado. Sigue mandando fotos o, si ya no hay más, pulsa No, seguir.");
     await sendPhotosPrompt(sink, draft.photoUrls.length);
     return;
   }

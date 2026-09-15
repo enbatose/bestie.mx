@@ -141,4 +141,61 @@ describe("WhatsApp bot flows", () => {
     expect(row?.approximate_radius_m).toBeGreaterThanOrEqual(100);
     expect(JSON.parse(row?.image_urls_json ?? "[]")).toContain(photo);
   });
+
+  it("keeps every photo in a burst and then asks if more are pending", async () => {
+    const pubPsid = `${PSID}-album`;
+    const { sink, texts } = capturingSink();
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    const urls: Record<string, string> = {
+      m1: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000001.jpg",
+      m2: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000002.jpg",
+      m3: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000003.jpg",
+    };
+    await processWhatsAppUserInput(
+      db,
+      pubPsid,
+      FROM,
+      { imageMediaIds: ["m1", "m2", "m3"] },
+      sink,
+      {
+        photoAckDelayMs: 0,
+        saveImage: async (id) => urls[id] ?? null,
+      },
+    );
+    const chat = getWhatsAppChat(db, pubPsid);
+    expect(chat?.draft.photoUrls).toEqual([urls.m1, urls.m2, urls.m3]);
+    expect(texts.some((t) => /Recibí 3 fotos/.test(t) && /más pendientes/.test(t))).toBe(true);
+
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_MORE" }, sink);
+    expect(chat && getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
+    expect(texts.some((t) => /Mándalas/.test(t))).toBe(true);
+  });
+
+  it("does not drop photos when two album webhooks overlap", async () => {
+    const pubPsid = `${PSID}-race`;
+    const { sink } = capturingSink();
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    const saveImage = async (id: string) => {
+      await new Promise((r) => setTimeout(r, 40));
+      return `/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-00000000000${id}.jpg`;
+    };
+    await Promise.all([
+      processWhatsAppUserInput(db, pubPsid, FROM, { imageMediaId: "1" }, sink, {
+        photoAckDelayMs: 0,
+        saveImage,
+      }),
+      processWhatsAppUserInput(db, pubPsid, FROM, { imageMediaId: "2" }, sink, {
+        photoAckDelayMs: 0,
+        saveImage,
+      }),
+    ]);
+    const photos = getWhatsAppChat(db, pubPsid)?.draft.photoUrls ?? [];
+    expect(photos).toHaveLength(2);
+    expect(photos).toEqual(
+      expect.arrayContaining([
+        "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000001.jpg",
+        "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000002.jpg",
+      ]),
+    );
+  });
 });

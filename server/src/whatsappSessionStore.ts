@@ -188,3 +188,49 @@ export function upsertWhatsAppChat(
   ).run(psid, publisherId, flow, JSON.stringify(draft), now);
   return { publisherId, flow, draft };
 }
+
+const PHOTO_CAP = 6;
+
+export function mergeWhatsAppPhotoUrls(existing: string[], incoming: string[]): string[] {
+  const out = [...existing];
+  for (const raw of incoming) {
+    if (typeof raw !== "string" || !raw.startsWith("/api/uploads/")) continue;
+    if (out.includes(raw)) continue;
+    if (out.length >= PHOTO_CAP) break;
+    out.push(raw);
+  }
+  return out;
+}
+
+/** Append listing photos without losing a concurrent album webhook. */
+export function appendWhatsAppPhotoUrls(
+  db: DatabaseSync,
+  psid: string,
+  urls: string[],
+  extra?: { sourceText?: string; publisherId?: string },
+): WhatsAppChatRow {
+  db.exec("BEGIN IMMEDIATE;");
+  try {
+    const existing = getWhatsAppChat(db, psid);
+    const draft = existing?.draft ?? emptyWhatsAppDraft();
+    draft.intent = "publish";
+    draft.photoUrls = mergeWhatsAppPhotoUrls(draft.photoUrls, urls);
+    if (extra?.sourceText?.trim()) {
+      draft.sourceText = [draft.sourceText, extra.sourceText.trim()].filter(Boolean).join("\n").slice(0, 4000);
+    }
+    const row = upsertWhatsAppChat(db, psid, {
+      flow: "pub_photos",
+      draft,
+      publisherId: extra?.publisherId ?? existing?.publisherId,
+    });
+    db.exec("COMMIT;");
+    return row;
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK;");
+    } catch {
+      /* */
+    }
+    throw err;
+  }
+}

@@ -46,6 +46,7 @@ type WaMessage = {
   type?: string;
   text?: { body?: string };
   image?: { id?: string; caption?: string };
+  document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
   location?: { latitude?: number; longitude?: number; name?: string; address?: string };
   interactive?: {
     type?: string;
@@ -57,6 +58,23 @@ type WaMessage = {
 function interactivePayload(msg: WaMessage): string | null {
   const id = msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id;
   return typeof id === "string" && id.trim() ? id.trim() : null;
+}
+
+function inboundImageFromMessage(msg: WaMessage): { id: string; caption?: string } | null {
+  if (typeof msg.image?.id === "string" && msg.image.id.trim()) {
+    return { id: msg.image.id.trim(), caption: msg.image.caption };
+  }
+  const doc = msg.document;
+  const mime = (doc?.mime_type ?? "").toLowerCase();
+  const name = (doc?.filename ?? "").toLowerCase();
+  const looksImage = mime.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic)$/i.test(name);
+  if (doc?.id && looksImage) {
+    return { id: doc.id.trim(), caption: doc.caption };
+  }
+  if (msg.type === "image" && typeof msg.image?.id === "string") {
+    return { id: msg.image.id.trim(), caption: msg.image.caption };
+  }
+  return null;
 }
 
 function rememberWamid(db: DatabaseSync, wamid: string): boolean {
@@ -106,7 +124,9 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
           }
           const messages = value.messages;
           if (!Array.isArray(messages)) continue;
-          for (const msg of messages as WaMessage[]) {
+          const queue = messages as WaMessage[];
+          for (let i = 0; i < queue.length; i++) {
+            const msg = queue[i]!;
             const from = typeof msg.from === "string" ? msg.from.replace(/\D/g, "") : "";
             const wamid = typeof msg.id === "string" ? msg.id : "";
             if (!from) continue;
@@ -115,14 +135,43 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
 
             const sessionId = whatsappSessionId(from);
             const sink = whatsappChatSink(from);
+            const image = inboundImageFromMessage(msg);
+            if (image) {
+              const batch = [image];
+              while (i + 1 < queue.length) {
+                const next = queue[i + 1]!;
+                const nextFrom = typeof next.from === "string" ? next.from.replace(/\D/g, "") : "";
+                const nextImage = inboundImageFromMessage(next);
+                if (nextFrom !== from || !nextImage) break;
+                i += 1;
+                const nextWamid = typeof next.id === "string" ? next.id : "";
+                if (nextWamid && !rememberWamid(db, nextWamid)) continue;
+                batch.push(nextImage);
+              }
+              try {
+                await processWhatsAppUserInput(
+                  db,
+                  sessionId,
+                  from,
+                  {
+                    imageMediaIds: batch.map((b) => b.id),
+                    imageCaption: batch.map((b) => b.caption?.trim()).filter(Boolean).join("\n") || undefined,
+                  },
+                  sink,
+                  { uploadDir: opts.uploadDir },
+                );
+              } catch (err) {
+                console.warn(`[whatsapp] handler error for ${from}:`, err);
+              }
+              continue;
+            }
+
             const button = interactivePayload(msg);
             const lat = Number(msg.location?.latitude);
             const lng = Number(msg.location?.longitude);
-            const imageId = typeof msg.image?.id === "string" ? msg.image.id : "";
             const handledType =
               Boolean(button) ||
               msg.type === "text" ||
-              msg.type === "image" ||
               msg.type === "location" ||
               (Number.isFinite(lat) && Number.isFinite(lng));
             if (!handledType) continue;
@@ -135,7 +184,6 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
                 {
                   ...(button ? { quickReplyPayload: button } : {}),
                   ...(msg.type === "text" && typeof msg.text?.body === "string" ? { text: msg.text.body } : {}),
-                  ...(imageId ? { imageMediaId: imageId, imageCaption: msg.image?.caption } : {}),
                   ...(Number.isFinite(lat) && Number.isFinite(lng)
                     ? {
                         location: {
