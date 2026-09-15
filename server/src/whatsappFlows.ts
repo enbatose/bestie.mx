@@ -187,6 +187,13 @@ export async function processWhatsAppUserInput(
   let draft = chat.draft;
   let flow = chat.flow;
   const publisherId = account?.publisherId ?? chat.publisherId;
+  if (
+    flow !== "idle" &&
+    !flow.startsWith("search_") &&
+    !flow.startsWith("pub_")
+  ) {
+    flow = "idle";
+  }
 
   const goIdleMenu = async () => {
     save(db, psid, "idle", emptyWhatsAppDraft(), publisherId);
@@ -255,7 +262,7 @@ export async function processWhatsAppUserInput(
     }
   }
 
-  if (payload === "WA_MENU" || payload === "WA_CANCEL") {
+  if (payload === "WA_MENU" || payload === "WA_CANCEL" || (payload != null && !payload.startsWith("WA_"))) {
     await goIdleMenu();
     return;
   }
