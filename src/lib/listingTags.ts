@@ -146,6 +146,15 @@ export const LEGACY_PROPERTY_TO_ROOM_TAG_SET = new Set<string>(LEGACY_PROPERTY_T
  */
 export const SOFT_HYPHEN = "\u00AD";
 
+/**
+ * Slash compounds (e.g. Chapultepec/Americana from GDL POIs / WhatsApp pins)
+ * are one min-content word and overflow 360px titles. ZWSP after `/` lets them wrap
+ * without changing the visible label.
+ */
+export function wrapListingCompoundText(s: string): string {
+  return s.replace(/\//g, "/\u200B");
+}
+
 /** Etiquetas con copy distinto en wizard / preview (full / display name). */
 export const LISTING_TAG_LABEL_OVERRIDES: Partial<Record<ListingTag, string>> = {
   estacionamiento: `Estacionami${SOFT_HYPHEN}ento privado`,

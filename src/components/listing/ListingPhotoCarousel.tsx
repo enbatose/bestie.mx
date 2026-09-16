@@ -211,7 +211,7 @@ function CarouselChrome({
           }
         >
           <div
-            className={`flex gap-2 overflow-x-auto overscroll-x-contain pb-0.5 ${
+            className={`flex min-w-0 max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-0.5 ${
               fullscreen ? "justify-center" : ""
             }`}
             role="tablist"
@@ -402,7 +402,7 @@ export function ListingPhotoCarousel({ urls, failedUrls, onImageError, onReportP
   return (
     <>
       <div
-        className="overflow-hidden rounded-xl ring-1 ring-border"
+        className="min-w-0 max-w-full overflow-x-clip overflow-hidden rounded-xl ring-1 ring-border"
         role="region"
         aria-roledescription="carrusel"
         aria-label={`Galería de fotos, ${count} imágenes`}

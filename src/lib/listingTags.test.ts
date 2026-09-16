@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { applyPropertyPermitidoTags, propertyPermitidoTags, setListingTag } from "@/lib/listingTags";
+import {
+  applyPropertyPermitidoTags,
+  propertyPermitidoTags,
+  setListingTag,
+  wrapListingCompoundText,
+} from "@/lib/listingTags";
+
+describe("wrapListingCompoundText", () => {
+  it("lets slash compounds wrap without changing the visible label", () => {
+    expect(wrapListingCompoundText("Zona Chapultepec/Americana")).toBe(
+      "Zona Chapultepec/\u200BAmericana",
+    );
+    expect(wrapListingCompoundText("Casa Minerva Lopez")).toBe("Casa Minerva Lopez");
+  });
+});
 
 describe("setListingTag", () => {
   it("adds a tag without dropping the others", () => {

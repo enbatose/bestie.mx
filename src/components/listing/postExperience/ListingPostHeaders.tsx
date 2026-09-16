@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ListingHeaderBadges } from "@/components/listing/PublicListingHeader";
-import { listingHeroPriceLabel } from "@/lib/listingTags";
+import { listingHeroPriceLabel, wrapListingCompoundText } from "@/lib/listingTags";
 import { ListingHiddenPricing } from "@/components/listing/ListingHiddenPricing";
 import { isPricingHidden } from "@/lib/listingPricing";
 import type { ListingTag, Property, PropertyListing, Room } from "@/types/listing";
@@ -14,7 +14,11 @@ const money = new Intl.NumberFormat("es-MX", {
 function HeaderLocationLine({ neighborhood, city }: { neighborhood: string; city: string }) {
   const line = [neighborhood.trim(), city.trim()].filter(Boolean).join(" · ");
   if (!line) return null;
-  return <p className="min-w-0 break-words text-sm text-muted">{line}</p>;
+  return (
+    <p className="min-w-0 break-words text-sm text-muted [overflow-wrap:anywhere]">
+      {wrapListingCompoundText(line)}
+    </p>
+  );
 }
 
 export function SingleRoomHeader({
@@ -44,11 +48,11 @@ export function SingleRoomHeader({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <HeaderLocationLine neighborhood={listing.neighborhood} city={listing.city} />
-          <h2 className="mt-2 min-w-0 break-words text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-            {title ?? listing.title}
+          <h2 className="mt-2 min-w-0 break-words text-2xl font-bold tracking-tight text-primary [overflow-wrap:anywhere] sm:text-3xl">
+            {wrapListingCompoundText(title ?? listing.title)}
           </h2>
         </div>
-        {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
+        {shareActions ? <div className="min-w-0 max-w-[45%] sm:max-w-none">{shareActions}</div> : null}
       </div>
       {hidePricing ? (
         <ListingHiddenPricing
@@ -113,11 +117,11 @@ export function PropertyHeader({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <HeaderLocationLine neighborhood={property.neighborhood} city={property.city} />
-          <h2 className="mt-2 min-w-0 break-words text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-            {property.title}
+          <h2 className="mt-2 min-w-0 break-words text-2xl font-bold tracking-tight text-primary [overflow-wrap:anywhere] sm:text-3xl">
+            {wrapListingCompoundText(property.title)}
           </h2>
         </div>
-        {shareActions ? <div className="max-w-[45%] shrink-0 sm:max-w-none">{shareActions}</div> : null}
+        {shareActions ? <div className="min-w-0 max-w-[45%] sm:max-w-none">{shareActions}</div> : null}
       </div>
       {showHidden ? (
         <ListingHiddenPricing

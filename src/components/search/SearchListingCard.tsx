@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { listingCardQuickAttributes } from "@/components/search/searchQuickAttributes";
 import { quickAttributeGenderIconClass } from "@/components/icons/GenderFilterIcons";
 import { listingCardSubtitle, listingCardTitle } from "@/lib/listingKeyLabels";
+import { wrapListingCompoundText } from "@/lib/listingTags";
 import { formatSearchListingRent } from "@/lib/collapseSearchListings";
 import { isPricingHidden } from "@/lib/listingPricing";
 import { listingCoverImageUrl } from "@/lib/listingImageUrls";
@@ -108,8 +109,8 @@ function SearchListingPopupCard({
         <div className="flex items-start gap-2 p-2">
           <ListingCardThumb listing={listing} className="size-[3.25rem] shrink-0 rounded-md" />
           <div className="min-w-0 flex-1 pr-5">
-            <h2 className="line-clamp-2 min-w-0 break-words text-xs font-semibold leading-snug text-primary">{title}</h2>
-            <p className="mt-0.5 truncate text-[11px] text-muted">{listing.neighborhood}</p>
+            <h2 className="line-clamp-2 min-w-0 break-words text-xs font-semibold leading-snug text-primary [overflow-wrap:anywhere]">{wrapListingCompoundText(title)}</h2>
+            <p className="mt-0.5 truncate text-[11px] text-muted">{wrapListingCompoundText(listing.neighborhood)}</p>
             <p className="mt-1 text-sm font-bold leading-snug text-body">
               {rentLabel(listing)}
               {isPricingHidden(listing) ? null : (
@@ -169,12 +170,12 @@ function SearchListingMobileDrawerCard({
           : "border-border bg-surface hover:border-secondary/60"
       }`}
     >
-      <h2 className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-snug text-primary">{title}</h2>
+      <h2 className="line-clamp-2 min-w-0 break-words text-sm font-semibold leading-snug text-primary [overflow-wrap:anywhere]">{wrapListingCompoundText(title)}</h2>
       <div className="mt-2 flex items-center gap-2.5">
         <ListingCardThumb listing={listing} className="size-14 shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold leading-none text-body">{rentLabel(listing)}</p>
-          <p className="mt-1 truncate text-xs text-muted">{subtitle}</p>
+          <p className="mt-1 truncate text-xs text-muted">{wrapListingCompoundText(subtitle)}</p>
         </div>
       </div>
       {quickAttributes.length ? (
@@ -231,12 +232,12 @@ function SearchListingSidebarCard({
         <ListingCardThumb listing={listing} className="size-16 shrink-0 rounded-lg sm:size-[4.5rem]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="min-w-0 break-words line-clamp-2 text-sm font-semibold leading-snug text-primary sm:text-base">{title}</h2>
+            <h2 className="min-w-0 break-words line-clamp-2 text-sm font-semibold leading-snug text-primary [overflow-wrap:anywhere] sm:text-base">{wrapListingCompoundText(title)}</h2>
             <p className="min-w-0 max-w-[46%] shrink-0 break-words text-right text-xs font-semibold leading-snug text-body sm:text-sm">
               {rentLabel(listing)}
             </p>
           </div>
-          <p className="mt-0.5 min-w-0 truncate text-xs text-muted sm:text-sm">{subtitle}</p>
+          <p className="mt-0.5 min-w-0 truncate text-xs text-muted sm:text-sm">{wrapListingCompoundText(subtitle)}</p>
           <p className="mt-2 line-clamp-2 min-w-0 break-words text-xs text-muted sm:text-sm">{listing.summary}</p>
           {quickAttributes.length ? (
             <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3">

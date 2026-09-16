@@ -4,6 +4,8 @@ import {
   listingSharePath,
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
+import { LISTING_PAGE_SHELL_CLASS } from "@/components/listing/PublicListingHeader";
+import { wrapListingCompoundText } from "@/lib/listingTags";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { ListingClaimActions } from "@/components/listing/ListingClaimActions";
 import { AvailabilityConfirmButton } from "@/components/listing/AvailabilityConfirmButton";
@@ -625,8 +627,8 @@ export function ListingPage() {
   const shareListingPath = listingSharePath(listing, isPropertyPost);
 
   return (
-    <div className="relative mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
-      <nav className="text-sm text-muted">
+    <div className={LISTING_PAGE_SHELL_CLASS}>
+      <nav className="min-w-0 break-words text-sm text-muted [overflow-wrap:anywhere]">
         {myListingsRestorePath ? (
           <Link
             to={myListingsRestorePath}
@@ -649,7 +651,7 @@ export function ListingPage() {
         <span aria-hidden className="mx-2">
           /
         </span>
-        <span className="text-body">{breadcrumbTitle}</span>
+        <span className="text-body">{wrapListingCompoundText(breadcrumbTitle)}</span>
       </nav>
 
       {listingUpdated ? (

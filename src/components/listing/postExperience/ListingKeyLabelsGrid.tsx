@@ -42,7 +42,7 @@ function KeyLabelCard({ item }: { item: KeyLabelItem }) {
         <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="relative min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 hyphens-manual text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <p className="min-w-0 hyphens-manual break-words text-[11px] font-semibold uppercase tracking-wide text-muted [overflow-wrap:anywhere]">
               {item.title}
             </p>
             {isTruncated ? (
@@ -84,7 +84,7 @@ function KeyLabelCard({ item }: { item: KeyLabelItem }) {
 
 export function ListingKeyLabelsGrid({ items }: { items: readonly KeyLabelItem[] }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
       {items.slice(0, 12).map((item) => (
         <KeyLabelCard key={`${item.title}-${item.value}`} item={item} />
       ))}

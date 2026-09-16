@@ -5,6 +5,8 @@ import {
   PublicPostExperienceListing,
 } from "@/components/listing/PublicPostExperienceListing";
 import { ListingStickyContactBar } from "@/components/listing/ListingShareActions";
+import { LISTING_PAGE_SHELL_CLASS } from "@/components/listing/PublicListingHeader";
+import { wrapListingCompoundText } from "@/lib/listingTags";
 import { AvailabilityConfirmButton } from "@/components/listing/AvailabilityConfirmButton";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { authMe, isAuthApiConfigured, type AuthMe } from "@/lib/authApi";
@@ -324,8 +326,8 @@ export function PropertyPage() {
     ) : null;
 
   return (
-    <div className="relative mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10">
-      <nav className="text-sm text-muted">
+    <div className={LISTING_PAGE_SHELL_CLASS}>
+      <nav className="min-w-0 break-words text-sm text-muted [overflow-wrap:anywhere]">
         {myListingsRestorePath ? (
           <Link
             to={myListingsRestorePath}
@@ -348,7 +350,7 @@ export function PropertyPage() {
         <span aria-hidden className="mx-2">
           /
         </span>
-        <span className="text-body">{breadcrumbTitle}</span>
+        <span className="text-body">{wrapListingCompoundText(breadcrumbTitle)}</span>
       </nav>
 
       <div className="mt-6">

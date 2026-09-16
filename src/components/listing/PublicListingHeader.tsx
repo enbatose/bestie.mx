@@ -12,7 +12,15 @@ import type { ListingTag, LodgingType, PropertyKind, PropertyListing, RoommateGe
 
 /** Green hero shell — same tint as the publish preview header, on published posts too. */
 export const LISTING_HERO_SHELL_CLASS =
-  "min-w-0 overflow-x-clip rounded-2xl border border-secondary/50 bg-secondary/5 p-4 shadow-sm sm:p-5";
+  "min-w-0 w-full overflow-x-clip rounded-2xl border border-secondary/50 bg-secondary/5 p-4 shadow-sm sm:p-5";
+
+/**
+ * Public listing/property page under AppShell `<main>` (`flex flex-col`).
+ * `w-full min-w-0` is required so long chat titles (WhatsApp / Messenger) can shrink
+ * instead of growing past the viewport and clipping on the right.
+ */
+export const LISTING_PAGE_SHELL_CLASS =
+  "relative mx-auto w-full min-w-0 max-w-7xl overflow-x-clip px-4 py-8 pb-24 sm:px-6 lg:px-8 sm:py-10 sm:pb-10";
 
 type HeaderBadgesProps = {
   postMode: "room" | "property";

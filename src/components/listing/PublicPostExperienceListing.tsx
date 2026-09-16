@@ -341,7 +341,7 @@ export function PublicPostExperienceListing({
     };
 
     return (
-      <div id="property-post-top" className="scroll-mt-24 space-y-6">
+      <div id="property-post-top" className="w-full min-w-0 scroll-mt-24 space-y-6">
         <header className={LISTING_HERO_SHELL_CLASS}>
           <ListingTopActions
             searchRestorePath={searchRestorePath}
@@ -366,7 +366,7 @@ export function PublicPostExperienceListing({
           </div>
         </header>
 
-        <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <section className="min-w-0 w-full space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <ListingSection title="Fotos">
             {photosBlock}
             <ListingPostPhoneBand listing={listing} viewer={contact.viewer} />
@@ -461,7 +461,7 @@ export function PublicPostExperienceListing({
   const singleSecondaryTags = listing.tags.filter((tag) => !KEY_LABEL_ROOM_TAG_SLUGS.has(tag));
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <header className={LISTING_HERO_SHELL_CLASS}>
         <ListingTopActions
           searchRestorePath={searchRestorePath}
@@ -483,7 +483,7 @@ export function PublicPostExperienceListing({
         </div>
       </header>
 
-      <section className="space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <section className="min-w-0 w-full space-y-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <ListingSection title="Fotos">
           {photosBlock}
           <ListingPostPhoneBand listing={listing} viewer={contact.viewer} />
