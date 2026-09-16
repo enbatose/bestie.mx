@@ -14,7 +14,7 @@ const money = new Intl.NumberFormat("es-MX", {
 function HeaderLocationLine({ neighborhood, city }: { neighborhood: string; city: string }) {
   const line = [neighborhood.trim(), city.trim()].filter(Boolean).join(" · ");
   if (!line) return null;
-  return <p className="text-sm text-muted">{line}</p>;
+  return <p className="min-w-0 break-words text-sm text-muted">{line}</p>;
 }
 
 export function SingleRoomHeader({

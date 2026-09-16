@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { SELF_SERVE_MAX_INFOGRAPHICS } from "./assistedDraftLimits.js";
 import type { ChatSink } from "./chatChannel.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { ensureWhatsAppBotAccount } from "./whatsappBotAccount.js";
@@ -6,6 +7,8 @@ import { saveWhatsAppMediaImage } from "./whatsappBotMedia.js";
 import {
   applyLocationText,
   applyNativeLocation,
+  composeWhatsAppListingFields,
+  enrichPublishDraftFromInfographics,
   enrichPublishDraftFromText,
   formatPublishPreview,
   parseRentFromText,
@@ -20,6 +23,7 @@ import {
   WHATSAPP_MENU_POIS,
 } from "./whatsappBotSearch.js";
 import {
+  appendWhatsAppInfographicUrls,
   appendWhatsAppPhotoUrls,
   emptyWhatsAppDraft,
   getWhatsAppChat,
@@ -45,7 +49,7 @@ export type WhatsAppFlowOptions = {
 
 const DEFAULT_PHOTO_ACK_DELAY_MS = 1800;
 const PHOTO_CAP = 6;
-const photoAckTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const mediaAckTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function isGreeting(text: string): boolean {
   return /^(hola|hello|hi|hey|buenas|buen[oa]s(\s+d[ií]as)?|qu[eé]\s+tal)[\s!.,¿?]*$/i.test(text.trim());
@@ -55,6 +59,10 @@ function looksLikePublish(text: string): boolean {
   return /\b(publicar|anunciar|tengo\s+(un\s+)?cuarto|renta\s+mi|rento\s+(un\s+)?cuarto|subo\s+(un\s+)?cuarto)\b/i.test(
     text,
   );
+}
+
+function isInfographicFlow(flow: string): boolean {
+  return flow === "pub_infographic_ask" || flow === "pub_infographics";
 }
 
 async function sendMenu(sink: ChatSink): Promise<void> {
@@ -70,7 +78,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
   await sink.sendText(
     [
       "Puedes buscar cuarto cerca de una zona (Chapu, Centro, ITESO, CUCS…) con presupuesto y preferencia, y te mando fotos de los anuncios.",
-      "También puedes publicar un solo cuarto: fotos, ubicación aproximada (por privacidad) y un toque para aceptar términos.",
+      "También puedes publicar un solo cuarto: infográficos (hasta 2, los lee la IA), descripción opcional, fotos, renta exacta, ubicación aproximada y un toque para aceptar términos.",
       `Mapa: ${base}/buscar`,
       `Términos: ${base}/legal/terminos`,
       "Soporte: contacto@bestie.mx",
@@ -129,6 +137,53 @@ async function finishSearch(
   await sendSearchFollowup(sink);
 }
 
+async function sendInfographicAsk(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies(
+    "¿Tienes infográficos del cuarto? Un infográfico es información (renta, zona, reglas) posiblemente combinada con fotos en una sola plantilla sobre el cuarto y la propiedad. La IA lee hasta 2 para extraer datos del anuncio; no sustituyen las fotos reales del espacio.",
+    [
+      { title: "Sí, tengo", payload: "WA_INFO_YES" },
+      { title: "No", payload: "WA_INFO_NO" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ],
+  );
+}
+
+async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<void> {
+  if (count <= 0) {
+    await sink.sendQuickReplies(
+      "Mándame hasta 2 infográficos (JPG o PNG). Si es una plantilla con texto y fotos, mejor.",
+      [{ title: "No tengo", payload: "WA_INFO_NO" }, { title: "Cancelar", payload: "WA_CANCEL" }],
+    );
+    return;
+  }
+  if (count >= SELF_SERVE_MAX_INFOGRAPHICS) {
+    await sink.sendQuickReplies(`Ya tengo ${SELF_SERVE_MAX_INFOGRAPHICS} infográficos, el máximo. ¿Seguimos?`, [
+      { title: "No, seguir", payload: "WA_INFO_DONE" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ]);
+    return;
+  }
+  await sink.sendQuickReplies(
+    `Recibí ${count} infográfico${count === 1 ? "" : "s"}. ¿Tienes otro (máximo ${SELF_SERVE_MAX_INFOGRAPHICS})?`,
+    [
+      { title: "Sí, otro", payload: "WA_INFO_MORE" },
+      { title: "No, seguir", payload: "WA_INFO_DONE" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ],
+  );
+}
+
+async function sendDescPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
+  const hasInfo = draft.infographicUrls.length > 0;
+  const body = hasInfo
+    ? "¿Quieres añadir una descripción del cuarto? Es opcional: el infográfico ya aporta datos. Escríbela o pulsa Saltar."
+    : "¿Quieres añadir una descripción del cuarto? Es opcional, pero ayuda si no hay infográfico. Escríbela o pulsa Saltar.";
+  await sink.sendQuickReplies(body, [
+    { title: "Saltar", payload: "WA_DESC_SKIP" },
+    { title: "Cancelar", payload: "WA_CANCEL" },
+  ]);
+}
+
 async function sendPhotosPrompt(sink: ChatSink, count: number): Promise<void> {
   if (count <= 0) {
     await sink.sendQuickReplies(
@@ -159,26 +214,38 @@ function inboundImageIds(inbound: WhatsAppInbound): string[] {
   return [...new Set(ids)];
 }
 
-function schedulePhotosAck(
+function scheduleMediaAck(
   db: DatabaseSync,
   psid: string,
   sink: ChatSink,
   delayMs: number,
-): void {
-  const prev = photoAckTimers.get(psid);
+  kind: "photo" | "infographic",
+  ctx: { publisherId?: string; uploadDir?: string },
+): Promise<void> {
+  const prev = mediaAckTimers.get(psid);
   if (prev) clearTimeout(prev);
-  const fire = () => {
-    photoAckTimers.delete(psid);
-    const count = getWhatsAppChat(db, psid)?.draft.photoUrls.length ?? 0;
-    void sendPhotosPrompt(sink, count);
+  const fire = async () => {
+    mediaAckTimers.delete(psid);
+    const chat = getWhatsAppChat(db, psid);
+    if (kind === "infographic") {
+      const count = chat?.draft.infographicUrls.length ?? 0;
+      if (count >= SELF_SERVE_MAX_INFOGRAPHICS && chat) {
+        await continueAfterInfographics(db, psid, sink, chat.draft, ctx.publisherId, ctx.uploadDir);
+        return;
+      }
+      await sendInfographicPrompt(sink, count);
+      return;
+    }
+    const count = chat?.draft.photoUrls.length ?? 0;
+    await sendPhotosPrompt(sink, count);
   };
-  if (delayMs <= 0) {
-    fire();
-    return;
-  }
-  const t = setTimeout(fire, delayMs);
+  if (delayMs <= 0) return fire();
+  const t = setTimeout(() => {
+    void fire();
+  }, delayMs);
   if (typeof t.unref === "function") t.unref();
-  photoAckTimers.set(psid, t);
+  mediaAckTimers.set(psid, t);
+  return Promise.resolve();
 }
 
 async function sendLocationPrompt(sink: ChatSink): Promise<void> {
@@ -190,12 +257,27 @@ async function sendLocationPrompt(sink: ChatSink): Promise<void> {
   );
 }
 
-async function sendRentPrompt(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("¿Cuánto es la renta mensual (MXN)?", [
-    { title: "$5,000", payload: "WA_RENT:5000" },
-    { title: "$8,000", payload: "WA_RENT:8000" },
-    { title: "$12,000", payload: "WA_RENT:12000" },
-  ]);
+function rentConfirmTitle(amount: number): string {
+  const raw = `Sí, $${amount}`;
+  return raw.length <= 20 ? raw : "Sí, ese monto";
+}
+
+async function sendRentPrompt(sink: ChatSink, draft: WhatsAppBotDraft, forceType = false): Promise<void> {
+  if (!forceType && draft.rentMxn != null) {
+    await sink.sendQuickReplies(
+      `Leí $${draft.rentMxn} MXN al mes en lo que enviaste. ¿Es ese el monto exacto? Si no, escribe un solo número (sin rango).`,
+      [
+        { title: rentConfirmTitle(draft.rentMxn), payload: "WA_RENT_OK" },
+        { title: "Otro monto", payload: "WA_RENT_EDIT" },
+        { title: "Cancelar", payload: "WA_CANCEL" },
+      ],
+    );
+    return;
+  }
+  await sink.sendQuickReplies(
+    "¿Cuál es la renta mensual exacta? Escribe un solo monto en pesos, por ejemplo 6500. No uses un rango.",
+    [{ title: "Cancelar", payload: "WA_CANCEL" }],
+  );
 }
 
 async function sendPreview(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
@@ -204,6 +286,59 @@ async function sendPreview(sink: ChatSink, draft: WhatsAppBotDraft): Promise<voi
     { title: "Cambiar renta", payload: "WA_RENT_EDIT" },
     { title: "Cancelar", payload: "WA_CANCEL" },
   ]);
+}
+
+async function continueAfterPhotos(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  draft: WhatsAppBotDraft,
+  publisherId?: string,
+): Promise<void> {
+  if (draft.photoUrls.length < 1) {
+    await sendPhotosPrompt(sink, 0);
+    return;
+  }
+  if (draft.locLat == null) {
+    save(db, psid, "pub_location", draft, publisherId);
+    await sendLocationPrompt(sink);
+    return;
+  }
+  if (draft.rentMxn == null) {
+    save(db, psid, "pub_rent", draft, publisherId);
+    await sendRentPrompt(sink, draft);
+    return;
+  }
+  save(db, psid, "pub_preview", draft, publisherId);
+  await sendPreview(sink, draft);
+}
+
+async function continueAfterDesc(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  draft: WhatsAppBotDraft,
+  publisherId?: string,
+): Promise<void> {
+  save(db, psid, "pub_photos", draft, publisherId);
+  await sendPhotosPrompt(sink, draft.photoUrls.length);
+}
+
+async function continueAfterInfographics(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  draft: WhatsAppBotDraft,
+  publisherId: string | undefined,
+  uploadDir?: string,
+): Promise<void> {
+  let next = draft;
+  if (next.infographicUrls.length > 0) {
+    await sink.sendText("Estoy leyendo el infográfico…");
+    next = await enrichPublishDraftFromInfographics(db, uploadDir, next);
+  }
+  save(db, psid, "pub_desc", next, publisherId);
+  await sendDescPrompt(sink, next);
 }
 
 export async function processWhatsAppUserInput(
@@ -249,6 +384,19 @@ export async function processWhatsAppUserInput(
     if (flow.startsWith("pub") || flow === "idle") {
       draft = applyNativeLocation(draft, inbound.location.lat, inbound.location.lng, inbound.location.name);
       draft.intent = "publish";
+      if (isInfographicFlow(flow) || flow === "pub_desc") {
+        save(db, psid, flow, draft, publisherId);
+        await sink.sendText(`Ubicación guardada (aproximada${draft.locLabel ? `: ${draft.locLabel}` : ""}). Sigue con este paso.`);
+        if (isInfographicFlow(flow)) await sendInfographicPrompt(sink, draft.infographicUrls.length);
+        else await sendDescPrompt(sink, draft);
+        return;
+      }
+      if (flow === "idle") {
+        save(db, psid, "pub_infographic_ask", draft, publisherId);
+        await sink.sendText("Ubicación guardada (aproximada).");
+        await sendInfographicAsk(sink);
+        return;
+      }
       if (draft.photoUrls.length < 1) {
         save(db, psid, "pub_photos", draft, publisherId);
         await sink.sendText("Ubicación guardada (aproximada). Ahora mándame fotos del cuarto.");
@@ -258,7 +406,7 @@ export async function processWhatsAppUserInput(
       if (draft.rentMxn == null) {
         save(db, psid, "pub_rent", draft, publisherId);
         await sink.sendText(`Zona: ${draft.locLabel ?? "pin"} (~${draft.locRadiusM} m).`);
-        await sendRentPrompt(sink);
+        await sendRentPrompt(sink, draft);
         return;
       }
       save(db, psid, "pub_preview", draft, publisherId);
@@ -284,13 +432,49 @@ export async function processWhatsAppUserInput(
       await sink.sendText("No pude guardar esas fotos. Mándalas otra vez en JPG o PNG.");
       return;
     }
+
+    const treatAsInfographic = isInfographicFlow(flow);
+    if (treatAsInfographic) {
+      const row = appendWhatsAppInfographicUrls(db, psid, saved, {
+        publisherId,
+        sourceText: inbound.imageCaption?.trim(),
+        flow: "pub_infographics",
+      });
+      draft = row.draft;
+      const delay = opts.photoAckDelayMs ?? DEFAULT_PHOTO_ACK_DELAY_MS;
+      await scheduleMediaAck(db, psid, sink, delay, "infographic", {
+        publisherId,
+        uploadDir: opts.uploadDir,
+      });
+      return;
+    }
+
+    const photoFlow = flow === "idle" ? "pub_infographic_ask" : flow === "pub_desc" ? "pub_photos" : flow.startsWith("pub_") && flow !== "pub_photos" ? flow : "pub_photos";
     const row = appendWhatsAppPhotoUrls(db, psid, saved, {
       publisherId,
       sourceText: inbound.imageCaption?.trim(),
+      flow: photoFlow === "pub_infographic_ask" ? "pub_infographic_ask" : "pub_photos",
     });
     draft = row.draft;
-    flow = "pub_photos";
-    schedulePhotosAck(db, psid, sink, opts.photoAckDelayMs ?? DEFAULT_PHOTO_ACK_DELAY_MS);
+    if (flow === "idle" || photoFlow === "pub_infographic_ask") {
+      await sink.sendText(
+        draft.photoUrls.length
+          ? `Guardé ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"} del cuarto.`
+          : "Guardé las fotos.",
+      );
+      save(db, psid, "pub_infographic_ask", draft, publisherId);
+      await sendInfographicAsk(sink);
+      return;
+    }
+    if (flow === "pub_photos" || flow === "pub_desc") {
+      await scheduleMediaAck(db, psid, sink, opts.photoAckDelayMs ?? DEFAULT_PHOTO_ACK_DELAY_MS, "photo", {
+        publisherId,
+        uploadDir: opts.uploadDir,
+      });
+      return;
+    }
+    save(db, psid, flow, draft, publisherId);
+    await sink.sendText("Anoté la foto. Sigue con el paso actual.");
     return;
   }
 
@@ -305,13 +489,25 @@ export async function processWhatsAppUserInput(
         return;
       }
       draft = await enrichPublishDraftFromText({ ...emptyWhatsAppDraft(), intent: "publish" }, textRaw);
-      save(db, psid, "pub_photos", draft, publisherId);
-      await sink.sendText("Armo el anuncio con lo que escribiste. Mándame fotos del cuarto.");
-      await sendPhotosPrompt(sink, draft.photoUrls.length);
+      if (textRaw.length >= 40 && !draft.summary) draft.summary = textRaw.slice(0, 1500);
+      save(db, psid, "pub_infographic_ask", draft, publisherId);
+      await sink.sendText("Armo el anuncio con lo que escribiste.");
+      await sendInfographicAsk(sink);
       return;
     }
   }
 
+  if (flow === "pub_infographic_ask") {
+    if (/^(s[ií]|tengo)[\s!.]*$/i.test(lower)) payload = "WA_INFO_YES";
+    else if (/^(no|ninguno)[\s!.]*$/i.test(lower)) payload = "WA_INFO_NO";
+  }
+  if (flow === "pub_infographics") {
+    if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) payload = "WA_INFO_DONE";
+    else if (/^(s[ií]|otro|otra|m[aá]s)[\s!.]*$/i.test(lower)) payload = "WA_INFO_MORE";
+  }
+  if (flow === "pub_desc") {
+    if (/^(saltar|skip|no|pasar)[\s!.]*$/i.test(lower)) payload = "WA_DESC_SKIP";
+  }
   if (flow === "pub_photos") {
     if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
       payload = "WA_PHOTOS_DONE";
@@ -348,8 +544,34 @@ export async function processWhatsAppUserInput(
       return;
     }
     draft = { ...emptyWhatsAppDraft(), intent: "publish" };
-    save(db, psid, "pub_photos", draft, publisherId);
-    await sendPhotosPrompt(sink, 0);
+    save(db, psid, "pub_infographic_ask", draft, publisherId);
+    await sendInfographicAsk(sink);
+    return;
+  }
+
+  if (payload === "WA_INFO_YES") {
+    save(db, psid, "pub_infographics", draft, publisherId);
+    await sendInfographicPrompt(sink, draft.infographicUrls.length);
+    return;
+  }
+  if (payload === "WA_INFO_NO") {
+    save(db, psid, "pub_desc", draft, publisherId);
+    await sendDescPrompt(sink, draft);
+    return;
+  }
+  if (payload === "WA_INFO_MORE") {
+    save(db, psid, "pub_infographics", draft, publisherId);
+    await sink.sendText(
+      `Mándalo. Llevo ${draft.infographicUrls.length} de ${SELF_SERVE_MAX_INFOGRAPHICS}.`,
+    );
+    return;
+  }
+  if (payload === "WA_INFO_DONE") {
+    await continueAfterInfographics(db, psid, sink, draft, publisherId, opts.uploadDir);
+    return;
+  }
+  if (payload === "WA_DESC_SKIP") {
+    await continueAfterDesc(db, psid, sink, draft, publisherId);
     return;
   }
 
@@ -397,37 +619,26 @@ export async function processWhatsAppUserInput(
   }
 
   if (payload === "WA_PHOTOS_DONE") {
-    if (draft.photoUrls.length < 1) {
-      await sendPhotosPrompt(sink, 0);
-      return;
-    }
     if (draft.sourceText.length >= 40) draft = await enrichPublishDraftFromText(draft, draft.sourceText);
-    if (draft.locLat == null) {
-      save(db, psid, "pub_location", draft, publisherId);
-      await sendLocationPrompt(sink);
-      return;
-    }
-    if (draft.rentMxn == null) {
-      save(db, psid, "pub_rent", draft, publisherId);
-      await sendRentPrompt(sink);
-      return;
-    }
-    save(db, psid, "pub_preview", draft, publisherId);
-    await sendPreview(sink, draft);
+    await continueAfterPhotos(db, psid, sink, draft, publisherId);
     return;
   }
 
-  if (payload?.startsWith("WA_RENT:")) {
-    const n = Number(payload.slice("WA_RENT:".length));
-    if (Number.isFinite(n)) draft.rentMxn = n;
+  if (payload === "WA_RENT_OK") {
+    if (draft.rentMxn == null) {
+      save(db, psid, "pub_rent", draft, publisherId);
+      await sendRentPrompt(sink, draft, true);
+      return;
+    }
     save(db, psid, "pub_preview", draft, publisherId);
     await sendPreview(sink, draft);
     return;
   }
 
   if (payload === "WA_RENT_EDIT") {
+    draft.rentMxn = null;
     save(db, psid, "pub_rent", draft, publisherId);
-    await sendRentPrompt(sink);
+    await sendRentPrompt(sink, draft, true);
     return;
   }
 
@@ -441,6 +652,8 @@ export async function processWhatsAppUserInput(
       await sink.sendText(missing);
       return;
     }
+    const fields = composeWhatsAppListingFields(draft);
+    draft = { ...draft, title: fields.title, neighborhood: fields.neighborhood, summary: fields.summary };
     const result = publishWhatsAppRoom(db, {
       publisherId: account.publisherId,
       contactStored: account.contactStored,
@@ -487,6 +700,13 @@ export async function processWhatsAppUserInput(
     return;
   }
 
+  if (flow === "pub_desc") {
+    draft.summary = textRaw.slice(0, 1500);
+    draft = await enrichPublishDraftFromText(draft, textRaw);
+    await continueAfterDesc(db, psid, sink, draft, publisherId);
+    return;
+  }
+
   if (flow === "pub_photos") {
     draft = await enrichPublishDraftFromText(draft, textRaw);
     save(db, psid, "pub_photos", draft, publisherId);
@@ -505,7 +725,7 @@ export async function processWhatsAppUserInput(
     if (draft.rentMxn == null) {
       save(db, psid, "pub_rent", draft, publisherId);
       await sink.sendText(`Zona aproximada: ${draft.locLabel} (~${draft.locRadiusM} m).`);
-      await sendRentPrompt(sink);
+      await sendRentPrompt(sink, draft);
       return;
     }
     save(db, psid, "pub_preview", draft, publisherId);
@@ -516,7 +736,7 @@ export async function processWhatsAppUserInput(
   if (flow === "pub_rent") {
     const n = parseRentFromText(textRaw);
     if (n == null) {
-      await sink.sendText("Escribe un monto en pesos, por ejemplo 6500.");
+      await sink.sendText("Escribe un monto exacto en pesos, por ejemplo 6500. No uses un rango.");
       return;
     }
     draft.rentMxn = n;

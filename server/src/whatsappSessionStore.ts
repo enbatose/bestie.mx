@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { ListingTag, LodgingType, RoomDimension, RoommateGenderPref } from "./types.js";
+import { SELF_SERVE_MAX_INFOGRAPHICS } from "./assistedDraftLimits.js";
+import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "./types.js";
 
 export type WhatsAppBotDraft = {
   intent: "search" | "publish" | null;
@@ -15,6 +16,7 @@ export type WhatsAppBotDraft = {
   lodgingType: LodgingType | null;
   sourceText: string;
   photoUrls: string[];
+  infographicUrls: string[];
   locLat: number | null;
   locLng: number | null;
   locLabel: string | null;
@@ -32,6 +34,7 @@ export type WhatsAppBotDraft = {
   roomDimension: RoomDimension;
   pubTags: ListingTag[];
   lodging: LodgingType;
+  propertyKind: PropertyKind | null;
 };
 
 const TAGS: readonly string[] = [
@@ -74,6 +77,8 @@ function asTags(raw: unknown): ListingTag[] {
   return raw.filter((t): t is ListingTag => typeof t === "string" && TAGS.includes(t));
 }
 
+const PHOTO_CAP = 6;
+
 export function emptyWhatsAppDraft(): WhatsAppBotDraft {
   return {
     intent: null,
@@ -88,6 +93,7 @@ export function emptyWhatsAppDraft(): WhatsAppBotDraft {
     lodgingType: null,
     sourceText: "",
     photoUrls: [],
+    infographicUrls: [],
     locLat: null,
     locLng: null,
     locLabel: null,
@@ -105,6 +111,7 @@ export function emptyWhatsAppDraft(): WhatsAppBotDraft {
     roomDimension: "medium",
     pubTags: [],
     lodging: "private_room",
+    propertyKind: null,
   };
 }
 
@@ -129,7 +136,10 @@ function parseDraft(raw: string): WhatsAppBotDraft {
           : null,
       sourceText: typeof j.sourceText === "string" ? j.sourceText.slice(0, 4000) : "",
       photoUrls: Array.isArray(j.photoUrls)
-        ? j.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/")).slice(0, 6)
+        ? j.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/")).slice(0, PHOTO_CAP)
+        : [],
+      infographicUrls: Array.isArray(j.infographicUrls)
+        ? j.infographicUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/")).slice(0, SELF_SERVE_MAX_INFOGRAPHICS)
         : [],
       locLat: typeof j.locLat === "number" && Number.isFinite(j.locLat) ? j.locLat : null,
       locLng: typeof j.locLng === "number" && Number.isFinite(j.locLng) ? j.locLng : null,
@@ -148,6 +158,10 @@ function parseDraft(raw: string): WhatsAppBotDraft {
       roomDimension: j.roomDimension === "small" || j.roomDimension === "large" ? j.roomDimension : "medium",
       pubTags: asTags(j.pubTags),
       lodging: j.lodging === "shared_room" ? "shared_room" : "private_room",
+      propertyKind:
+        j.propertyKind === "house" || j.propertyKind === "apartment" || j.propertyKind === "loft"
+          ? j.propertyKind
+          : null,
     };
   } catch {
     return base;
@@ -189,8 +203,6 @@ export function upsertWhatsAppChat(
   return { publisherId, flow, draft };
 }
 
-const PHOTO_CAP = 6;
-
 export function mergeWhatsAppPhotoUrls(existing: string[], incoming: string[]): string[] {
   const out = [...existing];
   for (const raw of incoming) {
@@ -202,24 +214,39 @@ export function mergeWhatsAppPhotoUrls(existing: string[], incoming: string[]): 
   return out;
 }
 
-/** Append listing photos without losing a concurrent album webhook. */
-export function appendWhatsAppPhotoUrls(
+export function mergeWhatsAppInfographicUrls(existing: string[], incoming: string[]): string[] {
+  const out = [...existing];
+  for (const raw of incoming) {
+    if (typeof raw !== "string" || !raw.startsWith("/api/uploads/")) continue;
+    if (out.includes(raw)) continue;
+    if (out.length >= SELF_SERVE_MAX_INFOGRAPHICS) break;
+    out.push(raw);
+  }
+  return out;
+}
+
+function appendWhatsAppUrls(
   db: DatabaseSync,
   psid: string,
   urls: string[],
-  extra?: { sourceText?: string; publisherId?: string },
+  kind: "photo" | "infographic",
+  extra?: { sourceText?: string; publisherId?: string; flow?: string },
 ): WhatsAppChatRow {
   db.exec("BEGIN IMMEDIATE;");
   try {
     const existing = getWhatsAppChat(db, psid);
     const draft = existing?.draft ?? emptyWhatsAppDraft();
     draft.intent = "publish";
-    draft.photoUrls = mergeWhatsAppPhotoUrls(draft.photoUrls, urls);
+    if (kind === "infographic") {
+      draft.infographicUrls = mergeWhatsAppInfographicUrls(draft.infographicUrls, urls);
+    } else {
+      draft.photoUrls = mergeWhatsAppPhotoUrls(draft.photoUrls, urls);
+    }
     if (extra?.sourceText?.trim()) {
       draft.sourceText = [draft.sourceText, extra.sourceText.trim()].filter(Boolean).join("\n").slice(0, 4000);
     }
     const row = upsertWhatsAppChat(db, psid, {
-      flow: "pub_photos",
+      flow: extra?.flow ?? (kind === "infographic" ? "pub_infographics" : "pub_photos"),
       draft,
       publisherId: extra?.publisherId ?? existing?.publisherId,
     });
@@ -233,4 +260,24 @@ export function appendWhatsAppPhotoUrls(
     }
     throw err;
   }
+}
+
+/** Append listing photos without losing a concurrent album webhook. */
+export function appendWhatsAppPhotoUrls(
+  db: DatabaseSync,
+  psid: string,
+  urls: string[],
+  extra?: { sourceText?: string; publisherId?: string; flow?: string },
+): WhatsAppChatRow {
+  return appendWhatsAppUrls(db, psid, urls, "photo", extra);
+}
+
+/** Append infographic images (cap 2). Not used as gallery photos. */
+export function appendWhatsAppInfographicUrls(
+  db: DatabaseSync,
+  psid: string,
+  urls: string[],
+  extra?: { sourceText?: string; publisherId?: string; flow?: string },
+): WhatsAppChatRow {
+  return appendWhatsAppUrls(db, psid, urls, "infographic", extra);
 }

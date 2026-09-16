@@ -139,7 +139,7 @@ export function PrivacyPage() {
           items={[
             <>
               <strong>Directamente de ti:</strong> cuando te registras, completas tu perfil, publicas
-              anuncios o nos contactas, o cuando escribes al número de WhatsApp Business de Bestie (texto, fotos, ubicación nativa o descrita). Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
+              anuncios o nos contactas, o cuando escribes al número de WhatsApp Business de Bestie (texto, fotos, infográficos —hasta dos plantillas que combinan información del cuarto o la propiedad—, descripción opcional, ubicación nativa o descrita). Si usas la publicación asistida de un cuarto o una propiedad, el texto y las
               imágenes (fotos e infográficos) que pegas o subes para armar el borrador.
             </>,
             <>
@@ -272,7 +272,7 @@ export function PrivacyPage() {
         <LegalList
           items={[
             "Crear, autenticar y administrar tu cuenta, incluido el envío de un código SMS de un solo uso a un celular mexicano (+52) para registrarte, verificar o cambiar el teléfono de perfil, restablecer la contraseña de una cuenta con celular verificado, o reclamar un anuncio asociado a ese número. Si usas el WhatsApp Business de Bestie, el número desde el que escribes también autentica tu cuenta.",
-            "Permitir la publicación y consulta de anuncios y el contacto entre usuarios, incluido el chat automático en el WhatsApp Business de Bestie para buscar anuncios o publicar un cuarto (fotos, ubicación aproximada y confirmación expresa en el mismo chat).",
+            "Permitir la publicación y consulta de anuncios y el contacto entre usuarios, incluido el chat automático en el WhatsApp Business de Bestie para buscar anuncios o publicar un cuarto (infográficos que lee la IA, descripción opcional, fotos, renta mensual exacta, ubicación aproximada y confirmación expresa en el mismo chat).",
             "Registrar, cuando revelas el teléfono de un anuncio, llamas, abres WhatsApp hacia ese número o envías el primer mensaje en el chat de un anuncio, esa acción para métricas y seguimiento del Servicio; si quien publica tiene cuenta en Bestie, le notificamos en la app con tu nombre visible y el título del anuncio, y el equipo operador de Bestie recibe el mismo tipo de aviso en la app.",
             "Generar y almacenar, a tu beneficio, un texto sugerido para compartir tu anuncio en redes o mensajería (editable por ti; no sustituye la descripción pública del anuncio).",
             "Brindarte soporte y dar seguimiento a los mensajes que envías a Soporte de Bestie o a Feedback de Bestie, incluidos los archivos que adjuntes y las calificaciones o comentarios de feedback.",

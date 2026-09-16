@@ -375,7 +375,7 @@ export function PublicPostExperienceListing({
           <ListingKeyLabelsGrid items={buildPropertyKeyLabels(propertyTags, availableRooms)} />
 
         <ListingSection title="Descripción" titleMuted>
-          <p className="text-sm font-semibold leading-relaxed text-body">
+          <p className="min-w-0 break-words text-sm font-semibold leading-relaxed text-body">
             {propertySummary || <span className="italic text-muted">Sin descripción de la propiedad.</span>}
           </p>
         </ListingSection>
@@ -492,7 +492,7 @@ export function PublicPostExperienceListing({
         <ListingKeyLabelsGrid items={buildSingleRoomKeyLabels(listing)} />
 
         <ListingSection title="Descripción" titleMuted>
-          <p className="text-sm font-semibold leading-relaxed text-body">
+          <p className="min-w-0 break-words text-sm font-semibold leading-relaxed text-body">
             {listing.summary.trim() || <span className="italic text-muted">Sin descripción de la recámara.</span>}
           </p>
         </ListingSection>

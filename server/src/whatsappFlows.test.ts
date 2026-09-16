@@ -99,11 +99,59 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /Preferencia|presupuesto/i.test(t))).toBe(true);
   });
 
-  it("publishes a single room from photos + pin + rent + legal tap", async () => {
+  async function skipInfographicAndDesc(psid: string, sink: ReturnType<typeof capturingSink>["sink"]) {
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
+  }
+
+  it("asks about infográficos before photos and skips optional description", async () => {
+    const pubPsid = `${PSID}-info-ask`;
+    const { sink, texts } = capturingSink();
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
+    expect(texts.some((t) => /infográfico/i.test(t) && /plantilla/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(false);
+
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    expect(texts.some((t) => /descripción/i.test(t) && /opcional/i.test(t))).toBe(true);
+
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
+    expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(true);
+  });
+
+  it("caps infographics at 2 and does not put them in the photo gallery", async () => {
+    const pubPsid = `${PSID}-info-cap`;
+    const { sink, texts } = capturingSink();
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_YES" }, sink);
+    const urls: Record<string, string> = {
+      m1: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-100000000001.jpg",
+      m2: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-100000000002.jpg",
+      m3: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-100000000003.jpg",
+    };
+    await processWhatsAppUserInput(
+      db,
+      pubPsid,
+      FROM,
+      { imageMediaIds: ["m1", "m2", "m3"] },
+      sink,
+      { photoAckDelayMs: 0, saveImage: async (id) => urls[id] ?? null },
+    );
+    const chat = getWhatsAppChat(db, pubPsid);
+    expect(chat?.draft.infographicUrls).toEqual([urls.m1, urls.m2]);
+    expect(chat?.draft.photoUrls).toEqual([]);
+    expect(chat?.flow).toBe("pub_desc");
+    expect(texts.some((t) => /leyendo el infográfico/i.test(t))).toBe(true);
+  });
+
+  it("publishes a single room from photos + pin + exact rent + legal tap", async () => {
     const photo = "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.jpg";
     const pubPsid = `${PSID}-pub`;
     const { sink, texts } = capturingSink();
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await skipInfographicAndDesc(pubPsid, sink);
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
       flow: "pub_photos",
@@ -114,16 +162,25 @@ describe("WhatsApp bot flows", () => {
       db,
       pubPsid,
       FROM,
-      { location: { lat: 20.6746, lng: -103.3665, name: "Americana" } },
+      {
+        location: {
+          lat: 20.6746,
+          lng: -103.3665,
+          name: `${"AvenidaChapultepecSinEspacios".repeat(4)}, Guadalajara, Jalisco, México`,
+        },
+      },
       sink,
     );
+    expect(texts.some((t) => /renta mensual exacta/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Hasta \$5,000/.test(t))).toBe(false);
     await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6500" }, sink);
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUBLISH" }, sink);
 
     expect(texts.some((t) => t.includes("ya está público"))).toBe(true);
     const row = db
       .prepare(
-        `SELECT p.contact_whatsapp, p.is_approximate_location, p.approximate_radius_m, r.rent_mxn, r.image_urls_json
+        `SELECT p.contact_whatsapp, p.is_approximate_location, p.approximate_radius_m, p.title, p.neighborhood,
+                p.summary, p.property_kind, r.rent_mxn, r.image_urls_json, r.title AS room_title
          FROM properties p JOIN rooms r ON r.property_id = p.id
          WHERE r.image_urls_json LIKE '%aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.jpg%' LIMIT 1`,
       )
@@ -132,20 +189,33 @@ describe("WhatsApp bot flows", () => {
           contact_whatsapp: string;
           is_approximate_location: number;
           approximate_radius_m: number;
+          title: string;
+          neighborhood: string;
+          summary: string;
+          property_kind: string;
           rent_mxn: number;
           image_urls_json: string;
+          room_title: string;
         }
       | undefined;
     expect(row?.contact_whatsapp).toBe("523318632070");
     expect(row?.is_approximate_location).toBe(1);
     expect(row?.approximate_radius_m).toBeGreaterThanOrEqual(100);
-    expect(JSON.parse(row?.image_urls_json ?? "[]")).toContain(photo);
+    expect(row?.rent_mxn).toBe(6500);
+    expect(JSON.parse(row?.image_urls_json ?? "[]")).toEqual([photo]);
+    expect(row?.title.length).toBeLessThanOrEqual(70);
+    expect(row?.neighborhood.length).toBeLessThanOrEqual(50);
+    expect(row?.summary).not.toMatch(/Publicado desde WhatsApp/i);
+    expect(row?.summary.length).toBeGreaterThanOrEqual(100);
+    expect(row?.summary.length).toBeLessThanOrEqual(1500);
+    expect(row?.property_kind).toBe("apartment");
+    expect(row?.room_title).toBe("Recámara 1");
   });
 
   it("keeps every photo in a burst and then asks if more are pending", async () => {
     const pubPsid = `${PSID}-album`;
     const { sink, texts } = capturingSink();
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await skipInfographicAndDesc(pubPsid, sink);
     const urls: Record<string, string> = {
       m1: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000001.jpg",
       m2: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000002.jpg",
@@ -164,6 +234,7 @@ describe("WhatsApp bot flows", () => {
     );
     const chat = getWhatsAppChat(db, pubPsid);
     expect(chat?.draft.photoUrls).toEqual([urls.m1, urls.m2, urls.m3]);
+    expect(chat?.draft.infographicUrls).toEqual([]);
     expect(texts.some((t) => /Recibí 3 fotos/.test(t) && /más pendientes/.test(t))).toBe(true);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_MORE" }, sink);
@@ -174,7 +245,7 @@ describe("WhatsApp bot flows", () => {
   it("does not drop photos when two album webhooks overlap", async () => {
     const pubPsid = `${PSID}-race`;
     const { sink } = capturingSink();
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await skipInfographicAndDesc(pubPsid, sink);
     const saveImage = async (id: string) => {
       await new Promise((r) => setTimeout(r, 40));
       return `/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-00000000000${id}.jpg`;

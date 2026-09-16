@@ -412,7 +412,7 @@ export const PREVIEW_PETS_FRIENDLY_BADGE = "Aceptan mascotas";
 
 /** Chip style for explicit header badges (preview + public listing pages). */
 export const LISTING_HEADER_BADGE_CLASS =
-  "rounded-full bg-bg-light px-3 py-1.5 text-xs font-semibold text-body ring-1 ring-border";
+  "max-w-full min-w-0 rounded-full bg-bg-light px-3 py-1.5 text-xs font-semibold text-body ring-1 ring-border break-words";
 
 export type PublicListingHeaderBadge = { id: string; label: string };
 
