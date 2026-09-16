@@ -8,7 +8,10 @@ function cloudToken(): string | null {
 }
 
 /**
- * Download a WhatsApp inbound image and store it like a wizard upload.
+ * Download a WhatsApp inbound image and store it like a wizard upload
+ * (`persistListingImageBuffer` runs the listing photo size optimizer).
+ * Messenger inbound should use the same persist helper when that channel
+ * accepts listing photos.
  */
 export async function saveWhatsAppMediaImage(
   db: DatabaseSync,

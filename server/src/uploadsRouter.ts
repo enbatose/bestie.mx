@@ -6,6 +6,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import multer from "multer";
 import { getOrCreatePublisherId, readPublisherIdFromRequest } from "./session.js";
 import { extForUploadMime, normalizeDeclaredImageMime, resolveUploadMime } from "./imageMime.js";
+import { optimizeListingImageBuffer } from "./optimizeListingImage.js";
 
 const SAFE_NAME = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(jpg|jpeg|png|webp|gif|avif|bmp)$/i;
 
@@ -14,15 +15,21 @@ export type UploadsRouterOptions = {
   db?: DatabaseSync;
 };
 
-/** Persist a listing photo from WhatsApp (or any buffer) into the same store as POST /api/uploads. */
-export function persistListingImageBuffer(
+/**
+ * Persist a listing photo from chat inbound (WhatsApp Cloud, future Messenger)
+ * into the same store as POST /api/uploads, after the same size optimizer the
+ * site wizard runs in the browser.
+ */
+export async function persistListingImageBuffer(
   db: DatabaseSync,
   uploadDir: string,
   buffer: Buffer,
   declaredMime?: string,
-): string | null {
+): Promise<string | null> {
   if (!buffer?.length) return null;
-  const mime = resolveUploadMime(declaredMime ?? "", buffer);
+  const optimized = await optimizeListingImageBuffer(buffer);
+  const outBuf = optimized?.buffer ?? buffer;
+  const mime = optimized?.mime ?? resolveUploadMime(declaredMime ?? "", outBuf);
   if (!mime) return null;
   const ext = extForUploadMime(mime);
   const name = `${randomUUID()}${ext}`;
@@ -30,12 +37,12 @@ export function persistListingImageBuffer(
   fs.mkdirSync(dir, { recursive: true });
   const dest = path.join(dir, name);
   if (!dest.startsWith(dir)) return null;
-  fs.writeFileSync(dest, buffer);
+  fs.writeFileSync(dest, outBuf);
   try {
     db.prepare(
       `INSERT OR REPLACE INTO upload_blobs (filename, mime_type, bytes, created_at)
        VALUES (?, ?, ?, ?)`,
-    ).run(name, mime, buffer, new Date().toISOString());
+    ).run(name, mime, outBuf, new Date().toISOString());
   } catch {
     /* table may be missing in stripped test DBs; file on disk is enough */
   }
