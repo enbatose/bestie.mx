@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { confidenceToRadius, extractListingDataWithGemini } from "./assistedDraftGemini.js";
+import { applySourceTextTagSignals } from "./assistedDraftSourceTags.js";
+import {
+  composeChatRoomSummary,
+  generateChatRoomSummary,
+  type ChatRoomSummaryFacts,
+} from "./chatListingSummary.js";
+import { chatTagLabels } from "./chatPublishAmenities.js";
 import { matchGdlSearchPois } from "./gdlSearchPois.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { roomReferenceCode } from "./listingReference.js";
@@ -8,16 +15,18 @@ import { isListingTag } from "./listingTags.js";
 import { scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
 import { geocodeNamedPlaceInMetro } from "./placeGeocode.js";
 import { readUploadBytes } from "./shareOgImage.js";
-import type { PropertyKind } from "./types.js";
+import type { ListingTag, PropertyKind } from "./types.js";
 import {
   APPROXIMATE_RADIUS_DEFAULT_M,
   clampAge,
   clampApproximateRadiusMeters,
+  clampBathrooms,
+  clampBedroomsTotal,
+  clampDepositMxn,
   clampListingImageUrls,
   clampRentMxn,
   clampStr,
   minimalRoomSummaryOk,
-  ROOM_SUMMARY_MIN_LEN,
   ROOM_TITLE_MAX_LEN,
   validLatLng,
 } from "./validation.js";
@@ -53,16 +62,31 @@ export function shortNeighborhoodLabel(raw: string | null | undefined): string {
   return clampStr(first, PROPERTY_NEIGHBORHOOD_MAX);
 }
 
-function padRoomSummary(raw: string, neighborhood: string, rent: number): string {
-  let s = raw.trim().slice(0, ROOM_SUMMARY_MAX);
-  if (s.length < ROOM_SUMMARY_MIN_LEN) {
-    const extra = ` Cuarto en ${neighborhood || CITY}, Guadalajara, por $${rent} MXN al mes. Las fotos muestran el espacio; escríbeme en Bestie para más detalles.`;
-    s = `${s}${extra}`.trim();
-  }
-  if (s.length < ROOM_SUMMARY_MIN_LEN) {
-    s = `${s} Incluye lo básico para mudarte: cama y espacio para tus cosas.`.trim();
-  }
-  return s.slice(0, ROOM_SUMMARY_MAX);
+export function chatRoomSummaryFactsFor(draft: WhatsAppBotDraft): ChatRoomSummaryFacts {
+  return {
+    neighborhood: shortNeighborhoodLabel(draft.neighborhood || draft.locLabel || CITY) || CITY,
+    city: CITY,
+    rentMxn: draft.rentMxn != null ? clampRentMxn(draft.rentMxn) : 0,
+    depositMxn: draft.depositMxn,
+    lodging: draft.lodging,
+    roomDimension: draft.roomDimension,
+    genderPref: draft.genderPref,
+    tags: draft.pubTags,
+    availableFrom: draft.availableFrom,
+    minStay: draft.minStay,
+    photoCount: draft.photoUrls.length,
+    sourceText: draft.sourceText,
+  };
+}
+
+/**
+ * Write the description once the essentials are known, so a publisher who
+ * skipped the description step still gets a real one instead of filler.
+ */
+export async function ensurePublishDraftSummary(draft: WhatsAppBotDraft): Promise<WhatsAppBotDraft> {
+  if (minimalRoomSummaryOk(draft.summary)) return draft;
+  const summary = await generateChatRoomSummary(chatRoomSummaryFactsFor(draft));
+  return { ...draft, summary: summary.slice(0, ROOM_SUMMARY_MAX) };
 }
 
 export function composeWhatsAppListingFields(draft: WhatsAppBotDraft): {
@@ -78,8 +102,12 @@ export function composeWhatsAppListingFields(draft: WhatsAppBotDraft): {
   const title =
     clampStr(rawTitle.length >= 10 ? rawTitle : `Cuarto en ${neighborhood}`, PROPERTY_TITLE_MAX) ||
     `Cuarto en ${neighborhood}`.slice(0, PROPERTY_TITLE_MAX);
-  const rent = draft.rentMxn != null ? clampRentMxn(draft.rentMxn) : 0;
-  const summary = padRoomSummary(draft.summary, neighborhood, rent || 6500);
+  const written = draft.summary.trim();
+  const summary = (
+    minimalRoomSummaryOk(written)
+      ? written
+      : composeChatRoomSummary(chatRoomSummaryFactsFor(draft))
+  ).slice(0, ROOM_SUMMARY_MAX);
   const roomTitle = clampStr("Recámara 1", ROOM_TITLE_MAX_LEN) || "Recámara 1";
   const propertyKind: PropertyKind =
     draft.propertyKind === "house" || draft.propertyKind === "loft" || draft.propertyKind === "apartment"
@@ -88,6 +116,14 @@ export function composeWhatsAppListingFields(draft: WhatsAppBotDraft): {
   return { title, neighborhood, summary, roomTitle, propertyKind };
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Copy every field the extractor resolved into the draft. Fields the wizard
+ * asks for (deposit, availability, minimum stay, bathrooms, "ideal para" tags)
+ * used to be dropped here, which is why chat posts had thinner data than
+ * assistant posts.
+ */
 function applyGeminiExtraction(draft: WhatsAppBotDraft, ex: Awaited<ReturnType<typeof extractListingDataWithGemini>>["extraction"]): WhatsAppBotDraft {
   const next = { ...draft };
   if (next.rentMxn == null && typeof ex.rentMxn === "number") next.rentMxn = clampRentMxn(ex.rentMxn);
@@ -99,12 +135,43 @@ function applyGeminiExtraction(draft: WhatsAppBotDraft, ex: Awaited<ReturnType<t
   if (!next.propertyKind && (ex.propertyKind === "house" || ex.propertyKind === "apartment" || ex.propertyKind === "loft")) {
     next.propertyKind = ex.propertyKind;
   }
-  if (ex.roommateGenderPref) next.genderPref = ex.roommateGenderPref;
+  if (ex.roommateGenderPref) {
+    next.genderPref = ex.roommateGenderPref;
+    next.genderSet = true;
+  }
   if (typeof ex.ageMin === "number") next.ageMin = clampAge(ex.ageMin, 22);
   if (typeof ex.ageMax === "number") next.ageMax = clampAge(ex.ageMax, 45);
-  if (ex.lodgingType === "shared_room" || ex.lodgingType === "private_room") next.lodging = ex.lodgingType;
-  if (ex.roomDimension) next.roomDimension = ex.roomDimension;
-  if (ex.tags?.length) next.pubTags = [...new Set([...next.pubTags, ...ex.tags.filter(isListingTag)])];
+  if (ex.lodgingType === "shared_room" || ex.lodgingType === "private_room") {
+    next.lodging = ex.lodgingType;
+    next.roomKindSet = true;
+  }
+  if (ex.roomDimension) {
+    next.roomDimension = ex.roomDimension;
+    next.roomKindSet = true;
+  }
+  if (next.depositMxn == null && typeof ex.depositMxn === "number") {
+    next.depositMxn = clampDepositMxn(ex.depositMxn);
+  }
+  if (next.availableFrom == null && ex.availableFrom && ISO_DATE.test(ex.availableFrom)) {
+    next.availableFrom = ex.availableFrom;
+  }
+  if (typeof ex.minimalStayMonths === "number" && ex.minimalStayMonths >= 1) {
+    next.minStay = Math.min(24, Math.floor(ex.minimalStayMonths));
+  }
+  if (next.bathrooms == null && typeof ex.bathrooms === "number") {
+    next.bathrooms = clampBathrooms(ex.bathrooms);
+  }
+  if (next.bedroomsTotal == null && typeof ex.bedroomsTotal === "number") {
+    next.bedroomsTotal = clampBedroomsTotal(ex.bedroomsTotal);
+  }
+  const affirmed = [...(ex.tags ?? []), ...(ex.idealParaTags ?? [])].filter(isListingTag);
+  const denied = (ex.deniedTags ?? []).filter(isListingTag);
+  if (denied.length) next.deniedTags = [...new Set([...next.deniedTags, ...denied])];
+  if (affirmed.length) next.pubTags = [...new Set([...next.pubTags, ...affirmed])];
+  if (next.deniedTags.length) {
+    const deniedSet = new Set(next.deniedTags);
+    next.pubTags = next.pubTags.filter((t) => !deniedSet.has(t));
+  }
   if (next.locLat == null && ex.location?.lat != null && ex.location.lng != null && validLatLng(ex.location.lat, ex.location.lng)) {
     next.locLat = ex.location.lat;
     next.locLng = ex.location.lng;
@@ -129,8 +196,18 @@ function uploadFilename(url: string): string | null {
   return m?.[1] ?? null;
 }
 
+/**
+ * Yes/No tags the model omits are false negatives on the public card, so the
+ * regex signals run on the pasted text with or without a Gemini answer.
+ */
+function applySourceSignals(draft: WhatsAppBotDraft, sourceText: string): WhatsAppBotDraft {
+  if (!sourceText.trim()) return draft;
+  const ex = applySourceTextTagSignals({ tags: draft.pubTags, deniedTags: draft.deniedTags }, sourceText);
+  return applyGeminiExtraction(draft, ex);
+}
+
 export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: string): Promise<WhatsAppBotDraft> {
-  const next: WhatsAppBotDraft = {
+  let next: WhatsAppBotDraft = {
     ...draft,
     sourceText: [draft.sourceText, text].filter(Boolean).join("\n").slice(0, 4000),
   };
@@ -148,12 +225,12 @@ export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: 
   if (text.trim().length >= 40) {
     try {
       const gem = await extractListingDataWithGemini({ text, city: CITY });
-      return applyGeminiExtraction(next, gem.extraction);
+      next = applyGeminiExtraction(next, gem.extraction);
     } catch (err) {
       console.warn("[whatsapp] publish extract failed", err instanceof Error ? err.message : err);
     }
   }
-  return next;
+  return applySourceSignals(next, text);
 }
 
 export async function enrichPublishDraftFromInfographics(
@@ -180,10 +257,10 @@ export async function enrichPublishDraftFromInfographics(
       images: images.length ? images : undefined,
       city: CITY,
     });
-    return applyGeminiExtraction(draft, gem.extraction);
+    return applySourceSignals(applyGeminiExtraction(draft, gem.extraction), draft.sourceText);
   } catch (err) {
     console.warn("[whatsapp] infographic extract failed", err instanceof Error ? err.message : err);
-    return draft;
+    return applySourceSignals(draft, draft.sourceText);
   }
 }
 
@@ -241,28 +318,53 @@ export function publishDraftReady(draft: WhatsAppBotDraft): string | null {
   return null;
 }
 
+function roomKindLabel(draft: WhatsAppBotDraft): string {
+  const size =
+    draft.roomDimension === "small"
+      ? "individual"
+      : draft.roomDimension === "large"
+        ? "grande"
+        : "matrimonial";
+  return draft.lodging === "shared_room" ? `Compartida ${size}` : `Privada ${size}`;
+}
+
+function genderLabel(draft: WhatsAppBotDraft): string {
+  if (draft.genderPref === "female") return "Roomies: prefiere mujer";
+  if (draft.genderPref === "male") return "Roomies: prefiere hombre";
+  return "Roomies: cualquiera";
+}
+
 export function formatPublishPreview(draft: WhatsAppBotDraft): string {
   const fields = composeWhatsAppListingFields(draft);
   const rent = draft.rentMxn != null ? `$${draft.rentMxn} MXN/mes` : "(sin renta)";
   const radius = draft.locRadiusM ?? APPROXIMATE_RADIUS_DEFAULT_M;
-  const infoLine =
-    draft.infographicUrls.length > 0
-      ? `• ${draft.infographicUrls.length} infográfico${draft.infographicUrls.length === 1 ? "" : "s"} (solo para la IA, no van a la galería)`
-      : null;
+  const tags = chatTagLabels(draft.pubTags);
   return [
     "Así se vería tu anuncio:",
     `• ${fields.title}`,
-    `• ${fields.neighborhood}, ${CITY}`,
-    `• ${rent}`,
-    `• Ubicación aproximada (~${radius} m)`,
+    `• ${fields.neighborhood}, ${CITY} (pin aproximado ~${radius} m)`,
+    `• ${rent}${draft.depositMxn != null ? ` · depósito ${draft.depositMxn > 0 ? `$${draft.depositMxn}` : "no"}` : ""}`,
+    `• ${roomKindLabel(draft)} · ${genderLabel(draft)}`,
+    tags.length ? `• Etiquetas: ${tags.join(", ")}` : "• Etiquetas: ninguna todavía",
     `• ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"}`,
-    infoLine,
+    draft.infographicUrls.length > 0
+      ? `• ${draft.infographicUrls.length} infográfico${draft.infographicUrls.length === 1 ? "" : "s"} (solo para la IA, no van a la galería)`
+      : null,
+    "",
+    `Descripción: ${fields.summary.slice(0, 300)}${fields.summary.length > 300 ? "…" : ""}`,
+    "",
     "Al publicar aceptas los Términos y el Aviso de privacidad. El anuncio queda público con este número.",
     `${publicWebOrigin()}/legal/terminos`,
     `${publicWebOrigin()}/legal/privacidad`,
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join("\n");
+}
+
+/** A tag the source explicitly denied must never ship as a Sí on the card. */
+export function publishedTags(draft: WhatsAppBotDraft): ListingTag[] {
+  const denied = new Set(draft.deniedTags);
+  return draft.pubTags.filter((t) => !denied.has(t));
 }
 
 export type WhatsAppPublishResult =
@@ -301,7 +403,7 @@ export function publishWhatsAppRoom(
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp,
         property_kind, bedrooms_total, bathrooms, show_whatsapp, hide_pricing, image_urls_json,
         is_approximate_location, approximate_radius_m, created_at, published_at
-      ) VALUES (?, ?, 'published', 'room', ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, 0, '[]', 1, ?, ?, ?)`,
+      ) VALUES (?, ?, 'published', 'room', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, '[]', 1, ?, ?, ?)`,
     ).run(
       propertyId,
       opts.publisherId,
@@ -313,6 +415,8 @@ export function publishWhatsAppRoom(
       fields.summary,
       opts.contactStored,
       fields.propertyKind,
+      d.bedroomsTotal != null ? clampBedroomsTotal(d.bedroomsTotal) : 1,
+      d.bathrooms != null ? clampBathrooms(d.bathrooms) : 1,
       radius,
       createdAt,
       createdAt,
@@ -323,13 +427,13 @@ export function publishWhatsAppRoom(
         age_min, age_max, summary, lodging_type, available_from, minimal_stay_months, room_dimension,
         aval_required, sublet_allowed, sort_order, deposit_mxn, image_urls_json, created_at, updated_at,
         occupancy_status
-      ) VALUES (?, ?, 'published', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, 0, ?, ?, ?, 'available')`,
+      ) VALUES (?, ?, 'published', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0, ?, ?, ?, ?, 'available')`,
     ).run(
       roomId,
       propertyId,
       fields.roomTitle,
       rent,
-      JSON.stringify(d.pubTags),
+      JSON.stringify(publishedTags(d)),
       d.genderPref,
       clampAge(d.ageMin, 22),
       clampAge(d.ageMax, 45),
@@ -338,6 +442,7 @@ export function publishWhatsAppRoom(
       availFrom,
       d.minStay >= 1 ? d.minStay : 1,
       d.roomDimension,
+      d.depositMxn != null ? clampDepositMxn(d.depositMxn) : 0,
       JSON.stringify(photos),
       createdAt,
       createdAt,

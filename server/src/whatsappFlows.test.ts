@@ -75,16 +75,26 @@ describe("WhatsApp bot flows", () => {
     expect(s?.flow).toBe("idle");
   });
 
-  it("searches a GDL POI disk and returns the Centro listing", async () => {
+  it("returns matches on the zone tap, without a budget or preference interview", async () => {
     const { sink, texts } = capturingSink();
-    await processWhatsAppUserInput(db, `${PSID}-search`, FROM, { quickReplyPayload: "WA_SEARCH" }, sink);
-    await processWhatsAppUserInput(db, `${PSID}-search`, FROM, { quickReplyPayload: "WA_POI:centro" }, sink);
-    await processWhatsAppUserInput(db, `${PSID}-search`, FROM, { quickReplyPayload: "WA_BD:8000" }, sink);
-    await processWhatsAppUserInput(db, `${PSID}-search`, FROM, { quickReplyPayload: "WA_PREF:any" }, sink);
+    const psid = `${PSID}-search`;
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_SEARCH" }, sink);
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_POI:centro" }, sink);
     expect(texts.some((t) => t.includes("Cuarto Centro"))).toBe(true);
+    // Budget and preference are refinements offered after results, not gates.
+    expect(texts.some((t) => /Presupuesto mensual máximo/.test(t))).toBe(false);
+    expect(getWhatsAppChat(db, psid)?.flow).toBe("idle");
   });
 
-  it("parses a free-text search for Centro + budget", async () => {
+  it("states how much more Bestie has, not only the exact matches", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-inventory`;
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_SEARCH" }, sink);
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_POI:centro" }, sink);
+    expect(texts.some((t) => /anuncios? en Centro/.test(t) && /Guadalajara/.test(t))).toBe(true);
+  });
+
+  it("parses a free-text search for Centro + budget and answers with listings", async () => {
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(
       db,
@@ -96,7 +106,7 @@ describe("WhatsApp bot flows", () => {
     const s = getWhatsAppChat(db, `${PSID}-blob`);
     expect(s?.draft.poiName).toBe("Centro");
     expect(s?.draft.budgetMax).toBe(8000);
-    expect(texts.some((t) => /Preferencia|presupuesto/i.test(t))).toBe(true);
+    expect(texts.some((t) => t.includes("Cuarto Centro"))).toBe(true);
   });
 
   async function skipInfographicAndDesc(psid: string, sink: ReturnType<typeof capturingSink>["sink"]) {
@@ -174,13 +184,27 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /renta mensual exacta/i.test(t))).toBe(true);
     expect(texts.some((t) => /Hasta \$5,000/.test(t))).toBe(false);
     await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6500" }, sink);
+
+    // Essentials the wizard asks for: room kind + size, roomies, deposit, tags.
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_room_kind");
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_KIND:private:large" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_roomies");
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_GENDER:female" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_deposit");
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:rent" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
+    await processWhatsAppUserInput(db, pubPsid, FROM, { text: "1,3,5" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_TAGS_DONE" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
+
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUBLISH" }, sink);
 
     expect(texts.some((t) => t.includes("ya está público"))).toBe(true);
     const row = db
       .prepare(
         `SELECT p.contact_whatsapp, p.is_approximate_location, p.approximate_radius_m, p.title, p.neighborhood,
-                p.summary, p.property_kind, r.rent_mxn, r.image_urls_json, r.title AS room_title
+                p.summary, p.property_kind, r.rent_mxn, r.deposit_mxn, r.tags_json, r.roommate_gender_pref,
+                r.room_dimension, r.lodging_type, r.image_urls_json, r.title AS room_title
          FROM properties p JOIN rooms r ON r.property_id = p.id
          WHERE r.image_urls_json LIKE '%aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.jpg%' LIMIT 1`,
       )
@@ -194,6 +218,11 @@ describe("WhatsApp bot flows", () => {
           summary: string;
           property_kind: string;
           rent_mxn: number;
+          deposit_mxn: number;
+          tags_json: string;
+          roommate_gender_pref: string;
+          room_dimension: string;
+          lodging_type: string;
           image_urls_json: string;
           room_title: string;
         }
@@ -202,14 +231,67 @@ describe("WhatsApp bot flows", () => {
     expect(row?.is_approximate_location).toBe(1);
     expect(row?.approximate_radius_m).toBeGreaterThanOrEqual(100);
     expect(row?.rent_mxn).toBe(6500);
+    expect(row?.deposit_mxn).toBe(6500);
+    expect(JSON.parse(row?.tags_json ?? "[]")).toEqual(
+      expect.arrayContaining(["wifi", "baño-privado", "estacionamiento"]),
+    );
+    expect(row?.roommate_gender_pref).toBe("female");
+    expect(row?.room_dimension).toBe("large");
+    expect(row?.lodging_type).toBe("private_room");
     expect(JSON.parse(row?.image_urls_json ?? "[]")).toEqual([photo]);
     expect(row?.title.length).toBeLessThanOrEqual(70);
     expect(row?.neighborhood.length).toBeLessThanOrEqual(50);
     expect(row?.summary).not.toMatch(/Publicado desde WhatsApp/i);
+    // Description is written from the facts, so it names the room and the rent.
+    expect(row?.summary).toMatch(/Privada grande/i);
+    expect(row?.summary).toMatch(/6,500/);
     expect(row?.summary.length).toBeGreaterThanOrEqual(100);
     expect(row?.summary.length).toBeLessThanOrEqual(1500);
     expect(row?.property_kind).toBe("apartment");
     expect(row?.room_title).toBe("Recámara 1");
+  });
+
+  it("does not re-ask an essential the description already answered", async () => {
+    const pubPsid = `${PSID}-essentials-known`;
+    const { sink } = capturingSink();
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
+    const chat = getWhatsAppChat(db, pubPsid)!;
+    upsertWhatsAppChat(db, pubPsid, {
+      flow: "pub_rent",
+      draft: {
+        ...chat.draft,
+        photoUrls: ["/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-200000000001.jpg"],
+        locLat: 20.6746,
+        locLng: -103.3665,
+        locLabel: "Centro",
+        roomKindSet: true,
+        genderSet: true,
+        depositMxn: 0,
+      },
+    });
+    await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6000" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
+  });
+
+  it("keeps a denied tag out of the published post", async () => {
+    const pubPsid = `${PSID}-denied-tags`;
+    const { sink } = capturingSink();
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
+    await processWhatsAppUserInput(
+      db,
+      pubPsid,
+      FROM,
+      { text: "Rento recámara amueblada con wifi, no se aceptan mascotas, cerca del Centro." },
+      sink,
+    );
+    const draft = getWhatsAppChat(db, pubPsid)!.draft;
+    expect(draft.pubTags).toContain("muebles");
+    expect(draft.pubTags).toContain("wifi");
+    expect(draft.pubTags).not.toContain("mascotas");
+    expect(draft.deniedTags).toContain("mascotas");
   });
 
   it("keeps every photo in a burst and then asks if more are pending", async () => {

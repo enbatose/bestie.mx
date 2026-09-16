@@ -33,8 +33,17 @@ export type WhatsAppBotDraft = {
   minStay: number;
   roomDimension: RoomDimension;
   pubTags: ListingTag[];
+  /** Tags the source text or the model says the room does NOT have. Never published. */
+  deniedTags: ListingTag[];
   lodging: LodgingType;
   propertyKind: PropertyKind | null;
+  depositMxn: number | null;
+  bathrooms: number | null;
+  bedroomsTotal: number | null;
+  /** Essentials already known (AI or a tap), so the bot does not re-ask them. */
+  roomKindSet: boolean;
+  genderSet: boolean;
+  tagsConfirmed: boolean;
 };
 
 const TAGS: readonly string[] = [
@@ -110,8 +119,15 @@ export function emptyWhatsAppDraft(): WhatsAppBotDraft {
     minStay: 1,
     roomDimension: "medium",
     pubTags: [],
+    deniedTags: [],
     lodging: "private_room",
     propertyKind: null,
+    depositMxn: null,
+    bathrooms: null,
+    bedroomsTotal: null,
+    roomKindSet: false,
+    genderSet: false,
+    tagsConfirmed: false,
   };
 }
 
@@ -157,11 +173,22 @@ function parseDraft(raw: string): WhatsAppBotDraft {
       minStay: typeof j.minStay === "number" && j.minStay >= 1 ? Math.floor(j.minStay) : 1,
       roomDimension: j.roomDimension === "small" || j.roomDimension === "large" ? j.roomDimension : "medium",
       pubTags: asTags(j.pubTags),
+      deniedTags: asTags(j.deniedTags),
       lodging: j.lodging === "shared_room" ? "shared_room" : "private_room",
       propertyKind:
         j.propertyKind === "house" || j.propertyKind === "apartment" || j.propertyKind === "loft"
           ? j.propertyKind
           : null,
+      depositMxn:
+        typeof j.depositMxn === "number" && Number.isFinite(j.depositMxn) && j.depositMxn >= 0
+          ? Math.floor(j.depositMxn)
+          : null,
+      bathrooms: typeof j.bathrooms === "number" && j.bathrooms >= 1 ? Math.floor(j.bathrooms) : null,
+      bedroomsTotal:
+        typeof j.bedroomsTotal === "number" && j.bedroomsTotal >= 1 ? Math.floor(j.bedroomsTotal) : null,
+      roomKindSet: j.roomKindSet === true,
+      genderSet: j.genderSet === true,
+      tagsConfirmed: j.tagsConfirmed === true,
     };
   } catch {
     return base;

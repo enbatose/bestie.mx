@@ -1,19 +1,38 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { isListingTag } from "./listingTags.js";
+import type { ListingTag, LodgingType } from "./types.js";
 
+/** Same shape as `ChatSearchQuery` so Messenger runs the shared chat search engine. */
 export type MessengerSearchDraft = {
   q: string;
   city: string | null;
+  poiName: string | null;
+  poiLat: number | null;
+  poiLng: number | null;
+  zoneLabel: string | null;
   budgetMax: number | null;
   pref: "female" | "male" | null;
+  tags: ListingTag[];
+  lodgingType: LodgingType | null;
 };
 
-const emptyDraft = (): MessengerSearchDraft => ({
+export const emptyMessengerDraft = (): MessengerSearchDraft => ({
   q: "",
   city: null,
+  poiName: null,
+  poiLat: null,
+  poiLng: null,
+  zoneLabel: null,
   budgetMax: null,
   pref: null,
+  tags: [],
+  lodgingType: null,
 });
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
 
 function parseDraft(raw: string): MessengerSearchDraft {
   try {
@@ -21,11 +40,20 @@ function parseDraft(raw: string): MessengerSearchDraft {
     return {
       q: typeof j.q === "string" ? j.q : "",
       city: typeof j.city === "string" ? j.city : null,
-      budgetMax: typeof j.budgetMax === "number" && Number.isFinite(j.budgetMax) ? j.budgetMax : null,
+      poiName: typeof j.poiName === "string" ? j.poiName : null,
+      poiLat: num(j.poiLat),
+      poiLng: num(j.poiLng),
+      zoneLabel: typeof j.zoneLabel === "string" ? j.zoneLabel : null,
+      budgetMax: num(j.budgetMax),
       pref: j.pref === "female" || j.pref === "male" ? j.pref : null,
+      tags: Array.isArray(j.tags) ? j.tags.filter((t): t is ListingTag => isListingTag(String(t))) : [],
+      lodgingType:
+        j.lodgingType === "private_room" || j.lodgingType === "shared_room" || j.lodgingType === "whole_home"
+          ? j.lodgingType
+          : null,
     };
   } catch {
-    return emptyDraft();
+    return emptyMessengerDraft();
   }
 }
 
@@ -51,7 +79,7 @@ export function upsertMessengerChat(
   const existing = getMessengerChat(db, psid);
   const publisherId = patch.publisherId ?? existing?.publisherId ?? randomUUID();
   const flow = patch.flow ?? existing?.flow ?? "idle";
-  const draft = patch.draft ?? existing?.draft ?? emptyDraft();
+  const draft = patch.draft ?? existing?.draft ?? emptyMessengerDraft();
   const draftJson = JSON.stringify(draft);
   const now = Date.now();
   db.prepare(

@@ -1,11 +1,16 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { ChatSink } from "./chatChannel.js";
-import type { PropertyListing } from "./types.js";
-import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
-import { roomReferenceCode } from "./listingReference.js";
-import { fetchPublishedListings } from "./publishedListingsQuery.js";
-import { filterListings, parseFilters } from "./searchFilters.js";
 import {
+  applyPoiToChatSearch,
+  enrichChatSearchFromText,
+  replyChatSearchNearby,
+  replyChatSearchResults,
+  runChatSearch,
+  type ChatSearchFollowupPayloads,
+} from "./chatSearchEngine.js";
+import { createPublishHandoff, publicWebOrigin } from "./handoffTokens.js";
+import {
+  emptyMessengerDraft,
   getMessengerChat,
   upsertMessengerChat,
   type MessengerSearchDraft,
@@ -15,39 +20,16 @@ import {
   sendMessengerQuickReplies,
   sendMessengerText,
 } from "./messengerSend.js";
+import { CHAT_MENU_POIS, menuPoiById } from "./whatsappBotSearch.js";
 
-const DEFAULT_FEATURED = ["Guadalajara"];
 const DEFAULT_SEARCH_CITY = "Guadalajara";
 
-function featuredCitiesList(db: DatabaseSync): string[] {
-  const row = db.prepare(`SELECT value_json FROM site_settings WHERE key = 'featured_cities'`).get() as
-    | { value_json: string }
-    | undefined;
-  if (!row) return [...DEFAULT_FEATURED];
-  try {
-    const j = JSON.parse(row.value_json) as unknown;
-    if (!Array.isArray(j)) return [...DEFAULT_FEATURED];
-    const list = j.filter((x): x is string => typeof x === "string").map((s) => s.trim());
-    return list.length ? list : [...DEFAULT_FEATURED];
-  } catch {
-    return [...DEFAULT_FEATURED];
-  }
-}
-
-function listingPrimaryImage(base: string, l: PropertyListing): string | undefined {
-  const mode = l.propertyPostMode === "property" ? "property" : "room";
-  const ordered =
-    mode === "room"
-      ? [...(l.roomImageUrls ?? []), ...(l.propertyImageUrls ?? [])]
-      : [...(l.propertyImageUrls ?? []), ...(l.roomImageUrls ?? [])];
-  for (const raw of ordered) {
-    const u = raw?.trim();
-    if (!u) continue;
-    if (u.startsWith("http")) return u;
-    return `${base}${u.startsWith("/") ? u : `/${u}`}`;
-  }
-  return undefined;
-}
+const MB_FOLLOWUPS: ChatSearchFollowupPayloads = {
+  nearby: "MB_NEARBY",
+  budget: "MB_BUDGET",
+  zone: "MB_SEARCH",
+  menu: "MB_MENU",
+};
 
 function messengerSink(psid: string): ChatSink {
   return {
@@ -84,7 +66,7 @@ async function sendMainMenu(sink: ChatSink): Promise<void> {
 async function sendHelp(sink: ChatSink, base: string): Promise<void> {
   await sink.sendText(
     [
-      "Puedes buscar cuarto con filtros guiados (ciudad, presupuesto, preferencia de roomies) y ver resultados aquí.",
+      "Elige una zona de Guadalajara y te mando anuncios de inmediato, más lo que hay cerca y en toda la ciudad. Después puedes ajustar presupuesto o preferencia de roomies.",
       `Mapa y filtros avanzados: ${base}/buscar`,
       `Publicar (fotos y mapa en la web): usa “Publicar” o ${base}/publicar`,
       "Soporte: contacto@bestie.mx",
@@ -92,20 +74,18 @@ async function sendHelp(sink: ChatSink, base: string): Promise<void> {
   );
 }
 
-async function sendCityStep(db: DatabaseSync, sink: ChatSink): Promise<void> {
-  const cities = featuredCitiesList(db).slice(0, 8);
-  const replies = [
-    ...cities.map((c) => ({ title: c.length > 20 ? `${c.slice(0, 17)}…` : c, payload: `MB_CITY:${c}` })),
-    { title: "Cualquier ciudad", payload: "MB_CITY:*" },
-  ];
+async function sendZoneStep(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
-    "Paso 1/3: ¿En qué ciudad buscas? (Si ya escribiste palabras clave, las combino con la ciudad.)",
-    replies,
+    "¿Cerca de dónde buscas? Te mando anuncios en cuanto elijas (Guadalajara, ~3.5 km).",
+    [
+      ...CHAT_MENU_POIS.map((p) => ({ title: p.title, payload: `MB_POI:${p.id}` })),
+      { title: "Toda la ciudad", payload: "MB_POI:*" },
+    ],
   );
 }
 
 async function sendBudgetStep(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("Paso 2/3: ¿Presupuesto mensual máximo aproximado?", [
+  await sink.sendQuickReplies("¿Presupuesto mensual máximo aproximado?", [
     { title: "Hasta $5,000", payload: "MB_BD:5000" },
     { title: "Hasta $8,000", payload: "MB_BD:8000" },
     { title: "Hasta $12,000", payload: "MB_BD:12000" },
@@ -114,55 +94,31 @@ async function sendBudgetStep(sink: ChatSink): Promise<void> {
 }
 
 async function sendPrefStep(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("Paso 3/3: Preferencia de roomies (filtro de anuncio)", [
+  await sink.sendQuickReplies("Preferencia de roomies (filtro de anuncio)", [
     { title: "Cualquiera", payload: "MB_PREF:any" },
     { title: "Pref. mujer", payload: "MB_PREF:female" },
     { title: "Pref. hombre", payload: "MB_PREF:male" },
   ]);
 }
 
-function searchParamsFromDraft(draft: MessengerSearchDraft): URLSearchParams {
-  const p = new URLSearchParams();
-  const qparts = [draft.city ?? DEFAULT_SEARCH_CITY, draft.q].filter(Boolean) as string[];
-  const q = qparts.join(" ").trim();
-  if (q) p.set("q", q);
-  if (draft.budgetMax != null) p.set("max", String(draft.budgetMax));
-  if (draft.pref) p.set("gender", draft.pref);
-  return p;
-}
-
 async function runSearchAndReply(
   db: DatabaseSync,
   sink: ChatSink,
-  base: string,
   draft: MessengerSearchDraft,
 ): Promise<void> {
-  const params = searchParamsFromDraft(draft);
-  const filters = parseFilters(params);
-  const list = filterListings(fetchPublishedListings(db), filters);
-  const web = `${base}/buscar?${params.toString()}`;
-
-  if (list.length === 0) {
-    await sink.sendText(
-      `No encontré resultados con esos filtros. Prueba en el mapa y ajusta tags/edad en la web:\n${web}`,
-    );
-    return;
-  }
-
-  const top = list.slice(0, 5);
-  const cards = top.map((l) => {
-    const url = `${base}/anuncio/${encodeURIComponent(roomReferenceCode(l.id))}`;
-    return {
-      title: l.title.slice(0, 80),
-      subtitle: `${l.city} · $${l.rentMxn} MXN/mes`.slice(0, 80),
-      url,
-      imageUrl: listingPrimaryImage(base, l),
-    };
+  await replyChatSearchResults(sink, runChatSearch(db, draft), draft, MB_FOLLOWUPS, {
+    maxFollowups: 5,
   });
-  await sink.sendListingCards(
-    cards,
-    `Mostrando ${top.length}${list.length > top.length ? ` de ${list.length}` : ""} anuncios. Más filtros en la web: ${web}`,
-  );
+}
+
+function finishSearch(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  draft: MessengerSearchDraft,
+): Promise<void> {
+  upsertMessengerChat(db, psid, { flow: "idle", draft });
+  return runSearchAndReply(db, sink, draft);
 }
 
 /**
@@ -182,10 +138,7 @@ export async function processMessengerUserInput(
 
   let chat = getMessengerChat(db, psid);
   if (!chat) {
-    upsertMessengerChat(db, psid, {
-      flow: "idle",
-      draft: { q: "", city: null, budgetMax: null, pref: null },
-    });
+    upsertMessengerChat(db, psid, { flow: "idle", draft: emptyMessengerDraft() });
     chat = getMessengerChat(db, psid)!;
   }
 
@@ -193,15 +146,30 @@ export async function processMessengerUserInput(
     if (isGreeting(textRaw)) payload = "MB_MENU";
     else if (/^ayuda$|^help$/i.test(lower)) payload = "MB_HELP";
     else if (/^publicar$|^anunciar$/i.test(lower)) payload = "MB_PUB";
-    else if (/^buscar$|^busco\b/i.test(lower)) payload = "MB_SEARCH";
+    else if (/^buscar$|^busco$/i.test(lower)) payload = "MB_SEARCH";
     else if (textRaw.length > 0) {
-      upsertMessengerChat(db, psid, {
-        flow: "search_city",
-        draft: { ...chat.draft, q: textRaw.slice(0, 120) },
-      });
-      await sendCityStep(db, out);
+      // Free text can carry zone, budget, preference and tags — search on the spot.
+      const draft = await enrichChatSearchFromText({ ...chat.draft }, textRaw);
+      if (draft.poiLat == null) {
+        upsertMessengerChat(db, psid, { flow: "search_zone", draft });
+        await sendZoneStep(out);
+        return;
+      }
+      await finishSearch(db, psid, out, draft);
       return;
     }
+  }
+
+  if (!payload && chat.flow === "search_zone" && textRaw) {
+    const draft = await enrichChatSearchFromText({ ...chat.draft }, textRaw);
+    if (draft.poiLat == null) {
+      upsertMessengerChat(db, psid, { flow: "search_zone", draft });
+      await out.sendText("No ubiqué esa zona. Prueba con Chapu, Centro, ITESO, CUCS… o elige de la lista.");
+      await sendZoneStep(out);
+      return;
+    }
+    await finishSearch(db, psid, out, draft);
+    return;
   }
 
   if (!payload && chat.flow !== "idle") {
@@ -227,11 +195,8 @@ export async function processMessengerUserInput(
   }
 
   if (payload === "MB_SEARCH") {
-    upsertMessengerChat(db, psid, {
-      flow: "search_city",
-      draft: { ...chat.draft, city: null, budgetMax: null, pref: null },
-    });
-    await sendCityStep(db, out);
+    upsertMessengerChat(db, psid, { flow: "search_zone", draft: emptyMessengerDraft() });
+    await sendZoneStep(out);
     return;
   }
 
@@ -245,14 +210,21 @@ export async function processMessengerUserInput(
     return;
   }
 
-  if (payload.startsWith("MB_CITY:")) {
-    const v = payload.slice("MB_CITY:".length);
+  // Zone pick (or "toda la ciudad") returns matches on the first reply.
+  if (payload.startsWith("MB_POI:") || payload.startsWith("MB_CITY:")) {
+    const id = payload.slice(payload.indexOf(":") + 1);
     const c = getMessengerChat(db, psid)!;
-    upsertMessengerChat(db, psid, {
-      flow: "search_budget",
-      draft: { ...c.draft, city: v === "*" ? DEFAULT_SEARCH_CITY : v },
-    });
-    await sendBudgetStep(out);
+    const base = { ...c.draft, city: DEFAULT_SEARCH_CITY };
+    const item = id === "*" ? null : menuPoiById(id);
+    if (id !== "*" && !item) {
+      upsertMessengerChat(db, psid, { flow: "search_zone", draft: base });
+      await sendZoneStep(out);
+      return;
+    }
+    const draft = item
+      ? applyPoiToChatSearch(base, item.poi)
+      : { ...base, poiName: null, poiLat: null, poiLng: null, zoneLabel: DEFAULT_SEARCH_CITY };
+    await finishSearch(db, psid, out, draft);
     return;
   }
 
@@ -260,14 +232,31 @@ export async function processMessengerUserInput(
     const v = payload.slice("MB_BD:".length);
     const c = getMessengerChat(db, psid)!;
     const budgetMax = v === "*" ? null : Number(v);
-    upsertMessengerChat(db, psid, {
-      flow: "search_pref",
-      draft: {
-        ...c.draft,
-        budgetMax: budgetMax != null && Number.isFinite(budgetMax) ? budgetMax : null,
-      },
+    await finishSearch(db, psid, out, {
+      ...c.draft,
+      budgetMax: budgetMax != null && Number.isFinite(budgetMax) ? budgetMax : null,
     });
+    return;
+  }
+
+  if (payload === "MB_BUDGET") {
+    upsertMessengerChat(db, psid, { flow: "search_budget", draft: getMessengerChat(db, psid)!.draft });
+    await sendBudgetStep(out);
+    return;
+  }
+
+  if (payload === "MB_PREF_ASK") {
+    upsertMessengerChat(db, psid, { flow: "search_pref", draft: getMessengerChat(db, psid)!.draft });
     await sendPrefStep(out);
+    return;
+  }
+
+  if (payload === "MB_NEARBY") {
+    const c = getMessengerChat(db, psid)!;
+    upsertMessengerChat(db, psid, { flow: "idle", draft: c.draft });
+    await replyChatSearchNearby(out, runChatSearch(db, c.draft), c.draft, MB_FOLLOWUPS, {
+      maxFollowups: 5,
+    });
     return;
   }
 
@@ -275,9 +264,7 @@ export async function processMessengerUserInput(
     const v = payload.slice("MB_PREF:".length);
     const c = getMessengerChat(db, psid)!;
     const pref = v === "any" ? null : v === "female" ? "female" : v === "male" ? "male" : null;
-    const nextDraft: MessengerSearchDraft = { ...c.draft, pref };
-    upsertMessengerChat(db, psid, { flow: "idle", draft: nextDraft });
-    await runSearchAndReply(db, out, base, nextDraft);
+    await finishSearch(db, psid, out, { ...c.draft, pref });
     return;
   }
 

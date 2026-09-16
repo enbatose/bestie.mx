@@ -1,6 +1,11 @@
 import type { DatabaseSync } from "node:sqlite";
 import { SELF_SERVE_MAX_INFOGRAPHICS } from "./assistedDraftLimits.js";
 import type { ChatSink } from "./chatChannel.js";
+import {
+  chatAmenityMenuText,
+  chatTagLabels,
+  parseChatAmenityReply,
+} from "./chatPublishAmenities.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { ensureWhatsAppBotAccount } from "./whatsappBotAccount.js";
 import { saveWhatsAppMediaImage } from "./whatsappBotMedia.js";
@@ -10,6 +15,7 @@ import {
   composeWhatsAppListingFields,
   enrichPublishDraftFromInfographics,
   enrichPublishDraftFromText,
+  ensurePublishDraftSummary,
   formatPublishPreview,
   parseRentFromText,
   publishDraftReady,
@@ -17,10 +23,11 @@ import {
 } from "./whatsappBotPublish.js";
 import {
   applyMenuPoiToDraft,
+  CHAT_MENU_POIS,
   enrichDraftFromSearchText,
   menuPoiById,
+  runWhatsAppNearbyAndReply,
   runWhatsAppSearchAndReply,
-  WHATSAPP_MENU_POIS,
 } from "./whatsappBotSearch.js";
 import {
   appendWhatsAppInfographicUrls,
@@ -77,8 +84,8 @@ async function sendHelp(sink: ChatSink): Promise<void> {
   const base = publicWebOrigin();
   await sink.sendText(
     [
-      "Puedes buscar cuarto cerca de una zona (Chapu, Centro, ITESO, CUCS…) con presupuesto y preferencia, y te mando fotos de los anuncios.",
-      "También puedes publicar un solo cuarto: infográficos (hasta 2, los lee la IA), descripción opcional, fotos, renta exacta, ubicación aproximada y un toque para aceptar términos.",
+      "Elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato, más lo que hay cerca y en todo Guadalajara. Después puedes ajustar presupuesto o preferencia.",
+      "También puedes publicar un solo cuarto: infográficos (hasta 2, los lee la IA), descripción opcional, fotos, renta exacta, tipo de recámara, depósito, etiquetas, ubicación aproximada y un toque para aceptar términos.",
       `Mapa: ${base}/buscar`,
       `Términos: ${base}/legal/terminos`,
       "Soporte: contacto@bestie.mx",
@@ -88,9 +95,9 @@ async function sendHelp(sink: ChatSink): Promise<void> {
 
 async function sendZoneStep(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
-    "¿Cerca de dónde buscas? (Guadalajara, ~3.5 km)",
+    "¿Cerca de dónde buscas? Te mando anuncios en cuanto elijas (Guadalajara, ~3.5 km).",
     [
-      ...WHATSAPP_MENU_POIS.map((p) => ({ title: p.title, payload: `WA_POI:${p.id}` })),
+      ...CHAT_MENU_POIS.map((p) => ({ title: p.title, payload: `WA_POI:${p.id}` })),
       { title: "Otra zona", payload: "WA_POI:other" },
     ],
   );
@@ -113,14 +120,6 @@ async function sendPrefStep(sink: ChatSink): Promise<void> {
   ]);
 }
 
-async function sendSearchFollowup(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("¿Quieres ajustar la búsqueda?", [
-    { title: "Otra zona", payload: "WA_SEARCH" },
-    { title: "Otro presupuesto", payload: "WA_BUDGET" },
-    { title: "Menú", payload: "WA_MENU" },
-  ]);
-}
-
 function save(db: DatabaseSync, psid: string, flow: string, draft: WhatsAppBotDraft, publisherId?: string) {
   upsertWhatsAppChat(db, psid, { flow, draft, ...(publisherId ? { publisherId } : {}) });
 }
@@ -134,7 +133,6 @@ async function finishSearch(
 ): Promise<void> {
   save(db, psid, "idle", draft, publisherId);
   await runWhatsAppSearchAndReply(db, sink, draft);
-  await sendSearchFollowup(sink);
 }
 
 async function sendInfographicAsk(sink: ChatSink): Promise<void> {
@@ -284,8 +282,52 @@ async function sendPreview(sink: ChatSink, draft: WhatsAppBotDraft): Promise<voi
   await sink.sendQuickReplies(formatPublishPreview(draft), [
     { title: "Acepto y publicar", payload: "WA_PUBLISH" },
     { title: "Cambiar renta", payload: "WA_RENT_EDIT" },
-    { title: "Cancelar", payload: "WA_CANCEL" },
+    { title: "Cambiar etiquetas", payload: "WA_TAGS_EDIT" },
   ]);
+}
+
+async function sendRoomKindPrompt(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies("¿Cómo es la recámara que rentas?", [
+    { title: "Privada individual", payload: "WA_KIND:private:small" },
+    { title: "Privada matrimonial", payload: "WA_KIND:private:medium" },
+    { title: "Privada grande", payload: "WA_KIND:private:large" },
+    { title: "Compartida", payload: "WA_KIND:shared:medium" },
+  ]);
+}
+
+async function sendRoomiesPrompt(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies("¿Prefieres roomie de algún género? Es un filtro de búsqueda.", [
+    { title: "Cualquiera", payload: "WA_GENDER:any" },
+    { title: "Prefiero mujer", payload: "WA_GENDER:female" },
+    { title: "Prefiero hombre", payload: "WA_GENDER:male" },
+  ]);
+}
+
+async function sendDepositPrompt(sink: ChatSink, rentMxn: number | null): Promise<void> {
+  await sink.sendQuickReplies("¿Pides depósito?", [
+    { title: "Sin depósito", payload: "WA_DEP:0" },
+    ...(rentMxn != null ? [{ title: "Un mes de renta", payload: "WA_DEP:rent" }] : []),
+    { title: "Otro monto", payload: "WA_DEP:other" },
+  ]);
+}
+
+async function sendTagsPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
+  const detected = chatTagLabels(draft.pubTags);
+  const head = detected.length
+    ? `Ya detecté: ${detected.join(", ")}.`
+    : "Todavía no tengo etiquetas del cuarto.";
+  await sink.sendQuickReplies(
+    [
+      head,
+      "Responde con los números de lo que SÍ tiene (ej. 1,3,5) y los agrego. Si ya está completo, pulsa Listo.",
+      "",
+      chatAmenityMenuText(draft.pubTags),
+    ].join("\n"),
+    [
+      { title: "Listo", payload: "WA_TAGS_DONE" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ],
+  );
 }
 
 async function continueAfterPhotos(
@@ -309,8 +351,44 @@ async function continueAfterPhotos(
     await sendRentPrompt(sink, draft);
     return;
   }
-  save(db, psid, "pub_preview", draft, publisherId);
-  await sendPreview(sink, draft);
+  await continueToEssentials(db, psid, sink, draft, publisherId);
+}
+
+/**
+ * Wizard-grade data with as few taps as possible: each essential is asked only
+ * when neither the description, the infographic, nor a previous tap resolved it.
+ * With nothing else to ask, the description is written and the preview goes out.
+ */
+async function continueToEssentials(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  draft: WhatsAppBotDraft,
+  publisherId?: string,
+): Promise<void> {
+  if (!draft.roomKindSet) {
+    save(db, psid, "pub_room_kind", draft, publisherId);
+    await sendRoomKindPrompt(sink);
+    return;
+  }
+  if (!draft.genderSet) {
+    save(db, psid, "pub_roomies", draft, publisherId);
+    await sendRoomiesPrompt(sink);
+    return;
+  }
+  if (draft.depositMxn == null) {
+    save(db, psid, "pub_deposit", draft, publisherId);
+    await sendDepositPrompt(sink, draft.rentMxn);
+    return;
+  }
+  if (!draft.tagsConfirmed) {
+    save(db, psid, "pub_tags", draft, publisherId);
+    await sendTagsPrompt(sink, draft);
+    return;
+  }
+  const next = await ensurePublishDraftSummary(draft);
+  save(db, psid, "pub_preview", next, publisherId);
+  await sendPreview(sink, next);
 }
 
 async function continueAfterDesc(
@@ -409,8 +487,7 @@ export async function processWhatsAppUserInput(
         await sendRentPrompt(sink, draft);
         return;
       }
-      save(db, psid, "pub_preview", draft, publisherId);
-      await sendPreview(sink, draft);
+      await continueToEssentials(db, psid, sink, draft, publisherId);
       return;
     }
   }
@@ -515,6 +592,20 @@ export async function processWhatsAppUserInput(
       payload = "WA_PHOTOS_MORE";
     }
   }
+  if (flow === "pub_room_kind") {
+    if (/compartid/i.test(lower)) payload = "WA_KIND:shared:medium";
+    else if (/individual|chic[ao]|peque/i.test(lower)) payload = "WA_KIND:private:small";
+    else if (/grande|amplia/i.test(lower)) payload = "WA_KIND:private:large";
+    else if (/privad|matrimonial/i.test(lower)) payload = "WA_KIND:private:medium";
+  }
+  if (flow === "pub_roomies") {
+    if (/mujer|femenin/i.test(lower)) payload = "WA_GENDER:female";
+    else if (/hombre|masculin/i.test(lower)) payload = "WA_GENDER:male";
+    else if (/cualquier|indistint|da\s+igual/i.test(lower)) payload = "WA_GENDER:any";
+  }
+  if (flow === "pub_tags" && /^(listo|ya|no|nada|ninguno|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
+    payload = "WA_TAGS_DONE";
+  }
 
   if (payload === "WA_MENU" || payload === "WA_CANCEL" || (payload != null && !payload.startsWith("WA_"))) {
     await goIdleMenu();
@@ -589,14 +680,26 @@ export async function processWhatsAppUserInput(
       return;
     }
     draft = applyMenuPoiToDraft(draft, item.poi);
-    save(db, psid, "search_budget", draft, publisherId);
-    await sendBudgetStep(sink);
+    await finishSearch(db, psid, sink, draft, publisherId);
     return;
   }
 
   if (payload?.startsWith("WA_BD:")) {
     const raw = payload.slice("WA_BD:".length);
     draft.budgetMax = raw === "*" ? null : Number(raw) || null;
+    draft.intent = "search";
+    await finishSearch(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (payload === "WA_NEARBY") {
+    draft.intent = "search";
+    save(db, psid, "idle", draft, publisherId);
+    await runWhatsAppNearbyAndReply(db, sink, draft);
+    return;
+  }
+
+  if (payload === "WA_PREF_ASK") {
     draft.intent = "search";
     save(db, psid, "search_pref", draft, publisherId);
     await sendPrefStep(sink);
@@ -630,8 +733,7 @@ export async function processWhatsAppUserInput(
       await sendRentPrompt(sink, draft, true);
       return;
     }
-    save(db, psid, "pub_preview", draft, publisherId);
-    await sendPreview(sink, draft);
+    await continueToEssentials(db, psid, sink, draft, publisherId);
     return;
   }
 
@@ -639,6 +741,48 @@ export async function processWhatsAppUserInput(
     draft.rentMxn = null;
     save(db, psid, "pub_rent", draft, publisherId);
     await sendRentPrompt(sink, draft, true);
+    return;
+  }
+
+  if (payload?.startsWith("WA_KIND:")) {
+    const [kind, size] = payload.slice("WA_KIND:".length).split(":");
+    draft.lodging = kind === "shared" ? "shared_room" : "private_room";
+    draft.roomDimension = size === "small" || size === "large" ? size : "medium";
+    draft.roomKindSet = true;
+    await continueToEssentials(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (payload?.startsWith("WA_GENDER:")) {
+    const raw = payload.slice("WA_GENDER:".length);
+    draft.genderPref = raw === "female" || raw === "male" ? raw : "any";
+    draft.genderSet = true;
+    await continueToEssentials(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (payload?.startsWith("WA_DEP:")) {
+    const raw = payload.slice("WA_DEP:".length);
+    if (raw === "other") {
+      save(db, psid, "pub_deposit", draft, publisherId);
+      await sink.sendText("Escribe el monto del depósito en pesos, por ejemplo 6500.");
+      return;
+    }
+    draft.depositMxn = raw === "rent" ? (draft.rentMxn ?? 0) : 0;
+    await continueToEssentials(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (payload === "WA_TAGS_DONE") {
+    draft.tagsConfirmed = true;
+    await continueToEssentials(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (payload === "WA_TAGS_EDIT") {
+    draft.tagsConfirmed = false;
+    save(db, psid, "pub_tags", draft, publisherId);
+    await sendTagsPrompt(sink, draft);
     return;
   }
 
@@ -652,6 +796,7 @@ export async function processWhatsAppUserInput(
       await sink.sendText(missing);
       return;
     }
+    draft = await ensurePublishDraftSummary(draft);
     const fields = composeWhatsAppListingFields(draft);
     draft = { ...draft, title: fields.title, neighborhood: fields.neighborhood, summary: fields.summary };
     const result = publishWhatsAppRoom(db, {
@@ -682,21 +827,13 @@ export async function processWhatsAppUserInput(
       await sendZoneStep(sink);
       return;
     }
-    if (draft.budgetMax == null) {
-      save(db, psid, "search_budget", draft, publisherId);
-      await sendBudgetStep(sink);
-      return;
-    }
-    save(db, psid, "search_pref", draft, publisherId);
-    await sendPrefStep(sink);
+    await finishSearch(db, psid, sink, draft, publisherId);
     return;
   }
 
   if (flow === "search_budget") {
-    const n = parseRentFromText(textRaw);
-    draft.budgetMax = n;
-    save(db, psid, "search_pref", draft, publisherId);
-    await sendPrefStep(sink);
+    draft.budgetMax = parseRentFromText(textRaw);
+    await finishSearch(db, psid, sink, draft, publisherId);
     return;
   }
 
@@ -728,8 +865,7 @@ export async function processWhatsAppUserInput(
       await sendRentPrompt(sink, draft);
       return;
     }
-    save(db, psid, "pub_preview", draft, publisherId);
-    await sendPreview(sink, draft);
+    await continueToEssentials(db, psid, sink, draft, publisherId);
     return;
   }
 
@@ -740,8 +876,39 @@ export async function processWhatsAppUserInput(
       return;
     }
     draft.rentMxn = n;
-    save(db, psid, "pub_preview", draft, publisherId);
-    await sendPreview(sink, draft);
+    await continueToEssentials(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (flow === "pub_deposit") {
+    if (/^(no|sin|ninguno|0)[\s!.]*$/i.test(lower)) {
+      draft.depositMxn = 0;
+      await continueToEssentials(db, psid, sink, draft, publisherId);
+      return;
+    }
+    const n = parseRentFromText(textRaw);
+    if (n == null) {
+      await sink.sendText("Escribe el monto del depósito, por ejemplo 6500, o responde No si no pides.");
+      return;
+    }
+    draft.depositMxn = n;
+    await continueToEssentials(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  if (flow === "pub_tags") {
+    const picked = parseChatAmenityReply(textRaw);
+    if (!picked.length) {
+      await sink.sendText("Responde con números del menú, por ejemplo 1,3,5. O pulsa Listo si ya está completo.");
+      await sendTagsPrompt(sink, draft);
+      return;
+    }
+    // An explicit tap overrides a "no" the model or the text inferred.
+    draft.pubTags = [...new Set([...draft.pubTags, ...picked])];
+    draft.deniedTags = draft.deniedTags.filter((t) => !picked.includes(t));
+    save(db, psid, "pub_tags", draft, publisherId);
+    await sink.sendText(`Anotado: ${chatTagLabels(picked).join(", ")}.`);
+    await sendTagsPrompt(sink, draft);
     return;
   }
 
@@ -752,13 +919,29 @@ export async function processWhatsAppUserInput(
       await sendZoneStep(sink);
       return;
     }
-    if (draft.budgetMax == null) {
-      save(db, psid, "search_budget", draft, publisherId);
-      await sendBudgetStep(sink);
-      return;
-    }
-    save(db, psid, "search_pref", draft, publisherId);
-    await sendPrefStep(sink);
+    await finishSearch(db, psid, sink, draft, publisherId);
+    return;
+  }
+
+  // Unparsed text inside a publish step: re-ask that step instead of dumping the menu.
+  if (flow === "pub_room_kind") {
+    await sendRoomKindPrompt(sink);
+    return;
+  }
+  if (flow === "pub_roomies") {
+    await sendRoomiesPrompt(sink);
+    return;
+  }
+  if (flow === "pub_infographic_ask") {
+    await sendInfographicAsk(sink);
+    return;
+  }
+  if (flow === "pub_infographics") {
+    await sendInfographicPrompt(sink, draft.infographicUrls.length);
+    return;
+  }
+  if (flow === "pub_preview") {
+    await sendPreview(sink, draft);
     return;
   }
 
