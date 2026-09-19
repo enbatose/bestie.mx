@@ -121,7 +121,6 @@ describe("WhatsApp bot flows", () => {
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
     expect(texts.some((t) => /infográfico/i.test(t) && /plantilla|flyer/i.test(t))).toBe(true);
     expect(texts.some((t) => /siguiente paso/i.test(t))).toBe(true);
-    expect(texts.some((t) => /galería/i.test(t))).toBe(true);
     expect(texts.some((t) => /Puedes subir hasta \d+ fotos/.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);

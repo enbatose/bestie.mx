@@ -143,7 +143,7 @@ async function sendInfographicAsk(sink: ChatSink): Promise<void> {
     [
       "¿Tienes un infográfico del cuarto?",
       "",
-      "Es una sola imagen (flyer o plantilla) con datos como renta, zona o reglas — a veces con fotos mezcladas. Puedes mandar hasta 2: la IA los lee para armar el anuncio y también se publican en la galería.",
+      "Es una sola imagen (flyer o plantilla) con datos como renta, zona o reglas — a veces con fotos mezcladas. Puedes mandar hasta 2.",
       "",
       "Las fotos reales del espacio (cuarto, baño, cocina…) las pedimos en el siguiente paso.",
     ].join("\n"),
