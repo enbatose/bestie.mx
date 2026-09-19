@@ -50,5 +50,5 @@ export function buildAddPhotosEmail(payload: AddPhotosEmailPayload): BuiltTransa
     `Ver anuncio: ${payload.listingUrl}`,
   ].join("\n");
 
-  return { subject, html, text };
+  return { subject, html, text, previewText };
 }
