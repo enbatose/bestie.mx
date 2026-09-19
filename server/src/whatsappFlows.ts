@@ -85,7 +85,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
   await sink.sendText(
     [
       "Elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato, más lo que hay cerca y en todo Guadalajara. Después puedes ajustar presupuesto o preferencia.",
-      "También puedes publicar un solo cuarto: infográficos (hasta 2, los lee la IA), descripción opcional, fotos, renta exacta, tipo de recámara, depósito, etiquetas, ubicación aproximada y un toque para aceptar términos.",
+      "También puedes publicar un solo cuarto: infográficos (hasta 2; la IA los lee y van a la galería), descripción opcional, fotos del espacio, renta exacta, tipo de recámara, depósito, etiquetas, ubicación aproximada y un toque para aceptar términos.",
       `Mapa: ${base}/buscar`,
       `Términos: ${base}/legal/terminos`,
       "Soporte: contacto@bestie.mx",
@@ -137,7 +137,13 @@ async function finishSearch(
 
 async function sendInfographicAsk(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
-    "¿Tienes infográficos del cuarto? Un infográfico es información (renta, zona, reglas) posiblemente combinada con fotos en una sola plantilla sobre el cuarto y la propiedad. La IA lee hasta 2 para extraer datos del anuncio; no sustituyen las fotos reales del espacio.",
+    [
+      "¿Tienes un infográfico del cuarto?",
+      "",
+      "Es una sola imagen (flyer o plantilla) con datos como renta, zona o reglas — a veces con fotos mezcladas. Puedes mandar hasta 2: la IA los lee para armar el anuncio y también se publican en la galería.",
+      "",
+      "Las fotos reales del espacio (cuarto, baño, cocina…) las pedimos en el siguiente paso.",
+    ].join("\n"),
     [
       { title: "Sí, tengo", payload: "WA_INFO_YES" },
       { title: "No", payload: "WA_INFO_NO" },
@@ -149,7 +155,7 @@ async function sendInfographicAsk(sink: ChatSink): Promise<void> {
 async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<void> {
   if (count <= 0) {
     await sink.sendQuickReplies(
-      "Mándame hasta 2 infográficos (JPG o PNG). Si es una plantilla con texto y fotos, mejor.",
+      "Mándame hasta 2 infográficos (JPG o PNG). Después te pediré las fotos reales del espacio.",
       [{ title: "No tengo", payload: "WA_INFO_NO" }, { title: "Cancelar", payload: "WA_CANCEL" }],
     );
     return;

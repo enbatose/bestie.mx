@@ -120,7 +120,9 @@ describe("WhatsApp bot flows", () => {
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
-    expect(texts.some((t) => /infográfico/i.test(t) && /plantilla/i.test(t))).toBe(true);
+    expect(texts.some((t) => /infográfico/i.test(t) && /plantilla|flyer/i.test(t))).toBe(true);
+    expect(texts.some((t) => /siguiente paso/i.test(t))).toBe(true);
+    expect(texts.some((t) => /galería/i.test(t))).toBe(true);
     expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
@@ -132,7 +134,7 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(true);
   });
 
-  it("caps infographics at 2 and does not put them in the photo gallery", async () => {
+  it("caps infographics at 2 and keeps them out of the photo step bucket", async () => {
     const pubPsid = `${PSID}-info-cap`;
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
@@ -152,6 +154,7 @@ describe("WhatsApp bot flows", () => {
     );
     const chat = getWhatsAppChat(db, pubPsid);
     expect(chat?.draft.infographicUrls).toEqual([urls.m1, urls.m2]);
+    // Still a separate bucket during the chat; they merge into the gallery only at publish.
     expect(chat?.draft.photoUrls).toEqual([]);
     expect(chat?.flow).toBe("pub_desc");
     expect(texts.some((t) => /leyendo el infográfico/i.test(t))).toBe(true);
@@ -159,13 +162,14 @@ describe("WhatsApp bot flows", () => {
 
   it("publishes a single room from photos + pin + exact rent + legal tap", async () => {
     const photo = "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.jpg";
+    const info = "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff.jpg";
     const pubPsid = `${PSID}-pub`;
     const { sink, texts } = capturingSink();
     await skipInfographicAndDesc(pubPsid, sink);
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
       flow: "pub_photos",
-      draft: { ...chat.draft, photoUrls: [photo] },
+      draft: { ...chat.draft, photoUrls: [photo], infographicUrls: [info] },
     });
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_DONE" }, sink);
     await processWhatsAppUserInput(
@@ -238,7 +242,7 @@ describe("WhatsApp bot flows", () => {
     expect(row?.roommate_gender_pref).toBe("female");
     expect(row?.room_dimension).toBe("large");
     expect(row?.lodging_type).toBe("private_room");
-    expect(JSON.parse(row?.image_urls_json ?? "[]")).toEqual([photo]);
+    expect(JSON.parse(row?.image_urls_json ?? "[]")).toEqual([photo, info]);
     expect(row?.title.length).toBeLessThanOrEqual(70);
     expect(row?.neighborhood.length).toBeLessThanOrEqual(50);
     expect(row?.summary).not.toMatch(/Publicado desde WhatsApp/i);

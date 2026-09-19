@@ -346,9 +346,9 @@ export function formatPublishPreview(draft: WhatsAppBotDraft): string {
     `• ${rent}${draft.depositMxn != null ? ` · depósito ${draft.depositMxn > 0 ? `$${draft.depositMxn}` : "no"}` : ""}`,
     `• ${roomKindLabel(draft)} · ${genderLabel(draft)}`,
     tags.length ? `• Etiquetas: ${tags.join(", ")}` : "• Etiquetas: ninguna todavía",
-    `• ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"}`,
+    `• ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"} del espacio`,
     draft.infographicUrls.length > 0
-      ? `• ${draft.infographicUrls.length} infográfico${draft.infographicUrls.length === 1 ? "" : "s"} (solo para la IA, no van a la galería)`
+      ? `• ${draft.infographicUrls.length} infográfico${draft.infographicUrls.length === 1 ? "" : "s"} (también en la galería)`
       : null,
     "",
     `Descripción: ${fields.summary.slice(0, 300)}${fields.summary.length > 300 ? "…" : ""}`,
@@ -378,7 +378,8 @@ export function publishWhatsAppRoom(
   const blocked = publishDraftReady(opts.draft);
   if (blocked) return { ok: false, error: blocked };
   const d = opts.draft;
-  const photos = clampListingImageUrls(d.photoUrls);
+  // Real space photos first (listing card hero), then infographics so they still appear in the gallery.
+  const photos = clampListingImageUrls([...d.photoUrls, ...d.infographicUrls]);
   if (!photos.length) return { ok: false, error: "Las fotos no se pudieron guardar. Mándalas otra vez." };
   const lat = d.locLat!;
   const lng = d.locLng!;

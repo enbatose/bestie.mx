@@ -299,7 +299,7 @@ export function appendWhatsAppPhotoUrls(
   return appendWhatsAppUrls(db, psid, urls, "photo", extra);
 }
 
-/** Append infographic images (cap 2). Not used as gallery photos. */
+/** Append infographic images (cap 2). Also published into the gallery after room photos. */
 export function appendWhatsAppInfographicUrls(
   db: DatabaseSync,
   psid: string,
