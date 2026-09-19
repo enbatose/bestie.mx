@@ -70,18 +70,29 @@ export function roomMatchesEditParam(roomId: string, roomParam: string): boolean
 
 /** Hub / listing “Editar” — open the pencil preview, not the stepped wizard. Autosave must not set this. */
 export const PUBLISH_PREVIEW_EDITOR_QUERY = "vista";
+/** Open the photo uploader inside the live preview editor. */
+export const PUBLISH_PHOTOS_EDITOR_QUERY = "fotos";
 
-/** `/publicar?edit=P…&vista=1` (optional `&room=A…`). */
-export function publishWizardEditPath(propertyId: string, roomId?: string | null): string {
+/** `/publicar?edit=P…&vista=1` (optional `&room=A…`, optional `&fotos=1`). */
+export function publishWizardEditPath(
+  propertyId: string,
+  roomId?: string | null,
+  opts?: { openPhotos?: boolean },
+): string {
   const params = new URLSearchParams();
   params.set("edit", wizardPropertyEditCode(propertyId));
   params.set(PUBLISH_PREVIEW_EDITOR_QUERY, "1");
   if (roomId) params.set("room", wizardRoomEditCode(roomId));
+  if (opts?.openPhotos) params.set(PUBLISH_PHOTOS_EDITOR_QUERY, "1");
   return `/publicar?${params.toString()}`;
 }
 
 export function isPublishPreviewEditorQuery(params: URLSearchParams): boolean {
   return params.get(PUBLISH_PREVIEW_EDITOR_QUERY) === "1";
+}
+
+export function isPublishPhotosEditorQuery(params: URLSearchParams): boolean {
+  return params.get(PUBLISH_PHOTOS_EDITOR_QUERY) === "1";
 }
 
 /** First-time publish confirmation — separate from `/publicar?edit=` so reload does not reopen the editor. */

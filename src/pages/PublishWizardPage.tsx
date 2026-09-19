@@ -41,7 +41,7 @@ import { track } from "@/lib/analytics";
 import { ensurePublishSessionRecording } from "@/lib/posthog";
 import { resolvePublishCreateFlow } from "@/lib/publishCreateFlow";
 import { useAppShellOutlet } from "@/layouts/appShellOutletContext";
-import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam, isPublishPreviewEditorQuery } from "@/lib/listingReference";
+import { listingPublicPath, propertyMatchesEditParam, propertyPublicPath, publishWizardSuccessPath, roomMatchesEditParam, isPublishPreviewEditorQuery, isPublishPhotosEditorQuery } from "@/lib/listingReference";
 import {
   forgetManualRoomCreateChoice,
   isAiRoomCreateFlow,
@@ -1031,7 +1031,9 @@ export function PublishWizardPage() {
   );
   /** Property-card Edit omits `room`; room-row Edit includes it. Survives after query params are cleared. */
   const [liveEditScope, setLiveEditScope] = useState<"property" | "room" | null>(null);
-  const [liveEditEditingPhotos, setLiveEditEditingPhotos] = useState(false);
+  const [liveEditEditingPhotos, setLiveEditEditingPhotos] = useState(() =>
+    isPublishPhotosEditorQuery(searchParams),
+  );
   const apiOn = isListingsApiConfigured();
   const [assistedBoot] = useState(loadAssistedClaimBoot);
   const [resumeBoot] = useState(loadWizardResumeBoot);
@@ -1486,7 +1488,7 @@ export function PublishWizardPage() {
     setPreviewRoomIndex(
       Math.min(cached.previewRoomIndex, Math.max(0, nextDraft.rooms.length - 1)),
     );
-    setLiveEditEditingPhotos(cached.editingPhotos);
+    setLiveEditEditingPhotos(isPublishPhotosEditorQuery(searchParams) || cached.editingPhotos);
     setStep(lastWizardStep(nextDraft));
     markAutosaveBaseline(nextDraft);
     setHandoffBanner(

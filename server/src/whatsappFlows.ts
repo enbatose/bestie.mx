@@ -196,8 +196,11 @@ async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promis
   const count = draft.photoUrls.length;
   if (count <= 0) {
     await sink.sendQuickReplies(
-      `Puedes subir hasta ${maxPhotos} fotos.\nMándamelas (varias a la vez está bien). Cuando las reciba te pregunto si hay más pendientes.`,
-      [{ title: "Cancelar", payload: "WA_CANCEL" }],
+      `Puedes subir hasta ${maxPhotos} fotos.\nMándamelas (varias a la vez está bien). Si aún no tienes, puedes saltar y subirlas después.`,
+      [
+        { title: "Saltar", payload: "WA_PHOTOS_SKIP" },
+        { title: "Cancelar", payload: "WA_CANCEL" },
+      ],
     );
     return;
   }
@@ -347,10 +350,6 @@ async function continueAfterPhotos(
   draft: WhatsAppBotDraft,
   publisherId?: string,
 ): Promise<void> {
-  if (draft.photoUrls.length < 1) {
-    await sendPhotosPrompt(sink, draft);
-    return;
-  }
   save(db, psid, "pub_desc", draft, publisherId);
   await sendDescPrompt(sink, draft);
 }
@@ -598,7 +597,9 @@ export async function processWhatsAppUserInput(
     if (/^(saltar|skip|no|pasar)[\s!.]*$/i.test(lower)) payload = "WA_DESC_SKIP";
   }
   if (flow === "pub_photos") {
-    if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
+    if (/^(saltar|skip|sin\s+fotos|después|despues|luego)[\s!.]*$/i.test(lower)) {
+      payload = "WA_PHOTOS_SKIP";
+    } else if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
       payload = "WA_PHOTOS_DONE";
     } else if (/^(s[ií]|m[aá]s|otra|otras)[\s!.]*$/i.test(lower)) {
       payload = "WA_PHOTOS_MORE";
@@ -735,7 +736,7 @@ export async function processWhatsAppUserInput(
     return;
   }
 
-  if (payload === "WA_PHOTOS_DONE") {
+  if (payload === "WA_PHOTOS_SKIP" || payload === "WA_PHOTOS_DONE") {
     if (draft.sourceText.length >= 40) draft = await enrichPublishDraftFromText(draft, draft.sourceText);
     await continueAfterPhotos(db, psid, sink, draft, publisherId);
     return;

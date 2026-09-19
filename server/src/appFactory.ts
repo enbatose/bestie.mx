@@ -46,6 +46,7 @@ import { buildSitemapXml } from "./sitemap.js";
 import { bindUsageAnalyticsDb } from "./usageAnalytics.js";
 import { installVanityRedirects } from "./vanityRedirects.js";
 import { installListingAvailabilityRoutes } from "./listingAvailabilityRoutes.js";
+import { installAddPhotosRedirect } from "./listingAddPhotosNotify.js";
 
 function normalizeCorsOrigins(origins: string[]): string[] {
   const seen = new Set<string>();
@@ -222,6 +223,7 @@ export function createApp(db: DatabaseSync, opts: CreateAppOptions = {}): expres
 
   // SMS/email confirm and pause links — before SPA catch-all and static vanity slugs.
   installListingAvailabilityRoutes(app, db);
+  installAddPhotosRedirect(app, db);
 
   // Clean same-domain short links for social/offline outreach (see vanityRedirects.ts).
   installVanityRedirects(app, sharePreviewBaseUrl);

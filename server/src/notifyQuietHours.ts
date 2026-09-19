@@ -33,3 +33,17 @@ export function isNotifyQuietHours(date: Date, timeZone: string): boolean {
   if (hour === NOTIFY_QUIET_END_HOUR && minute < NOTIFY_QUIET_END_MINUTE) return true;
   return false;
 }
+
+/**
+ * Next instant at or after `date` that is outside quiet hours (06:01+ local).
+ * Used to defer transactional email/SMS that hit the overnight window.
+ */
+export function nextNotifyQuietHoursResumeAt(date: Date, timeZone: string): Date {
+  if (!isNotifyQuietHours(date, timeZone)) return date;
+  let t = new Date(date.getTime());
+  for (let i = 0; i < 10 * 60; i++) {
+    t = new Date(t.getTime() + 60_000);
+    if (!isNotifyQuietHours(t, timeZone)) return t;
+  }
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000);
+}

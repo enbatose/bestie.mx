@@ -13,6 +13,7 @@ import { publicWebOrigin } from "./handoffTokens.js";
 import { roomReferenceCode } from "./listingReference.js";
 import { isListingTag } from "./listingTags.js";
 import { scheduleNotifyOpsNewPostPublished } from "./newPostPublishedNotify.js";
+import { scheduleNotifyPublisherAddPhotos } from "./listingAddPhotosNotify.js";
 import { geocodeNamedPlaceInMetro } from "./placeGeocode.js";
 import { readUploadBytes } from "./shareOgImage.js";
 import type { ListingTag, PropertyKind } from "./types.js";
@@ -310,7 +311,6 @@ export function applyNativeLocation(
 }
 
 export function publishDraftReady(draft: WhatsAppBotDraft): string | null {
-  if (draft.photoUrls.length < 1) return "Falta al menos una foto del cuarto.";
   if (draft.locLat == null || draft.locLng == null || !validLatLng(draft.locLat, draft.locLng)) {
     return "Falta la zona o el pin de ubicación.";
   }
@@ -346,7 +346,7 @@ export function formatPublishPreview(draft: WhatsAppBotDraft): string {
     `• ${rent}${draft.depositMxn != null ? ` · depósito ${draft.depositMxn > 0 ? `$${draft.depositMxn}` : "no"}` : ""}`,
     `• ${roomKindLabel(draft)} · ${genderLabel(draft)}`,
     tags.length ? `• Etiquetas: ${tags.join(", ")}` : "• Etiquetas: ninguna todavía",
-    `• ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"} del espacio`,
+    `• ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"} del espacio${draft.photoUrls.length === 0 ? " (puedes subirlas después)" : ""}`,
     draft.infographicUrls.length > 0
       ? `• ${draft.infographicUrls.length} infográfico${draft.infographicUrls.length === 1 ? "" : "s"} (también en la galería)`
       : null,
@@ -380,7 +380,6 @@ export function publishWhatsAppRoom(
   const d = opts.draft;
   // Real space photos first (listing card hero), then infographics so they still appear in the gallery.
   const photos = clampListingImageUrls([...d.photoUrls, ...d.infographicUrls]);
-  if (!photos.length) return { ok: false, error: "Las fotos no se pudieron guardar. Mándalas otra vez." };
   const lat = d.locLat!;
   const lng = d.locLng!;
   const fields = composeWhatsAppListingFields(d);
@@ -460,6 +459,9 @@ export function publishWhatsAppRoom(
   }
 
   scheduleNotifyOpsNewPostPublished(db, propertyId);
+  if (photos.length === 0) {
+    scheduleNotifyPublisherAddPhotos(db, { roomId });
+  }
   const url = `${publicWebOrigin()}/anuncio/${encodeURIComponent(roomReferenceCode(roomId))}`;
   return { ok: true, roomId, propertyId, url };
 }

@@ -744,6 +744,11 @@ export function listingsRouter(db: DatabaseSync) {
           });
         });
       }
+      void import("./listingAddPhotosNotify.js").then(({ roomGalleryIsEmpty, scheduleNotifyPublisherAddPhotos }) => {
+        if (roomGalleryIsEmpty(db, listing.id)) {
+          scheduleNotifyPublisherAddPhotos(db, { roomId: listing.id });
+        }
+      });
     }
     res.json(joinRowToPropertyListing(updated));
   });

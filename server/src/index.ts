@@ -11,6 +11,7 @@ import { verifyResendInbound } from "./resendWebhook.js";
 import { startSavedSearchPollWorker } from "./savedSearchNotify.js";
 import { startMessageDigestPollWorker } from "./messageDigestNotify.js";
 import { startListingAvailabilityWorker } from "./listingAvailability.js";
+import { startAddPhotosNudgeWorker } from "./listingAddPhotosNotify.js";
 import { startAssistedDraftPurgeWorker } from "./assistedDraftPurge.js";
 
 assertAuthSecretConfigured();
@@ -120,5 +121,6 @@ function onListen() {
   startSavedSearchPollWorker(db);
   startMessageDigestPollWorker(db);
   startListingAvailabilityWorker(db);
+  startAddPhotosNudgeWorker(db);
   startAssistedDraftPurgeWorker(db);
 }

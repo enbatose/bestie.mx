@@ -114,6 +114,18 @@ describe("WhatsApp bot flows", () => {
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
   }
 
+  it("lets you skip photos and continue the publish flow", async () => {
+    const pubPsid = `${PSID}-skip-photos`;
+    const { sink, texts } = capturingSink();
+    await skipToPhotos(pubPsid, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
+    expect(texts.some((t) => /saltar y subirlas después/i.test(t))).toBe(true);
+
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_SKIP" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    expect(getWhatsAppChat(db, pubPsid)?.draft.photoUrls).toEqual([]);
+  });
+
   it("asks about infográficos then photos, with optional description after", async () => {
     const pubPsid = `${PSID}-info-ask`;
     const { sink, texts } = capturingSink();

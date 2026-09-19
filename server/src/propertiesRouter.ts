@@ -1587,6 +1587,11 @@ export function propertiesRouter(db: DatabaseSync) {
           });
         });
       }
+      // One nudge per property publish (first empty room) — avoids N identical emails.
+      void import("./listingAddPhotosNotify.js").then(({ roomGalleryIsEmpty, scheduleNotifyPublisherAddPhotos }) => {
+        const firstEmpty = roomIds.find(({ id }) => roomGalleryIsEmpty(db, id));
+        if (firstEmpty) scheduleNotifyPublisherAddPhotos(db, { roomId: firstEmpty.id });
+      });
     }
     if (firstPublish) scheduleNotifyOpsNewPostPublished(db, propertyId);
 
