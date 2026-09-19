@@ -109,13 +109,12 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => t.includes("Cuarto Centro"))).toBe(true);
   });
 
-  async function skipInfographicAndDesc(psid: string, sink: ReturnType<typeof capturingSink>["sink"]) {
+  async function skipToPhotos(psid: string, sink: ReturnType<typeof capturingSink>["sink"]) {
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
-    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
   }
 
-  it("asks about infográficos before photos and skips optional description", async () => {
+  it("asks about infográficos then photos, with optional description after", async () => {
     const pubPsid = `${PSID}-info-ask`;
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
@@ -126,12 +125,17 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
-    expect(texts.some((t) => /descripción/i.test(t) && /opcional/i.test(t))).toBe(true);
-
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
     expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(true);
+
+    const chat = getWhatsAppChat(db, pubPsid)!;
+    upsertWhatsAppChat(db, pubPsid, {
+      flow: "pub_photos",
+      draft: { ...chat.draft, photoUrls: ["/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-300000000001.jpg"] },
+    });
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_DONE" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    expect(texts.some((t) => /descripción/i.test(t) && /opcional/i.test(t))).toBe(true);
   });
 
   it("caps infographics at 2 and keeps them out of the photo step bucket", async () => {
@@ -156,7 +160,7 @@ describe("WhatsApp bot flows", () => {
     expect(chat?.draft.infographicUrls).toEqual([urls.m1, urls.m2]);
     // Still a separate bucket during the chat; they merge into the gallery only at publish.
     expect(chat?.draft.photoUrls).toEqual([]);
-    expect(chat?.flow).toBe("pub_desc");
+    expect(chat?.flow).toBe("pub_photos");
     expect(texts.some((t) => /leyendo el infográfico/i.test(t))).toBe(true);
   });
 
@@ -165,13 +169,15 @@ describe("WhatsApp bot flows", () => {
     const info = "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff.jpg";
     const pubPsid = `${PSID}-pub`;
     const { sink, texts } = capturingSink();
-    await skipInfographicAndDesc(pubPsid, sink);
+    await skipToPhotos(pubPsid, sink);
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
       flow: "pub_photos",
       draft: { ...chat.draft, photoUrls: [photo], infographicUrls: [info] },
     });
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_DONE" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
     await processWhatsAppUserInput(
       db,
       pubPsid,
@@ -258,9 +264,7 @@ describe("WhatsApp bot flows", () => {
   it("does not re-ask an essential the description already answered", async () => {
     const pubPsid = `${PSID}-essentials-known`;
     const { sink } = capturingSink();
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
+    await skipToPhotos(pubPsid, sink);
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
       flow: "pub_rent",
@@ -282,8 +286,7 @@ describe("WhatsApp bot flows", () => {
   it("keeps a denied tag out of the published post", async () => {
     const pubPsid = `${PSID}-denied-tags`;
     const { sink } = capturingSink();
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
+    await skipToPhotos(pubPsid, sink);
     await processWhatsAppUserInput(
       db,
       pubPsid,
@@ -301,7 +304,7 @@ describe("WhatsApp bot flows", () => {
   it("keeps every photo in a burst and then asks if more are pending", async () => {
     const pubPsid = `${PSID}-album`;
     const { sink, texts } = capturingSink();
-    await skipInfographicAndDesc(pubPsid, sink);
+    await skipToPhotos(pubPsid, sink);
     const urls: Record<string, string> = {
       m1: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000001.jpg",
       m2: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-000000000002.jpg",
@@ -331,7 +334,7 @@ describe("WhatsApp bot flows", () => {
   it("does not drop photos when two album webhooks overlap", async () => {
     const pubPsid = `${PSID}-race`;
     const { sink } = capturingSink();
-    await skipInfographicAndDesc(pubPsid, sink);
+    await skipToPhotos(pubPsid, sink);
     const saveImage = async (id: string) => {
       await new Promise((r) => setTimeout(r, 40));
       return `/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-00000000000${id}.jpg`;

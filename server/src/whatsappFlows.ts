@@ -85,7 +85,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
   await sink.sendText(
     [
       "Elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato, más lo que hay cerca y en todo Guadalajara. Después puedes ajustar presupuesto o preferencia.",
-      "También puedes publicar un solo cuarto: infográficos (hasta 2; la IA los lee y van a la galería), descripción opcional, fotos del espacio, renta exacta, tipo de recámara, depósito, etiquetas, ubicación aproximada y un toque para aceptar términos.",
+      "También puedes publicar un solo cuarto: infográficos (hasta 2; la IA los lee y van a la galería), fotos del espacio, descripción opcional, renta exacta, tipo de recámara, depósito, etiquetas, ubicación aproximada y un toque para aceptar términos.",
       `Mapa: ${base}/buscar`,
       `Términos: ${base}/legal/terminos`,
       "Soporte: contacto@bestie.mx",
@@ -347,17 +347,8 @@ async function continueAfterPhotos(
     await sendPhotosPrompt(sink, 0);
     return;
   }
-  if (draft.locLat == null) {
-    save(db, psid, "pub_location", draft, publisherId);
-    await sendLocationPrompt(sink);
-    return;
-  }
-  if (draft.rentMxn == null) {
-    save(db, psid, "pub_rent", draft, publisherId);
-    await sendRentPrompt(sink, draft);
-    return;
-  }
-  await continueToEssentials(db, psid, sink, draft, publisherId);
+  save(db, psid, "pub_desc", draft, publisherId);
+  await sendDescPrompt(sink, draft);
 }
 
 /**
@@ -404,8 +395,17 @@ async function continueAfterDesc(
   draft: WhatsAppBotDraft,
   publisherId?: string,
 ): Promise<void> {
-  save(db, psid, "pub_photos", draft, publisherId);
-  await sendPhotosPrompt(sink, draft.photoUrls.length);
+  if (draft.locLat == null) {
+    save(db, psid, "pub_location", draft, publisherId);
+    await sendLocationPrompt(sink);
+    return;
+  }
+  if (draft.rentMxn == null) {
+    save(db, psid, "pub_rent", draft, publisherId);
+    await sendRentPrompt(sink, draft);
+    return;
+  }
+  await continueToEssentials(db, psid, sink, draft, publisherId);
 }
 
 async function continueAfterInfographics(
@@ -421,8 +421,8 @@ async function continueAfterInfographics(
     await sink.sendText("Estoy leyendo el infográfico…");
     next = await enrichPublishDraftFromInfographics(db, uploadDir, next);
   }
-  save(db, psid, "pub_desc", next, publisherId);
-  await sendDescPrompt(sink, next);
+  save(db, psid, "pub_photos", next, publisherId);
+  await sendPhotosPrompt(sink, next.photoUrls.length);
 }
 
 export async function processWhatsAppUserInput(
@@ -652,8 +652,8 @@ export async function processWhatsAppUserInput(
     return;
   }
   if (payload === "WA_INFO_NO") {
-    save(db, psid, "pub_desc", draft, publisherId);
-    await sendDescPrompt(sink, draft);
+    save(db, psid, "pub_photos", draft, publisherId);
+    await sendPhotosPrompt(sink, draft.photoUrls.length);
     return;
   }
   if (payload === "WA_INFO_MORE") {
