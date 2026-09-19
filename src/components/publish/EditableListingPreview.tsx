@@ -45,6 +45,7 @@ import {
   WIZARD_FIELD_CONTROL_CLASS,
 } from "@/components/WizardNumberStepper";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
+import { LISTING_IMAGE_COUNT_MAX } from "@/lib/listingImageUrls";
 import { formatListingPhoneDisplay, formatMxPhoneDisplay, normalizeMxNationalDigits, phoneDigitsForStorage } from "@/lib/mxPhone";
 import { PhoneNumberField } from "@/components/phone/PhoneNumberField";
 import { PublisherPhoneSafetyCallout } from "@/components/publish/PublisherPhoneSafetyCallout";
@@ -1353,7 +1354,7 @@ export function EditableListingPreview({
               <BulkImageUploader
                 title="Áreas compartidas / fachada"
                 images={preferDraftImages(draft.commonAreaPhotos, draft.propertyImageUrls)}
-                maxCount={20}
+                maxCount={LISTING_IMAGE_COUNT_MAX}
                 apiOn={apiOn}
                 onPickerOpen={onPhotoPickerOpen}
                 onImagesChange={(next) =>
@@ -1371,7 +1372,7 @@ export function EditableListingPreview({
               <BulkImageUploader
                 title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
                 images={draftRoomEditorImages(draft, roomIndex)}
-                maxCount={20}
+                maxCount={LISTING_IMAGE_COUNT_MAX}
                 apiOn={apiOn}
                 hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
                 onPickerOpen={onPhotoPickerOpen}
@@ -1392,7 +1393,7 @@ export function EditableListingPreview({
               <BulkImageUploader
                 title="Fotos a categorizar"
                 images={draft.unassignedImageUrls}
-                maxCount={Math.min(120, draft.rooms.length * 20 + 40)}
+                maxCount={Math.min(120, draft.rooms.length * LISTING_IMAGE_COUNT_MAX + LISTING_IMAGE_COUNT_MAX)}
                 apiOn={apiOn}
                 hint="Sube aquí y luego asígnalas arriba o en el paso de etiquetado."
                 onPickerOpen={onPhotoPickerOpen}

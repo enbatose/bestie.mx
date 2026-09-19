@@ -122,11 +122,11 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /infográfico/i.test(t) && /plantilla|flyer/i.test(t))).toBe(true);
     expect(texts.some((t) => /siguiente paso/i.test(t))).toBe(true);
     expect(texts.some((t) => /galería/i.test(t))).toBe(true);
-    expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(false);
+    expect(texts.some((t) => /Puedes subir hasta \d+ fotos/.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
-    expect(texts.some((t) => /Mándame las fotos del cuarto/.test(t))).toBe(true);
+    expect(texts.some((t) => /Puedes subir hasta 12 fotos/.test(t))).toBe(true);
 
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
@@ -162,6 +162,7 @@ describe("WhatsApp bot flows", () => {
     expect(chat?.draft.photoUrls).toEqual([]);
     expect(chat?.flow).toBe("pub_photos");
     expect(texts.some((t) => /leyendo el infográfico/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Puedes subir hasta 10 fotos/.test(t))).toBe(true);
   });
 
   it("publishes a single room from photos + pin + exact rent + legal tap", async () => {

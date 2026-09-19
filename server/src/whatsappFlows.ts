@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { SELF_SERVE_MAX_INFOGRAPHICS } from "./assistedDraftLimits.js";
+import { SELF_SERVE_MAX_INFOGRAPHICS, listingPhotoSlotsRemaining } from "./assistedDraftLimits.js";
 import type { ChatSink } from "./chatChannel.js";
 import {
   chatAmenityMenuText,
@@ -55,8 +55,11 @@ export type WhatsAppFlowOptions = {
 };
 
 const DEFAULT_PHOTO_ACK_DELAY_MS = 1800;
-const PHOTO_CAP = 6;
 const mediaAckTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function photoCapFor(draft: WhatsAppBotDraft): number {
+  return listingPhotoSlotsRemaining(draft.infographicUrls.length);
+}
 
 function isGreeting(text: string): boolean {
   return /^(hola|hello|hi|hey|buenas|buen[oa]s(\s+d[ií]as)?|qu[eé]\s+tal)[\s!.,¿?]*$/i.test(text.trim());
@@ -188,23 +191,25 @@ async function sendDescPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<
   ]);
 }
 
-async function sendPhotosPrompt(sink: ChatSink, count: number): Promise<void> {
+async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
+  const maxPhotos = photoCapFor(draft);
+  const count = draft.photoUrls.length;
   if (count <= 0) {
     await sink.sendQuickReplies(
-      "Mándame las fotos del cuarto. Puedes enviar varias a la vez (hasta 6). Cuando las reciba te pregunto si hay más pendientes.",
+      `Puedes subir hasta ${maxPhotos} fotos.\nMándamelas (varias a la vez está bien). Cuando las reciba te pregunto si hay más pendientes.`,
       [{ title: "Cancelar", payload: "WA_CANCEL" }],
     );
     return;
   }
-  if (count >= PHOTO_CAP) {
-    await sink.sendQuickReplies(`Ya tengo ${PHOTO_CAP} fotos, el máximo. ¿Seguimos?`, [
+  if (count >= maxPhotos) {
+    await sink.sendQuickReplies(`Ya tengo ${maxPhotos} fotos, el máximo. ¿Seguimos?`, [
       { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
       { title: "Cancelar", payload: "WA_CANCEL" },
     ]);
     return;
   }
   await sink.sendQuickReplies(
-    `Recibí ${count} foto${count === 1 ? "" : "s"}. ¿Tienes más pendientes? Puedes mandar varias juntas.`,
+    `Recibí ${count} foto${count === 1 ? "" : "s"} (máximo ${maxPhotos}). ¿Tienes más pendientes? Puedes mandar varias juntas.`,
     [
       { title: "Sí, más fotos", payload: "WA_PHOTOS_MORE" },
       { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
@@ -240,8 +245,7 @@ function scheduleMediaAck(
       await sendInfographicPrompt(sink, count);
       return;
     }
-    const count = chat?.draft.photoUrls.length ?? 0;
-    await sendPhotosPrompt(sink, count);
+    await sendPhotosPrompt(sink, chat?.draft ?? emptyWhatsAppDraft());
   };
   if (delayMs <= 0) return fire();
   const t = setTimeout(() => {
@@ -344,7 +348,7 @@ async function continueAfterPhotos(
   publisherId?: string,
 ): Promise<void> {
   if (draft.photoUrls.length < 1) {
-    await sendPhotosPrompt(sink, 0);
+    await sendPhotosPrompt(sink, draft);
     return;
   }
   save(db, psid, "pub_desc", draft, publisherId);
@@ -421,8 +425,10 @@ async function continueAfterInfographics(
     await sink.sendText("Estoy leyendo el infográfico…");
     next = await enrichPublishDraftFromInfographics(db, uploadDir, next);
   }
+  const photoCap = photoCapFor(next);
+  if (next.photoUrls.length > photoCap) next = { ...next, photoUrls: next.photoUrls.slice(0, photoCap) };
   save(db, psid, "pub_photos", next, publisherId);
-  await sendPhotosPrompt(sink, next.photoUrls.length);
+  await sendPhotosPrompt(sink, next);
 }
 
 export async function processWhatsAppUserInput(
@@ -484,7 +490,7 @@ export async function processWhatsAppUserInput(
       if (draft.photoUrls.length < 1) {
         save(db, psid, "pub_photos", draft, publisherId);
         await sink.sendText("Ubicación guardada (aproximada). Ahora mándame fotos del cuarto.");
-        await sendPhotosPrompt(sink, 0);
+        await sendPhotosPrompt(sink, draft);
         return;
       }
       if (draft.rentMxn == null) {
@@ -652,8 +658,10 @@ export async function processWhatsAppUserInput(
     return;
   }
   if (payload === "WA_INFO_NO") {
+    const photoCap = photoCapFor(draft);
+    if (draft.photoUrls.length > photoCap) draft = { ...draft, photoUrls: draft.photoUrls.slice(0, photoCap) };
     save(db, psid, "pub_photos", draft, publisherId);
-    await sendPhotosPrompt(sink, draft.photoUrls.length);
+    await sendPhotosPrompt(sink, draft);
     return;
   }
   if (payload === "WA_INFO_MORE") {
@@ -722,7 +730,7 @@ export async function processWhatsAppUserInput(
   if (payload === "WA_PHOTOS_MORE") {
     save(db, psid, "pub_photos", draft, publisherId);
     await sink.sendText(
-      `Mándalas (varias a la vez está bien). Llevo ${draft.photoUrls.length} de ${PHOTO_CAP}. Te pregunto de nuevo cuando las reciba.`,
+      `Mándalas (varias a la vez está bien). Llevo ${draft.photoUrls.length} de ${photoCapFor(draft)}. Te pregunto de nuevo cuando las reciba.`,
     );
     return;
   }
@@ -854,7 +862,7 @@ export async function processWhatsAppUserInput(
     draft = await enrichPublishDraftFromText(draft, textRaw);
     save(db, psid, "pub_photos", draft, publisherId);
     await sink.sendText("Anotado. Sigue mandando fotos o, si ya no hay más, pulsa No, seguir.");
-    await sendPhotosPrompt(sink, draft.photoUrls.length);
+    await sendPhotosPrompt(sink, draft);
     return;
   }
 

@@ -1,4 +1,6 @@
 /** Imagen en borrador del wizard; la portada se persiste como primera URL al publicar. */
+import { LISTING_IMAGE_COUNT_MAX } from "@/lib/listingImageUrls";
+
 export type DraftImage = {
   url: string;
   isCover: boolean;
@@ -225,7 +227,7 @@ export function assignDraftPhoto<T extends AssignablePhotoDraft>(
     const nextShared = draftImagesAppend(
       preferDraftImages(stripped.commonAreaPhotos, stripped.propertyImageUrls),
       item,
-      20,
+      LISTING_IMAGE_COUNT_MAX,
     );
     return syncDraftPhotoArrays({
       ...stripped,
@@ -237,7 +239,7 @@ export function assignDraftPhoto<T extends AssignablePhotoDraft>(
   const idx = Number(dest.slice("room:".length)) - 1;
   if (!Number.isFinite(idx) || idx < 0 || idx >= stripped.rooms.length) return stripped;
   const row = preferDraftImages(stripped.rooms[idx]?.photos, stripped.roomImageUrls?.[idx]);
-  const nextRow = draftImagesAppend(row, { url: trimmed, isCover: row.length === 0 }, 20);
+  const nextRow = draftImagesAppend(row, { url: trimmed, isCover: row.length === 0 }, LISTING_IMAGE_COUNT_MAX);
   return syncDraftPhotoArrays({
     ...stripped,
     rooms: stripped.rooms.map((room, i) => (i === idx ? { ...room, photos: nextRow } : room)),

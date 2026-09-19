@@ -24,6 +24,7 @@ import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { PropertyRoomManager } from "@/components/publish/PropertyRoomManager";
 import { PublishWizardReviewStep } from "@/components/publish/PublishWizardReviewStep";
 import { PublishWizardActionBar } from "@/components/publish/PublishWizardActionBar";
+import { LISTING_IMAGE_COUNT_MAX } from "@/lib/listingImageUrls";
 import {
   deleteDraftRoom,
   fetchPropertyWithRooms,
@@ -2481,7 +2482,7 @@ export function PublishWizardPage() {
                     <BulkImageUploader
                       title="Fotos de áreas comunes"
                       images={draft.commonAreaPhotos}
-                      maxCount={40}
+                      maxCount={LISTING_IMAGE_COUNT_MAX}
                       apiOn={apiOn}
                       hint="Sala, cocina, baños compartidos, lavandería, estacionamiento, fachada y jardín."
                       onImagesChange={(next) =>
@@ -3019,7 +3020,7 @@ export function PublishWizardPage() {
                       <BulkImageUploader
                         title="Fotos de tu espacio"
                         images={draftRoomEditorImages(draft, i)}
-                        maxCount={20}
+                        maxCount={LISTING_IMAGE_COUNT_MAX}
                         apiOn={apiOn}
                         hint={ROOM_SINGLE_FLOW_PHOTO_HINT}
                         onImagesChange={(next) => {

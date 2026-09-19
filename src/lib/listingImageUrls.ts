@@ -1,6 +1,9 @@
 import type { PropertyListing } from "@/types/listing";
 import { apiAbsoluteUrl } from "@/lib/mediaUrl";
 
+/** Max images stored on one property or room gallery (must match server `LISTING_IMAGE_COUNT_MAX`). */
+export const LISTING_IMAGE_COUNT_MAX = 12;
+
 const LISTING_IMAGE_URL_LEN_MAX = 240;
 
 /** Keep only persisted upload paths the API accepts (`/api/uploads/...`). */
@@ -32,7 +35,7 @@ export function listingImageUrlsForApi(input: readonly string[]): string[] {
     const path = normalizeListingImageUrlForApi(raw);
     if (!path || out.includes(path)) continue;
     out.push(path);
-    if (out.length >= 12) break;
+    if (out.length >= LISTING_IMAGE_COUNT_MAX) break;
   }
   return out;
 }

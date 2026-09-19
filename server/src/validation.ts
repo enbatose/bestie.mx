@@ -144,7 +144,8 @@ export function contactWhatsAppOkForPublish(showPublic: boolean, storedDigits: s
 }
 
 const LISTING_IMAGE_URL_LEN_MAX = 240;
-const LISTING_IMAGE_COUNT_MAX = 12;
+/** Max images stored on one property or room gallery row (published). */
+export const LISTING_IMAGE_COUNT_MAX = 12;
 
 function normalizeUploadPath(raw: string, maxLen: number): string | null {
   const t = raw.trim();

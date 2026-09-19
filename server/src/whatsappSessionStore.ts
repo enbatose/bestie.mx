@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { SELF_SERVE_MAX_INFOGRAPHICS } from "./assistedDraftLimits.js";
+import { SELF_SERVE_MAX_INFOGRAPHICS, listingPhotoSlotsRemaining } from "./assistedDraftLimits.js";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "./types.js";
 
 export type WhatsAppBotDraft = {
@@ -86,8 +86,6 @@ function asTags(raw: unknown): ListingTag[] {
   return raw.filter((t): t is ListingTag => typeof t === "string" && TAGS.includes(t));
 }
 
-const PHOTO_CAP = 6;
-
 export function emptyWhatsAppDraft(): WhatsAppBotDraft {
   return {
     intent: null,
@@ -135,7 +133,7 @@ function parseDraft(raw: string): WhatsAppBotDraft {
   const base = emptyWhatsAppDraft();
   try {
     const j = JSON.parse(raw) as Partial<WhatsAppBotDraft>;
-    return {
+    const draft: WhatsAppBotDraft = {
       ...base,
       intent: j.intent === "search" || j.intent === "publish" ? j.intent : null,
       q: typeof j.q === "string" ? j.q : "",
@@ -152,7 +150,7 @@ function parseDraft(raw: string): WhatsAppBotDraft {
           : null,
       sourceText: typeof j.sourceText === "string" ? j.sourceText.slice(0, 4000) : "",
       photoUrls: Array.isArray(j.photoUrls)
-        ? j.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/")).slice(0, PHOTO_CAP)
+        ? j.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/"))
         : [],
       infographicUrls: Array.isArray(j.infographicUrls)
         ? j.infographicUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/")).slice(0, SELF_SERVE_MAX_INFOGRAPHICS)
@@ -190,6 +188,9 @@ function parseDraft(raw: string): WhatsAppBotDraft {
       genderSet: j.genderSet === true,
       tagsConfirmed: j.tagsConfirmed === true,
     };
+    const photoCap = listingPhotoSlotsRemaining(draft.infographicUrls.length);
+    if (draft.photoUrls.length > photoCap) draft.photoUrls = draft.photoUrls.slice(0, photoCap);
+    return draft;
   } catch {
     return base;
   }
@@ -230,12 +231,13 @@ export function upsertWhatsAppChat(
   return { publisherId, flow, draft };
 }
 
-export function mergeWhatsAppPhotoUrls(existing: string[], incoming: string[]): string[] {
+export function mergeWhatsAppPhotoUrls(existing: string[], incoming: string[], max: number): string[] {
+  const cap = Math.max(0, Math.floor(max) || 0);
   const out = [...existing];
   for (const raw of incoming) {
     if (typeof raw !== "string" || !raw.startsWith("/api/uploads/")) continue;
     if (out.includes(raw)) continue;
-    if (out.length >= PHOTO_CAP) break;
+    if (out.length >= cap) break;
     out.push(raw);
   }
   return out;
@@ -266,8 +268,14 @@ function appendWhatsAppUrls(
     draft.intent = "publish";
     if (kind === "infographic") {
       draft.infographicUrls = mergeWhatsAppInfographicUrls(draft.infographicUrls, urls);
+      const photoCap = listingPhotoSlotsRemaining(draft.infographicUrls.length);
+      if (draft.photoUrls.length > photoCap) draft.photoUrls = draft.photoUrls.slice(0, photoCap);
     } else {
-      draft.photoUrls = mergeWhatsAppPhotoUrls(draft.photoUrls, urls);
+      draft.photoUrls = mergeWhatsAppPhotoUrls(
+        draft.photoUrls,
+        urls,
+        listingPhotoSlotsRemaining(draft.infographicUrls.length),
+      );
     }
     if (extra?.sourceText?.trim()) {
       draft.sourceText = [draft.sourceText, extra.sourceText.trim()].filter(Boolean).join("\n").slice(0, 4000);

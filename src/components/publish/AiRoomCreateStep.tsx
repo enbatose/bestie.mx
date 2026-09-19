@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CITY_ANCHOR } from "@/lib/publishWizard/publishCore";
+import { LISTING_IMAGE_COUNT_MAX } from "@/lib/listingImageUrls";
 import { AiImageDropZone, type AiLocalImage } from "@/components/publish/AiImageDropZone";
 import {
   PublishAiFilterChips,
@@ -39,6 +40,13 @@ export function AiRoomCreateStep({
 
   useEffect(() => {
     if (infographics.length > 0) setInfographicOpen(true);
+  }, [infographics.length]);
+
+  useEffect(() => {
+    const photoCap = Math.max(0, LISTING_IMAGE_COUNT_MAX - infographics.length);
+    if (photos.length > photoCap) onPhotosChange(photos.slice(0, photoCap));
+    // Only re-trim when infographics take more gallery slots.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- photos/onPhotosChange would loop
   }, [infographics.length]);
 
   return (
@@ -89,13 +97,13 @@ export function AiRoomCreateStep({
         <AiImageDropZone
           images={photos}
           onImages={onPhotosChange}
-          maxCount={20}
+          maxCount={Math.max(0, LISTING_IMAGE_COUNT_MAX - infographics.length)}
           showCamera
           label={variant === "property" ? "Fotos de la propiedad y recámaras" : "Fotos de tu espacio"}
           hint={
             variant === "property"
               ? "Súbelas todas juntas. Quedan en áreas compartidas; en Verificar puedes pasarlas a cada recámara. No las lee la IA."
-              : "Estas fotos se publican en el anuncio. No las lee la IA. Pega, arrastra, elige archivo o toma una foto."
+              : `Puedes subir hasta ${Math.max(0, LISTING_IMAGE_COUNT_MAX - infographics.length)} fotos. Estas se publican en el anuncio. No las lee la IA.`
           }
         />
       </div>

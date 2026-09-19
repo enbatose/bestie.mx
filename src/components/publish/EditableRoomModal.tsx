@@ -4,6 +4,7 @@ import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { ListingPhotoGallery } from "@/components/listing/ListingPhotoGallery";
 import { ListingRoomDetailsGrid } from "@/components/listing/ListingPropertySummaryGrid";
 import { CONSULTAR_RENT_LABEL } from "@/lib/listingPricing";
+import { LISTING_IMAGE_COUNT_MAX } from "@/lib/listingImageUrls";
 import { ListingHeroPrice } from "@/components/listing/PublicListingHeader";
 import { RoomOnOffToggle, RoomOccupancyBadge } from "@/components/myListings/listingCardChrome";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
@@ -616,13 +617,13 @@ export function EditableRoomModal({
                         draft={draft}
                         roomIndex={roomIndex}
                         roomPhotos={localRoom.photos ?? []}
-                        maxCount={20}
+                        maxCount={LISTING_IMAGE_COUNT_MAX}
                         onTake={(next) => setLocalRoom((r) => ({ ...r, photos: next }))}
                       />
                       <BulkImageUploader
                         title={draft.postMode === "room" ? "Fotos de tu espacio" : `Recámara ${roomIndex + 1}`}
                         images={draftRoomEditorImages(draft, roomIndex, localRoom.photos)}
-                        maxCount={20}
+                        maxCount={LISTING_IMAGE_COUNT_MAX}
                         apiOn={apiOn}
                         hint={draft.postMode === "room" ? ROOM_SINGLE_FLOW_PHOTO_HINT : undefined}
                         onPickerOpen={onPhotoPickerOpen}

@@ -4,6 +4,7 @@ import { BulkImageUploader } from "@/components/BulkImageUploader";
 import { FieldCharCount } from "@/components/publish/FieldCharCount";
 import { ResizableTextarea } from "@/components/publish/ResizableTextarea";
 import { TagChoiceSection } from "@/components/publish/TagChoiceSection";
+import { LISTING_IMAGE_COUNT_MAX } from "@/lib/listingImageUrls";
 import {
   RoomBathroomField,
   RoomHouseRuleFactFields,
@@ -459,7 +460,7 @@ export function RoomActivationModal({
             <BulkImageUploader
               title={`Fotos de ${draft.customName.trim() || roomLabel}`}
               images={draft.photos}
-              maxCount={20}
+              maxCount={LISTING_IMAGE_COUNT_MAX}
               apiOn={apiOn}
               hint="Solo el interior de esta recámara. No incluyas sala, cocina ni otras áreas comunes."
               onImagesChange={(photos) => patch({ photos })}
