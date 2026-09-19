@@ -64,18 +64,12 @@ export function chatTagLabels(slugs: readonly ListingTag[]): string[] {
   return slugs.map(chatTagLabel);
 }
 
-/** The numbered menu, two options per line so it stays short on a phone. */
+/** One amenity per line so numbers stay easy to scan on a phone. */
 export function chatAmenityMenuText(already: readonly ListingTag[]): string {
   const have = new Set(already);
-  const lines: string[] = [];
-  for (let i = 0; i < CHAT_AMENITY_OPTIONS.length; i += 2) {
-    lines.push(
-      CHAT_AMENITY_OPTIONS.slice(i, i + 2)
-        .map((o) => `${o.n}. ${o.label}${have.has(o.slug) ? " ✅" : ""}`)
-        .join("   "),
-    );
-  }
-  return lines.join("\n");
+  return CHAT_AMENITY_OPTIONS.map(
+    (o) => `${o.n}. ${o.label}${have.has(o.slug) ? " ✅" : ""}`,
+  ).join("\n");
 }
 
 /** Parses "1,3 5" / "1 y 3" into tags. Ignores numbers outside the menu. */

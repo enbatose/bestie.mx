@@ -404,13 +404,19 @@ async function sendDepositPrompt(sink: ChatSink, rentMxn: number | null): Promis
 
 async function sendTagsPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
   const detected = chatTagLabels(draft.pubTags);
-  const head = detected.length
-    ? `Ya detecté: ${detected.join(", ")}.`
-    : "Todavía no tengo etiquetas del cuarto.";
+  const alreadyLine = detected.length
+    ? `Ya tengo: ${detected.join(", ")}.`
+    : null;
+  const howTo = detected.length
+    ? "Escribe solo los números que falten (ej. 1,4,6)."
+    : "Escribe los números de lo que sí tiene (ej. 1,3,5).";
   await sink.sendQuickReplies(
     waStep({
       question: "¿Qué incluye el cuarto?",
-      description: `${head}\nResponde con los números de lo que SÍ tiene (ej. 1,3,5) y los agrego. Si ya está completo, pulsa Listo.\n\n${chatAmenityMenuText(draft.pubTags)}`,
+      description: [alreadyLine, howTo, "", chatAmenityMenuText(draft.pubTags)]
+        .filter((line): line is string => line != null)
+        .join("\n"),
+      aside: "Si ya está completo, pulsa Listo.",
     }),
     [
       { title: "Listo", payload: "WA_TAGS_DONE" },
@@ -1039,8 +1045,8 @@ export async function processWhatsAppUserInput(
     if (!picked.length) {
       await sink.sendText(
         waStep({
-          question: "¿Qué incluye?",
-          description: "Responde con números del menú, por ejemplo 1,3,5. O pulsa Listo si ya está completo.",
+          question: "¿Qué números faltan?",
+          description: "Ejemplo: 1,4,6. O pulsa Listo si ya está completo.",
         }),
       );
       await sendTagsPrompt(sink, draft);
