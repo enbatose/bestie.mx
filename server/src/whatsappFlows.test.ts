@@ -216,8 +216,9 @@ describe("WhatsApp bot flows", () => {
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_GENDER:female" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_deposit");
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:rent" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags_add");
     await processWhatsAppUserInput(db, pubPsid, FROM, { text: "1,3,5" }, sink);
+    expect(texts.some((t) => /\*¿Algo más\?\*/.test(t) && /Añadí:/.test(t))).toBe(true);
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_TAGS_DONE" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
 
@@ -257,7 +258,7 @@ describe("WhatsApp bot flows", () => {
     expect(row?.rent_mxn).toBe(6500);
     expect(row?.deposit_mxn).toBe(6500);
     expect(JSON.parse(row?.tags_json ?? "[]")).toEqual(
-      expect.arrayContaining(["wifi", "baño-privado", "estacionamiento"]),
+      expect.arrayContaining(["wifi", "baño-privado", "mascotas"]),
     );
     expect(row?.roommate_gender_pref).toBe("female");
     expect(row?.room_dimension).toBe("large");
@@ -294,7 +295,38 @@ describe("WhatsApp bot flows", () => {
       },
     });
     await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6000" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags_add");
+  });
+
+  it("confirm-first when the draft already has enough amenity tags", async () => {
+    const pubPsid = `${PSID}-tags-confirm`;
+    const { sink, texts } = capturingSink();
+    await skipToPhotos(pubPsid, sink);
+    const chat = getWhatsAppChat(db, pubPsid)!;
+    upsertWhatsAppChat(db, pubPsid, {
+      flow: "pub_deposit",
+      draft: {
+        ...chat.draft,
+        photoUrls: ["/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-200000000001.jpg"],
+        locLat: 20.6746,
+        locLng: -103.3665,
+        locLabel: "Centro",
+        rentMxn: 6000,
+        roomKindSet: true,
+        genderSet: true,
+        depositMxn: 0,
+        pubTags: ["wifi", "baño-privado", "mascotas"],
+      },
+    });
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:0" }, sink);
+    // Already at tags after deposit was set — trigger essentials by a no-op done path:
+    // deposit already set, so send a dummy that continues… actually WA_DEP:0 with deposit already
+    // set still runs continueToEssentials. Flow should be confirm.
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
+    expect(texts.some((t) => /\*¿Confirmamos lo que incluye\?\*/.test(t))).toBe(true);
+    expect(texts.some((t) => /1\. Wifi/.test(t))).toBe(false);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_TAGS_DONE" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
   });
 
   it("keeps a denied tag out of the published post", async () => {
