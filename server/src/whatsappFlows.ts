@@ -57,6 +57,19 @@ export type WhatsAppFlowOptions = {
 const DEFAULT_PHOTO_ACK_DELAY_MS = 1800;
 const mediaAckTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * WhatsApp body formatting for step prompts:
+ * *bold* = main question, plain = short description, _italic_ = aside / extra context.
+ */
+function waStep(opts: { question: string; description?: string; aside?: string }): string {
+  const parts = [`*${opts.question.trim()}*`];
+  const desc = opts.description?.trim();
+  if (desc) parts.push("", desc);
+  const aside = opts.aside?.trim();
+  if (aside) parts.push("", `_${aside}_`);
+  return parts.join("\n");
+}
+
 function photoCapFor(draft: WhatsAppBotDraft): number {
   return listingPhotoSlotsRemaining(draft.infographicUrls.length);
 }
@@ -76,29 +89,40 @@ function isInfographicFlow(flow: string): boolean {
 }
 
 async function sendMenu(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("Hola, soy Bestie. ¿Qué quieres hacer en Guadalajara?", [
-    { title: "Buscar cuarto", payload: "WA_SEARCH" },
-    { title: "Publicar", payload: "WA_PUB" },
-    { title: "Ayuda", payload: "WA_HELP" },
-  ]);
+  await sink.sendQuickReplies(
+    ["Hola, soy Bestie.", "", "*¿Qué quieres hacer en Guadalajara?*"].join("\n"),
+    [
+      { title: "Buscar cuarto", payload: "WA_SEARCH" },
+      { title: "Publicar", payload: "WA_PUB" },
+      { title: "Ayuda", payload: "WA_HELP" },
+    ],
+  );
 }
 
 async function sendHelp(sink: ChatSink): Promise<void> {
   const base = publicWebOrigin();
   await sink.sendText(
     [
+      "*¿Cómo te ayudo?*",
+      "",
       "Elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato, más lo que hay cerca y en todo Guadalajara. Después puedes ajustar presupuesto o preferencia.",
+      "",
       "También puedes publicar un solo cuarto: infográficos (hasta 2; la IA los lee y van a la galería), fotos del espacio, descripción opcional, renta exacta, tipo de recámara, depósito, etiquetas, ubicación aproximada y un toque para aceptar términos.",
+      "",
       `Mapa: ${base}/buscar`,
       `Términos: ${base}/legal/terminos`,
-      "Soporte: contacto@bestie.mx",
-    ].join("\n\n"),
+      "_Soporte: contacto@bestie.mx_",
+    ].join("\n"),
   );
 }
 
 async function sendZoneStep(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
-    "¿Cerca de dónde buscas? Te mando anuncios en cuanto elijas (Guadalajara, ~3.5 km).",
+    waStep({
+      question: "¿Cerca de dónde buscas?",
+      description: "Te mando anuncios en cuanto elijas.",
+      aside: "Guadalajara, ~3.5 km.",
+    }),
     [
       ...CHAT_MENU_POIS.map((p) => ({ title: p.title, payload: `WA_POI:${p.id}` })),
       { title: "Otra zona", payload: "WA_POI:other" },
@@ -107,7 +131,7 @@ async function sendZoneStep(sink: ChatSink): Promise<void> {
 }
 
 async function sendBudgetStep(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("¿Presupuesto mensual máximo?", [
+  await sink.sendQuickReplies(waStep({ question: "¿Presupuesto mensual máximo?" }), [
     { title: "Hasta $5,000", payload: "WA_BD:5000" },
     { title: "Hasta $8,000", payload: "WA_BD:8000" },
     { title: "Hasta $12,000", payload: "WA_BD:12000" },
@@ -116,11 +140,17 @@ async function sendBudgetStep(sink: ChatSink): Promise<void> {
 }
 
 async function sendPrefStep(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("Preferencia de roomies del anuncio:", [
-    { title: "Cualquiera", payload: "WA_PREF:any" },
-    { title: "Pref. mujer", payload: "WA_PREF:female" },
-    { title: "Pref. hombre", payload: "WA_PREF:male" },
-  ]);
+  await sink.sendQuickReplies(
+    waStep({
+      question: "¿Preferencia de roomies del anuncio?",
+      aside: "Es un filtro de búsqueda.",
+    }),
+    [
+      { title: "Cualquiera", payload: "WA_PREF:any" },
+      { title: "Pref. mujer", payload: "WA_PREF:female" },
+      { title: "Pref. hombre", payload: "WA_PREF:male" },
+    ],
+  );
 }
 
 function save(db: DatabaseSync, psid: string, flow: string, draft: WhatsAppBotDraft, publisherId?: string) {
@@ -140,13 +170,12 @@ async function finishSearch(
 
 async function sendInfographicAsk(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
-    [
-      "¿Tienes un infográfico del cuarto?",
-      "",
-      "Es una sola imagen (flyer o plantilla) con datos como renta, zona o reglas — a veces con fotos mezcladas. Puedes mandar hasta 2.",
-      "",
-      "Las fotos reales del espacio (cuarto, baño, cocina…) las pedimos en el siguiente paso.",
-    ].join("\n"),
+    waStep({
+      question: "¿Tienes un infográfico del cuarto?",
+      description:
+        "Es una sola imagen (flyer o plantilla) con datos como renta, zona o reglas — a veces con fotos mezcladas. Puedes mandar hasta 2.",
+      aside: "Las fotos reales del espacio (cuarto, baño, cocina…) las pedimos en el siguiente paso.",
+    }),
     [
       { title: "Sí, tengo", payload: "WA_INFO_YES" },
       { title: "No", payload: "WA_INFO_NO" },
@@ -158,20 +187,33 @@ async function sendInfographicAsk(sink: ChatSink): Promise<void> {
 async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<void> {
   if (count <= 0) {
     await sink.sendQuickReplies(
-      "Mándame hasta 2 infográficos (JPG o PNG). Después te pediré las fotos reales del espacio.",
+      waStep({
+        question: "¿Me mandas el infográfico?",
+        description: "Hasta 2 imágenes en JPG o PNG.",
+        aside: "Después te pediré las fotos reales del espacio.",
+      }),
       [{ title: "No tengo", payload: "WA_INFO_NO" }, { title: "Cancelar", payload: "WA_CANCEL" }],
     );
     return;
   }
   if (count >= SELF_SERVE_MAX_INFOGRAPHICS) {
-    await sink.sendQuickReplies(`Ya tengo ${SELF_SERVE_MAX_INFOGRAPHICS} infográficos, el máximo. ¿Seguimos?`, [
-      { title: "No, seguir", payload: "WA_INFO_DONE" },
-      { title: "Cancelar", payload: "WA_CANCEL" },
-    ]);
+    await sink.sendQuickReplies(
+      waStep({
+        question: "¿Seguimos?",
+        description: `Ya tengo ${SELF_SERVE_MAX_INFOGRAPHICS} infográficos, el máximo.`,
+      }),
+      [
+        { title: "No, seguir", payload: "WA_INFO_DONE" },
+        { title: "Cancelar", payload: "WA_CANCEL" },
+      ],
+    );
     return;
   }
   await sink.sendQuickReplies(
-    `Recibí ${count} infográfico${count === 1 ? "" : "s"}. ¿Tienes otro (máximo ${SELF_SERVE_MAX_INFOGRAPHICS})?`,
+    waStep({
+      question: "¿Tienes otro infográfico?",
+      description: `Recibí ${count} (máximo ${SELF_SERVE_MAX_INFOGRAPHICS}).`,
+    }),
     [
       { title: "Sí, otro", payload: "WA_INFO_MORE" },
       { title: "No, seguir", payload: "WA_INFO_DONE" },
@@ -182,13 +224,18 @@ async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<voi
 
 async function sendDescPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
   const hasInfo = draft.infographicUrls.length > 0;
-  const body = hasInfo
-    ? "¿Quieres añadir una descripción del cuarto? Es opcional: el infográfico ya aporta datos. Escríbela o pulsa Saltar."
-    : "¿Quieres añadir una descripción del cuarto? Es opcional, pero ayuda si no hay infográfico. Escríbela o pulsa Saltar.";
-  await sink.sendQuickReplies(body, [
-    { title: "Saltar", payload: "WA_DESC_SKIP" },
-    { title: "Cancelar", payload: "WA_CANCEL" },
-  ]);
+  await sink.sendQuickReplies(
+    waStep({
+      question: "¿Quieres añadir una descripción del cuarto?",
+      description: hasInfo
+        ? "Es opcional: el infográfico ya aporta datos. Escríbela o pulsa Saltar."
+        : "Es opcional, pero ayuda si no hay infográfico. Escríbela o pulsa Saltar.",
+    }),
+    [
+      { title: "Saltar", payload: "WA_DESC_SKIP" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ],
+  );
 }
 
 async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
@@ -196,7 +243,11 @@ async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promis
   const count = draft.photoUrls.length;
   if (count <= 0) {
     await sink.sendQuickReplies(
-      `Puedes subir hasta ${maxPhotos} fotos.\nMándamelas (varias a la vez está bien). Si aún no tienes, puedes saltar y subirlas después.`,
+      waStep({
+        question: "¿Tienes fotos del espacio?",
+        description: `Puedes subir hasta ${maxPhotos} fotos. Mándamelas (varias a la vez está bien).`,
+        aside: "Si aún no tienes, puedes saltar y subirlas después.",
+      }),
       [
         { title: "Saltar", payload: "WA_PHOTOS_SKIP" },
         { title: "Cancelar", payload: "WA_CANCEL" },
@@ -205,14 +256,23 @@ async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promis
     return;
   }
   if (count >= maxPhotos) {
-    await sink.sendQuickReplies(`Ya tengo ${maxPhotos} fotos, el máximo. ¿Seguimos?`, [
-      { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
-      { title: "Cancelar", payload: "WA_CANCEL" },
-    ]);
+    await sink.sendQuickReplies(
+      waStep({
+        question: "¿Seguimos?",
+        description: `Ya tengo ${maxPhotos} fotos, el máximo.`,
+      }),
+      [
+        { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
+        { title: "Cancelar", payload: "WA_CANCEL" },
+      ],
+    );
     return;
   }
   await sink.sendQuickReplies(
-    `Recibí ${count} foto${count === 1 ? "" : "s"} (máximo ${maxPhotos}). ¿Tienes más pendientes? Puedes mandar varias juntas.`,
+    waStep({
+      question: "¿Tienes más fotos pendientes?",
+      description: `Recibí ${count} (máximo ${maxPhotos}). Puedes mandar varias juntas.`,
+    }),
     [
       { title: "Sí, más fotos", payload: "WA_PHOTOS_MORE" },
       { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
@@ -261,7 +321,11 @@ function scheduleMediaAck(
 
 async function sendLocationPrompt(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
-    "Comparte tu ubicación con el clip de WhatsApp, o escribe colonia / calle. El pin será aproximado (100–1000 m) para tu privacidad.",
+    waStep({
+      question: "¿Dónde queda el cuarto?",
+      description: "Comparte tu ubicación con el clip de WhatsApp, o escribe colonia / calle.",
+      aside: "El pin será aproximado (100–1000 m) para tu privacidad.",
+    }),
     [
       { title: "Cancelar", payload: "WA_CANCEL" },
     ],
@@ -276,7 +340,11 @@ function rentConfirmTitle(amount: number): string {
 async function sendRentPrompt(sink: ChatSink, draft: WhatsAppBotDraft, forceType = false): Promise<void> {
   if (!forceType && draft.rentMxn != null) {
     await sink.sendQuickReplies(
-      `Leí $${draft.rentMxn} MXN al mes en lo que enviaste. ¿Es ese el monto exacto? Si no, escribe un solo número (sin rango).`,
+      waStep({
+        question: "¿Es ese el monto exacto?",
+        description: `Leí $${draft.rentMxn} MXN al mes en lo que enviaste.`,
+        aside: "Si no, escribe un solo número (sin rango).",
+      }),
       [
         { title: rentConfirmTitle(draft.rentMxn), payload: "WA_RENT_OK" },
         { title: "Otro monto", payload: "WA_RENT_EDIT" },
@@ -286,7 +354,11 @@ async function sendRentPrompt(sink: ChatSink, draft: WhatsAppBotDraft, forceType
     return;
   }
   await sink.sendQuickReplies(
-    "¿Cuál es la renta mensual exacta? Escribe un solo monto en pesos, por ejemplo 6500. No uses un rango.",
+    waStep({
+      question: "¿Cuál es la renta mensual exacta?",
+      description: "Escribe un solo monto en pesos, por ejemplo 6500.",
+      aside: "No uses un rango.",
+    }),
     [{ title: "Cancelar", payload: "WA_CANCEL" }],
   );
 }
@@ -300,7 +372,7 @@ async function sendPreview(sink: ChatSink, draft: WhatsAppBotDraft): Promise<voi
 }
 
 async function sendRoomKindPrompt(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("¿Cómo es la recámara que rentas?", [
+  await sink.sendQuickReplies(waStep({ question: "¿Cómo es la recámara que rentas?" }), [
     { title: "Privada individual", payload: "WA_KIND:private:small" },
     { title: "Privada matrimonial", payload: "WA_KIND:private:medium" },
     { title: "Privada grande", payload: "WA_KIND:private:large" },
@@ -309,15 +381,21 @@ async function sendRoomKindPrompt(sink: ChatSink): Promise<void> {
 }
 
 async function sendRoomiesPrompt(sink: ChatSink): Promise<void> {
-  await sink.sendQuickReplies("¿Prefieres roomie de algún género? Es un filtro de búsqueda.", [
-    { title: "Cualquiera", payload: "WA_GENDER:any" },
-    { title: "Prefiero mujer", payload: "WA_GENDER:female" },
-    { title: "Prefiero hombre", payload: "WA_GENDER:male" },
-  ]);
+  await sink.sendQuickReplies(
+    waStep({
+      question: "¿Prefieres roomie de algún género?",
+      aside: "Es un filtro de búsqueda.",
+    }),
+    [
+      { title: "Cualquiera", payload: "WA_GENDER:any" },
+      { title: "Prefiero mujer", payload: "WA_GENDER:female" },
+      { title: "Prefiero hombre", payload: "WA_GENDER:male" },
+    ],
+  );
 }
 
 async function sendDepositPrompt(sink: ChatSink, rentMxn: number | null): Promise<void> {
-  await sink.sendQuickReplies("¿Pides depósito?", [
+  await sink.sendQuickReplies(waStep({ question: "¿Pides depósito?" }), [
     { title: "Sin depósito", payload: "WA_DEP:0" },
     ...(rentMxn != null ? [{ title: "Un mes de renta", payload: "WA_DEP:rent" }] : []),
     { title: "Otro monto", payload: "WA_DEP:other" },
@@ -330,12 +408,10 @@ async function sendTagsPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<
     ? `Ya detecté: ${detected.join(", ")}.`
     : "Todavía no tengo etiquetas del cuarto.";
   await sink.sendQuickReplies(
-    [
-      head,
-      "Responde con los números de lo que SÍ tiene (ej. 1,3,5) y los agrego. Si ya está completo, pulsa Listo.",
-      "",
-      chatAmenityMenuText(draft.pubTags),
-    ].join("\n"),
+    waStep({
+      question: "¿Qué incluye el cuarto?",
+      description: `${head}\nResponde con los números de lo que SÍ tiene (ej. 1,3,5) y los agrego. Si ya está completo, pulsa Listo.\n\n${chatAmenityMenuText(draft.pubTags)}`,
+    }),
     [
       { title: "Listo", payload: "WA_TAGS_DONE" },
       { title: "Cancelar", payload: "WA_CANCEL" },
@@ -475,7 +551,9 @@ export async function processWhatsAppUserInput(
       draft.intent = "publish";
       if (isInfographicFlow(flow) || flow === "pub_desc") {
         save(db, psid, flow, draft, publisherId);
-        await sink.sendText(`Ubicación guardada (aproximada${draft.locLabel ? `: ${draft.locLabel}` : ""}). Sigue con este paso.`);
+        await sink.sendText(
+          `Ubicación guardada (aproximada${draft.locLabel ? `: ${draft.locLabel}` : ""}). _Sigue con este paso._`,
+        );
         if (isInfographicFlow(flow)) await sendInfographicPrompt(sink, draft.infographicUrls.length);
         else await sendDescPrompt(sink, draft);
         return;
@@ -488,7 +566,7 @@ export async function processWhatsAppUserInput(
       }
       if (draft.photoUrls.length < 1) {
         save(db, psid, "pub_photos", draft, publisherId);
-        await sink.sendText("Ubicación guardada (aproximada). Ahora mándame fotos del cuarto.");
+        await sink.sendText("*Ubicación guardada (aproximada).* Ahora mándame fotos del cuarto.");
         await sendPhotosPrompt(sink, draft);
         return;
       }
@@ -506,7 +584,7 @@ export async function processWhatsAppUserInput(
   const imageIds = inboundImageIds(inbound);
   if (imageIds.length) {
     if (!flow.startsWith("pub") && flow !== "idle") {
-      await sink.sendText("Si quieres publicar, pulsa Publicar en el menú y luego manda las fotos.");
+      await sink.sendText("Si quieres publicar, pulsa *Publicar* en el menú y luego manda las fotos.");
       return;
     }
     const saveImage =
@@ -517,7 +595,7 @@ export async function processWhatsAppUserInput(
       await Promise.all(imageIds.map((id) => saveImage(id).catch(() => null)))
     ).filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/"));
     if (!saved.length) {
-      await sink.sendText("No pude guardar esas fotos. Mándalas otra vez en JPG o PNG.");
+      await sink.sendText("*No pude guardar esas fotos.* Mándalas otra vez en JPG o PNG.");
       return;
     }
 
@@ -573,7 +651,7 @@ export async function processWhatsAppUserInput(
     else if (/^buscar$/i.test(lower)) payload = "WA_SEARCH";
     else if (looksLikePublish(textRaw)) {
       if (!account) {
-        await sink.sendText("Para publicar necesito un celular mexicano (+52) en este chat.");
+        await sink.sendText("*Para publicar necesito un celular mexicano (+52) en este chat.*");
         return;
       }
       draft = await enrichPublishDraftFromText({ ...emptyWhatsAppDraft(), intent: "publish" }, textRaw);
@@ -644,7 +722,7 @@ export async function processWhatsAppUserInput(
   }
   if (payload === "WA_PUB") {
     if (!account) {
-      await sink.sendText("Para publicar necesito un celular mexicano (+52) en este chat.");
+      await sink.sendText("*Para publicar necesito un celular mexicano (+52) en este chat.*");
       return;
     }
     draft = { ...emptyWhatsAppDraft(), intent: "publish" };
@@ -668,7 +746,10 @@ export async function processWhatsAppUserInput(
   if (payload === "WA_INFO_MORE") {
     save(db, psid, "pub_infographics", draft, publisherId);
     await sink.sendText(
-      `Mándalo. Llevo ${draft.infographicUrls.length} de ${SELF_SERVE_MAX_INFOGRAPHICS}.`,
+      waStep({
+        question: "¿Me mandas otro?",
+        description: `Llevo ${draft.infographicUrls.length} de ${SELF_SERVE_MAX_INFOGRAPHICS}.`,
+      }),
     );
     return;
   }
@@ -686,7 +767,12 @@ export async function processWhatsAppUserInput(
     draft.intent = "search";
     if (id === "other") {
       save(db, psid, "search_zone_text", draft, publisherId);
-      await sink.sendText("Escribe la colonia, campus o punto (ej. Americana, CUCEI, Hospital Civil).");
+      await sink.sendText(
+        waStep({
+          question: "¿Otra zona?",
+          description: "Escribe la colonia, campus o punto (ej. Americana, CUCEI, Hospital Civil).",
+        }),
+      );
       return;
     }
     const item = menuPoiById(id);
@@ -731,7 +817,11 @@ export async function processWhatsAppUserInput(
   if (payload === "WA_PHOTOS_MORE") {
     save(db, psid, "pub_photos", draft, publisherId);
     await sink.sendText(
-      `Mándalas (varias a la vez está bien). Llevo ${draft.photoUrls.length} de ${photoCapFor(draft)}. Te pregunto de nuevo cuando las reciba.`,
+      waStep({
+        question: "¿Me mandas más fotos?",
+        description: `Llevo ${draft.photoUrls.length} de ${photoCapFor(draft)}. Puedes mandar varias a la vez.`,
+        aside: "Te pregunto de nuevo cuando las reciba.",
+      }),
     );
     return;
   }
@@ -780,7 +870,12 @@ export async function processWhatsAppUserInput(
     const raw = payload.slice("WA_DEP:".length);
     if (raw === "other") {
       save(db, psid, "pub_deposit", draft, publisherId);
-      await sink.sendText("Escribe el monto del depósito en pesos, por ejemplo 6500.");
+      await sink.sendText(
+        waStep({
+          question: "¿Cuánto es el depósito?",
+          description: "Escribe el monto en pesos, por ejemplo 6500.",
+        }),
+      );
       return;
     }
     draft.depositMxn = raw === "rent" ? (draft.rentMxn ?? 0) : 0;
@@ -803,7 +898,7 @@ export async function processWhatsAppUserInput(
 
   if (payload === "WA_PUBLISH") {
     if (!account) {
-      await sink.sendText("Para publicar necesito un celular mexicano (+52) en este chat.");
+      await sink.sendText("*Para publicar necesito un celular mexicano (+52) en este chat.*");
       return;
     }
     const missing = publishDraftReady(draft);
@@ -824,7 +919,14 @@ export async function processWhatsAppUserInput(
       return;
     }
     save(db, psid, "idle", emptyWhatsAppDraft(), publisherId);
-    await sink.sendText(`Listo, ya está público:\n${result.url}\n\nPuedes editarlo en ${publicWebOrigin()}/mis-anuncios`);
+    await sink.sendText(
+      [
+        "*Listo, ya está público:*",
+        result.url,
+        "",
+        `_Puedes editarlo en ${publicWebOrigin()}/mis-anuncios_`,
+      ].join("\n"),
+    );
     await sendMenu(sink);
     return;
   }
@@ -838,7 +940,12 @@ export async function processWhatsAppUserInput(
     draft = await enrichDraftFromSearchText(draft, textRaw);
     if (draft.poiLat == null) {
       save(db, psid, "search_zone_text", draft, publisherId);
-      await sink.sendText("No ubiqué esa zona. Prueba con Chapu, Centro, ITESO, CUCS… o elige de la lista.");
+      await sink.sendText(
+        waStep({
+          question: "No ubiqué esa zona.",
+          description: "Prueba con Chapu, Centro, ITESO, CUCS… o elige de la lista.",
+        }),
+      );
       await sendZoneStep(sink);
       return;
     }
@@ -871,7 +978,12 @@ export async function processWhatsAppUserInput(
     draft = await applyLocationText(draft, textRaw);
     if (draft.locLat == null) {
       save(db, psid, "pub_location", draft, publisherId);
-      await sink.sendText("No pude ubicar eso en Guadalajara. Comparte el pin o escribe otra colonia.");
+      await sink.sendText(
+        waStep({
+          question: "No pude ubicar eso en Guadalajara.",
+          description: "Comparte el pin o escribe otra colonia.",
+        }),
+      );
       return;
     }
     if (draft.rentMxn == null) {
@@ -887,7 +999,13 @@ export async function processWhatsAppUserInput(
   if (flow === "pub_rent") {
     const n = parseRentFromText(textRaw);
     if (n == null) {
-      await sink.sendText("Escribe un monto exacto en pesos, por ejemplo 6500. No uses un rango.");
+      await sink.sendText(
+        waStep({
+          question: "¿Cuál es la renta exacta?",
+          description: "Escribe un solo monto en pesos, por ejemplo 6500.",
+          aside: "No uses un rango.",
+        }),
+      );
       return;
     }
     draft.rentMxn = n;
@@ -903,7 +1021,12 @@ export async function processWhatsAppUserInput(
     }
     const n = parseRentFromText(textRaw);
     if (n == null) {
-      await sink.sendText("Escribe el monto del depósito, por ejemplo 6500, o responde No si no pides.");
+      await sink.sendText(
+        waStep({
+          question: "¿Cuánto es el depósito?",
+          description: "Escribe el monto, por ejemplo 6500, o responde No si no pides.",
+        }),
+      );
       return;
     }
     draft.depositMxn = n;
@@ -914,7 +1037,12 @@ export async function processWhatsAppUserInput(
   if (flow === "pub_tags") {
     const picked = parseChatAmenityReply(textRaw);
     if (!picked.length) {
-      await sink.sendText("Responde con números del menú, por ejemplo 1,3,5. O pulsa Listo si ya está completo.");
+      await sink.sendText(
+        waStep({
+          question: "¿Qué incluye?",
+          description: "Responde con números del menú, por ejemplo 1,3,5. O pulsa Listo si ya está completo.",
+        }),
+      );
       await sendTagsPrompt(sink, draft);
       return;
     }

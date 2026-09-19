@@ -340,7 +340,7 @@ export function formatPublishPreview(draft: WhatsAppBotDraft): string {
   const radius = draft.locRadiusM ?? APPROXIMATE_RADIUS_DEFAULT_M;
   const tags = chatTagLabels(draft.pubTags);
   return [
-    "Así se vería tu anuncio:",
+    "*Así se vería tu anuncio:*",
     `• ${fields.title}`,
     `• ${fields.neighborhood}, ${CITY} (pin aproximado ~${radius} m)`,
     `• ${rent}${draft.depositMxn != null ? ` · depósito ${draft.depositMxn > 0 ? `$${draft.depositMxn}` : "no"}` : ""}`,
@@ -353,7 +353,7 @@ export function formatPublishPreview(draft: WhatsAppBotDraft): string {
     "",
     `Descripción: ${fields.summary.slice(0, 300)}${fields.summary.length > 300 ? "…" : ""}`,
     "",
-    "Al publicar aceptas los Términos y el Aviso de privacidad. El anuncio queda público con este número.",
+    "_Al publicar aceptas los Términos y el Aviso de privacidad. El anuncio queda público con este número._",
     `${publicWebOrigin()}/legal/terminos`,
     `${publicWebOrigin()}/legal/privacidad`,
   ]

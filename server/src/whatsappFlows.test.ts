@@ -131,6 +131,8 @@ describe("WhatsApp bot flows", () => {
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
+    expect(texts.some((t) => /\*¿Tienes un infográfico del cuarto\?\*/.test(t))).toBe(true);
+    expect(texts.some((t) => /_Las fotos reales del espacio/.test(t))).toBe(true);
     expect(texts.some((t) => /infográfico/i.test(t) && /plantilla|flyer/i.test(t))).toBe(true);
     expect(texts.some((t) => /siguiente paso/i.test(t))).toBe(true);
     expect(texts.some((t) => /Puedes subir hasta \d+ fotos/.test(t))).toBe(false);
@@ -336,11 +338,11 @@ describe("WhatsApp bot flows", () => {
     const chat = getWhatsAppChat(db, pubPsid);
     expect(chat?.draft.photoUrls).toEqual([urls.m1, urls.m2, urls.m3]);
     expect(chat?.draft.infographicUrls).toEqual([]);
-    expect(texts.some((t) => /Recibí 3 fotos/.test(t) && /más pendientes/.test(t))).toBe(true);
+    expect(texts.some((t) => /\*¿Tienes más fotos pendientes\?\*/.test(t) && /Recibí 3/.test(t))).toBe(true);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_MORE" }, sink);
     expect(chat && getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
-    expect(texts.some((t) => /Mándalas/.test(t))).toBe(true);
+    expect(texts.some((t) => /\*¿Me mandas más fotos\?\*/.test(t))).toBe(true);
   });
 
   it("does not drop photos when two album webhooks overlap", async () => {

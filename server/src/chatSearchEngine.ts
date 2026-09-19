@@ -284,14 +284,15 @@ export async function replyChatSearchResults(
   outcome: ChatSearchOutcome,
   query: ChatSearchQuery,
   payloads: ChatSearchFollowupPayloads,
-  opts: { maxFollowups?: number } = {},
+  opts: { maxFollowups?: number; emphasizeQuestions?: boolean } = {},
 ): Promise<void> {
   const followups = chatSearchFollowups(outcome, query, payloads, opts.maxFollowups ?? 3);
   const inventory = chatSearchInventoryLine(outcome);
+  const q = (s: string) => (opts.emphasizeQuestions ? `*${s}*` : s);
 
   if (outcome.exact.length > 0) {
     await sink.sendListingCards(cardsFor(outcome.exact), `${inventory}\nMapa: ${outcome.webUrl}`);
-    await sink.sendQuickReplies("¿Ajustamos la búsqueda?", followups);
+    await sink.sendQuickReplies(q("¿Ajustamos la búsqueda?"), followups);
     return;
   }
 
@@ -303,7 +304,7 @@ export async function replyChatSearchResults(
       cardsFor(outcome.nearby),
       `${outcome.nearby.length} cerca · ${outcome.cityTotal} en todo Guadalajara\nMapa: ${outcome.cityUrl}`,
     );
-    await sink.sendQuickReplies("¿Ajustamos la búsqueda?", followups);
+    await sink.sendQuickReplies(q("¿Ajustamos la búsqueda?"), followups);
     return;
   }
 
@@ -313,7 +314,7 @@ export async function replyChatSearchResults(
       `En todo Guadalajara hay ${outcome.cityTotal} anuncios: ${outcome.cityUrl}`,
     ].join("\n"),
   );
-  await sink.sendQuickReplies("¿Probamos otra zona?", followups);
+  await sink.sendQuickReplies(q("¿Probamos otra zona?"), followups);
 }
 
 /** "Ver más cerca" — the bucket outside the zone or above the budget cap. */
@@ -322,8 +323,9 @@ export async function replyChatSearchNearby(
   outcome: ChatSearchOutcome,
   query: ChatSearchQuery,
   payloads: ChatSearchFollowupPayloads,
-  opts: { maxFollowups?: number } = {},
+  opts: { maxFollowups?: number; emphasizeQuestions?: boolean } = {},
 ): Promise<void> {
+  const q = (s: string) => (opts.emphasizeQuestions ? `*${s}*` : s);
   if (!outcome.nearby.length) {
     await sink.sendText(
       `Ya te mostré todo lo que hay cerca de ${outcome.zoneLabel}. El mapa tiene los ${outcome.cityTotal} anuncios de Guadalajara: ${outcome.cityUrl}`,
@@ -335,7 +337,7 @@ export async function replyChatSearchNearby(
     `Cerca de ${outcome.zoneLabel} (hasta ${NEARBY_RADIUS_KM} km) o arriba de tu tope. ${outcome.cityTotal} en total: ${outcome.cityUrl}`,
   );
   await sink.sendQuickReplies(
-    "¿Ajustamos la búsqueda?",
+    q("¿Ajustamos la búsqueda?"),
     chatSearchFollowups({ ...outcome, nearby: [] }, query, payloads, opts.maxFollowups ?? 3),
   );
 }

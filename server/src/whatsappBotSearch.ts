@@ -69,7 +69,9 @@ export async function runWhatsAppSearchAndReply(
   sink: ChatSink,
   draft: WhatsAppBotDraft,
 ): Promise<void> {
-  await replyChatSearchResults(sink, runChatSearch(db, draft), draft, WA_FOLLOWUPS);
+  await replyChatSearchResults(sink, runChatSearch(db, draft), draft, WA_FOLLOWUPS, {
+    emphasizeQuestions: true,
+  });
 }
 
 export async function runWhatsAppNearbyAndReply(
@@ -77,5 +79,7 @@ export async function runWhatsAppNearbyAndReply(
   sink: ChatSink,
   draft: WhatsAppBotDraft,
 ): Promise<void> {
-  await replyChatSearchNearby(sink, runChatSearch(db, draft), draft, WA_FOLLOWUPS);
+  await replyChatSearchNearby(sink, runChatSearch(db, draft), draft, WA_FOLLOWUPS, {
+    emphasizeQuestions: true,
+  });
 }
