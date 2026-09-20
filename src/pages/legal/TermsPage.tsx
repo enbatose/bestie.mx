@@ -316,9 +316,10 @@ export function TermsPage() {
 
       <LegalSection id="monetizacion" index={11} title="Tarifas y monetización">
         <p>
-          Actualmente el uso del Servicio es gratuito tanto para quienes buscan como para quienes
-          publican. En el futuro, Bestie podrá introducir funciones de pago (por ejemplo, anuncios
-          destacados, planes o servicios premium).
+          Buscar, publicar y mensajear en Bestie es y permanecerá gratuito tanto para quienes buscan
+          como para quienes publican. En el futuro, Bestie podrá ofrecer funciones opcionales de pago
+          (por ejemplo, anuncios destacados o planes premium) que no serán necesarias para buscar,
+          publicar o mensajear.
         </p>
         <LegalList
           items={[

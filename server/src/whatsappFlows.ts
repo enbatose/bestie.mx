@@ -103,17 +103,27 @@ async function sendMenu(sink: ChatSink): Promise<void> {
 
 async function sendHelp(sink: ChatSink): Promise<void> {
   const base = publicWebOrigin();
+  const supportPrefill = encodeURIComponent(
+    "Hola, necesito ayuda con el flujo de creación o búsqueda de publicaciones en WhatsApp",
+  );
+  const supportWa = `https://wa.me/523318357137?text=${supportPrefill}`;
   await sink.sendText(
     [
       "*¿Cómo te ayudo?*",
       "",
-      "Elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato, más lo que hay cerca y en todo Guadalajara. Después puedes ajustar presupuesto o preferencia.",
+      "*Buscar, publicar y mensajear es y se quedará gratuito.*",
       "",
-      "También puedes publicar un solo cuarto: pega el texto de tu anuncio de Facebook, opcionalmente un infográfico y fotos, revisa el preview y publica. La IA completa renta, zona y etiquetas como en el asistente de outreach; lo que falte se puede editar en el sitio.",
+      "*Buscar:* elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato. Después puedes ajustar presupuesto o preferencia.",
+      "",
+      "*Publicar:* escribe o pega la descripción del cuarto; si quieres, un flyer con datos y fotos del espacio; revisa el preview y publica. Lo que falte se edita en el sitio.",
       "",
       `Mapa: ${base}/buscar`,
       `Términos: ${base}/legal/terminos`,
-      "_Soporte: contacto@bestie.mx_",
+      "",
+      "*Soporte*",
+      "Correo: contacto@bestie.mx",
+      "WhatsApp: +52 331 *835713* 7",
+      supportWa,
     ].join("\n"),
   );
 }
