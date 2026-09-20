@@ -2,12 +2,8 @@ import type { DatabaseSync } from "node:sqlite";
 import { SELF_SERVE_MAX_INFOGRAPHICS, listingPhotoSlotsRemaining } from "./assistedDraftLimits.js";
 import type { ChatSink } from "./chatChannel.js";
 import {
-  chatAmenityConfirmEligible,
   chatAmenityMenuText,
-  chatAmenityRemoveMenuText,
   chatAmenitySelected,
-  chatTagLabels,
-  parseChatAmenityRemoveReply,
   parseChatAmenityReply,
 } from "./chatPublishAmenities.js";
 import { publicWebOrigin } from "./handoffTokens.js";
@@ -370,8 +366,7 @@ async function sendRentPrompt(sink: ChatSink, draft: WhatsAppBotDraft, forceType
 async function sendPreview(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
   await sink.sendQuickReplies(formatPublishPreview(draft), [
     { title: "Acepto y publicar", payload: "WA_PUBLISH" },
-    { title: "Cambiar renta", payload: "WA_RENT_EDIT" },
-    { title: "Cambiar etiquetas", payload: "WA_TAGS_EDIT" },
+    { title: "Cancelar", payload: "WA_CANCEL" },
   ]);
 }
 
@@ -406,95 +401,30 @@ async function sendDepositPrompt(sink: ChatSink, rentMxn: number | null): Promis
   ]);
 }
 
-async function sendTagsConfirm(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
-  const selected = chatAmenitySelected(draft.pubTags);
-  await sink.sendQuickReplies(
-    waStep({
-      question: "¿Confirmamos lo que incluye?",
-      description: selected.map((o) => o.label).join(" · "),
-      aside: "Puedes añadir o quitar antes de seguir.",
-    }),
-    [
-      { title: "Así está bien", payload: "WA_TAGS_DONE" },
-      { title: "Añadir más", payload: "WA_TAGS_ADD" },
-      { title: "Quitar", payload: "WA_TAGS_REMOVE" },
-    ],
-  );
-}
-
-async function sendTagsAddMenu(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
+/** One-pass amenity capture — no add/remove revise loop (polish on the site). */
+async function sendTagsPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
   const selected = chatAmenitySelected(draft.pubTags);
   const alreadyLine = selected.length
-    ? `Ya tengo: ${selected.map((o) => o.label).join(", ")}.`
+    ? `Ya detecté: ${selected.map((o) => o.label).join(", ")}.`
     : null;
-  const howTo = selected.length
-    ? "Escribe solo los números que falten (ej. 1,4)."
-    : "Escribe los números de lo que sí tiene (ej. 1,3,5).";
   await sink.sendQuickReplies(
     waStep({
-      question: selected.length ? "¿Qué más incluye?" : "¿Qué incluye el cuarto?",
-      description: [alreadyLine, howTo, "", chatAmenityMenuText(draft.pubTags, { onlyMissing: true })]
+      question: "¿Qué incluye el cuarto?",
+      description: [
+        alreadyLine,
+        "Escribe los números (ej. 1,3,5), o pulsa Seguir.",
+        "",
+        chatAmenityMenuText(draft.pubTags),
+      ]
         .filter((line): line is string => line != null)
         .join("\n"),
-      aside: "Si ya está completo, pulsa Así está bien.",
+      aside: "El resto se edita en el sitio después de publicar.",
     }),
     [
-      { title: "Así está bien", payload: "WA_TAGS_DONE" },
+      { title: "Seguir", payload: "WA_TAGS_DONE" },
       { title: "Cancelar", payload: "WA_CANCEL" },
     ],
   );
-}
-
-async function sendTagsRemoveMenu(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
-  const selected = chatAmenitySelected(draft.pubTags);
-  if (!selected.length) {
-    await sendTagsAddMenu(sink, draft);
-    return;
-  }
-  await sink.sendQuickReplies(
-    waStep({
-      question: "¿Cuál quitas?",
-      description: `Escribe el número (o varios).\n\n${chatAmenityRemoveMenuText(draft.pubTags)}`,
-      aside: "O pulsa Volver para no cambiar nada.",
-    }),
-    [
-      { title: "Volver", payload: "WA_TAGS_BACK" },
-      { title: "Cancelar", payload: "WA_CANCEL" },
-    ],
-  );
-}
-
-async function sendTagsMorePrompt(sink: ChatSink, justAdded: readonly string[]): Promise<void> {
-  await sink.sendQuickReplies(
-    waStep({
-      question: "¿Algo más?",
-      description: justAdded.length ? `Añadí: ${justAdded.join(", ")}.` : undefined,
-      aside: "Escribe más números, o pulsa Así está bien.",
-    }),
-    [
-      { title: "Así está bien", payload: "WA_TAGS_DONE" },
-      { title: "Ver lista", payload: "WA_TAGS_ADD" },
-      { title: "Cancelar", payload: "WA_CANCEL" },
-    ],
-  );
-}
-
-/** Entry: confirm-first when AI already filled enough high-signal tags. */
-async function sendTagsPrompt(
-  sink: ChatSink,
-  draft: WhatsAppBotDraft,
-  mode: "auto" | "add" | "remove" = "auto",
-): Promise<"pub_tags" | "pub_tags_add" | "pub_tags_remove"> {
-  if (mode === "remove") {
-    await sendTagsRemoveMenu(sink, draft);
-    return "pub_tags_remove";
-  }
-  if (mode === "add" || !chatAmenityConfirmEligible(draft.pubTags)) {
-    await sendTagsAddMenu(sink, draft);
-    return "pub_tags_add";
-  }
-  await sendTagsConfirm(sink, draft);
-  return "pub_tags";
 }
 
 async function continueAfterPhotos(
@@ -536,8 +466,8 @@ async function continueToEssentials(
     return;
   }
   if (!draft.tagsConfirmed) {
-    const tagsFlow = await sendTagsPrompt(sink, draft, "auto");
-    save(db, psid, tagsFlow, draft, publisherId);
+    save(db, psid, "pub_tags", draft, publisherId);
+    await sendTagsPrompt(sink, draft);
     return;
   }
   const next = await ensurePublishDraftSummary(draft);
@@ -795,7 +725,7 @@ export async function processWhatsAppUserInput(
   }
   if (
     (flow === "pub_tags" || flow === "pub_tags_add" || flow === "pub_tags_remove") &&
-    /^(listo|ya|no|nada|ninguno|eso\s+es\s+todo|asi\s+esta\s+bien|así\s+está\s+bien)[\s!.]*$/i.test(
+    /^(listo|ya|no|nada|ninguno|seguir|eso\s+es\s+todo|asi\s+esta\s+bien|así\s+está\s+bien)[\s!.]*$/i.test(
       lower,
     )
   ) {
@@ -992,27 +922,6 @@ export async function processWhatsAppUserInput(
     await continueToEssentials(db, psid, sink, draft, publisherId);
     return;
   }
-  if (payload === "WA_TAGS_ADD") {
-    save(db, psid, "pub_tags_add", draft, publisherId);
-    await sendTagsAddMenu(sink, draft);
-    return;
-  }
-  if (payload === "WA_TAGS_REMOVE") {
-    save(db, psid, "pub_tags_remove", draft, publisherId);
-    await sendTagsRemoveMenu(sink, draft);
-    return;
-  }
-  if (payload === "WA_TAGS_BACK") {
-    const tagsFlow = await sendTagsPrompt(sink, draft, "auto");
-    save(db, psid, tagsFlow, draft, publisherId);
-    return;
-  }
-  if (payload === "WA_TAGS_EDIT") {
-    draft.tagsConfirmed = false;
-    const tagsFlow = await sendTagsPrompt(sink, draft, "auto");
-    save(db, psid, tagsFlow, draft, publisherId);
-    return;
-  }
 
   if (payload === "WA_PUBLISH") {
     if (!account) {
@@ -1152,51 +1061,23 @@ export async function processWhatsAppUserInput(
     return;
   }
 
-  if (flow === "pub_tags_add" || flow === "pub_tags") {
-    // Confirm screen ignores free-text except Listo aliases (handled above).
-    if (flow === "pub_tags" && chatAmenityConfirmEligible(draft.pubTags)) {
-      await sendTagsConfirm(sink, draft);
-      return;
-    }
+  if (flow === "pub_tags" || flow === "pub_tags_add" || flow === "pub_tags_remove") {
     const picked = parseChatAmenityReply(textRaw);
     if (!picked.length) {
       await sink.sendText(
         waStep({
-          question: "¿Qué números faltan?",
-          description: "Ejemplo: 1,4. O pulsa Así está bien.",
+          question: "¿Qué números?",
+          description: "Ejemplo: 1,3,5. O pulsa Seguir.",
         }),
       );
-      await sendTagsMorePrompt(sink, []);
-      save(db, psid, "pub_tags_add", draft, publisherId);
+      save(db, psid, "pub_tags", draft, publisherId);
+      await sendTagsPrompt(sink, draft);
       return;
     }
-    // An explicit tap overrides a "no" the model or the text inferred.
     draft.pubTags = [...new Set([...draft.pubTags, ...picked])];
     draft.deniedTags = draft.deniedTags.filter((t) => !picked.includes(t));
-    save(db, psid, "pub_tags_add", draft, publisherId);
-    await sendTagsMorePrompt(sink, chatTagLabels(picked));
-    return;
-  }
-
-  if (flow === "pub_tags_remove") {
-    const removed = parseChatAmenityRemoveReply(textRaw, draft.pubTags);
-    if (!removed.length) {
-      await sink.sendText(
-        waStep({
-          question: "¿Cuál quitas?",
-          description: "Escribe el número de la lista, o pulsa Volver.",
-        }),
-      );
-      await sendTagsRemoveMenu(sink, draft);
-      return;
-    }
-    const removeSet = new Set(removed);
-    draft.pubTags = draft.pubTags.filter((t) => !removeSet.has(t));
-    draft.deniedTags = [...new Set([...draft.deniedTags, ...removed])];
-    save(db, psid, "pub_tags", draft, publisherId);
-    await sink.sendText(`Quité: ${chatTagLabels(removed).join(", ")}.`);
-    const tagsFlow = await sendTagsPrompt(sink, draft, "auto");
-    save(db, psid, tagsFlow, draft, publisherId);
+    draft.tagsConfirmed = true;
+    await continueToEssentials(db, psid, sink, draft, publisherId);
     return;
   }
 

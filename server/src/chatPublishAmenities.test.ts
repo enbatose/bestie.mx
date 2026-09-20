@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAT_AMENITY_OPTIONS,
-  chatAmenityConfirmEligible,
   chatAmenityMenuText,
-  chatAmenityRemoveMenuText,
   chatAmenitySelected,
-  parseChatAmenityRemoveReply,
   parseChatAmenityReply,
 } from "./chatPublishAmenities.js";
 
@@ -22,27 +19,22 @@ describe("chatPublishAmenities", () => {
     ]);
   });
 
-  it("confirm-first when at least two menu tags are already known", () => {
-    expect(chatAmenityConfirmEligible(["wifi"])).toBe(false);
-    expect(chatAmenityConfirmEligible(["wifi", "mascotas"])).toBe(true);
-    expect(chatAmenityConfirmEligible(["closet", "agua-caliente"])).toBe(false);
-  });
-
-  it("lists only missing amenities with stable numbers", () => {
-    const text = chatAmenityMenuText(["wifi", "baño-privado"], { onlyMissing: true });
+  it("shows the full 1–6 menu with checkmarks for known tags", () => {
+    const text = chatAmenityMenuText(["wifi", "baño-privado"]);
+    expect(text).toContain("1. Wifi ✅");
     expect(text).toContain("2. Amueblado");
+    expect(text).toContain("3. Baño privado ✅");
     expect(text).toContain("4. Estacionamiento");
-    expect(text).not.toContain("1. Wifi");
-    expect(text).not.toContain("3. Baño privado");
+    expect(text).toContain("5. Mascotas OK");
+    expect(text).toContain("6. Lavadora");
   });
 
-  it("parses add and remove replies", () => {
+  it("parses numbered amenity replies", () => {
     expect(parseChatAmenityReply("1, 4 y 5")).toEqual(["wifi", "estacionamiento", "mascotas"]);
-    const selected = chatAmenitySelected(["wifi", "mascotas", "lavadora"]);
-    expect(selected.map((o) => o.label)).toEqual(["Wifi", "Mascotas OK", "Lavadora"]);
-    expect(chatAmenityRemoveMenuText(["wifi", "mascotas", "lavadora"])).toBe(
-      "1. Wifi\n2. Mascotas OK\n3. Lavadora",
-    );
-    expect(parseChatAmenityRemoveReply("2", ["wifi", "mascotas", "lavadora"])).toEqual(["mascotas"]);
+    expect(chatAmenitySelected(["wifi", "mascotas", "lavadora"]).map((o) => o.label)).toEqual([
+      "Wifi",
+      "Mascotas OK",
+      "Lavadora",
+    ]);
   });
 });

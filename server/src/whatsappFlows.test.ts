@@ -216,11 +216,11 @@ describe("WhatsApp bot flows", () => {
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_GENDER:female" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_deposit");
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:rent" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags_add");
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
     await processWhatsAppUserInput(db, pubPsid, FROM, { text: "1,3,5" }, sink);
-    expect(texts.some((t) => /\*¿Algo más\?\*/.test(t) && /Añadí:/.test(t))).toBe(true);
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_TAGS_DONE" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
+    expect(texts.some((t) => /\*¿Algo más\?\*/.test(t))).toBe(false);
+    expect(texts.some((t) => /Cambiar etiquetas/.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUBLISH" }, sink);
 
@@ -295,10 +295,10 @@ describe("WhatsApp bot flows", () => {
       },
     });
     await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6000" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags_add");
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
   });
 
-  it("confirm-first when the draft already has enough amenity tags", async () => {
+  it("shows the full amenity menu even when tags are already known", async () => {
     const pubPsid = `${PSID}-tags-confirm`;
     const { sink, texts } = capturingSink();
     await skipToPhotos(pubPsid, sink);
@@ -319,12 +319,12 @@ describe("WhatsApp bot flows", () => {
       },
     });
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:0" }, sink);
-    // Already at tags after deposit was set — trigger essentials by a no-op done path:
-    // deposit already set, so send a dummy that continues… actually WA_DEP:0 with deposit already
-    // set still runs continueToEssentials. Flow should be confirm.
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
-    expect(texts.some((t) => /\*¿Confirmamos lo que incluye\?\*/.test(t))).toBe(true);
-    expect(texts.some((t) => /1\. Wifi/.test(t))).toBe(false);
+    expect(texts.some((t) => /\*¿Qué incluye el cuarto\?\*/.test(t))).toBe(true);
+    expect(texts.some((t) => /Ya detecté:/.test(t))).toBe(true);
+    expect(texts.some((t) => /1\. Wifi ✅/.test(t))).toBe(true);
+    expect(texts.some((t) => /4\. Estacionamiento/.test(t))).toBe(true);
+    expect(texts.some((t) => /\*¿Confirmamos lo que incluye\?\*/.test(t))).toBe(false);
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_TAGS_DONE" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
   });
