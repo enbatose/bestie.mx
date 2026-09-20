@@ -138,7 +138,7 @@ export function whatsappChatSink(to: string): ChatSink {
     sendImage: ({ url, caption }) => sendWhatsAppImage(to, url, caption),
     sendCtaUrl: (opts) => sendWhatsAppCtaUrl(to, opts),
     sendListingCards: async (cards, footer) => {
-      for (const c of cards.slice(0, 3)) {
+      for (const c of cards.slice(0, 10)) {
         const caption = `${c.title}\n${c.subtitle}\n${c.url}`.slice(0, 1024);
         if (c.imageUrl?.startsWith("http")) {
           await sendWhatsAppImage(to, c.imageUrl, caption);

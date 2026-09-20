@@ -9,6 +9,7 @@ import {
   type ChatSearchFollowupPayloads,
 } from "./chatSearchEngine.js";
 import { GDL_SEARCH_POIS, type SearchPoi } from "./gdlSearchPois.js";
+import { runWhatsAppDiffusionSearchAndReply } from "./whatsappBotDiffusionSearch.js";
 import type { WhatsAppBotDraft } from "./whatsappSessionStore.js";
 
 export type ChatMenuPoi = {
@@ -57,6 +58,20 @@ export function enrichDraftFromSearchText(
   );
 }
 
+/** Free-form Difusión-style search used by WhatsApp Buscar. */
+export async function runWhatsAppFreeformSearchAndReply(
+  db: DatabaseSync,
+  sink: ChatSink,
+  opts: { text: string; createdByUserId: string },
+): Promise<void> {
+  await runWhatsAppDiffusionSearchAndReply(db, sink, opts);
+}
+
+/** Synthesize a short seeker query from a menu POI tap. */
+export function searchTextForMenuPoi(poi: SearchPoi): string {
+  return `Busco cuarto cerca de ${poi.name}`;
+}
+
 const WA_FOLLOWUPS: ChatSearchFollowupPayloads = {
   nearby: "WA_NEARBY",
   budget: "WA_BUDGET",
@@ -64,6 +79,7 @@ const WA_FOLLOWUPS: ChatSearchFollowupPayloads = {
   menu: "WA_MENU",
 };
 
+/** @deprecated Legacy disk search — Messenger / nearby fallback only. */
 export async function runWhatsAppSearchAndReply(
   db: DatabaseSync,
   sink: ChatSink,

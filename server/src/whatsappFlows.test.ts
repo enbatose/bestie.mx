@@ -12,10 +12,12 @@ import { getWhatsAppChat, upsertWhatsAppChat } from "./whatsappSessionStore.js";
 const FROM = "5213318632070";
 const PSID = `wa:${FROM}`;
 
-function capturingSink(): { sink: ChatSink; texts: string[] } {
+function capturingSink(): { sink: ChatSink; texts: string[]; ctas: Array<{ body: string; url: string }> } {
   const texts: string[] = [];
+  const ctas: Array<{ body: string; url: string }> = [];
   return {
     texts,
+    ctas,
     sink: {
       sendText: async (t) => {
         texts.push(t);
@@ -26,6 +28,10 @@ function capturingSink(): { sink: ChatSink; texts: string[] } {
       sendListingCards: async (cards, footer) => {
         texts.push(cards.map((c) => c.title).join(" | "));
         texts.push(footer);
+      },
+      sendCtaUrl: async (opts) => {
+        ctas.push({ body: opts.body, url: opts.url });
+        texts.push(opts.body);
       },
       sendImage: async ({ caption }) => {
         if (caption) texts.push(caption);
@@ -86,12 +92,15 @@ describe("WhatsApp bot flows", () => {
     expect(getWhatsAppChat(db, psid)?.flow).toBe("idle");
   });
 
-  it("states how much more Bestie has, not only the exact matches", async () => {
-    const { sink, texts } = capturingSink();
+  it("states exact+related total and ZMG broaden inventory after results", async () => {
+    const { sink, texts, ctas } = capturingSink();
     const psid = `${PSID}-inventory`;
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_SEARCH" }, sink);
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_POI:centro" }, sink);
-    expect(texts.some((t) => /anuncios? en Centro/.test(t) && /Guadalajara/.test(t))).toBe(true);
+    expect(ctas.some((c) => /cuartos? en total en bestie\.mx/.test(c.body) && /\/busquedas\//.test(c.url))).toBe(
+      true,
+    );
+    expect(texts.some((t) => /\*ZMG\*/.test(t) && /Zona Metropolitana de Guadalajara/.test(t))).toBe(true);
   });
 
   it("parses a free-text search for Centro + budget and answers with listings", async () => {
@@ -104,9 +113,16 @@ describe("WhatsApp bot flows", () => {
       sink,
     );
     const s = getWhatsAppChat(db, `${PSID}-blob`);
-    expect(s?.draft.poiName).toBe("Centro");
-    expect(s?.draft.budgetMax).toBe(8000);
+    expect(s?.draft.q.toLowerCase()).toContain("centro");
     expect(texts.some((t) => t.includes("Cuarto Centro"))).toBe(true);
+  });
+
+  it("asks for free-form search text when Buscar starts", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-prompt`;
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_SEARCH" }, sink);
+    expect(getWhatsAppChat(db, psid)?.flow).toBe("search_query");
+    expect(texts.some((t) => /Qué estás buscando/.test(t))).toBe(true);
   });
 
   async function skipToPhotos(psid: string, sink: ReturnType<typeof capturingSink>["sink"]) {

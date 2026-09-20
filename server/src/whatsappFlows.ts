@@ -25,10 +25,10 @@ import {
 import {
   applyMenuPoiToDraft,
   CHAT_MENU_POIS,
-  enrichDraftFromSearchText,
   menuPoiById,
+  runWhatsAppFreeformSearchAndReply,
   runWhatsAppNearbyAndReply,
-  runWhatsAppSearchAndReply,
+  searchTextForMenuPoi,
 } from "./whatsappBotSearch.js";
 import {
   appendWhatsAppInfographicUrls,
@@ -109,7 +109,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
     "",
     "*Buscar, publicar y mensajear es y se quedará gratuito.*",
     "",
-    "*Buscar:* elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato. Después puedes ajustar presupuesto o preferencia.",
+    "*Buscar:* escribe qué buscas (zona, presupuesto, preferencias) y te mando hasta 10 anuncios. También puedes tocar una zona rápida.",
     "",
     "*Publicar:* escribe o pega la descripción del cuarto; si quieres, un flyer con datos y fotos del espacio; revisa el preview y publica. Lo que falte se edita en el sitio.",
     "",
@@ -144,12 +144,13 @@ async function sendHelp(sink: ChatSink): Promise<void> {
   ]);
 }
 
-async function sendZoneStep(sink: ChatSink): Promise<void> {
+async function sendSearchPrompt(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
     waStep({
-      question: "¿Cerca de dónde buscas?",
-      description: "Te mando anuncios en cuanto elijas.",
-      aside: "Guadalajara, ~3.5 km.",
+      question: "¿Qué estás buscando?",
+      description:
+        "Escríbelo con tus palabras: zona, presupuesto, preferencias… Ej. «Cuarto cerca de ITESO hasta 7000, solo mujeres».",
+      aside: "O toca una zona rápida.",
     }),
     [
       ...CHAT_MENU_POIS.map((p) => ({ title: p.title, payload: `WA_POI:${p.id}` })),
@@ -185,15 +186,18 @@ function save(db: DatabaseSync, psid: string, flow: string, draft: WhatsAppBotDr
   upsertWhatsAppChat(db, psid, { flow, draft, ...(publisherId ? { publisherId } : {}) });
 }
 
-async function finishSearch(
+async function finishFreeformSearch(
   db: DatabaseSync,
   psid: string,
   sink: ChatSink,
   draft: WhatsAppBotDraft,
+  text: string,
+  createdByUserId: string,
   publisherId?: string,
 ): Promise<void> {
-  save(db, psid, "idle", draft, publisherId);
-  await runWhatsAppSearchAndReply(db, sink, draft);
+  const next = { ...draft, intent: "search" as const, q: text.slice(0, 240), sourceText: text.slice(0, 4000) };
+  save(db, psid, "idle", next, publisherId);
+  await runWhatsAppFreeformSearchAndReply(db, sink, { text, createdByUserId });
 }
 
 async function sendInfographicAsk(sink: ChatSink): Promise<void> {
@@ -472,6 +476,7 @@ export async function processWhatsAppUserInput(
   let draft = chat.draft;
   let flow = chat.flow;
   const publisherId = account?.publisherId ?? chat.publisherId;
+  const searchActorId = account?.userId ?? "whatsapp-bot";
   if (
     flow !== "idle" &&
     !flow.startsWith("search_") &&
@@ -684,8 +689,8 @@ export async function processWhatsAppUserInput(
   }
   if (payload === "WA_SEARCH") {
     draft = { ...emptyWhatsAppDraft(), intent: "search" };
-    save(db, psid, "search_zone", draft, publisherId);
-    await sendZoneStep(sink);
+    save(db, psid, "search_query", draft, publisherId);
+    await sendSearchPrompt(sink);
     return;
   }
   if (payload === "WA_BUDGET") {
@@ -744,22 +749,23 @@ export async function processWhatsAppUserInput(
     const id = payload.slice("WA_POI:".length);
     draft.intent = "search";
     if (id === "other") {
-      save(db, psid, "search_zone_text", draft, publisherId);
+      save(db, psid, "search_query", draft, publisherId);
       await sink.sendText(
         waStep({
-          question: "¿Otra zona?",
-          description: "Escribe la colonia, campus o punto (ej. Americana, CUCEI, Hospital Civil).",
+          question: "¿Qué estás buscando?",
+          description: "Escribe zona, presupuesto y preferencias (ej. Americana, CUCEI, hasta 6500).",
         }),
       );
       return;
     }
     const item = menuPoiById(id);
     if (!item) {
-      await sendZoneStep(sink);
+      await sendSearchPrompt(sink);
       return;
     }
     draft = applyMenuPoiToDraft(draft, item.poi);
-    await finishSearch(db, psid, sink, draft, publisherId);
+    const queryText = searchTextForMenuPoi(item.poi);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
     return;
   }
 
@@ -767,7 +773,11 @@ export async function processWhatsAppUserInput(
     const raw = payload.slice("WA_BD:".length);
     draft.budgetMax = raw === "*" ? null : Number(raw) || null;
     draft.intent = "search";
-    await finishSearch(db, psid, sink, draft, publisherId);
+    const budgetBit =
+      draft.budgetMax == null ? "sin tope de renta" : `hasta ${draft.budgetMax}`;
+    const base = (draft.sourceText || draft.q || "Busco cuarto en Guadalajara").trim();
+    const queryText = `${base}. Presupuesto ${budgetBit}`.slice(0, 4000);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
     return;
   }
 
@@ -788,7 +798,15 @@ export async function processWhatsAppUserInput(
   if (payload?.startsWith("WA_PREF:")) {
     const raw = payload.slice("WA_PREF:".length);
     draft.pref = raw === "female" || raw === "male" ? raw : null;
-    await finishSearch(db, psid, sink, draft, publisherId);
+    const prefBit =
+      draft.pref === "female"
+        ? "preferencia mujeres"
+        : draft.pref === "male"
+          ? "preferencia hombres"
+          : "sin preferencia de género";
+    const base = (draft.sourceText || draft.q || "Busco cuarto en Guadalajara").trim();
+    const queryText = `${base}. ${prefBit}`.slice(0, 4000);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
     return;
   }
 
@@ -880,26 +898,28 @@ export async function processWhatsAppUserInput(
     return;
   }
 
-  if (flow === "search_zone" || flow === "search_zone_text") {
-    draft = await enrichDraftFromSearchText(draft, textRaw);
-    if (draft.poiLat == null) {
-      save(db, psid, "search_zone_text", draft, publisherId);
+  if (flow === "search_query" || flow === "search_zone" || flow === "search_zone_text") {
+    if (textRaw.length < 3) {
+      save(db, psid, "search_query", draft, publisherId);
       await sink.sendText(
         waStep({
-          question: "No ubiqué esa zona.",
-          description: "Prueba con Chapu, Centro, ITESO, CUCS… o elige de la lista.",
+          question: "Cuéntame un poco más",
+          description: "Zona, presupuesto o preferencias ayudan a encontrar mejores opciones.",
         }),
       );
-      await sendZoneStep(sink);
       return;
     }
-    await finishSearch(db, psid, sink, draft, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, textRaw, searchActorId, publisherId);
     return;
   }
 
   if (flow === "search_budget") {
     draft.budgetMax = parseRentFromText(textRaw);
-    await finishSearch(db, psid, sink, draft, publisherId);
+    const budgetBit =
+      draft.budgetMax == null ? "sin tope de renta" : `hasta ${draft.budgetMax}`;
+    const base = (draft.sourceText || draft.q || "Busco cuarto en Guadalajara").trim();
+    const queryText = `${base}. Presupuesto ${budgetBit}`.slice(0, 4000);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
     return;
   }
 
@@ -956,13 +976,8 @@ export async function processWhatsAppUserInput(
   }
 
   if (flow === "idle") {
-    draft = await enrichDraftFromSearchText({ ...emptyWhatsAppDraft(), intent: "search" }, textRaw);
-    if (draft.poiLat == null) {
-      save(db, psid, "search_zone", draft, publisherId);
-      await sendZoneStep(sink);
-      return;
-    }
-    await finishSearch(db, psid, sink, draft, publisherId);
+    draft = { ...emptyWhatsAppDraft(), intent: "search" };
+    await finishFreeformSearch(db, psid, sink, draft, textRaw, searchActorId, publisherId);
     return;
   }
 
