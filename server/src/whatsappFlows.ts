@@ -118,7 +118,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
     "",
     "*Soporte*",
     "Correo: contacto@bestie.mx",
-    "WhatsApp de Soporte: +52-331-*835713*-7",
+    "WhatsApp (solo mensajes): +52 331 *835713* 7",
   ].join("\n");
 
   if (sink.sendCtaUrl) {
@@ -676,7 +676,7 @@ export async function processWhatsAppUserInput(
     const supportLink = `${publicWebOrigin().replace(/\/$/, "")}/ayuda-wa`;
     await sink.sendText(
       [
-        "Abre este enlace para escribirle a Soporte (+52-331-*835713*-7):",
+        "Abre este enlace para escribirle a Soporte (+52 331 *835713* 7):",
         supportLink,
       ].join("\n"),
     );
