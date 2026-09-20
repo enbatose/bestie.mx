@@ -2,7 +2,10 @@ export type MetroCity = {
   code: string;
   label: string;
   abbr: string;
+  /** Short metro abbr (ZMG, ZMM, …). */
   metroName: string;
+  /** Full region phrase for seeker copy, e.g. "Zona Metropolitana de Guadalajara". */
+  metroRegionLabel: string;
   enabled: boolean;
   defaultCenter: [number, number];
   defaultZoom: number;
@@ -18,6 +21,7 @@ export const METRO_CITIES: readonly MetroCity[] = [
     label: "Guadalajara",
     abbr: "GDL",
     metroName: "ZMG",
+    metroRegionLabel: "Zona Metropolitana de Guadalajara",
     enabled: true,
     defaultCenter: [20.67439, -103.38739],
     defaultZoom: 13,
@@ -42,6 +46,7 @@ export const METRO_CITIES: readonly MetroCity[] = [
     label: "Monterrey",
     abbr: "MTY",
     metroName: "ZMM",
+    metroRegionLabel: "Zona Metropolitana de Monterrey",
     enabled: false,
     defaultCenter: [25.6866, -100.3161],
     defaultZoom: 12,
@@ -55,6 +60,7 @@ export const METRO_CITIES: readonly MetroCity[] = [
     label: "Ciudad de México",
     abbr: "CDMX",
     metroName: "ZMMV",
+    metroRegionLabel: "Zona Metropolitana del Valle de México",
     enabled: false,
     defaultCenter: [19.4326, -99.1332],
     defaultZoom: 12,

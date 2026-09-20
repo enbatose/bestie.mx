@@ -8,7 +8,7 @@ import { matchGdlSearchPois } from "./gdlSearchPois.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { roomReferenceCode } from "./listingReference.js";
 import { isListingTag } from "./listingTags.js";
-import { resolveMetroCity } from "./metroCities.js";
+import { findMetroCity, resolveMetroCity } from "./metroCities.js";
 import { countSearchCards, listingInMetro } from "./metroListingScope.js";
 import { fetchPublishedListings } from "./publishedListingsQuery.js";
 import {
@@ -98,10 +98,22 @@ export function cardsForDiffusionListings(listings: PropertyListing[], limit = C
   }));
 }
 
-export function countZmgSearchCards(db: DatabaseSync): number {
-  const metro = resolveMetroCity("gdl");
+export function countMetroSearchCards(db: DatabaseSync, cityCode = "gdl"): number {
+  const metro = resolveMetroCity(cityCode);
   const published = fetchPublishedListings(db).filter((l) => listingInMetro(l, metro));
   return countSearchCards(published);
+}
+
+/** @deprecated use {@link countMetroSearchCards} */
+export function countZmgSearchCards(db: DatabaseSync): number {
+  return countMetroSearchCards(db, "gdl");
+}
+
+export function broadenSearchMetroLine(roomCount: number, cityCode = "gdl"): string {
+  // Prefer the named metro even if it is not enabled yet (future cities).
+  const metro = findMetroCity(cityCode) ?? resolveMetroCity(cityCode);
+  const region = metro.metroRegionLabel;
+  return `Si quieres ampliar la búsqueda, hay un total de *${roomCount}* cuartos en la *${region}*.`;
 }
 
 export type WhatsAppDiffusionSearchResult = {
@@ -111,6 +123,8 @@ export type WhatsAppDiffusionSearchResult = {
   similarCount: number;
   matchTotal: number;
   shown: number;
+  metroTotal: number;
+  /** @deprecated alias of metroTotal */
   zmgTotal: number;
 };
 
@@ -144,7 +158,8 @@ export async function runWhatsAppDiffusionSearchAndReply(
   const ranked = [...split.exact, ...similarHigh];
   const matchTotal = split.exact.length + similarHigh.length;
   const cards = cardsForDiffusionListings(ranked, CARD_LIMIT);
-  const zmgTotal = countZmgSearchCards(db);
+  const cityCode = created.share.city_code || "gdl";
+  const metroTotal = countMetroSearchCards(db, cityCode);
   const base = publicWebOrigin().replace(/\/$/, "");
   const shareUrl = `${base}${created.sharePath}`;
 
@@ -152,7 +167,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
     matchTotal === 1
       ? "Hay *1* cuarto en total en bestie.mx para esta búsqueda."
       : `Hay *${matchTotal}* cuartos en total en bestie.mx para esta búsqueda.`;
-  const zmgLine = `Si quieres ampliar la búsqueda, hay un total de *${zmgTotal}* cuartos en la Zona Metropolitana de Guadalajara (*ZMG*).`;
+  const broadenLine = broadenSearchMetroLine(metroTotal, cityCode);
 
   if (cards.length > 0) {
     const intro =
@@ -183,7 +198,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
     await sink.sendText(`${totalLine}\n${shareUrl}`);
   }
 
-  await sink.sendText(zmgLine);
+  await sink.sendText(broadenLine);
 
   await sink.sendQuickReplies("*¿Qué sigue?*", [
     { title: "Nueva búsqueda", payload: "WA_SEARCH" },
@@ -198,6 +213,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
     similarCount: similarHigh.length,
     matchTotal,
     shown: cards.length,
-    zmgTotal,
+    metroTotal,
+    zmgTotal: metroTotal,
   };
 }

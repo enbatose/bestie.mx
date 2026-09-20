@@ -100,7 +100,9 @@ describe("WhatsApp bot flows", () => {
     expect(ctas.some((c) => /cuartos? en total en bestie\.mx/.test(c.body) && /\/busquedas\//.test(c.url))).toBe(
       true,
     );
-    expect(texts.some((t) => /\*ZMG\*/.test(t) && /Zona Metropolitana de Guadalajara/.test(t))).toBe(true);
+    expect(
+      texts.some((t) => /\*Zona Metropolitana de Guadalajara\*/.test(t) && !/\*ZMG\*/.test(t)),
+    ).toBe(true);
   });
 
   it("parses a free-text search for Centro + budget and answers with listings", async () => {

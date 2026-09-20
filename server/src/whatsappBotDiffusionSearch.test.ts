@@ -6,8 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ChatSink } from "./chatChannel.js";
 import { openDb } from "./db.js";
 import {
+  broadenSearchMetroLine,
   cardsForDiffusionListings,
-  countZmgSearchCards,
+  countMetroSearchCards,
   fallbackExtractionFromSearchText,
   runWhatsAppDiffusionSearchAndReply,
 } from "./whatsappBotDiffusionSearch.js";
@@ -86,8 +87,17 @@ describe("WhatsApp Difusión search", () => {
     expect(ex.budgetMax).toBe(8000);
   });
 
-  it("counts ZMG search cards", () => {
-    expect(countZmgSearchCards(db)).toBeGreaterThanOrEqual(1);
+  it("counts metro search cards", () => {
+    expect(countMetroSearchCards(db, "gdl")).toBeGreaterThanOrEqual(1);
+  });
+
+  it("formats the broaden line with bold count and metro region (city-aware)", () => {
+    expect(broadenSearchMetroLine(14, "gdl")).toBe(
+      "Si quieres ampliar la búsqueda, hay un total de *14* cuartos en la *Zona Metropolitana de Guadalajara*.",
+    );
+    expect(broadenSearchMetroLine(3, "mty")).toBe(
+      "Si quieres ampliar la búsqueda, hay un total de *3* cuartos en la *Zona Metropolitana de Monterrey*.",
+    );
   });
 
   it("replies with up to 10 cards, match total CTA, and bold ZMG broaden line", async () => {
@@ -104,7 +114,7 @@ describe("WhatsApp Difusión search", () => {
     expect(ctas[0]?.buttonText).toBe("Ver búsqueda");
     expect(ctas[0]?.url).toContain(result.sharePath);
     expect(ctas[0]?.body).toMatch(/\*\d+\*/);
-    expect(texts.some((t) => /\*\d+\*.*Zona Metropolitana de Guadalajara \(\*ZMG\*\)/.test(t))).toBe(
+    expect(texts.some((t) => /\*\d+\*.*cuartos en la \*Zona Metropolitana de Guadalajara\*/.test(t))).toBe(
       true,
     );
   });
