@@ -102,31 +102,46 @@ async function sendMenu(sink: ChatSink): Promise<void> {
 }
 
 async function sendHelp(sink: ChatSink): Promise<void> {
-  const base = publicWebOrigin();
-  const supportLink = `${base.replace(/\/$/, "")}/ayuda-wa`;
-  await sink.sendQuickReplies(
-    [
-      "*¿Cómo te ayudo?*",
-      "",
-      "*Buscar, publicar y mensajear es y se quedará gratuito.*",
-      "",
-      "*Buscar:* elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato. Después puedes ajustar presupuesto o preferencia.",
-      "",
-      "*Publicar:* escribe o pega la descripción del cuarto; si quieres, un flyer con datos y fotos del espacio; revisa el preview y publica. Lo que falte se edita en el sitio.",
-      "",
-      `Mapa: ${base}/buscar`,
-      `Términos: ${base}/legal/terminos`,
-      "",
-      "*Soporte*",
-      "Correo: contacto@bestie.mx",
-      `WhatsApp (+52 331 *835713* 7): ${supportLink}`,
-    ].join("\n"),
-    [
+  const base = publicWebOrigin().replace(/\/$/, "");
+  const supportLink = `${base}/ayuda-wa`;
+  const body = [
+    "*¿Cómo te ayudo?*",
+    "",
+    "*Buscar, publicar y mensajear es y se quedará gratuito.*",
+    "",
+    "*Buscar:* elige una zona (Chapu, Centro, ITESO, CUCS…) y te mando anuncios de inmediato. Después puedes ajustar presupuesto o preferencia.",
+    "",
+    "*Publicar:* escribe o pega la descripción del cuarto; si quieres, un flyer con datos y fotos del espacio; revisa el preview y publica. Lo que falte se edita en el sitio.",
+    "",
+    `Mapa: ${base}/buscar`,
+    `Términos: ${base}/legal/terminos`,
+    "",
+    "*Soporte*",
+    "Correo: contacto@bestie.mx",
+    "WhatsApp de Soporte: +52-331-*835713*-7",
+  ].join("\n");
+
+  if (sink.sendCtaUrl) {
+    await sink.sendCtaUrl({
+      body,
+      buttonText: "Ayuda por WhatsApp",
+      url: supportLink,
+    });
+    await sink.sendQuickReplies("_También puedes:_", [
       { title: "Reiniciar", payload: "WA_MENU" },
       { title: "Buscar cuarto", payload: "WA_SEARCH" },
       { title: "Publicar", payload: "WA_PUB" },
-    ],
-  );
+    ]);
+    return;
+  }
+
+  // Fallback (tests / sinks without CTA): list row opens the vanity link via WA_HELP_WA.
+  await sink.sendQuickReplies(body, [
+    { title: "Reiniciar", payload: "WA_MENU" },
+    { title: "Buscar cuarto", payload: "WA_SEARCH" },
+    { title: "Publicar", payload: "WA_PUB" },
+    { title: "Ayuda por WhatsApp", payload: "WA_HELP_WA" },
+  ]);
 }
 
 async function sendZoneStep(sink: ChatSink): Promise<void> {
@@ -655,6 +670,16 @@ export async function processWhatsAppUserInput(
   if (payload === "WA_HELP") {
     save(db, psid, "idle", draft, publisherId);
     await sendHelp(sink);
+    return;
+  }
+  if (payload === "WA_HELP_WA") {
+    const supportLink = `${publicWebOrigin().replace(/\/$/, "")}/ayuda-wa`;
+    await sink.sendText(
+      [
+        "Abre este enlace para escribirle a Soporte (+52-331-*835713*-7):",
+        supportLink,
+      ].join("\n"),
+    );
     return;
   }
   if (payload === "WA_SEARCH") {

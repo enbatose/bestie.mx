@@ -107,6 +107,27 @@ async function sendWhatsAppList(to: string, text: string, replies: ChatQuickRepl
   });
 }
 
+async function sendWhatsAppCtaUrl(
+  to: string,
+  opts: { body: string; buttonText: string; url: string },
+): Promise<void> {
+  await postMessages({
+    to,
+    type: "interactive",
+    interactive: {
+      type: "cta_url",
+      body: { text: opts.body.slice(0, 1024) },
+      action: {
+        name: "cta_url",
+        parameters: {
+          display_text: opts.buttonText.slice(0, 20),
+          url: opts.url.slice(0, 2000),
+        },
+      },
+    },
+  });
+}
+
 export function whatsappChatSink(to: string): ChatSink {
   return {
     sendText: (text) => sendWhatsAppText(to, text),
@@ -115,6 +136,7 @@ export function whatsappChatSink(to: string): ChatSink {
       else await sendWhatsAppList(to, text, replies);
     },
     sendImage: ({ url, caption }) => sendWhatsAppImage(to, url, caption),
+    sendCtaUrl: (opts) => sendWhatsAppCtaUrl(to, opts),
     sendListingCards: async (cards, footer) => {
       for (const c of cards.slice(0, 3)) {
         const caption = `${c.title}\n${c.subtitle}\n${c.url}`.slice(0, 1024);

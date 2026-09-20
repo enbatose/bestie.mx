@@ -12,4 +12,6 @@ export type ChatSink = {
   sendQuickReplies: (text: string, replies: ChatQuickReply[]) => Promise<void>;
   sendListingCards: (cards: ChatListingCard[], footer: string) => Promise<void>;
   sendImage?: (opts: { url: string; caption?: string }) => Promise<void>;
+  /** Native WhatsApp CTA that opens a URL in one tap (Cloud API `cta_url`). */
+  sendCtaUrl?: (opts: { body: string; buttonText: string; url: string }) => Promise<void>;
 };
