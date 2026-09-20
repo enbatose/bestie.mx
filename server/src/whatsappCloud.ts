@@ -8,6 +8,10 @@ import type { ChatQuickReply, ChatSink } from "./chatChannel.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
+/** Image messages are accepted before Meta finishes fetching the asset; text/CTA can overtake them. */
+const BETWEEN_CARD_MS = 450;
+const AFTER_MEDIA_SETTLE_MS = 1_800;
+
 function cloudToken(): string | null {
   return process.env.WHATSAPP_CLOUD_ACCESS_TOKEN?.trim() || null;
 }
@@ -33,6 +37,10 @@ export function whatsappSessionIdsForStoredPhone(phoneE164: string): string[] {
     ids.add(whatsappSessionId(`521${d}`));
   }
   return [...ids];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function postMessages(body: unknown): Promise<void> {
@@ -138,14 +146,21 @@ export function whatsappChatSink(to: string): ChatSink {
     sendImage: ({ url, caption }) => sendWhatsAppImage(to, url, caption),
     sendCtaUrl: (opts) => sendWhatsAppCtaUrl(to, opts),
     sendListingCards: async (cards, footer) => {
-      for (const c of cards.slice(0, 10)) {
+      const batch = cards.slice(0, 10);
+      let sentMedia = false;
+      for (let i = 0; i < batch.length; i++) {
+        const c = batch[i]!;
         const caption = `${c.title}\n${c.subtitle}\n${c.url}`.slice(0, 1024);
         if (c.imageUrl?.startsWith("http")) {
           await sendWhatsAppImage(to, c.imageUrl, caption);
+          sentMedia = true;
         } else {
           await sendWhatsAppText(to, caption);
         }
+        // Pace so Meta does not reorder a fast text/CTA ahead of slower image fetches.
+        if (i < batch.length - 1) await sleep(BETWEEN_CARD_MS);
       }
+      if (sentMedia) await sleep(AFTER_MEDIA_SETTLE_MS);
       if (footer.trim()) await sendWhatsAppText(to, footer.slice(0, 4096));
     },
   };

@@ -148,6 +148,12 @@ export async function runWhatsAppDiffusionSearchAndReply(
   const base = publicWebOrigin().replace(/\/$/, "");
   const shareUrl = `${base}${created.sharePath}`;
 
+  const totalLine =
+    matchTotal === 1
+      ? "Hay *1* cuarto en total en bestie.mx para esta búsqueda."
+      : `Hay *${matchTotal}* cuartos en total en bestie.mx para esta búsqueda.`;
+  const zmgLine = `Si quieres ampliar la búsqueda, hay un total de *${zmgTotal}* cuartos en la Zona Metropolitana de Guadalajara (*ZMG*).`;
+
   if (cards.length > 0) {
     const intro =
       split.exact.length > 0
@@ -158,6 +164,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
           }:`
         : `No hay coincidencia exacta, pero esto está relacionado:`;
     await sink.sendText(intro);
+    // Cloud sink paces images and settles before returning so follow-ups never land mid-cards.
     await sink.sendListingCards(cards, "");
   } else {
     await sink.sendText(
@@ -165,11 +172,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
     );
   }
 
-  const totalLine =
-    matchTotal === 1
-      ? "Hay *1* cuarto en total en bestie.mx para esta búsqueda."
-      : `Hay *${matchTotal}* cuartos en total en bestie.mx para esta búsqueda.`;
-
+  // Totals / CTA / menu always after every listing card (including media settle).
   if (sink.sendCtaUrl) {
     await sink.sendCtaUrl({
       body: totalLine,
@@ -180,9 +183,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
     await sink.sendText(`${totalLine}\n${shareUrl}`);
   }
 
-  await sink.sendText(
-    `Si quieres ampliar la búsqueda, hay un total de *${zmgTotal}* cuartos en la Zona Metropolitana de Guadalajara (*ZMG*).`,
-  );
+  await sink.sendText(zmgLine);
 
   await sink.sendQuickReplies("*¿Qué sigue?*", [
     { title: "Nueva búsqueda", payload: "WA_SEARCH" },
