@@ -41,6 +41,33 @@ describe("needsProfileCompletion", () => {
     expect(needsProfileCompletion(me({ signInMethod: "google" }))).toBe(true);
   });
 
+  it("asks WhatsApp placeholder names even with verified phone", () => {
+    expect(
+      needsProfileCompletion(
+        me({
+          displayName: "Usuario WhatsApp",
+          phoneE164: "+523318632070",
+          phoneVerified: true,
+          signInMethod: "phone",
+          email: "a@example.com",
+          emailVerified: true,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      needsProfileCompletion(
+        me({
+          displayName: "María",
+          phoneE164: "+523318632070",
+          phoneVerified: true,
+          signInMethod: "phone",
+          email: "a@example.com",
+          emailVerified: true,
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it("does not nag seekers who already have email and no phone", () => {
     expect(
       needsProfileCompletion(

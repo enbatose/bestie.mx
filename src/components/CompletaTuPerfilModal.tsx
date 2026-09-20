@@ -9,6 +9,7 @@ import {
   authPhoneVerify,
   authUpdateMe,
   isEmailLinkRequiredError,
+  needsWhatsAppDisplayName,
   shouldAskProfilePhone,
   type AuthMe,
 } from "@/lib/authApi";
@@ -34,6 +35,7 @@ export function CompletaTuPerfilModal({
   onDismissed,
 }: Props) {
   const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -46,12 +48,21 @@ export function CompletaTuPerfilModal({
   const [linkCode, setLinkCode] = useState("");
   const [preferPhone, setPreferPhone] = useState(false);
 
+  const askName = needsWhatsAppDisplayName(me);
   const needsEmail = !me.email?.trim();
   const askPhone = shouldAskProfilePhone(me, { missingEmailAtOpen });
-  const step: "email" | "phone" = needsEmail && !preferPhone ? "email" : "phone";
+  const step: "name" | "email" | "phone" =
+    askName && !needsEmail && !askPhone
+      ? "name"
+      : needsEmail && !preferPhone
+        ? "email"
+        : askPhone
+          ? "phone"
+          : "name";
 
   useEffect(() => {
     if (!open) return;
+    setDisplayName(askName ? "" : me.displayName);
     setPhone(normalizeMxNationalDigits(me.phoneE164 ?? "") ?? "");
     setCode("");
     setOtpSent(false);
@@ -62,7 +73,7 @@ export function CompletaTuPerfilModal({
     setLinkPending(false);
     setLinkCode("");
     setPreferPhone(false);
-  }, [me.email, me.id, me.phoneE164, open]);
+  }, [askName, me.displayName, me.email, me.id, me.phoneE164, open]);
 
   const phoneDigits = useMemo(() => (phone.trim() ? phoneDigitsForStorage(phone) : null), [phone]);
 
@@ -80,11 +91,37 @@ export function CompletaTuPerfilModal({
     await onDismissed();
   };
 
+  const trimmedName = displayName.trim().slice(0, 120);
+
+  const saveDisplayNameIfProvided = async () => {
+    if (!askName || !trimmedName) return;
+    await authUpdateMe({ displayName: trimmedName });
+  };
+
   const finishAfterContact = async () => {
+    await saveDisplayNameIfProvided();
     await onSaved();
     const emailNow = (me.email ?? email).trim();
     if (emailNow && (missingEmailAtOpen || me.emailVerified === false)) {
       navigate("/verificar-correo", { replace: true });
+    }
+  };
+
+  const saveNameOnly = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      if (trimmedName) {
+        await authUpdateMe({ displayName: trimmedName });
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        await onSaved();
+      } else {
+        await dismiss();
+      }
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "No se pudo guardar el nombre.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -96,9 +133,14 @@ export function CompletaTuPerfilModal({
     setBusy(true);
     setErr(null);
     try {
+      await saveDisplayNameIfProvided();
       const r = await authPhoneOtpRequest(phone.trim());
       setOtpSent(true);
       setDevCode(r.devCode ?? null);
+      if (trimmedName && askName) {
+        window.dispatchEvent(new Event("bestie:me-changed"));
+        await onSaved();
+      }
     } catch (error) {
       setErr(error instanceof Error ? error.message : "No se pudo enviar el código.");
     } finally {
@@ -117,6 +159,7 @@ export function CompletaTuPerfilModal({
       const verified = await authPhoneVerify({ phone: phone.trim(), code: code.trim() });
       window.dispatchEvent(new Event("bestie:me-changed"));
       if (verified.linked) {
+        await saveDisplayNameIfProvided();
         await onSaved();
         return;
       }
@@ -138,11 +181,17 @@ export function CompletaTuPerfilModal({
     try {
       await authUpdateMe({
         email: email.trim(),
+        ...(askName && trimmedName ? { displayName: trimmedName } : {}),
         ...(oauthAccount ? {} : { currentPassword }),
       });
       window.dispatchEvent(new Event("bestie:me-changed"));
       await onSaved();
-      const nextMe = { ...me, email: email.trim(), emailVerified: false };
+      const nextMe = {
+        ...me,
+        email: email.trim(),
+        emailVerified: false,
+        displayName: trimmedName || me.displayName,
+      };
       if (!shouldAskProfilePhone(nextMe, { missingEmailAtOpen: true })) {
         navigate("/verificar-correo", { replace: true });
       }
@@ -169,6 +218,7 @@ export function CompletaTuPerfilModal({
     setErr(null);
     try {
       await authLinkExistingEmail({ email: email.trim(), code: linkCode.trim() });
+      await saveDisplayNameIfProvided();
       window.dispatchEvent(new Event("bestie:me-changed"));
       await onSaved();
     } catch (error) {
@@ -180,18 +230,44 @@ export function CompletaTuPerfilModal({
 
   const title = linkPending
     ? "Liga tu cuenta"
-    : step === "email"
-      ? "Agrega tu correo"
-      : "Confirma tu celular";
+    : step === "name"
+      ? "¿Cómo te llamas?"
+      : step === "email"
+        ? askName
+          ? "Completa tu perfil"
+          : "Agrega tu correo"
+        : "Confirma tu celular";
   const blurb = linkPending
     ? `Ese correo ya es una cuenta Bestie. Te enviamos un código a ${email.trim()} para ligar esta sesión (Facebook o Google) a esa misma cuenta. Revisa también spam.`
-    : step === "email"
-      ? askPhone
-        ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo, o confirma el celular si tu cuenta Bestie es de teléfono."
-        : "Agrega un correo para avisarte de mensajes y códigos. Facebook y Google no siempre lo comparten."
-      : me.signInMethod === "facebook" || missingEmailAtOpen || preferPhone
-        ? "Confirmamos el celular con un código SMS. Si ese número ya es tu cuenta Bestie, al verificarlo ligamos esta sesión a esa cuenta. No unimos dos cuentas que ya tienen correos o celulares distintos. Solo México (+52)."
-        : "Confirmamos el número con un código por SMS. Si ya es otra cuenta Bestie, te diremos cómo entrar ahí. Solo celulares de México (+52).";
+    : step === "name"
+      ? "Así te verán en Bestie cuando escribas o publiques. Es opcional; puedes hacerlo después."
+      : step === "email"
+        ? askName
+          ? "Pon tu nombre para que no te vean como «Usuario WhatsApp», y un correo para avisarte de mensajes. Todo es opcional."
+          : askPhone
+            ? "Facebook no siempre comparte un correo, y nunca comparte tu celular. Empieza por el correo, o confirma el celular si tu cuenta Bestie es de teléfono."
+            : "Agrega un correo para avisarte de mensajes y códigos. Facebook y Google no siempre lo comparten."
+        : me.signInMethod === "facebook" || missingEmailAtOpen || preferPhone
+          ? "Confirmamos el celular con un código SMS. Si ese número ya es tu cuenta Bestie, al verificarlo ligamos esta sesión a esa cuenta. No unimos dos cuentas que ya tienen correos o celulares distintos. Solo México (+52)."
+          : "Confirmamos el número con un código por SMS. Si ya es otra cuenta Bestie, te diremos cómo entrar ahí. Solo celulares de México (+52).";
+
+  const nameField =
+    askName && !linkPending ? (
+      <label className="block text-sm font-medium text-body">
+        Nombre
+        <input
+          type="text"
+          autoComplete="name"
+          name="displayName"
+          size={10}
+          maxLength={120}
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="Ej. María"
+          className="mt-1 w-full min-w-0 rounded-xl border border-border bg-surface px-3 py-2 text-base text-body outline-none ring-accent focus:ring-2 sm:text-sm"
+        />
+      </label>
+    ) : null;
 
   return createPortal(
     <div
@@ -212,8 +288,11 @@ export function CompletaTuPerfilModal({
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">{blurb}</p>
 
+        {step === "name" ? <div className="mt-4 space-y-3">{nameField}</div> : null}
+
         {step === "email" ? (
           <div className="mt-4 space-y-3">
+            {nameField}
             <label className="block text-sm font-medium text-body">
               Correo
               <input
@@ -277,6 +356,7 @@ export function CompletaTuPerfilModal({
 
         {step === "phone" && askPhone ? (
           <div className="mt-4 space-y-3">
+            {nameField}
             <PhoneNumberField
               id="complete-profile-phone"
               value={phone}
@@ -335,6 +415,16 @@ export function CompletaTuPerfilModal({
           >
             Ahora no
           </button>
+          {step === "name" ? (
+            <button
+              type="button"
+              onClick={() => void saveNameOnly()}
+              disabled={busy}
+              className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
+            >
+              {busy ? "Guardando…" : trimmedName ? "Guardar nombre" : "Continuar"}
+            </button>
+          ) : null}
           {step === "email" && !linkPending ? (
             <button
               type="button"
@@ -342,7 +432,7 @@ export function CompletaTuPerfilModal({
               disabled={busy}
               className="min-h-11 min-w-0 flex-1 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-fg transition hover:brightness-110 disabled:opacity-60"
             >
-              {busy ? "Guardando…" : askPhone ? "Continuar" : "Guardar correo"}
+              {busy ? "Guardando…" : askPhone ? "Continuar" : "Guardar"}
             </button>
           ) : null}
           {step === "email" && linkPending ? (

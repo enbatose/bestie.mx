@@ -125,8 +125,27 @@ export function isPublisherAccount(me: AuthMe): boolean {
   return (me.linkedPublisherIds?.length ?? 0) > 0;
 }
 
-/** Publishers: missing email or unverified/missing phone. Seekers: missing email, or an unverified phone they already started. */
+/** Default display name for accounts created from the WhatsApp bot (no real name yet). */
+export const WHATSAPP_PLACEHOLDER_DISPLAY_NAME = "Usuario WhatsApp";
+
+export function isWhatsAppPlaceholderDisplayName(name: string | null | undefined): boolean {
+  const n = (name ?? "").trim().toLowerCase();
+  if (!n) return true;
+  return (
+    n === WHATSAPP_PLACEHOLDER_DISPLAY_NAME.toLowerCase() ||
+    n === "usuario whatsapp" ||
+    n === "usuario de whatsapp"
+  );
+}
+
+/** WhatsApp-created accounts still using the placeholder name. */
+export function needsWhatsAppDisplayName(me: AuthMe): boolean {
+  return isWhatsAppPlaceholderDisplayName(me.displayName);
+}
+
+/** Publishers: missing email or unverified/missing phone. Seekers: missing email, or an unverified phone they already started. Also WhatsApp placeholder names. */
 export function needsProfileCompletion(me: AuthMe): boolean {
+  if (needsWhatsAppDisplayName(me)) return true;
   if (!me.email?.trim()) return true;
   const unverifiedPhone = Boolean(me.phoneE164) && !me.phoneVerified;
   if (unverifiedPhone) return true;
