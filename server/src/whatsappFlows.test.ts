@@ -111,10 +111,11 @@ describe("WhatsApp bot flows", () => {
 
   async function skipToPhotos(psid: string, sink: ReturnType<typeof capturingSink>["sink"]) {
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
     await processWhatsAppUserInput(db, psid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
   }
 
-  it("lets you skip photos and continue the publish flow", async () => {
+  it("lets you skip photos and go to preview with defaults", async () => {
     const pubPsid = `${PSID}-skip-photos`;
     const { sink, texts } = capturingSink();
     await skipToPhotos(pubPsid, sink);
@@ -122,39 +123,40 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /saltar y subirlas después/i.test(t))).toBe(true);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_SKIP" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
     expect(getWhatsAppChat(db, pubPsid)?.draft.photoUrls).toEqual([]);
+    expect(texts.some((t) => /Así se vería tu anuncio/i.test(t))).toBe(true);
   });
 
-  it("asks about infográficos then photos, with optional description after", async () => {
+  it("starts with Facebook paste, then optional media, then preview", async () => {
     const pubPsid = `${PSID}-info-ask`;
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    expect(texts.some((t) => /Pega el texto de tu anuncio de Facebook/i.test(t))).toBe(true);
+
+    const fbPaste =
+      "Rento recámara amueblada con wifi y baño privado cerca del Centro. $6500 al mes. Se aceptan mascotas. Ideal para profesionistas.";
+    await processWhatsAppUserInput(db, pubPsid, FROM, { text: fbPaste }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
+    expect(getWhatsAppChat(db, pubPsid)?.draft.sourceText).toContain("Rento recámara");
     expect(texts.some((t) => /\*¿Tienes un infográfico del cuarto\?\*/.test(t))).toBe(true);
-    expect(texts.some((t) => /_Las fotos reales del espacio/.test(t))).toBe(true);
-    expect(texts.some((t) => /infográfico/i.test(t) && /plantilla|flyer/i.test(t))).toBe(true);
-    expect(texts.some((t) => /siguiente paso/i.test(t))).toBe(true);
-    expect(texts.some((t) => /Puedes subir hasta \d+ fotos/.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
     expect(texts.some((t) => /Puedes subir hasta 12 fotos/.test(t))).toBe(true);
 
-    const chat = getWhatsAppChat(db, pubPsid)!;
-    upsertWhatsAppChat(db, pubPsid, {
-      flow: "pub_photos",
-      draft: { ...chat.draft, photoUrls: ["/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-300000000001.jpg"] },
-    });
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_DONE" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
-    expect(texts.some((t) => /descripción/i.test(t) && /opcional/i.test(t))).toBe(true);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_SKIP" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
+    expect(texts.some((t) => /renta mensual exacta/i.test(t))).toBe(false);
+    expect(texts.some((t) => /\*¿Qué incluye el cuarto\?\*/.test(t))).toBe(false);
   });
 
   it("caps infographics at 2 and keeps them out of the photo step bucket", async () => {
     const pubPsid = `${PSID}-info-cap`;
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_YES" }, sink);
     const urls: Record<string, string> = {
       m1: "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-100000000001.jpg",
@@ -171,63 +173,63 @@ describe("WhatsApp bot flows", () => {
     );
     const chat = getWhatsAppChat(db, pubPsid);
     expect(chat?.draft.infographicUrls).toEqual([urls.m1, urls.m2]);
-    // Still a separate bucket during the chat; they merge into the gallery only at publish.
     expect(chat?.draft.photoUrls).toEqual([]);
     expect(chat?.flow).toBe("pub_photos");
     expect(texts.some((t) => /leyendo el infográfico/i.test(t))).toBe(true);
     expect(texts.some((t) => /Puedes subir hasta 10 fotos/.test(t))).toBe(true);
   });
 
-  it("publishes a single room from photos + pin + exact rent + legal tap", async () => {
+  it("publishes from pasted text + media without rent/location interview", async () => {
     const photo = "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.jpg";
     const info = "/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff.jpg";
     const pubPsid = `${PSID}-pub`;
     const { sink, texts } = capturingSink();
-    await skipToPhotos(pubPsid, sink);
-    const chat = getWhatsAppChat(db, pubPsid)!;
-    upsertWhatsAppChat(db, pubPsid, {
-      flow: "pub_photos",
-      draft: { ...chat.draft, photoUrls: [photo], infographicUrls: [info] },
-    });
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_DONE" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
     await processWhatsAppUserInput(
       db,
       pubPsid,
       FROM,
       {
-        location: {
-          lat: 20.6746,
-          lng: -103.3665,
-          name: `${"AvenidaChapultepecSinEspacios".repeat(4)}, Guadalajara, Jalisco, México`,
-        },
+        text:
+          "Rento recámara privada grande amueblada con wifi y baño privado en Chapultepec. $6500 mensuales, depósito un mes. Prefiero roomie mujer. Se aceptan mascotas.",
       },
       sink,
     );
-    expect(texts.some((t) => /renta mensual exacta/i.test(t))).toBe(true);
-    expect(texts.some((t) => /Hasta \$5,000/.test(t))).toBe(false);
-    await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6500" }, sink);
-
-    // Essentials the wizard asks for: room kind + size, roomies, deposit, tags.
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_room_kind");
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_KIND:private:large" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_roomies");
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_GENDER:female" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_deposit");
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:rent" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
-    await processWhatsAppUserInput(db, pubPsid, FROM, { text: "1,3,5" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
+    const chat = getWhatsAppChat(db, pubPsid)!;
+    upsertWhatsAppChat(db, pubPsid, {
+      flow: "pub_photos",
+      draft: {
+        ...chat.draft,
+        photoUrls: [photo],
+        infographicUrls: [info],
+        rentMxn: 6500,
+        locLat: 20.6746,
+        locLng: -103.3665,
+        locLabel: "Chapultepec",
+        neighborhood: "Chapultepec",
+        depositMxn: 6500,
+        lodging: "private_room",
+        roomDimension: "large",
+        roomKindSet: true,
+        genderPref: "female",
+        genderSet: true,
+        pubTags: ["wifi", "baño-privado", "mascotas", "muebles"],
+        summary:
+          "Recámara privada grande amueblada en Chapultepec con wifi y baño privado. Renta $6,500 al mes. Ideal para quien busca un espacio cómodo cerca de la zona.",
+      },
+    });
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_DONE" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
-    expect(texts.some((t) => /\*¿Algo más\?\*/.test(t))).toBe(false);
     expect(texts.some((t) => /Cambiar etiquetas/.test(t))).toBe(false);
+    expect(texts.some((t) => /renta mensual exacta/i.test(t))).toBe(false);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUBLISH" }, sink);
 
     expect(texts.some((t) => t.includes("ya está público"))).toBe(true);
     const row = db
       .prepare(
-        `SELECT p.contact_whatsapp, p.is_approximate_location, p.approximate_radius_m, p.title, p.neighborhood,
+        `SELECT p.contact_whatsapp, p.is_approximate_location, p.approximate_radius_m, p.hide_pricing, p.title, p.neighborhood,
                 p.summary, p.property_kind, r.rent_mxn, r.deposit_mxn, r.tags_json, r.roommate_gender_pref,
                 r.room_dimension, r.lodging_type, r.image_urls_json, r.title AS room_title
          FROM properties p JOIN rooms r ON r.property_id = p.id
@@ -238,6 +240,7 @@ describe("WhatsApp bot flows", () => {
           contact_whatsapp: string;
           is_approximate_location: number;
           approximate_radius_m: number;
+          hide_pricing: number;
           title: string;
           neighborhood: string;
           summary: string;
@@ -254,7 +257,7 @@ describe("WhatsApp bot flows", () => {
       | undefined;
     expect(row?.contact_whatsapp).toBe("523318632070");
     expect(row?.is_approximate_location).toBe(1);
-    expect(row?.approximate_radius_m).toBeGreaterThanOrEqual(100);
+    expect(row?.hide_pricing).toBe(0);
     expect(row?.rent_mxn).toBe(6500);
     expect(row?.deposit_mxn).toBe(6500);
     expect(JSON.parse(row?.tags_json ?? "[]")).toEqual(
@@ -267,72 +270,51 @@ describe("WhatsApp bot flows", () => {
     expect(row?.title.length).toBeLessThanOrEqual(70);
     expect(row?.neighborhood.length).toBeLessThanOrEqual(50);
     expect(row?.summary).not.toMatch(/Publicado desde WhatsApp/i);
-    // Description is written from the facts, so it names the room and the rent.
-    expect(row?.summary).toMatch(/Privada grande/i);
-    expect(row?.summary).toMatch(/6,500/);
     expect(row?.summary.length).toBeGreaterThanOrEqual(100);
     expect(row?.summary.length).toBeLessThanOrEqual(1500);
     expect(row?.property_kind).toBe("apartment");
     expect(row?.room_title).toBe("Recámara 1");
   });
 
-  it("does not re-ask an essential the description already answered", async () => {
-    const pubPsid = `${PSID}-essentials-known`;
-    const { sink } = capturingSink();
-    await skipToPhotos(pubPsid, sink);
-    const chat = getWhatsAppChat(db, pubPsid)!;
-    upsertWhatsAppChat(db, pubPsid, {
-      flow: "pub_rent",
-      draft: {
-        ...chat.draft,
-        photoUrls: ["/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-200000000001.jpg"],
-        locLat: 20.6746,
-        locLng: -103.3665,
-        locLabel: "Centro",
-        roomKindSet: true,
-        genderSet: true,
-        depositMxn: 0,
-      },
-    });
-    await processWhatsAppUserInput(db, pubPsid, FROM, { text: "6000" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
-  });
-
-  it("shows the full amenity menu even when tags are already known", async () => {
-    const pubPsid = `${PSID}-tags-confirm`;
+  it("publishes with hidden rent and city pin when the paste has no price or zone", async () => {
+    const pubPsid = `${PSID}-defaults`;
     const { sink, texts } = capturingSink();
-    await skipToPhotos(pubPsid, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_SKIP" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
-      flow: "pub_deposit",
+      flow: "pub_photos",
       draft: {
         ...chat.draft,
-        photoUrls: ["/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-200000000001.jpg"],
-        locLat: 20.6746,
-        locLng: -103.3665,
-        locLabel: "Centro",
-        rentMxn: 6000,
-        roomKindSet: true,
-        genderSet: true,
-        depositMxn: 0,
-        pubTags: ["wifi", "baño-privado", "mascotas"],
+        sourceText: "Cuarto disponible, bonito y limpio, escribe para más info.",
+        summary:
+          "Cuarto disponible en Guadalajara, bonito y limpio. Escribe para más información sobre el espacio y la convivencia.",
       },
     });
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DEP:0" }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_tags");
-    expect(texts.some((t) => /\*¿Qué incluye el cuarto\?\*/.test(t))).toBe(true);
-    expect(texts.some((t) => /Ya detecté:/.test(t))).toBe(true);
-    expect(texts.some((t) => /1\. Wifi ✅/.test(t))).toBe(true);
-    expect(texts.some((t) => /4\. Estacionamiento/.test(t))).toBe(true);
-    expect(texts.some((t) => /\*¿Confirmamos lo que incluye\?\*/.test(t))).toBe(false);
-    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_TAGS_DONE" }, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PHOTOS_SKIP" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_preview");
+    expect(texts.some((t) => /Renta oculta/i.test(t))).toBe(true);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUBLISH" }, sink);
+    expect(texts.some((t) => t.includes("ya está público"))).toBe(true);
+    const row = db
+      .prepare(
+        `SELECT p.hide_pricing, p.lat, p.lng, r.rent_mxn FROM properties p
+         JOIN rooms r ON r.property_id = p.id
+         WHERE r.summary LIKE '%bonito y limpio%'
+         ORDER BY p.created_at DESC LIMIT 1`,
+      )
+      .get() as { hide_pricing: number; lat: number; lng: number; rent_mxn: number } | undefined;
+    expect(row?.hide_pricing).toBe(1);
+    expect(row?.rent_mxn).toBe(0);
+    expect(row?.lat).toBeCloseTo(20.675138, 4);
+    expect(row?.lng).toBeCloseTo(-103.347345, 4);
   });
 
   it("keeps a denied tag out of the published post", async () => {
     const pubPsid = `${PSID}-denied-tags`;
     const { sink } = capturingSink();
-    await skipToPhotos(pubPsid, sink);
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
     await processWhatsAppUserInput(
       db,
       pubPsid,

@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { SELF_SERVE_MAX_TEXT_CHARS } from "./assistedDraftLimits.js";
 import { confidenceToRadius, extractListingDataWithGemini } from "./assistedDraftGemini.js";
+import {
+  DEFAULT_LISTING_AGE_MAX,
+  DEFAULT_LISTING_AGE_MIN,
+} from "./assistedDraftMerge.js";
 import { applySourceTextTagSignals } from "./assistedDraftSourceTags.js";
 import {
   composeChatRoomSummary,
@@ -8,6 +13,7 @@ import {
   type ChatRoomSummaryFacts,
 } from "./chatListingSummary.js";
 import { chatTagLabels } from "./chatPublishAmenities.js";
+import { outreachHidePricingForMissingRent } from "./claimPublishRent.js";
 import { matchGdlSearchPois } from "./gdlSearchPois.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { roomReferenceCode } from "./listingReference.js";
@@ -34,6 +40,8 @@ import {
 import type { WhatsAppBotDraft } from "./whatsappSessionStore.js";
 
 const CITY = "Guadalajara";
+/** Same city fallback as admin outreach create when the paste has no pin. */
+const GDL_CITY_ANCHOR = { lat: 20.675_138, lng: -103.347_345 };
 /** Match the publish wizard so listing cards/headers wrap like assistant posts. */
 const PROPERTY_TITLE_MAX = 70;
 const PROPERTY_NEIGHBORHOOD_MAX = 50;
@@ -208,13 +216,14 @@ function applySourceSignals(draft: WhatsAppBotDraft, sourceText: string): WhatsA
 }
 
 export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: string): Promise<WhatsAppBotDraft> {
+  const clipped = text.trim().slice(0, SELF_SERVE_MAX_TEXT_CHARS);
   let next: WhatsAppBotDraft = {
     ...draft,
-    sourceText: [draft.sourceText, text].filter(Boolean).join("\n").slice(0, 4000),
+    sourceText: [draft.sourceText, clipped].filter(Boolean).join("\n").slice(0, SELF_SERVE_MAX_TEXT_CHARS),
   };
-  const rent = parseRentFromText(text);
+  const rent = parseRentFromText(clipped);
   if (rent != null && next.rentMxn == null) next.rentMxn = rent;
-  const pois = matchGdlSearchPois(text);
+  const pois = matchGdlSearchPois(clipped);
   if (pois[0] && next.locLat == null) {
     next.locLat = pois[0].lat;
     next.locLng = pois[0].lng;
@@ -223,15 +232,46 @@ export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: 
     next.locApproximate = true;
     next.locRadiusM = 400;
   }
-  if (text.trim().length >= 40) {
+  // Same as admin outreach: run extraction on any non-empty paste (no short-text gate).
+  if (clipped) {
     try {
-      const gem = await extractListingDataWithGemini({ text, city: CITY });
+      const gem = await extractListingDataWithGemini({ text: clipped, city: CITY });
       next = applyGeminiExtraction(next, gem.extraction);
     } catch (err) {
       console.warn("[whatsapp] publish extract failed", err instanceof Error ? err.message : err);
     }
   }
-  return applySourceSignals(next, text);
+  return applySourceSignals(next, clipped);
+}
+
+/**
+ * Admin-outreach-style defaults: never block publish on missing rent, pin, deposit,
+ * room kind, roomies, or amenity taps — fill gaps the same way assisted create does.
+ */
+export function applyWhatsAppPublishDefaults(draft: WhatsAppBotDraft): WhatsAppBotDraft {
+  const next = { ...draft };
+  if (next.depositMxn == null) next.depositMxn = 0;
+  if (!next.genderSet) {
+    next.genderPref = next.genderPref || "any";
+    next.genderSet = true;
+  }
+  if (!next.roomKindSet) {
+    next.lodging = next.lodging || "private_room";
+    next.roomDimension = next.roomDimension || "medium";
+    next.roomKindSet = true;
+  }
+  next.ageMin = next.ageMin || DEFAULT_LISTING_AGE_MIN;
+  next.ageMax = next.ageMax || DEFAULT_LISTING_AGE_MAX;
+  next.tagsConfirmed = true;
+  if (next.locLat == null || next.locLng == null || !validLatLng(next.locLat, next.locLng)) {
+    next.locLat = GDL_CITY_ANCHOR.lat;
+    next.locLng = GDL_CITY_ANCHOR.lng;
+    next.locLabel = next.locLabel || next.neighborhood || CITY;
+    next.neighborhood = next.neighborhood || next.locLabel || CITY;
+    next.locApproximate = true;
+    next.locRadiusM = next.locRadiusM ?? 1000;
+  }
+  return next;
 }
 
 export async function enrichPublishDraftFromInfographics(
@@ -310,11 +350,8 @@ export function applyNativeLocation(
   };
 }
 
-export function publishDraftReady(draft: WhatsAppBotDraft): string | null {
-  if (draft.locLat == null || draft.locLng == null || !validLatLng(draft.locLat, draft.locLng)) {
-    return "Falta la zona o el pin de ubicación.";
-  }
-  if (draft.rentMxn == null || draft.rentMxn < 1500) return "Falta la renta mensual exacta.";
+/** WhatsApp publish mirrors admin outreach: defaults fill gaps; nothing blocks here. */
+export function publishDraftReady(_draft: WhatsAppBotDraft): string | null {
   return null;
 }
 
@@ -336,14 +373,17 @@ function genderLabel(draft: WhatsAppBotDraft): string {
 
 export function formatPublishPreview(draft: WhatsAppBotDraft): string {
   const fields = composeWhatsAppListingFields(draft);
-  const rent = draft.rentMxn != null ? `$${draft.rentMxn} MXN/mes` : "(sin renta)";
+  const hidePricing = outreachHidePricingForMissingRent(draft.rentMxn);
+  const rent = hidePricing
+    ? "Renta oculta (no venía en el texto)"
+    : `$${draft.rentMxn} MXN/mes`;
   const radius = draft.locRadiusM ?? APPROXIMATE_RADIUS_DEFAULT_M;
   const tags = chatTagLabels(draft.pubTags);
   return [
     "*Así se vería tu anuncio:*",
     `• ${fields.title}`,
     `• ${fields.neighborhood}, ${CITY} (pin aproximado ~${radius} m)`,
-    `• ${rent}${draft.depositMxn != null ? ` · depósito ${draft.depositMxn > 0 ? `$${draft.depositMxn}` : "no"}` : ""}`,
+    `• ${rent}${!hidePricing && draft.depositMxn != null ? ` · depósito ${draft.depositMxn > 0 ? `$${draft.depositMxn}` : "no"}` : ""}`,
     `• ${roomKindLabel(draft)} · ${genderLabel(draft)}`,
     tags.length ? `• Etiquetas: ${tags.join(", ")}` : "• Etiquetas: ninguna todavía",
     `• ${draft.photoUrls.length} foto${draft.photoUrls.length === 1 ? "" : "s"} del espacio${draft.photoUrls.length === 0 ? " (puedes subirlas después)" : ""}`,
@@ -354,6 +394,7 @@ export function formatPublishPreview(draft: WhatsAppBotDraft): string {
     `Descripción: ${fields.summary.slice(0, 300)}${fields.summary.length > 300 ? "…" : ""}`,
     "",
     "_Al publicar aceptas los Términos y el Aviso de privacidad. El anuncio queda público con este número._",
+    "_Puedes completar renta, zona y etiquetas en el sitio después._",
     `${publicWebOrigin()}/legal/terminos`,
     `${publicWebOrigin()}/legal/privacidad`,
   ]
@@ -375,18 +416,17 @@ export function publishWhatsAppRoom(
   db: DatabaseSync,
   opts: { publisherId: string; contactStored: string; draft: WhatsAppBotDraft },
 ): WhatsAppPublishResult {
-  const blocked = publishDraftReady(opts.draft);
-  if (blocked) return { ok: false, error: blocked };
-  const d = opts.draft;
+  const d = applyWhatsAppPublishDefaults(opts.draft);
   // Real space photos first (listing card hero), then infographics so they still appear in the gallery.
   const photos = clampListingImageUrls([...d.photoUrls, ...d.infographicUrls]);
   const lat = d.locLat!;
   const lng = d.locLng!;
   const fields = composeWhatsAppListingFields(d);
   if (!minimalRoomSummaryOk(fields.summary)) {
-    return { ok: false, error: "La descripción quedó corta. Escribe un poco más del cuarto." };
+    return { ok: false, error: "La descripción quedó corta. Pega el texto del anuncio de Facebook y vuelve a intentar." };
   }
-  const rent = clampRentMxn(d.rentMxn!);
+  const hidePricing = outreachHidePricingForMissingRent(d.rentMxn);
+  const rent = hidePricing ? 0 : clampRentMxn(d.rentMxn!);
 
   const propertyId = `prp__${randomUUID()}`;
   const roomId = randomUUID();
@@ -403,7 +443,7 @@ export function publishWhatsAppRoom(
         id, publisher_id, status, post_mode, title, city, neighborhood, lat, lng, summary, contact_whatsapp,
         property_kind, bedrooms_total, bathrooms, show_whatsapp, hide_pricing, image_urls_json,
         is_approximate_location, approximate_radius_m, created_at, published_at
-      ) VALUES (?, ?, 'published', 'room', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, '[]', 1, ?, ?, ?)`,
+      ) VALUES (?, ?, 'published', 'room', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, '[]', 1, ?, ?, ?)`,
     ).run(
       propertyId,
       opts.publisherId,
@@ -417,6 +457,7 @@ export function publishWhatsAppRoom(
       fields.propertyKind,
       d.bedroomsTotal != null ? clampBedroomsTotal(d.bedroomsTotal) : 1,
       d.bathrooms != null ? clampBathrooms(d.bathrooms) : 1,
+      hidePricing ? 1 : 0,
       radius,
       createdAt,
       createdAt,
@@ -435,8 +476,8 @@ export function publishWhatsAppRoom(
       rent,
       JSON.stringify(publishedTags(d)),
       d.genderPref,
-      clampAge(d.ageMin, 22),
-      clampAge(d.ageMax, 45),
+      clampAge(d.ageMin, DEFAULT_LISTING_AGE_MIN),
+      clampAge(d.ageMax, DEFAULT_LISTING_AGE_MAX),
       fields.summary,
       d.lodging,
       availFrom,
