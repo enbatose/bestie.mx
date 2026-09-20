@@ -714,7 +714,7 @@ export async function processWhatsAppUserInput(
     const cap = photoCapFor(draft);
     if (row.dropped > 0) {
       await sink.sendText(
-        `_*Máximo ${cap} fotos* en el anuncio. Guardé ${draft.photoUrls.length}; no incluí ${row.dropped}._`,
+        `_*Máximo ${cap} fotos* en el anuncio. Guardé las primeras ${draft.photoUrls.length}; no incluí ${row.dropped}._`,
       );
     } else if (failedSave > 0) {
       await sink.sendText(

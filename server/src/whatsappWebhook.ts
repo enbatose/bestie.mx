@@ -48,6 +48,7 @@ type WaMessage = {
   id?: string;
   from?: string;
   type?: string;
+  timestamp?: string | number;
   text?: { body?: string };
   image?: { id?: string; caption?: string };
   document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
@@ -64,19 +65,29 @@ function interactivePayload(msg: WaMessage): string | null {
   return typeof id === "string" && id.trim() ? id.trim() : null;
 }
 
-function inboundImageFromMessage(msg: WaMessage): { id: string; caption?: string } | null {
+function inboundImageFromMessage(msg: WaMessage): { id: string; caption?: string; timestampSec?: number } | null {
+  const tsRaw = msg.timestamp;
+  const timestampSec =
+    typeof tsRaw === "number" && Number.isFinite(tsRaw)
+      ? Math.floor(tsRaw)
+      : typeof tsRaw === "string" && /^\d+$/.test(tsRaw.trim())
+        ? Number(tsRaw.trim())
+        : undefined;
+  const withTs = <T extends { id: string; caption?: string }>(img: T) =>
+    timestampSec != null ? { ...img, timestampSec } : img;
+
   if (typeof msg.image?.id === "string" && msg.image.id.trim()) {
-    return { id: msg.image.id.trim(), caption: msg.image.caption };
+    return withTs({ id: msg.image.id.trim(), caption: msg.image.caption });
   }
   const doc = msg.document;
   const mime = (doc?.mime_type ?? "").toLowerCase();
   const name = (doc?.filename ?? "").toLowerCase();
   const looksImage = mime.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic)$/i.test(name);
   if (doc?.id && looksImage) {
-    return { id: doc.id.trim(), caption: doc.caption };
+    return withTs({ id: doc.id.trim(), caption: doc.caption });
   }
   if (msg.type === "image" && typeof msg.image?.id === "string") {
-    return { id: msg.image.id.trim(), caption: msg.image.caption };
+    return withTs({ id: msg.image.id.trim(), caption: msg.image.caption });
   }
   return null;
 }

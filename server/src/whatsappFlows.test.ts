@@ -401,7 +401,7 @@ describe("WhatsApp bot flows", () => {
     );
     const chat = getWhatsAppChat(db, pubPsid);
     expect(chat?.draft.photoUrls).toHaveLength(12);
-    expect(texts.some((t) => /Máximo 12 fotos/i.test(t) && /no incluí 3/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Máximo 12 fotos/i.test(t) && /primeras 12/i.test(t) && /no incluí 3/i.test(t))).toBe(true);
     expect(texts.some((t) => /Ya tengo 12 fotos, el máximo/i.test(t))).toBe(true);
     expect(texts.some((t) => /Recibí 5/.test(t))).toBe(false);
   });

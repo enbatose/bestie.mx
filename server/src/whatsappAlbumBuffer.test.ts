@@ -3,6 +3,7 @@ import {
   enqueueWhatsAppAlbumImages,
   pendingWhatsAppAlbumImageCount,
   resetWhatsAppAlbumBuffersForTests,
+  sortWhatsAppAlbumImages,
   WHATSAPP_ALBUM_COALESCE_MS,
 } from "./whatsappAlbumBuffer.js";
 import { mergeWhatsAppPhotoUrls } from "./whatsappSessionStore.js";
@@ -30,7 +31,6 @@ describe("whatsapp album coalesce buffer", () => {
   });
 
   it("buffers images across enqueues until the coalesce window", () => {
-    // db is unused until flush — pass a stub object; we only assert buffer counts here.
     const db = {} as import("node:sqlite").DatabaseSync;
     expect(WHATSAPP_ALBUM_COALESCE_MS).toBeGreaterThanOrEqual(5_000);
     enqueueWhatsAppAlbumImages(db, "5213318632070", [{ id: "m1" }, { id: "m2" }], {
@@ -41,5 +41,14 @@ describe("whatsapp album coalesce buffer", () => {
       coalesceMs: 60_000,
     });
     expect(pendingWhatsAppAlbumImageCount("5213318632070")).toBe(3);
+  });
+
+  it("sorts by WhatsApp message timestamp so first-12 follows send order", () => {
+    const sorted = sortWhatsAppAlbumImages([
+      { id: "late", timestampSec: 200, enqueueSeq: 0 },
+      { id: "early", timestampSec: 100, enqueueSeq: 1 },
+      { id: "mid", timestampSec: 150, enqueueSeq: 2 },
+    ]);
+    expect(sorted.map((x) => x.id)).toEqual(["early", "mid", "late"]);
   });
 });
