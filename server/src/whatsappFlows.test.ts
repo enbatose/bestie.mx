@@ -151,7 +151,7 @@ describe("WhatsApp bot flows", () => {
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_DONE" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
     expect(texts.some((t) => /Estoy leyendo todo el texto/i.test(t))).toBe(true);
-    expect(texts.some((t) => /\*¿Tienes un infográfico del cuarto\?\*/.test(t))).toBe(true);
+    expect(texts.some((t) => /\*¿Tienes un flyer o imagen con los datos del cuarto\?\*/.test(t))).toBe(true);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_photos");
@@ -240,6 +240,8 @@ describe("WhatsApp bot flows", () => {
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUBLISH" }, sink);
 
     expect(texts.some((t) => t.includes("ya está público"))).toBe(true);
+    expect(texts.some((t) => /\*¿Qué quieres hacer en Guadalajara\?\*/.test(t))).toBe(false);
+    expect(texts.some((t) => /escribe Hola/i.test(t))).toBe(true);
     const row = db
       .prepare(
         `SELECT p.contact_whatsapp, p.is_approximate_location, p.approximate_radius_m, p.hide_pricing, p.title, p.neighborhood,
@@ -397,8 +399,8 @@ describe("WhatsApp bot flows", () => {
     );
     const chat = getWhatsAppChat(db, pubPsid);
     expect(chat?.draft.photoUrls).toHaveLength(12);
-    expect(texts.some((t) => /Máximo 12 fotos/i.test(t) && /primeras 12/i.test(t) && /no incluí 3/i.test(t))).toBe(true);
-    expect(texts.some((t) => /Ya tengo 12 fotos, el máximo/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Máximo 12 fotos/i.test(t) && /primeras 12/i.test(t) && /de más no entraron/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Listo: ya tengo el máximo de 12 fotos/i.test(t))).toBe(true);
     expect(texts.some((t) => /Recibí 5/.test(t))).toBe(false);
   });
 

@@ -173,14 +173,14 @@ async function finishSearch(
 async function sendInfographicAsk(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
     waStep({
-      question: "¿Tienes un infográfico del cuarto?",
+      question: "¿Tienes un flyer o imagen con los datos del cuarto?",
       description:
-        "Es una sola imagen (flyer o plantilla) con datos como renta, zona o reglas — a veces con fotos mezcladas. Puedes mandar hasta 2.",
-      aside: "Las fotos reales del espacio (cuarto, baño, cocina…) las pedimos en el siguiente paso.",
+        "Una sola imagen con renta, zona o reglas (a veces con fotos mezcladas). Hasta 2.",
+      aside: "Las fotos del espacio (cuarto, baño…) las pedimos en el siguiente paso.",
     }),
     [
       { title: "Sí, tengo", payload: "WA_INFO_YES" },
-      { title: "No", payload: "WA_INFO_NO" },
+      { title: "No, seguir", payload: "WA_INFO_NO" },
       { title: "Cancelar", payload: "WA_CANCEL" },
     ],
   );
@@ -190,9 +190,9 @@ async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<voi
   if (count <= 0) {
     await sink.sendQuickReplies(
       waStep({
-        question: "¿Me mandas el infográfico?",
+        question: "¿Me mandas el flyer o imagen?",
         description: "Hasta 2 imágenes en JPG o PNG.",
-        aside: "Después te pediré las fotos reales del espacio.",
+        aside: "Después te pediré las fotos del espacio.",
       }),
       [{ title: "No tengo", payload: "WA_INFO_NO" }, { title: "Cancelar", payload: "WA_CANCEL" }],
     );
@@ -201,11 +201,12 @@ async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<voi
   if (count >= SELF_SERVE_MAX_INFOGRAPHICS) {
     await sink.sendQuickReplies(
       waStep({
-        question: "¿Seguimos?",
-        description: `Ya tengo ${SELF_SERVE_MAX_INFOGRAPHICS} infográficos, el máximo.`,
+        question: "Listo: ya tengo el máximo de 2",
+        description: "Guardé tus flyers o imágenes con datos.",
+        aside: "Sigue con las fotos del espacio, o cancela.",
       }),
       [
-        { title: "No, seguir", payload: "WA_INFO_DONE" },
+        { title: "Continuar", payload: "WA_INFO_DONE" },
         { title: "Cancelar", payload: "WA_CANCEL" },
       ],
     );
@@ -213,12 +214,12 @@ async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<voi
   }
   await sink.sendQuickReplies(
     waStep({
-      question: "¿Tienes otro infográfico?",
+      question: "¿Tienes otro flyer o imagen?",
       description: `Recibí ${count} (máximo ${SELF_SERVE_MAX_INFOGRAPHICS}).`,
     }),
     [
       { title: "Sí, otro", payload: "WA_INFO_MORE" },
-      { title: "No, seguir", payload: "WA_INFO_DONE" },
+      { title: "Continuar", payload: "WA_INFO_DONE" },
       { title: "Cancelar", payload: "WA_CANCEL" },
     ],
   );
@@ -295,11 +296,12 @@ async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promis
   if (count >= maxPhotos) {
     await sink.sendQuickReplies(
       waStep({
-        question: "¿Seguimos?",
-        description: `Ya tengo ${maxPhotos} fotos, el máximo.`,
+        question: `Listo: ya tengo el máximo de ${maxPhotos} fotos`,
+        description: "El anuncio ya está completo de fotos.",
+        aside: "Puedes cambiarlas después en el sitio.",
       }),
       [
-        { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
+        { title: "Continuar", payload: "WA_PHOTOS_DONE" },
         { title: "Cancelar", payload: "WA_CANCEL" },
       ],
     );
@@ -312,7 +314,7 @@ async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promis
     }),
     [
       { title: "Sí, más fotos", payload: "WA_PHOTOS_MORE" },
-      { title: "No, seguir", payload: "WA_PHOTOS_DONE" },
+      { title: "Continuar", payload: "WA_PHOTOS_DONE" },
       { title: "Cancelar", payload: "WA_CANCEL" },
     ],
   );
@@ -512,7 +514,7 @@ export async function processWhatsAppUserInput(
       draft = row.draft;
       if (row.dropped > 0) {
         await sink.sendText(
-          `_Máximo ${SELF_SERVE_MAX_INFOGRAPHICS} infográficos. Guardé ${draft.infographicUrls.length}; no incluí ${row.dropped}._`,
+          `_Máximo ${SELF_SERVE_MAX_INFOGRAPHICS}. Guardé ${draft.infographicUrls.length}; las ${row.dropped} de más no entraron._`,
         );
       } else if (failedSave > 0) {
         await sink.sendText(
@@ -542,7 +544,7 @@ export async function processWhatsAppUserInput(
     const cap = photoCapFor(draft);
     if (row.dropped > 0) {
       await sink.sendText(
-        `_*Máximo ${cap} fotos* en el anuncio. Guardé las primeras ${draft.photoUrls.length}; no incluí ${row.dropped}._`,
+        `_Máximo ${cap} fotos. Guardé las primeras ${draft.photoUrls.length}; las ${row.dropped} de más no entraron._`,
       );
     } else if (failedSave > 0) {
       await sink.sendText(
@@ -593,7 +595,7 @@ export async function processWhatsAppUserInput(
     else if (/^(no|ninguno)[\s!.]*$/i.test(lower)) payload = "WA_INFO_NO";
   }
   if (flow === "pub_infographics") {
-    if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) payload = "WA_INFO_DONE";
+    if (/^(no|seguir|listo|ya|continuar|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) payload = "WA_INFO_DONE";
     else if (/^(s[ií]|otro|otra|m[aá]s)[\s!.]*$/i.test(lower)) payload = "WA_INFO_MORE";
   }
   if (flow === "pub_desc") {
@@ -609,7 +611,7 @@ export async function processWhatsAppUserInput(
   if (flow === "pub_photos") {
     if (/^(saltar|skip|sin\s+fotos|después|despues|luego)[\s!.]*$/i.test(lower)) {
       payload = "WA_PHOTOS_SKIP";
-    } else if (/^(no|seguir|listo|ya|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
+    } else if (/^(no|seguir|listo|ya|continuar|eso\s+es\s+todo)[\s!.]*$/i.test(lower)) {
       payload = "WA_PHOTOS_DONE";
     } else if (/^(s[ií]|m[aá]s|otra|otras)[\s!.]*$/i.test(lower)) {
       payload = "WA_PHOTOS_MORE";
@@ -831,9 +833,10 @@ export async function processWhatsAppUserInput(
         result.url,
         "",
         `_Puedes editarlo en ${publicWebOrigin()}/mis-anuncios_`,
+        "",
+        "_Cuando quieras algo más, escribe Hola._",
       ].join("\n"),
     );
-    await sendMenu(sink);
     return;
   }
 
@@ -883,7 +886,7 @@ export async function processWhatsAppUserInput(
   if (flow === "pub_photos") {
     draft = await enrichPublishDraftFromText(draft, textRaw);
     save(db, psid, "pub_photos", draft, publisherId);
-    await sink.sendText("Anotado. Sigue mandando fotos o, si ya no hay más, pulsa No, seguir.");
+    await sink.sendText("Anotado. Sigue mandando fotos o, si ya no hay más, pulsa Continuar.");
     await sendPhotosPrompt(sink, draft);
     return;
   }
