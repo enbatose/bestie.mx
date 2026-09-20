@@ -203,7 +203,7 @@ export async function runWhatsAppDiffusionSearchAndReply(
   await sink.sendQuickReplies("*¿Qué sigue?*", [
     { title: "Nueva búsqueda", payload: "WA_SEARCH" },
     { title: "Menú", payload: "WA_MENU" },
-    { title: "Publicar Cuarto", payload: "WA_PUB" },
+    { title: "Publicar cuarto", payload: "WA_PUB" },
   ]);
 
   return {

@@ -95,7 +95,7 @@ async function sendMenu(sink: ChatSink): Promise<void> {
     ["Hola, soy Bestie.", "", "*¿Qué quieres hacer en Guadalajara?*"].join("\n"),
     [
       { title: "Buscar cuarto", payload: "WA_SEARCH" },
-      { title: "Publicar Cuarto", payload: "WA_PUB" },
+      { title: "Publicar cuarto", payload: "WA_PUB" },
       { title: "Ayuda", payload: "WA_HELP" },
     ],
   );
@@ -130,7 +130,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
     await sink.sendQuickReplies("_También puedes:_", [
       { title: "Reiniciar", payload: "WA_MENU" },
       { title: "Buscar cuarto", payload: "WA_SEARCH" },
-      { title: "Publicar Cuarto", payload: "WA_PUB" },
+      { title: "Publicar cuarto", payload: "WA_PUB" },
     ]);
     return;
   }
@@ -139,7 +139,7 @@ async function sendHelp(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(body, [
     { title: "Reiniciar", payload: "WA_MENU" },
     { title: "Buscar cuarto", payload: "WA_SEARCH" },
-    { title: "Publicar Cuarto", payload: "WA_PUB" },
+    { title: "Publicar cuarto", payload: "WA_PUB" },
     { title: "Ayuda por WhatsApp", payload: "WA_HELP_WA" },
   ]);
 }
@@ -518,7 +518,7 @@ export async function processWhatsAppUserInput(
   const imageIds = inboundImageIds(inbound);
   if (imageIds.length) {
     if (!flow.startsWith("pub") && flow !== "idle") {
-      await sink.sendText("Si quieres publicar, pulsa *Publicar Cuarto* en el menú y luego manda las fotos.");
+      await sink.sendText("Si quieres publicar, pulsa *Publicar cuarto* en el menú y luego manda las fotos.");
       return;
     }
     const saveImage =
