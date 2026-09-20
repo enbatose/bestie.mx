@@ -58,7 +58,7 @@ export type WhatsAppFlowOptions = {
   saveImage?: (mediaId: string) => Promise<string | null>;
 };
 
-const DEFAULT_PHOTO_ACK_DELAY_MS = 1800;
+const DEFAULT_PHOTO_ACK_DELAY_MS = 2_500;
 const mediaAckTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
@@ -669,6 +669,7 @@ export async function processWhatsAppUserInput(
       opts.saveImage ??
       (async (mediaId: string) =>
         opts.uploadDir ? saveWhatsAppMediaImage(db, opts.uploadDir, mediaId) : null);
+    const attempted = imageIds.length;
     const saved = (
       await Promise.all(imageIds.map((id) => saveImage(id).catch(() => null)))
     ).filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/"));
@@ -676,6 +677,7 @@ export async function processWhatsAppUserInput(
       await sink.sendText("*No pude guardar esas fotos.* Mándalas otra vez en JPG o PNG.");
       return;
     }
+    const failedSave = Math.max(0, attempted - saved.length);
 
     const treatAsInfographic = isInfographicFlow(flow);
     if (treatAsInfographic) {
@@ -685,6 +687,15 @@ export async function processWhatsAppUserInput(
         flow: "pub_infographics",
       });
       draft = row.draft;
+      if (row.dropped > 0) {
+        await sink.sendText(
+          `_Máximo ${SELF_SERVE_MAX_INFOGRAPHICS} infográficos. Guardé ${draft.infographicUrls.length}; no incluí ${row.dropped}._`,
+        );
+      } else if (failedSave > 0) {
+        await sink.sendText(
+          `_Guardé ${row.added} de ${attempted} (algunas no se pudieron leer; usa JPG o PNG)._`,
+        );
+      }
       const delay = opts.photoAckDelayMs ?? DEFAULT_PHOTO_ACK_DELAY_MS;
       await scheduleMediaAck(db, psid, sink, delay, "infographic", {
         publisherId,
@@ -700,6 +711,16 @@ export async function processWhatsAppUserInput(
       flow: photoFlow === "pub_infographic_ask" ? "pub_infographic_ask" : "pub_photos",
     });
     draft = row.draft;
+    const cap = photoCapFor(draft);
+    if (row.dropped > 0) {
+      await sink.sendText(
+        `_*Máximo ${cap} fotos* en el anuncio. Guardé ${draft.photoUrls.length}; no incluí ${row.dropped}._`,
+      );
+    } else if (failedSave > 0) {
+      await sink.sendText(
+        `_Guardé ${row.added} de ${attempted} (algunas no se pudieron leer; usa JPG o PNG)._`,
+      );
+    }
     if (flow === "idle" || photoFlow === "pub_infographic_ask") {
       await sink.sendText(
         draft.photoUrls.length

@@ -231,16 +231,26 @@ export function upsertWhatsAppChat(
   return { publisherId, flow, draft };
 }
 
-export function mergeWhatsAppPhotoUrls(existing: string[], incoming: string[], max: number): string[] {
+export function mergeWhatsAppPhotoUrls(
+  existing: string[],
+  incoming: string[],
+  max: number,
+): { urls: string[]; added: number; dropped: number } {
   const cap = Math.max(0, Math.floor(max) || 0);
   const out = [...existing];
+  let added = 0;
+  let dropped = 0;
   for (const raw of incoming) {
     if (typeof raw !== "string" || !raw.startsWith("/api/uploads/")) continue;
     if (out.includes(raw)) continue;
-    if (out.length >= cap) break;
+    if (out.length >= cap) {
+      dropped += 1;
+      continue;
+    }
     out.push(raw);
+    added += 1;
   }
-  return out;
+  return { urls: out, added, dropped };
 }
 
 export function mergeWhatsAppInfographicUrls(existing: string[], incoming: string[]): string[] {
@@ -260,22 +270,31 @@ function appendWhatsAppUrls(
   urls: string[],
   kind: "photo" | "infographic",
   extra?: { sourceText?: string; publisherId?: string; flow?: string },
-): WhatsAppChatRow {
+): WhatsAppChatRow & { added: number; dropped: number } {
   db.exec("BEGIN IMMEDIATE;");
   try {
     const existing = getWhatsAppChat(db, psid);
     const draft = existing?.draft ?? emptyWhatsAppDraft();
     draft.intent = "publish";
+    let added = 0;
+    let dropped = 0;
     if (kind === "infographic") {
+      const before = draft.infographicUrls.length;
       draft.infographicUrls = mergeWhatsAppInfographicUrls(draft.infographicUrls, urls);
+      added = Math.max(0, draft.infographicUrls.length - before);
+      const incomingOk = urls.filter((u) => typeof u === "string" && u.startsWith("/api/uploads/")).length;
+      dropped = Math.max(0, incomingOk - added);
       const photoCap = listingPhotoSlotsRemaining(draft.infographicUrls.length);
       if (draft.photoUrls.length > photoCap) draft.photoUrls = draft.photoUrls.slice(0, photoCap);
     } else {
-      draft.photoUrls = mergeWhatsAppPhotoUrls(
+      const merged = mergeWhatsAppPhotoUrls(
         draft.photoUrls,
         urls,
         listingPhotoSlotsRemaining(draft.infographicUrls.length),
       );
+      draft.photoUrls = merged.urls;
+      added = merged.added;
+      dropped = merged.dropped;
     }
     if (extra?.sourceText?.trim()) {
       draft.sourceText = [draft.sourceText, extra.sourceText.trim()].filter(Boolean).join("\n").slice(0, 4000);
@@ -286,7 +305,7 @@ function appendWhatsAppUrls(
       publisherId: extra?.publisherId ?? existing?.publisherId,
     });
     db.exec("COMMIT;");
-    return row;
+    return { ...row, added, dropped };
   } catch (err) {
     try {
       db.exec("ROLLBACK;");
@@ -303,7 +322,7 @@ export function appendWhatsAppPhotoUrls(
   psid: string,
   urls: string[],
   extra?: { sourceText?: string; publisherId?: string; flow?: string },
-): WhatsAppChatRow {
+): WhatsAppChatRow & { added: number; dropped: number } {
   return appendWhatsAppUrls(db, psid, urls, "photo", extra);
 }
 
@@ -313,6 +332,6 @@ export function appendWhatsAppInfographicUrls(
   psid: string,
   urls: string[],
   extra?: { sourceText?: string; publisherId?: string; flow?: string },
-): WhatsAppChatRow {
+): WhatsAppChatRow & { added: number; dropped: number } {
   return appendWhatsAppUrls(db, psid, urls, "infographic", extra);
 }

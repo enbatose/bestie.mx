@@ -2,6 +2,10 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
 import { isProductionRuntime } from "./authSecret.js";
+import {
+  enqueueWhatsAppAlbumImages,
+  flushWhatsAppAlbumIfAny,
+} from "./whatsappAlbumBuffer.js";
 import { processWhatsAppUserInput } from "./whatsappFlows.js";
 import {
   whatsappChatSink,
@@ -148,21 +152,8 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
                 if (nextWamid && !rememberWamid(db, nextWamid)) continue;
                 batch.push(nextImage);
               }
-              try {
-                await processWhatsAppUserInput(
-                  db,
-                  sessionId,
-                  from,
-                  {
-                    imageMediaIds: batch.map((b) => b.id),
-                    imageCaption: batch.map((b) => b.caption?.trim()).filter(Boolean).join("\n") || undefined,
-                  },
-                  sink,
-                  { uploadDir: opts.uploadDir },
-                );
-              } catch (err) {
-                console.warn(`[whatsapp] handler error for ${from}:`, err);
-              }
+              // Album photos arrive as separate HTTP webhooks — coalesce before processing.
+              enqueueWhatsAppAlbumImages(db, from, batch, { uploadDir: opts.uploadDir });
               continue;
             }
 
@@ -177,6 +168,7 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
             if (!handledType) continue;
 
             try {
+              await flushWhatsAppAlbumIfAny(from);
               await processWhatsAppUserInput(
                 db,
                 sessionId,

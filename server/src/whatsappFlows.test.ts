@@ -377,6 +377,35 @@ describe("WhatsApp bot flows", () => {
     expect(texts.some((t) => /\*¿Me mandas más fotos\?\*/.test(t))).toBe(true);
   });
 
+  it("caps a 15-photo burst at 12 and tells the publisher extras were dropped", async () => {
+    const pubPsid = `${PSID}-over-cap`;
+    const { sink, texts } = capturingSink();
+    await skipToPhotos(pubPsid, sink);
+    const ids = Array.from({ length: 15 }, (_, i) => `m${i + 1}`);
+    const urls: Record<string, string> = Object.fromEntries(
+      ids.map((id, i) => {
+        const n = String(i + 1).padStart(12, "0");
+        return [id, `/api/uploads/aaaaaaaa-bbbb-4ccc-8ddd-${n}.jpg`];
+      }),
+    );
+    await processWhatsAppUserInput(
+      db,
+      pubPsid,
+      FROM,
+      { imageMediaIds: ids },
+      sink,
+      {
+        photoAckDelayMs: 0,
+        saveImage: async (id) => urls[id] ?? null,
+      },
+    );
+    const chat = getWhatsAppChat(db, pubPsid);
+    expect(chat?.draft.photoUrls).toHaveLength(12);
+    expect(texts.some((t) => /Máximo 12 fotos/i.test(t) && /no incluí 3/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Ya tengo 12 fotos, el máximo/i.test(t))).toBe(true);
+    expect(texts.some((t) => /Recibí 5/.test(t))).toBe(false);
+  });
+
   it("does not drop photos when two album webhooks overlap", async () => {
     const pubPsid = `${PSID}-race`;
     const { sink } = capturingSink();
