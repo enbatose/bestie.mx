@@ -133,7 +133,7 @@ describe("WhatsApp bot flows", () => {
     const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_PUB" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
-    expect(texts.some((t) => /Pega el texto de tu anuncio de Facebook/i.test(t))).toBe(true);
+    expect(texts.some((t) => /\*¿Cómo describes el cuarto\?\*/.test(t))).toBe(true);
 
     const part1 = "Rento recámara amueblada con wifi y baño privado cerca del Centro. ";
     const part2 = "$6500 al mes. Se aceptan mascotas. Ideal para profesionistas.";

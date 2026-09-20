@@ -227,10 +227,11 @@ async function sendInfographicPrompt(sink: ChatSink, count: number): Promise<voi
 async function sendDescPrompt(sink: ChatSink): Promise<void> {
   await sink.sendQuickReplies(
     waStep({
-      question: "Pega el texto de tu anuncio de Facebook",
+      question: "¿Cómo describes el cuarto?",
       description:
-        "El mismo copy largo que sueles publicar: renta, zona, reglas, emojis… Si no cabe en un mensaje, mándalo en varios.",
-      aside: "Si no tienes texto, pulsa Saltar y sigue con fotos o un infográfico.",
+        "Escribe aquí la descripción del anuncio: renta, zona, reglas, lo que quieras que vean. Si no cabe en un mensaje, mándalo en varios.",
+      aside:
+        "Si ya tienes una descripción (por ejemplo la de Facebook), cópiala y pégala aquí. Si no tienes texto, pulsa Saltar y sigue con fotos o un infográfico.",
     }),
     [
       { title: "Saltar", payload: "WA_DESC_SKIP" },
