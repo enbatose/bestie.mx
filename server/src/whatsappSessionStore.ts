@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { SELF_SERVE_MAX_INFOGRAPHICS, listingPhotoSlotsRemaining } from "./assistedDraftLimits.js";
+import { SELF_SERVE_MAX_INFOGRAPHICS, SELF_SERVE_MAX_TEXT_CHARS, listingPhotoSlotsRemaining } from "./assistedDraftLimits.js";
 import type { ListingTag, LodgingType, PropertyKind, RoomDimension, RoommateGenderPref } from "./types.js";
 
 export type WhatsAppBotDraft = {
@@ -148,7 +148,7 @@ function parseDraft(raw: string): WhatsAppBotDraft {
         j.lodgingType === "private_room" || j.lodgingType === "shared_room" || j.lodgingType === "whole_home"
           ? j.lodgingType
           : null,
-      sourceText: typeof j.sourceText === "string" ? j.sourceText.slice(0, 4000) : "",
+      sourceText: typeof j.sourceText === "string" ? j.sourceText.slice(0, SELF_SERVE_MAX_TEXT_CHARS) : "",
       photoUrls: Array.isArray(j.photoUrls)
         ? j.photoUrls.filter((u): u is string => typeof u === "string" && u.startsWith("/api/uploads/"))
         : [],
@@ -297,7 +297,10 @@ function appendWhatsAppUrls(
       dropped = merged.dropped;
     }
     if (extra?.sourceText?.trim()) {
-      draft.sourceText = [draft.sourceText, extra.sourceText.trim()].filter(Boolean).join("\n").slice(0, 4000);
+      draft.sourceText = [draft.sourceText, extra.sourceText.trim()]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, SELF_SERVE_MAX_TEXT_CHARS);
     }
     const row = upsertWhatsAppChat(db, psid, {
       flow: extra?.flow ?? (kind === "infographic" ? "pub_infographics" : "pub_photos"),

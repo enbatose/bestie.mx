@@ -215,15 +215,26 @@ function applySourceSignals(draft: WhatsAppBotDraft, sourceText: string): WhatsA
   return applyGeminiExtraction(draft, ex);
 }
 
-export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: string): Promise<WhatsAppBotDraft> {
+export function appendPublishSourceText(draft: WhatsAppBotDraft, text: string): WhatsAppBotDraft {
   const clipped = text.trim().slice(0, SELF_SERVE_MAX_TEXT_CHARS);
-  let next: WhatsAppBotDraft = {
+  if (!clipped) return draft;
+  return {
     ...draft,
     sourceText: [draft.sourceText, clipped].filter(Boolean).join("\n").slice(0, SELF_SERVE_MAX_TEXT_CHARS),
   };
-  const rent = parseRentFromText(clipped);
+}
+
+/**
+ * Run extraction on the collated `sourceText` only (no append). Call after the
+ * publisher confirms the Facebook paste is complete.
+ */
+export async function analyzePublishDraftSource(draft: WhatsAppBotDraft): Promise<WhatsAppBotDraft> {
+  const text = draft.sourceText.trim();
+  if (!text) return draft;
+  let next = { ...draft };
+  const rent = parseRentFromText(text);
   if (rent != null && next.rentMxn == null) next.rentMxn = rent;
-  const pois = matchGdlSearchPois(clipped);
+  const pois = matchGdlSearchPois(text);
   if (pois[0] && next.locLat == null) {
     next.locLat = pois[0].lat;
     next.locLng = pois[0].lng;
@@ -232,16 +243,18 @@ export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: 
     next.locApproximate = true;
     next.locRadiusM = 400;
   }
-  // Same as admin outreach: run extraction on any non-empty paste (no short-text gate).
-  if (clipped) {
-    try {
-      const gem = await extractListingDataWithGemini({ text: clipped, city: CITY });
-      next = applyGeminiExtraction(next, gem.extraction);
-    } catch (err) {
-      console.warn("[whatsapp] publish extract failed", err instanceof Error ? err.message : err);
-    }
+  try {
+    const gem = await extractListingDataWithGemini({ text, city: CITY });
+    next = applyGeminiExtraction(next, gem.extraction);
+  } catch (err) {
+    console.warn("[whatsapp] publish extract failed", err instanceof Error ? err.message : err);
   }
-  return applySourceSignals(next, clipped);
+  return applySourceSignals(next, text);
+}
+
+/** Append a text chunk and analyze the full collated source (e.g. late free-text). */
+export async function enrichPublishDraftFromText(draft: WhatsAppBotDraft, text: string): Promise<WhatsAppBotDraft> {
+  return analyzePublishDraftSource(appendPublishSourceText(draft, text));
 }
 
 /**

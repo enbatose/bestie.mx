@@ -1,10 +1,16 @@
 import type { DatabaseSync } from "node:sqlite";
-import { SELF_SERVE_MAX_INFOGRAPHICS, listingPhotoSlotsRemaining } from "./assistedDraftLimits.js";
+import {
+  SELF_SERVE_MAX_INFOGRAPHICS,
+  SELF_SERVE_MAX_TEXT_CHARS,
+  listingPhotoSlotsRemaining,
+} from "./assistedDraftLimits.js";
 import type { ChatSink } from "./chatChannel.js";
 import { publicWebOrigin } from "./handoffTokens.js";
 import { ensureWhatsAppBotAccount } from "./whatsappBotAccount.js";
 import { saveWhatsAppMediaImage } from "./whatsappBotMedia.js";
 import {
+  analyzePublishDraftSource,
+  appendPublishSourceText,
   applyLocationText,
   applyNativeLocation,
   applyWhatsAppPublishDefaults,
@@ -33,6 +39,7 @@ import {
   type WhatsAppBotDraft,
 } from "./whatsappSessionStore.js";
 import { minimalRoomSummaryOk } from "./validation.js";
+
 export type WhatsAppInbound = {
   text?: string;
   quickReplyPayload?: string;
@@ -222,7 +229,7 @@ async function sendDescPrompt(sink: ChatSink): Promise<void> {
     waStep({
       question: "Pega el texto de tu anuncio de Facebook",
       description:
-        "El mismo copy largo que sueles publicar: renta, zona, reglas, emojis… Lo leemos completo, como en el asistente de outreach.",
+        "El mismo copy largo que sueles publicar: renta, zona, reglas, emojis… Si no cabe en un mensaje, mándalo en varios.",
       aside: "Si no tienes texto, pulsa Saltar y sigue con fotos o un infográfico.",
     }),
     [
@@ -230,6 +237,41 @@ async function sendDescPrompt(sink: ChatSink): Promise<void> {
       { title: "Cancelar", payload: "WA_CANCEL" },
     ],
   );
+}
+
+async function sendDescMorePrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
+  const chars = draft.sourceText.trim().length;
+  const nearCap = chars >= SELF_SERVE_MAX_TEXT_CHARS - 200;
+  await sink.sendQuickReplies(
+    waStep({
+      question: "¿Hay más descripción?",
+      description: `Recibí tu texto (~${chars.toLocaleString("es-MX")} caracteres). Si falta otra parte, pégala ahora.`,
+      aside: nearCap
+        ? "Ya casi llenamos el límite; si falta poco, mándalo. Si ya está completo, pulsa Ya está completa."
+        : "Cuando ya esté todo el anuncio, pulsa Ya está completa.",
+    }),
+    [
+      { title: "Ya está completa", payload: "WA_DESC_DONE" },
+      { title: "Cancelar", payload: "WA_CANCEL" },
+    ],
+  );
+}
+
+async function finishDescriptionAndContinue(
+  db: DatabaseSync,
+  psid: string,
+  sink: ChatSink,
+  draft: WhatsAppBotDraft,
+  publisherId?: string,
+): Promise<void> {
+  if (draft.sourceText.trim()) {
+    await sink.sendText("Estoy leyendo todo el texto…");
+    draft = await analyzePublishDraftSource(draft);
+    if (!minimalRoomSummaryOk(draft.summary) && draft.sourceText.trim().length >= 100) {
+      draft.summary = draft.sourceText.trim().slice(0, 1500);
+    }
+  }
+  await continueToMedia(db, psid, sink, draft, publisherId);
 }
 
 async function sendPhotosPrompt(sink: ChatSink, draft: WhatsAppBotDraft): Promise<void> {
@@ -538,12 +580,9 @@ export async function processWhatsAppUserInput(
         await sink.sendText("*Para publicar necesito un celular mexicano (+52) en este chat.*");
         return;
       }
-      draft = await enrichPublishDraftFromText({ ...emptyWhatsAppDraft(), intent: "publish" }, textRaw);
-      if (!minimalRoomSummaryOk(draft.summary) && textRaw.length >= 100) {
-        draft.summary = textRaw.slice(0, 1500);
-      }
-      await sink.sendText("Armo el anuncio con lo que pegaste.");
-      await continueToMedia(db, psid, sink, draft, publisherId);
+      draft = appendPublishSourceText({ ...emptyWhatsAppDraft(), intent: "publish" }, textRaw);
+      save(db, psid, "pub_desc", draft, publisherId);
+      await sendDescMorePrompt(sink, draft);
       return;
     }
   }
@@ -557,7 +596,14 @@ export async function processWhatsAppUserInput(
     else if (/^(s[ií]|otro|otra|m[aá]s)[\s!.]*$/i.test(lower)) payload = "WA_INFO_MORE";
   }
   if (flow === "pub_desc") {
-    if (/^(saltar|skip|no|pasar)[\s!.]*$/i.test(lower)) payload = "WA_DESC_SKIP";
+    if (/^(saltar|skip|pasar)[\s!.]*$/i.test(lower)) {
+      payload = draft.sourceText.trim() ? "WA_DESC_DONE" : "WA_DESC_SKIP";
+    } else if (
+      draft.sourceText.trim() &&
+      /^(no|seguir|listo|ya|eso\s+es\s+todo|ya\s+est[aá]\s+completa|completa)[\s!.]*$/i.test(lower)
+    ) {
+      payload = "WA_DESC_DONE";
+    }
   }
   if (flow === "pub_photos") {
     if (/^(saltar|skip|sin\s+fotos|después|despues|luego)[\s!.]*$/i.test(lower)) {
@@ -649,6 +695,10 @@ export async function processWhatsAppUserInput(
   }
   if (payload === "WA_DESC_SKIP") {
     await continueToMedia(db, psid, sink, draft, publisherId);
+    return;
+  }
+  if (payload === "WA_DESC_DONE") {
+    await finishDescriptionAndContinue(db, psid, sink, draft, publisherId);
     return;
   }
 
@@ -815,12 +865,17 @@ export async function processWhatsAppUserInput(
   }
 
   if (flow === "pub_desc") {
-    draft = await enrichPublishDraftFromText(draft, textRaw);
-    if (!minimalRoomSummaryOk(draft.summary) && textRaw.length >= 100) {
-      draft.summary = textRaw.slice(0, 1500);
+    const beforeLen = draft.sourceText.trim().length;
+    draft = appendPublishSourceText(draft, textRaw);
+    const afterLen = draft.sourceText.trim().length;
+    if (afterLen <= beforeLen) {
+      await sink.sendText("No pude añadir ese texto. Intenta pegarlo de nuevo.");
+      await sendDescMorePrompt(sink, draft);
+      save(db, psid, "pub_desc", draft, publisherId);
+      return;
     }
-    await sink.sendText("Listo, leí el texto.");
-    await continueToMedia(db, psid, sink, draft, publisherId);
+    save(db, psid, "pub_desc", draft, publisherId);
+    await sendDescMorePrompt(sink, draft);
     return;
   }
 

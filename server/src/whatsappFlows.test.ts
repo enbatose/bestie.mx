@@ -135,11 +135,22 @@ describe("WhatsApp bot flows", () => {
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
     expect(texts.some((t) => /Pega el texto de tu anuncio de Facebook/i.test(t))).toBe(true);
 
-    const fbPaste =
-      "Rento recámara amueblada con wifi y baño privado cerca del Centro. $6500 al mes. Se aceptan mascotas. Ideal para profesionistas.";
-    await processWhatsAppUserInput(db, pubPsid, FROM, { text: fbPaste }, sink);
-    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
+    const part1 = "Rento recámara amueblada con wifi y baño privado cerca del Centro. ";
+    const part2 = "$6500 al mes. Se aceptan mascotas. Ideal para profesionistas.";
+    await processWhatsAppUserInput(db, pubPsid, FROM, { text: part1 }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
     expect(getWhatsAppChat(db, pubPsid)?.draft.sourceText).toContain("Rento recámara");
+    expect(texts.some((t) => /\*¿Hay más descripción\?\*/.test(t))).toBe(true);
+    expect(texts.some((t) => /Recibí tu texto/.test(t))).toBe(true);
+
+    await processWhatsAppUserInput(db, pubPsid, FROM, { text: part2 }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.draft.sourceText).toContain("$6500");
+    expect(getWhatsAppChat(db, pubPsid)?.draft.sourceText).toContain("Rento recámara");
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_DONE" }, sink);
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
+    expect(texts.some((t) => /Estoy leyendo todo el texto/i.test(t))).toBe(true);
     expect(texts.some((t) => /\*¿Tienes un infográfico del cuarto\?\*/.test(t))).toBe(true);
 
     await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_INFO_NO" }, sink);
@@ -195,6 +206,8 @@ describe("WhatsApp bot flows", () => {
       },
       sink,
     );
+    expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_desc");
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_DONE" }, sink);
     expect(getWhatsAppChat(db, pubPsid)?.flow).toBe("pub_infographic_ask");
     const chat = getWhatsAppChat(db, pubPsid)!;
     upsertWhatsAppChat(db, pubPsid, {
@@ -322,6 +335,7 @@ describe("WhatsApp bot flows", () => {
       { text: "Rento recámara amueblada con wifi, no se aceptan mascotas, cerca del Centro." },
       sink,
     );
+    await processWhatsAppUserInput(db, pubPsid, FROM, { quickReplyPayload: "WA_DESC_DONE" }, sink);
     const draft = getWhatsAppChat(db, pubPsid)!.draft;
     expect(draft.pubTags).toContain("muebles");
     expect(draft.pubTags).toContain("wifi");
