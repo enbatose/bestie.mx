@@ -6,7 +6,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./appFactory.js";
 import { openDb } from "./db.js";
-import { buildVanityRedirectUrl, VANITY_REDIRECTS } from "./vanityRedirects.js";
+import { buildVanityRedirectUrl, EXTERNAL_VANITY_REDIRECTS, VANITY_REDIRECTS } from "./vanityRedirects.js";
 
 describe("buildVanityRedirectUrl", () => {
   it("attaches utm params to the destination path", () => {
@@ -55,6 +55,16 @@ describe("vanity redirect routes", () => {
     const res = await request(app).get("/gdl-grupo").set("Host", "www.bestie.mx");
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain("utm_content=cover_photo");
+  });
+
+  it("GET /ayuda-wa redirects to the support WhatsApp chat with prefill", async () => {
+    const app = createApp(db, { databaseLabel: "test.db", webDistDir: distDir });
+    const entry = EXTERNAL_VANITY_REDIRECTS.find((e) => e.slug === "ayuda-wa")!;
+    const res = await request(app).get("/ayuda-wa").set("Host", "dev.bestie.mx");
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(entry.targetUrl);
+    expect(res.headers.location).toContain("wa.me/523318357137");
+    expect(res.headers.location).toContain("text=");
   });
 
   it("respects the request host so Dev links point at dev.bestie.mx", async () => {

@@ -103,11 +103,8 @@ async function sendMenu(sink: ChatSink): Promise<void> {
 
 async function sendHelp(sink: ChatSink): Promise<void> {
   const base = publicWebOrigin();
-  const supportPrefill = encodeURIComponent(
-    "Hola, necesito ayuda con el flujo de creación o búsqueda de publicaciones en WhatsApp",
-  );
-  const supportWa = `https://wa.me/523318357137?text=${supportPrefill}`;
-  await sink.sendText(
+  const supportLink = `${base.replace(/\/$/, "")}/ayuda-wa`;
+  await sink.sendQuickReplies(
     [
       "*¿Cómo te ayudo?*",
       "",
@@ -122,9 +119,13 @@ async function sendHelp(sink: ChatSink): Promise<void> {
       "",
       "*Soporte*",
       "Correo: contacto@bestie.mx",
-      "WhatsApp: +52 331 *835713* 7",
-      supportWa,
+      `WhatsApp (+52 331 *835713* 7): ${supportLink}`,
     ].join("\n"),
+    [
+      { title: "Reiniciar", payload: "WA_MENU" },
+      { title: "Buscar cuarto", payload: "WA_SEARCH" },
+      { title: "Publicar", payload: "WA_PUB" },
+    ],
   );
 }
 
@@ -654,7 +655,6 @@ export async function processWhatsAppUserInput(
   if (payload === "WA_HELP") {
     save(db, psid, "idle", draft, publisherId);
     await sendHelp(sink);
-    await sendMenu(sink);
     return;
   }
   if (payload === "WA_SEARCH") {
