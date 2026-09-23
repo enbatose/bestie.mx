@@ -753,6 +753,8 @@ export type AdminUserRow = {
   emailVerified: boolean;
   accountStatus: "active" | "pending_validation";
   role: AdminUserRole;
+  /** First registration channel (set once). */
+  registrationSource?: "whatsapp" | "facebook" | "google" | "email" | "phone";
 };
 
 export type AdminUserCounts = {

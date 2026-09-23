@@ -102,10 +102,10 @@ describe("whatsapp webhook", () => {
       .expect(200);
 
     const s = getMessengerChat(db, whatsappSessionId("5213318632070"));
-    expect(s?.flow).toBe("idle");
+    expect(s?.flow).toBe("ask_name");
   });
 
-  it("routes Click-to-WhatsApp ad referrals to the idle menu session", async () => {
+  it("routes Click-to-WhatsApp ad referrals to the name step (then menu)", async () => {
     const payload = JSON.stringify({
       object: "whatsapp_business_account",
       entry: [
@@ -145,6 +145,6 @@ describe("whatsapp webhook", () => {
       .expect(200);
 
     const s = getMessengerChat(db, whatsappSessionId("5213319998877"));
-    expect(s?.flow).toBe("idle");
+    expect(s?.flow).toBe("ask_name");
   });
 });

@@ -73,18 +73,61 @@ describe("WhatsApp bot flows", () => {
   });
 
   it("creates a Bestie account from the inbound WhatsApp number", async () => {
-    const { sink } = capturingSink();
+    const { sink, texts } = capturingSink();
     await processWhatsAppUserInput(db, PSID, FROM, { text: "hola" }, sink);
     const userId = findUserIdByVerifiedPhone(db, "+523318632070");
     expect(userId).toBeTruthy();
-    const s = getWhatsAppChat(db, PSID);
-    expect(s?.flow).toBe("idle");
+    expect(getWhatsAppChat(db, PSID)?.flow).toBe("ask_name");
+    expect(texts.some((t) => /¿Cómo te llamas\?/.test(t))).toBe(true);
+    const src = db.prepare(`SELECT registration_source FROM users WHERE id = ?`).get(userId!) as {
+      registration_source: string;
+    };
+    expect(src.registration_source).toBe("whatsapp");
+    // Finish name so later tests that reuse this phone are not blocked on ask_name.
+    texts.length = 0;
+    await processWhatsAppUserInput(db, PSID, FROM, { text: "Test" }, sink);
+    expect(getWhatsAppChat(db, PSID)?.flow).toBe("idle");
+    expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
+  });
+
+  it("saves the optional WhatsApp name then opens the main menu", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-name-maria`;
+    const from = "5213318000001";
+    await processWhatsAppUserInput(db, psid, from, { text: "hola" }, sink);
+    texts.length = 0;
+    await processWhatsAppUserInput(db, psid, from, { text: "María" }, sink);
+    expect(texts.some((t) => /Gracias, María/.test(t))).toBe(true);
+    expect(texts.some((t) => /Hola María, soy Bestie/.test(t))).toBe(true);
+    expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
+    const userId = findUserIdByVerifiedPhone(db, "+523318000001");
+    const row = db.prepare(`SELECT display_name FROM users WHERE id = ?`).get(userId!) as {
+      display_name: string;
+    };
+    expect(row.display_name).toBe("María");
+    expect(getWhatsAppChat(db, psid)?.flow).toBe("idle");
+  });
+
+  it("skips the name step with Saltar and still opens the menu", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-name-skip`;
+    const from = "5213318000002";
+    await processWhatsAppUserInput(db, psid, from, { text: "hola" }, sink);
+    texts.length = 0;
+    await processWhatsAppUserInput(db, psid, from, { quickReplyPayload: "WA_NAME_SKIP" }, sink);
+    expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
+    expect(getWhatsAppChat(db, psid)?.flow).toBe("idle");
   });
 
   it("opens the main menu for CTWA prefills like ¡Hola! Sí. instead of searching", async () => {
     const { sink, texts } = capturingSink();
     const psid = `${PSID}-ctwa-hola-si`;
-    await processWhatsAppUserInput(db, psid, FROM, { text: "¡Hola! Sí." }, sink);
+    const from = "5213318000003";
+    // Name first, then CTWA-style opener should still land on menu (not search).
+    await processWhatsAppUserInput(db, psid, from, { text: "¡Hola! Sí." }, sink);
+    expect(texts.some((t) => /¿Cómo te llamas\?/.test(t))).toBe(true);
+    texts.length = 0;
+    await processWhatsAppUserInput(db, psid, from, { quickReplyPayload: "WA_NAME_SKIP" }, sink);
     expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
     expect(texts.some((t) => /Estoy armando tu b[uú]squeda|Encontr[eé]/.test(t))).toBe(false);
     expect(getWhatsAppChat(db, psid)?.flow).toBe("idle");
@@ -93,10 +136,11 @@ describe("WhatsApp bot flows", () => {
   it("opens the main menu for Meta ad referrals even with a shared post caption", async () => {
     const { sink, texts } = capturingSink();
     const psid = `${PSID}-ctwa-referral`;
+    const from = "5213318000004";
     await processWhatsAppUserInput(
       db,
       psid,
-      FROM,
+      from,
       {
         fromAdReferral: true,
         text:
@@ -104,6 +148,9 @@ describe("WhatsApp bot flows", () => {
       },
       sink,
     );
+    expect(texts.some((t) => /¿Cómo te llamas\?/.test(t))).toBe(true);
+    texts.length = 0;
+    await processWhatsAppUserInput(db, psid, from, { text: "Ana" }, sink);
     expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
     expect(texts.some((t) => /Estoy armando tu b[uú]squeda|Encontr[eé]/.test(t))).toBe(false);
   });
@@ -111,10 +158,12 @@ describe("WhatsApp bot flows", () => {
   it("still freeform-searches real seeker queries while idle", async () => {
     const { sink, texts } = capturingSink();
     const psid = `${PSID}-real-search`;
-    await processWhatsAppUserInput(db, psid, FROM, { text: "cuarto en centro hasta 7000" }, sink);
-    expect(texts.some((t) => /Estoy armando tu b[uú]squeda|Encontr[eé]|Cuarto Centro/.test(t))).toBe(
-      true,
-    );
+    const from = "5213318000005";
+    await processWhatsAppUserInput(db, psid, from, { text: "hola" }, sink);
+    await processWhatsAppUserInput(db, psid, from, { text: "Luis" }, sink);
+    texts.length = 0;
+    await processWhatsAppUserInput(db, psid, from, { text: "cuarto en centro hasta 7000" }, sink);
+    expect(texts.some((t) => /armando tu b[uú]squeda|Encontr[eé]|Cuarto Centro/.test(t))).toBe(true);
   });
 
   it("returns matches on the zone tap, without a budget or preference interview", async () => {

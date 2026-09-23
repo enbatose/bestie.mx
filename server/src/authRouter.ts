@@ -201,7 +201,7 @@ export function authRouter(db: DatabaseSync) {
     const createdAt = isoNow();
     try {
       db.prepare(
-        `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at) VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
+        `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, registration_source) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
       ).run(
         id,
         emailDisplay,
@@ -210,6 +210,7 @@ export function authRouter(db: DatabaseSync) {
         displayName || emailDisplay.split("@")[0]!,
         createdAt,
         null,
+        "email",
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -1203,8 +1204,8 @@ export function authRouter(db: DatabaseSync) {
     if (!userId) {
       userId = randomUUID();
       db.prepare(
-        `INSERT INTO users (id, email, phone_e164, password_hash, display_name, created_at) VALUES (?, NULL, ?, ?, ?, ?)`,
-      ).run(userId, phone, waOnlyPasswordPlaceholder(), "Usuario WhatsApp", isoNow());
+        `INSERT INTO users (id, email, phone_e164, password_hash, display_name, created_at, registration_source) VALUES (?, NULL, ?, ?, ?, ?, ?)`,
+      ).run(userId, phone, waOnlyPasswordPlaceholder(), "Usuario WhatsApp", isoNow(), "whatsapp");
     }
     issueAuthCookie(res, userId);
     res.json({ ok: true, userId });

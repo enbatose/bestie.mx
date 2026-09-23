@@ -256,7 +256,13 @@ export function claimAssistedDraftForUser(db: DatabaseSync, userId: string, prop
 
 export function createPhoneUser(
   db: DatabaseSync,
-  opts: { phoneE164: string; passwordHash: string; displayName: string; profilePictureUrl?: string | null },
+  opts: {
+    phoneE164: string;
+    passwordHash: string;
+    displayName: string;
+    profilePictureUrl?: string | null;
+    registrationSource?: "phone" | "whatsapp";
+  },
 ): string {
   const existing = db
     .prepare(
@@ -267,9 +273,10 @@ export function createPhoneUser(
     db.prepare(`UPDATE users SET phone_e164 = NULL, phone_verified_at = NULL WHERE id = ?`).run(existing.id);
   }
   const id = randomUUID();
+  const source = opts.registrationSource === "whatsapp" ? "whatsapp" : "phone";
   db.prepare(
-    `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url, phone_verified_at)
-     VALUES (?, NULL, NULL, ?, ?, ?, ?, NULL, ?, ?)`,
+    `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url, phone_verified_at, registration_source)
+     VALUES (?, NULL, NULL, ?, ?, ?, ?, NULL, ?, ?, ?)`,
   ).run(
     id,
     opts.phoneE164,
@@ -278,6 +285,7 @@ export function createPhoneUser(
     isoNow(),
     opts.profilePictureUrl ?? null,
     isoNow(),
+    source,
   );
   assignOutreachPostsForVerifiedPhone(db, id, opts.phoneE164);
   return id;

@@ -16,10 +16,22 @@ const USER_SUBTABS: { id: AdminUserSegment; label: string }[] = [
   { id: "all", label: "Todos" },
 ];
 
-function formatCreatedAt(iso: string): string {
+const REGISTRATION_SOURCE_LABEL: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  facebook: "Facebook",
+  google: "Google",
+  email: "Email",
+  phone: "Celular",
+};
+
+function formatCreatedAtGdl(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
-  return d.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
+  return d.toLocaleString("es-MX", {
+    timeZone: "America/Mexico_City",
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
 function roleBadge(role: AdminUserRow["role"]): { label: string; className: string } | null {
@@ -148,6 +160,11 @@ export function AdminUsersPanel({ onError }: Props) {
                       Sin correo
                     </span>
                   )}
+                  {u.registrationSource ? (
+                    <span className="inline-flex rounded-full bg-bg-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-body ring-1 ring-border">
+                      {REGISTRATION_SOURCE_LABEL[u.registrationSource] ?? u.registrationSource}
+                    </span>
+                  ) : null}
                   {u.role === "user" ? (
                     <Link
                       to={adminArcoUserPath(u.id)}
@@ -159,13 +176,11 @@ export function AdminUsersPanel({ onError }: Props) {
                 </div>
                 {u.role === "system" ? (
                   <div className="ph-no-capture text-xs text-muted">
-                    {u.email ?? "sin correo"} · tel …{u.phoneLast4 ?? "—"}
-                    {pending || segment === "pending" ? ` · ${formatCreatedAt(u.createdAt)}` : ""}
+                    {u.email ?? "sin correo"} · tel …{u.phoneLast4 ?? "—"} · {formatCreatedAtGdl(u.createdAt)}
                   </div>
                 ) : (
                   <div className="text-xs text-muted">
-                    tel …{u.phoneLast4 ?? "—"}
-                    {pending || segment === "pending" ? ` · ${formatCreatedAt(u.createdAt)}` : ""}
+                    tel …{u.phoneLast4 ?? "—"} · {formatCreatedAtGdl(u.createdAt)}
                   </div>
                 )}
               </li>

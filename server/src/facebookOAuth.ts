@@ -317,8 +317,8 @@ function createFacebookUser(
   const displayName = (info.name?.trim() || emailDisplay?.split("@")[0] || "Usuario").slice(0, 120);
   const pictureUrl = info.picture?.data?.url?.trim() || null;
   db.prepare(
-    `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url)
-     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url, registration_source)
+     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
   ).run(
     userId,
     emailDisplay,
@@ -328,6 +328,7 @@ function createFacebookUser(
     isoNow(),
     emailDisplay ? isoNow() : null,
     pictureUrl,
+    "facebook",
   );
   upsertOAuthIdentity(db, FACEBOOK_PROVIDER, info.id, userId);
   return userId;

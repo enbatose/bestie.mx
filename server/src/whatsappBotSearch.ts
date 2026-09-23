@@ -62,7 +62,7 @@ export function enrichDraftFromSearchText(
 export async function runWhatsAppFreeformSearchAndReply(
   db: DatabaseSync,
   sink: ChatSink,
-  opts: { text: string; createdByUserId: string },
+  opts: { text: string; createdByUserId: string; firstName?: string | null },
 ): Promise<void> {
   await runWhatsAppDiffusionSearchAndReply(db, sink, opts);
 }

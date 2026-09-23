@@ -56,6 +56,7 @@ export function ensureWhatsAppBotAccount(db: DatabaseSync, fromDigits: string): 
         phoneE164: mx.e164,
         passwordHash: waOnlyPasswordPlaceholder(),
         displayName: "Usuario WhatsApp",
+        registrationSource: "whatsapp",
       });
     }
   }

@@ -15,7 +15,8 @@ function setupDb(): DatabaseSync {
       password_hash TEXT,
       display_name TEXT,
       created_at TEXT,
-      email_verified_at TEXT
+      email_verified_at TEXT,
+      registration_source TEXT
     );
   `);
   ensureMessagingSchema(db);
@@ -34,14 +35,16 @@ function insertUser(
   },
 ): void {
   db.prepare(
-    `INSERT INTO users (id, email, phone_e164, display_name, created_at, email_verified_at)
-     VALUES (?, ?, NULL, ?, ?, ?)`,
+    `INSERT INTO users (id, email, phone_e164, display_name, created_at, email_verified_at, password_hash, registration_source)
+     VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
   ).run(
     row.id,
     row.email,
     row.displayName,
     row.createdAt ?? "2026-08-01T00:00:00.000Z",
     row.verified ? "2026-08-01T01:00:00.000Z" : null,
+    row.email ? "hash" : "wa-only-no-password",
+    row.email ? "email" : "whatsapp",
   );
 }
 
@@ -99,6 +102,8 @@ describe("admin user segments", () => {
     expect(all.users.some((u) => u.id === "u-admin")).toBe(false);
     expect(all.users.some((u) => u.id === SUPPORT_BOT_USER_ID)).toBe(false);
     expect(all.users.some((u) => u.id === BLOG_BOT_USER_ID)).toBe(false);
+    expect(all.users.find((u) => u.id === "u-phone")?.registrationSource).toBe("whatsapp");
+    expect(all.users.find((u) => u.id === "u-real")?.registrationSource).toBe("email");
 
     process.env.ADMIN_EMAILS = prevAdmin;
   });

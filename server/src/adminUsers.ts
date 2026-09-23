@@ -4,10 +4,16 @@ import { BLOG_BOT_USER_ID } from "./blogReports.js";
 import { REPORT_BOT_USER_ID } from "./listingReports.js";
 import { isUserEmailVerified, userAccountStatus } from "./emailVerification.js";
 import { FEEDBACK_BOT_USER_ID, isSystemMessagingBot, SUPPORT_BOT_USER_ID, DELETED_USER_ID } from "./messagingSchema.js";
+import {
+  inferRegistrationSourceFromRow,
+  isRegistrationSource,
+  type RegistrationSource,
+} from "./registrationSource.js";
 
 export const ADMIN_USER_SEGMENTS = ["real", "pending", "staff", "all"] as const;
 export type AdminUserSegment = (typeof ADMIN_USER_SEGMENTS)[number];
 export type AdminUserRole = "user" | "admin" | "system";
+export type { RegistrationSource };
 
 export type AdminUserRow = {
   id: string;
@@ -18,6 +24,8 @@ export type AdminUserRow = {
   emailVerified: boolean;
   accountStatus: "active" | "pending_validation";
   role: AdminUserRole;
+  /** Channel used for the first account registration. */
+  registrationSource: RegistrationSource;
 };
 
 export type AdminUserCounts = {
@@ -99,6 +107,15 @@ function mapUserRow(u: Record<string, unknown>): AdminUserRow {
   const email = typeof u.email === "string" ? u.email : null;
   const emailVerifiedAt = typeof u.email_verified_at === "string" ? u.email_verified_at : null;
   const emailVerified = isUserEmailVerified(emailVerifiedAt);
+  const sourceRaw = u.registration_source;
+  const registrationSource = isRegistrationSource(sourceRaw)
+    ? sourceRaw
+    : inferRegistrationSourceFromRow({
+        password_hash: typeof u.password_hash === "string" ? u.password_hash : null,
+        phone_e164: typeof u.phone_e164 === "string" ? u.phone_e164 : null,
+        email,
+        display_name: typeof u.display_name === "string" ? u.display_name : null,
+      });
   return {
     id,
     email,
@@ -109,6 +126,7 @@ function mapUserRow(u: Record<string, unknown>): AdminUserRow {
     emailVerified,
     accountStatus: userAccountStatus(email, emailVerifiedAt),
     role: classifyAdminUserRole(id, email),
+    registrationSource,
   };
 }
 
@@ -140,7 +158,7 @@ export function listAdminUsers(
   const current = segmentPredicate(segment, adminEmails);
   const rows = db
     .prepare(
-      `SELECT id, email, phone_e164, display_name, created_at, email_verified_at
+      `SELECT id, email, phone_e164, display_name, created_at, email_verified_at, password_hash, registration_source
        FROM users WHERE ${current.sql}
        ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     )

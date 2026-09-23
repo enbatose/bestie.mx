@@ -39,6 +39,14 @@ import {
   type WhatsAppBotDraft,
 } from "./whatsappSessionStore.js";
 import { minimalRoomSummaryOk } from "./validation.js";
+import {
+  deferWhatsAppNamePrompt,
+  firstNameFromDisplayName,
+  getUserDisplayName,
+  parseWhatsAppProvidedName,
+  setUserDisplayNameFromWhatsApp,
+  userNeedsWhatsAppNamePrompt,
+} from "./whatsappDisplayName.js";
 
 export type WhatsAppInbound = {
   text?: string;
@@ -142,14 +150,26 @@ function isInfographicFlow(flow: string): boolean {
   return flow === "pub_infographic_ask" || flow === "pub_infographics";
 }
 
-async function sendMenu(sink: ChatSink): Promise<void> {
+async function sendMenu(sink: ChatSink, firstName?: string | null): Promise<void> {
+  const hello = firstName ? `Hola ${firstName}, soy Bestie.` : "Hola, soy Bestie.";
   await sink.sendQuickReplies(
-    ["Hola, soy Bestie.", "", "*¿Qué quieres hacer en Guadalajara?*"].join("\n"),
+    [hello, "", "*¿Qué quieres hacer en Guadalajara?*"].join("\n"),
     [
       { title: "Buscar cuarto", payload: "WA_SEARCH" },
       { title: "Publicar cuarto", payload: "WA_PUB" },
       { title: "Ayuda", payload: "WA_HELP" },
     ],
+  );
+}
+
+async function sendNameAsk(sink: ChatSink): Promise<void> {
+  await sink.sendQuickReplies(
+    [
+      "*¿Cómo te llamas?*",
+      "",
+      "Con tu nombre te hablo más fácil. Es opcional — puedes saltarlo.",
+    ].join("\n"),
+    [{ title: "Saltar", payload: "WA_NAME_SKIP" }],
   );
 }
 
@@ -246,10 +266,11 @@ async function finishFreeformSearch(
   text: string,
   createdByUserId: string,
   publisherId?: string,
+  firstName?: string | null,
 ): Promise<void> {
   const next = { ...draft, intent: "search" as const, q: text.slice(0, 240), sourceText: text.slice(0, 4000) };
   save(db, psid, "idle", next, publisherId);
-  await runWhatsAppFreeformSearchAndReply(db, sink, { text, createdByUserId });
+  await runWhatsAppFreeformSearchAndReply(db, sink, { text, createdByUserId, firstName });
 }
 
 async function sendInfographicAsk(sink: ChatSink): Promise<void> {
@@ -531,16 +552,55 @@ export async function processWhatsAppUserInput(
   const searchActorId = account?.userId ?? "whatsapp-bot";
   if (
     flow !== "idle" &&
+    flow !== "ask_name" &&
     !flow.startsWith("search_") &&
     !flow.startsWith("pub_")
   ) {
     flow = "idle";
   }
 
+  const displayName = account ? getUserDisplayName(db, account.userId) : null;
+  let firstName = firstNameFromDisplayName(displayName);
+
   const goIdleMenu = async () => {
     save(db, psid, "idle", emptyWhatsAppDraft(), publisherId);
-    await sendMenu(sink);
+    await sendMenu(sink, firstName);
   };
+
+  const finishNameStepThenMenu = async () => {
+    firstName = account ? firstNameFromDisplayName(getUserDisplayName(db, account.userId)) : null;
+    await goIdleMenu();
+  };
+
+  // Optional name is the first step whenever the account still has the placeholder
+  // (and the 24h skip window after "Saltar" has expired).
+  if (account && userNeedsWhatsAppNamePrompt(db, account.userId)) {
+    if (payload === "WA_NAME_SKIP" || (flow === "ask_name" && /^(saltar|skip|no|luego|después|despues|omitir|pasar)[\s!.]*$/i.test(lower))) {
+      deferWhatsAppNamePrompt(db, account.userId);
+      await finishNameStepThenMenu();
+      return;
+    }
+    if (flow === "ask_name" && textRaw) {
+      const parsed = parseWhatsAppProvidedName(textRaw);
+      if (!parsed) {
+        deferWhatsAppNamePrompt(db, account.userId);
+        await finishNameStepThenMenu();
+        return;
+      }
+      setUserDisplayNameFromWhatsApp(db, account.userId, parsed);
+      firstName = firstNameFromDisplayName(parsed);
+      await sink.sendText(`Gracias, ${firstName}.`);
+      await goIdleMenu();
+      return;
+    }
+    // Interrupt idle / openers / cold starts — do not interrupt mid publish/search interview.
+    const midInterview = flow.startsWith("pub_") || flow.startsWith("search_");
+    if (!midInterview) {
+      save(db, psid, "ask_name", draft, publisherId);
+      await sendNameAsk(sink);
+      return;
+    }
+  }
 
   if (!payload && inbound.location && Number.isFinite(inbound.location.lat)) {
     if (flow.startsWith("pub") || flow === "idle") {
@@ -819,7 +879,7 @@ export async function processWhatsAppUserInput(
     }
     draft = applyMenuPoiToDraft(draft, item.poi);
     const queryText = searchTextForMenuPoi(item.poi);
-    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId, firstName);
     return;
   }
 
@@ -831,7 +891,7 @@ export async function processWhatsAppUserInput(
       draft.budgetMax == null ? "sin tope de renta" : `hasta ${draft.budgetMax}`;
     const base = (draft.sourceText || draft.q || "Busco cuarto en Guadalajara").trim();
     const queryText = `${base}. Presupuesto ${budgetBit}`.slice(0, 4000);
-    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId, firstName);
     return;
   }
 
@@ -860,7 +920,7 @@ export async function processWhatsAppUserInput(
           : "sin preferencia de género";
     const base = (draft.sourceText || draft.q || "Busco cuarto en Guadalajara").trim();
     const queryText = `${base}. ${prefBit}`.slice(0, 4000);
-    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId, firstName);
     return;
   }
 
@@ -936,7 +996,7 @@ export async function processWhatsAppUserInput(
     save(db, psid, "idle", emptyWhatsAppDraft(), publisherId);
     await sink.sendText(
       [
-        "*Listo, ya está público:*",
+        firstName ? `*Listo ${firstName}, ya está público:*` : "*Listo, ya está público:*",
         result.url,
         "",
         `_Puedes editarlo en ${publicWebOrigin()}/mis-anuncios_`,
@@ -948,7 +1008,7 @@ export async function processWhatsAppUserInput(
   }
 
   if (!textRaw) {
-    if (flow === "idle") await sendMenu(sink);
+    if (flow === "idle") await sendMenu(sink, firstName);
     return;
   }
 
@@ -963,7 +1023,7 @@ export async function processWhatsAppUserInput(
       );
       return;
     }
-    await finishFreeformSearch(db, psid, sink, draft, textRaw, searchActorId, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, textRaw, searchActorId, publisherId, firstName);
     return;
   }
 
@@ -973,7 +1033,7 @@ export async function processWhatsAppUserInput(
       draft.budgetMax == null ? "sin tope de renta" : `hasta ${draft.budgetMax}`;
     const base = (draft.sourceText || draft.q || "Busco cuarto en Guadalajara").trim();
     const queryText = `${base}. Presupuesto ${budgetBit}`.slice(0, 4000);
-    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, queryText, searchActorId, publisherId, firstName);
     return;
   }
 
@@ -1031,7 +1091,7 @@ export async function processWhatsAppUserInput(
 
   if (flow === "idle") {
     draft = { ...emptyWhatsAppDraft(), intent: "search" };
-    await finishFreeformSearch(db, psid, sink, draft, textRaw, searchActorId, publisherId);
+    await finishFreeformSearch(db, psid, sink, draft, textRaw, searchActorId, publisherId, firstName);
     return;
   }
 
@@ -1053,5 +1113,5 @@ export async function processWhatsAppUserInput(
     return;
   }
 
-  await sendMenu(sink);
+  await sendMenu(sink, firstName);
 }

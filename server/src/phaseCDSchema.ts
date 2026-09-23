@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { ensureRegistrationSourceSchema } from "./registrationSource.js";
 
 function usersTableHasColumn(db: DatabaseSync, column: string): boolean {
   const row = db
@@ -183,4 +184,5 @@ export function ensurePhaseCDSchema(db: DatabaseSync): void {
     db.exec("ALTER TABLE users ADD COLUMN profile_picture_url TEXT");
   }
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_canonical ON users(email_canonical) WHERE email_canonical IS NOT NULL");
+  ensureRegistrationSourceSchema(db);
 }

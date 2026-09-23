@@ -135,10 +135,13 @@ export type WhatsAppDiffusionSearchResult = {
 export async function runWhatsAppDiffusionSearchAndReply(
   db: DatabaseSync,
   sink: ChatSink,
-  opts: { text: string; createdByUserId: string },
+  opts: { text: string; createdByUserId: string; firstName?: string | null },
 ): Promise<WhatsAppDiffusionSearchResult> {
   const text = opts.text.trim().slice(0, 4000);
-  await sink.sendText("_Estoy armando tu búsqueda…_");
+  const armando = opts.firstName
+    ? `_${opts.firstName}, estoy armando tu búsqueda…_`
+    : "_Estoy armando tu búsqueda…_";
+  await sink.sendText(armando);
 
   const extraction = await extractSeekerSearchForWhatsApp(text);
   const created = await createTemplateSharedSearch(db, {

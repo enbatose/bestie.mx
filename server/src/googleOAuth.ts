@@ -209,8 +209,8 @@ function createGoogleUser(
   const displayName = (info.name?.trim() || emailDisplay.split("@")[0] || "Usuario").slice(0, 120);
   const verifiedAt = info.email_verified === false ? null : isoNow();
   db.prepare(
-    `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url)
-     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (id, email, email_canonical, phone_e164, password_hash, display_name, created_at, email_verified_at, profile_picture_url, registration_source)
+     VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
   ).run(
     userId,
     emailDisplay,
@@ -220,6 +220,7 @@ function createGoogleUser(
     isoNow(),
     verifiedAt,
     info.picture?.trim() || null,
+    "google",
   );
   upsertOAuthIdentity(db, GOOGLE_PROVIDER, info.sub, userId);
   return userId;
