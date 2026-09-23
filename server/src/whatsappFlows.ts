@@ -47,6 +47,12 @@ export type WhatsAppInbound = {
   imageMediaIds?: string[];
   imageCaption?: string;
   location?: { lat: number; lng: number; name?: string };
+  /**
+   * Click-to-WhatsApp / Ice Breaker referral from Meta (paid post, Page CTA).
+   * When set on an idle chat, always open the main menu — never treat the
+   * prefilled greeting or shared caption as a freeform search.
+   */
+  fromAdReferral?: boolean;
 };
 
 export type WhatsAppFlowOptions = {
@@ -76,11 +82,57 @@ function photoCapFor(draft: WhatsAppBotDraft): number {
   return listingPhotoSlotsRemaining(draft.infographicUrls.length);
 }
 
+/** Drop http(s) URLs so link-preview openers still match greeting / yes patterns. */
+export function textWithoutUrls(text: string): string {
+  return text
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Idle openers that must land on the main menu (Buscar / Publicar / Ayuda),
+ * not Difusión search. Covers plain "hola", CTWA prefills like "¡Hola! Sí.",
+ * and shared FB/IG Bestie posts with little else besides a link.
+ */
+export function isWhatsAppMenuOpener(text: string): boolean {
+  const raw = text.trim();
+  if (!raw) return false;
+  const t = textWithoutUrls(raw);
+  // Greeting, optionally + short affirmation (Meta CTWA default: "¡Hola! Sí.")
+  if (
+    /^(¡?\s*)?(hola|hello|hi|hey|buenas|buen[oa]s(\s+d[ií]as)?|qu[eé]\s+tal)(\s*[!.,¿?¡]*)*(\s*(s[ií]|ok|okay|dale|claro|me\s+interesa|por\s+favor)?)?[\s!.,¿?¡]*$/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  // Prefill is only an affirmation / soft CTA
+  if (/^(¡?\s*)?(s[ií]|ok|okay|dale|claro|me\s+interesa|info|informaci[oó]n)[\s!.,¿?¡]*$/i.test(t)) {
+    return true;
+  }
+  // Shared Bestie social / landing link with short remaining text (or Bestie ad caption)
+  if (/instagram\.com|facebook\.com|fb\.me|fb\.watch|bestie\.mx/i.test(raw)) {
+    if (!t) return true;
+    if (t.length <= 48) return true;
+    if (
+      /plataforma local|roomies y cuartos|publ[ií]calo aqu[ií]|sin cargos ocultos|#roomie|y as[ií] se queda/i.test(
+        raw,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isGreeting(text: string): boolean {
-  return /^(hola|hello|hi|hey|buenas|buen[oa]s(\s+d[ií]as)?|qu[eé]\s+tal)[\s!.,¿?]*$/i.test(text.trim());
+  return isWhatsAppMenuOpener(text);
 }
 
 function looksLikePublish(text: string): boolean {
+  // Ad / post captions that mention "publicar" are openers, not a publish draft paste.
+  if (isWhatsAppMenuOpener(text)) return false;
   return /\b(publicar|anunciar|tengo\s+(un\s+)?cuarto|renta\s+mi|rento\s+(un\s+)?cuarto|subo\s+(un\s+)?cuarto)\b/i.test(
     text,
   );
@@ -604,8 +656,10 @@ export async function processWhatsAppUserInput(
     return;
   }
 
-  if (!payload && flow === "idle" && textRaw) {
-    if (isGreeting(textRaw)) payload = "WA_MENU";
+  if (!payload && flow === "idle" && (inbound.fromAdReferral || textRaw)) {
+    // Paid FB/IG Click-to-WhatsApp + short greetings must open the menu first
+    // (Buscar / Publicar / Ayuda) — never run Difusión on the prefilled copy.
+    if (inbound.fromAdReferral || isGreeting(textRaw)) payload = "WA_MENU";
     else if (/^ayuda$|^help$/i.test(lower)) payload = "WA_HELP";
     else if (/^publicar$|^anunciar$/i.test(lower)) payload = "WA_PUB";
     else if (/^buscar$/i.test(lower)) payload = "WA_SEARCH";

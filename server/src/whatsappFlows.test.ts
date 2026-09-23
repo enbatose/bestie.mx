@@ -81,6 +81,42 @@ describe("WhatsApp bot flows", () => {
     expect(s?.flow).toBe("idle");
   });
 
+  it("opens the main menu for CTWA prefills like ¡Hola! Sí. instead of searching", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-ctwa-hola-si`;
+    await processWhatsAppUserInput(db, psid, FROM, { text: "¡Hola! Sí." }, sink);
+    expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
+    expect(texts.some((t) => /Estoy armando tu b[uú]squeda|Encontr[eé]/.test(t))).toBe(false);
+    expect(getWhatsAppChat(db, psid)?.flow).toBe("idle");
+  });
+
+  it("opens the main menu for Meta ad referrals even with a shared post caption", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-ctwa-referral`;
+    await processWhatsAppUserInput(
+      db,
+      psid,
+      FROM,
+      {
+        fromAdReferral: true,
+        text:
+          "¡Hola! Sí.\nhttps://www.instagram.com/p/abc123/\nBestie es la plataforma local de Guadalajara para roomies y cuartos. Si tienes un cuarto libre, publícalo aquí.",
+      },
+      sink,
+    );
+    expect(texts.some((t) => /¿Qué quieres hacer en Guadalajara\?/.test(t))).toBe(true);
+    expect(texts.some((t) => /Estoy armando tu b[uú]squeda|Encontr[eé]/.test(t))).toBe(false);
+  });
+
+  it("still freeform-searches real seeker queries while idle", async () => {
+    const { sink, texts } = capturingSink();
+    const psid = `${PSID}-real-search`;
+    await processWhatsAppUserInput(db, psid, FROM, { text: "cuarto en centro hasta 7000" }, sink);
+    expect(texts.some((t) => /Estoy armando tu b[uú]squeda|Encontr[eé]|Cuarto Centro/.test(t))).toBe(
+      true,
+    );
+  });
+
   it("returns matches on the zone tap, without a budget or preference interview", async () => {
     const { sink, texts } = capturingSink();
     const psid = `${PSID}-search`;

@@ -104,4 +104,47 @@ describe("whatsapp webhook", () => {
     const s = getMessengerChat(db, whatsappSessionId("5213318632070"));
     expect(s?.flow).toBe("idle");
   });
+
+  it("routes Click-to-WhatsApp ad referrals to the idle menu session", async () => {
+    const payload = JSON.stringify({
+      object: "whatsapp_business_account",
+      entry: [
+        {
+          changes: [
+            {
+              field: "messages",
+              value: {
+                metadata: { phone_number_id: "phone-prod" },
+                messages: [
+                  {
+                    id: "wamid.ctwa.referral.1",
+                    from: "5213319998877",
+                    type: "text",
+                    text: { body: "¡Hola! Sí." },
+                    referral: {
+                      source_type: "ad",
+                      source_id: "123",
+                      source_url: "https://fb.me/xyz",
+                      ctwa_clid: "clid-test",
+                      body: "Bestie es la plataforma local de Guadalajara para roomies y cuartos",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const sig = createHmac("sha256", secret).update(payload).digest("hex");
+    await request(app)
+      .post("/api/whatsapp/webhook")
+      .set("Content-Type", "application/json")
+      .set("X-Hub-Signature-256", `sha256=${sig}`)
+      .send(payload)
+      .expect(200);
+
+    const s = getMessengerChat(db, whatsappSessionId("5213319998877"));
+    expect(s?.flow).toBe("idle");
+  });
 });

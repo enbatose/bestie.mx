@@ -50,6 +50,7 @@ type WaMessage = {
   type?: string;
   timestamp?: string | number;
   text?: { body?: string };
+  button?: { text?: string; payload?: string };
   image?: { id?: string; caption?: string };
   document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
   location?: { latitude?: number; longitude?: number; name?: string; address?: string };
@@ -58,7 +59,24 @@ type WaMessage = {
     button_reply?: { id?: string };
     list_reply?: { id?: string };
   };
+  /** Click-to-WhatsApp / entry-point ads attach this on the first inbound message. */
+  referral?: {
+    source_type?: string;
+    source_id?: string;
+    source_url?: string;
+    body?: string;
+    headline?: string;
+    ctwa_clid?: string;
+  };
 };
+
+function isAdReferral(msg: WaMessage): boolean {
+  const r = msg.referral;
+  if (!r || typeof r !== "object") return false;
+  if (typeof r.ctwa_clid === "string" && r.ctwa_clid.trim()) return true;
+  const source = (r.source_type ?? "").toLowerCase();
+  return source === "ad" || source === "post" || source === "story" || source === "product";
+}
 
 function interactivePayload(msg: WaMessage): string | null {
   const id = msg.interactive?.button_reply?.id ?? msg.interactive?.list_reply?.id;
@@ -171,9 +189,19 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
             const button = interactivePayload(msg);
             const lat = Number(msg.location?.latitude);
             const lng = Number(msg.location?.longitude);
+            const textBody =
+              msg.type === "text" && typeof msg.text?.body === "string"
+                ? msg.text.body
+                : msg.type === "button" && typeof msg.button?.text === "string"
+                  ? msg.button.text
+                  : undefined;
+            const adReferral = isAdReferral(msg);
             const handledType =
               Boolean(button) ||
+              Boolean(textBody) ||
+              adReferral ||
               msg.type === "text" ||
+              msg.type === "button" ||
               msg.type === "location" ||
               (Number.isFinite(lat) && Number.isFinite(lng));
             if (!handledType) continue;
@@ -186,7 +214,8 @@ export function whatsappWebhookPost(db: DatabaseSync, opts: WhatsAppWebhookOptio
                 from,
                 {
                   ...(button ? { quickReplyPayload: button } : {}),
-                  ...(msg.type === "text" && typeof msg.text?.body === "string" ? { text: msg.text.body } : {}),
+                  ...(textBody != null ? { text: textBody } : {}),
+                  ...(adReferral ? { fromAdReferral: true } : {}),
                   ...(Number.isFinite(lat) && Number.isFinite(lng)
                     ? {
                         location: {
